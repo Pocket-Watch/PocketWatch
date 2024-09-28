@@ -41,17 +41,18 @@ async function sendAsync(request) {
 }
 
 function stopButton() {
-    let request= newPost("/watch/stop")
+    let request= newPost("/watch/pause")
     sendAsync(request).then(function(res) {
-        console.log(res);
+        console.log("Sending stop ", res);
     });
+
     video.pause();
 }
 
 function startButton() {
     let request= newPost("/watch/start")
     sendAsync(request).then(function(res) {
-        console.log(res);
+        console.log("Sending start ", res);
     });
     video.play();
 }
@@ -70,3 +71,25 @@ class AtomicBoolean {
         return Atomics.load(this.byte, 0) === 1;
     }
 }
+
+function main() {
+    let eventSource = new EventSource("/watch/events");
+
+    eventSource.addEventListener("start", function (event) {
+        console.log("Video state: PLAYING")
+        video.play()
+    })
+    eventSource.addEventListener("pause", function (event) {
+        console.log("Video state: PAUSED")
+        video.pause()
+    })
+
+    eventSource.onmessage = function(event) {
+        console.log("event.data: ", event.lastEventId);
+        console.log("event.data: ", event.data);
+    };
+
+
+}
+
+main();

@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"sync/atomic"
+	"time"
 )
 
 var ANNOUNCE_RECEIVED = true
@@ -59,8 +60,9 @@ func registerEndpoints(options *Options) {
 
 	http.HandleFunc("/watch/get", watchGet)
 	http.HandleFunc("/watch/set", watchSet)
-	http.HandleFunc("/watch/stop", watchStop)
+	http.HandleFunc("/watch/pause", watchPause)
 	http.HandleFunc("/watch/start", watchStart)
+	http.HandleFunc("/watch/events", watchEvents)
 }
 
 func getRoot(w http.ResponseWriter, r *http.Request) {
@@ -111,13 +113,47 @@ func watchStart(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, "<p> at /watchStart endpoint!\n</p>")
 }
 
-func watchStop(w http.ResponseWriter, r *http.Request) {
+func watchPause(w http.ResponseWriter, r *http.Request) {
 	state.playing.Swap(false)
 	if r.Method != "POST" {
 		return
 	}
-	print("watchStop was called")
-	io.WriteString(w, "<p> at /watchStop endpoint!\n</p>")
+	print("watchPause was called")
+	io.WriteString(w, "<p> at /watchPause endpoint!\n</p>")
+}
+
+var eventID = 0
+
+func watchEvents(w http.ResponseWriter, r *http.Request) {
+	// Set headers for SSE
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	retry := 5000 // Retry time in milliseconds
+	eventID++
+	for {
+		var msgType string
+		if state.playing.Load() {
+			msgType = "start"
+		} else {
+			msgType = "pause"
+		}
+		fmt.Fprintln(w, "id:", eventID)
+		fmt.Fprintln(w, "event:", msgType)
+		fmt.Fprintln(w, "data:", "This is a test message")
+		fmt.Fprintln(w, "retry:", retry)
+		fmt.Fprintln(w)
+
+		// Flush the response to ensure the client receives the event
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
+		}
+
+		// Increment event ID and wait before sending the next event
+		eventID++
+		time.Sleep(2 * time.Second)
+	}
 }
 
 func print(endpoint string) {
