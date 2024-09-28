@@ -45,7 +45,6 @@ function stopButton() {
     sendAsync(request).then(function(res) {
         console.log("Sending stop ", res);
     });
-
     video.pause();
 }
 
@@ -88,7 +87,6 @@ function main() {
         console.log("event.data: ", event.lastEventId);
         console.log("event.data: ", event.data);
     };
-
 
 }
 
