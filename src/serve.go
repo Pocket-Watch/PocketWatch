@@ -110,7 +110,7 @@ func watchStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, eWriter := range eventWriters.slice {
-		writeEvent(eWriter, true)
+		writeEvent(eWriter, true, true)
 	}
 	print("watchStart was called")
 	io.WriteString(w, "<p> at /watchStart endpoint!\n</p>")
@@ -122,7 +122,7 @@ func watchPause(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, eWriter := range eventWriters.slice {
-		writeEvent(eWriter, false)
+		writeEvent(eWriter, false, true)
 	}
 	print("watchPause was called")
 	io.WriteString(w, "<p> at /watchPause endpoint!\n</p>")
@@ -141,23 +141,30 @@ func watchEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 
 	for {
-		writeEvent(w, state.playing.Load())
+		writeEvent(w, state.playing.Load(), false)
 
 		time.Sleep(2 * time.Second)
 	}
 }
 
-func writeEvent(writer http.ResponseWriter, playing bool) {
-	var msgType string
+func writeEvent(writer http.ResponseWriter, playing bool, haste bool) {
+	var eventType string
 	if playing {
-		msgType = "start"
+		eventType = "start"
 	} else {
-		msgType = "pause"
+		eventType = "pause"
+	}
+
+	var priority string
+	if haste {
+		priority = "HASTY"
+	} else {
+		priority = "LAZY"
 	}
 
 	fmt.Fprintln(writer, "id:", eventID)
-	fmt.Fprintln(writer, "event:", msgType)
-	fmt.Fprintln(writer, "data:", "This is a test message")
+	fmt.Fprintln(writer, "event:", eventType)
+	fmt.Fprintln(writer, "data:", priority)
 	fmt.Fprintln(writer, "retry:", retry)
 	fmt.Fprintln(writer)
 

@@ -75,11 +75,11 @@ function main() {
     let eventSource = new EventSource("/watch/events");
 
     eventSource.addEventListener("start", function (event) {
-        console.log("Video state: PLAYING")
+        console.log("Video state: PLAYING, PRIORITY:", event.data);
         video.play()
     })
     eventSource.addEventListener("pause", function (event) {
-        console.log("Video state: PAUSED")
+        console.log("Video state: PAUSED, PRIORITY:", event.data);
         video.pause()
     })
 
