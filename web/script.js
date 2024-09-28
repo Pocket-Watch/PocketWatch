@@ -45,7 +45,7 @@ function stopButton() {
     sendAsync(request).then(function(res) {
         console.log("Sending stop ", res);
     });
-    video.pause();
+    fluidPlayer.pause();
 }
 
 function startButton() {
@@ -53,7 +53,7 @@ function startButton() {
     sendAsync(request).then(function(res) {
         console.log("Sending start ", res);
     });
-    video.play();
+    fluidPlayer.play();
 }
 
 class AtomicBoolean {
@@ -76,17 +76,26 @@ function main() {
 
     eventSource.addEventListener("start", function (event) {
         console.log("Video state: PLAYING, PRIORITY:", event.data);
-        video.play()
+        fluidPlayer.play()
     })
     eventSource.addEventListener("pause", function (event) {
         console.log("Video state: PAUSED, PRIORITY:", event.data);
-        video.pause()
+        fluidPlayer.pause()
     })
+
+    fluidPlayer.on('play', function() {
+        startButton()
+    });
+
+    fluidPlayer.on('pause', function() {
+        stopButton()
+    });
 
     eventSource.onmessage = function(event) {
         console.log("event.data: ", event.lastEventId);
         console.log("event.data: ", event.data);
     };
+
 
 }
 
