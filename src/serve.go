@@ -60,6 +60,9 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/favicon.ico", serveFavicon)
 	http.HandleFunc("/under_construction.png", serveConstruction)
 
+	http.HandleFunc("/version", versionGet)
+	http.HandleFunc("/login", login)
+
 	http.HandleFunc("/watch/get", watchGet)
 	http.HandleFunc("/watch/set", watchSet)
 	http.HandleFunc("/watch/pause", watchPause)
@@ -94,6 +97,16 @@ func serveFavicon(w http.ResponseWriter, r *http.Request) {
 func serveConstruction(w http.ResponseWriter, r *http.Request) {
 	print("under_construction.png was requested.")
 	http.ServeFile(w, r, CONSTRUCTION)
+}
+
+func versionGet(w http.ResponseWriter, r *http.Request) {
+	print("version was requested.")
+	io.WriteString(w, VERSION)
+}
+
+func login(w http.ResponseWriter, r *http.Request) {
+	print("login was attempted.")
+	io.WriteString(w, "This is unimplemented")
 }
 
 func watchGet(w http.ResponseWriter, r *http.Request) {
