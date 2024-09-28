@@ -3,5 +3,6 @@ web/favicon.ico
 web/fluid_player.js
 web/media/**
 build/**
+secret/**
 
 *.exe

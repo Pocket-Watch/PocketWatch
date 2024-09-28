@@ -2,14 +2,17 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	_ "os"
+	"os"
 	"strconv"
 	"sync/atomic"
 	"time"
 )
+
+const ENABLE_SSL = false
 
 var ANNOUNCE_RECEIVED = true
 
@@ -24,8 +27,29 @@ func StartServer(options *Options) {
 
 	var address = options.Address + ":" + strconv.Itoa(int(options.Port))
 	fmt.Println("HOSTING SERVER ON", address)
-	if err := http.ListenAndServe(address, nil); err != nil {
-		fmt.Printf("Error starting server: %v\n", err)
+
+	const CERT = "./secret/certificate.pem"
+	const PRIV_KEY = "./secret/privatekey.pem"
+
+	_, err_cert := os.Stat(CERT)
+	_, err_priv := os.Stat(PRIV_KEY)
+
+	missing_ssl_keys := errors.Is(err_priv, os.ErrNotExist) || errors.Is(err_cert, os.ErrNotExist)
+
+	if ENABLE_SSL && missing_ssl_keys {
+		fmt.Println("ERROR: Failed to find either SSL certificate or the private key.")
+	}
+
+	var server_start_error error
+	if !ENABLE_SSL || missing_ssl_keys {
+		fmt.Println("WARNING: Server is running in unencrypted http mode.")
+		server_start_error = http.ListenAndServe(address, nil)
+	} else {
+		server_start_error = http.ListenAndServeTLS(address, CERT, PRIV_KEY, nil)
+	}
+
+	if server_start_error != nil {
+		fmt.Printf("Error starting server: %v\n", server_start_error)
 	}
 }
 
