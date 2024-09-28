@@ -11,10 +11,10 @@ import (
 
 var ANNOUNCE_RECEIVED = true
 
-const INDEX_HTMl      = "res/index.html"
-const SCRIPT_JS       = "res/script.js"
-const FLUID_PLAYER_JS = "res/fluid_player.js"
-const FAVICON         = "res/favicon.ico"
+const INDEX_HTMl = "web/index.html"
+const SCRIPT_JS = "web/script.js"
+const FLUID_PLAYER_JS = "web/fluid_player.js"
+const FAVICON = "web/favicon.ico"
 
 var html = "The main page hasn't loaded yet!"
 var script = "Script hasn't loaded yet!"
@@ -51,14 +51,15 @@ func loadResources() {
 
 func registerEndpoints(options *Options) {
 	http.HandleFunc("/", getRoot)
+	http.HandleFunc("/index.html", getRoot)
 
-	http.HandleFunc("/" + SCRIPT_JS,       serveScript)
-	http.HandleFunc("/" + FLUID_PLAYER_JS, servePlayer)
-	http.HandleFunc("/" + FAVICON,         serveFavicon)
+	http.HandleFunc("/script.js", serveScript)
+	http.HandleFunc("/fluid_player.js", servePlayer)
+	http.HandleFunc("/favicon.ico", serveFavicon)
 
-	http.HandleFunc("/watch/get",   watchGet)
-	http.HandleFunc("/watch/set",   watchSet)
-	http.HandleFunc("/watch/stop",  watchStop)
+	http.HandleFunc("/watch/get", watchGet)
+	http.HandleFunc("/watch/set", watchSet)
+	http.HandleFunc("/watch/stop", watchStop)
 	http.HandleFunc("/watch/start", watchStart)
 }
 

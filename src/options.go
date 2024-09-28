@@ -28,6 +28,7 @@ func FromArgs() Options {
 		flag := args[i][1:]
 		switch value := args[i+1]; flag {
 		case "port":
+			fallthrough
 		case "p":
 			port, err := strconv.Atoi(value)
 			if err != nil {

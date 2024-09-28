@@ -1,5 +1,7 @@
 .idea
-res/favicon.ico
-res/fluid_player.js
-res/media/**
+web/favicon.ico
+web/fluid_player.js
+web/media/**
 build/**
+
+*.exe
