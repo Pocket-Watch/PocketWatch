@@ -37,8 +37,7 @@ func FromArgs() Options {
 			}
 			settings.Port = uint16(port)
 			i++
-		case "address":
-		case "ip":
+		case "address", "addr", "ip":
 			settings.Address = value
 		}
 
