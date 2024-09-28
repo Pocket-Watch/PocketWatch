@@ -128,10 +128,9 @@ func watchPause(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, "<p> at /watchPause endpoint!\n</p>")
 }
 
-var eventID = 1
 var eventWriters = CreateEventWriters()
 
-var retry = 5000 // Retry time in milliseconds
+var RETRY = 5000 // Retry time in milliseconds
 
 func watchEvents(w http.ResponseWriter, r *http.Request) {
 	eventWriters.Add(w)
@@ -162,10 +161,10 @@ func writeEvent(writer http.ResponseWriter, playing bool, haste bool) {
 		priority = "LAZY"
 	}
 
-	fmt.Fprintln(writer, "id:", eventID)
+	fmt.Fprintln(writer, "id:", state.eventId)
 	fmt.Fprintln(writer, "event:", eventType)
 	fmt.Fprintln(writer, "data:", priority)
-	fmt.Fprintln(writer, "retry:", retry)
+	fmt.Fprintln(writer, "retry:", RETRY)
 	fmt.Fprintln(writer)
 
 	// Flush the response to ensure the client receives the event
@@ -174,7 +173,7 @@ func writeEvent(writer http.ResponseWriter, playing bool, haste bool) {
 	}
 
 	// Increment event ID and wait before sending the next event
-	eventID++
+	state.eventId++
 }
 
 func print(endpoint string) {
@@ -186,6 +185,7 @@ func print(endpoint string) {
 
 type State struct {
 	playing atomic.Bool
+	eventId uint64
 }
 
 type EventWriters struct {

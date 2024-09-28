@@ -40,20 +40,24 @@ async function sendAsync(request) {
     }));
 }
 
-function stopButton() {
+function stopButton(fromHtml) {
     let request= newPost("/watch/pause")
     sendAsync(request).then(function(res) {
         console.log("Sending stop ", res);
     });
-    fluidPlayer.pause();
+    if (fromHtml) {
+        fluidPlayer.pause();
+    }
 }
 
-function startButton() {
+function startButton(fromHtml) {
     let request= newPost("/watch/start")
     sendAsync(request).then(function(res) {
         console.log("Sending start ", res);
     });
-    fluidPlayer.play();
+    if (fromHtml) {
+        fluidPlayer.play();
+    }
 }
 
 class AtomicBoolean {
@@ -84,12 +88,17 @@ function main() {
     })
 
     fluidPlayer.on('play', function() {
-        startButton()
+        startButton(false)
     });
 
     fluidPlayer.on('pause', function() {
-        stopButton()
+        stopButton(false)
     });
+
+    /*fluidPlayer.on('seeked', function(additionalInfo){
+        console.log("seeked triggered");
+        console.log(additionalInfo)
+    });*/
 
     eventSource.onmessage = function(event) {
         console.log("event.data: ", event.lastEventId);
