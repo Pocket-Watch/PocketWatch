@@ -1,4 +1,4 @@
-package serve
+package main
 
 import (
 	"fmt"
@@ -7,15 +7,14 @@ import (
 	"os"
 	"strconv"
 	"sync/atomic"
-	"watchlocally/opt"
 )
 
 var ANNOUNCE_RECEIVED = true
 
-const INDEX_HTMl = "index.html"
-const SCRIPT_JS = "script.js"
-const FLUID_PLAYER_JS = "fluid_player.js"
-const FAVICON = "favicon.ico"
+const INDEX_HTMl      = "res/index.html"
+const SCRIPT_JS       = "res/script.js"
+const FLUID_PLAYER_JS = "res/fluid_player.js"
+const FAVICON         = "res/favicon.ico"
 
 var html = "The main page hasn't loaded yet!"
 var script = "Script hasn't loaded yet!"
@@ -23,7 +22,7 @@ var media = http.FileServer(http.Dir("media"))
 
 var state = State{}
 
-func StartServer(options *opt.Options) {
+func StartServer(options *Options) {
 	registerEndpoints(options)
 
 	var address = options.Address + ":" + strconv.Itoa(int(options.Port))
@@ -50,15 +49,16 @@ func loadResources() {
 	script = string(scriptBytes)
 }
 
-func registerEndpoints(options *opt.Options) {
+func registerEndpoints(options *Options) {
 	http.HandleFunc("/", getRoot)
-	http.HandleFunc("/"+SCRIPT_JS, serveScript)
-	http.HandleFunc("/"+FLUID_PLAYER_JS, servePlayer)
-	http.HandleFunc("/"+FAVICON, serveFavicon)
 
-	http.HandleFunc("/watch/get", watchGet)
-	http.HandleFunc("/watch/set", watchSet)
-	http.HandleFunc("/watch/stop", watchStop)
+	http.HandleFunc("/" + SCRIPT_JS,       serveScript)
+	http.HandleFunc("/" + FLUID_PLAYER_JS, servePlayer)
+	http.HandleFunc("/" + FAVICON,         serveFavicon)
+
+	http.HandleFunc("/watch/get",   watchGet)
+	http.HandleFunc("/watch/set",   watchSet)
+	http.HandleFunc("/watch/stop",  watchStop)
 	http.HandleFunc("/watch/start", watchStart)
 }
 

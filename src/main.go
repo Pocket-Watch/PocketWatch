@@ -3,17 +3,15 @@ package main
 import (
 	"fmt"
 	"os"
-	"watchlocally/opt"
-	"watchlocally/serve"
 )
 
 func main() {
 	args := os.Args[1:]
 	if len(args) <= 1 {
-		opt.DisplayHelp()
+		DisplayHelp()
 		return
 	}
-	options := opt.FromArgs()
+	options := FromArgs()
 	fmt.Println("port =", options.Port)
-	serve.StartServer(&options)
+	StartServer(&options)
 }

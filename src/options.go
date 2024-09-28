@@ -1,4 +1,4 @@
-package opt
+package main
 
 import (
 	"fmt"
@@ -14,7 +14,7 @@ type Options struct {
 }
 
 func Defaults() Options {
-	return Options{"localhost", 443}
+	return Options{"localhost", 1234}
 }
 
 func FromArgs() Options {
