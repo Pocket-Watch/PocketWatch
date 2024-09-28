@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -38,6 +39,7 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/watch/get", watchGet)
 	http.HandleFunc("/watch/set", watchSet)
 	http.HandleFunc("/watch/pause", watchPause)
+	http.HandleFunc("/watch/seek", watchSeek)
 	http.HandleFunc("/watch/start", watchStart)
 	http.HandleFunc("/watch/events", watchEvents)
 }
@@ -67,27 +69,66 @@ func watchSet(w http.ResponseWriter, r *http.Request) {
 }
 
 func watchStart(w http.ResponseWriter, r *http.Request) {
-	state.playing.Swap(true)
 	if r.Method != "POST" {
+		return
+	}
+	state.playing.Swap(true)
+	if !readEventAndUpdateState(w, r) {
 		return
 	}
 	for _, eWriter := range eventWriters.slice {
 		writeEvent(eWriter, true, true)
 	}
 	print("watchStart was called")
-	io.WriteString(w, "<p> at /watchStart endpoint!\n</p>")
+	io.WriteString(w, "Broadcasting start!\n")
 }
 
 func watchPause(w http.ResponseWriter, r *http.Request) {
-	state.playing.Swap(false)
 	if r.Method != "POST" {
+		return
+	}
+	state.playing.Swap(false)
+	if !readEventAndUpdateState(w, r) {
 		return
 	}
 	for _, eWriter := range eventWriters.slice {
 		writeEvent(eWriter, false, true)
 	}
 	print("watchPause was called")
-	io.WriteString(w, "<p> at /watchPause endpoint!\n</p>")
+	io.WriteString(w, "Broadcasting pause!\n")
+}
+
+func watchSeek(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+	if !readEventAndUpdateState(w, r) {
+		return
+	}
+	// this needs a rewrite: /pause /start /seek - a unified format way of
+	print("watchSeek was called")
+	io.WriteString(w, "SEEK CALLED!\n")
+}
+
+func readEventAndUpdateState(w http.ResponseWriter, r *http.Request) bool {
+	// Read the request body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return false
+	}
+	defer r.Body.Close()
+
+	// Unmarshal the JSON data
+	var sync SyncEventFromUser
+	err = json.Unmarshal(body, &sync)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return false
+	}
+	state.timestamp = sync.Timestamp
+	state.lastTimeUpdate = time.Now()
+	return true
 }
 
 var eventWriters = CreateEventWriters()
@@ -123,9 +164,30 @@ func writeEvent(writer http.ResponseWriter, playing bool, haste bool) {
 		priority = "LAZY"
 	}
 
+	var syncEvent SyncEventForUser
+	// this needs to be reviewed
+	if state.playing.Load() {
+		now := time.Now()
+		diff := now.Sub(state.lastTimeUpdate)
+		syncEvent = SyncEventForUser{
+			Timestamp: state.timestamp + diff.Seconds(),
+			Priority:  priority,
+		}
+	} else {
+		syncEvent = SyncEventForUser{
+			Timestamp: state.timestamp,
+			Priority:  priority,
+		}
+	}
+	jsonData, err := json.Marshal(syncEvent)
+	if err != nil {
+		fmt.Println("Failed to serialize sync event")
+	}
+	eventData := string(jsonData)
+
 	fmt.Fprintln(writer, "id:", state.eventId)
 	fmt.Fprintln(writer, "event:", eventType)
-	fmt.Fprintln(writer, "data:", priority)
+	fmt.Fprintln(writer, "data:", eventData)
 	fmt.Fprintln(writer, "retry:", RETRY)
 	fmt.Fprintln(writer)
 
@@ -146,8 +208,11 @@ func print(endpoint string) {
 }
 
 type State struct {
-	playing atomic.Bool
-	eventId uint64
+	playing        atomic.Bool
+	timestamp      float64
+	url            string
+	eventId        uint64
+	lastTimeUpdate time.Time
 }
 
 type EventWriters struct {
@@ -162,4 +227,14 @@ func CreateEventWriters() EventWriters {
 	writers := EventWriters{}
 	writers.slice = make([]http.ResponseWriter, 0)
 	return writers
+}
+
+type SyncEventForUser struct {
+	Timestamp float64 `json:"timestamp"`
+	Priority  string  `json:"priority"`
+}
+
+type SyncEventFromUser struct {
+	Timestamp float64 `json:"timestamp"`
+	UUID      string  `json:"uuid"`
 }

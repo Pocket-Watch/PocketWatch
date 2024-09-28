@@ -36,7 +36,8 @@ function newPost(endpoint) {
 
 async function sendAsync(request) {
     request.send(JSON.stringify({
-        uuid: "4613443434343"
+        uuid: "4613443434343",
+        timestamp: video.currentTime
     }));
 }
 
@@ -78,12 +79,29 @@ class AtomicBoolean {
 function main() {
     let eventSource = new EventSource("/watch/events");
 
+    let DELTA = 1.5;
     eventSource.addEventListener("start", function (event) {
-        console.log("Video state: PLAYING, PRIORITY:", event.data);
+        let jsonData = JSON.parse(event.data)
+        let timestamp = jsonData["timestamp"]
+        console.log("Video state: PLAYING, PRIORITY:", jsonData["priority"], "Timestamp:", timestamp);
+        let deSync = timestamp - video.currentTime
+        console.log("Your deSync: ", deSync)
+        if (DELTA < Math.abs(deSync)) {
+            console.log("EXCEEDED DELTA=", DELTA, " resyncing!")
+            fluidPlayer.skipTo(timestamp)
+        }
         fluidPlayer.play()
     })
     eventSource.addEventListener("pause", function (event) {
-        console.log("Video state: PAUSED, PRIORITY:", event.data);
+        let jsonData = JSON.parse(event.data)
+        let timestamp = jsonData["timestamp"]
+        console.log("Video state: PAUSED, PRIORITY:", jsonData["priority"], "Timestamp:", timestamp);
+        let deSync = timestamp - video.currentTime
+        console.log("Your deSync: ", deSync)
+        if (DELTA < Math.abs(deSync)) {
+            console.log("EXCEEDED DELTA=", DELTA, " resyncing!")
+            fluidPlayer.skipTo(timestamp)
+        }
         fluidPlayer.pause()
     })
 
@@ -95,17 +113,20 @@ function main() {
         stopButton(false)
     });
 
-    /*fluidPlayer.on('seeked', function(additionalInfo){
-        console.log("seeked triggered");
-        console.log(additionalInfo)
-    });*/
+    fluidPlayer.on('seeked', function(){
+        console.log("seeked, currentTime", video.currentTime);
+        let request= newPost("/watch/seek")
+        sendAsync(request).then(function(res) {
+            console.log("Sending seek ", res);
+        });
+    });
 
     eventSource.onmessage = function(event) {
         console.log("event.data: ", event.lastEventId);
         console.log("event.data: ", event.data);
     };
 
-
 }
+
 
 main();
