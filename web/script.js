@@ -18,6 +18,9 @@ var fluidPlayer = fluidPlayer('player', {
 });
 
 video = document.getElementById("player");
+vidSource = document.querySelector("source");
+
+input = document.getElementById("user_url");
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -34,16 +37,23 @@ function newPost(endpoint) {
     return req;
 }
 
-async function sendAsync(request) {
+async function sendSyncEventAsync(request) {
     request.send(JSON.stringify({
         uuid: "4613443434343",
         timestamp: video.currentTime
     }));
 }
 
+async function sendSetAsync(request, url) {
+    request.send(JSON.stringify({
+        uuid: "4613443434343",
+        url: url
+    }));
+}
+
 function stopButton(fromHtml) {
     let request= newPost("/watch/pause")
-    sendAsync(request).then(function(res) {
+    sendSyncEventAsync(request).then(function(res) {
         console.log("Sending stop ", res);
     });
     if (fromHtml) {
@@ -53,12 +63,20 @@ function stopButton(fromHtml) {
 
 function startButton(fromHtml) {
     let request= newPost("/watch/start")
-    sendAsync(request).then(function(res) {
+    sendSyncEventAsync(request).then(function(res) {
         console.log("Sending start ", res);
     });
     if (fromHtml) {
         fluidPlayer.play();
     }
+}
+
+function setButton() {
+    let request= newPost("/watch/set")
+    console.log("CURRENT VALUE: ", input.value)
+    sendSetAsync(request, input.value).then(function(res) {
+        console.log("Sending set ", res);
+    });
 }
 
 class AtomicBoolean {
@@ -105,6 +123,13 @@ function main() {
         fluidPlayer.pause()
     })
 
+    eventSource.addEventListener("set", function (event) {
+        let jsonData = JSON.parse(event.data)
+        let url = jsonData["url"]
+        console.log("RECEIVED SET CHANGING URL:", url)
+        vidSource.setAttribute("src", url);
+    })
+
     fluidPlayer.on('play', function() {
         startButton(false)
     });
@@ -116,7 +141,7 @@ function main() {
     fluidPlayer.on('seeked', function(){
         console.log("seeked, currentTime", video.currentTime);
         let request= newPost("/watch/seek")
-        sendAsync(request).then(function(res) {
+        sendSyncEventAsync(request).then(function(res) {
             console.log("Sending seek ", res);
         });
     });

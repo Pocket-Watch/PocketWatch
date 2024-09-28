@@ -89,7 +89,13 @@ func watchSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	print("watchSet was called")
-	io.WriteString(w, "<p> at /watchSet endpoint!\n</p>")
+	if !readSetEventAndUpdateState(w, r) {
+		return
+	}
+	for _, eWriter := range eventWriters.slice {
+		writeSetEvent(eWriter)
+	}
+	io.WriteString(w, "Setting url!")
 }
 
 func watchStart(w http.ResponseWriter, r *http.Request) {
@@ -101,7 +107,7 @@ func watchStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, eWriter := range eventWriters.slice {
-		writeEvent(eWriter, true, true)
+		writeSyncEvent(eWriter, true, true)
 	}
 	print("watchStart was called")
 	io.WriteString(w, "Broadcasting start!\n")
@@ -116,7 +122,7 @@ func watchPause(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, eWriter := range eventWriters.slice {
-		writeEvent(eWriter, false, true)
+		writeSyncEvent(eWriter, false, true)
 	}
 	print("watchPause was called")
 	io.WriteString(w, "Broadcasting pause!\n")
@@ -154,6 +160,28 @@ func readEventAndUpdateState(w http.ResponseWriter, r *http.Request) bool {
 	state.lastTimeUpdate = time.Now()
 	return true
 }
+func readSetEventAndUpdateState(w http.ResponseWriter, r *http.Request) bool {
+	// Read the request body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return false
+	}
+	defer r.Body.Close()
+
+	// Unmarshal the JSON data
+	var setEvent SetEventFromUser
+	err = json.Unmarshal(body, &setEvent)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return false
+	}
+	state.timestamp = 0
+	state.url = setEvent.Url
+	print(state.url)
+	state.playing.Swap(false)
+	return true
+}
 
 var eventWriters = CreateEventWriters()
 
@@ -167,13 +195,13 @@ func watchEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 
 	for {
-		writeEvent(w, state.playing.Load(), false)
+		writeSyncEvent(w, state.playing.Load(), false)
 
 		time.Sleep(2 * time.Second)
 	}
 }
 
-func writeEvent(writer http.ResponseWriter, playing bool, haste bool) {
+func writeSyncEvent(writer http.ResponseWriter, playing bool, haste bool) {
 	var eventType string
 	if playing {
 		eventType = "start"
@@ -224,6 +252,23 @@ func writeEvent(writer http.ResponseWriter, playing bool, haste bool) {
 	state.eventId++
 }
 
+func writeSetEvent(writer http.ResponseWriter) {
+
+	fmt.Fprintln(writer, "id:", state.eventId)
+	fmt.Fprintln(writer, "event: set")
+	fmt.Fprintln(writer, "data:", "{\"url\":\""+state.url+"\"}")
+	fmt.Fprintln(writer, "retry:", RETRY)
+	fmt.Fprintln(writer)
+
+	// Flush the response to ensure the client receives the event
+	if f, ok := writer.(http.Flusher); ok {
+		f.Flush()
+	}
+
+	// Increment event ID and wait before sending the next event
+	state.eventId++
+}
+
 func print(endpoint string) {
 	if !ANNOUNCE_RECEIVED {
 		return
@@ -261,4 +306,9 @@ type SyncEventForUser struct {
 type SyncEventFromUser struct {
 	Timestamp float64 `json:"timestamp"`
 	UUID      string  `json:"uuid"`
+}
+
+type SetEventFromUser struct {
+	UUID string `json:"uuid"`
+	Url  string `json:"url"`
 }
