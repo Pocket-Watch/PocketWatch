@@ -1,0 +1,5 @@
+.idea
+*.exe
+media
+*.ico
+fluid_player.js
