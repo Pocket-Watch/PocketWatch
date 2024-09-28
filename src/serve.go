@@ -16,6 +16,7 @@ const INDEX_HTMl = "web/index.html"
 const SCRIPT_JS = "web/script.js"
 const FLUID_PLAYER_JS = "web/fluid_player.js"
 const FAVICON = "web/favicon.ico"
+const CONSTRUCTION = "web/under_construction.png"
 
 var html = "The main page hasn't loaded yet!"
 var script = "Script hasn't loaded yet!"
@@ -57,6 +58,7 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/script.js", serveScript)
 	http.HandleFunc("/fluid_player.js", servePlayer)
 	http.HandleFunc("/favicon.ico", serveFavicon)
+	http.HandleFunc("/under_construction.png", serveConstruction)
 
 	http.HandleFunc("/watch/get", watchGet)
 	http.HandleFunc("/watch/set", watchSet)
@@ -88,6 +90,10 @@ func servePlayer(w http.ResponseWriter, r *http.Request) {
 func serveFavicon(w http.ResponseWriter, r *http.Request) {
 	print("favicon.ico was requested.")
 	http.ServeFile(w, r, FAVICON)
+}
+func serveConstruction(w http.ResponseWriter, r *http.Request) {
+	print("under_construction.png was requested.")
+	http.ServeFile(w, r, CONSTRUCTION)
 }
 
 func watchGet(w http.ResponseWriter, r *http.Request) {
