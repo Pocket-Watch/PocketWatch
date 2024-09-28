@@ -4,19 +4,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
+	_ "os"
 	"strconv"
 	"sync/atomic"
 	"time"
 )
 
 var ANNOUNCE_RECEIVED = true
-
-const INDEX_HTMl = "web/index.html"
-const SCRIPT_JS = "web/script.js"
-const FLUID_PLAYER_JS = "web/fluid_player.js"
-const FAVICON = "web/favicon.ico"
-const CONSTRUCTION = "web/under_construction.png"
 
 var html = "The main page hasn't loaded yet!"
 var script = "Script hasn't loaded yet!"
@@ -29,36 +23,14 @@ func StartServer(options *Options) {
 
 	var address = options.Address + ":" + strconv.Itoa(int(options.Port))
 	fmt.Println("HOSTING SERVER ON", address)
-	loadResources()
 	if err := http.ListenAndServe(address, nil); err != nil {
 		fmt.Printf("Error starting server: %v\n", err)
 	}
 }
 
-func loadResources() {
-	htmlBytes, err := os.ReadFile(INDEX_HTMl)
-	if err != nil {
-		fmt.Println("CRITICAL: failed to load index.html")
-		return
-	}
-	html = string(htmlBytes)
-
-	scriptBytes, err := os.ReadFile(SCRIPT_JS)
-	if err != nil {
-		fmt.Println("CRITICAL: failed to load", SCRIPT_JS)
-		return
-	}
-	script = string(scriptBytes)
-}
-
 func registerEndpoints(options *Options) {
-	http.HandleFunc("/", getRoot)
-	http.HandleFunc("/index.html", getRoot)
-
-	http.HandleFunc("/script.js", serveScript)
-	http.HandleFunc("/fluid_player.js", servePlayer)
-	http.HandleFunc("/favicon.ico", serveFavicon)
-	http.HandleFunc("/under_construction.png", serveConstruction)
+	fs := http.FileServer(http.Dir("./web"))
+	http.Handle("/", fs)
 
 	http.HandleFunc("/version", versionGet)
 	http.HandleFunc("/login", login)
@@ -68,35 +40,6 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/watch/pause", watchPause)
 	http.HandleFunc("/watch/start", watchStart)
 	http.HandleFunc("/watch/events", watchEvents)
-}
-
-func getRoot(w http.ResponseWriter, r *http.Request) {
-	if len(r.RequestURI) <= 1 {
-		print("HTML page was requested.")
-		io.WriteString(w, html)
-		return
-	}
-	msg := fmt.Sprintf("Unknown endpoint: %s", r.RequestURI)
-	print(msg)
-	io.WriteString(w, msg)
-}
-
-func serveScript(w http.ResponseWriter, r *http.Request) {
-	print("script.js was requested.")
-	// Preloading page script is essential
-	io.WriteString(w, script)
-}
-func servePlayer(w http.ResponseWriter, r *http.Request) {
-	print("fluid_player.js was requested.")
-	http.ServeFile(w, r, FLUID_PLAYER_JS)
-}
-func serveFavicon(w http.ResponseWriter, r *http.Request) {
-	print("favicon.ico was requested.")
-	http.ServeFile(w, r, FAVICON)
-}
-func serveConstruction(w http.ResponseWriter, r *http.Request) {
-	print("under_construction.png was requested.")
-	http.ServeFile(w, r, CONSTRUCTION)
 }
 
 func versionGet(w http.ResponseWriter, r *http.Request) {
