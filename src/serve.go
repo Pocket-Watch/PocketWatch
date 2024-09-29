@@ -12,8 +12,6 @@ import (
 	"time"
 )
 
-const ENABLE_SSL = false
-
 var ANNOUNCE_RECEIVED = true
 
 var html = "The main page hasn't loaded yet!"
@@ -36,12 +34,12 @@ func StartServer(options *Options) {
 
 	missing_ssl_keys := errors.Is(err_priv, os.ErrNotExist) || errors.Is(err_cert, os.ErrNotExist)
 
-	if ENABLE_SSL && missing_ssl_keys {
+	if options.Ssl && missing_ssl_keys {
 		fmt.Println("ERROR: Failed to find either SSL certificate or the private key.")
 	}
 
 	var server_start_error error
-	if !ENABLE_SSL || missing_ssl_keys {
+	if !options.Ssl || missing_ssl_keys {
 		fmt.Println("WARNING: Server is running in unencrypted http mode.")
 		server_start_error = http.ListenAndServe(address, nil)
 	} else {
