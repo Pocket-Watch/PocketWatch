@@ -19,6 +19,7 @@ var player = fluidPlayer('player', {
         }
     }
 });
+player.setDebug(true)
 
 video = document.getElementById("player");
 vidSource = document.querySelector("source");
@@ -134,10 +135,6 @@ function main() {
         player.pause();
         vidSource.src = url;
         let hls = player.hlsInstance()
-        if (hls == null) {
-            player.instance.hlsPlayer = new Hls();
-            hls = player.hlsInstance()
-        }
         hls.loadSource(url);
     })
 
