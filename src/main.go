@@ -12,6 +12,10 @@ func main() {
 		return
 	}
 	options := FromArgs()
+	if options.Help {
+		DisplayHelp()
+		return
+	}
 	fmt.Println("port =", options.Port)
 	StartServer(&options)
 }

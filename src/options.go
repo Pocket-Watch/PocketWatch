@@ -11,10 +11,12 @@ import (
 type Options struct {
 	Address string
 	Port    uint16
+	Ssl     bool
+	Help    bool
 }
 
 func Defaults() Options {
-	return Options{"localhost", 1234}
+	return Options{"localhost", 1234, false, false}
 }
 
 func FromArgs() Options {
@@ -26,11 +28,11 @@ func FromArgs() Options {
 			continue
 		}
 		flag := args[i][1:]
-		switch value := args[i+1]; flag {
+		switch flag {
 		case "port":
 			fallthrough
 		case "p":
-			port, err := strconv.Atoi(value)
+			port, err := strconv.Atoi(args[i+1])
 			if err != nil {
 				fmt.Println("ERROR:", err.Error())
 				os.Exit(1)
@@ -38,9 +40,12 @@ func FromArgs() Options {
 			settings.Port = uint16(port)
 			i++
 		case "address", "addr", "ip":
-			settings.Address = value
+			settings.Address = args[i+1]
+		case "ssl":
+			settings.Ssl = true
+		case "h", "help":
+			settings.Help = true
 		}
-
 	}
 	return settings
 }
@@ -68,10 +73,15 @@ func DisplayHelp() {
 	fmt.Println("  +----------------------+")
 	fmt.Println()
 	fmt.Println("Usage:")
-	fmt.Println("    ", exe)
+	fmt.Println("    ", exe, "[OPTIONS]")
 	fmt.Println()
 	fmt.Println("Options:")
-	fmt.Println("    -port []   Sets port size (0-65535) (default: 443)")
+	fmt.Println("    -h, -help                   Displays this help message")
+	fmt.Println("    -ip, -address [10.0.0.1]    Binds server to IP (default: localhost)")
+	fmt.Println("    -p, -port [443]             Sets port size (0-65535) (default: 1234)")
+	fmt.Println("    -ssl                        Enables SSL. Secrets are read from:")
+	fmt.Println("                                 - CERTIFICATE: ./secret/certificate.pem")
+	fmt.Println("                                 - PRIVATE KEY: ./secret/privatekey.pem")
 	fmt.Println()
 	fmt.Println("Example usage:")
 	fmt.Println("    ", exe, "-port 8888")
