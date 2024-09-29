@@ -131,6 +131,10 @@ function main() {
         player.pause();
         vidSource.src = url;
         let hls = player.hlsInstance()
+        if (hls == null) {
+            player.instance.hlsPlayer = new Hls();
+            hls = player.hlsInstance()
+        }
         hls.loadSource(url);
     })
 
