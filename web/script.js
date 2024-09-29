@@ -58,26 +58,6 @@ async function sendSetAsync(request, url) {
     }));
 }
 
-function stopButton(fromHtml) {
-    let request = newPost("/watch/pause")
-    sendSyncEventAsync(request).then(function(res) {
-        console.log("Sending stop ", res);
-    });
-    if (fromHtml) {
-        player.pause();
-    }
-}
-
-function startButton(fromHtml) {
-    let request = newPost("/watch/start")
-    sendSyncEventAsync(request).then(function(res) {
-        console.log("Sending start ", res);
-    });
-    if (fromHtml) {
-        player.play();
-    }
-}
-
 function setHlsButton() {
     let request = newPost("/watch/set/hls")
     console.log("Current video source url: ", input_hls_url.value)
@@ -178,11 +158,17 @@ function main() {
     })
 
     player.on('play', function() {
-        startButton(false)
+        let request = newPost("/watch/start")
+        sendSyncEventAsync(request).then(function(res) {
+            console.log("Sending start ", res);
+        });
     });
 
     player.on('pause', function() {
-        stopButton(false)
+        let request = newPost("/watch/pause")
+        sendSyncEventAsync(request).then(function(res) {
+            console.log("Sending pause ", res);
+        });
     });
 
     player.on('seeked', function(){
