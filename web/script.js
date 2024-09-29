@@ -127,7 +127,14 @@ function main() {
         let jsonData = JSON.parse(event.data)
         let url = jsonData["url"]
         console.log("RECEIVED SET CHANGING URL:", url)
-        vidSource.setAttribute("src", url);
+
+        var video = document.getElementById("player");
+        var hls = new Hls();
+        hls.loadSource(url);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, function() {
+            video.play();
+        });
     })
 
     fluidPlayer.on('play', function() {
@@ -152,6 +159,5 @@ function main() {
     };
 
 }
-
 
 main();
