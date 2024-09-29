@@ -1,4 +1,7 @@
 var player = fluidPlayer('player', {
+    hls: {
+        overrideNative: true
+    },
     layoutControls: {
         title: "TITLE PLACEHOLDER",
         doubleclickFullscreen: false,
