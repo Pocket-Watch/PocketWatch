@@ -1,4 +1,4 @@
-var fluidPlayer = fluidPlayer('player', {
+var player = fluidPlayer('player', {
     layoutControls: {
         title: "TITLE PLACEHOLDER",
         doubleclickFullscreen: false,
@@ -57,7 +57,7 @@ function stopButton(fromHtml) {
         console.log("Sending stop ", res);
     });
     if (fromHtml) {
-        fluidPlayer.pause();
+        player.pause();
     }
 }
 
@@ -67,7 +67,7 @@ function startButton(fromHtml) {
         console.log("Sending start ", res);
     });
     if (fromHtml) {
-        fluidPlayer.play();
+        player.play();
     }
 }
 
@@ -106,9 +106,9 @@ function main() {
         console.log("Your deSync: ", deSync)
         if (DELTA < Math.abs(deSync)) {
             console.log("EXCEEDED DELTA=", DELTA, " resyncing!")
-            fluidPlayer.skipTo(timestamp)
+            player.skipTo(timestamp)
         }
-        fluidPlayer.play()
+        player.play()
     })
     eventSource.addEventListener("pause", function (event) {
         let jsonData = JSON.parse(event.data)
@@ -118,9 +118,9 @@ function main() {
         console.log("Your deSync: ", deSync)
         if (DELTA < Math.abs(deSync)) {
             console.log("EXCEEDED DELTA=", DELTA, " resyncing!")
-            fluidPlayer.skipTo(timestamp)
+            player.skipTo(timestamp)
         }
-        fluidPlayer.pause()
+        player.pause()
     })
 
     eventSource.addEventListener("set", function (event) {
@@ -128,24 +128,21 @@ function main() {
         let url = jsonData["url"]
         console.log("RECEIVED SET CHANGING URL:", url)
 
-        var video = document.getElementById("player");
-        var hls = new Hls();
+        player.pause();
+        vidSource.src = url;
+        let hls = player.hlsInstance()
         hls.loadSource(url);
-        hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, function() {
-            video.play();
-        });
     })
 
-    fluidPlayer.on('play', function() {
+    player.on('play', function() {
         startButton(false)
     });
 
-    fluidPlayer.on('pause', function() {
+    player.on('pause', function() {
         stopButton(false)
     });
 
-    fluidPlayer.on('seeked', function(){
+    player.on('seeked', function(){
         console.log("seeked, currentTime", video.currentTime);
         let request= newPost("/watch/seek")
         sendSyncEventAsync(request).then(function(res) {
