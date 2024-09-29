@@ -1,72 +1,77 @@
 <!doctype html>
 <html lang="en-US">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="referrer" content="no-referrer">
+        <title>Watch Locally</title>
+    </head>
 
-<head>
-    <meta charset="utf-8" />
-    <meta name="referrer" content="no-referrer">
-    <title>Watch Locally</title>
-</head>
+    <body>
+        <video id="player" controls style="width: 960px; height: 540px;">
+            <source src='media/Robots.mp4' type='video/mp4' />
+            <source src='https://www035.anzeat.pro/streamhls/0c7dcd93f60a90b8bdab83c2355e4ec2/ep.2.1720837909.1080.m3u8'
+                    type='application/x-mpegURL' />
+            <track label="English" kind="metadata" srclang="en" src="media/english.vtt" default>
+            <track label="Deutsch" kind="metadata" srclang="de" src="media/german.srt">
+        </video>
 
-<body>
-    <video id="player" controls style="width: 960px; height: 540px;">
-<!--        <source src='dummy.m3u8' type='application/x-mpegURL' />-->
-        <source src='https://www035.anzeat.pro/streamhls/0c7dcd93f60a90b8bdab83c2355e4ec2/ep.2.1720837909.1080.m3u8' type='application/x-mpegURL' />
-        <track label="English" kind="metadata" srclang="en" src="media/english.vtt" default>
-        <track label="Deutsch" kind="metadata" srclang="de" src="media/german.srt">
-    </video>
+        <br>
+        <br>
 
-    <br>
-    <br>
+        <label>Input the m3u8 URL here:</label><br />
+        <input id="input_hls_url" name="input_hls_url" />
+        <button onclick="setHlsButton()">Send</button>
 
-    <label>Input the URL here:</label><br />
-    <input id="user_url" name="user_url" />
-    <button onclick="setButton()">Send</button>
+        <br>
 
-    <br>
-    <br>
+        <label>Input the mp4 URL here:</label><br />
+        <input id="input_mp4_url" name="input_mp4_url" />
+        <button onclick="setMp4Button()">Send</button>
 
-    <label>Put your name here:</label><br />
-    <input id="user_name" name="user_name" maxlength="120"/>
+        <br>
+        <br>
 
-    <br>
-    <br>
+        <label>Put your name here:</label><br />
+        <input id="user_name" name="user_name" maxlength="120" />
 
-    <button onclick="startButton(true)">Start</button>
-    <button onclick="stopButton(true)">Stop</button>
+        <br>
+        <br>
 
-    <form action="/login" method="post">
-        <div class="imgcontainer">
-            <img src="avatar.png" alt="Avatar" class="avatar">
-        </div>
+        <button onclick="startButton(true)">Start</button>
+        <button onclick="stopButton(true)">Stop</button>
 
-        <div class="container">
+        <form action="/login" method="post">
+            <div class="imgcontainer">
+                <img src="avatar.png" alt="Avatar" class="avatar">
+            </div>
+
+            <div class="container">
+                <label>
+                    <b>Username</b>
+                    <input type="text" placeholder="Enter Username" required>
+                </label>
+            </div>
             <label>
-                <b>Username</b>
-                <input type="text" placeholder="Enter Username" required>
+                <b>Password</b>
+                <input type="password" placeholder="Enter Password" name="psw" required>
             </label>
-        </div>
-        <label>
-            <b>Password</b>
-            <input type="password" placeholder="Enter Password" name="psw" required>
-        </label>
 
-        <div>
-            <button type="submit">Login</button>
-            <label>
-                <input type="checkbox" checked="checked" name="remember"> Remember me
-            </label>
-        </div>
+            <div>
+                <button type="submit">Login</button>
+                <label>
+                    <input type="checkbox" checked="checked" name="remember"> Remember me
+                </label>
+            </div>
 
-    </form>
+        </form>
 
-    <img id="construction" src="under_construction.png" alt="This page is under construction">
+        <img id="construction" src="under_construction.png" alt="This page is under construction">
 
-    <!-- Place before </body> tag -->
-    <!-- We should probably cache this js and store it locally -->
+        <!-- Place before </body> tag -->
+        <!-- We should probably cache this js and store it locally -->
 
-    <script src="fluid_player.js"></script>
-    <script src="script.js"></script>
-    <!--<script src="https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js"></script>-->
-</body>
-
+        <script src="fluid_player.js"></script>
+        <script src="script.js"></script>
+        <!--<script src="https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js"></script>-->
+    </body>
 </html>

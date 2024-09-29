@@ -60,7 +60,8 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/login", login)
 
 	http.HandleFunc("/watch/get", watchGet)
-	http.HandleFunc("/watch/set", watchSet)
+	http.HandleFunc("/watch/set/hls", watchSetHls)
+	http.HandleFunc("/watch/set/mp4", watchSetMp4)
 	http.HandleFunc("/watch/pause", watchPause)
 	http.HandleFunc("/watch/seek", watchSeek)
 	http.HandleFunc("/watch/start", watchStart)
@@ -83,18 +84,50 @@ func watchGet(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, msg)
 }
 
-func watchSet(w http.ResponseWriter, r *http.Request) {
+// func watchSet(w http.ResponseWriter, r *http.Request) {
+// 	if r.Method != "POST" {
+// 		return
+// 	}
+// 	print("watchSet was called")
+// 	if !readSetEventAndUpdateState(w, r) {
+// 		return
+// 	}
+// 	for _, eWriter := range eventWriters.slice {
+// 		writeSetEvent(eWriter)
+// 	}
+// 	io.WriteString(w, "Setting url!")
+// }
+
+func watchSetHls(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
 	}
+
 	print("watchSet was called")
 	if !readSetEventAndUpdateState(w, r) {
 		return
 	}
+
+	io.WriteString(w, "Setting hls url!")
 	for _, eWriter := range eventWriters.slice {
-		writeSetEvent(eWriter)
+		writeSetEvent(eWriter, "hls")
 	}
-	io.WriteString(w, "Setting url!")
+}
+
+func watchSetMp4(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	print("watchSetMp4 was called")
+	if !readSetEventAndUpdateState(w, r) {
+		return
+	}
+
+	io.WriteString(w, "Setting mp4 url!")
+	for _, eWriter := range eventWriters.slice {
+        writeSetEvent(eWriter, "mp4")
+	}
 }
 
 func watchStart(w http.ResponseWriter, r *http.Request) {
@@ -257,10 +290,10 @@ func writeSyncEvent(writer http.ResponseWriter, playing bool, haste bool, user s
 	state.eventId++
 }
 
-func writeSetEvent(writer http.ResponseWriter) {
+func writeSetEvent(writer http.ResponseWriter, set_endpoint string) {
 
 	fmt.Fprintln(writer, "id:", state.eventId)
-	fmt.Fprintln(writer, "event: set")
+	fmt.Fprintln(writer, "event: set/" + set_endpoint)
 	fmt.Fprintln(writer, "data:", "{\"url\":\""+state.url+"\"}")
 	fmt.Fprintln(writer, "retry:", RETRY)
 	fmt.Fprintln(writer)

@@ -24,7 +24,8 @@ player.setDebug(true)
 video = document.getElementById("player");
 vidSource = document.querySelector("source");
 
-user_url = document.getElementById("user_url");
+input_hls_url = document.getElementById("input_hls_url");
+input_mp4_url = document.getElementById("input_mp4_url");
 name_field = document.getElementById("user_name");
 
 function sleep(ms) {
@@ -58,7 +59,7 @@ async function sendSetAsync(request, url) {
 }
 
 function stopButton(fromHtml) {
-    let request= newPost("/watch/pause")
+    let request = newPost("/watch/pause")
     sendSyncEventAsync(request).then(function(res) {
         console.log("Sending stop ", res);
     });
@@ -68,7 +69,7 @@ function stopButton(fromHtml) {
 }
 
 function startButton(fromHtml) {
-    let request= newPost("/watch/start")
+    let request = newPost("/watch/start")
     sendSyncEventAsync(request).then(function(res) {
         console.log("Sending start ", res);
     });
@@ -77,11 +78,19 @@ function startButton(fromHtml) {
     }
 }
 
-function setButton() {
-    let request= newPost("/watch/set")
-    console.log("CURRENT VALUE: ", user_url.value)
-    sendSetAsync(request, user_url.value).then(function(res) {
-        console.log("Sending set ", res);
+function setHlsButton() {
+    let request = newPost("/watch/set/hls")
+    console.log("Current video source url: ", input_hls_url.value)
+    sendSetAsync(request, input_hls_url.value).then(function(res) {
+        console.log("Sending set for this hls file: ", res);
+    });
+}
+
+function setMp4Button() {
+    let request = newPost("/watch/set/mp4")
+    console.log("Current video source url: ", input_mp4_url.value)
+    sendSetAsync(request, input_mp4_url.value).then(function(res) {
+        console.log("Sending set for this mp4 file: ", res);
     });
 }
 
@@ -137,15 +146,35 @@ function main() {
         player.pause()
     })
 
-    eventSource.addEventListener("set", function (event) {
+    eventSource.addEventListener("set/hls", function (event) {
         let jsonData = JSON.parse(event.data)
         let url = jsonData["url"]
-        console.log("RECEIVED SET CHANGING URL:", url)
+        console.log("Hls url recieved from the server: ", url)
 
+        // NOTE: HLS doesn't work when source is set to a mp4 file.
         player.pause();
         vidSource.src = url;
         let hls = player.hlsInstance()
         hls.loadSource(url);
+    })
+
+    eventSource.addEventListener("set/mp4", function (event) {
+        let jsonData = JSON.parse(event.data)
+        let url = jsonData["url"]
+        console.log("Mp4 url recieved from the server: ", url)
+
+        video.pause();
+
+        // var new_source = document.createElement('source');
+        // new_source.setAttribute('src', url);
+        // new_source.setAttribute('type', 'video/mp4');
+        // video.appendChild(new_source);
+        // video.play();
+
+        vidSource.setAttribute('src', url);
+        vidSource.setAttribute('type', 'video/mp4');
+        video.load();
+        video.play();
     })
 
     player.on('play', function() {
