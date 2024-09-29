@@ -24,7 +24,8 @@ player.setDebug(true)
 video = document.getElementById("player");
 vidSource = document.querySelector("source");
 
-input = document.getElementById("user_url");
+user_url = document.getElementById("user_url");
+name_field = document.getElementById("user_name");
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -44,7 +45,8 @@ function newPost(endpoint) {
 async function sendSyncEventAsync(request) {
     request.send(JSON.stringify({
         uuid: "4613443434343",
-        timestamp: video.currentTime
+        timestamp: video.currentTime,
+        username: name_field.value
     }));
 }
 
@@ -77,8 +79,8 @@ function startButton(fromHtml) {
 
 function setButton() {
     let request= newPost("/watch/set")
-    console.log("CURRENT VALUE: ", input.value)
-    sendSetAsync(request, input.value).then(function(res) {
+    console.log("CURRENT VALUE: ", user_url.value)
+    sendSetAsync(request, user_url.value).then(function(res) {
         console.log("Sending set ", res);
     });
 }
@@ -105,7 +107,11 @@ function main() {
     eventSource.addEventListener("start", function (event) {
         let jsonData = JSON.parse(event.data)
         let timestamp = jsonData["timestamp"]
-        console.log("Video state: PLAYING, PRIORITY:", jsonData["priority"], "Timestamp:", timestamp);
+        console.log("Video state: PLAYING, " +
+            "Priority:", jsonData["priority"],
+            "Timestamp:", timestamp,
+            "Origin:", jsonData["origin"]
+        );
         let deSync = timestamp - video.currentTime
         console.log("Your deSync: ", deSync)
         if (DELTA < Math.abs(deSync)) {
@@ -117,7 +123,11 @@ function main() {
     eventSource.addEventListener("pause", function (event) {
         let jsonData = JSON.parse(event.data)
         let timestamp = jsonData["timestamp"]
-        console.log("Video state: PAUSED, PRIORITY:", jsonData["priority"], "Timestamp:", timestamp);
+        console.log("Video state: PAUSED, " +
+            "Priority:", jsonData["priority"],
+            "Timestamp:", timestamp,
+            "Origin:", jsonData["origin"]
+        );
         let deSync = timestamp - video.currentTime
         console.log("Your deSync: ", deSync)
         if (DELTA < Math.abs(deSync)) {

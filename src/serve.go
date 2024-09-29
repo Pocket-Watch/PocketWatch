@@ -13,6 +13,7 @@ import (
 )
 
 var ANNOUNCE_RECEIVED = true
+var BODY_LIMIT = 1024
 
 var html = "The main page hasn't loaded yet!"
 var script = "Script hasn't loaded yet!"
@@ -101,11 +102,12 @@ func watchStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	state.playing.Swap(true)
-	if !readEventAndUpdateState(w, r) {
+	syncEvent := receiveSyncEventFromUser(w, r)
+	if syncEvent == nil {
 		return
 	}
 	for _, eWriter := range eventWriters.slice {
-		writeSyncEvent(eWriter, true, true)
+		writeSyncEvent(eWriter, true, true, syncEvent.Username)
 	}
 	print("watchStart was called")
 	io.WriteString(w, "Broadcasting start!\n")
@@ -116,11 +118,12 @@ func watchPause(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	state.playing.Swap(false)
-	if !readEventAndUpdateState(w, r) {
+	syncEvent := receiveSyncEventFromUser(w, r)
+	if syncEvent == nil {
 		return
 	}
 	for _, eWriter := range eventWriters.slice {
-		writeSyncEvent(eWriter, false, true)
+		writeSyncEvent(eWriter, false, true, syncEvent.Username)
 	}
 	print("watchPause was called")
 	io.WriteString(w, "Broadcasting pause!\n")
@@ -130,7 +133,8 @@ func watchSeek(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
 	}
-	if !readEventAndUpdateState(w, r) {
+	syncEvent := receiveSyncEventFromUser(w, r)
+	if syncEvent == nil {
 		return
 	}
 	// this needs a rewrite: /pause /start /seek - a unified format way of
@@ -138,12 +142,12 @@ func watchSeek(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, "SEEK CALLED!\n")
 }
 
-func readEventAndUpdateState(w http.ResponseWriter, r *http.Request) bool {
+func receiveSyncEventFromUser(w http.ResponseWriter, r *http.Request) *SyncEventFromUser {
 	// Read the request body
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return false
+		return nil
 	}
 	defer r.Body.Close()
 
@@ -152,11 +156,12 @@ func readEventAndUpdateState(w http.ResponseWriter, r *http.Request) bool {
 	err = json.Unmarshal(body, &sync)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		return false
+		return nil
 	}
+	// Update state
 	state.timestamp = sync.Timestamp
 	state.lastTimeUpdate = time.Now()
-	return true
+	return &sync
 }
 func readSetEventAndUpdateState(w http.ResponseWriter, r *http.Request) bool {
 	// Read the request body
@@ -193,13 +198,13 @@ func watchEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 
 	for {
-		writeSyncEvent(w, state.playing.Load(), false)
+		writeSyncEvent(w, state.playing.Load(), false, "SERVER")
 
 		time.Sleep(2 * time.Second)
 	}
 }
 
-func writeSyncEvent(writer http.ResponseWriter, playing bool, haste bool) {
+func writeSyncEvent(writer http.ResponseWriter, playing bool, haste bool, user string) {
 	var eventType string
 	if playing {
 		eventType = "start"
@@ -222,11 +227,13 @@ func writeSyncEvent(writer http.ResponseWriter, playing bool, haste bool) {
 		syncEvent = SyncEventForUser{
 			Timestamp: state.timestamp + diff.Seconds(),
 			Priority:  priority,
+			Origin:    user,
 		}
 	} else {
 		syncEvent = SyncEventForUser{
 			Timestamp: state.timestamp,
 			Priority:  priority,
+			Origin:    user,
 		}
 	}
 	jsonData, err := json.Marshal(syncEvent)
@@ -282,12 +289,21 @@ type State struct {
 	lastTimeUpdate time.Time
 }
 
+// this slice needs to be sync
 type EventWriters struct {
 	slice []http.ResponseWriter
 }
 
 func (writer *EventWriters) Add(element http.ResponseWriter) {
 	writer.slice = append(writer.slice, element)
+}
+func (writer *EventWriters) RemoveIndex(index int) {
+	arr := writer.slice
+	length := len(arr)
+	// swap index with last index
+	arr[index], arr[length-1] = arr[length-1], arr[length]
+	// remove last index (whole operation is O(1) regardless of the number of connections)
+	arr = arr[:length-1]
 }
 
 func CreateEventWriters() EventWriters {
@@ -299,11 +315,13 @@ func CreateEventWriters() EventWriters {
 type SyncEventForUser struct {
 	Timestamp float64 `json:"timestamp"`
 	Priority  string  `json:"priority"`
+	Origin    string  `json:"origin"`
 }
 
 type SyncEventFromUser struct {
 	Timestamp float64 `json:"timestamp"`
 	UUID      string  `json:"uuid"`
+	Username  string  `json:"username"`
 }
 
 type SetEventFromUser struct {
