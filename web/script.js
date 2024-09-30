@@ -6,6 +6,7 @@ var player = fluidPlayer('player', {
         title: "TITLE PLACEHOLDER",
         doubleclickFullscreen: false,
         subtitlesEnabled: true,
+        autoPlay: true,
         controlBar: {
             autoHide: true,
             autoHideTimeout: 2.5,
