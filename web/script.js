@@ -21,7 +21,28 @@ var player = fluidPlayer('player', {
     }
 });
 
+// class AtomicBoolean {
+//     constructor(bool) {
+//         this.byte = new Int8Array(1);
+//         Atomics.store(this.byte, 0, bool ? 1 : 0);
+//     }
+//
+//     set(flag) {
+//         Atomics.store(this.byte, 0, flag ? 1 : 0);
+//     }
+//
+//     get() {
+//         return Atomics.load(this.byte, 0) === 1;
+//     }
+// }
+
+const DELTA = 1.5;
+
 player.setDebug(true)
+
+var server_playing = true;
+// var server_playing = new AtomicBoolean(true);
+var server_source_timestamp = false;
 
 var video = document.getElementById("player");
 var vidSource = document.querySelector("source");
@@ -73,53 +94,36 @@ function setMp4Button() {
 }
 
 
-class AtomicBoolean {
-    constructor(bool) {
-        this.byte = new Int8Array(1);
-        Atomics.store(this.byte, 0, bool ? 1 : 0);
-    }
-
-    set(flag) {
-        Atomics.store(this.byte, 0, flag ? 1 : 0);
-    }
-
-    get() {
-        return Atomics.load(this.byte, 0) === 1;
-    }
-}
-
-function attachOnClickToFluidWrapper() {
-    let playerWrapper = document.getElementById("fluid_video_wrapper_player")
-    // you click, video.paused = !video.paused
-    playerWrapper.onclick = function()  {
-        if (isVideoPlaying()) {
-            console.log("VIDEO PLAYING - clicked fluid")
-            let request = newPost("/watch/start")
-            sendSyncEventAsync(request).then(function() {
-                console.log("Sending start!");
-            });
-        } else {
-            console.log("VIDEO PAUSED - clicked fluid")
-            let request = newPost("/watch/pause")
-            sendSyncEventAsync(request).then(function() {
-                console.log("Sending pause!");
-            });
-        }
-    }
-}
+// function attachOnClickToFluidWrapper() {
+//     let playerWrapper = document.getElementById("fluid_video_wrapper_player")
+//     // you click, video.paused = !video.paused
+//     playerWrapper.onclick = function()  {
+//         if (isVideoPlaying()) {
+//             console.log("VIDEO PLAYING - clicked fluid")
+//             let request = newPost("/watch/start")
+//             sendSyncEventAsync(request).then(function() {
+//                 console.log("Sending start!");
+//             });
+//         } else {
+//             console.log("VIDEO PAUSED - clicked fluid")
+//             let request = newPost("/watch/pause")
+//             sendSyncEventAsync(request).then(function() {
+//                 console.log("Sending pause!");
+//             });
+//         }
+//     }
+// }
 
 function isVideoPlaying() {
     return video.currentTime > 0 && !video.paused && !video.ended
 }
 
 function main() {
-    attachOnClickToFluidWrapper()
+    // attachOnClickToFluidWrapper()
 
     let eventSource = new EventSource("/watch/events");
 
     // Allow user to de-sync themselves freely and watch at their own pace
-    let enableSync = false;
-    let DELTA = 1.5;
     eventSource.addEventListener("start", function (event) {
         let jsonData = JSON.parse(event.data)
         let timestamp = jsonData["timestamp"]
@@ -128,12 +132,16 @@ function main() {
             "from", jsonData["origin"],
             "at", timestamp,
         );
+
         let deSync = timestamp - video.currentTime
         console.log("Your deSync: ", deSync)
         if (DELTA < Math.abs(deSync)) {
             console.log("EXCEEDED DELTA=", DELTA, " resyncing!")
             player.skipTo(timestamp)
         }
+
+        server_playing = true;
+        // server_playing.set(true);
         player.play()
     })
     eventSource.addEventListener("pause", function (event) {
@@ -144,12 +152,16 @@ function main() {
             "from", jsonData["origin"],
             "at", timestamp,
         );
+
         let deSync = timestamp - video.currentTime
         console.log("Your deSync: ", deSync)
         if (DELTA < Math.abs(deSync)) {
             console.log("EXCEEDED DELTA=", DELTA, " resyncing!")
             player.skipTo(timestamp)
         }
+
+        server_playing = false;
+        // server_playing.set(false);
         player.pause()
     })
 
@@ -192,11 +204,27 @@ function main() {
         });
     });
 
-    eventSource.onmessage = function(event) {
-        console.log("event.data: ", event.lastEventId);
-        console.log("event.data: ", event.data);
-    };
+    player.on('play', function() {
+        // if (!server_playing.get()) {
+        if (!server_playing) {
+            let request = newPost("/watch/start")
+            sendSyncEventAsync(request).then(function(res) {
+                console.log("Sending start ", res);
+            });
+            // server_playing.set(true);
+            server_playing = true;
+        }
+    });
 
+    player.on('pause', function() {
+        if (server_playing) {
+            let request = newPost("/watch/pause")
+            sendSyncEventAsync(request).then(function(res) {
+                console.log("Sending pause ", res);
+            });
+            server_playing = false;
+        }
+    });
 }
 
 main();
