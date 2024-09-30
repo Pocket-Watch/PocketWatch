@@ -214,15 +214,15 @@ func readSetEventAndUpdateState(w http.ResponseWriter, r *http.Request) bool {
 	}
 	state.timestamp = 0
 	state.url = setEvent.Url
-    fmt.Printf("INFO: New url is now: \"%s\".\n", state.url)
+	fmt.Printf("INFO: New url is now: \"%s\".\n", state.url)
 	state.playing.Swap(false)
 	return true
 }
 
 func watchEvents(w http.ResponseWriter, r *http.Request) {
 	connections.mutex.Lock()
-	connection_id := connections.Add(w)
-	connection_count := len(connections.slice)
+	connection_id := connections.add(w)
+	connection_count := connections.len()
 	connections.mutex.Unlock()
 
 	fmt.Printf("INFO: New connection established with %s. Current connection count: %d\n", r.RemoteAddr, connection_count)
@@ -235,8 +235,8 @@ func watchEvents(w http.ResponseWriter, r *http.Request) {
 		connection_error := writeSyncEvent(w, state.playing.Load(), false, "SERVER")
 		if connection_error != nil {
 			connections.mutex.Lock()
-			connections.Remove(connection_id)
-			connection_count = len(connections.slice)
+			connections.remove(connection_id)
+			connection_count = connections.len()
 			connections.mutex.Unlock()
 
 			fmt.Printf("INFO: Connection with %s dropped. Current connection count: %d\n", r.RemoteAddr, connection_count)
@@ -350,29 +350,30 @@ func makeConnections() *Connections {
 	return conns
 }
 
-func (conns *Connections) Add(writer http.ResponseWriter) uint64 {
+func (conns *Connections) add(writer http.ResponseWriter) uint64 {
 	id := conns.id_counter
 	conns.id_counter += 1
 
-	conn := Connection{}
-	conn.writer = writer
-	conn.id = id
+	conn := Connection{id, writer}
 	conns.slice = append(conns.slice, conn)
 
 	return id
 }
 
-func (conns *Connections) Remove(id uint64) {
+func (conns *Connections) remove(id uint64) {
 	for i, conn := range conns.slice {
 		if conn.id != id {
 			continue
 		}
 
-		length := len(conns.slice)
+		length := conns.len()
 		conns.slice[i], conns.slice[length-1] = conns.slice[length-1], conns.slice[i]
 		conns.slice = conns.slice[:length-1]
 		break
 	}
+}
+func (conns *Connections) len() int {
+	return len(conns.slice)
 }
 
 type SyncEventForUser struct {
