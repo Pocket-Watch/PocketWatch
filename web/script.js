@@ -94,6 +94,7 @@ class AtomicBoolean {
 
 function attachOnClickToFluidWrapper() {
     let playerWrapper = document.getElementById("fluid_video_wrapper_player")
+    // you click, video.paused = !video.paused
     playerWrapper.onclick = function()  {
         if (isVideoPlaying()) {
             console.log("VIDEO PLAYING - clicked fluid")
@@ -115,21 +116,21 @@ function isVideoPlaying() {
     return video.currentTime > 0 && !video.paused && !video.ended
 }
 
-attachOnClickToFluidWrapper()
-
 function main() {
+    attachOnClickToFluidWrapper()
 
     let eventSource = new EventSource("/watch/events");
 
+    // Allow user to de-sync themselves freely and watch at their own pace
     let enableSync = false;
     let DELTA = 1.5;
     eventSource.addEventListener("start", function (event) {
         let jsonData = JSON.parse(event.data)
         let timestamp = jsonData["timestamp"]
-        console.log("Video state: PLAYING, " +
-            "Priority:", jsonData["priority"],
-            "Timestamp:", timestamp,
-            "Origin:", jsonData["origin"]
+        console.log("EVENT: PLAYING, " +
+            jsonData["priority"],
+            "from", jsonData["origin"],
+            "at", timestamp,
         );
         let deSync = timestamp - video.currentTime
         console.log("Your deSync: ", deSync)
@@ -142,10 +143,10 @@ function main() {
     eventSource.addEventListener("pause", function (event) {
         let jsonData = JSON.parse(event.data)
         let timestamp = jsonData["timestamp"]
-        console.log("Video state: PAUSED, " +
-            "Priority:", jsonData["priority"],
-            "Timestamp:", timestamp,
-            "Origin:", jsonData["origin"]
+        console.log("EVENT: PAUSED, " +
+            jsonData["priority"],
+            "from", jsonData["origin"],
+            "at", timestamp,
         );
         let deSync = timestamp - video.currentTime
         console.log("Your deSync: ", deSync)
@@ -159,7 +160,7 @@ function main() {
     eventSource.addEventListener("set/hls", function (event) {
         let jsonData = JSON.parse(event.data)
         let url = jsonData["url"]
-        console.log("Hls url recieved from the server: ", url)
+        console.log("Hls url received from the server: ", url)
 
         // NOTE: HLS doesn't work when source is set to a mp4 file.
         player.pause();
@@ -171,7 +172,7 @@ function main() {
     eventSource.addEventListener("set/mp4", function (event) {
         let jsonData = JSON.parse(event.data)
         let url = jsonData["url"]
-        console.log("Mp4 url recieved from the server: ", url)
+        console.log("Mp4 url received from the server: ", url)
 
         video.pause();
 
@@ -186,14 +187,6 @@ function main() {
         video.load();
         video.play();
     })
-
-    /*player.on('play', function() {
-
-    });*/
-
-    /*player.on('pause', function() {
-
-    });*/
 
     player.on('seeked', function(){
         console.log("seeked, currentTime", video.currentTime);
