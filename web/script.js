@@ -75,17 +75,18 @@ function setMp4Button() {
     });
 }
 
+
 class AtomicBoolean {
     constructor(bool) {
-        this.byte = new Int8Array(new SharedArrayBuffer(4));
+        this.byte = new Int8Array(1);
         Atomics.store(this.byte, 0, bool ? 1 : 0);
     }
 
-    setBoolean(flag) {
+    set(flag) {
         Atomics.store(this.byte, 0, flag ? 1 : 0);
     }
 
-    getBoolean() {
+    get() {
         return Atomics.load(this.byte, 0) === 1;
     }
 }
