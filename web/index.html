@@ -62,9 +62,29 @@
 
         </form>
 
+        <style>
+            @keyframes sway  {
+                0% { transform: rotate(8deg); }
+                50% { transform: rotate(-8deg); }
+                100% { transform: rotate(8deg); }
+            }
+
+            img {
+                animation: sway 2.4s infinite;
+                animation-timing-function: ease-in-out;
+                -webkit-transform-origin: top;
+                -moz-transform-origin: top;
+                transform-origin: top;
+            }
+        </style>
+        <img id="construction" class="construction_anim" src="under_construction.png" alt="This page is under construction">
+
+        <br>
+        <br>
+        <br>
+
         <!-- <img id="construction" src="under_construction.png" alt="This page is under construction"> -->
-        <!-- <img id="construction" src="under_construction.png" alt="This page is under construction"> -->
-        <canvas id="construction_canvas" width="800" height="400"></canvas>
+        <!-- <canvas id="construction_canvas" width="800" height="400"></canvas> -->
 
         <!-- Place before </body> tag -->
         <!-- We should probably cache this js and store it locally -->

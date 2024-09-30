@@ -284,7 +284,8 @@ func writeSyncEvent(writer http.ResponseWriter, playing bool, haste bool, user s
 	}
 	eventData := string(jsonData)
 
-	_, err = fmt.Fprintf(writer, "id: %d\nevent: %s\ndata: %s\nretry: %d\n\n", state.eventId.Load(), eventType, eventData, RETRY)
+	event_id := state.eventId.Add(1)
+	_, err = fmt.Fprintf(writer, "id: %d\nevent: %s\ndata: %s\nretry: %d\n\n", event_id, eventType, eventData, RETRY)
 	if err != nil {
 		return err
 	}
@@ -294,14 +295,13 @@ func writeSyncEvent(writer http.ResponseWriter, playing bool, haste bool, user s
 		f.Flush()
 	}
 
-	// Increment event ID and wait before sending the next event
-	state.eventId.Add(1)
 	return nil
 }
 
 func writeSetEvent(writer http.ResponseWriter, set_endpoint string) {
 
-	fmt.Fprintln(writer, "id:", state.eventId.Load())
+	event_id := state.eventId.Add(1)
+	fmt.Fprintln(writer, "id:", event_id)
 	fmt.Fprintln(writer, "event: set/"+set_endpoint)
 	fmt.Fprintln(writer, "data:", "{\"url\":\""+state.url+"\"}")
 	fmt.Fprintln(writer, "retry:", RETRY)
@@ -311,9 +311,6 @@ func writeSetEvent(writer http.ResponseWriter, set_endpoint string) {
 	if f, ok := writer.(http.Flusher); ok {
 		f.Flush()
 	}
-
-	// Increment event ID and wait before sending the next event
-	state.eventId.Add(1)
 }
 
 func print(endpoint string) {
