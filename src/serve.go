@@ -286,7 +286,7 @@ func writeSyncEvent(writer http.ResponseWriter, playing bool, haste bool, user s
 	eventData := string(jsonData)
 
 	_, err = fmt.Fprintf(writer, "id: %d\nevent: %s\ndata: %s\nretry: %d\n\n", state.eventId.Load(), eventType, eventData, RETRY)
-	if errors.Is(err, syscall.EPIPE) {
+	if err != nil {
 		return err
 	}
 
