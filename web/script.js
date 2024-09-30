@@ -20,19 +20,15 @@ var player = fluidPlayer('player', {
         }
     }
 });
+
 player.setDebug(true)
 
-video = document.getElementById("player");
-vidSource = document.querySelector("source");
+var video = document.getElementById("player");
+var vidSource = document.querySelector("source");
 
-input_hls_url = document.getElementById("input_hls_url");
-input_mp4_url = document.getElementById("input_mp4_url");
-name_field = document.getElementById("user_name");
-
-
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
+var input_hls_url = document.getElementById("input_hls_url");
+var input_mp4_url = document.getElementById("input_mp4_url");
+var name_field = document.getElementById("user_name");
 
 // endpoint should be prefixed with slash
 function newPost(endpoint) {
