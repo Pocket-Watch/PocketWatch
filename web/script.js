@@ -29,6 +29,7 @@ input_hls_url = document.getElementById("input_hls_url");
 input_mp4_url = document.getElementById("input_mp4_url");
 name_field = document.getElementById("user_name");
 
+
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -91,9 +92,36 @@ class AtomicBoolean {
     }
 }
 
+function attachOnClickToFluidWrapper() {
+    let playerWrapper = document.getElementById("fluid_video_wrapper_player")
+    playerWrapper.onclick = function()  {
+        if (isVideoPlaying()) {
+            console.log("VIDEO PLAYING - clicked fluid")
+            let request = newPost("/watch/start")
+            sendSyncEventAsync(request).then(function() {
+                console.log("Sending start!");
+            });
+        } else {
+            console.log("VIDEO PAUSED - clicked fluid")
+            let request = newPost("/watch/pause")
+            sendSyncEventAsync(request).then(function() {
+                console.log("Sending pause!");
+            });
+        }
+    }
+}
+
+function isVideoPlaying() {
+    return video.currentTime > 0 && !video.paused && !video.ended
+}
+
+attachOnClickToFluidWrapper()
+
 function main() {
+
     let eventSource = new EventSource("/watch/events");
 
+    let enableSync = false;
     let DELTA = 1.5;
     eventSource.addEventListener("start", function (event) {
         let jsonData = JSON.parse(event.data)
@@ -159,19 +187,13 @@ function main() {
         video.play();
     })
 
-    player.on('play', function() {
-        let request = newPost("/watch/start")
-        sendSyncEventAsync(request).then(function(res) {
-            console.log("Sending start ", res);
-        });
-    });
+    /*player.on('play', function() {
 
-    player.on('pause', function() {
-        let request = newPost("/watch/pause")
-        sendSyncEventAsync(request).then(function(res) {
-            console.log("Sending pause ", res);
-        });
-    });
+    });*/
+
+    /*player.on('pause', function() {
+
+    });*/
 
     player.on('seeked', function(){
         console.log("seeked, currentTime", video.currentTime);
