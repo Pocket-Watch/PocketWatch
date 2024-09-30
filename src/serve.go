@@ -8,18 +8,18 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 )
 
-var ANNOUNCE_RECEIVED = true
-var BODY_LIMIT = 1024
-
-var html = "The main page hasn't loaded yet!"
-var script = "Script hasn't loaded yet!"
-var media = http.FileServer(http.Dir("media"))
+const ANNOUNCE_RECEIVED = true
+const BODY_LIMIT = 1024
+const RETRY = 5000 // Retry time in milliseconds
 
 var state = State{}
+var connections = makeConnections()
 
 func StartServer(options *Options) {
 	registerEndpoints(options)
@@ -84,34 +84,23 @@ func watchGet(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, msg)
 }
 
-// func watchSet(w http.ResponseWriter, r *http.Request) {
-// 	if r.Method != "POST" {
-// 		return
-// 	}
-// 	print("watchSet was called")
-// 	if !readSetEventAndUpdateState(w, r) {
-// 		return
-// 	}
-// 	for _, eWriter := range eventWriters.slice {
-// 		writeSetEvent(eWriter)
-// 	}
-// 	io.WriteString(w, "Setting url!")
-// }
-
 func watchSetHls(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
 	}
 
-	print("watchSet was called")
+	fmt.Printf("INFO: Connection %s requested hls url change.\n", r.RemoteAddr)
 	if !readSetEventAndUpdateState(w, r) {
 		return
 	}
 
 	io.WriteString(w, "Setting hls url!")
-	for _, eWriter := range eventWriters.slice {
-		writeSetEvent(eWriter, "hls")
+
+	connections.mutex.Lock()
+	for _, conn := range connections.slice {
+		writeSetEvent(conn.writer, "hls")
 	}
+	connections.mutex.Unlock()
 }
 
 func watchSetMp4(w http.ResponseWriter, r *http.Request) {
@@ -119,15 +108,18 @@ func watchSetMp4(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	print("watchSetMp4 was called")
+	fmt.Printf("INFO: Connection %s requested mp4 url change.\n", r.RemoteAddr)
 	if !readSetEventAndUpdateState(w, r) {
 		return
 	}
 
 	io.WriteString(w, "Setting mp4 url!")
-	for _, eWriter := range eventWriters.slice {
-        writeSetEvent(eWriter, "mp4")
+
+	connections.mutex.Lock()
+	for _, conn := range connections.slice {
+		writeSetEvent(conn.writer, "mp4")
 	}
+	connections.mutex.Unlock()
 }
 
 func watchStart(w http.ResponseWriter, r *http.Request) {
@@ -139,10 +131,14 @@ func watchStart(w http.ResponseWriter, r *http.Request) {
 	if syncEvent == nil {
 		return
 	}
-	for _, eWriter := range eventWriters.slice {
-		writeSyncEvent(eWriter, true, true, syncEvent.Username)
+
+	connections.mutex.Lock()
+	for _, conn := range connections.slice {
+		writeSyncEvent(conn.writer, true, true, syncEvent.Username)
 	}
-	print("watchStart was called")
+	connections.mutex.Unlock()
+
+	fmt.Printf("INFO: Connection %s requested player start.\n", r.RemoteAddr)
 	io.WriteString(w, "Broadcasting start!\n")
 }
 
@@ -155,10 +151,14 @@ func watchPause(w http.ResponseWriter, r *http.Request) {
 	if syncEvent == nil {
 		return
 	}
-	for _, eWriter := range eventWriters.slice {
-		writeSyncEvent(eWriter, false, true, syncEvent.Username)
+
+	connections.mutex.Lock()
+	for _, conn := range connections.slice {
+		writeSyncEvent(conn.writer, false, true, syncEvent.Username)
 	}
-	print("watchPause was called")
+	connections.mutex.Unlock()
+
+	fmt.Printf("INFO: Connection %s requested player pause.\n", r.RemoteAddr)
 	io.WriteString(w, "Broadcasting pause!\n")
 }
 
@@ -171,7 +171,7 @@ func watchSeek(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// this needs a rewrite: /pause /start /seek - a unified format way of
-	print("watchSeek was called")
+	fmt.Printf("INFO: Connection %s requested player seek.\n", r.RemoteAddr)
 	io.WriteString(w, "SEEK CALLED!\n")
 }
 
@@ -214,30 +214,40 @@ func readSetEventAndUpdateState(w http.ResponseWriter, r *http.Request) bool {
 	}
 	state.timestamp = 0
 	state.url = setEvent.Url
-	print(state.url)
+    fmt.Printf("INFO: New url is now: \"%s\".\n", state.url)
 	state.playing.Swap(false)
 	return true
 }
 
-var eventWriters = CreateEventWriters()
-
-var RETRY = 5000 // Retry time in milliseconds
-
 func watchEvents(w http.ResponseWriter, r *http.Request) {
-	eventWriters.Add(w)
-	// Set headers for SSE
+	connections.mutex.Lock()
+	connection_id := connections.Add(w)
+	connection_count := len(connections.slice)
+	connections.mutex.Unlock()
+
+	fmt.Printf("INFO: New connection established with %s. Current connection count: %d\n", r.RemoteAddr, connection_count)
+
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
 	for {
-		writeSyncEvent(w, state.playing.Load(), false, "SERVER")
+		connection_error := writeSyncEvent(w, state.playing.Load(), false, "SERVER")
+		if connection_error != nil {
+			connections.mutex.Lock()
+			connections.Remove(connection_id)
+			connection_count = len(connections.slice)
+			connections.mutex.Unlock()
+
+			fmt.Printf("INFO: Connection with %s dropped. Current connection count: %d\n", r.RemoteAddr, connection_count)
+			break
+		}
 
 		time.Sleep(2 * time.Second)
 	}
 }
 
-func writeSyncEvent(writer http.ResponseWriter, playing bool, haste bool, user string) {
+func writeSyncEvent(writer http.ResponseWriter, playing bool, haste bool, user string) error {
 	var eventType string
 	if playing {
 		eventType = "start"
@@ -275,11 +285,10 @@ func writeSyncEvent(writer http.ResponseWriter, playing bool, haste bool, user s
 	}
 	eventData := string(jsonData)
 
-	fmt.Fprintln(writer, "id:", state.eventId)
-	fmt.Fprintln(writer, "event:", eventType)
-	fmt.Fprintln(writer, "data:", eventData)
-	fmt.Fprintln(writer, "retry:", RETRY)
-	fmt.Fprintln(writer)
+	_, err = fmt.Fprintf(writer, "id: %d\nevent: %s\ndata: %s\nretry: %d\n\n", state.eventId.Load(), eventType, eventData, RETRY)
+	if errors.Is(err, syscall.EPIPE) {
+		return err
+	}
 
 	// Flush the response to ensure the client receives the event
 	if f, ok := writer.(http.Flusher); ok {
@@ -287,13 +296,14 @@ func writeSyncEvent(writer http.ResponseWriter, playing bool, haste bool, user s
 	}
 
 	// Increment event ID and wait before sending the next event
-	state.eventId++
+	state.eventId.Add(1)
+	return nil
 }
 
 func writeSetEvent(writer http.ResponseWriter, set_endpoint string) {
 
-	fmt.Fprintln(writer, "id:", state.eventId)
-	fmt.Fprintln(writer, "event: set/" + set_endpoint)
+	fmt.Fprintln(writer, "id:", state.eventId.Load())
+	fmt.Fprintln(writer, "event: set/"+set_endpoint)
 	fmt.Fprintln(writer, "data:", "{\"url\":\""+state.url+"\"}")
 	fmt.Fprintln(writer, "retry:", RETRY)
 	fmt.Fprintln(writer)
@@ -304,7 +314,7 @@ func writeSetEvent(writer http.ResponseWriter, set_endpoint string) {
 	}
 
 	// Increment event ID and wait before sending the next event
-	state.eventId++
+	state.eventId.Add(1)
 }
 
 func print(endpoint string) {
@@ -318,31 +328,51 @@ type State struct {
 	playing        atomic.Bool
 	timestamp      float64
 	url            string
-	eventId        uint64
+	eventId        atomic.Uint64
 	lastTimeUpdate time.Time
 }
 
-// this slice needs to be sync
-type EventWriters struct {
-	slice []http.ResponseWriter
+type Connection struct {
+	id     uint64
+	writer http.ResponseWriter
 }
 
-func (writer *EventWriters) Add(element http.ResponseWriter) {
-	writer.slice = append(writer.slice, element)
-}
-func (writer *EventWriters) RemoveIndex(index int) {
-	arr := writer.slice
-	length := len(arr)
-	// swap index with last index
-	arr[index], arr[length-1] = arr[length-1], arr[length]
-	// remove last index (whole operation is O(1) regardless of the number of connections)
-	arr = arr[:length-1]
+type Connections struct {
+	mutex      sync.Mutex
+	id_counter uint64
+	slice      []Connection
 }
 
-func CreateEventWriters() EventWriters {
-	writers := EventWriters{}
-	writers.slice = make([]http.ResponseWriter, 0)
-	return writers
+func makeConnections() *Connections {
+	conns := new(Connections)
+	conns.slice = make([]Connection, 0)
+	conns.id_counter = 0
+	return conns
+}
+
+func (conns *Connections) Add(writer http.ResponseWriter) uint64 {
+	id := conns.id_counter
+	conns.id_counter += 1
+
+	conn := Connection{}
+	conn.writer = writer
+	conn.id = id
+	conns.slice = append(conns.slice, conn)
+
+	return id
+}
+
+func (conns *Connections) Remove(id uint64) {
+	for i, conn := range conns.slice {
+		if conn.id != id {
+			continue
+		}
+
+		length := len(conns.slice)
+		conns.slice[i], conns.slice[length-1] = conns.slice[length-1], conns.slice[i]
+		conns.slice = conns.slice[:length-1]
+		break
+	}
 }
 
 type SyncEventForUser struct {
