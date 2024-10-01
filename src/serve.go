@@ -52,35 +52,46 @@ func StartServer(options *Options) {
 }
 
 func registerEndpoints(options *Options) {
-	fs := http.FileServer(http.Dir("./web"))
-	http.Handle("/", fs)
+	fileserver := http.FileServer(http.Dir("./web"))
+	http.Handle("/", http.StripPrefix("/watch/", fileserver))
 
-	http.HandleFunc("/version", versionGet)
-	http.HandleFunc("/login", login)
-
-	http.HandleFunc("/watch/get", watchGet)
-	http.HandleFunc("/watch/set/hls", watchSetHls)
-	http.HandleFunc("/watch/set/mp4", watchSetMp4)
-	http.HandleFunc("/watch/pause", watchPause)
-	http.HandleFunc("/watch/seek", watchSeek)
-	http.HandleFunc("/watch/start", watchStart)
-	http.HandleFunc("/watch/events", watchEvents)
+	http.HandleFunc("/watch/api/version", versionGet)
+	http.HandleFunc("/watch/api/login", login)
+	http.HandleFunc("/watch/api/get", watchGet)
+	http.HandleFunc("/watch/api/set/hls", watchSetHls)
+	http.HandleFunc("/watch/api/set/mp4", watchSetMp4)
+	http.HandleFunc("/watch/api/pause", watchPause)
+	http.HandleFunc("/watch/api/seek", watchSeek)
+	http.HandleFunc("/watch/api/start", watchStart)
+	http.HandleFunc("/watch/api/events", watchEvents)
 }
 
 func versionGet(w http.ResponseWriter, r *http.Request) {
-	print("version was requested.")
+	fmt.Printf("INFO: Connection %s requested server version.\n", r.RemoteAddr)
 	io.WriteString(w, VERSION)
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
-	print("login was attempted.")
+	fmt.Printf("INFO: Connection %s attempted to log in.\n", r.RemoteAddr)
 	io.WriteString(w, "This is unimplemented")
 }
 
 func watchGet(w http.ResponseWriter, r *http.Request) {
-	print("watchGet was called")
-	msg := fmt.Sprintf("Playing state: %t", state.playing.Load())
-	io.WriteString(w, msg)
+	fmt.Printf("INFO: Connection %s requested get.\n", r.RemoteAddr)
+
+	var getEvent GetEventForUser
+	getEvent.Url = state.url
+	getEvent.IsHls = state.is_hsl.Load()
+	getEvent.IsPlaying = state.playing.Load()
+	getEvent.Timestamp = state.timestamp
+
+	jsonData, err := json.Marshal(getEvent)
+	if err != nil {
+		fmt.Println("Failed to serialize sync event")
+		return
+	}
+
+	io.WriteString(w, string(jsonData))
 }
 
 func watchSetHls(w http.ResponseWriter, r *http.Request) {
@@ -89,6 +100,7 @@ func watchSetHls(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Printf("INFO: Connection %s requested hls url change.\n", r.RemoteAddr)
+	state.is_hsl.Store(true)
 	if !readSetEventAndUpdateState(w, r) {
 		return
 	}
@@ -108,6 +120,7 @@ func watchSetMp4(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Printf("INFO: Connection %s requested mp4 url change.\n", r.RemoteAddr)
+	state.is_hsl.Store(false)
 	if !readSetEventAndUpdateState(w, r) {
 		return
 	}
@@ -281,6 +294,7 @@ func writeSyncEvent(writer http.ResponseWriter, playing bool, haste bool, user s
 	jsonData, err := json.Marshal(syncEvent)
 	if err != nil {
 		fmt.Println("Failed to serialize sync event")
+		return nil
 	}
 	eventData := string(jsonData)
 
@@ -320,10 +334,12 @@ func print(endpoint string) {
 	fmt.Printf("%s\n", endpoint)
 }
 
+// NOTE(kihau): Some fields are non atomic. This needs to change.
 type State struct {
 	playing        atomic.Bool
 	timestamp      float64
 	url            string
+	is_hsl         atomic.Bool
 	eventId        atomic.Uint64
 	lastTimeUpdate time.Time
 }
@@ -368,8 +384,16 @@ func (conns *Connections) remove(id uint64) {
 		break
 	}
 }
+
 func (conns *Connections) len() int {
 	return len(conns.slice)
+}
+
+type GetEventForUser struct {
+	Url       string  `json:"url"`
+	IsHls     bool    `json:"is_hls"`
+	Timestamp float64 `json:"timestamp"`
+	IsPlaying bool    `json:"is_playing"`
 }
 
 type SyncEventForUser struct {

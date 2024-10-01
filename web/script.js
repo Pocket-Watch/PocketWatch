@@ -2,6 +2,18 @@ var player = fluidPlayer('player', {
     hls: {
         overrideNative: true
     },
+    modules: {
+        onAfterInitHls: (hls) => {
+            // NOTE(kihau): This is a hack around hls goofiness.
+            let state = loadPlayerState();
+
+            if (state.url !== "" && state.is_hls) {
+                player.pause();
+                vidSource.src = state.url;
+                hls.loadSource(state.url);
+            }
+        },
+    },
     layoutControls: {
         title: "TITLE PLACEHOLDER",
         doubleclickFullscreen: false,
@@ -21,21 +33,6 @@ var player = fluidPlayer('player', {
     }
 });
 
-// class AtomicBoolean {
-//     constructor(bool) {
-//         this.byte = new Int8Array(1);
-//         Atomics.store(this.byte, 0, bool ? 1 : 0);
-//     }
-//
-//     set(flag) {
-//         Atomics.store(this.byte, 0, flag ? 1 : 0);
-//     }
-//
-//     get() {
-//         return Atomics.load(this.byte, 0) === 1;
-//     }
-// }
-
 const DELTA = 1.5;
 
 player.setDebug(true)
@@ -51,7 +48,7 @@ var input_mp4_url = document.getElementById("input_mp4_url");
 var name_field = document.getElementById("user_name");
 
 // endpoint should be prefixed with slash
-function newPost(endpoint) {
+function httpPost(endpoint) {
     if (!endpoint.startsWith("/")) {
         endpoint = "/" + endpoint
     }
@@ -59,6 +56,16 @@ function newPost(endpoint) {
     req.open("POST", endpoint, true);
     req.setRequestHeader('Content-Type', 'application/json');
     return req;
+}
+
+function blockingHttpGet(endpoint) {
+    if (!endpoint.startsWith("/")) {
+        endpoint = "/" + endpoint
+    }
+    var request = new XMLHttpRequest();
+    request.open("GET", endpoint, false);
+    request.send(null);
+    return request.responseText;
 }
 
 async function sendSyncEventAsync(request) {
@@ -77,7 +84,7 @@ async function sendSetAsync(request, url) {
 }
 
 function setHlsButton() {
-    let request = newPost("/watch/set/hls")
+    let request = httpPost("/watch/api/set/hls")
     console.log("Current video source url: ", input_hls_url.value)
     sendSetAsync(request, input_hls_url.value).then(function(res) {
         console.log("Sending set for this hls file: ", res);
@@ -85,42 +92,34 @@ function setHlsButton() {
 }
 
 function setMp4Button() {
-    let request = newPost("/watch/set/mp4")
+    let request = httpPost("/watch/api/set/mp4")
     console.log("Current video source url: ", input_mp4_url.value)
     sendSetAsync(request, input_mp4_url.value).then(function(res) {
         console.log("Sending set for this mp4 file: ", res);
     });
 }
 
-
-// function attachOnClickToFluidWrapper() {
-//     let playerWrapper = document.getElementById("fluid_video_wrapper_player")
-//     // you click, video.paused = !video.paused
-//     playerWrapper.onclick = function()  {
-//         if (isVideoPlaying()) {
-//             console.log("VIDEO PLAYING - clicked fluid")
-//             let request = newPost("/watch/start")
-//             sendSyncEventAsync(request).then(function() {
-//                 console.log("Sending start!");
-//             });
-//         } else {
-//             console.log("VIDEO PAUSED - clicked fluid")
-//             let request = newPost("/watch/pause")
-//             sendSyncEventAsync(request).then(function() {
-//                 console.log("Sending pause!");
-//             });
-//         }
-//     }
-// }
-
 function isVideoPlaying() {
     return video.currentTime > 0 && !video.paused && !video.ended
 }
 
-function main() {
-    // attachOnClickToFluidWrapper()
+function loadPlayerState() {
+    let response = blockingHttpGet("/watch/api/get");
+    let jsonData = JSON.parse(response);
+    let state = {}
+    state.url = jsonData["url"];
+    state.is_hls = jsonData["is_hls"];
+    state.timestamp = jsonData["timestamp"];
+    state.is_playing = jsonData["is_playing"];
 
-    let eventSource = new EventSource("/watch/events");
+    console.log("Received get request from the server. The state is:");
+    console.log(state);
+
+    return state;
+}
+
+function subscribeToServerEvents() {
+    let eventSource = new EventSource("/watch/api/events");
 
     // Allow user to de-sync themselves freely and watch at their own pace
     eventSource.addEventListener("start", function (event) {
@@ -144,6 +143,7 @@ function main() {
             player.play()
         }
     })
+
     eventSource.addEventListener("pause", function (event) {
         let jsonData = JSON.parse(event.data)
         let timestamp = jsonData["timestamp"]
@@ -189,10 +189,12 @@ function main() {
         video.load();
         video.play();
     })
+}
 
+function subscribeToPlayerEvents() {
     player.on('seeked', function(){
         console.log("seeked, currentTime", video.currentTime);
-        let request= newPost("/watch/seek")
+        let request= httpPost("/watch/api/seek")
         sendSyncEventAsync(request).then(function(res) {
             console.log("Sending seek ", res);
         });
@@ -200,7 +202,7 @@ function main() {
 
     player.on('play', function() {
         if (!server_playing) {
-            let request = newPost("/watch/start")
+            let request = httpPost("/watch/api/start")
             sendSyncEventAsync(request).then(function(res) {
                 console.log("Sending start ", res);
             });
@@ -210,13 +212,29 @@ function main() {
 
     player.on('pause', function() {
         if (server_playing) {
-            let request = newPost("/watch/pause")
+            let request = httpPost("/watch/api/pause")
             sendSyncEventAsync(request).then(function(res) {
                 console.log("Sending pause ", res);
             });
             server_playing = false;
         }
     });
+}
+
+function main() {
+    let state = loadPlayerState();
+    server_playing = state.is_playing;
+
+    if (state.url !== "" && !state.is_hls) {
+        video.pause();
+        vidSource.setAttribute('src', state.url);
+        vidSource.setAttribute('type', 'video/mp4');
+        video.load();
+        video.play();
+    }  
+
+    subscribeToServerEvents();
+    subscribeToPlayerEvents();
 }
 
 main();

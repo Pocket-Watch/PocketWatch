@@ -2,8 +2,13 @@
 
 set -xe
 
+ip="localhost"
+port="1234"
+browser="firefox"
+
 mkdir -p build/
 cd src/ 
 go build -o ../build/watchlocally
 cd ..
-./build/watchlocally -port 1234
+# $browser "$ip:$port/watch/" &
+./build/watchlocally -ip $ip -port $port
