@@ -1,51 +1,69 @@
-var player = fluidPlayer('player', {
-    hls: {
-        overrideNative: true
-    },
-    modules: {
-        onAfterInitHls: (hls) => {
-            // NOTE(kihau): This is a hack around hls goofiness.
-            let state = loadPlayerState();
-
-            if (state.url !== "" && state.is_hls) {
-                player.pause();
-                vidSource.src = state.url;
-                hls.loadSource(state.url);
-            }
-        },
-    },
-    layoutControls: {
-        title: "TITLE PLACEHOLDER",
-        doubleclickFullscreen: false,
-        subtitlesEnabled: true,
-        autoPlay: true,
-        controlBar: {
-            autoHide: true,
-            autoHideTimeout: 2.5,
-            animated: true,
-            playbackRates: ['x2', 'x1.5', 'x1', 'x0.5']
-        },
-        miniPlayer: {
-            enabled: false,
-            width: 400,
-            height: 225
-        }
-    }
-});
-
 const DELTA = 1.5;
-
-player.setDebug(true)
 
 var server_playing = true;
 var server_source_timestamp = false;
 
-var video = document.getElementById("player");
-var vidSource = document.querySelector("source");
+var player;
+var video;
+var vidSource;
 
 var input_hls_url = document.getElementById("input_hls_url");
 var input_mp4_url = document.getElementById("input_mp4_url");
-var name_field = document.getElementById("user_name");
+var name_field    = document.getElementById("user_name");
+
+// function destroyPlayer() {
+//     var container = document.getElementById('player_container');
+//     while (container.hasChildNodes()) {
+//         container.removeChild(container.lastChild);
+//     }
+// }
+
+const MEDIA_HLS = "application/x-mpegURL";
+const MEDIA_MP4 = "video/mp4";
+
+function createPlayer(url, media_type) {
+    let container = document.getElementById('player_container');
+    let new_video = document.createElement('video');
+    new_video.width = window.innerWidth;
+    // new_video.height = window.innerHeight;
+    new_video.id = "player";
+
+    let new_source = document.createElement('source');
+    new_source.setAttribute('src', url);
+    new_source.setAttribute('type', media_type);
+    new_video.appendChild(new_source);
+
+    container.appendChild(new_video);
+
+    let new_player = fluidPlayer('player', {
+        hls: {
+            overrideNative: true
+        },
+        layoutControls: {
+            title: "TITLE PLACEHOLDER",
+            doubleclickFullscreen: false,
+            subtitlesEnabled: true,
+            autoPlay: true,
+            controlBar: {
+                autoHide: true,
+                autoHideTimeout: 2.5,
+                animated: true,
+                playbackRates: ['x2', 'x1.5', 'x1', 'x0.5']
+            },
+            miniPlayer: {
+                enabled: false,
+                width: 400,
+                height: 225
+            }
+        }
+    });
+
+    player    = new_player;
+    video     = new_video;
+    vidSource = new_source;
+
+    subscribeToPlayerEvents(new_player);
+}
 
 // endpoint should be prefixed with slash
 function httpPost(endpoint) {
@@ -171,11 +189,18 @@ function subscribeToServerEvents() {
         let url = jsonData["url"]
         console.log("Hls url received from the server: ", url)
 
-        // NOTE: HLS doesn't work when source is set to a mp4 file.
-        player.pause();
-        vidSource.src = url;
-        let hls = player.hlsInstance()
-        hls.loadSource(url);
+        // NOTE(kihau): Destroying the player might cause a bug when other functions try to access it.
+        // destroyPlayer();
+        player.destroy();
+        createPlayer(url, MEDIA_HLS);
+
+        let state = loadPlayerState();
+        server_playing = state.is_playing;
+        if (server_playing) {
+            player.play();
+        } else {
+            player.pause();
+        }
     })
 
     eventSource.addEventListener("set/mp4", function (event) {
@@ -183,38 +208,45 @@ function subscribeToServerEvents() {
         let url = jsonData["url"]
         console.log("Mp4 url received from the server: ", url)
 
-        video.pause();
-        vidSource.setAttribute('src', url);
-        vidSource.setAttribute('type', 'video/mp4');
-        video.load();
-        video.play();
+        // NOTE(kihau): Destroying the player might cause a bug when other functions try to access it.
+        // destroyPlayer();
+        player.destroy();
+        createPlayer(url, MEDIA_MP4);
+
+        let state = loadPlayerState();
+        server_playing = state.is_playing;
+        if (server_playing) {
+            player.play();
+        } else {
+            player.pause();
+        }
     })
 }
 
-function subscribeToPlayerEvents() {
-    player.on('seeked', function(){
+function subscribeToPlayerEvents(new_player) {
+    new_player.on('seeked', function() {
         console.log("seeked, currentTime", video.currentTime);
-        let request= httpPost("/watch/api/seek")
+        let request = httpPost("/watch/api/seek")
         sendSyncEventAsync(request).then(function(res) {
             console.log("Sending seek ", res);
         });
     });
 
-    player.on('play', function() {
+    new_player.on('play', function() {
         if (!server_playing) {
             let request = httpPost("/watch/api/start")
             sendSyncEventAsync(request).then(function(res) {
-                console.log("Sending start ", res);
+                console.log("Sending start");
             });
             server_playing = true;
         }
     });
 
-    player.on('pause', function() {
+    new_player.on('pause', function() {
         if (server_playing) {
             let request = httpPost("/watch/api/pause")
             sendSyncEventAsync(request).then(function(res) {
-                console.log("Sending pause ", res);
+                console.log("Sending pause");
             });
             server_playing = false;
         }
@@ -225,16 +257,15 @@ function main() {
     let state = loadPlayerState();
     server_playing = state.is_playing;
 
-    if (state.url !== "" && !state.is_hls) {
-        video.pause();
-        vidSource.setAttribute('src', state.url);
-        vidSource.setAttribute('type', 'video/mp4');
-        video.load();
-        video.play();
+    if (state.url === "") {
+        createPlayer("dummy.mp4", MEDIA_MP4);
+    } else if (state.is_hls) {
+        createPlayer(state.url, MEDIA_HLS);
+    } else {
+        createPlayer(state.url, MEDIA_MP4);
     }  
 
     subscribeToServerEvents();
-    subscribeToPlayerEvents();
 }
 
 main();

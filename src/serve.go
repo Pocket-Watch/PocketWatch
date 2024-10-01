@@ -135,6 +135,8 @@ func watchSetMp4(w http.ResponseWriter, r *http.Request) {
 }
 
 func watchStart(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("INFO: Connection %s requested player start.\n", r.RemoteAddr)
+
 	if r.Method != "POST" {
 		return
 	}
@@ -150,11 +152,12 @@ func watchStart(w http.ResponseWriter, r *http.Request) {
 	}
 	connections.mutex.Unlock()
 
-	fmt.Printf("INFO: Connection %s requested player start.\n", r.RemoteAddr)
 	io.WriteString(w, "Broadcasting start!\n")
 }
 
 func watchPause(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("INFO: Connection %s requested player pause.\n", r.RemoteAddr)
+
 	if r.Method != "POST" {
 		return
 	}
@@ -170,7 +173,6 @@ func watchPause(w http.ResponseWriter, r *http.Request) {
 	}
 	connections.mutex.Unlock()
 
-	fmt.Printf("INFO: Connection %s requested player pause.\n", r.RemoteAddr)
 	io.WriteString(w, "Broadcasting pause!\n")
 }
 
@@ -245,6 +247,7 @@ func watchEvents(w http.ResponseWriter, r *http.Request) {
 
 	for {
 		connection_error := writeSyncEvent(w, state.playing.Load(), false, "SERVER")
+
 		if connection_error != nil {
 			connections.mutex.Lock()
 			connections.remove(connection_id)
@@ -313,7 +316,7 @@ func writeSyncEvent(writer http.ResponseWriter, playing bool, haste bool, user s
 }
 
 func writeSetEvent(writer http.ResponseWriter, set_endpoint string) {
-
+    // fmt.Printf("Writing set event");
 	event_id := state.eventId.Add(1)
 	fmt.Fprintln(writer, "id:", event_id)
 	fmt.Fprintln(writer, "event: set/"+set_endpoint)
