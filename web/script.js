@@ -41,7 +41,6 @@ const DELTA = 1.5;
 player.setDebug(true)
 
 var server_playing = true;
-// var server_playing = new AtomicBoolean(true);
 var server_source_timestamp = false;
 
 var video = document.getElementById("player");
@@ -141,8 +140,9 @@ function main() {
         }
 
         server_playing = true;
-        // server_playing.set(true);
-        player.play()
+        if (!isVideoPlaying()) {
+            player.play()
+        }
     })
     eventSource.addEventListener("pause", function (event) {
         let jsonData = JSON.parse(event.data)
@@ -161,8 +161,9 @@ function main() {
         }
 
         server_playing = false;
-        // server_playing.set(false);
-        player.pause()
+        if (isVideoPlaying()) {
+            player.pause()
+        }
     })
 
     eventSource.addEventListener("set/hls", function (event) {
@@ -183,13 +184,6 @@ function main() {
         console.log("Mp4 url received from the server: ", url)
 
         video.pause();
-
-        // var new_source = document.createElement('source');
-        // new_source.setAttribute('src', url);
-        // new_source.setAttribute('type', 'video/mp4');
-        // video.appendChild(new_source);
-        // video.play();
-
         vidSource.setAttribute('src', url);
         vidSource.setAttribute('type', 'video/mp4');
         video.load();
@@ -205,13 +199,11 @@ function main() {
     });
 
     player.on('play', function() {
-        // if (!server_playing.get()) {
         if (!server_playing) {
             let request = newPost("/watch/start")
             sendSyncEventAsync(request).then(function(res) {
                 console.log("Sending start ", res);
             });
-            // server_playing.set(true);
             server_playing = true;
         }
     });
