@@ -29,8 +29,8 @@ function createPlayer(url, media_type) {
     new_video.id = "player";
 
     let new_source = document.createElement('source');
-    new_source.setAttribute('src', url);
-    new_source.setAttribute('type', media_type);
+    new_source.src = url;
+    new_source.type = media_type;
     new_video.appendChild(new_source);
 
     container.appendChild(new_video);
@@ -41,7 +41,7 @@ function createPlayer(url, media_type) {
         },
         layoutControls: {
             title: "TITLE PLACEHOLDER",
-            doubleclickFullscreen: false,
+            doubleclickFullscreen: true,
             subtitlesEnabled: true,
             autoPlay: true,
             controlBar: {
@@ -80,7 +80,7 @@ function blockingHttpGet(endpoint) {
     if (!endpoint.startsWith("/")) {
         endpoint = "/" + endpoint
     }
-    var request = new XMLHttpRequest();
+    let request = new XMLHttpRequest();
     request.open("GET", endpoint, false);
     request.send(null);
     return request.responseText;
