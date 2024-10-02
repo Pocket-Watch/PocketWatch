@@ -1,6 +1,5 @@
 const DELTA = 1.5;
 
-var server_playing = true;
 var server_source_timestamp = false;
 
 var player;
@@ -99,6 +98,7 @@ function blockingHttpGet(endpoint) {
 }
 
 async function sendSyncEventAsync(request) {
+    ignoreNextRequest = true
     request.send(JSON.stringify({
         uuid: "4613443434343",
         timestamp: video.currentTime,
@@ -141,53 +141,71 @@ function loadPlayerState() {
     return state;
 }
 
+
+
+var serverPlaying     = false // Updates on welcome-message and event-message
+var programmaticPlay  = false // Updates before programmatic play() and in .onplay
+var programmaticPause = false // Updates before programmatic pause() and in .onpause
+var programmaticSeek  = false // Updates before programmatic currentTime assignment and in .onseeked
+
+var ignoreNextRequest  = false // Updates before sending a sync request and on hasty events
+
+function readEventMaybeResync(type, event) {
+    if (ignoreNextRequest) {
+        // The next request will always be outdated so we can safely ignore it
+        ignoreNextRequest = false;
+        return;
+    }
+    let jsonData = JSON.parse(event.data)
+    let timestamp = jsonData["timestamp"]
+    let priority = jsonData["priority"]
+    let origin = jsonData["origin"]
+    console.log(priority, type, "from", origin, "at", timestamp);
+
+    let deSync = timestamp - video.currentTime
+    console.log("Your deSync: ", deSync)
+    if (type === "seek") {
+        programmaticSeek = true;
+        player.skipTo(timestamp)
+        return
+    }
+
+    if (DELTA < Math.abs(deSync)) {
+        console.log("EXCEEDED DELTA=", DELTA, " resyncing!")
+        programmaticSeek = true;
+        player.skipTo(timestamp)
+    }
+}
+
 function subscribeToServerEvents() {
     let eventSource = new EventSource("/watch/api/events");
-
+    
     // Allow user to de-sync themselves freely and watch at their own pace
-    eventSource.addEventListener("start", function (event) {
-        let jsonData = JSON.parse(event.data)
-        let timestamp = jsonData["timestamp"]
-        console.log("EVENT: PLAYING, " +
-            jsonData["priority"],
-            "from", jsonData["origin"],
-            "at", timestamp,
-        );
+    eventSource.addEventListener("play", function (event) {
+        readEventMaybeResync("play", event)
 
-        let deSync = timestamp - video.currentTime
-        console.log("Your deSync: ", deSync)
-        if (DELTA < Math.abs(deSync)) {
-            console.log("EXCEEDED DELTA=", DELTA, " resyncing!")
-            player.skipTo(timestamp)
-        }
-
-        server_playing = true;
+        serverPlaying = true
         if (!isVideoPlaying()) {
+            programmaticPlay = true
+            // this will merely append 'onplay' to the synchronous JS event queue
+            // so there's no guarantee that it will be executed next, same logic follows for 'onpause'
             player.play()
         }
     })
 
     eventSource.addEventListener("pause", function (event) {
-        let jsonData = JSON.parse(event.data)
-        let timestamp = jsonData["timestamp"]
-        console.log("EVENT: PAUSED, " +
-            jsonData["priority"],
-            "from", jsonData["origin"],
-            "at", timestamp,
-        );
+        readEventMaybeResync("pause", event)
 
-        let deSync = timestamp - video.currentTime
-        console.log("Your deSync: ", deSync)
-        if (DELTA < Math.abs(deSync)) {
-            console.log("EXCEEDED DELTA=", DELTA, " resyncing!")
-            player.skipTo(timestamp)
-        }
-
-        server_playing = false;
+        serverPlaying = false;
         if (isVideoPlaying()) {
+            programmaticPause = true
             player.pause()
         }
     })
+
+    eventSource.addEventListener("seek", function (event) {
+        readEventMaybeResync("seek", event)
+    });
 
     eventSource.addEventListener("seturl", function (event) {
         let jsonData = JSON.parse(event.data)
@@ -199,10 +217,12 @@ function subscribeToServerEvents() {
         createPlayer(url);
 
         let state = loadPlayerState();
-        server_playing = state.is_playing;
-        if (server_playing) {
+        serverPlaying = state.is_playing;
+        if (serverPlaying) {
+            programmaticPlay = true
             player.play();
         } else {
+            programmaticPause = true
             player.pause();
         }
     })
@@ -210,37 +230,56 @@ function subscribeToServerEvents() {
 
 function subscribeToPlayerEvents(new_player) {
     new_player.on('seeked', function() {
-        console.log("seeked, currentTime", video.currentTime);
+        if (programmaticSeek) {
+            programmaticSeek = false;
+            return
+        }
+        console.log("You seeked to", video.currentTime);
         let request = httpPost("/watch/api/seek")
-        sendSyncEventAsync(request).then(function(res) {
-            console.log("Sending seek ", res);
+        sendSyncEventAsync(request).then(function() {
+            console.log("Sending seek!");
         });
     });
 
     new_player.on('play', function() {
-        if (!server_playing) {
-            let request = httpPost("/watch/api/start")
-            sendSyncEventAsync(request).then(function(res) {
-                console.log("Sending start");
-            });
-            server_playing = true;
+        if (programmaticPlay) {
+            programmaticPlay = false;
+            return
         }
+        // if it's even possible for a user to initiate a play, despite the last server state being a play (event)
+        if (serverPlaying) {
+            console.log("WARNING: USER TRIGGERED PLAY WHILE SERVER WAS PLAYING!")
+            return
+        }
+        let request = httpPost("/watch/api/play")
+        sendSyncEventAsync(request).then(function() {
+            console.log("Sending play!");
+        });
+        // We cannot make assumptions about the next state of the server because our request will not have any priority
     });
 
     new_player.on('pause', function() {
-        if (server_playing) {
-            let request = httpPost("/watch/api/pause")
-            sendSyncEventAsync(request).then(function(res) {
-                console.log("Sending pause");
-            });
-            server_playing = false;
+        if (programmaticPause) {
+            programmaticPause = false;
+            return
         }
+        // again - in case it's possible for a user to initiate a pause, despite the last server state being a pause
+        if (!serverPlaying) {
+            console.log("WARNING: USER TRIGGERED PAUSE WHILE SERVER WAS PAUSED AS WELL!")
+            return
+        }
+
+        let request = httpPost("/watch/api/pause")
+        sendSyncEventAsync(request).then(function() {
+            console.log("Sending pause!");
+        });
+        // This request might not even come through
     });
 }
 
 function main() {
     let state = loadPlayerState();
-    server_playing = state.is_playing;
+    serverPlaying = state.is_playing;
 
     if (state.url === "") {
         createPlayer("dummy.mp4");
