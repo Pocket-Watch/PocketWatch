@@ -1,10 +1,12 @@
 - [x] Remove dead connections
 - [x] Remove startButton stopButton
 - [x] string.Builders instead of 6 calls to fmt.Fprint
-- [ ] Auto detect media file formats received by the server
-    - [ ] MP4
-    - [ ] M3U8
-    - [ ] ...
+- [x] Auto detect media file formats received by the server
+    - [x] M3U8
+    - [x] MP4
+    - [x] MPEG
+    - [x] WEBM
+    - [x] OGV
 - [ ] Rewrite '/start' '/pause' to '/update'
 - [ ] Fix chained requests
     - [x] Fix chained pauses

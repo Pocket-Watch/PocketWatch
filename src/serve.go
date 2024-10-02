@@ -58,8 +58,7 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/watch/api/version", versionGet)
 	http.HandleFunc("/watch/api/login", login)
 	http.HandleFunc("/watch/api/get", watchGet)
-	http.HandleFunc("/watch/api/set/hls", watchSetHls)
-	http.HandleFunc("/watch/api/set/mp4", watchSetMp4)
+	http.HandleFunc("/watch/api/seturl", watchSetUrl)
 	http.HandleFunc("/watch/api/pause", watchPause)
 	http.HandleFunc("/watch/api/seek", watchSeek)
 	http.HandleFunc("/watch/api/start", watchStart)
@@ -81,7 +80,6 @@ func watchGet(w http.ResponseWriter, r *http.Request) {
 
 	var getEvent GetEventForUser
 	getEvent.Url = state.url
-	getEvent.IsHls = state.is_hsl.Load()
 	getEvent.IsPlaying = state.playing.Load()
 	getEvent.Timestamp = state.timestamp
 
@@ -94,42 +92,21 @@ func watchGet(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(jsonData))
 }
 
-func watchSetHls(w http.ResponseWriter, r *http.Request) {
+func watchSetUrl(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
 	}
 
-	fmt.Printf("INFO: Connection %s requested hls url change.\n", r.RemoteAddr)
-	state.is_hsl.Store(true)
+	fmt.Printf("INFO: Connection %s requested media url change.\n", r.RemoteAddr)
 	if !readSetEventAndUpdateState(w, r) {
 		return
 	}
 
-	io.WriteString(w, "Setting hls url!")
+	io.WriteString(w, "Setting media url!")
 
 	connections.mutex.RLock()
 	for _, conn := range connections.slice {
-		writeSetEvent(conn.writer, "hls")
-	}
-	connections.mutex.RUnlock()
-}
-
-func watchSetMp4(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
-	fmt.Printf("INFO: Connection %s requested mp4 url change.\n", r.RemoteAddr)
-	state.is_hsl.Store(false)
-	if !readSetEventAndUpdateState(w, r) {
-		return
-	}
-
-	io.WriteString(w, "Setting mp4 url!")
-
-	connections.mutex.RLock()
-	for _, conn := range connections.slice {
-		writeSetEvent(conn.writer, "mp4")
+		writeSetEvent(conn.writer)
 	}
 	connections.mutex.RUnlock()
 }
@@ -315,11 +292,11 @@ func writeSyncEvent(writer http.ResponseWriter, playing bool, haste bool, user s
 	return nil
 }
 
-func writeSetEvent(writer http.ResponseWriter, set_endpoint string) {
+func writeSetEvent(writer http.ResponseWriter) {
     // fmt.Printf("Writing set event");
 	event_id := state.eventId.Add(1)
 	fmt.Fprintln(writer, "id:", event_id)
-	fmt.Fprintln(writer, "event: set/"+set_endpoint)
+	fmt.Fprintln(writer, "event: seturl")
 	fmt.Fprintln(writer, "data:", "{\"url\":\""+state.url+"\"}")
 	fmt.Fprintln(writer, "retry:", RETRY)
 	fmt.Fprintln(writer)
@@ -342,7 +319,6 @@ type State struct {
 	playing        atomic.Bool
 	timestamp      float64
 	url            string
-	is_hsl         atomic.Bool
 	eventId        atomic.Uint64
 	lastTimeUpdate time.Time
 }
@@ -394,7 +370,6 @@ func (conns *Connections) len() int {
 
 type GetEventForUser struct {
 	Url       string  `json:"url"`
-	IsHls     bool    `json:"is_hls"`
 	Timestamp float64 `json:"timestamp"`
 	IsPlaying bool    `json:"is_playing"`
 }

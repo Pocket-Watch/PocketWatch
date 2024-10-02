@@ -7,21 +7,34 @@ var player;
 var video;
 var vidSource;
 
-var input_hls_url = document.getElementById("input_hls_url");
-var input_mp4_url = document.getElementById("input_mp4_url");
-var name_field    = document.getElementById("user_name");
+var input_url  = document.getElementById("input_url");
+var name_field = document.getElementById("user_name");
 
-// function destroyPlayer() {
-//     var container = document.getElementById('player_container');
-//     while (container.hasChildNodes()) {
-//         container.removeChild(container.lastChild);
-//     }
-// }
+function getUrlMediaType(url) {
+    if (url.endsWith(".m3u8")) {
+        return "application/x-mpegURL";
+    }
 
-const MEDIA_HLS = "application/x-mpegURL";
-const MEDIA_MP4 = "video/mp4";
+    if (url.endsWith(".mp4")) {
+        return "video/mp4";
+    } 
 
-function createPlayer(url, media_type) {
+    if (url.endsWith(".mpeg")) {
+        return "video/mpeg";
+    }
+
+    if (url.endsWith(".webm")) {
+        return "video/webm";
+    }
+
+    if (url.endsWith(".ogv")) {
+        return "video/ogg";
+    }
+
+    return ""
+}
+
+function createPlayer(url) {
     let container = document.getElementById('player_container');
     let new_video = document.createElement('video');
     new_video.width = window.innerWidth;
@@ -30,7 +43,7 @@ function createPlayer(url, media_type) {
 
     let new_source = document.createElement('source');
     new_source.src = url;
-    new_source.type = media_type;
+    new_source.type = getUrlMediaType(url);
     new_video.appendChild(new_source);
 
     container.appendChild(new_video);
@@ -65,7 +78,6 @@ function createPlayer(url, media_type) {
     subscribeToPlayerEvents(new_player);
 }
 
-// endpoint should be prefixed with slash
 function httpPost(endpoint) {
     if (!endpoint.startsWith("/")) {
         endpoint = "/" + endpoint
@@ -101,19 +113,13 @@ async function sendSetAsync(request, url) {
     }));
 }
 
-function setHlsButton() {
-    let request = httpPost("/watch/api/set/hls")
-    console.log("Current video source url: ", input_hls_url.value)
-    sendSetAsync(request, input_hls_url.value).then(function(res) {
-        console.log("Sending set for this hls file: ", res);
-    });
-}
+function setUrlButton() {
+    let request = httpPost("/watch/api/seturl")
+    let url = input_url.value;
 
-function setMp4Button() {
-    let request = httpPost("/watch/api/set/mp4")
-    console.log("Current video source url: ", input_mp4_url.value)
-    sendSetAsync(request, input_mp4_url.value).then(function(res) {
-        console.log("Sending set for this mp4 file: ", res);
+    console.log("Current video source url: ", url)
+    sendSetAsync(request, url).then(function(res) {
+        console.log("Sending seturl for a new url");
     });
 }
 
@@ -126,7 +132,6 @@ function loadPlayerState() {
     let jsonData = JSON.parse(response);
     let state = {}
     state.url = jsonData["url"];
-    state.is_hls = jsonData["is_hls"];
     state.timestamp = jsonData["timestamp"];
     state.is_playing = jsonData["is_playing"];
 
@@ -184,34 +189,14 @@ function subscribeToServerEvents() {
         }
     })
 
-    eventSource.addEventListener("set/hls", function (event) {
+    eventSource.addEventListener("seturl", function (event) {
         let jsonData = JSON.parse(event.data)
         let url = jsonData["url"]
-        console.log("Hls url received from the server: ", url)
+        console.log("Media url received from the server: ", url)
 
         // NOTE(kihau): Destroying the player might cause a bug when other functions try to access it.
-        // destroyPlayer();
         player.destroy();
-        createPlayer(url, MEDIA_HLS);
-
-        let state = loadPlayerState();
-        server_playing = state.is_playing;
-        if (server_playing) {
-            player.play();
-        } else {
-            player.pause();
-        }
-    })
-
-    eventSource.addEventListener("set/mp4", function (event) {
-        let jsonData = JSON.parse(event.data)
-        let url = jsonData["url"]
-        console.log("Mp4 url received from the server: ", url)
-
-        // NOTE(kihau): Destroying the player might cause a bug when other functions try to access it.
-        // destroyPlayer();
-        player.destroy();
-        createPlayer(url, MEDIA_MP4);
+        createPlayer(url);
 
         let state = loadPlayerState();
         server_playing = state.is_playing;
@@ -258,12 +243,10 @@ function main() {
     server_playing = state.is_playing;
 
     if (state.url === "") {
-        createPlayer("dummy.mp4", MEDIA_MP4);
-    } else if (state.is_hls) {
-        createPlayer(state.url, MEDIA_HLS);
+        createPlayer("dummy.mp4");
     } else {
-        createPlayer(state.url, MEDIA_MP4);
-    }  
+        createPlayer(state.url);
+    }
 
     subscribeToServerEvents();
 }

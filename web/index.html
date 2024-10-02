@@ -9,27 +9,14 @@
     <body>
         <!-- TODO(kihau): Make video player dynamically resizable? -->
         <div id="player_container"> 
-            <!-- <video id="player" controls style="width: 960px; height: 540px;"> -->
-            <!--     <source src='media/Robots.mp4' type='video/mp4' /> -->
-            <!--     <source src='https://www035.anzeat.pro/streamhls/0c7dcd93f60a90b8bdab83c2355e4ec2/ep.2.1720837909.1080.m3u8' -->
-            <!--             type='application/x-mpegURL' /> -->
-            <!--     <track label="English" kind="metadata" srclang="en" src="media/english.vtt" default> -->
-            <!--     <track label="Deutsch" kind="metadata" srclang="de" src="media/german.srt"> -->
-            <!-- </video> -->
         </div>
 
         <br>
         <br>
 
-        <label>Input the m3u8 URL here:</label><br />
-        <input id="input_hls_url" name="input_hls_url" />
-        <button onclick="setHlsButton()">Send</button>
-
-        <br>
-
-        <label>Input the mp4 URL here:</label><br />
-        <input id="input_mp4_url" name="input_mp4_url" />
-        <button onclick="setMp4Button()">Send</button>
+        <label>Input the media URL here:</label><br />
+        <input id="input_url" name="input_url" />
+        <button onclick="setUrlButton()">Send</button>
 
         <br>
         <br>
@@ -65,7 +52,6 @@
 
         </form>
 
-<!--        native css-->
         <style>
             @keyframes sway  {
                 0% { transform: rotate(8deg); }
@@ -86,12 +72,6 @@
         <br>
         <br>
         <br>
-
-        <!-- <img id="construction" src="under_construction.png" alt="This page is under construction"> -->
-        <!-- <canvas id="construction_canvas" width="800" height="400"></canvas> -->
-
-        <!-- Place before </body> tag -->
-        <!-- We should probably cache this js and store it locally -->
 
         <script src="fluid_player.js"></script>
         <script src="script.js"></script>
