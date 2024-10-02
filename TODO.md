@@ -1,0 +1,25 @@
+- [x] Remove dead connections
+- [x] Remove startButton stopButton
+- [x] string.Builders instead of 6 calls to fmt.Fprint
+- [ ] Auto detect media file formats received by the server
+    - [ ] MP4
+    - [ ] M3U8
+    - [ ] ...
+- [ ] Rewrite '/start' '/pause' to '/update'
+- [ ] Fix chained requests
+    - [x] Fix chained pauses
+    - [x] Fix chained plays
+    - [ ] Fix chained seeks
+- [ ] Investigate and fix pause/play spam loop
+- [ ] Investigate and fix seek issue where sometimes performing seek does nothing
+- [ ] Detect mobile client and adjust the page appropriately
+    - [ ] Don't auto-hide player
+    - [ ] Reduce horizontal player size for mobile (portrait)
+    - [ ] Do not pause the player on a single screen tap
+- [ ] Server hardening and rate-limiting
+- [ ] Add server side and client side authentication and store cookies
+- [ ] Add support for live chat
+- [ ] Add watch history
+- [ ] Display connected users
+- [ ] Improve the UI layout and styling
+- [ ] Add rooms with individual player states
