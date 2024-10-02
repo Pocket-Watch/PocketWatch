@@ -107,11 +107,11 @@ func watchSetHls(w http.ResponseWriter, r *http.Request) {
 
 	io.WriteString(w, "Setting hls url!")
 
-	connections.mutex.Lock()
+	connections.mutex.RLock()
 	for _, conn := range connections.slice {
 		writeSetEvent(conn.writer, "hls")
 	}
-	connections.mutex.Unlock()
+	connections.mutex.RUnlock()
 }
 
 func watchSetMp4(w http.ResponseWriter, r *http.Request) {
@@ -127,11 +127,11 @@ func watchSetMp4(w http.ResponseWriter, r *http.Request) {
 
 	io.WriteString(w, "Setting mp4 url!")
 
-	connections.mutex.Lock()
+	connections.mutex.RLock()
 	for _, conn := range connections.slice {
 		writeSetEvent(conn.writer, "mp4")
 	}
-	connections.mutex.Unlock()
+	connections.mutex.RUnlock()
 }
 
 func watchStart(w http.ResponseWriter, r *http.Request) {
@@ -146,11 +146,11 @@ func watchStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	connections.mutex.Lock()
+	connections.mutex.RLock()
 	for _, conn := range connections.slice {
 		writeSyncEvent(conn.writer, true, true, syncEvent.Username)
 	}
-	connections.mutex.Unlock()
+	connections.mutex.RUnlock()
 
 	io.WriteString(w, "Broadcasting start!\n")
 }
@@ -167,11 +167,11 @@ func watchPause(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	connections.mutex.Lock()
+	connections.mutex.RLock()
 	for _, conn := range connections.slice {
 		writeSyncEvent(conn.writer, false, true, syncEvent.Username)
 	}
-	connections.mutex.Unlock()
+	connections.mutex.RUnlock()
 
 	io.WriteString(w, "Broadcasting pause!\n")
 }
@@ -353,7 +353,7 @@ type Connection struct {
 }
 
 type Connections struct {
-	mutex      sync.Mutex
+	mutex      sync.RWMutex
 	id_counter uint64
 	slice      []Connection
 }
