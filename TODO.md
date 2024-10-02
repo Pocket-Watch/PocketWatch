@@ -7,19 +7,24 @@
     - [x] MPEG
     - [x] WEBM
     - [x] OGV
-- [ ] Rewrite '/start' '/pause' to '/update'
-- [ ] Fix chained requests
+- [x] Rewrite '/start' '/pause' to '/update'
+- [x] Fix chained requests
     - [x] Fix chained pauses
     - [x] Fix chained plays
-    - [ ] Fix chained seeks
-- [ ] Investigate and fix pause/play spam loop
+    - [x] Fix chained seeks
+- [x] Investigate and fix pause/play spam loop
+- [ ] Add all dependencies to the project, don't rely on other services.
 - [ ] Investigate and fix seek issue where sometimes performing seek does nothing
+- [ ] Get rid the "dummy.mp4", replace it with an indicator that nothing is playing
+- [ ] Display current media url on the client side
 - [ ] Detect mobile client and adjust the page appropriately
     - [ ] Don't auto-hide player
     - [ ] Reduce horizontal player size for mobile (portrait)
     - [ ] Do not pause the player on a single screen tap
 - [ ] Server hardening and rate-limiting
 - [ ] Add server side and client side authentication and store cookies
+- [ ] Add option to upload media file to the server and stream it to all connected clients (streaming proxy)
+- [ ] Add option to upload media url, download in on the server and stream to all connected clients
 - [ ] Add support for live chat
 - [ ] Add watch history
 - [ ] Display connected users
