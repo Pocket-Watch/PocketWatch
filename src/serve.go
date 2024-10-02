@@ -53,15 +53,18 @@ func StartServer(options *Options) {
 
 func registerEndpoints(options *Options) {
 	fileserver := http.FileServer(http.Dir("./web"))
+	// fix trailing suffix
 	http.Handle("/", http.StripPrefix("/watch/", fileserver))
 
 	http.HandleFunc("/watch/api/version", versionGet)
 	http.HandleFunc("/watch/api/login", login)
 	http.HandleFunc("/watch/api/get", watchGet)
 	http.HandleFunc("/watch/api/seturl", watchSetUrl)
+
+	http.HandleFunc("/watch/api/play", watchStart)
 	http.HandleFunc("/watch/api/pause", watchPause)
 	http.HandleFunc("/watch/api/seek", watchSeek)
-	http.HandleFunc("/watch/api/start", watchStart)
+
 	http.HandleFunc("/watch/api/events", watchEvents)
 }
 
@@ -112,12 +115,12 @@ func watchSetUrl(w http.ResponseWriter, r *http.Request) {
 }
 
 func watchStart(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("INFO: Connection %s requested player start.\n", r.RemoteAddr)
-
 	if r.Method != "POST" {
 		return
 	}
 	state.playing.Swap(true)
+
+	fmt.Printf("INFO: Connection %s requested player start.\n", r.RemoteAddr)
 	syncEvent := receiveSyncEventFromUser(w, r)
 	if syncEvent == nil {
 		return
@@ -125,7 +128,7 @@ func watchStart(w http.ResponseWriter, r *http.Request) {
 
 	connections.mutex.RLock()
 	for _, conn := range connections.slice {
-		writeSyncEvent(conn.writer, true, true, syncEvent.Username)
+		writeSyncEvent(conn.writer, Play, true, syncEvent.Username)
 	}
 	connections.mutex.RUnlock()
 
@@ -133,12 +136,13 @@ func watchStart(w http.ResponseWriter, r *http.Request) {
 }
 
 func watchPause(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("INFO: Connection %s requested player pause.\n", r.RemoteAddr)
-
 	if r.Method != "POST" {
 		return
 	}
-	state.playing.Swap(false)
+
+	state.playing.Store(false)
+
+	fmt.Printf("INFO: Connection %s requested player pause.\n", r.RemoteAddr)
 	syncEvent := receiveSyncEventFromUser(w, r)
 	if syncEvent == nil {
 		return
@@ -146,7 +150,7 @@ func watchPause(w http.ResponseWriter, r *http.Request) {
 
 	connections.mutex.RLock()
 	for _, conn := range connections.slice {
-		writeSyncEvent(conn.writer, false, true, syncEvent.Username)
+		writeSyncEvent(conn.writer, Pause, true, syncEvent.Username)
 	}
 	connections.mutex.RUnlock()
 
@@ -157,13 +161,19 @@ func watchSeek(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
 	}
+
+	fmt.Printf("INFO: Connection %s requested player seek.\n", r.RemoteAddr)
 	syncEvent := receiveSyncEventFromUser(w, r)
 	if syncEvent == nil {
 		return
 	}
 	// this needs a rewrite: /pause /start /seek - a unified format way of
-	fmt.Printf("INFO: Connection %s requested player seek.\n", r.RemoteAddr)
-	io.WriteString(w, "SEEK CALLED!\n")
+	connections.mutex.RLock()
+	for _, conn := range connections.slice {
+		writeSyncEvent(conn.writer, Seek, true, syncEvent.Username)
+	}
+	connections.mutex.RUnlock()
+	io.WriteString(w, "Broadcasting seek!\n")
 }
 
 func receiveSyncEventFromUser(w http.ResponseWriter, r *http.Request) *SyncEventFromUser {
@@ -223,7 +233,13 @@ func watchEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 
 	for {
-		connection_error := writeSyncEvent(w, state.playing.Load(), false, "SERVER")
+		var eventType string
+		if state.playing.Load() {
+			eventType = Play
+		} else {
+			eventType = Pause
+		}
+		connection_error := writeSyncEvent(w, eventType, false, "SERVER")
 
 		if connection_error != nil {
 			connections.mutex.Lock()
@@ -239,14 +255,11 @@ func watchEvents(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func writeSyncEvent(writer http.ResponseWriter, playing bool, haste bool, user string) error {
-	var eventType string
-	if playing {
-		eventType = "start"
-	} else {
-		eventType = "pause"
-	}
+const Play = "play"
+const Pause = "pause"
+const Seek = "seek"
 
+func writeSyncEvent(writer http.ResponseWriter, eventType string, haste bool, user string) error {
 	var priority string
 	if haste {
 		priority = "HASTY"
@@ -256,20 +269,16 @@ func writeSyncEvent(writer http.ResponseWriter, playing bool, haste bool, user s
 
 	var syncEvent SyncEventForUser
 	// this needs to be reviewed
+	var timestamp = state.timestamp
 	if state.playing.Load() {
 		now := time.Now()
 		diff := now.Sub(state.lastTimeUpdate)
-		syncEvent = SyncEventForUser{
-			Timestamp: state.timestamp + diff.Seconds(),
-			Priority:  priority,
-			Origin:    user,
-		}
-	} else {
-		syncEvent = SyncEventForUser{
-			Timestamp: state.timestamp,
-			Priority:  priority,
-			Origin:    user,
-		}
+		timestamp = state.timestamp + diff.Seconds()
+	}
+	syncEvent = SyncEventForUser{
+		Timestamp: timestamp,
+		Priority:  priority,
+		Origin:    user,
 	}
 	jsonData, err := json.Marshal(syncEvent)
 	if err != nil {
@@ -293,7 +302,7 @@ func writeSyncEvent(writer http.ResponseWriter, playing bool, haste bool, user s
 }
 
 func writeSetEvent(writer http.ResponseWriter) {
-    // fmt.Printf("Writing set event");
+	// fmt.Printf("Writing set event");
 	event_id := state.eventId.Add(1)
 	fmt.Fprintln(writer, "id:", event_id)
 	fmt.Fprintln(writer, "event: seturl")
