@@ -21,6 +21,7 @@ var state = State{}
 var connections = makeConnections()
 
 func StartServer(options *Options) {
+	state.lastTimeUpdate = time.Now()
 	registerEndpoints(options)
 
 	var address = options.Address + ":" + strconv.Itoa(int(options.Port))
@@ -251,7 +252,33 @@ func watchEvents(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		time.Sleep(2 * time.Second)
+		smartSleep()
+	}
+}
+
+const BROADCAST_INTERVAL = 2 * time.Second
+
+// this will prevent LAZY broadcasts when users make frequent updates
+func smartSleep() {
+	state.lastBroadcast = time.Now()
+	time.Sleep(BROADCAST_INTERVAL)
+	for {
+		now := time.Now()
+		broadcastDiff := now.Sub(state.lastBroadcast)
+		timeUpdateDiff := now.Sub(state.lastTimeUpdate)
+
+		var smallestDiff time.Duration
+		if broadcastDiff > timeUpdateDiff {
+			smallestDiff = timeUpdateDiff
+		} else {
+			smallestDiff = broadcastDiff
+		}
+
+		if smallestDiff > BROADCAST_INTERVAL {
+			break
+		}
+
+		time.Sleep(BROADCAST_INTERVAL - smallestDiff)
 	}
 }
 
@@ -330,6 +357,7 @@ type State struct {
 	url            string
 	eventId        atomic.Uint64
 	lastTimeUpdate time.Time
+	lastBroadcast  time.Time
 }
 
 type Connection struct {
