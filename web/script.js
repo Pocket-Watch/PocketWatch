@@ -230,6 +230,7 @@ function subscribeToServerEvents() {
 function subscribeToPlayerEvents(new_player) {
     new_player.on('seeked', function() {
         if (programmaticSeek) {
+            console.log("Programmatic seek caught")
             programmaticSeek = false;
             return
         }
