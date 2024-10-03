@@ -98,7 +98,6 @@ function blockingHttpGet(endpoint) {
 }
 
 async function sendSyncEventAsync(request) {
-    ignoreNextRequest = true
     request.send(JSON.stringify({
         uuid: "4613443434343",
         timestamp: video.currentTime,
@@ -236,6 +235,7 @@ function subscribeToPlayerEvents(new_player) {
         }
         console.log("You seeked to", video.currentTime);
         let request = httpPost("/watch/api/seek")
+        ignoreNextRequest = true
         sendSyncEventAsync(request).then(function() {
             console.log("Sending seek!");
         });
@@ -252,6 +252,7 @@ function subscribeToPlayerEvents(new_player) {
             return
         }
         let request = httpPost("/watch/api/play")
+        ignoreNextRequest = true
         sendSyncEventAsync(request).then(function() {
             console.log("Sending play!");
         });
@@ -270,6 +271,7 @@ function subscribeToPlayerEvents(new_player) {
         }
 
         let request = httpPost("/watch/api/pause")
+        ignoreNextRequest = true
         sendSyncEventAsync(request).then(function() {
             console.log("Sending pause!");
         });
