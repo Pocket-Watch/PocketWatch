@@ -150,15 +150,18 @@ var programmaticSeek  = false // Updates before programmatic currentTime assignm
 var ignoreNextRequest  = false // Updates before sending a sync request and on hasty events
 
 function readEventMaybeResync(type, event) {
-    if (ignoreNextRequest) {
-        // The next request will always be outdated so we can safely ignore it
-        ignoreNextRequest = false;
-        return;
-    }
     let jsonData = JSON.parse(event.data)
     let timestamp = jsonData["timestamp"]
     let priority = jsonData["priority"]
     let origin = jsonData["origin"]
+
+    if (ignoreNextRequest) {
+        // The next request will always be outdated so we can safely ignore it
+        ignoreNextRequest = false;
+        console.log("IGNORED:", priority, type, "from", origin, "at", timestamp)
+        return;
+    }
+
     console.log(priority, type, "from", origin, "at", timestamp);
 
     let deSync = timestamp - video.currentTime
