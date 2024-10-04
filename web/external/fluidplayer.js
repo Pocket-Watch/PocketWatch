@@ -1684,7 +1684,7 @@ module.exports = "data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjRkZGIiBoZWlnaHQ9IjI0
 /***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
-module.exports = __webpack_require__.p + "583850a426583410ea8e.svg";
+module.exports = __webpack_require__.p + "player_icons.svg";
 
 /***/ }),
 
@@ -1830,7 +1830,7 @@ module.exports = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5v
 /******/ 		// This function allow to reference async chunks
 /******/ 		__webpack_require__.u = function(chunkId) {
 /******/ 			// return url for filenames based on template
-/******/ 			return "" + ({"112":"dashjs","366":"panolens","490":"webvtt","602":"hlsjs","721":"vttjs"}[chunkId] || chunkId) + "." + {"112":"8be310f838155c10b618","366":"be3b8ca09ded7e8b8db4","407":"04706e73a97ff65af508","490":"b5f20dc73f810b1959d0","602":"73ce25c204fa93bc17c6","721":"1e6d26ada9c98b330a60"}[chunkId] + ".js";
+/******/ 			return "" + ({"112":"dashjs","366":"panolens","490":"webvtt","602":"hlsjs","721":"vttjs"}[chunkId] || chunkId) + ".js";
 /******/ 		};
 /******/ 	}();
 /******/ 	
