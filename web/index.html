@@ -15,7 +15,7 @@
         <br>
 
         <label>Input the media URL here:</label><br />
-        <input id="input_url" name="input_url" />
+        <input type="url" id="input_url" name="input_url" size="100"/>
         <button onclick="setUrlButton()">Send</button>
 
         <br>
@@ -23,6 +23,12 @@
 
         <label>Put your name here:</label><br />
         <input id="user_name" name="user_name" maxlength="120" />
+
+        <br>
+        <br>
+
+        <label>Currently set URL:</label><br />
+        <input readonly="true", type="text" id="current_url" size="100" />
 
         <br>
         <br>

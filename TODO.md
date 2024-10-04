@@ -14,11 +14,11 @@
     - [x] Fix chained plays
     - [x] Fix chained seeks
 - [x] Investigate and fix pause/play spam loop
-- [ ] Add all dependencies to the project, don't rely on other services.
+- [x] Add all dependencies locally to the project, don't rely on downloading them from online services at runtime.
+- [x] Display current media url on the client side
 - [ ] On fist website load, do not recieve event until user clicked the play button for the first time
 - [ ] Investigate and fix seek issue where sometimes performing seek does nothing
 - [ ] Get rid of "dummy.mp4", replace it with an indicator that nothing is playing
-- [ ] Display current media url on the client side
 - [ ] Detect mobile client and adjust the page appropriately
     - [ ] Don't auto-hide player
     - [ ] Reduce horizontal player size for mobile (portrait)

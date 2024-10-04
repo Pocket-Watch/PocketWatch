@@ -6,8 +6,9 @@ var player;
 var video;
 var vidSource;
 
-var input_url  = document.getElementById("input_url");
-var name_field = document.getElementById("user_name");
+var input_url   = document.getElementById("input_url");
+var current_url = document.getElementById("current_url");
+var name_field  = document.getElementById("user_name");
 
 function getUrlMediaType(url) {
     if (url.endsWith(".m3u8")) {
@@ -34,6 +35,8 @@ function getUrlMediaType(url) {
 }
 
 function createPlayer(url) {
+    current_url.value = url;
+
     let container = document.getElementById('player_container');
     let new_video = document.createElement('video');
     new_video.width = window.innerWidth;
@@ -115,11 +118,13 @@ async function sendSetAsync(request, url) {
 function setUrlButton() {
     let request = httpPost("/watch/api/seturl")
     let url = input_url.value;
+    input_url.value = ''
 
     console.log("Current video source url: ", url)
     sendSetAsync(request, url).then(function(res) {
         console.log("Sending seturl for a new url");
     });
+
 }
 
 function isVideoPlaying() {
