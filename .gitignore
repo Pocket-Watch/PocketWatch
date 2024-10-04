@@ -4,5 +4,6 @@ web/fluid_player.js
 web/media/**
 build/**
 secret/**
+lib/**
 
 *.exe
