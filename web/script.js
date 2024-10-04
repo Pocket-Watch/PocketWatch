@@ -1,7 +1,5 @@
 const DELTA = 1.5;
 
-var server_source_timestamp = false;
-
 var player;
 var video;
 var vidSource;
@@ -15,27 +13,29 @@ function getUrlMediaType(url) {
         return "application/x-mpegURL";
     }
 
-    if (url.endsWith(".mp4")) {
-        return "video/mp4";
-    } 
-
-    if (url.endsWith(".mpeg")) {
-        return "video/mpeg";
-    }
-
-    if (url.endsWith(".webm")) {
-        return "video/webm";
-    }
-
-    if (url.endsWith(".ogv")) {
-        return "video/ogg";
-    }
+    // if (url.endsWith(".mp4")) {
+    //     return "video/mp4";
+    // } 
+    //
+    // if (url.endsWith(".mpeg")) {
+    //     return "video/mpeg";
+    // }
+    //
+    // if (url.endsWith(".webm")) {
+    //     return "video/webm";
+    // }
+    //
+    // if (url.endsWith(".ogv")) {
+    //     return "video/ogg";
+    // }
 
     return ""
 }
 
 function createPlayer(url) {
     current_url.value = url;
+
+    let url_missing = url === ""
 
     let container = document.getElementById('player_container');
     let new_video = document.createElement('video');
@@ -44,40 +44,47 @@ function createPlayer(url) {
     new_video.id = "player";
 
     let new_source = document.createElement('source');
+    if (url_missing) {
+        url = "nothing_is_playing.mp4";
+    } 
+
     new_source.src = url;
     new_source.type = getUrlMediaType(url);
     new_video.appendChild(new_source);
 
     container.appendChild(new_video);
 
-    let new_player = fluidPlayer('player', {
-        hls: {
-            overrideNative: true
-        },
-        layoutControls: {
-            title: "TITLE PLACEHOLDER",
-            doubleclickFullscreen: true,
-            subtitlesEnabled: true,
-            autoPlay: true,
-            controlBar: {
-                autoHide: true,
-                autoHideTimeout: 2.5,
-                animated: true,
-                playbackRates: ['x2', 'x1.5', 'x1', 'x0.5']
+    let new_player = null;
+    if (!url_missing) {
+        new_player = fluidPlayer('player', {
+            hls: {
+                overrideNative: true
             },
-            miniPlayer: {
-                enabled: false,
-                width: 400,
-                height: 225
+            layoutControls: {
+                title: "TITLE PLACEHOLDER",
+                doubleclickFullscreen: true,
+                subtitlesEnabled: true,
+                autoPlay: true,
+                controlBar: {
+                    autoHide: true,
+                    autoHideTimeout: 2.5,
+                    animated: true,
+                    playbackRates: ['x2', 'x1.5', 'x1', 'x0.5']
+                },
+                miniPlayer: {
+                    enabled: false,
+                    width: 400,
+                    height: 225
+                }
             }
-        }
-    });
+        });
+
+        subscribeToPlayerEvents(new_player);
+    }
 
     player    = new_player;
     video     = new_video;
     vidSource = new_source;
-
-    subscribeToPlayerEvents(new_player);
 }
 
 function httpPost(endpoint) {
@@ -189,6 +196,10 @@ function subscribeToServerEvents() {
     
     // Allow user to de-sync themselves freely and watch at their own pace
     eventSource.addEventListener("play", function (event) {
+        if (!player) {
+            return;
+        }
+
         readEventMaybeResync("play", event)
 
         serverPlaying = true
@@ -201,6 +212,10 @@ function subscribeToServerEvents() {
     })
 
     eventSource.addEventListener("pause", function (event) {
+        if (!player) {
+            return;
+        }
+
         readEventMaybeResync("pause", event)
 
         serverPlaying = false;
@@ -211,6 +226,10 @@ function subscribeToServerEvents() {
     })
 
     eventSource.addEventListener("seek", function (event) {
+        if (!player) {
+            return;
+        }
+
         readEventMaybeResync("seek", event)
     });
 
@@ -220,17 +239,23 @@ function subscribeToServerEvents() {
         console.log("Media url received from the server: ", url)
 
         // NOTE(kihau): Destroying the player might cause a bug when other functions try to access it.
-        player.destroy();
+        if (player) {
+            player.destroy();
+        } else {
+            video.parentNode.removeChild(video);
+        }
         createPlayer(url);
 
-        let state = loadPlayerState();
-        serverPlaying = state.is_playing;
-        if (serverPlaying) {
-            programmaticPlay = true
-            player.play();
-        } else {
-            programmaticPause = true
-            player.pause();
+        if (player) {
+            let state = loadPlayerState();
+            serverPlaying = state.is_playing;
+            if (serverPlaying) {
+                programmaticPlay = true
+                player.play();
+            } else {
+                programmaticPause = true
+                player.pause();
+            }
         }
     })
 }
@@ -292,10 +317,18 @@ function main() {
     let state = loadPlayerState();
     serverPlaying = state.is_playing;
 
-    if (state.url === "") {
-        createPlayer("dummy.mp4");
-    } else {
-        createPlayer(state.url);
+    createPlayer(state.url);
+
+    if (navigator.getAutoplayPolicy(video) === "allowed") {
+        console.log("INFO: Autoplay is allowed.")
+    } else if (navigator.getAutoplayPolicy(video) === "allowed-muted") {
+        console.log("INFO: Autoplay is allowed but the player must be muted.")
+        // video.poster = "click_to_connect.png";
+        // video.muted = true;
+        // player.play();
+    } else if (navigator.getAutoplayPolicy(video) === "disallowed") {
+        console.log("INFO: Autoplay is NOT allowed.")
+        // video.poster = "click_to_connect.png";
     }
 
     subscribeToServerEvents();

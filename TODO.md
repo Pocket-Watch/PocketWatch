@@ -2,12 +2,21 @@
 - [x] Remove startButton stopButton
 - [x] string.Builders instead of 6 calls to fmt.Fprint
 - [ ] Auto detect media file formats received by the server
-    - [x] M3U8
-    - [x] MP4
-    - [x] MPEG
-    - [x] WEBM
-    - [x] OGV
-    - [ ] MKV (supported on chromium, does not work on gecko)
+    - Video:
+        - [x] M3U8 (does not work with cross site requests, but there is nothing we can do about it)
+        - [x] MP4
+        - [x] MPEG
+        - [x] WEBM
+        - [x] OGV
+        - [ ] MKV (supported on chromium, does not work on gecko)
+    - Audio:
+        - [x] WAV
+        - [x] FLAC
+        - [x] MP3
+        - [x] M4A
+        - [x] WEBA
+        - [ ] AIFF
+        - [ ] ~~SND~~
 - [x] Rewrite '/start' '/pause' to '/update'
 - [x] Fix chained requests
     - [x] Fix chained pauses
@@ -16,9 +25,9 @@
 - [x] Investigate and fix pause/play spam loop
 - [x] Add all dependencies locally to the project, don't rely on downloading them from online services at runtime.
 - [x] Display current media url on the client side
-- [ ] On fist website load, do not recieve event until user clicked the play button for the first time
+- [x] Get rid of "dummy.mp4", replace it with an indicator that nothing is playing
+- [ ] On first website load, indicate to the user that autoplay policy is disabled and manual action is required in order to play the video.
 - [ ] Investigate and fix seek issue where sometimes performing seek does nothing
-- [ ] Get rid of "dummy.mp4", replace it with an indicator that nothing is playing
 - [ ] Detect mobile client and adjust the page appropriately
     - [ ] Don't auto-hide player
     - [ ] Reduce horizontal player size for mobile (portrait)
@@ -28,7 +37,7 @@
 - [ ] Add option to upload media file to the server and stream it to all connected clients (streaming proxy)
 - [ ] Add option to upload media url, download in on the server and stream to all connected clients
 - [ ] Add support for live chat
-- [ ] Add playlist support
+- [ ] Add playlist support and auto-playing
 - [ ] Add watch history
 - [ ] Display connected users
 - [ ] Improve the UI layout and styling
