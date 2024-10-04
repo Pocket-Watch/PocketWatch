@@ -260,25 +260,15 @@ const BROADCAST_INTERVAL = 2 * time.Second
 
 // this will prevent LAZY broadcasts when users make frequent updates
 func smartSleep() {
-	state.lastBroadcast = time.Now()
 	time.Sleep(BROADCAST_INTERVAL)
 	for {
 		now := time.Now()
-		broadcastDiff := now.Sub(state.lastBroadcast)
-		timeUpdateDiff := now.Sub(state.lastTimeUpdate)
+		diff := now.Sub(state.lastTimeUpdate)
 
-		var smallestDiff time.Duration
-		if broadcastDiff > timeUpdateDiff {
-			smallestDiff = timeUpdateDiff
-		} else {
-			smallestDiff = broadcastDiff
-		}
-
-		if smallestDiff > BROADCAST_INTERVAL {
+		if diff > BROADCAST_INTERVAL {
 			break
 		}
-
-		time.Sleep(BROADCAST_INTERVAL - smallestDiff)
+		time.Sleep(BROADCAST_INTERVAL - diff)
 	}
 }
 
@@ -357,7 +347,6 @@ type State struct {
 	url            string
 	eventId        atomic.Uint64
 	lastTimeUpdate time.Time
-	lastBroadcast  time.Time
 }
 
 type Connection struct {
