@@ -1,0 +1,3 @@
+[submodule "lib/fluid-player"]
+	path = lib/fluid-player
+	url = https://github.com/fluid-player/fluid-player

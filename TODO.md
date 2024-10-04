@@ -1,12 +1,13 @@
 - [x] Remove dead connections
 - [x] Remove startButton stopButton
 - [x] string.Builders instead of 6 calls to fmt.Fprint
-- [x] Auto detect media file formats received by the server
+- [ ] Auto detect media file formats received by the server
     - [x] M3U8
     - [x] MP4
     - [x] MPEG
     - [x] WEBM
     - [x] OGV
+    - [ ] MKV (supported on chromium, does not work on gecko)
 - [x] Rewrite '/start' '/pause' to '/update'
 - [x] Fix chained requests
     - [x] Fix chained pauses
@@ -14,8 +15,9 @@
     - [x] Fix chained seeks
 - [x] Investigate and fix pause/play spam loop
 - [ ] Add all dependencies to the project, don't rely on other services.
+- [ ] On fist website load, do not recieve event until user clicked the play button for the first time
 - [ ] Investigate and fix seek issue where sometimes performing seek does nothing
-- [ ] Get rid the "dummy.mp4", replace it with an indicator that nothing is playing
+- [ ] Get rid of "dummy.mp4", replace it with an indicator that nothing is playing
 - [ ] Display current media url on the client side
 - [ ] Detect mobile client and adjust the page appropriately
     - [ ] Don't auto-hide player
@@ -26,6 +28,7 @@
 - [ ] Add option to upload media file to the server and stream it to all connected clients (streaming proxy)
 - [ ] Add option to upload media url, download in on the server and stream to all connected clients
 - [ ] Add support for live chat
+- [ ] Add playlist support
 - [ ] Add watch history
 - [ ] Display connected users
 - [ ] Improve the UI layout and styling
