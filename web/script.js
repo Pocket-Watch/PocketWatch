@@ -4,9 +4,9 @@ var player;
 var video;
 var vidSource;
 
-var input_url   = document.getElementById("input_url");
+var input_url = document.getElementById("input_url");
 var current_url = document.getElementById("current_url");
-var name_field  = document.getElementById("user_name");
+var name_field = document.getElementById("user_name");
 
 function getUrlMediaType(url) {
     if (url.endsWith(".m3u8")) {
@@ -46,7 +46,7 @@ function createPlayer(url) {
     let new_source = document.createElement('source');
     if (url_missing) {
         url = "nothing_is_playing.mp4";
-    } 
+    }
 
     new_source.src = url;
     new_source.type = getUrlMediaType(url);
@@ -82,8 +82,8 @@ function createPlayer(url) {
         subscribeToPlayerEvents(new_player);
     }
 
-    player    = new_player;
-    video     = new_video;
+    player = new_player;
+    video = new_video;
     vidSource = new_source;
 }
 
@@ -154,12 +154,12 @@ function loadPlayerState() {
 
 
 
-var serverPlaying     = false // Updates on welcome-message and event-message
-var programmaticPlay  = false // Updates before programmatic play() and in .onplay
+var serverPlaying = false // Updates on welcome-message and event-message
+var programmaticPlay = false // Updates before programmatic play() and in .onplay
 var programmaticPause = false // Updates before programmatic pause() and in .onpause
-var programmaticSeek  = false // Updates before programmatic currentTime assignment and in .onseeked
+var programmaticSeek = false // Updates before programmatic currentTime assignment and in .onseeked
 
-var ignoreNextRequest  = false // Updates before sending a sync request and on hasty events
+var ignoreNextRequest = false // Updates before sending a sync request and on hasty events
 
 function readEventMaybeResync(type, event) {
     let jsonData = JSON.parse(event.data)
@@ -193,9 +193,9 @@ function readEventMaybeResync(type, event) {
 
 function subscribeToServerEvents() {
     let eventSource = new EventSource("/watch/api/events");
-    
+
     // Allow user to de-sync themselves freely and watch at their own pace
-    eventSource.addEventListener("play", function (event) {
+    eventSource.addEventListener("play", function(event) {
         if (!player) {
             return;
         }
@@ -211,7 +211,7 @@ function subscribeToServerEvents() {
         }
     })
 
-    eventSource.addEventListener("pause", function (event) {
+    eventSource.addEventListener("pause", function(event) {
         if (!player) {
             return;
         }
@@ -225,7 +225,7 @@ function subscribeToServerEvents() {
         }
     })
 
-    eventSource.addEventListener("seek", function (event) {
+    eventSource.addEventListener("seek", function(event) {
         if (!player) {
             return;
         }
@@ -233,7 +233,7 @@ function subscribeToServerEvents() {
         readEventMaybeResync("seek", event)
     });
 
-    eventSource.addEventListener("seturl", function (event) {
+    eventSource.addEventListener("seturl", function(event) {
         let jsonData = JSON.parse(event.data)
         let url = jsonData["url"]
         console.log("Media url received from the server: ", url)

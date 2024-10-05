@@ -1,88 +1,98 @@
 <!doctype html>
 <html lang="en-US">
-    <head>
-        <meta charset="utf-8" />
-        <meta name="referrer" content="no-referrer">
-        <title>Watch Locally</title>
-    </head>
 
-    <body>
-        <!-- TODO(kihau): Make video player dynamically resizable? -->
-        <div id="player_container"> 
+<head>
+    <meta charset="utf-8" />
+    <meta name="referrer" content="no-referrer">
+    <title>Watch Locally</title>
+</head>
+
+<body>
+    <!-- TODO(kihau): Make video player dynamically resizable? -->
+    <div id="player_container">
+    </div>
+
+    <br>
+    <br>
+
+    <label>Input the media URL here:</label><br />
+    <input type="url" id="input_url" name="input_url" size="100" />
+    <button onclick="setUrlButton()">Send</button>
+
+    <br>
+    <br>
+
+    <label>Put your name here:</label><br />
+    <input id="user_name" name="user_name" maxlength="120" />
+
+    <br>
+    <br>
+
+    <label>Currently set URL:</label><br />
+    <input readonly="true" , type="text" id="current_url" size="100" />
+
+    <br>
+    <br>
+
+    <form action="/login" method="post">
+        <div class="imgcontainer">
+            <img src="avatar.png" alt="Avatar" class="avatar">
         </div>
 
-        <br>
-        <br>
-
-        <label>Input the media URL here:</label><br />
-        <input type="url" id="input_url" name="input_url" size="100"/>
-        <button onclick="setUrlButton()">Send</button>
-
-        <br>
-        <br>
-
-        <label>Put your name here:</label><br />
-        <input id="user_name" name="user_name" maxlength="120" />
-
-        <br>
-        <br>
-
-        <label>Currently set URL:</label><br />
-        <input readonly="true", type="text" id="current_url" size="100" />
-
-        <br>
-        <br>
-
-        <form action="/login" method="post">
-            <div class="imgcontainer">
-                <img src="avatar.png" alt="Avatar" class="avatar">
-            </div>
-
-            <div class="container">
-                <label>
-                    <b>Username</b>
-                    <input type="text" placeholder="Enter Username" required>
-                </label>
-            </div>
+        <div class="container">
             <label>
-                <b>Password</b>
-                <input type="password" placeholder="Enter Password" name="psw" required>
+                <b>Username</b>
+                <input type="text" placeholder="Enter Username" required>
             </label>
+        </div>
+        <label>
+            <b>Password</b>
+            <input type="password" placeholder="Enter Password" name="psw" required>
+        </label>
 
-            <div>
-                <button type="submit">Login</button>
-                <label>
-                    <input type="checkbox" checked="checked" name="remember"> Remember me
-                </label>
-            </div>
+        <div>
+            <button type="submit">Login</button>
+            <label>
+                <input type="checkbox" checked="checked" name="remember"> Remember me
+            </label>
+        </div>
 
-        </form>
+    </form>
 
-        <style>
-            @keyframes sway  {
-                0% { transform: rotate(8deg); }
-                50% { transform: rotate(-8deg); }
-                100% { transform: rotate(8deg); }
+    <style>
+        @keyframes sway {
+            0% {
+                transform: rotate(8deg);
             }
 
-            img {
-                animation: sway 2.4s infinite;
-                animation-timing-function: ease-in-out;
-                -webkit-transform-origin: top;
-                -moz-transform-origin: top;
-                transform-origin: top;
+            50% {
+                transform: rotate(-8deg);
             }
-        </style>
-        <img id="construction" class="construction_anim" src="under_construction.png" alt="This page is under construction">
 
-        <br>
-        <br>
-        <br>
+            100% {
+                transform: rotate(8deg);
+            }
+        }
 
-        <script src="external/fluidplayer.js"></script>
-        <!-- <script src="https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js"></script> -->
-        <!-- <script src="fluid_player.js"></script> -->
-        <script src="script.js"></script>
+        img.construction_anim {
+            animation: sway 2.4s infinite;
+            animation-timing-function: ease-in-out;
+            -webkit-transform-origin: top;
+            -moz-transform-origin: top;
+            transform-origin: top;
+        }
+    </style>
+    <img id="construction" class="construction_anim" src="under_construction.png" alt="This page is under construction">
 
-    </body>
+    <br>
+    <br>
+    <br>
+
+    <script src="external/fluidplayer.js"></script>
+    <!-- <script src="https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js"></script> -->
+    <!-- <script src="fluid_player.js"></script> -->
+    <script src="script.js"></script>
+
+</body>
+
 </html>
