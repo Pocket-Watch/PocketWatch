@@ -59,6 +59,65 @@
 
     </form>
 
+    <br>
+
+    <link href="playlist.css" rel="stylesheet" />
+    <table>
+        <caption>
+            Playlist
+        </caption>
+        <thead>
+            <tr>
+                <th scope="row" colspan="4">
+                    <label>Add URL to the playlist:</label><br />
+                    <input type="url" id="input_playlist" name="input_playlist" size="100" />
+                    <button onclick="addToPlaylist()">Add</button>
+                </th>
+            </tr>
+        </thead>
+        <thead>
+            <tr>
+                <th scope="col">Position</th>
+                <th scope="col">Requested by</th>
+                <th scope="col">Url</th>
+                <th scope="col">
+                    <button onclick="clearPlaylist()">Clear playlist</button>
+                </th>
+            </tr>
+        </thead>
+        <tbody id="playlist_entries">
+            <!-- Dummy testing list: -->
+            <!-- <tr> -->
+            <!--     <th scope="row">1.</th> -->
+            <!--     <td>Kihau</td> -->
+            <!--     <td>https://example.com/example1.mp4</td> -->
+            <!--     <td><button>Remove</button></td> -->
+            <!-- </tr> -->
+            <!---->
+            <!-- <tr> -->
+            <!--     <th scope="row">2.</th> -->
+            <!--     <td>Frisk</td> -->
+            <!--     <td>https://example.com/example2.mp4</td> -->
+            <!--     <td><button>Remove</button></td> -->
+            <!-- </tr> -->
+            <!---->
+            <!-- <tr> -->
+            <!--     <th scope="row">3.</th> -->
+            <!--     <td>Kihau</td> -->
+            <!--     <td>https://example.com/example3.mp4</td> -->
+            <!--     <td><button>Remove</button></td> -->
+            <!-- </tr> -->
+        </tbody>
+        <tfoot>
+            <tr>
+                <th scope="row" colspan="3">Total entries:</th>
+                <td>[Object object]</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <br>
+
     <style>
         @keyframes sway {
             0% {

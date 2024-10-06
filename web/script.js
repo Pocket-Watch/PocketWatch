@@ -8,6 +8,76 @@ var input_url = document.getElementById("input_url");
 var current_url = document.getElementById("current_url");
 var name_field = document.getElementById("user_name");
 
+function addToPlaylist() {
+    let input_playlist = document.getElementById("input_playlist");
+    let url = input_playlist.value;
+    input_playlist.value = '';
+
+    if (!url) {
+        console.log("Url is empty, not adding to the playlist");
+        return;
+    }
+
+    let request = httpPost("/watch/api/playlist/add");
+    sendPlaylistAddAsync(request, url);
+}
+
+function clearPlaylist() {
+    let request = httpPost("/watch/api/playlist/clear");
+    request.send(null);
+}
+
+async function sendPlaylistAddAsync(request, url) {
+    const entry = {
+        uuid: "1234",
+        username: name_field.value,
+        url: url,
+    };
+
+    request.send(JSON.stringify(entry));
+}
+
+function addPlaylistElement(playlistHtml, index, entry) {
+    let tr = document.createElement('tr');
+    playlistHtml.appendChild(tr);
+
+    let th = document.createElement('th');
+    th.textContent = index + 1 + ".";
+    th.scope = "row";
+    tr.appendChild(th);
+
+    let username = entry.username;
+    if (!username) {
+        username = "<unknown>";
+    }
+
+    let cell = tr.insertCell(-1);
+    cell.textContent = username;
+
+    cell = tr.insertCell(-1);
+    cell.textContent = entry.url;
+
+    cell = tr.insertCell(-1);
+    cell.innerHTML = "<button>Remove</button>";
+}
+
+function getPlaylist() {
+    let result = blockingHttpGet("/watch/api/playlist/get");
+    let playlist = JSON.parse(result);
+
+    if (!playlist) {
+        return;
+    }
+
+    console.log(playlist); 
+
+    let playlistHtml = document.getElementById("playlist_entries");
+    let playlistSize = playlistHtml.childElementCount;
+    for (var i = 0; i < playlist.length; i++) { 
+        addPlaylistElement(playlistHtml, i + playlistSize, playlist[i]);
+    }
+}
+
 function getUrlMediaType(url) {
     if (url.endsWith(".m3u8")) {
         return "application/x-mpegURL";
@@ -258,6 +328,27 @@ function subscribeToServerEvents() {
             }
         }
     })
+
+    eventSource.addEventListener("playlistadd", function(event) {
+        console.log("Got playlist add event " + event.data);
+        let entry = JSON.parse(event.data);
+
+        if (!entry) {
+            return;
+        }
+
+        let playlistHtml = document.getElementById("playlist_entries");
+        let playlistSize = playlistHtml.childElementCount;
+        addPlaylistElement(playlistHtml, playlistSize, entry);
+    });
+
+    eventSource.addEventListener("playlistclear", function(event) {
+        console.log("Got playlist clear event");
+        let container = document.getElementById("playlist_entries");
+        while (container.firstChild) {
+            container.removeChild(container.lastChild);
+        }
+    });
 }
 
 function subscribeToPlayerEvents(new_player) {
@@ -314,6 +405,8 @@ function subscribeToPlayerEvents(new_player) {
 }
 
 function main() {
+    getPlaylist();
+
     let state = loadPlayerState();
     serverPlaying = state.is_playing;
 

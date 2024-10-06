@@ -66,6 +66,10 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/watch/api/pause", watchPause)
 	http.HandleFunc("/watch/api/seek", watchSeek)
 
+	http.HandleFunc("/watch/api/playlist/get", watchPlaylistGet)
+	http.HandleFunc("/watch/api/playlist/add", watchPlaylistAdd)
+	http.HandleFunc("/watch/api/playlist/clear", watchPlaylistClear)
+
 	http.HandleFunc("/watch/api/events", watchEvents)
 }
 
@@ -77,6 +81,109 @@ func versionGet(w http.ResponseWriter, r *http.Request) {
 func login(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("INFO: Connection %s attempted to log in.\n", r.RemoteAddr)
 	io.WriteString(w, "This is unimplemented")
+}
+
+func watchPlaylistGet(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		return
+	}
+
+	fmt.Printf("INFO: Connection %s requested playlist get.\n", r.RemoteAddr)
+
+	state.playlist_lock.RLock()
+	jsonData, err := json.Marshal(state.playlist)
+	state.playlist_lock.RUnlock()
+
+	if err != nil {
+		fmt.Println("WARNING: Failed to serialize playlist get event.")
+		return
+	}
+
+	io.WriteString(w, string(jsonData))
+}
+
+func watchPlaylistAdd(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	fmt.Printf("INFO: Connection %s requested playlist add.\n", r.RemoteAddr)
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var entry PlaylistEntry
+	err = json.Unmarshal(body, &entry)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	fmt.Printf("INFO: Adding '%s' url to the playlist.\n", entry.Url)
+
+	state.playlist_lock.Lock()
+	state.playlist = append(state.playlist, entry)
+	state.playlist_lock.Unlock()
+
+	jsonData := string(body)
+
+	connections.mutex.RLock()
+	for _, conn := range connections.slice {
+		writePlaylistAddEvent(conn.writer, jsonData)
+	}
+	connections.mutex.RUnlock()
+}
+
+func watchPlaylistClear(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("INFO: Connection %s requested playlist clear.\n", r.RemoteAddr)
+
+	if r.Method != "POST" {
+		return
+	}
+
+	state.playlist_lock.Lock()
+	state.playlist = state.playlist[:0]
+	state.playlist_lock.Unlock()
+
+	connections.mutex.RLock()
+	for _, conn := range connections.slice {
+		writePlaylistClearEvent(conn.writer)
+	}
+	connections.mutex.RUnlock()
+}
+
+func writePlaylistAddEvent(writer http.ResponseWriter, jsonData string) {
+	// fmt.Printf("Writing set event");
+	event_id := state.eventId.Add(1)
+	fmt.Fprintln(writer, "id:", event_id)
+	fmt.Fprintln(writer, "event: playlistadd")
+	fmt.Fprintln(writer, "data:", jsonData)
+	fmt.Fprintln(writer, "retry:", RETRY)
+	fmt.Fprintln(writer)
+
+	// Flush the response to ensure the client receives the event
+	if f, ok := writer.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+func writePlaylistClearEvent(writer http.ResponseWriter) {
+	// fmt.Printf("Writing set event");
+	event_id := state.eventId.Add(1)
+	fmt.Fprintln(writer, "id:", event_id)
+	fmt.Fprintln(writer, "event: playlistclear")
+	fmt.Fprintln(writer, "data:")
+	fmt.Fprintln(writer, "retry:", RETRY)
+	fmt.Fprintln(writer)
+
+	// Flush the response to ensure the client receives the event
+	if f, ok := writer.(http.Flusher); ok {
+		f.Flush()
+	}
 }
 
 func watchGet(w http.ResponseWriter, r *http.Request) {
@@ -347,6 +454,8 @@ type State struct {
 	url            string
 	eventId        atomic.Uint64
 	lastTimeUpdate time.Time
+	playlist_lock  sync.RWMutex
+	playlist       []PlaylistEntry
 }
 
 type Connection struct {
@@ -392,6 +501,12 @@ func (conns *Connections) remove(id uint64) {
 
 func (conns *Connections) len() int {
 	return len(conns.slice)
+}
+
+type PlaylistEntry struct {
+	Uuid     string `json:"uuid"`
+	Username string `json:"username"`
+	Url      string `json:"url"`
 }
 
 type GetEventForUser struct {
