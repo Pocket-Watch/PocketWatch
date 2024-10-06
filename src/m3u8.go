@@ -137,6 +137,16 @@ type Track struct {
 	url    string
 }
 
+func (track *Track) getUrl(prefix string) string {
+	if prefix == "" {
+		return track.url
+	}
+	if strings.HasSuffix(prefix, "/") || strings.HasPrefix(track.url, "/") {
+		return prefix + track.url
+	}
+	return prefix + "/" + track.url
+}
+
 func newM3U(capacity uint32) *M3U {
 	m3u := new(M3U)
 	m3u.tracks = make([]Track, 0, capacity)
@@ -153,4 +163,35 @@ func (m3u *M3U) avgTrackLength() float64 {
 		sum += track.length
 	}
 	return sum / float64(len(m3u.tracks))
+}
+
+func (m3u *M3U) copy() M3U {
+	m3uCopy := newM3U(uint32(len(m3u.tracks)))
+
+	m3uCopy.ext_x_version = m3u.ext_x_version
+	m3uCopy.ext_x_target_duration = m3u.ext_x_target_duration
+	m3uCopy.ext_x_playlist_type = m3u.ext_x_playlist_type
+	m3uCopy.ext_x_media_sequence = m3u.ext_x_media_sequence
+
+	for _, track := range m3u.tracks {
+		m3uCopy.addTrack(track)
+	}
+	return *m3uCopy
+}
+
+func stripSuffix(url string) string {
+	lastSlash := strings.LastIndex(url, "/")
+	if lastSlash == -1 {
+		// this could be more robust
+		return url
+	}
+	return url[:lastSlash]
+}
+
+func (m3u *M3U) prefixTracks(urlPrefix string) {
+	// if a range loop is used the track url is effectively not reassigned
+	for i := 0; i < len(m3u.tracks); i++ {
+		fullUrl := m3u.tracks[i].getUrl(urlPrefix)
+		m3u.tracks[i].url = fullUrl
+	}
 }
