@@ -195,3 +195,30 @@ func (m3u *M3U) prefixTracks(urlPrefix string) {
 		m3u.tracks[i].url = fullUrl
 	}
 }
+
+func (m3u *M3U) serialize(path string) {
+	file, err := os.Create(path)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+
+	file.WriteString("#EXTM3U\n")
+	file.WriteString(fmt.Sprintf("#EXT-X-VERSION:%v\n", m3u.ext_x_version))
+	file.WriteString(fmt.Sprintf("#EXT-X-TARGETDURATION:%v\n", m3u.ext_x_target_duration))
+	file.WriteString(fmt.Sprintf("#EXT-X-MEDIA-SEQUENCE:%v\n", m3u.ext_x_media_sequence))
+	file.WriteString(fmt.Sprintf("#EXT-X-PLAYLIST-TYPE:%v\n", m3u.ext_x_playlist_type))
+	for _, track := range m3u.tracks {
+		_, err := file.WriteString(fmt.Sprintf("#EXTINF:%v,\n", track.length))
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		_, err2 := file.WriteString(track.url + "\n")
+		if err2 != nil {
+			fmt.Println(err2)
+			continue
+		}
+	}
+	file.WriteString(fmt.Sprintf("#EXT-X-ENDLIST\n"))
+}
