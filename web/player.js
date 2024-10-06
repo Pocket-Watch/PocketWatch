@@ -1,3 +1,42 @@
+export { Player };
+
+function getUrlMediaType(url) {
+    if (url.endsWith(".m3u8")) {
+        return "application/x-mpegURL";
+    }
+
+    return ""
+}
+
+// NOTE(kihau): Code duplicate from rewrite.js. Should be imported instead.
+async function httpPostAsync(endpoint, data) {
+    const headers = new Headers();
+    headers.set("Content-Type", "application/json");
+
+    const options = {
+        method: "POST",
+        body: JSON.stringify(data),
+        headers: headers,
+    };
+
+    try {
+        const response = await fetch(endpoint, options);
+        if (!response.ok) {
+            console.error("ERROR: POST request for endpoint: " + endpoint + " failed: " + response.status)
+        }
+    } catch (error) {
+        console.error("ERROR: POST request for endpoint: " + endpoint + " failed: " + error)
+    }
+}
+
+// NOTE(kihau): Code duplicate from rewrite.js. Should be imported instead.
+function getRandomId() {
+    const min = 1;
+    const max = 999999999999999;
+    const number = Math.floor(Math.random() * (max - min) + min);
+    return number.toString();
+}
+
 class Player {
     constructor() {
         // Div container where either the player or the placeholder resides.
@@ -9,71 +48,177 @@ class Player {
         // Corresponds to the actual html player element called </video>. The fluid player attaches to it.
         this.htmlPlayer = null;
 
-        // Updates on welcome-message and event-message.
-        this.serverPlaying = false;
-
-        // Updates before programmatic play() and in eventOnPlay.
+        // Updates before programmatic player play and in eventOnPlay to discard events that
+        // were not invoked by the user.
         this.programmaticPlay = false;
 
-        // Updates before programmatic pause() and in eventOnPause.
+        // Updates before programmatic player pause and in eventOnPause to discard events that
+        // were not invoked by the user.
         this.programmaticPause = false;
 
-        // Updates before programmatic currentTime assignment and in eventOnSeek.
-        this.programmaticSeek = false;
-
-        // Updates before sending a sync request and on hasty events.
-        this.ignoreNextRequest = false;
+        // Updates before programmatic currentTime assignment and in eventOnSeek to discard events
+        // that were not invoked by the user.
+        // this.programmaticSeek = false;
     }
 
-    eventOnPlay(_event) { 
-        if (this.programmaticPlay) {
-            this.programmaticPlay = false;
-            return;
-        }
+    eventOnPlay() {
+        let data = this;
+        return function onPlay(_event) {
+            console.info("INFO: Player play event was triggered.");
+            if (data.programmaticPlay) {
+                data.programmaticPlay = false;
+                return;
+            }
 
-        if (this.serverPlaying) {
-            console.log("WARNING: User triggered play while the server was playing!");
-            return;
-        }
+            let uuid = getRandomId();
+            const payload = {
+                uuid: uuid,
+                timestamp: data.htmlPlayer.currentTime,
+                username: "dummy",
+            };
 
-        // Perform play request here.
+            console.info("INFO: Sending play request.");
+            httpPostAsync("/watch/api/play", payload);
+        }
     }
 
-    eventOnSeek(_event) { }
-    eventOnPause(_event) { }
+    eventOnPause() {
+        let data = this;
+        return function onPause(_event) {
+            console.info("INFO: Player pause event was triggered.");
+            if (data.programmaticPause) {
+                data.programmaticPause = false;
+                return;
+            }
+
+            let uuid = getRandomId();
+            const payload = {
+                uuid: uuid,
+                timestamp: data.htmlPlayer.currentTime,
+                username: "dummy",
+            };
+
+            console.info("INFO: Sending pause request.");
+            httpPostAsync("/watch/api/pause", payload);
+        }
+    }
+
+    eventOnSeek() { }
 
     subscribeToPlayerEvents() {
         if (!this.fluidPlayer) {
-            console.log("WARNING: Failed to subscribe to player events. The player is null.");
+            console.warn("WARNING: Failed to subscribe to player events. The player is null.");
             return;
         }
 
-        this.fluidPlayer.on("play", this.eventOnPlay);
-        this.fluidPlayer.on("pause", this.eventOnPause);
-        this.fluidPlayer.on("seeked", this.eventOnSeek);
+        this.fluidPlayer.on("play", this.eventOnPlay());
+        this.fluidPlayer.on("pause", this.eventOnPause());
     }
 
-    unsubscribeFromPlayerEvents() { 
+    isVideoPlaying() {
+        return !this.htmlPlayer && this.htmlPlayer.currentTime > 0 && !this.htmlPlayer.paused && !this.htmlPlayer.ended;
+    }
+
+    destroyPlayer() {
+        if (this.fluidPlayer) {
+            this.fluidPlayer.destroy();
+        }
+
+        this.htmlPlayer = null;
+        this.fluidPlayer = null;
+
+        while (this.container.firstChild) {
+            this.container.removeChild(this.container.lastChild);
+        }
+    }
+
+    createFluidPlayer(url) {
+        let video = document.createElement('video');
+        video.width = window.innerWidth;
+        video.id = "player";
+
+        let source = document.createElement('source');
+        source.src = url;
+        source.type = getUrlMediaType(url);
+        video.appendChild(source);
+
+        this.container.appendChild(video);
+
+        this.htmlPlayer = video;
+
+        this.fluidPlayer = fluidPlayer('player', {
+            hls: {
+                overrideNative: true
+            },
+            layoutControls: {
+                title: "TITLE PLACEHOLDER",
+                doubleclickFullscreen: true,
+                subtitlesEnabled: true,
+                autoPlay: true,
+                controlBar: {
+                    autoHide: true,
+                    autoHideTimeout: 2.5,
+                    animated: true,
+                    playbackRates: ['x2', 'x1.5', 'x1', 'x0.5']
+                },
+                miniPlayer: {
+                    enabled: false,
+                    width: 400,
+                    height: 225
+                }
+            }
+        });
+    }
+
+    createPlayerPlaceholder() {
+        let img = document.createElement('img');
+        img.src = "nothing_is_playing.png";
+        img.width = window.innerWidth;
+        this.container.appendChild(img);
+    }
+
+    play() {
         if (!this.fluidPlayer) {
-            console.log("WARNING: Failed to unsubscribe from player events. The player is null.");
+            console.warn("WARNING: Play was triggered, but the player is not initialized.");
             return;
         }
 
-        this.fluidPlayer.removeEventListener("play", this.eventOnPlay);
-        this.fluidPlayer.removeEventListener("pause", this.eventOnPause);
-        this.fluidPlayer.removeEventListener("seeked", this.eventOnSeek);
-    }
-
-    isVideoPlaying() { }
-    createFluidPlayer() { }
-    createPlayerPlaceholder() { }
-
-    play() { 
-        if (!this.fluidPlayer) {
-            console.log("WARNING: Play was triggered, but the fluid player is was not initialized.")
+        if (this.isVideoPlaying()) {
+            console.warn("WARNING: Play was triggered, but the video is already playing.");
+            return;
         }
+
+        this.programmaticPlay = true;
+        this.fluidPlayer.play();
+        console.info("INFO: Player play() was called");
     }
-    pause() { }
+
+    pause() {
+        if (!this.fluidPlayer) {
+            console.warn("WARNING: Pause was triggered, but the player is not initialized.");
+            return;
+        }
+
+        if (!this.isVideoPlaying()) {
+            console.warn("WARNING: Pause was triggered, but the video is already paused.");
+            return;
+        }
+
+        this.programmaticPause = true;
+        this.fluidPlayer.pause();
+        console.info("INFO: Player pause() was called");
+    }
+
     seek() { }
-    setUrl(_url) { }
+
+    setUrl(url) {
+        this.destroyPlayer();
+
+        if (url) {
+            this.createFluidPlayer(url);
+            this.subscribeToPlayerEvents();
+        } else {
+            this.createPlayerPlaceholder();
+        }
+    }
 }
