@@ -115,6 +115,7 @@ function createPlayer(url) {
 
     let new_source = document.createElement('source');
     if (url_missing) {
+        new_video.poster = "nothing_is_playing.png";
         url = "nothing_is_playing.mp4";
     }
 
