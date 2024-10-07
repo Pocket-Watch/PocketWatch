@@ -3,6 +3,8 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -221,4 +223,27 @@ func (m3u *M3U) serialize(path string) {
 		}
 	}
 	file.WriteString(fmt.Sprintf("#EXT-X-ENDLIST\n"))
+}
+
+func downloadM3U(url string, filename string) (*M3U, error) {
+	// Get the data
+	response, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	// Create the file
+	out, err := os.Create(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer out.Close()
+
+	// Write the body to file
+	_, err = io.Copy(out, response.Body)
+	if err != nil {
+		return nil, err
+	}
+	return parseM3U(filename)
 }
