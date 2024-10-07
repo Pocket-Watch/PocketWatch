@@ -75,6 +75,13 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/watch/proxy/", watchProxy)
 }
 
+// This endpoints should serve HLS chunks
+// If the chunk is out of range or has no id, then 404 should be returned
+// 1. Download m3u8 provided by a user
+// 2. Serve a modified m3u8 to every user that wants to use a proxy
+// 3. In memory use:
+//   - 0-indexed string[] for original chunk URLs
+//   - 0-indexed mutex[] to ensure the same chunk is not requested while it's being fetched
 func watchProxy(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != "GET" {
 		fmt.Println("Proxy not called with GET, received:", request.Method)
@@ -87,7 +94,6 @@ func watchProxy(writer http.ResponseWriter, request *http.Request) {
 	if f, ok := writer.(http.Flusher); ok {
 		f.Flush()
 	}
-
 }
 
 func versionGet(w http.ResponseWriter, r *http.Request) {
