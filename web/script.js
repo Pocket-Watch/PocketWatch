@@ -412,19 +412,6 @@ function main() {
     serverPlaying = state.is_playing;
 
     createPlayer(state.url);
-
-    if (navigator.getAutoplayPolicy(video) === "allowed") {
-        console.log("INFO: Autoplay is allowed.")
-    } else if (navigator.getAutoplayPolicy(video) === "allowed-muted") {
-        console.log("INFO: Autoplay is allowed but the player must be muted.")
-        // video.poster = "click_to_connect.png";
-        // video.muted = true;
-        // player.play();
-    } else if (navigator.getAutoplayPolicy(video) === "disallowed") {
-        console.log("INFO: Autoplay is NOT allowed.")
-        // video.poster = "click_to_connect.png";
-    }
-
     subscribeToServerEvents();
 }
 
