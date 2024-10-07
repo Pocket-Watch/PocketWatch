@@ -7,6 +7,7 @@ var vidSource;
 var input_url = document.getElementById("input_url");
 var current_url = document.getElementById("current_url");
 var name_field = document.getElementById("user_name");
+var proxy_checkbox = document.getElementById("proxy");
 
 function addToPlaylist() {
     let input_playlist = document.getElementById("input_playlist");
@@ -189,7 +190,8 @@ async function sendSyncEventAsync(request) {
 async function sendSetAsync(request, url) {
     request.send(JSON.stringify({
         uuid: "4613443434343",
-        url: url
+        url: url,
+        proxy: proxy_checkbox.checked
     }));
 }
 
@@ -199,7 +201,7 @@ function setUrlButton() {
     input_url.value = ''
 
     console.log("Current video source url: ", url)
-    sendSetAsync(request, url).then(function(res) {
+    sendSetAsync(request, url).then(function() {
         console.log("Sending seturl for a new url");
     });
 

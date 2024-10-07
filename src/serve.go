@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -71,6 +72,22 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/watch/api/playlist/clear", watchPlaylistClear)
 
 	http.HandleFunc("/watch/api/events", watchEvents)
+	http.HandleFunc("/watch/proxy/", watchProxy)
+}
+
+func watchProxy(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != "GET" {
+		fmt.Println("Proxy not called with GET, received:", request.Method)
+		return
+	}
+	path := request.URL.Path
+	fmt.Fprintf(writer, "PATH: %v \n", path)
+	fmt.Fprintf(writer, "CHUNK: %v", getSuffix(path))
+
+	if f, ok := writer.(http.Flusher); ok {
+		f.Flush()
+	}
+
 }
 
 func versionGet(w http.ResponseWriter, r *http.Request) {
@@ -440,11 +457,12 @@ func writeSetEvent(writer http.ResponseWriter) {
 	}
 }
 
-func print(endpoint string) {
-	if !ANNOUNCE_RECEIVED {
-		return
+func getSuffix(endpoint string) string {
+	lastSlash := strings.LastIndex(endpoint, "/")
+	if lastSlash == -1 || lastSlash == len(endpoint)-1 {
+		return ""
 	}
-	fmt.Printf("%s\n", endpoint)
+	return endpoint[lastSlash+1:]
 }
 
 // NOTE(kihau): Some fields are non atomic. This needs to change.
@@ -528,6 +546,7 @@ type SyncEventFromUser struct {
 }
 
 type SetEventFromUser struct {
-	UUID string `json:"uuid"`
-	Url  string `json:"url"`
+	UUID  string `json:"uuid"`
+	Url   string `json:"url"`
+	Proxy bool   `json:"proxy"`
 }
