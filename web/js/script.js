@@ -116,8 +116,8 @@ function createPlayer(url) {
 
     let new_source = document.createElement('source');
     if (url_missing) {
-        new_video.poster = "nothing_is_playing.png";
-        url = "nothing_is_playing.mp4";
+        new_video.poster = "img/nothing_is_playing.png";
+        url = "video/nothing_is_playing.mp4";
     }
 
     new_source.src = url;
@@ -136,7 +136,7 @@ function createPlayer(url) {
                 title: "TITLE PLACEHOLDER",
                 doubleclickFullscreen: true,
                 subtitlesEnabled: true,
-                autoPlay: true,
+                autoPlay: false,
                 controlBar: {
                     autoHide: true,
                     autoHideTimeout: 2.5,
