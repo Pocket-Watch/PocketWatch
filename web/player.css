@@ -1,0 +1,16 @@
+.player_root {
+    position: relative;
+    display: inline-block;
+}
+
+.player_root .player_controls_root {
+    color: white;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: red;
+    /* filter: blur(1px); */
+    height: 53px;
+    z-index: 1;
+}

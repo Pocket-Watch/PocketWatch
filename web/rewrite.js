@@ -10,13 +10,7 @@ function blockingHttpGet(endpoint) {
 // TODO(kihau): Make this non blocking?
 function getServerState() {
     let response = blockingHttpGet("/watch/api/get");
-    let jsonData = JSON.parse(response);
-    let state = {
-        url: jsonData["url"],
-        timestamp: jsonData["timestamp"],
-        is_playing: jsonData["is_playing"],
-    };
-
+    let state = JSON.parse(response);
     return state;
 }
 
@@ -24,26 +18,34 @@ function subscribeToServerEvents(player) {
     let eventSource = new EventSource("/watch/api/events");
 
     eventSource.addEventListener("play", function(_event) {
-        console.log(player);
+        let server = JSON.parse(event.data);
+        if (player.isDesynced(server.timestamp)) {
+            player.seek(server.timestamp)
+        }
+
         player.play();
     });
 
     eventSource.addEventListener("pause", function(_event) {
-        console.log(player);
+        let server = JSON.parse(event.data);
+        if (player.isDesynced(server.timestamp)) {
+            player.seek(server.timestamp)
+        }
+
         player.pause();
     });
 
-    // eventSource.addEventListener("seek", function(_event) { 
-    //     console.debug("DEBUG: Seek acknowledged");
-    // });
+    eventSource.addEventListener("seek", function(event) { 
+        let server = JSON.parse(event.data);
+        if (player.isDesynced(server.timestamp)) {
+            player.seek(server.timestamp);
+        }
+    });
 
     eventSource.addEventListener("seturl", function(event) {
-        let jsonData = JSON.parse(event.data)
-        let url = jsonData["url"]
-
-        console.info("INFO: URL received from the server: ", url)
-
-        player.setUrl(url);
+        let server = JSON.parse(event.data)
+        console.info("INFO: URL received from the server: ", server.url)
+        player.setUrl(server.url);
     });
 }
 
@@ -97,12 +99,14 @@ function main() {
     attachHtmlCallbacks();
 
     let player = new Player();
+    const test_url = "https://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_1080p_h264.mov"
+    player.createPlayer(test_url)
 
     // NOTE(kihau): This is blocking and might cause a page lag!
-    let state = getServerState();
-    player.setUrl(state.url);
+    // let state = getServerState();
+    // player.setUrl(state.url);
 
-    subscribeToServerEvents(player);
+    // subscribeToServerEvents(player);
 }
 
 main();
