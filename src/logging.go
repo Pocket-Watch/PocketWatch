@@ -22,11 +22,11 @@ func log_error(format string, args ...any) {
 }
 
 func log_warn(format string, args ...any) {
-	log_output("WARN", COLOR_YELLOW, format, args...)
+	log_output("WARN ", COLOR_YELLOW, format, args...)
 }
 
 func log_info(format string, args ...any) {
-	log_output("INFO", COLOR_BLUE, format, args...)
+	log_output("INFO ", COLOR_BLUE, format, args...)
 }
 
 func log_debug(format string, args ...any) {
