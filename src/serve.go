@@ -448,9 +448,14 @@ func toString(num int) string {
 }
 
 func setupProxy(url string) {
+	mkdirErr := os.Mkdir(WEB_PROXY, os.ModePerm)
+	if mkdirErr != nil {
+		log_error("Failed to create", WEB_PROXY, "directory.")
+		return
+	}
 	m3u, err := downloadM3U(url, WEB_PROXY+ORIGINAL_M3U8)
 	if err != nil {
-		fmt.Println("Failed to fetch m3u8: ", err)
+		log_error("Failed to fetch m3u8: ", err)
 		state.url = err.Error()
 		return
 	}
@@ -461,7 +466,7 @@ func setupProxy(url string) {
 	log_debug("total duration", m3u.totalDuration())
 
 	if len(m3u.tracks) == 0 {
-		fmt.Println("No tracks found")
+		log_warn("No tracks found")
 		state.url = "No tracks found"
 		return
 	}
@@ -470,7 +475,7 @@ func setupProxy(url string) {
 	if !strings.HasPrefix(m3u.tracks[0].url, "http") {
 		segment, err := stripLastSegment(url)
 		if err != nil {
-			fmt.Println(err)
+			log_error(err.Error())
 			return
 		}
 		m3u.prefixTracks(*segment)
