@@ -10,6 +10,13 @@ import (
 	"strings"
 )
 
+const EXTM3U = "#EXTM3U"
+const EXTINF = "#EXTINF"
+const EXT_X_VERSION = "#EXT-X-VERSION"
+const EXT_X_TARGETDURATION = "#EXT-X-TARGETDURATION"
+const EXT_X_MEDIA_SEQUENCE = "#EXT-X-MEDIA-SEQUENCE"
+const EXT_X_PLAYLIST_TYPE = "#EXT-X-PLAYLIST-TYPE"
+
 func detectM3U(path string) (bool, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -18,7 +25,7 @@ func detectM3U(path string) (bool, error) {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	if scanner.Scan() && scanner.Text() == "#EXTM3U" {
+	if scanner.Scan() && strings.HasPrefix(scanner.Text(), EXTM3U) {
 		return true, nil
 	}
 	return false, nil
@@ -37,13 +44,13 @@ func parseM3U(path string) (*M3U, error) {
 	m3u := newM3U(1028)
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.HasPrefix(line, "#EXTINF") {
+		if strings.HasPrefix(line, EXTINF) {
 			duration, err := getExtInfDuration(line)
 			if err != nil {
 				continue
 			}
 			if !scanner.Scan() {
-				fmt.Println("Unexpected EOF, expected URL after #EXTINF")
+				fmt.Println("Unexpected EOF, expected URL after", EXTINF)
 				return m3u, scanner.Err()
 			}
 			url := scanner.Text()
@@ -68,7 +75,7 @@ func parseM3U(path string) (*M3U, error) {
 func getExtInfDuration(ext_inf string) (float64, error) {
 	end := len(ext_inf)
 	if end <= 8 {
-		return 0, fmt.Errorf("invalid #EXTINF")
+		return 0, fmt.Errorf("invalid", EXTINF)
 	}
 	comma := strings.Index(ext_inf, ",")
 	if comma != -1 {
@@ -87,7 +94,7 @@ func parseManifestLine(line string, m3u *M3U) {
 		fmt.Println("Error no value after colon in line:", line)
 		return
 	}
-	if strings.HasPrefix(line, "#EXT-X-VERSION") {
+	if strings.HasPrefix(line, EXT_X_VERSION) {
 		version, err := strconv.ParseFloat(line[colon+1:], 64)
 		if err != nil {
 			if DEBUG {
@@ -98,7 +105,7 @@ func parseManifestLine(line string, m3u *M3U) {
 		m3u.ext_x_version = version
 		return
 	}
-	if strings.HasPrefix(line, "#EXT-X-TARGETDURATION") {
+	if strings.HasPrefix(line, EXT_X_TARGETDURATION) {
 		target_duration, err := strconv.ParseFloat(line[colon+1:], 64)
 		if err != nil {
 			if DEBUG {
@@ -109,7 +116,7 @@ func parseManifestLine(line string, m3u *M3U) {
 		m3u.ext_x_target_duration = target_duration
 		return
 	}
-	if strings.HasPrefix(line, "#EXT-X-MEDIA-SEQUENCE") {
+	if strings.HasPrefix(line, EXT_X_MEDIA_SEQUENCE) {
 		media_sequence, err := strconv.ParseUint(line[colon+1:], 10, 32)
 		if err != nil {
 			if DEBUG {
@@ -120,7 +127,7 @@ func parseManifestLine(line string, m3u *M3U) {
 		m3u.ext_x_media_sequence = uint32(media_sequence)
 		return
 	}
-	if strings.HasPrefix(line, "#EXT-X-PLAYLIST-TYPE") {
+	if strings.HasPrefix(line, EXT_X_PLAYLIST_TYPE) {
 		m3u.ext_x_playlist_type = line[colon+1:]
 		return
 	}
@@ -165,6 +172,15 @@ func (m3u *M3U) avgTrackLength() float64 {
 		sum += track.length
 	}
 	return sum / float64(len(m3u.tracks))
+}
+
+// duration of all tracks summed up in seconds
+func (m3u *M3U) totalDuration() float64 {
+	var seconds float64
+	for _, track := range m3u.tracks {
+		seconds += track.length
+	}
+	return seconds
 }
 
 func (m3u *M3U) copy() M3U {
@@ -230,6 +246,9 @@ func downloadM3U(url string, filename string) (*M3U, error) {
 	response, err := http.Get(url)
 	if err != nil {
 		return nil, err
+	}
+	if response.StatusCode != 200 && response.StatusCode != 206 {
+		return nil, fmt.Errorf("error downloading M3U: status code %d", response.StatusCode)
 	}
 	defer response.Body.Close()
 

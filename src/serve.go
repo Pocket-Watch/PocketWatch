@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	url2 "net/url"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -53,6 +55,8 @@ func StartServer(options *Options) {
 	}
 }
 
+const PROXY_ROUTE = "/watch/proxy/"
+
 func registerEndpoints(options *Options) {
 	fileserver := http.FileServer(http.Dir("./web"))
 	// fix trailing suffix
@@ -72,7 +76,7 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/watch/api/playlist/clear", watchPlaylistClear)
 
 	http.HandleFunc("/watch/api/events", watchEvents)
-	http.HandleFunc("/watch/proxy/", watchProxy)
+	http.HandleFunc(PROXY_ROUTE, watchProxy)
 }
 
 // This endpoints should serve HLS chunks
@@ -87,9 +91,9 @@ func watchProxy(writer http.ResponseWriter, request *http.Request) {
 		fmt.Println("Proxy not called with GET, received:", request.Method)
 		return
 	}
-	path := request.URL.Path
-	fmt.Fprintf(writer, "PATH: %v \n", path)
-	fmt.Fprintf(writer, "CHUNK: %v", getSuffix(path))
+	urlPath := request.URL.Path
+	fmt.Fprintf(writer, "PATH: %v \n", urlPath)
+	fmt.Fprintf(writer, "CHUNK: %v", path.Base(urlPath))
 
 	if f, ok := writer.(http.Flusher); ok {
 		f.Flush()
@@ -345,10 +349,66 @@ func readSetEventAndUpdateState(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	state.timestamp = 0
-	state.url = setEvent.Url
+
+	lastSegment := lastUrlSegment(setEvent.Url)
+	if setEvent.Proxy && strings.HasSuffix(lastSegment, ".m3u8") {
+		setupProxy(setEvent.Url)
+	} else {
+		state.url = setEvent.Url
+	}
+
 	fmt.Printf("INFO: New url is now: \"%s\".\n", state.url)
 	state.playing.Swap(false)
 	return true
+}
+
+func stripLastSegment(url string) (*string, error) {
+	pUrl, err := url2.Parse(url)
+	if err != nil {
+		return nil, err
+	}
+	lastSlash := strings.LastIndex(pUrl.Path, "/")
+	stripped := pUrl.Scheme + "://" + pUrl.Host + pUrl.Path[:lastSlash+1]
+	return &stripped, nil
+}
+
+func setupProxy(url string) {
+	m3u, err := downloadM3U(url, "web/video/original.m3u8")
+	if err != nil {
+		fmt.Println("Failed to fetch m3u8: ", err)
+		state.url = err.Error()
+		return
+	}
+	fmt.Println(EXT_X_PLAYLIST_TYPE, m3u.ext_x_playlist_type)
+	fmt.Println(EXT_X_VERSION, m3u.ext_x_version)
+	fmt.Println(EXT_X_TARGETDURATION, m3u.ext_x_target_duration)
+	fmt.Println("tracks", len(m3u.tracks))
+	fmt.Println("total duration", m3u.totalDuration())
+
+	if len(m3u.tracks) == 0 {
+		fmt.Println("No tracks found")
+		state.url = "No tracks found"
+		return
+	}
+
+	// Sometimes m3u8 chunks are not fully qualified
+	if !strings.HasPrefix(m3u.tracks[0].url, "http") {
+		segment, err := stripLastSegment(url)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		m3u.prefixTracks(*segment)
+	}
+
+	routedM3U := m3u.copy()
+	for i := 0; i < len(routedM3U.tracks); i++ {
+		routedM3U.tracks[i].url = "ch-" + strconv.Itoa(i)
+	}
+	routedM3U.serialize("web/video/prepared.m3u8")
+
+	// lock on proxy setup here!
+	state.url = "LOL"
 }
 
 func watchEvents(w http.ResponseWriter, r *http.Request) {
@@ -463,12 +523,13 @@ func writeSetEvent(writer http.ResponseWriter) {
 	}
 }
 
-func getSuffix(endpoint string) string {
-	lastSlash := strings.LastIndex(endpoint, "/")
-	if lastSlash == -1 || lastSlash == len(endpoint)-1 {
-		return ""
+func lastUrlSegment(url string) string {
+	url = path.Base(url)
+	questionMark := strings.Index(url, "?")
+	if questionMark == -1 {
+		return url
 	}
-	return endpoint[lastSlash+1:]
+	return url[:questionMark]
 }
 
 // NOTE(kihau): Some fields are non atomic. This needs to change.
@@ -480,6 +541,10 @@ type State struct {
 	lastTimeUpdate time.Time
 	playlist_lock  sync.RWMutex
 	playlist       []PlaylistEntry
+
+	proxying       atomic.Bool
+	chunkLocks     []sync.Mutex
+	originalChunks []string
 }
 
 type Connection struct {
