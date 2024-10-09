@@ -17,6 +17,8 @@ const EXT_X_TARGETDURATION = "#EXT-X-TARGETDURATION"
 const EXT_X_MEDIA_SEQUENCE = "#EXT-X-MEDIA-SEQUENCE"
 const EXT_X_PLAYLIST_TYPE = "#EXT-X-PLAYLIST-TYPE"
 
+var client = http.Client{}
+
 func detectM3U(path string) (bool, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -242,8 +244,9 @@ func (m3u *M3U) serialize(path string) {
 }
 
 func downloadM3U(url string, filename string) (*M3U, error) {
-	// Get the data
-	response, err := http.Get(url)
+	request, _ := http.NewRequest("GET", url, nil)
+
+	response, err := client.Do(request)
 	if err != nil {
 		return nil, err
 	}

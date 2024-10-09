@@ -45,9 +45,10 @@
 - [ ] Server hardening and rate-limiting
 - [ ] Add server side and client side authentication and store cookies
 - [ ] Add option to upload media file to the server and stream it to all connected clients (streaming proxy)
-- [ ] Add option to upload media url, download in on the server and stream to all connected clients
+- [x] Add option to upload media url, download in on the server and stream to all connected clients
 - [ ] Add support for live chat
 - [ ] Add watch history
 - [ ] Display connected users
 - [ ] Improve the UI layout and styling
 - [ ] Add rooms with individual player states
+- [ ] Display connected users.
