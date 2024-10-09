@@ -56,6 +56,8 @@ func StartServer(options *Options) {
 }
 
 const PROXY_ROUTE = "/watch/proxy/"
+const ORIGINAL_M3U8 = "web/video/original.m3u8"
+const PROXY_M3U8 = "web/video/proxy.m3u8"
 
 func registerEndpoints(options *Options) {
 	fileserver := http.FileServer(http.Dir("./web"))
@@ -92,8 +94,12 @@ func watchProxy(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 	urlPath := request.URL.Path
-	fmt.Fprintf(writer, "PATH: %v \n", urlPath)
-	fmt.Fprintf(writer, "CHUNK: %v", path.Base(urlPath))
+	chunk := path.Base(urlPath)
+
+	if chunk == "proxy.m3u8" {
+		http.ServeFile(writer, request, PROXY_M3U8)
+		return
+	}
 
 	if f, ok := writer.(http.Flusher); ok {
 		f.Flush()
@@ -374,7 +380,7 @@ func stripLastSegment(url string) (*string, error) {
 }
 
 func setupProxy(url string) {
-	m3u, err := downloadM3U(url, "web/video/original.m3u8")
+	m3u, err := downloadM3U(url, ORIGINAL_M3U8)
 	if err != nil {
 		fmt.Println("Failed to fetch m3u8: ", err)
 		state.url = err.Error()
@@ -406,10 +412,11 @@ func setupProxy(url string) {
 	for i := 0; i < len(routedM3U.tracks); i++ {
 		routedM3U.tracks[i].url = "ch-" + strconv.Itoa(i)
 	}
-	routedM3U.serialize("web/video/prepared.m3u8")
-
 	// lock on proxy setup here!
-	state.url = "LOL"
+	routedM3U.serialize(PROXY_M3U8)
+	log_info("Prepared proxy file %v", PROXY_M3U8)
+
+	state.url = PROXY_ROUTE + "proxy.m3u8"
 }
 
 func watchEvents(w http.ResponseWriter, r *http.Request) {
