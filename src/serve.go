@@ -56,8 +56,9 @@ func StartServer(options *Options) {
 }
 
 const PROXY_ROUTE = "/watch/proxy/"
-const ORIGINAL_M3U8 = "web/video/original.m3u8"
-const PROXY_M3U8 = "web/video/proxy.m3u8"
+const WEB_VIDEO = "web/video/"
+const ORIGINAL_M3U8 = "original.m3u8"
+const PROXY_M3U8 = "proxy.m3u8"
 
 func registerEndpoints(options *Options) {
 	fileserver := http.FileServer(http.Dir("./web"))
@@ -97,13 +98,76 @@ func watchProxy(writer http.ResponseWriter, request *http.Request) {
 	chunk := path.Base(urlPath)
 
 	if chunk == "proxy.m3u8" {
-		http.ServeFile(writer, request, PROXY_M3U8)
+		fmt.Println("Serving", PROXY_M3U8)
+		http.ServeFile(writer, request, WEB_VIDEO+PROXY_M3U8)
 		return
 	}
 
-	if f, ok := writer.(http.Flusher); ok {
-		f.Flush()
+	if len(chunk) < 4 {
+		http.Error(writer, "Not found", 404)
+		return
 	}
+	// Otherwise it's likely a proxy chunk which is 0-indexed
+	chunk_id, err := strconv.Atoi(chunk[3:])
+	if err != nil {
+		http.Error(writer, "Not a correct chunk id", 404)
+		return
+	}
+
+	if chunk_id < 0 || chunk_id >= len(state.fetchedChunks) {
+		http.Error(writer, "Chunk ID not in range", 404)
+		return
+	}
+
+	if state.fetchedChunks[chunk_id] {
+		http.ServeFile(writer, request, WEB_VIDEO+chunk)
+		return
+	}
+
+	mutex := state.chunkLocks[chunk_id]
+	mutex.Lock()
+	if state.fetchedChunks[chunk_id] {
+		mutex.Unlock()
+		http.ServeFile(writer, request, WEB_VIDEO+chunk)
+		return
+	}
+	fetchErr := downloadFile(state.originalChunks[chunk_id], WEB_VIDEO+chunk)
+	if fetchErr != nil {
+		mutex.Unlock()
+		fmt.Println("FAILED TO FETCH CHUNK,", fetchErr)
+		http.Error(writer, "Failed to fetch chunk", 500)
+		return
+	}
+	state.fetchedChunks[chunk_id] = true
+	mutex.Unlock()
+
+	http.ServeFile(writer, request, WEB_VIDEO+chunk)
+}
+
+func downloadFile(url string, filename string) error {
+	// Get the data
+	response, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	if response.StatusCode != 200 && response.StatusCode != 206 {
+		return fmt.Errorf("error downloading file: status code %d", response.StatusCode)
+	}
+	defer response.Body.Close()
+
+	// Create the file
+	out, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	// Write the body to file
+	_, err = io.Copy(out, response.Body)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func versionGet(w http.ResponseWriter, r *http.Request) {
@@ -379,8 +443,12 @@ func stripLastSegment(url string) (*string, error) {
 	return &stripped, nil
 }
 
+func toString(num int) string {
+	return strconv.Itoa(num)
+}
+
 func setupProxy(url string) {
-	m3u, err := downloadM3U(url, ORIGINAL_M3U8)
+	m3u, err := downloadM3U(url, WEB_VIDEO+ORIGINAL_M3U8)
 	if err != nil {
 		fmt.Println("Failed to fetch m3u8: ", err)
 		state.url = err.Error()
@@ -409,10 +477,17 @@ func setupProxy(url string) {
 	}
 
 	routedM3U := m3u.copy()
+	// lock on proxy setup here! also discard the previous proxy state somehow?
+	state.chunkLocks = make([]sync.Mutex, 0, len(m3u.tracks))
+	state.originalChunks = make([]string, 0, len(m3u.tracks))
+	state.fetchedChunks = make([]bool, 0, len(m3u.tracks))
 	for i := 0; i < len(routedM3U.tracks); i++ {
-		routedM3U.tracks[i].url = "ch-" + strconv.Itoa(i)
+		state.chunkLocks = append(state.chunkLocks, sync.Mutex{})
+		state.originalChunks = append(state.originalChunks, m3u.tracks[i].url)
+		state.fetchedChunks = append(state.fetchedChunks, false)
+		routedM3U.tracks[i].url = "ch-" + toString(i)
 	}
-	// lock on proxy setup here!
+
 	routedM3U.serialize(PROXY_M3U8)
 	log_info("Prepared proxy file %v", PROXY_M3U8)
 
@@ -552,6 +627,7 @@ type State struct {
 
 	proxying       atomic.Bool
 	chunkLocks     []sync.Mutex
+	fetchedChunks  []bool
 	originalChunks []string
 }
 
