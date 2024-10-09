@@ -56,7 +56,7 @@ func StartServer(options *Options) {
 }
 
 const PROXY_ROUTE = "/watch/proxy/"
-const WEB_VIDEO = "web/video/"
+const WEB_PROXY = "web/proxy/"
 const ORIGINAL_M3U8 = "original.m3u8"
 const PROXY_M3U8 = "proxy.m3u8"
 
@@ -97,9 +97,9 @@ func watchProxy(writer http.ResponseWriter, request *http.Request) {
 	urlPath := request.URL.Path
 	chunk := path.Base(urlPath)
 
-	if chunk == "proxy.m3u8" {
-		fmt.Println("Serving", PROXY_M3U8)
-		http.ServeFile(writer, request, WEB_VIDEO+PROXY_M3U8)
+	if chunk == PROXY_M3U8 {
+		log_debug("Serving", PROXY_M3U8)
+		http.ServeFile(writer, request, WEB_PROXY+PROXY_M3U8)
 		return
 	}
 
@@ -120,7 +120,7 @@ func watchProxy(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	if state.fetchedChunks[chunk_id] {
-		http.ServeFile(writer, request, WEB_VIDEO+chunk)
+		http.ServeFile(writer, request, WEB_PROXY+chunk)
 		return
 	}
 
@@ -128,10 +128,10 @@ func watchProxy(writer http.ResponseWriter, request *http.Request) {
 	mutex.Lock()
 	if state.fetchedChunks[chunk_id] {
 		mutex.Unlock()
-		http.ServeFile(writer, request, WEB_VIDEO+chunk)
+		http.ServeFile(writer, request, WEB_PROXY+chunk)
 		return
 	}
-	fetchErr := downloadFile(state.originalChunks[chunk_id], WEB_VIDEO+chunk)
+	fetchErr := downloadFile(state.originalChunks[chunk_id], WEB_PROXY+chunk)
 	if fetchErr != nil {
 		mutex.Unlock()
 		fmt.Println("FAILED TO FETCH CHUNK,", fetchErr)
@@ -141,7 +141,7 @@ func watchProxy(writer http.ResponseWriter, request *http.Request) {
 	state.fetchedChunks[chunk_id] = true
 	mutex.Unlock()
 
-	http.ServeFile(writer, request, WEB_VIDEO+chunk)
+	http.ServeFile(writer, request, WEB_PROXY+chunk)
 }
 
 func downloadFile(url string, filename string) error {
@@ -448,17 +448,17 @@ func toString(num int) string {
 }
 
 func setupProxy(url string) {
-	m3u, err := downloadM3U(url, WEB_VIDEO+ORIGINAL_M3U8)
+	m3u, err := downloadM3U(url, WEB_PROXY+ORIGINAL_M3U8)
 	if err != nil {
 		fmt.Println("Failed to fetch m3u8: ", err)
 		state.url = err.Error()
 		return
 	}
-	fmt.Println(EXT_X_PLAYLIST_TYPE, m3u.ext_x_playlist_type)
-	fmt.Println(EXT_X_VERSION, m3u.ext_x_version)
-	fmt.Println(EXT_X_TARGETDURATION, m3u.ext_x_target_duration)
-	fmt.Println("tracks", len(m3u.tracks))
-	fmt.Println("total duration", m3u.totalDuration())
+	log_debug(EXT_X_PLAYLIST_TYPE, m3u.ext_x_playlist_type)
+	log_debug(EXT_X_VERSION, m3u.ext_x_version)
+	log_debug(EXT_X_TARGETDURATION, m3u.ext_x_target_duration)
+	log_debug("tracks", len(m3u.tracks))
+	log_debug("total duration", m3u.totalDuration())
 
 	if len(m3u.tracks) == 0 {
 		fmt.Println("No tracks found")
@@ -488,7 +488,7 @@ func setupProxy(url string) {
 		routedM3U.tracks[i].url = "ch-" + toString(i)
 	}
 
-	routedM3U.serialize(PROXY_M3U8)
+	routedM3U.serialize(WEB_PROXY + PROXY_M3U8)
 	log_info("Prepared proxy file %v", PROXY_M3U8)
 
 	state.url = PROXY_ROUTE + "proxy.m3u8"
