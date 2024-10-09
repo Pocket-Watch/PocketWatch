@@ -91,14 +91,14 @@ func registerEndpoints(options *Options) {
 //   - 0-indexed mutex[] to ensure the same chunk is not requested while it's being fetched
 func watchProxy(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != "GET" {
-		fmt.Println("Proxy not called with GET, received:", request.Method)
+		log_warn("Proxy not called with GET, received: %v", request.Method)
 		return
 	}
 	urlPath := request.URL.Path
 	chunk := path.Base(urlPath)
 
 	if chunk == PROXY_M3U8 {
-		log_debug("Serving", PROXY_M3U8)
+		log_debug("Serving %v", PROXY_M3U8)
 		http.ServeFile(writer, request, WEB_PROXY+PROXY_M3U8)
 		return
 	}
@@ -124,7 +124,7 @@ func watchProxy(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	mutex := state.chunkLocks[chunk_id]
+	mutex := &state.chunkLocks[chunk_id]
 	mutex.Lock()
 	if state.fetchedChunks[chunk_id] {
 		mutex.Unlock()
@@ -134,7 +134,7 @@ func watchProxy(writer http.ResponseWriter, request *http.Request) {
 	fetchErr := downloadFile(state.originalChunks[chunk_id], WEB_PROXY+chunk)
 	if fetchErr != nil {
 		mutex.Unlock()
-		fmt.Println("FAILED TO FETCH CHUNK,", fetchErr)
+		log_error("FAILED TO FETCH CHUNK %v", fetchErr)
 		http.Error(writer, "Failed to fetch chunk", 500)
 		return
 	}
