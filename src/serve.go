@@ -448,14 +448,10 @@ func toString(num int) string {
 }
 
 func setupProxy(url string) {
-	mkdirErr := os.Mkdir(WEB_PROXY, os.ModePerm)
-	if mkdirErr != nil {
-		log_error("Failed to create", WEB_PROXY, "directory.")
-		return
-	}
+	_ = os.Mkdir(WEB_PROXY, os.ModePerm)
 	m3u, err := downloadM3U(url, WEB_PROXY+ORIGINAL_M3U8)
 	if err != nil {
-		log_error("Failed to fetch m3u8: ", err)
+		log_error("Failed to fetch m3u8: %v", err)
 		state.url = err.Error()
 		return
 	}
