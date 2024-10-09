@@ -26,7 +26,7 @@ func StartServer(options *Options) {
 	registerEndpoints(options)
 
 	var address = options.Address + ":" + strconv.Itoa(int(options.Port))
-	fmt.Println("HOSTING SERVER ON", address)
+	log_info("Starting server on address: %s", address)
 
 	const CERT = "./secret/certificate.pem"
 	const PRIV_KEY = "./secret/privatekey.pem"
@@ -37,19 +37,19 @@ func StartServer(options *Options) {
 	missing_ssl_keys := errors.Is(err_priv, os.ErrNotExist) || errors.Is(err_cert, os.ErrNotExist)
 
 	if options.Ssl && missing_ssl_keys {
-		fmt.Println("ERROR: Failed to find either SSL certificate or the private key.")
+		log_error("Failed to find either SSL certificate or the private key.")
 	}
 
 	var server_start_error error
 	if !options.Ssl || missing_ssl_keys {
-		fmt.Println("WARNING: Server is running in unencrypted http mode.")
+		log_warn("Server is running in unencrypted http mode.")
 		server_start_error = http.ListenAndServe(address, nil)
 	} else {
 		server_start_error = http.ListenAndServeTLS(address, CERT, PRIV_KEY, nil)
 	}
 
 	if server_start_error != nil {
-		fmt.Printf("Error starting server: %v\n", server_start_error)
+		log_error("Error starting the server: %v", server_start_error)
 	}
 }
 
@@ -97,12 +97,12 @@ func watchProxy(writer http.ResponseWriter, request *http.Request) {
 }
 
 func versionGet(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("INFO: Connection %s requested server version.\n", r.RemoteAddr)
+	log_info("Connection %s requested server version.", r.RemoteAddr)
 	io.WriteString(w, VERSION)
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("INFO: Connection %s attempted to log in.\n", r.RemoteAddr)
+	log_info("Connection %s attempted to log in.", r.RemoteAddr)
 	io.WriteString(w, "This is unimplemented")
 }
 
@@ -111,14 +111,14 @@ func watchPlaylistGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Printf("INFO: Connection %s requested playlist get.\n", r.RemoteAddr)
+	log_info("Connection %s requested playlist get.", r.RemoteAddr)
 
 	state.playlist_lock.RLock()
 	jsonData, err := json.Marshal(state.playlist)
 	state.playlist_lock.RUnlock()
 
 	if err != nil {
-		fmt.Println("WARNING: Failed to serialize playlist get event.")
+		log_warn("Failed to serialize playlist get event.")
 		return
 	}
 
@@ -130,7 +130,7 @@ func watchPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Printf("INFO: Connection %s requested playlist add.\n", r.RemoteAddr)
+	log_info("Connection %s requested playlist add.", r.RemoteAddr)
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -146,7 +146,7 @@ func watchPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Printf("INFO: Adding '%s' url to the playlist.\n", entry.Url)
+	log_info("Adding '%s' url to the playlist.", entry.Url)
 
 	state.playlist_lock.Lock()
 	state.playlist = append(state.playlist, entry)
@@ -162,7 +162,7 @@ func watchPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 }
 
 func watchPlaylistClear(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("INFO: Connection %s requested playlist clear.\n", r.RemoteAddr)
+	log_info("Connection %s requested playlist clear.", r.RemoteAddr)
 
 	if r.Method != "POST" {
 		return
@@ -210,7 +210,7 @@ func writePlaylistClearEvent(writer http.ResponseWriter) {
 }
 
 func watchGet(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("INFO: Connection %s requested get.\n", r.RemoteAddr)
+	log_info("Connection %s requested get.", r.RemoteAddr)
 
 	var getEvent GetEventForUser
 	getEvent.Url = state.url
@@ -219,7 +219,7 @@ func watchGet(w http.ResponseWriter, r *http.Request) {
 
 	jsonData, err := json.Marshal(getEvent)
 	if err != nil {
-		fmt.Println("Failed to serialize sync event")
+		log_error("Failed to serialize get event.")
 		return
 	}
 
@@ -231,7 +231,7 @@ func watchSetUrl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Printf("INFO: Connection %s requested media url change.\n", r.RemoteAddr)
+	log_info("Connection %s requested media url change.", r.RemoteAddr)
 	if !readSetEventAndUpdateState(w, r) {
 		return
 	}
@@ -251,7 +251,7 @@ func watchStart(w http.ResponseWriter, r *http.Request) {
 	}
 	state.playing.Swap(true)
 
-	fmt.Printf("INFO: Connection %s requested player start.\n", r.RemoteAddr)
+	log_info("Connection %s requested player start.", r.RemoteAddr)
 	syncEvent := receiveSyncEventFromUser(w, r)
 	if syncEvent == nil {
 		return
@@ -273,7 +273,7 @@ func watchPause(w http.ResponseWriter, r *http.Request) {
 
 	state.playing.Store(false)
 
-	fmt.Printf("INFO: Connection %s requested player pause.\n", r.RemoteAddr)
+	log_info("Connection %s requested player pause.", r.RemoteAddr)
 	syncEvent := receiveSyncEventFromUser(w, r)
 	if syncEvent == nil {
 		return
@@ -293,7 +293,7 @@ func watchSeek(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Printf("INFO: Connection %s requested player seek.\n", r.RemoteAddr)
+	log_info("Connection %s requested player seek.", r.RemoteAddr)
 	syncEvent := receiveSyncEventFromUser(w, r)
 	if syncEvent == nil {
 		return
@@ -346,7 +346,7 @@ func readSetEventAndUpdateState(w http.ResponseWriter, r *http.Request) bool {
 	}
 	state.timestamp = 0
 	state.url = setEvent.Url
-	fmt.Printf("INFO: New url is now: \"%s\".\n", state.url)
+	log_info("New url is now: '%s'.", state.url)
 	state.playing.Swap(false)
 	return true
 }
@@ -357,7 +357,7 @@ func watchEvents(w http.ResponseWriter, r *http.Request) {
 	connection_count := connections.len()
 	connections.mutex.Unlock()
 
-	fmt.Printf("INFO: New connection established with %s. Current connection count: %d\n", r.RemoteAddr, connection_count)
+	log_info("New connection established with %s. Current connection count: %d", r.RemoteAddr, connection_count)
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -378,7 +378,7 @@ func watchEvents(w http.ResponseWriter, r *http.Request) {
 			connection_count = connections.len()
 			connections.mutex.Unlock()
 
-			fmt.Printf("INFO: Connection with %s dropped. Current connection count: %d\n", r.RemoteAddr, connection_count)
+			log_info("Connection with %s dropped. Current connection count: %d", r.RemoteAddr, connection_count)
 			break
 		}
 
@@ -429,7 +429,7 @@ func writeSyncEvent(writer http.ResponseWriter, eventType string, haste bool, us
 	}
 	jsonData, err := json.Marshal(syncEvent)
 	if err != nil {
-		fmt.Println("Failed to serialize sync event")
+		log_error("Failed to serialize sync event")
 		return nil
 	}
 	eventData := string(jsonData)
