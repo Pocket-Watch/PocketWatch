@@ -203,19 +203,19 @@ function addPlaylistElement(playlistHtml, index, entry) {
 }
 
 function getPlaylist() {
-    let playlist = apiPlaylistGet();
+    apiPlaylistGet().then(playlist => {
+        if (!playlist) {
+            return;
+        }
 
-    if (!playlist) {
-        return;
-    }
+        console.log(playlist);
 
-    console.log(playlist);
-
-    let playlistHtml = document.getElementById("playlist_entries");
-    let playlistSize = playlistHtml.childElementCount;
-    for (var i = 0; i < playlist.length; i++) {
-        addPlaylistElement(playlistHtml, i + playlistSize, playlist[i]);
-    }
+        let playlistHtml = document.getElementById("playlist_entries");
+        let playlistSize = playlistHtml.childElementCount;
+        for (var i = 0; i < playlist.length; i++) {
+            addPlaylistElement(playlistHtml, i + playlistSize, playlist[i]);
+        }
+    });
 }
 
 /// --------------- SERVER EVENTS: ---------------
@@ -430,7 +430,7 @@ function main() {
     getPlaylist();
     createPlayer("");
 
-    apiGet().then((state) => {
+    apiGet().then(state => {
         destroyPlayer();
         createPlayer(state.url);
         subscribeToServerEvents();
