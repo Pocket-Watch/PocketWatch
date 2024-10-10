@@ -52,3 +52,4 @@
 - [ ] Display connected users
 - [ ] Improve the UI layout and styling
 - [ ] Add rooms with individual player states
+- [ ] Subtitle support
