@@ -27,13 +27,13 @@
 - [x] Display current media url on the client side
 - [x] Get rid of "dummy.mp4", replace it with an indicator that nothing is playing
 - [x] Add option to upload media url, download in on the server and stream to all connected clients
-- [ ] Add playlist support and auto-playing
+- [x] Add playlist support and auto-playing
     - [x] Load playlist on welcome
     - [x] Playlist add
     - [x] Playlist clear
     - [x] Playlist auto playing
     - [x] Playlist skip
-    - [ ] Playlist remove
+    - [x] Playlist remove
     - [ ] Playlist shuffle
     - [ ] Playlist entry reordering
 - [ ] Audio only option that removes player video (only client side?)

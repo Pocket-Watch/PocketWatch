@@ -65,22 +65,23 @@ func registerEndpoints(options *Options) {
 	// fix trailing suffix
 	http.Handle("/", http.StripPrefix("/watch/", fileserver))
 
-	http.HandleFunc("/watch/api/version", versionGet)
-	http.HandleFunc("/watch/api/login", login)
-	http.HandleFunc("/watch/api/get", watchGet)
-	http.HandleFunc("/watch/api/seturl", watchSetUrl)
+	http.HandleFunc("/watch/api/version", apiVersion)
+	http.HandleFunc("/watch/api/login", apiLogin)
+	http.HandleFunc("/watch/api/get", apiGet)
+	http.HandleFunc("/watch/api/seturl", apiSetUrl)
 
-	http.HandleFunc("/watch/api/play", watchStart)
-	http.HandleFunc("/watch/api/pause", watchPause)
-	http.HandleFunc("/watch/api/seek", watchSeek)
+	http.HandleFunc("/watch/api/play", apiStart)
+	http.HandleFunc("/watch/api/pause", apiPause)
+	http.HandleFunc("/watch/api/seek", apiSeek)
 
-	http.HandleFunc("/watch/api/playlist/get", watchPlaylistGet)
-	http.HandleFunc("/watch/api/playlist/add", watchPlaylistAdd)
-	http.HandleFunc("/watch/api/playlist/clear", watchPlaylistClear)
-	http.HandleFunc("/watch/api/playlist/next", watchPlaylistNext)
-	http.HandleFunc("/watch/api/playlist/autoplay", watchPlaylistAutoplay)
+	http.HandleFunc("/watch/api/playlist/get", apiPlaylistGet)
+	http.HandleFunc("/watch/api/playlist/add", apiPlaylistAdd)
+	http.HandleFunc("/watch/api/playlist/clear", apiPlaylistClear)
+	http.HandleFunc("/watch/api/playlist/next", apiPlaylistNext)
+	http.HandleFunc("/watch/api/playlist/remove", apiPlaylistRemove)
+	http.HandleFunc("/watch/api/playlist/autoplay", apiPlaylistAutoplay)
 
-	http.HandleFunc("/watch/api/events", watchEvents)
+	http.HandleFunc("/watch/api/events", apiEvents)
 	http.HandleFunc(PROXY_ROUTE, watchProxy)
 }
 
@@ -172,17 +173,17 @@ func downloadFile(url string, filename string) error {
 	return nil
 }
 
-func versionGet(w http.ResponseWriter, r *http.Request) {
+func apiVersion(w http.ResponseWriter, r *http.Request) {
 	log_info("Connection %s requested server version.", r.RemoteAddr)
 	io.WriteString(w, VERSION)
 }
 
-func login(w http.ResponseWriter, r *http.Request) {
+func apiLogin(w http.ResponseWriter, r *http.Request) {
 	log_info("Connection %s attempted to log in.", r.RemoteAddr)
 	io.WriteString(w, "This is unimplemented")
 }
 
-func watchPlaylistGet(w http.ResponseWriter, r *http.Request) {
+func apiPlaylistGet(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		return
 	}
@@ -201,7 +202,7 @@ func watchPlaylistGet(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(jsonData))
 }
 
-func watchPlaylistAdd(w http.ResponseWriter, r *http.Request) {
+func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
 	}
@@ -237,7 +238,7 @@ func watchPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 	connections.mutex.RUnlock()
 }
 
-func watchPlaylistClear(w http.ResponseWriter, r *http.Request) {
+func apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
 	}
@@ -255,7 +256,7 @@ func watchPlaylistClear(w http.ResponseWriter, r *http.Request) {
 	connections.mutex.RUnlock()
 }
 
-func watchPlaylistNext(w http.ResponseWriter, r *http.Request) {
+func apiPlaylistNext(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
 	}
@@ -303,7 +304,7 @@ func watchPlaylistNext(w http.ResponseWriter, r *http.Request) {
 
 	connections.mutex.RLock()
 
-	// TODO(kihau): This might be faulty and needs to be cleaned up.
+	// TODO(kihau): This might cause problems in the future and needs to be cleaned up.
 	state.url = url
 	state.playing.Swap(state.autoplay.Load())
 	state.timestamp = 0
@@ -315,7 +316,48 @@ func watchPlaylistNext(w http.ResponseWriter, r *http.Request) {
 	connections.mutex.RUnlock()
 }
 
-func watchPlaylistAutoplay(w http.ResponseWriter, r *http.Request) {
+func apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	log_info("Connection %s requested playlist remove.", r.RemoteAddr)
+
+	data, err := io.ReadAll(r.Body)
+	if err != nil {
+		log_error("Playlist remove request handler failed to read remove index.")
+		return
+	}
+
+	var index int
+	err = json.Unmarshal(data, &index)
+	if err != nil {
+		log_error("Playlist remove request handler failed to parse current remove index.")
+		return
+	}
+
+	// NOTE(kihau):
+	//     This is potentially faulty. Instead of sending just an index, client should also
+	//     send a URL or a unique ID than corresponds to a playlist entry.
+	//     That way, when multiple clients perform remove request (at the same time) for certain index,
+	//     only one playlist entry will be removed.
+
+	state.playlist_lock.Lock()
+	if index < 0 || index >= len(state.playlist) {
+		log_error("Failed to remove playlist element at index %v.", index)
+	} else {
+		state.playlist = append(state.playlist[:index], state.playlist[index+1:]...)
+	}
+	state.playlist_lock.Unlock()
+
+	connections.mutex.RLock()
+	for _, conn := range connections.slice {
+		writeEvent(conn.writer, "playlistremove", string(data))
+	}
+	connections.mutex.RUnlock()
+}
+
+func apiPlaylistAutoplay(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
 	}
@@ -362,7 +404,7 @@ func writeEvent(writer http.ResponseWriter, event string, jsonData string) {
 	}
 }
 
-func watchGet(w http.ResponseWriter, r *http.Request) {
+func apiGet(w http.ResponseWriter, r *http.Request) {
 	log_info("Connection %s requested get.", r.RemoteAddr)
 
 	var getEvent GetEventForUser
@@ -380,7 +422,7 @@ func watchGet(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(jsonData))
 }
 
-func watchSetUrl(w http.ResponseWriter, r *http.Request) {
+func apiSetUrl(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
 	}
@@ -399,7 +441,7 @@ func watchSetUrl(w http.ResponseWriter, r *http.Request) {
 	connections.mutex.RUnlock()
 }
 
-func watchStart(w http.ResponseWriter, r *http.Request) {
+func apiStart(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
 	}
@@ -420,7 +462,7 @@ func watchStart(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, "Broadcasting start!\n")
 }
 
-func watchPause(w http.ResponseWriter, r *http.Request) {
+func apiPause(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
 	}
@@ -442,7 +484,7 @@ func watchPause(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, "Broadcasting pause!\n")
 }
 
-func watchSeek(w http.ResponseWriter, r *http.Request) {
+func apiSeek(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
 	}
@@ -533,11 +575,11 @@ func setupProxy(url string) {
 		state.url = err.Error()
 		return
 	}
-	log_debug(EXT_X_PLAYLIST_TYPE, m3u.ext_x_playlist_type)
-	log_debug(EXT_X_VERSION, m3u.ext_x_version)
-	log_debug(EXT_X_TARGETDURATION, m3u.ext_x_target_duration)
-	log_debug("tracks", len(m3u.tracks))
-	log_debug("total duration", m3u.totalDuration())
+	log_debug("%v %v", EXT_X_PLAYLIST_TYPE, m3u.ext_x_playlist_type)
+	log_debug("%v %v", EXT_X_VERSION, m3u.ext_x_version)
+	log_debug("%v %v", EXT_X_TARGETDURATION, m3u.ext_x_target_duration)
+	log_debug("tracks: %v", len(m3u.tracks))
+	log_debug("total duration: %v", m3u.totalDuration())
 
 	if len(m3u.tracks) == 0 {
 		log_warn("No tracks found")
@@ -573,7 +615,7 @@ func setupProxy(url string) {
 	state.url = PROXY_ROUTE + "proxy.m3u8"
 }
 
-func watchEvents(w http.ResponseWriter, r *http.Request) {
+func apiEvents(w http.ResponseWriter, r *http.Request) {
 	connections.mutex.Lock()
 	connection_id := connections.add(w)
 	connection_count := connections.len()

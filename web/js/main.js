@@ -104,6 +104,12 @@ async function apiPlaylistNext(current_url) {
     httpPost("/watch/api/playlist/next", current_url);
 }
 
+// NOTE(kihau): Might be faulty. See comment in watchPlaylistRemove() in serve.go.
+async function apiPlaylistRemove(index) {
+    console.info("INFO: Sending playlist remove request.");
+    httpPost("/watch/api/playlist/remove", index);
+}
+
 async function apiPlaylistAutoplay(state) {
     console.info("INFO: Sending playlist autoplay request.");
     httpPost("/watch/api/playlist/autoplay", state);
@@ -213,6 +219,19 @@ function clearPlaylistOnClick() {
 
 /// --------------- PLAYLIST: ---------------
 
+// NOTE(kihau): This function is a big hack. There should be a better way to do it.
+function playlistEntryRemoveOnClick(event) {
+    let entry = event.target.parentElement.parentElement;
+
+    let th = entry.getElementsByTagName("th")[0];
+    let index_string = th.textContent;
+    index_string = index_string.substring(0, index_string.length - 1);
+
+    let index = Number(index_string) - 1;
+    // console.log(index);
+    apiPlaylistRemove(index);
+}
+
 function addPlaylistElement(playlistHtml, index, entry) {
     let tr = document.createElement("tr");
     playlistHtml.appendChild(tr);
@@ -234,7 +253,11 @@ function addPlaylistElement(playlistHtml, index, entry) {
     cell.textContent = entry.url;
 
     cell = tr.insertCell(-1);
-    cell.innerHTML = "<button>Remove</button>";
+
+    let button = document.createElement("button");
+    button.onclick = playlistEntryRemoveOnClick;
+    button.textContent = "Remove";
+    cell.appendChild(button);
 }
 
 function getPlaylist() {
@@ -265,7 +288,17 @@ function removeFirstPlaylistElement() {
 }
 
 function removePlaylistElementAt(index) {
-    console.log("TODO");
+    let table = document.getElementById("playlist_entries").rows;
+
+    if (index < 0 || index >= table.length) {
+        console.error("ERROR: Cannot remove playlist entry, index " + index + " is out of bounds.");
+    } else {
+        table[index].parentNode.removeChild(table[index]);
+    }
+
+    for (var i = 0; i < table.length; i++) {
+        table[i].getElementsByTagName("th")[0].textContent = i + 1 + ".";
+    }
 }
 
 /// --------------- SERVER EVENTS: ---------------
@@ -380,6 +413,11 @@ function subscribeToServerEvents() {
         createPlayer(url);
 
         removeFirstPlaylistElement();
+    });
+
+    eventSource.addEventListener("playlistremove", function(event) {
+        console.log("Got playlist remove event: ", event.data);
+        removePlaylistElementAt(JSON.parse(event.data))
     });
 
     eventSource.addEventListener("playlistautoplay", function(event) {

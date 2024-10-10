@@ -77,7 +77,7 @@ func parseM3U(path string) (*M3U, error) {
 func getExtInfDuration(ext_inf string) (float64, error) {
 	end := len(ext_inf)
 	if end <= 8 {
-		return 0, fmt.Errorf("invalid", EXTINF)
+		return 0, fmt.Errorf("invalid %v", EXTINF)
 	}
 	comma := strings.Index(ext_inf, ",")
 	if comma != -1 {
