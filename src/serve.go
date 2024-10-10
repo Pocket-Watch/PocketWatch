@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	url2 "net/url"
 	"os"
@@ -69,7 +70,6 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/watch/api/login", apiLogin)
 	http.HandleFunc("/watch/api/get", apiGet)
 	http.HandleFunc("/watch/api/seturl", apiSetUrl)
-
 	http.HandleFunc("/watch/api/play", apiStart)
 	http.HandleFunc("/watch/api/pause", apiPause)
 	http.HandleFunc("/watch/api/seek", apiSeek)
@@ -80,6 +80,8 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/watch/api/playlist/next", apiPlaylistNext)
 	http.HandleFunc("/watch/api/playlist/remove", apiPlaylistRemove)
 	http.HandleFunc("/watch/api/playlist/autoplay", apiPlaylistAutoplay)
+	http.HandleFunc("/watch/api/playlist/looping", apiPlaylistLooping)
+	http.HandleFunc("/watch/api/playlist/shuffle", apiPlaylistShuffle)
 
 	http.HandleFunc("/watch/api/events", apiEvents)
 	http.HandleFunc(PROXY_ROUTE, watchProxy)
@@ -288,6 +290,17 @@ func apiPlaylistNext(w http.ResponseWriter, r *http.Request) {
 
 	var url string
 	state.playlist_lock.Lock()
+
+	if state.looping.Load() {
+		// TODO(kihau): This needs to be changed.
+		dummyEntry := PlaylistEntry{
+			Uuid:     string(rand.Int() % 999999999999999),
+			Username: "<unknown>",
+			Url:      current_url,
+		}
+		state.playlist = append(state.playlist, dummyEntry)
+	}
+
 	if len(state.playlist) == 0 {
 		url = ""
 	} else {
@@ -389,6 +402,66 @@ func apiPlaylistAutoplay(w http.ResponseWriter, r *http.Request) {
 	connections.mutex.RUnlock()
 }
 
+func apiPlaylistLooping(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	log_info("Connection %s requested playlist looping.", r.RemoteAddr)
+
+	data, err := io.ReadAll(r.Body)
+	if err != nil {
+		log_error("Failed to read looping payload")
+	}
+
+	var looping bool
+	err = json.Unmarshal(data, &looping)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	state.looping.Store(looping)
+	log_info("Setting playlist looping to %v.", looping)
+
+	jsonData := string(data)
+
+	connections.mutex.RLock()
+	for _, conn := range connections.slice {
+		writeEvent(conn.writer, "playlistlooping", jsonData)
+	}
+	connections.mutex.RUnlock()
+}
+
+func apiPlaylistShuffle(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	log_info("Connection %s requested playlist shuffle.", r.RemoteAddr)
+
+	state.playlist_lock.Lock()
+	for i := range state.playlist {
+		j := rand.Intn(i + 1)
+		state.playlist[i], state.playlist[j] = state.playlist[j], state.playlist[i]
+	}
+
+	jsonData, err := json.Marshal(state.playlist)
+	state.playlist_lock.Unlock()
+
+	if err != nil {
+		log_error("Failed to serialize get event: %v.", err)
+		return
+	}
+
+	connections.mutex.RLock()
+	for _, conn := range connections.slice {
+		writeEvent(conn.writer, "playlistshuffle", string(jsonData))
+	}
+	connections.mutex.RUnlock()
+}
+
 func writeEvent(writer http.ResponseWriter, event string, jsonData string) {
 	// fmt.Printf("Writing set event");
 	event_id := state.eventId.Add(1)
@@ -412,6 +485,7 @@ func apiGet(w http.ResponseWriter, r *http.Request) {
 	getEvent.IsPlaying = state.playing.Load()
 	getEvent.Timestamp = state.timestamp
 	getEvent.Autoplay = state.autoplay.Load()
+	getEvent.Looping = state.looping.Load()
 
 	jsonData, err := json.Marshal(getEvent)
 	if err != nil {
@@ -739,6 +813,7 @@ func lastUrlSegment(url string) string {
 // NOTE(kihau): Some fields are non atomic. This needs to change.
 type State struct {
 	autoplay       atomic.Bool
+	looping        atomic.Bool
 	playing        atomic.Bool
 	timestamp      float64
 	url            string
@@ -809,6 +884,7 @@ type GetEventForUser struct {
 	Timestamp float64 `json:"timestamp"`
 	IsPlaying bool    `json:"is_playing"`
 	Autoplay  bool    `json:"autoplay"`
+	Looping   bool    `json:"looping"`
 }
 
 type SyncEventForUser struct {

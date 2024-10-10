@@ -8,6 +8,7 @@ var current_url = document.getElementById("current_url");
 var name_field = document.getElementById("user_name");
 var proxy_checkbox = document.getElementById("proxy");
 var autoplay_checkbox = document.getElementById("autoplay");
+var looping_checkbox = document.getElementById("looping");
 
 var programmaticPlay = false; // Updates before programmatic play() and in .onplay
 var programmaticPause = false; // Updates before programmatic pause() and in .onpause
@@ -115,6 +116,16 @@ async function apiPlaylistAutoplay(state) {
     httpPost("/watch/api/playlist/autoplay", state);
 }
 
+async function apiPlaylistLooping(state) {
+    console.info("INFO: Sending playlist autoplay request.");
+    httpPost("/watch/api/playlist/looping", state);
+}
+
+async function apiPlaylistShuffle() {
+    console.info("INFO: Sending playlist shuffle request.");
+    httpPost("/watch/api/playlist/shuffle", null);
+}
+
 async function apiSetUrl(url) {
     const payload = {
         uuid: getRandomId(),
@@ -168,6 +179,16 @@ async function apiSeek(timestamp) {
 
 /// --------------- HTML ELEMENT CALLBACKS: ---------------
 
+function inputUrlOnKeypress(event) {
+    if (event.key === "Enter") {
+        let url = input_url.value;
+        input_url.value = "";
+
+        console.info("INFO: Current video source url: ", url);
+        apiSetUrl(url);
+    }
+}
+
 function setUrlOnClick() {
     let url = input_url.value;
     input_url.value = "";
@@ -181,6 +202,21 @@ function skipOnClick() {
 
     console.info("INFO: Current video source url: ", url);
     apiPlaylistNext(url);
+}
+
+function inputPlaylistOnKeypress(event) {
+    if (event.key === "Enter") {
+        let input_playlist = document.getElementById("input_playlist");
+        let url = input_playlist.value;
+        input_playlist.value = "";
+
+        if (!url) {
+            console.warn("WARNING: Url is empty, not adding to the playlist.");
+            return;
+        }
+
+        apiPlaylistAdd(url);
+    }
 }
 
 function playlistAddInputOnClick() {
@@ -200,7 +236,12 @@ function autoplayOnClick() {
     apiPlaylistAutoplay(autoplay_checkbox.checked);
 }
 
-function addToPlaylistOnClick() {
+function loopingOnClick() {
+    console.info("Looping clicked");
+    apiPlaylistLooping(looping_checkbox.checked);
+}
+
+function playlistAddOnClick() {
     let input_playlist = document.getElementById("input_playlist");
     let url = input_playlist.value;
     input_playlist.value = "";
@@ -213,7 +254,11 @@ function addToPlaylistOnClick() {
     apiPlaylistAdd(url);
 }
 
-function clearPlaylistOnClick() {
+function playlistShuffleOnClick() {
+    apiPlaylistShuffle();
+}
+
+function playlistClearOnClick() {
     apiPlaylistClear();
 }
 
@@ -261,7 +306,7 @@ function addPlaylistElement(playlistHtml, index, entry) {
 }
 
 function getPlaylist() {
-    apiPlaylistGet().then(playlist => {
+    apiPlaylistGet().then((playlist) => {
         if (!playlist) {
             return;
         }
@@ -301,6 +346,13 @@ function removePlaylistElementAt(index) {
     }
 }
 
+function removeAllPlaylistElements() {
+    let container = document.getElementById("playlist_entries");
+    while (container.firstChild) {
+        container.removeChild(container.lastChild);
+    }
+}
+
 /// --------------- SERVER EVENTS: ---------------
 
 function readEventMaybeResync(type, event) {
@@ -337,7 +389,7 @@ function subscribeToServerEvents() {
     let eventSource = new EventSource("/watch/api/events");
 
     // Allow user to de-sync themselves freely and watch at their own pace
-    eventSource.addEventListener("play", function(event) {
+    eventSource.addEventListener("play", function (event) {
         if (!player) {
             return;
         }
@@ -352,7 +404,7 @@ function subscribeToServerEvents() {
         }
     });
 
-    eventSource.addEventListener("pause", function(event) {
+    eventSource.addEventListener("pause", function (event) {
         if (!player) {
             return;
         }
@@ -365,7 +417,7 @@ function subscribeToServerEvents() {
         }
     });
 
-    eventSource.addEventListener("seek", function(event) {
+    eventSource.addEventListener("seek", function (event) {
         if (!player) {
             return;
         }
@@ -373,7 +425,7 @@ function subscribeToServerEvents() {
         readEventMaybeResync("seek", event);
     });
 
-    eventSource.addEventListener("seturl", function(event) {
+    eventSource.addEventListener("seturl", function (event) {
         let jsonData = JSON.parse(event.data);
         let url = jsonData["url"];
         console.log("Media url received from the server: ", url);
@@ -382,7 +434,7 @@ function subscribeToServerEvents() {
         createPlayer(url);
     });
 
-    eventSource.addEventListener("playlistadd", function(event) {
+    eventSource.addEventListener("playlistadd", function (event) {
         console.log("Got playlist add event " + event.data);
         let entry = JSON.parse(event.data);
 
@@ -395,19 +447,27 @@ function subscribeToServerEvents() {
         addPlaylistElement(playlistHtml, playlistSize, entry);
     });
 
-    eventSource.addEventListener("playlistclear", function(_event) {
+    eventSource.addEventListener("playlistclear", function (_event) {
         console.log("Got playlist clear event");
-        let container = document.getElementById("playlist_entries");
-        while (container.firstChild) {
-            container.removeChild(container.lastChild);
-        }
+        removeAllPlaylistElements();
     });
 
-    eventSource.addEventListener("playlistnext", function(event) {
+    eventSource.addEventListener("playlistnext", function (event) {
         console.log("Got playlist next event: ", event.data);
 
         let url = JSON.parse(event.data);
         console.log("Media url received from the server: ", url);
+
+        if (looping_checkbox.checked) {
+            // TODO(kihau): This needs to be changed.
+            const dummyEntry = {
+                url: current_url.value,
+                username: "<unknown>",
+            };
+
+            let playlistHtml = document.getElementById("playlist_entries");
+            addPlaylistElement(playlistHtml, playlistHtml.childElementCount + 1, dummyEntry);
+        }
 
         destroyPlayer();
         createPlayer(url);
@@ -415,12 +475,12 @@ function subscribeToServerEvents() {
         removeFirstPlaylistElement();
     });
 
-    eventSource.addEventListener("playlistremove", function(event) {
+    eventSource.addEventListener("playlistremove", function (event) {
         console.log("Got playlist remove event: ", event.data);
-        removePlaylistElementAt(JSON.parse(event.data))
+        removePlaylistElementAt(JSON.parse(event.data));
     });
 
-    eventSource.addEventListener("playlistautoplay", function(event) {
+    eventSource.addEventListener("playlistautoplay", function (event) {
         console.log("Got playlist autoplay event: ", event.data);
         let autoplay_enabled = JSON.parse(event.data);
         if (autoplay_enabled === null) {
@@ -429,6 +489,34 @@ function subscribeToServerEvents() {
         }
 
         autoplay_checkbox.checked = autoplay_enabled;
+    });
+
+    eventSource.addEventListener("playlistlooping", function (event) {
+        console.log("Got playlist looping event: ", event.data);
+        let looping_enabled = JSON.parse(event.data);
+        if (looping_enabled === null) {
+            console.error("ERROR: Failed to parse looping json event");
+            return;
+        }
+
+        looping_checkbox.checked = looping_enabled;
+    });
+
+    eventSource.addEventListener("playlistshuffle", function (event) {
+        console.log("Got playlist autoplay event: ", event.data);
+        let playlist = JSON.parse(event.data);
+        if (playlist === null) {
+            console.error("ERROR: Failed to parse playlist shuffle json event.");
+            return;
+        }
+
+        removeAllPlaylistElements();
+
+        let playlistHtml = document.getElementById("playlist_entries");
+        let playlistSize = playlistHtml.childElementCount;
+        for (var i = 0; i < playlist.length; i++) {
+            addPlaylistElement(playlistHtml, i + playlistSize, playlist[i]);
+        }
     });
 }
 
@@ -440,6 +528,8 @@ function isVideoPlaying() {
 
 function destroyPlayer() {
     if (player) {
+        unsubscribeFromPlayerEvents(player);
+        player.pause();
         player.destroy();
         player = null;
     } else {
@@ -502,54 +592,66 @@ function createPlayer(url) {
     video = new_video;
 }
 
-function subscribeToPlayerEvents(new_player) {
-    new_player.on("seeked", function() {
-        if (programmaticSeek) {
-            console.log("Programmatic seek caught");
-            programmaticSeek = false;
-            return;
-        }
+function playerOnPlay(_event) { 
+    if (programmaticPlay) {
+        programmaticPlay = false;
+        return;
+    }
 
-        ignoreNextRequest = true;
-        apiSeek(video.currentTime);
-    });
+    ignoreNextRequest = true;
+    apiPlay();
+}
 
-    new_player.on("play", function() {
-        if (programmaticPlay) {
-            programmaticPlay = false;
-            return;
-        }
+function playerOnPause(_event) { 
+    if (programmaticPause) {
+        programmaticPause = false;
+        return;
+    }
 
-        // We cannot make assumptions about the next state of the server because our request will not have any priority
-        ignoreNextRequest = true;
-        apiPlay();
-    });
+    ignoreNextRequest = true;
+    apiPause();
+}
 
-    new_player.on("pause", function() {
-        if (programmaticPause) {
-            programmaticPause = false;
-            return;
-        }
+function playerOnSeek(_event) { 
+    if (programmaticSeek) {
+        console.log("Programmatic seek caught");
+        programmaticSeek = false;
+        return;
+    }
 
-        ignoreNextRequest = true;
-        // This request might not even come through
-        apiPause();
-    });
+    ignoreNextRequest = true;
+    apiSeek(video.currentTime);
+}
 
-    new_player.on("ended", function() {
-        if (autoplay_checkbox.checked) {
-            let url = current_url.value;
-            apiPlaylistNext(url);
-        }
-    });
+function playerOnEnded(_event) { 
+    if (autoplay_checkbox.checked) {
+        let url = current_url.value;
+        apiPlaylistNext(url);
+    }
+}
+
+function subscribeToPlayerEvents(player) {
+    player.on("play", playerOnPlay);
+    player.on("pause", playerOnPause);
+    player.on("seeked", playerOnSeek);
+    player.on("ended", playerOnEnded);
+}
+
+function unsubscribeFromPlayerEvents(player) {
+    player.on("play", null);
+    player.on("pause", null);
+    player.on("seeked", null);
+    player.on("ended", null);
 }
 
 function main() {
     getPlaylist();
     createPlayer("");
 
-    apiGet().then(state => {
+    apiGet().then((state) => {
         autoplay_checkbox.checked = state.autoplay;
+        looping_checkbox.checked = state.looping;
+
         destroyPlayer();
         createPlayer(state.url);
         subscribeToServerEvents();

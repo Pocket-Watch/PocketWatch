@@ -16,7 +16,7 @@
     <br>
 
     <label>Input the media URL here:</label><br />
-    <input type="url" id="input_url" name="input_url" size="100" />
+    <input type="url" id="input_url" name="input_url" onkeypress="inputUrlOnKeypress(event)" size="100" />
 
     <br>
 
@@ -24,12 +24,24 @@
     <button name="skip" onclick="skipOnClick()">Skip</button>
     <button name="playlist_add_input" onclick="playlistAddInputOnClick()">Add to playlist</button>
 
+    &nbsp;
+
     <label>Create proxy:
         <input type="checkbox" id="proxy" name="Proxy">
     </label>
 
+    &nbsp;
+    &nbsp;
+
     <label>Enable autoplay:
         <input type="checkbox" onclick="autoplayOnClick()" id="autoplay" name="Autoplay">
+    </label>
+
+    &nbsp;
+    &nbsp;
+
+    <label>Playlist looping:
+        <input type="checkbox" onclick="loopingOnClick()" id="looping" name="Looping">
     </label>
 
     <br>
@@ -47,33 +59,6 @@
     <br>
     <br>
 
-    <form action="/login" method="post">
-        <div class="imgcontainer">
-            <!-- <img src="avatar.png" alt="Avatar" class="avatar"> -->
-        </div>
-
-        <div class="container">
-            <label>
-                <b>Username</b>
-                <input type="text" placeholder="Enter Username" required>
-            </label>
-        </div>
-        <label>
-            <b>Password</b>
-            <input type="password" placeholder="Enter Password" name="psw" required>
-        </label>
-
-        <div>
-            <button type="submit">Login</button>
-            <label>
-                <input type="checkbox" checked="checked" name="remember"> Remember me
-            </label>
-        </div>
-
-    </form>
-
-    <br>
-
     <link href="css/playlist.css" rel="stylesheet" />
     <table>
         <caption>
@@ -83,8 +68,9 @@
             <tr>
                 <th scope="row" colspan="4">
                     <label>Add URL to the playlist:</label><br />
-                    <input type="url" id="input_playlist" name="input_playlist" size="100" />
-                    <button onclick="addToPlaylistOnClick()">Add</button>
+                    <input type="url" id="input_playlist" name="input_playlist" onkeypress="inputPlaylistOnKeypress(event)" size="100" />
+                    <button onclick="playlistAddOnClick()">Add</button>
+                    <button onclick="playlistShuffleOnClick()">Shuffle</button>
                 </th>
             </tr>
         </thead>
@@ -94,7 +80,7 @@
                 <th scope="col">Requested by</th>
                 <th scope="col">Url</th>
                 <th scope="col">
-                    <button onclick="clearPlaylistOnClick()">Clear playlist</button>
+                    <button onclick="playlistClearOnClick()">Clear playlist</button>
                 </th>
             </tr>
         </thead>
@@ -128,6 +114,33 @@
             </tr>
         </tfoot>
     </table>
+
+    <br>
+
+    <form action="/login" method="post">
+        <div class="imgcontainer">
+            <!-- <img src="avatar.png" alt="Avatar" class="avatar"> -->
+        </div>
+
+        <div class="container">
+            <label>
+                <b>Username</b>
+                <input type="text" placeholder="Enter Username" required>
+            </label>
+        </div>
+        <label>
+            <b>Password</b>
+            <input type="password" placeholder="Enter Password" name="psw" required>
+        </label>
+
+        <div>
+            <button type="submit">Login</button>
+            <label>
+                <input type="checkbox" checked="checked" name="remember"> Remember me
+            </label>
+        </div>
+
+    </form>
 
     <br>
 
