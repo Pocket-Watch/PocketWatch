@@ -162,29 +162,22 @@ async function apiSeek(timestamp) {
 
 /// --------------- HTML ELEMENT CALLBACKS: ---------------
 
-function inputUrlPlayOnClick() {
-    if (input_url.value === "" && autoplay_checkbox.checked && !player) {
-        let url = current_url.value;
+function setUrlOnClick() {
+    let url = input_url.value;
+    input_url.value = "";
 
-        console.info("INFO: Current video source url: ", url);
-        apiPlaylistNext(url);
-    } else {
-        let url = input_url.value;
-        input_url.value = "";
-
-        console.info("INFO: Current video source url: ", url);
-        apiSetUrl(url);
-    }
+    console.info("INFO: Current video source url: ", url);
+    apiSetUrl(url);
 }
 
-function inputUrlSkipOnClick() {
+function skipOnClick() {
     let url = current_url.value;
 
     console.info("INFO: Current video source url: ", url);
     apiPlaylistNext(url);
 }
 
-function inputUrlPlaylistAddOnClick() {
+function playlistAddInputOnClick() {
     let url = input_url.value;
     input_url.value = "";
 
@@ -269,6 +262,10 @@ function removeFirstPlaylistElement() {
     for (var i = 0; i < table.length; i++) {
         table[i].getElementsByTagName("th")[0].textContent = i + 1 + ".";
     }
+}
+
+function removePlaylistElementAt(index) {
+    console.log("TODO");
 }
 
 /// --------------- SERVER EVENTS: ---------------

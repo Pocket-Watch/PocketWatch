@@ -280,10 +280,10 @@ func watchPlaylistNext(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-    if state.url != current_url {
-        log_warn("Current URL on the server is not equal to the one provided by the client.")
-        return;
-    }
+	if state.url != current_url {
+		log_warn("Current URL on the server is not equal to the one provided by the client.")
+		return
+	}
 
 	var url string
 	state.playlist_lock.Lock()
@@ -303,8 +303,8 @@ func watchPlaylistNext(w http.ResponseWriter, r *http.Request) {
 
 	connections.mutex.RLock()
 
-    // TODO(kihau): This might be faulty and needs to be cleaned up.
-    state.url = url
+	// TODO(kihau): This might be faulty and needs to be cleaned up.
+	state.url = url
 	state.playing.Swap(state.autoplay.Load())
 	state.timestamp = 0
 
