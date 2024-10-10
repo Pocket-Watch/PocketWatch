@@ -15,7 +15,7 @@ const COLOR_PURPLE = "\x1b[1;35m"
 
 const COLOR_GREEN_LIGHT = "\x1b[0;32m"
 
-const ENABLE_COLORS = true
+var ENABLE_COLORS = true
 
 func log_error(format string, args ...any) {
 	log_output("ERROR", COLOR_RED, format, args...)

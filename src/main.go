@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 )
 
@@ -12,10 +11,10 @@ func main() {
 		return
 	}
 	options := FromArgs()
-	fmt.Println("ARGS:", "|ip =", options.Address, "|p =", options.Port, "| ssl =", options.Ssl, "| help =", options.Help)
 	if options.Help {
 		DisplayHelp()
 		return
 	}
+	options.prettyPrint()
 	StartServer(&options)
 }

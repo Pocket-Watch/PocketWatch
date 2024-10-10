@@ -12,11 +12,28 @@ type Options struct {
 	Address string
 	Port    uint16
 	Ssl     bool
+	Color   bool
 	Help    bool
 }
 
+func (o *Options) prettyPrint() {
+	fmt.Println(" -------ARGS---------")
+	fmt.Println(" | ip    |", o.Address)
+	fmt.Println(" | port  |", o.Port)
+	fmt.Println(" | ssl   |", o.Ssl)
+	fmt.Println(" | color |", o.Color)
+	fmt.Println(" | help  |", o.Help)
+	fmt.Println(" --------------------")
+}
+
 func Defaults() Options {
-	return Options{"localhost", 1234, false, false}
+	return Options{
+		Address: "localhost",
+		Port:    1234,
+		Ssl:     false,
+		Color:   true,
+		Help:    false,
+	}
 }
 
 func FromArgs() Options {
@@ -41,6 +58,9 @@ func FromArgs() Options {
 			i++
 		case "address", "addr", "ip":
 			settings.Address = args[i+1]
+		case "nc", "no-color", "no-colors":
+			settings.Color = false
+			ENABLE_COLORS = false
 		case "ssl":
 			settings.Ssl = true
 		case "h", "help":
@@ -79,6 +99,7 @@ func DisplayHelp() {
 	fmt.Println("    -h, -help                   Displays this help message")
 	fmt.Println("    -ip, -address [10.0.0.1]    Binds server to IP (default: localhost)")
 	fmt.Println("    -p, -port [443]             Sets port size (0-65535) (default: 1234)")
+	fmt.Println("    -nc, -no-color              Disables colored logging (default: enabled)")
 	fmt.Println("    -ssl                        Enables SSL. Secrets are read from:")
 	fmt.Println("                                 - CERTIFICATE: ./secret/certificate.pem")
 	fmt.Println("                                 - PRIVATE KEY: ./secret/privatekey.pem")
