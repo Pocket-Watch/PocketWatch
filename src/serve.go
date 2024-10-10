@@ -77,6 +77,8 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/watch/api/playlist/get", watchPlaylistGet)
 	http.HandleFunc("/watch/api/playlist/add", watchPlaylistAdd)
 	http.HandleFunc("/watch/api/playlist/clear", watchPlaylistClear)
+	http.HandleFunc("/watch/api/playlist/next", watchPlaylistNext)
+	http.HandleFunc("/watch/api/playlist/autoplay", watchPlaylistAutoplay)
 
 	http.HandleFunc("/watch/api/events", watchEvents)
 	http.HandleFunc(PROXY_ROUTE, watchProxy)
@@ -230,17 +232,17 @@ func watchPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 
 	connections.mutex.RLock()
 	for _, conn := range connections.slice {
-		writePlaylistAddEvent(conn.writer, jsonData)
+		writeEvent(conn.writer, "playlistadd", jsonData)
 	}
 	connections.mutex.RUnlock()
 }
 
 func watchPlaylistClear(w http.ResponseWriter, r *http.Request) {
-	log_info("Connection %s requested playlist clear.", r.RemoteAddr)
-
 	if r.Method != "POST" {
 		return
 	}
+
+	log_info("Connection %s requested playlist clear.", r.RemoteAddr)
 
 	state.playlist_lock.Lock()
 	state.playlist = state.playlist[:0]
@@ -248,32 +250,109 @@ func watchPlaylistClear(w http.ResponseWriter, r *http.Request) {
 
 	connections.mutex.RLock()
 	for _, conn := range connections.slice {
-		writePlaylistClearEvent(conn.writer)
+		writeEvent(conn.writer, "playlistclear", "")
 	}
 	connections.mutex.RUnlock()
 }
 
-func writePlaylistAddEvent(writer http.ResponseWriter, jsonData string) {
-	// fmt.Printf("Writing set event");
-	event_id := state.eventId.Add(1)
-	fmt.Fprintln(writer, "id:", event_id)
-	fmt.Fprintln(writer, "event: playlistadd")
-	fmt.Fprintln(writer, "data:", jsonData)
-	fmt.Fprintln(writer, "retry:", RETRY)
-	fmt.Fprintln(writer)
-
-	// Flush the response to ensure the client receives the event
-	if f, ok := writer.(http.Flusher); ok {
-		f.Flush()
+func watchPlaylistNext(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
 	}
+
+	log_info("Connection %s requested playlist next.", r.RemoteAddr)
+
+	// NOTE(kihau):
+	//     We need to check whether currently set URL on the player side matches current URL on the server side.
+	//     This check is necessary because multiple clients can send "playlist next" request on video end,
+	//     resulting in multiple playlist skips, which is not an intended behaviour.
+
+	data, err := io.ReadAll(r.Body)
+	if err != nil {
+		log_error("Playlist next request handler failed to read current client URL.")
+		return
+	}
+
+	var current_url string
+	err = json.Unmarshal(data, &current_url)
+	if err != nil {
+		log_error("Playlist next request handler failed to parse current client URL.")
+		return
+	}
+
+    if state.url != current_url {
+        log_warn("Current URL on the server is not equal to the one provided by the client.")
+        return;
+    }
+
+	var url string
+	state.playlist_lock.Lock()
+	if len(state.playlist) == 0 {
+		url = ""
+	} else {
+		url = state.playlist[0].Url
+		state.playlist = state.playlist[1:]
+	}
+	state.playlist_lock.Unlock()
+
+	jsonData, err := json.Marshal(url)
+	if err != nil {
+		log_error("Failed to serialize json data")
+		return
+	}
+
+	connections.mutex.RLock()
+
+    // TODO(kihau): This might be faulty and needs to be cleaned up.
+    state.url = url
+	state.playing.Swap(state.autoplay.Load())
+	state.timestamp = 0
+
+	for _, conn := range connections.slice {
+		writeEvent(conn.writer, "playlistnext", string(jsonData))
+	}
+
+	connections.mutex.RUnlock()
 }
 
-func writePlaylistClearEvent(writer http.ResponseWriter) {
+func watchPlaylistAutoplay(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	log_info("Connection %s requested playlist autoplay.", r.RemoteAddr)
+
+	data, err := io.ReadAll(r.Body)
+	if err != nil {
+		log_error("Failed to read autoplay payload")
+	}
+
+	var autoplay bool
+	err = json.Unmarshal(data, &autoplay)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	state.autoplay.Store(autoplay)
+	log_info("Setting playlist autoplay to %v.", autoplay)
+
+	jsonData := string(data)
+
+	connections.mutex.RLock()
+	for _, conn := range connections.slice {
+		writeEvent(conn.writer, "playlistautoplay", jsonData)
+	}
+	connections.mutex.RUnlock()
+}
+
+func writeEvent(writer http.ResponseWriter, event string, jsonData string) {
 	// fmt.Printf("Writing set event");
 	event_id := state.eventId.Add(1)
 	fmt.Fprintln(writer, "id:", event_id)
-	fmt.Fprintln(writer, "event: playlistclear")
-	fmt.Fprintln(writer, "data:")
+	fmt.Fprintln(writer, "event:", event)
+	fmt.Fprintln(writer, "data:", jsonData)
 	fmt.Fprintln(writer, "retry:", RETRY)
 	fmt.Fprintln(writer)
 
@@ -290,6 +369,7 @@ func watchGet(w http.ResponseWriter, r *http.Request) {
 	getEvent.Url = state.url
 	getEvent.IsPlaying = state.playing.Load()
 	getEvent.Timestamp = state.timestamp
+	getEvent.Autoplay = state.autoplay.Load()
 
 	jsonData, err := json.Marshal(getEvent)
 	if err != nil {
@@ -388,7 +468,6 @@ func receiveSyncEventFromUser(w http.ResponseWriter, r *http.Request) *SyncEvent
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return nil
 	}
-	defer r.Body.Close()
 
 	// Unmarshal the JSON data
 	var sync SyncEventFromUser
@@ -409,7 +488,6 @@ func readSetEventAndUpdateState(w http.ResponseWriter, r *http.Request) bool {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return false
 	}
-	defer r.Body.Close()
 
 	// Unmarshal the JSON data
 	var setEvent SetEventFromUser
@@ -429,7 +507,7 @@ func readSetEventAndUpdateState(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	log_info("New url is now: '%s'.", state.url)
-	state.playing.Swap(false)
+	state.playing.Swap(state.autoplay.Load())
 	return true
 }
 
@@ -618,6 +696,7 @@ func lastUrlSegment(url string) string {
 
 // NOTE(kihau): Some fields are non atomic. This needs to change.
 type State struct {
+	autoplay       atomic.Bool
 	playing        atomic.Bool
 	timestamp      float64
 	url            string
@@ -687,6 +766,7 @@ type GetEventForUser struct {
 	Url       string  `json:"url"`
 	Timestamp float64 `json:"timestamp"`
 	IsPlaying bool    `json:"is_playing"`
+	Autoplay  bool    `json:"autoplay"`
 }
 
 type SyncEventForUser struct {

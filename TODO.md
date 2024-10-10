@@ -26,15 +26,17 @@
 - [x] Add all dependencies locally to the project, don't rely on downloading them from online services at runtime.
 - [x] Display current media url on the client side
 - [x] Get rid of "dummy.mp4", replace it with an indicator that nothing is playing
+- [x] Add option to upload media url, download in on the server and stream to all connected clients
 - [ ] Add playlist support and auto-playing
     - [x] Load playlist on welcome
     - [x] Playlist add
     - [x] Playlist clear
+    - [x] Playlist auto playing
+    - [x] Playlist skip
     - [ ] Playlist remove
     - [ ] Playlist shuffle
-    - [ ] Playlist play
     - [ ] Playlist entry reordering
-    - [ ] Playlist auto playing on the player side
+- [ ] Audio only option that removes player video (only client side?)
 - [ ] Rewrite the player and clean up the frontend code. (?)
 - [ ] On first website load, indicate to the user that autoplay policy is disabled and manual action is required in order to play the video.
 - [ ] Investigate and fix seek issue where sometimes performing seek does nothing
@@ -45,10 +47,8 @@
 - [ ] Server hardening and rate-limiting
 - [ ] Add server side and client side authentication and store cookies
 - [ ] Add option to upload media file to the server and stream it to all connected clients (streaming proxy)
-- [x] Add option to upload media url, download in on the server and stream to all connected clients
 - [ ] Add support for live chat
 - [ ] Add watch history
 - [ ] Display connected users
 - [ ] Improve the UI layout and styling
 - [ ] Add rooms with individual player states
-- [ ] Display connected users.

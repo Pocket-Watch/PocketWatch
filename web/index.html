@@ -17,10 +17,19 @@
 
     <label>Input the media URL here:</label><br />
     <input type="url" id="input_url" name="input_url" size="100" />
-    <button onclick="setUrlButton()">Send</button>
+
     <br>
+
+    <button name="play" onclick="inputUrlPlayOnClick()">Play</button>
+    <button name="skip" onclick="inputUrlSkipOnClick()">Skip</button>
+    <button name="playlist_add" onclick="inputUrlPlaylistAddOnClick()">Add to playlist</button>
+
     <label>Create proxy:
         <input type="checkbox" id="proxy" name="Proxy">
+    </label>
+
+    <label>Enable autoplay:
+        <input type="checkbox" onclick="autoplayOnClick()" id="autoplay" name="Autoplay">
     </label>
 
     <br>
@@ -75,7 +84,7 @@
                 <th scope="row" colspan="4">
                     <label>Add URL to the playlist:</label><br />
                     <input type="url" id="input_playlist" name="input_playlist" size="100" />
-                    <button onclick="addToPlaylistButton()">Add</button>
+                    <button onclick="addToPlaylistOnClick()">Add</button>
                 </th>
             </tr>
         </thead>
@@ -85,7 +94,7 @@
                 <th scope="col">Requested by</th>
                 <th scope="col">Url</th>
                 <th scope="col">
-                    <button onclick="clearPlaylistButton()">Clear playlist</button>
+                    <button onclick="clearPlaylistOnClick()">Clear playlist</button>
                 </th>
             </tr>
         </thead>
