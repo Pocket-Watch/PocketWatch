@@ -37,6 +37,7 @@
     - [x] Playlist shuffle
     - [x] Playlist looping
     - [x] Playlist entry reordering
+- [ ] Integrate playback and queueing for youtube urls and youtube playlist urls.
 - [ ] Audio only option that removes player video (only client side?)
 - [ ] Rewrite the player and clean up the frontend code. (?)
 - [ ] On first website load, indicate to the user that autoplay policy is disabled and manual action is required in order to play the video.
