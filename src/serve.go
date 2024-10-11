@@ -84,6 +84,7 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/watch/api/playlist/autoplay", apiPlaylistAutoplay)
 	http.HandleFunc("/watch/api/playlist/looping", apiPlaylistLooping)
 	http.HandleFunc("/watch/api/playlist/shuffle", apiPlaylistShuffle)
+	http.HandleFunc("/watch/api/playlist/move", apiPlaylistMove)
 
 	http.HandleFunc("/watch/api/events", apiEvents)
 	http.HandleFunc(PROXY_ROUTE, watchProxy)
@@ -493,6 +494,70 @@ func apiPlaylistShuffle(w http.ResponseWriter, r *http.Request) {
 	connections.mutex.RLock()
 	for _, conn := range connections.slice {
 		writeEvent(conn.writer, "playlistshuffle", string(jsonData))
+	}
+	connections.mutex.RUnlock()
+}
+
+func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	log_info("Connection %s requested playlist move.", r.RemoteAddr)
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log_error("Failed to read json body for playlist move event.")
+		return
+	}
+
+	var move PlaylistMoveEventFromUser
+	err = json.Unmarshal(body, &move)
+	if err != nil {
+		log_error("Failed to deserialize json data for playlist move event.")
+		return
+	}
+
+	state.playlist_lock.Lock()
+
+	if move.SourceIndex < 0 || move.SourceIndex >= len(state.playlist) {
+		log_error("Playlist move failed, source index out of bounds")
+		return
+	}
+
+	if move.DestIndex < 0 || move.DestIndex >= len(state.playlist) {
+		log_error("Playlist move failed, source index out of bounds")
+		return
+	}
+
+	entry := state.playlist[move.SourceIndex]
+
+	// Remove element from the slice:
+	state.playlist = append(state.playlist[:move.SourceIndex], state.playlist[move.SourceIndex+1:]...)
+
+	list := make([]PlaylistEntry, 0)
+
+	// Appned removed element to a new list:
+	list = append(list, state.playlist[:move.DestIndex]...)
+	list = append(list, entry)
+	list = append(list, state.playlist[move.DestIndex:]...)
+
+	state.playlist = list
+
+	jsonData, err := json.Marshal(state.playlist)
+	state.playlist_lock.Unlock()
+
+	if err != nil {
+		log_error("Failed to serialize move event: %v.", err)
+		return
+	}
+
+	connections.mutex.RLock()
+	for _, conn := range connections.slice {
+		// NOTE(kihau):
+		//     Sending entire playlist in the playlist move event is pretty wasteful,
+		//     but this will do for now.
+		writeEvent(conn.writer, "playlistmove", string(jsonData))
 	}
 	connections.mutex.RUnlock()
 }
@@ -938,4 +1003,9 @@ type SetEventFromUser struct {
 	UUID  string `json:"uuid"`
 	Url   string `json:"url"`
 	Proxy bool   `json:"proxy"`
+}
+
+type PlaylistMoveEventFromUser struct {
+	SourceIndex int `json:"source_index"`
+	DestIndex   int `json:"dest_index"`
 }

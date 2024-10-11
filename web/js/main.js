@@ -128,6 +128,16 @@ async function apiPlaylistShuffle() {
     httpPost("/watch/api/playlist/shuffle", null);
 }
 
+async function apiPlaylistMove(source, dest) {
+    const payload = {
+        source_index: source,
+        dest_index: dest,
+    }
+
+    console.info("INFO: Sending playlist move request with: ", payload);
+    httpPost("/watch/api/playlist/move", payload);
+}
+
 async function apiSetUrl(url) {
     const payload = {
         uuid: getRandomId(),
@@ -264,42 +274,94 @@ function playlistClearOnClick() {
     apiPlaylistClear();
 }
 
-const fileInput = document.getElementById('file_input');
-const progressBar = document.getElementById('progressBar');
+const fileInput = document.getElementById("file_input");
+const progressBar = document.getElementById("progressBar");
 function uploadFile() {
     const file = fileInput.files[0];
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append("file", file);
 
     const request = new XMLHttpRequest();
 
-    request.upload.addEventListener('progress', (event) => {
+    request.upload.addEventListener("progress", (event) => {
         if (event.lengthComputable) {
             progressBar.value = (event.loaded / event.total) * 100;
         }
     });
 
-    request.open('POST', '/watch/api/upload', true);
+    request.open("POST", "/watch/api/upload", true);
     request.send(formData);
 }
 
 /// --------------- PLAYLIST: ---------------
 
 // NOTE(kihau): This function is a big hack. There should be a better way to do it.
-function playlistEntryRemoveOnClick(event) {
-    let entry = event.target.parentElement.parentElement;
-
+function playlistIndexFromEntry(entry) {
     let th = entry.getElementsByTagName("th")[0];
     let index_string = th.textContent;
     index_string = index_string.substring(0, index_string.length - 1);
 
     let index = Number(index_string) - 1;
-    // console.log(index);
+    return index;
+}
+
+function playlistEntryRemoveOnClick(event) {
+    let entry = event.target.parentElement.parentElement;
+    let index = playlistIndexFromEntry(entry);
     apiPlaylistRemove(index);
+}
+
+var dragTarget = null;
+var startIndex = null;
+
+function isBefore(element1, element2) {
+    if (element1.parentNode !== element2.parentNode) {
+        return false;
+    }
+
+    for (var item = element1.previousSibling; item && item.nodeType !== 9; item = item.previousSibling) {
+        if (item === element2) {
+            return true;
+        }
+    }
 }
 
 function addPlaylistElement(playlistHtml, index, entry) {
     let tr = document.createElement("tr");
+    tr.draggable = true;
+
+    tr.ondragstart = (event) => {
+        console.debug(event.target);
+
+        event.dataTransfer.effectAllowed = "move";
+        // event.dataTransfer.setData("text/plain", null);
+
+        startIndex = playlistIndexFromEntry(event.target);
+        dragTarget = event.target;
+    };
+
+    tr.ondragover = (event) => {
+        let dragDest = event.target.parentNode;
+
+        let targetTh = dragTarget.getElementsByTagName("th")[0];
+        let destTh = dragDest.getElementsByTagName("th")[0];
+
+        let tempTh = targetTh.textContent;
+        targetTh.textContent = destTh.textContent;
+        destTh.textContent = tempTh;
+
+        if (isBefore(dragTarget, dragDest)) {
+            dragDest.parentNode.insertBefore(dragTarget, dragDest);
+        } else {
+            dragDest.parentNode.insertBefore(dragTarget, dragDest.nextSibling);
+        }
+    };
+
+    tr.ondragend = (event) => {
+        let endIndex = playlistIndexFromEntry(event.target);
+        apiPlaylistMove(startIndex, endIndex);
+    };
+
     playlistHtml.appendChild(tr);
 
     let th = document.createElement("th");
@@ -542,10 +604,27 @@ function subscribeToServerEvents() {
     });
 
     eventSource.addEventListener("playlistshuffle", function (event) {
-        console.log("Got playlist autoplay event: ", event.data);
+        console.log("Got playlist shuffle event: ", event.data);
         let playlist = JSON.parse(event.data);
         if (playlist === null) {
             console.error("ERROR: Failed to parse playlist shuffle json event.");
+            return;
+        }
+
+        removeAllPlaylistElements();
+
+        let playlistHtml = document.getElementById("playlist_entries");
+        let playlistSize = playlistHtml.childElementCount;
+        for (var i = 0; i < playlist.length; i++) {
+            addPlaylistElement(playlistHtml, i + playlistSize, playlist[i]);
+        }
+    });
+
+    eventSource.addEventListener("playlistmove", function (event) {
+        console.log("Got playlist move event: ", event.data);
+        let playlist = JSON.parse(event.data);
+        if (playlist === null) {
+            console.error("ERROR: Failed to parse playlist move json event.");
             return;
         }
 
@@ -631,7 +710,7 @@ function createPlayer(url) {
     video = new_video;
 }
 
-function playerOnPlay(_event) { 
+function playerOnPlay(_event) {
     if (programmaticPlay) {
         programmaticPlay = false;
         return;
@@ -641,7 +720,7 @@ function playerOnPlay(_event) {
     apiPlay();
 }
 
-function playerOnPause(_event) { 
+function playerOnPause(_event) {
     if (programmaticPause) {
         programmaticPause = false;
         return;
@@ -651,7 +730,7 @@ function playerOnPause(_event) {
     apiPause();
 }
 
-function playerOnSeek(_event) { 
+function playerOnSeek(_event) {
     if (programmaticSeek) {
         console.log("Programmatic seek caught");
         programmaticSeek = false;
@@ -662,7 +741,7 @@ function playerOnSeek(_event) {
     apiSeek(video.currentTime);
 }
 
-function playerOnEnded(_event) { 
+function playerOnEnded(_event) {
     if (autoplay_checkbox.checked) {
         let url = current_url.value;
         apiPlaylistNext(url);
