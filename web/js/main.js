@@ -13,7 +13,9 @@ var looping_checkbox = document.getElementById("looping");
 var programmaticPlay = false; // Updates before programmatic play() and in .onplay
 var programmaticPause = false; // Updates before programmatic pause() and in .onpause
 var programmaticSeek = false; // Updates before programmatic currentTime assignment and in .onseeked
-var ignoreNextRequest = false; // Updates before sending a sync request and on hasty events
+var ignoreNextPlayRequest = false; // 'true' before sending a hasty play request, 'false' when its caught
+var ignoreNextPauseRequest = false; // 'true' before sending a hasty pause request, 'false' when its caught
+var ignoreNextSeekRequest = false; // 'true' before sending a hasty seek request, 'false' when its caught
 
 /// --------------- HELPER FUNCTIONS: ---------------
 
@@ -380,11 +382,26 @@ function readEventMaybeResync(type, event) {
     let priority = jsonData["priority"];
     let origin = jsonData["origin"];
 
-    if (ignoreNextRequest) {
-        // The next request will always be outdated so we can safely ignore it
-        ignoreNextRequest = false;
-        console.log("IGNORED:", priority, type, "from", origin, "at", timestamp);
-        return;
+    // The next request will always be outdated so we can safely ignore it
+    switch (type) {
+        case "play":
+            if (ignoreNextPlayRequest) {
+                ignoreNextPlayRequest = false;
+                console.log("Ignored ", priority, "play from", origin, "at", timestamp);
+            }
+            break;
+        case "pause":
+            if (ignoreNextPauseRequest) {
+                ignoreNextPauseRequest = false;
+                console.log("Ignored ", priority, "pause from", origin, "at", timestamp);
+            }
+            break;
+        case "seek":
+            if (ignoreNextSeekRequest) {
+                ignoreNextSeekRequest = false;
+                console.log("Ignored ", priority, "seek from", origin, "at", timestamp);
+            }
+            break;
     }
 
     console.log(priority, type, "from", origin, "at", timestamp);
@@ -434,6 +451,8 @@ function subscribeToServerEvents() {
         if (isVideoPlaying()) {
             programmaticPause = true;
             player.pause();
+        } else {
+            console.log("TIME:", video.currentTime, "PAUSED:", video.paused, "ENDED:", video.ended)
         }
     });
 
@@ -543,7 +562,7 @@ function subscribeToServerEvents() {
 /// --------------- PLAYER: ---------------
 
 function isVideoPlaying() {
-    return video.currentTime > 0 && !video.paused && !video.ended;
+    return !video.paused && !video.ended;
 }
 
 function destroyPlayer() {
@@ -618,7 +637,7 @@ function playerOnPlay(_event) {
         return;
     }
 
-    ignoreNextRequest = true;
+    ignoreNextPlayRequest = true;
     apiPlay();
 }
 
@@ -628,7 +647,7 @@ function playerOnPause(_event) {
         return;
     }
 
-    ignoreNextRequest = true;
+    ignoreNextPauseRequest = true;
     apiPause();
 }
 
@@ -639,7 +658,7 @@ function playerOnSeek(_event) {
         return;
     }
 
-    ignoreNextRequest = true;
+    ignoreNextSeekRequest = true;
     apiSeek(video.currentTime);
 }
 
@@ -658,10 +677,11 @@ function subscribeToPlayerEvents(player) {
 }
 
 function unsubscribeFromPlayerEvents(player) {
-    player.on("play", null);
-    player.on("pause", null);
-    player.on("seeked", null);
-    player.on("ended", null);
+    let emptyFunc = function() {}
+    player.on("play", emptyFunc);
+    player.on("pause", emptyFunc);
+    player.on("seeked", emptyFunc);
+    player.on("ended", emptyFunc);
 }
 
 function main() {
