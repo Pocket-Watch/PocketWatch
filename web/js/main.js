@@ -390,7 +390,7 @@ function readEventMaybeResync(type, event) {
     console.log(priority, type, "from", origin, "at", timestamp);
 
     let deSync = timestamp - video.currentTime;
-    console.log("Your deSync: ", deSync);
+    console.log("Your deSync:", deSync);
     if (type === "seek") {
         programmaticSeek = true;
         player.skipTo(timestamp);
@@ -398,7 +398,8 @@ function readEventMaybeResync(type, event) {
     }
 
     if (DELTA < Math.abs(deSync)) {
-        console.log("EXCEEDED DELTA=", DELTA, " resyncing!");
+        let diff = Math.abs(deSync) - DELTA
+        console.log("Resyncing! DELTA(" + DELTA + ") exceeded by", diff);
         programmaticSeek = true;
         player.skipTo(timestamp);
     }
