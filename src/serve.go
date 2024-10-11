@@ -58,6 +58,7 @@ func StartServer(options *Options) {
 
 const PROXY_ROUTE = "/watch/proxy/"
 const WEB_PROXY = "web/proxy/"
+const WEB_MEDIA = "web/media/"
 const ORIGINAL_M3U8 = "original.m3u8"
 const PROXY_M3U8 = "proxy.m3u8"
 
@@ -73,6 +74,7 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/watch/api/play", apiStart)
 	http.HandleFunc("/watch/api/pause", apiPause)
 	http.HandleFunc("/watch/api/seek", apiSeek)
+	http.HandleFunc("/watch/api/upload", apiUpload)
 
 	http.HandleFunc("/watch/api/playlist/get", apiPlaylistGet)
 	http.HandleFunc("/watch/api/playlist/add", apiPlaylistAdd)
@@ -85,6 +87,39 @@ func registerEndpoints(options *Options) {
 
 	http.HandleFunc("/watch/api/events", apiEvents)
 	http.HandleFunc(PROXY_ROUTE, watchProxy)
+}
+
+// the upload method needs to keep track of bytes to be able to limit filesize
+func apiUpload(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != "POST" {
+		http.Error(writer, "POST was expected", http.StatusMethodNotAllowed)
+		return
+	}
+
+	file, header, err := request.FormFile("file")
+	// It's weird because a temporary file is created in Temp/multipart-
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer file.Close()
+
+	log_info("User is uploading file: %s, size: %v", header.Filename, header.Size)
+
+	out, err := os.Create(WEB_MEDIA + header.Filename)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, file)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Fprintf(writer, "File uploaded successfully: %s", header.Filename)
 }
 
 // This endpoints should serve HLS chunks

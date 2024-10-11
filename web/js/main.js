@@ -262,6 +262,25 @@ function playlistClearOnClick() {
     apiPlaylistClear();
 }
 
+const fileInput = document.getElementById('file_input');
+const progressBar = document.getElementById('progressBar');
+function uploadFile() {
+    const file = fileInput.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const request = new XMLHttpRequest();
+
+    request.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable) {
+            progressBar.value = (event.loaded / event.total) * 100;
+        }
+    });
+
+    request.open('POST', '/watch/api/upload', true);
+    request.send(formData);
+}
+
 /// --------------- PLAYLIST: ---------------
 
 // NOTE(kihau): This function is a big hack. There should be a better way to do it.
