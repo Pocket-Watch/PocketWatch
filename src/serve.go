@@ -612,10 +612,10 @@ func getSubtitles() []string {
 
 	for _, file := range files {
 		filename := file.Name()
+		if !file.Type().IsRegular() {
+			continue
+		}
 		for _, ext := range SUBTITLE_EXTENSIONS {
-			if !file.Type().IsRegular() {
-				continue
-			}
 			info, err := file.Info()
 			if err != nil {
 				continue

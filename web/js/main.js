@@ -2,6 +2,7 @@ const DELTA = 1.5;
 
 var player;
 var video;
+var subtitles = []
 
 var input_url = document.getElementById("input_url");
 var current_url = document.getElementById("current_url");
@@ -776,8 +777,6 @@ function unsubscribeFromPlayerEvents(player) {
     player.on("seeked", emptyFunc);
     player.on("ended", emptyFunc);
 }
-
-let subtitles = [];
 
 function main() {
     getPlaylist();
