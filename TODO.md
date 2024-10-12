@@ -37,6 +37,12 @@
     - [x] Playlist shuffle
     - [x] Playlist looping
     - [x] Playlist entry reordering
+- [x] Subtitle support
+- [ ] Add watch history
+    - [x] Implement history add
+    - [x] Implement history clear
+    - [ ] Implement history limit
+    - [ ] Add history persistence (SQL database)
 - [ ] Integrate playback and queueing for youtube urls and youtube playlist urls.
 - [ ] Audio only option that removes player video (only client side?)
 - [ ] Rewrite the player and clean up the frontend code. (?)
@@ -50,8 +56,9 @@
 - [ ] Add server side and client side authentication and store cookies
 - [ ] Add option to upload media file to the server and stream it to all connected clients (streaming proxy)
 - [ ] Add support for live chat
-- [ ] Add watch history
 - [ ] Display connected users
 - [ ] Improve the UI layout and styling
 - [ ] Add rooms with individual player states
-- [x] Subtitle support
+- [ ] Display connected users
+- [ ] Improve the UI layout and styling
+- [ ] Add rooms with individual player states

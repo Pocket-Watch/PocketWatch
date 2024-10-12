@@ -86,6 +86,9 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/watch/api/playlist/shuffle", apiPlaylistShuffle)
 	http.HandleFunc("/watch/api/playlist/move", apiPlaylistMove)
 
+	http.HandleFunc("/watch/api/history/get", apiHistoryGet)
+	http.HandleFunc("/watch/api/history/clear", apiHistoryClear)
+
 	http.HandleFunc("/watch/api/events", apiEvents)
 	http.HandleFunc(PROXY_ROUTE, watchProxy)
 }
@@ -352,6 +355,9 @@ func apiPlaylistNext(w http.ResponseWriter, r *http.Request) {
 	}
 
 	connections.mutex.RLock()
+	if state.url != "" {
+		state.history = append(state.history, state.url)
+	}
 
 	// TODO(kihau): This might cause problems in the future and needs to be cleaned up.
 	state.url = url
@@ -562,6 +568,41 @@ func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 	connections.mutex.RUnlock()
 }
 
+func apiHistoryGet(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		return
+	}
+
+	log_info("Connection %s requested history get.", r.RemoteAddr)
+
+	connections.mutex.RLock()
+	jsonData, err := json.Marshal(state.history)
+	connections.mutex.RUnlock()
+
+	if err != nil {
+		log_warn("Failed to serialize history get event.")
+		return
+	}
+
+	io.WriteString(w, string(jsonData))
+}
+
+func apiHistoryClear(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	log_info("Connection %s requested history clear.", r.RemoteAddr)
+
+	connections.mutex.RLock()
+	state.history = state.history[:0]
+
+	for _, conn := range connections.slice {
+		writeEvent(conn.writer, "historyclear", "")
+	}
+	connections.mutex.RUnlock()
+}
+
 func writeEvent(writer http.ResponseWriter, event string, jsonData string) {
 	// fmt.Printf("Writing set event");
 	event_id := state.eventId.Add(1)
@@ -634,10 +675,22 @@ func apiSetUrl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	connections.mutex.RLock()
+	if state.url != "" {
+		state.history = append(state.history, state.url)
+	}
+	connections.mutex.RUnlock()
+
 	log_info("Connection %s requested media url change.", r.RemoteAddr)
 	if !readSetEventAndUpdateState(w, r) {
 		return
 	}
+
+	connections.mutex.RLock()
+	for _, conn := range connections.slice {
+		writeSetEvent(conn.writer)
+	}
+	connections.mutex.RUnlock()
 
 	io.WriteString(w, "Setting media url!")
 
@@ -952,8 +1005,10 @@ type State struct {
 	url            string
 	eventId        atomic.Uint64
 	lastTimeUpdate time.Time
-	playlist_lock  sync.RWMutex
-	playlist       []PlaylistEntry
+	history        []string
+
+	playlist_lock sync.RWMutex
+	playlist      []PlaylistEntry
 
 	proxying       atomic.Bool
 	chunkLocks     []sync.Mutex

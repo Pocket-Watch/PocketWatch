@@ -10,6 +10,9 @@ var name_field = document.getElementById("user_name");
 var proxy_checkbox = document.getElementById("proxy");
 var autoplay_checkbox = document.getElementById("autoplay");
 var looping_checkbox = document.getElementById("looping");
+var audioonly_checkbox = document.getElementById("audioonly");
+var playlistEntries = document.getElementById("playlist_entries");
+var historyEntries = document.getElementById("history_entries");
 
 var programmaticPlay = false; // Updates before programmatic play() and in .onplay
 var programmaticPause = false; // Updates before programmatic pause() and in .onpause
@@ -129,6 +132,16 @@ async function apiPlaylistShuffle() {
     httpPost("/watch/api/playlist/shuffle", null);
 }
 
+async function apiHistoryGet() {
+    console.info("INFO: Sending history get request.");
+    return await httpGet("/watch/api/history/get");
+}
+
+async function apiHistoryClear() {
+    console.info("INFO: Sending history clear request.");
+    httpPost("/watch/api/history/clear", null);
+}
+
 async function apiPlaylistMove(source, dest) {
     const payload = {
         source_index: source,
@@ -197,6 +210,8 @@ function inputUrlOnKeypress(event) {
         let url = input_url.value;
         input_url.value = "";
 
+        addHistoryElement(current_url.value);
+
         console.info("INFO: Current video source url: ", url);
         apiSetUrl(url);
     }
@@ -206,12 +221,16 @@ function setUrlOnClick() {
     let url = input_url.value;
     input_url.value = "";
 
+    addHistoryElement(current_url.value);
+
     console.info("INFO: Current video source url: ", url);
     apiSetUrl(url);
 }
 
 function skipOnClick() {
     let url = current_url.value;
+
+    addHistoryElement(current_url.value);
 
     console.info("INFO: Current video source url: ", url);
     apiPlaylistNext(url);
@@ -292,6 +311,10 @@ function uploadFile() {
 
     request.open("POST", "/watch/api/upload", true);
     request.send(formData);
+}
+
+function historyClearOnClick() {
+    apiHistoryClear();
 }
 
 /// --------------- PLAYLIST: ---------------
@@ -397,7 +420,7 @@ function getPlaylist() {
 
         console.log(playlist);
 
-        let playlistHtml = document.getElementById("playlist_entries");
+        let playlistHtml = playlistEntries;
         let playlistSize = playlistHtml.childElementCount;
         for (var i = 0; i < playlist.length; i++) {
             addPlaylistElement(playlistHtml, i + playlistSize, playlist[i]);
@@ -406,7 +429,7 @@ function getPlaylist() {
 }
 
 function removeFirstPlaylistElement() {
-    let table = document.getElementById("playlist_entries").rows;
+    let table = playlistEntries.rows;
     if (table.length !== 0) {
         table[0].parentNode.removeChild(table[0]);
     }
@@ -417,7 +440,7 @@ function removeFirstPlaylistElement() {
 }
 
 function removePlaylistElementAt(index) {
-    let table = document.getElementById("playlist_entries").rows;
+    let table = playlistEntries.rows;
 
     if (index < 0 || index >= table.length) {
         console.error("ERROR: Cannot remove playlist entry, index " + index + " is out of bounds.");
@@ -431,7 +454,47 @@ function removePlaylistElementAt(index) {
 }
 
 function removeAllPlaylistElements() {
-    let container = document.getElementById("playlist_entries");
+    let container = playlistEntries;
+    while (container.firstChild) {
+        container.removeChild(container.lastChild);
+    }
+}
+
+/// --------------- HISTORY: ---------------
+
+function addHistoryElement(url) {
+    if (url === "") {
+        return;
+    }
+
+    let tr = document.createElement("tr");
+    historyEntries.appendChild(tr);
+
+    let th = document.createElement("th");
+    th.textContent = url;
+    th.scope = "row";
+    tr.appendChild(th);
+
+    // let cell = tr.insertCell(-1);
+    // cell.textContent = entry.url;
+}
+
+function getHistory() {
+    apiHistoryGet().then((history) => {
+        if (!history) {
+            return;
+        }
+
+        console.log(history);
+
+        for (var i = 0; i < history.length; i++) {
+            addHistoryElement(history[i]);
+        }
+    });
+}
+
+function removeAllHistoryElements() {
+    let container = historyEntries;
     while (container.firstChild) {
         container.removeChild(container.lastChild);
     }
@@ -544,7 +607,7 @@ function subscribeToServerEvents() {
             return;
         }
 
-        let playlistHtml = document.getElementById("playlist_entries");
+        let playlistHtml = playlistEntries;
         let playlistSize = playlistHtml.childElementCount;
         addPlaylistElement(playlistHtml, playlistSize, entry);
     });
@@ -567,7 +630,7 @@ function subscribeToServerEvents() {
                 username: "<unknown>",
             };
 
-            let playlistHtml = document.getElementById("playlist_entries");
+            let playlistHtml = playlistEntries;
             addPlaylistElement(playlistHtml, playlistHtml.childElementCount + 1, dummyEntry);
         }
 
@@ -614,7 +677,7 @@ function subscribeToServerEvents() {
 
         removeAllPlaylistElements();
 
-        let playlistHtml = document.getElementById("playlist_entries");
+        let playlistHtml = playlistEntries;
         let playlistSize = playlistHtml.childElementCount;
         for (var i = 0; i < playlist.length; i++) {
             addPlaylistElement(playlistHtml, i + playlistSize, playlist[i]);
@@ -631,11 +694,16 @@ function subscribeToServerEvents() {
 
         removeAllPlaylistElements();
 
-        let playlistHtml = document.getElementById("playlist_entries");
+        let playlistHtml = playlistEntries;
         let playlistSize = playlistHtml.childElementCount;
         for (var i = 0; i < playlist.length; i++) {
             addPlaylistElement(playlistHtml, i + playlistSize, playlist[i]);
         }
+    });
+
+    eventSource.addEventListener("historyclear", function (_event) {
+        console.log("Got history clear event");
+        removeAllHistoryElements();
     });
 }
 
@@ -780,6 +848,8 @@ function unsubscribeFromPlayerEvents(player) {
 
 function main() {
     getPlaylist();
+    getHistory();
+
     // dummy player
     createPlayer("");
 

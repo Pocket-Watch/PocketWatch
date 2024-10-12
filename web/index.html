@@ -44,6 +44,13 @@
         <input type="checkbox" onclick="loopingOnClick()" id="looping" name="Looping">
     </label>
 
+    &nbsp;
+    &nbsp;
+
+    <label>Audio only:
+        <input type="checkbox" onclick="audioOnlyOnClick()" id="audioonly" name="AudioOnly">
+    </label>
+
     <br>
     <br>
 
@@ -118,6 +125,28 @@
                 <td>[Object object]</td>
             </tr>
         </tfoot>
+    </table>
+
+    <br>
+
+    <link href="css/playlist.css" rel="stylesheet" />
+    <table>
+        <thead>
+            <tr>
+                <th scope="row">
+                    <button onclick="historyClearOnClick()">Clear</button>
+                    <label>History</label>
+                </th>
+            </tr>
+        </thead>
+
+        <thead>
+            <tr>
+                <th scope="col">Url</th>
+            </tr>
+        </thead>
+        <tbody id="history_entries">
+        </tbody>
     </table>
 
     <br>
