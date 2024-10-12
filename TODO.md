@@ -38,6 +38,7 @@
     - [x] Playlist looping
     - [x] Playlist entry reordering
 - [x] Subtitle support
+- [ ] Convert srt to vtt
 - [ ] Add watch history
     - [x] Implement history add
     - [x] Implement history clear
