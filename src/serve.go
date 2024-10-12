@@ -586,6 +586,7 @@ func apiGet(w http.ResponseWriter, r *http.Request) {
 	getEvent.Timestamp = state.timestamp
 	getEvent.Autoplay = state.autoplay.Load()
 	getEvent.Looping = state.looping.Load()
+	getEvent.Subtitles = getSubtitles()
 
 	jsonData, err := json.Marshal(getEvent)
 	if err != nil {
@@ -594,6 +595,38 @@ func apiGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	io.WriteString(w, string(jsonData))
+}
+
+var SUBTITLE_EXTENSIONS = [...]string{".vtt", ".srt"}
+
+const MAX_SUBTITLE_SIZE = 512 * 1024
+
+func getSubtitles() []string {
+	subtitles := make([]string, 0)
+	// could create a separate folder for subs if it gets too big
+	files, err := os.ReadDir(WEB_MEDIA)
+	if err != nil {
+		log_error("Failed to read %v and find subtitles.", WEB_MEDIA)
+		return subtitles
+	}
+
+	for _, file := range files {
+		filename := file.Name()
+		for _, ext := range SUBTITLE_EXTENSIONS {
+			if !file.Type().IsRegular() {
+				continue
+			}
+			info, err := file.Info()
+			if err != nil {
+				continue
+			}
+			if strings.HasSuffix(filename, ext) && info.Size() < MAX_SUBTITLE_SIZE {
+				subtitles = append(subtitles, "media/"+filename)
+			}
+		}
+	}
+	log_info("Served subtitles: %v", subtitles)
+	return subtitles
 }
 
 func apiSetUrl(w http.ResponseWriter, r *http.Request) {
@@ -980,11 +1013,12 @@ type PlaylistEntry struct {
 }
 
 type GetEventForUser struct {
-	Url       string  `json:"url"`
-	Timestamp float64 `json:"timestamp"`
-	IsPlaying bool    `json:"is_playing"`
-	Autoplay  bool    `json:"autoplay"`
-	Looping   bool    `json:"looping"`
+	Url       string   `json:"url"`
+	Timestamp float64  `json:"timestamp"`
+	IsPlaying bool     `json:"is_playing"`
+	Autoplay  bool     `json:"autoplay"`
+	Looping   bool     `json:"looping"`
+	Subtitles []string `json:"subtitles"`
 }
 
 type SyncEventForUser struct {

@@ -638,6 +638,15 @@ function subscribeToServerEvents() {
     });
 }
 
+// label: String, src: String
+function appendSubtitleTrack(video_element, label, src) {
+    let track = document.createElement("track")
+    track.label = label
+    track.kind = "metadata"
+    track.src = src
+    video_element.appendChild(track)
+}
+
 /// --------------- PLAYER: ---------------
 
 function isVideoPlaying() {
@@ -665,6 +674,11 @@ function createPlayer(url) {
     new_video.width = window.innerWidth;
     // new_video.height = window.innerHeight;
     new_video.id = "player";
+    if (subtitles.length > 0) {
+        for (let i = 0; i < subtitles.length; i++) {
+            appendSubtitleTrack(new_video, subtitles[i], subtitles[i]);
+        }
+    }
 
     let new_source = document.createElement("source");
     if (url_missing) {
@@ -763,13 +777,18 @@ function unsubscribeFromPlayerEvents(player) {
     player.on("ended", emptyFunc);
 }
 
+let subtitles = [];
+
 function main() {
     getPlaylist();
+    // dummy player
     createPlayer("");
 
     apiGet().then((state) => {
         autoplay_checkbox.checked = state.autoplay;
         looping_checkbox.checked = state.looping;
+
+        subtitles = state.subtitles;
 
         destroyPlayer();
         createPlayer(state.url);
