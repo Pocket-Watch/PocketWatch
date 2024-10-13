@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en-US">
+
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="referrer" content="no-referrer">
+    <title>Watch Locally</title>
+</head>
+
+<body>
+    <div id="player_container">
+    </div>
+
+    <br>
+    <br>
+
+    <label>Input the media URL here:</label><br />
+    <input type="url" id="input_url" name="input_url" onkeypress="inputUrlOnKeypress(event)" size="100" />
+
+    <br>
+
+    <button name="set_url" onclick="setUrlOnClick()">Set URL</button>
+
+    <script type="module" src="js/player.js"></script>
+    <script type="module" src="js/scratch.js"></script>
+</body>
+
+</html>

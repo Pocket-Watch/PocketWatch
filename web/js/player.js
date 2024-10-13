@@ -1,11 +1,10 @@
 export { Player };
 
-const MAX_DESYNC = 2.0
-
 class Player {
     constructor() {
         // Div container where either the player or the placeholder resides.
-        this.root = document.getElementById("player_root");
+        this.root = document.getElementById("player_container");
+        // this.root = document.getElementById("player_root");
 
         // Corresponds to the actual html player element called </video>. 
         // this.video = null;
@@ -34,7 +33,6 @@ class Player {
         controls.className = "player_controls_root";
 
         this.root.appendChild(controls);
-        
     }
 
     createPlayer(url) {

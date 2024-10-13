@@ -510,24 +510,30 @@ function readEventMaybeResync(type, event) {
 
     // The next request will always be outdated so we can safely ignore it
     switch (type) {
-        case "play":
+        case "play": {
             if (ignoreNextPlayRequest) {
                 ignoreNextPlayRequest = false;
                 console.log("Ignored ", priority, "play from", origin, "at", timestamp);
+                return;
             }
-            break;
-        case "pause":
+        } break;
+
+        case "pause": {
             if (ignoreNextPauseRequest) {
                 ignoreNextPauseRequest = false;
                 console.log("Ignored ", priority, "pause from", origin, "at", timestamp);
+                return;
             }
-            break;
-        case "seek":
+            
+        } break;
+
+        case "seek":  {
             if (ignoreNextSeekRequest) {
                 ignoreNextSeekRequest = false;
                 console.log("Ignored ", priority, "seek from", origin, "at", timestamp);
+                return;
             }
-            break;
+        } break;
     }
 
     console.log(priority, type, "from", origin, "at", timestamp);
