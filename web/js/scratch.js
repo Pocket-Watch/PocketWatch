@@ -18,13 +18,15 @@ function setUrlOnClick() {
 
 function attachHtmlElements() {
     window.setUrlOnClick = setUrlOnClick;
-    window.inputUrlOnKeypress = inputPlaylistOnKeypress;
+    window.inputUrlOnKeypress = inputUrlOnKeypress;
 }
 
 function main() {
+    attachHtmlElements();
+
     let player = new Player();
     let url = "https://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_1080p_h264.mov"
-    player.createPlayerVideo(url);
+    player.createPlayer(url);
 }
 
 main();
