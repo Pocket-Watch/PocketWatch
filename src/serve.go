@@ -298,12 +298,29 @@ func apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
 
 	log_info("Connection %s requested playlist clear.", r.RemoteAddr)
 
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var uuid uint64
+	err = json.Unmarshal(body, &uuid)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	state.playlist_lock.Lock()
 	state.playlist = state.playlist[:0]
 	state.playlist_lock.Unlock()
 
 	connections.mutex.RLock()
 	for _, conn := range connections.slice {
+		if uuid == conn.id {
+			continue
+		}
 		writeEvent(conn.writer, "playlistclear", "")
 	}
 	connections.mutex.RUnlock()
@@ -529,7 +546,7 @@ func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var move PlaylistMoveEventFromUser
+	var move PlaylistMoveRequestData
 	err = json.Unmarshal(body, &move)
 	if err != nil {
 		log_error("Failed to deserialize json data for playlist move event.")
@@ -572,6 +589,9 @@ func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 
 	connections.mutex.RLock()
 	for _, conn := range connections.slice {
+		if move.Uuid == conn.id {
+			continue
+		}
 		// NOTE(kihau):
 		//     Sending entire playlist in the playlist move event is pretty wasteful,
 		//     but this will do for now.
@@ -1098,6 +1118,27 @@ type PlaylistEntry struct {
 	Url      string `json:"url"`
 }
 
+type PlaylistRemoveRequestData struct {
+	Uuid  uint64 `json:"uuid"`
+	Index int    `json:"index"`
+}
+
+type PlaylistAutoplayRequestData struct {
+	Uuid     uint64 `json:"uuid"`
+	Autoplay bool   `json:"autoplay"`
+}
+
+type PlaylistLoopingRequestData struct {
+	Uuid    uint64 `json:"uuid"`
+	Looping bool   `json:"looping"`
+}
+
+type PlaylistMoveRequestData struct {
+	Uuid        uint64 `json:"uuid"`
+	SourceIndex int    `json:"source_index"`
+	DestIndex   int    `json:"dest_index"`
+}
+
 type GetEventForUser struct {
 	Url       string   `json:"url"`
 	Timestamp float64  `json:"timestamp"`
@@ -1123,9 +1164,4 @@ type SetEventFromUser struct {
 	Uuid  uint64 `json:"uuid"`
 	Url   string `json:"url"`
 	Proxy bool   `json:"proxy"`
-}
-
-type PlaylistMoveEventFromUser struct {
-	SourceIndex int `json:"source_index"`
-	DestIndex   int `json:"dest_index"`
 }

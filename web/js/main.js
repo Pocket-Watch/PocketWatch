@@ -80,65 +80,11 @@ async function httpGet(endpoint) {
 
 /// --------------- SERVER REQUESTS: ---------------
 
-async function apiPlaylistAdd(entry) {
-    console.info("INFO: Sending playlist add request for entry: ", entry);
-    return await httpPost("/watch/api/playlist/add", entry);
-}
-
-async function apiPlaylistClear() {
-    console.info("INFO: Sending playlist clear request.");
-    httpPost("/watch/api/playlist/clear", null);
-}
-
-async function apiPlaylistGet() {
-    console.info("INFO: Sending playlist get request.");
-    return await httpGet("/watch/api/playlist/get");
-}
-
-async function apiPlaylistNext(current_url) {
-    console.info("INFO: Sending playlist next request.");
-    httpPost("/watch/api/playlist/next", current_url);
-}
-
-// NOTE(kihau): Might be faulty. See comment in watchPlaylistRemove() in serve.go.
-async function apiPlaylistRemove(index) {
-    console.info("INFO: Sending playlist remove request.");
-    httpPost("/watch/api/playlist/remove", index);
-}
-
-async function apiPlaylistAutoplay(state) {
-    console.info("INFO: Sending playlist autoplay request.");
-    httpPost("/watch/api/playlist/autoplay", state);
-}
-
-async function apiPlaylistLooping(state) {
-    console.info("INFO: Sending playlist autoplay request.");
-    httpPost("/watch/api/playlist/looping", state);
-}
-
-async function apiPlaylistShuffle() {
-    console.info("INFO: Sending playlist shuffle request.");
-    httpPost("/watch/api/playlist/shuffle", null);
-}
-
-async function apiHistoryGet() {
-    console.info("INFO: Sending history get request.");
-    return await httpGet("/watch/api/history/get");
-}
-
-async function apiHistoryClear() {
-    console.info("INFO: Sending history clear request.");
-    httpPost("/watch/api/history/clear", null);
-}
-
-async function apiPlaylistMove(source, dest) {
-    const payload = {
-        source_index: source,
-        dest_index: dest,
-    }
-
-    console.info("INFO: Sending playlist move request with: ", payload);
-    httpPost("/watch/api/playlist/move", payload);
+async function apiGet() {
+    let data = await httpGet("/watch/api/get");
+    console.info("INFO: Received data from get request to the server:");
+    console.log(data);
+    return data;
 }
 
 async function apiSetUrl(url) {
@@ -149,14 +95,10 @@ async function apiSetUrl(url) {
     };
 
     console.info("INFO: Sending seturl request for a new url");
-    httpPost("/watch/api/seturl", payload);
-}
-
-async function apiGet() {
-    let data = await httpGet("/watch/api/get");
-    console.info("INFO: Received data from get request to the server:");
-    console.log(data);
-    return data;
+    let success = httpPost("/watch/api/seturl", payload);
+    if (success) {
+        playerSetUrl(url);
+    }
 }
 
 async function apiPlay() {
@@ -192,6 +134,82 @@ async function apiSeek(timestamp) {
     httpPost("/watch/api/seek", payload);
 }
 
+async function apiPlaylistGet() {
+    console.info("INFO: Sending playlist get request.");
+    return await httpGet("/watch/api/playlist/get");
+}
+
+async function apiPlaylistAdd(url) {
+    const entry = {
+        uuid: uuid,
+        username: name_field.value,
+        url: url,
+    };
+
+    console.info("INFO: Sending playlist add request for entry: ", entry);
+    let success = await httpPost("/watch/api/playlist/add", entry);
+    if (success) {
+        addPlaylistElement(entry);
+    }
+}
+
+async function apiPlaylistClear() {
+    console.info("INFO: Sending playlist clear request.");
+    let success = await httpPost("/watch/api/playlist/clear", uuid);
+    if (success) {
+        removeAllPlaylistElements();
+    }
+}
+
+async function apiPlaylistNext(current_url) {
+    console.info("INFO: Sending playlist next request.");
+    httpPost("/watch/api/playlist/next", current_url);
+}
+
+// NOTE(kihau): Might be faulty. See comment in watchPlaylistRemove() in serve.go.
+async function apiPlaylistRemove(index) {
+    console.info("INFO: Sending playlist remove request.");
+    httpPost("/watch/api/playlist/remove", index);
+}
+
+async function apiPlaylistAutoplay(state) {
+    console.info("INFO: Sending playlist autoplay request.");
+    httpPost("/watch/api/playlist/autoplay", state);
+}
+
+async function apiPlaylistLooping(state) {
+    console.info("INFO: Sending playlist autoplay request.");
+    httpPost("/watch/api/playlist/looping", state);
+}
+
+async function apiPlaylistShuffle() {
+    console.info("INFO: Sending playlist shuffle request.");
+    httpPost("/watch/api/playlist/shuffle", null);
+}
+
+async function apiPlaylistMove(source, dest) {
+    const payload = {
+        uuid: uuid,
+        source_index: source,
+        dest_index: dest,
+    }
+
+    console.info("INFO: Sending playlist move request with: ", payload);
+    httpPost("/watch/api/playlist/move", payload);
+
+}
+
+async function apiHistoryGet() {
+    console.info("INFO: Sending history get request.");
+    return await httpGet("/watch/api/history/get");
+}
+
+async function apiHistoryClear() {
+    console.info("INFO: Sending history clear request.");
+    httpPost("/watch/api/history/clear", null);
+}
+
+
 /// --------------- HTML ELEMENT CALLBACKS: ---------------
 
 function inputUrlOnKeypress(event) {
@@ -203,7 +221,6 @@ function inputUrlOnKeypress(event) {
 
         console.info("INFO: Current video source url: ", url);
         apiSetUrl(url);
-        playerSetUrl(url);
     }
 }
 
@@ -215,7 +232,6 @@ function setUrlOnClick() {
 
     console.info("INFO: Current video source url: ", url);
     apiSetUrl(url);
-    playerSetUrl(url);
 }
 
 function skipOnClick() {
@@ -238,7 +254,7 @@ function inputPlaylistOnKeypress(event) {
             return;
         }
 
-        sendRequestAndAddToPlaylist(url);
+        apiPlaylistAdd(url);
     }
 }
 
@@ -251,7 +267,7 @@ function playlistAddInputOnClick() {
         return;
     }
 
-    sendRequestAndAddToPlaylist(url);
+    apiPlaylistAdd(url);
 }
 
 function autoplayOnClick() {
@@ -274,7 +290,7 @@ function playlistAddOnClick() {
         return;
     }
 
-    sendRequestAndAddToPlaylist(url);
+    apiPlaylistAdd(url);
 }
 
 function playlistShuffleOnClick() {
@@ -309,20 +325,6 @@ function historyClearOnClick() {
 }
 
 /// --------------- PLAYLIST: ---------------
-
-function sendRequestAndAddToPlaylist(url) {
-    const entry = {
-        uuid: uuid,
-        username: name_field.value,
-        url: url,
-    };
-
-    apiPlaylistAdd(entry).then(success => {
-        if (success) {
-            addPlaylistElement(entry);
-        }
-    });
-}
 
 // NOTE(kihau): This function is a big hack. There should be a better way to do it.
 function playlistIndexFromEntry(entry) {
@@ -394,7 +396,7 @@ function addPlaylistElement(entry) {
     playlistEntries.appendChild(tr);
 
     let th = document.createElement("th");
-    th.textContent =  playlistEntries.childElementCount + 1 + ".";
+    th.textContent =  playlistEntries.childElementCount + ".";
     th.scope = "row";
     tr.appendChild(th);
 
