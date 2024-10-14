@@ -858,38 +858,38 @@ func setupProxy(url string) {
 		state.url = err.Error()
 		return
 	}
-	log_debug("%v %v", EXT_X_PLAYLIST_TYPE, m3u.ext_x_playlist_type)
-	log_debug("%v %v", EXT_X_VERSION, m3u.ext_x_version)
-	log_debug("%v %v", EXT_X_TARGETDURATION, m3u.ext_x_target_duration)
-	log_debug("tracks: %v", len(m3u.tracks))
+	log_debug("%v %v", EXT_X_PLAYLIST_TYPE, m3u.playlistType)
+	log_debug("%v %v", EXT_X_VERSION, m3u.version)
+	log_debug("%v %v", EXT_X_TARGETDURATION, m3u.targetDuration)
+	log_debug("segments: %v", len(m3u.segments))
 	log_debug("total duration: %v", m3u.totalDuration())
 
-	if len(m3u.tracks) == 0 {
-		log_warn("No tracks found")
-		state.url = "No tracks found"
+	if len(m3u.segments) == 0 {
+		log_warn("No segments found")
+		state.url = "No segments found"
 		return
 	}
 
 	// Sometimes m3u8 chunks are not fully qualified
-	if !strings.HasPrefix(m3u.tracks[0].url, "http") {
+	if !strings.HasPrefix(m3u.segments[0].url, "http") {
 		segment, err := stripLastSegment(url)
 		if err != nil {
 			log_error(err.Error())
 			return
 		}
-		m3u.prefixTracks(*segment)
+		m3u.prefixSegments(*segment)
 	}
 
 	routedM3U := m3u.copy()
 	// lock on proxy setup here! also discard the previous proxy state somehow?
-	state.chunkLocks = make([]sync.Mutex, 0, len(m3u.tracks))
-	state.originalChunks = make([]string, 0, len(m3u.tracks))
-	state.fetchedChunks = make([]bool, 0, len(m3u.tracks))
-	for i := 0; i < len(routedM3U.tracks); i++ {
+	state.chunkLocks = make([]sync.Mutex, 0, len(m3u.segments))
+	state.originalChunks = make([]string, 0, len(m3u.segments))
+	state.fetchedChunks = make([]bool, 0, len(m3u.segments))
+	for i := 0; i < len(routedM3U.segments); i++ {
 		state.chunkLocks = append(state.chunkLocks, sync.Mutex{})
-		state.originalChunks = append(state.originalChunks, m3u.tracks[i].url)
+		state.originalChunks = append(state.originalChunks, m3u.segments[i].url)
 		state.fetchedChunks = append(state.fetchedChunks, false)
-		routedM3U.tracks[i].url = "ch-" + toString(i)
+		routedM3U.segments[i].url = "ch-" + toString(i)
 	}
 
 	routedM3U.serialize(WEB_PROXY + PROXY_M3U8)
