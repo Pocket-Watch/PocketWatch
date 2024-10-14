@@ -161,3 +161,35 @@ func serializeToVTT(subtitles []Subtitle, path string) error {
 	}
 	return nil
 }
+
+func (sub *Subtitle) shiftForwardBy(ms int) {
+	sub.Start.shiftForwardBy(ms)
+	sub.End.shiftForwardBy(ms)
+}
+
+func (timecode *Timecode) shiftForwardBy(ms int) {
+	timecode.Milliseconds = timecode.Milliseconds + ms
+	// 01:59:900 + 00:00:3500 = 01:59:4400
+
+	additionalSeconds := timecode.Milliseconds / 1000
+	if timecode.Milliseconds >= 1000 {
+		timecode.Milliseconds = timecode.Milliseconds % 1000
+	}
+	timecode.Seconds += additionalSeconds
+	// 01:63:400
+
+	additionalMinutes := timecode.Seconds / 60
+	if timecode.Seconds >= 60 {
+		timecode.Seconds = timecode.Seconds % 60
+	}
+	timecode.Minutes += additionalMinutes
+	// 02:03:4400
+
+	additionalHours := timecode.Minutes / 60
+	if timecode.Minutes >= 60 {
+		timecode.Minutes = timecode.Minutes % 60
+	}
+	timecode.Hours += additionalHours
+
+	// cannot mod hours because it cannot be carried over to a higher unit
+}
