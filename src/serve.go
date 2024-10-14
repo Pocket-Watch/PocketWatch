@@ -71,7 +71,7 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/watch/api/login", apiLogin)
 	http.HandleFunc("/watch/api/get", apiGet)
 	http.HandleFunc("/watch/api/seturl", apiSetUrl)
-	http.HandleFunc("/watch/api/play", apiStart)
+	http.HandleFunc("/watch/api/play", apiPlay)
 	http.HandleFunc("/watch/api/pause", apiPause)
 	http.HandleFunc("/watch/api/seek", apiSeek)
 	http.HandleFunc("/watch/api/upload", apiUpload)
@@ -215,11 +215,19 @@ func downloadFile(url string, filename string) error {
 }
 
 func apiVersion(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		return
+	}
+
 	log_info("Connection %s requested server version.", r.RemoteAddr)
 	io.WriteString(w, VERSION)
 }
 
 func apiLogin(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		return
+	}
+
 	log_info("Connection %s attempted to log in.", r.RemoteAddr)
 	io.WriteString(w, "This is unimplemented")
 }
@@ -274,6 +282,10 @@ func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 
 	connections.mutex.RLock()
 	for _, conn := range connections.slice {
+		if entry.Uuid == conn.id {
+			continue
+		}
+
 		writeEvent(conn.writer, "playlistadd", jsonData)
 	}
 	connections.mutex.RUnlock()
@@ -333,7 +345,7 @@ func apiPlaylistNext(w http.ResponseWriter, r *http.Request) {
 	if state.looping.Load() {
 		// TODO(kihau): This needs to be changed.
 		dummyEntry := PlaylistEntry{
-			Uuid:     string(rand.Int() % 999999999999999),
+			Uuid:     0,
 			Username: "<unknown>",
 			Url:      current_url,
 		}
@@ -682,26 +694,25 @@ func apiSetUrl(w http.ResponseWriter, r *http.Request) {
 	connections.mutex.RUnlock()
 
 	log_info("Connection %s requested media url change.", r.RemoteAddr)
-	if !readSetEventAndUpdateState(w, r) {
+	setEvent, err := readSetEventAndUpdateState(w, r)
+	if err != nil {
+		log_error("Failed to read set event for %v: %v", r.RemoteAddr, err)
 		return
 	}
 
-	connections.mutex.RLock()
-	for _, conn := range connections.slice {
-		writeSetEvent(conn.writer)
-	}
-	connections.mutex.RUnlock()
-
 	io.WriteString(w, "Setting media url!")
-
 	connections.mutex.RLock()
 	for _, conn := range connections.slice {
+		if setEvent.Uuid == conn.id {
+			continue
+		}
+
 		writeSetEvent(conn.writer)
 	}
 	connections.mutex.RUnlock()
 }
 
-func apiStart(w http.ResponseWriter, r *http.Request) {
+func apiPlay(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
 	}
@@ -715,6 +726,10 @@ func apiStart(w http.ResponseWriter, r *http.Request) {
 
 	connections.mutex.RLock()
 	for _, conn := range connections.slice {
+		if syncEvent.Uuid == conn.id {
+			continue
+		}
+
 		writeSyncEvent(conn.writer, Play, true, syncEvent.Username)
 	}
 	connections.mutex.RUnlock()
@@ -737,6 +752,10 @@ func apiPause(w http.ResponseWriter, r *http.Request) {
 
 	connections.mutex.RLock()
 	for _, conn := range connections.slice {
+		if syncEvent.Uuid == conn.id {
+			continue
+		}
+
 		writeSyncEvent(conn.writer, Pause, true, syncEvent.Username)
 	}
 	connections.mutex.RUnlock()
@@ -757,6 +776,10 @@ func apiSeek(w http.ResponseWriter, r *http.Request) {
 	// this needs a rewrite: /pause /start /seek - a unified format way of
 	connections.mutex.RLock()
 	for _, conn := range connections.slice {
+		if syncEvent.Uuid == conn.id {
+			continue
+		}
+
 		writeSyncEvent(conn.writer, Seek, true, syncEvent.Username)
 	}
 	connections.mutex.RUnlock()
@@ -783,12 +806,12 @@ func receiveSyncEventFromUser(w http.ResponseWriter, r *http.Request) *SyncEvent
 	state.lastTimeUpdate = time.Now()
 	return &sync
 }
-func readSetEventAndUpdateState(w http.ResponseWriter, r *http.Request) bool {
+func readSetEventAndUpdateState(w http.ResponseWriter, r *http.Request) (*SetEventFromUser, error) {
 	// Read the request body
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return false
+		return nil, err
 	}
 
 	// Unmarshal the JSON data
@@ -796,7 +819,7 @@ func readSetEventAndUpdateState(w http.ResponseWriter, r *http.Request) bool {
 	err = json.Unmarshal(body, &setEvent)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		return false
+		return nil, err
 	}
 	state.timestamp = 0
 	state.url = setEvent.Url
@@ -810,7 +833,7 @@ func readSetEventAndUpdateState(w http.ResponseWriter, r *http.Request) bool {
 
 	log_info("New url is now: '%s'.", state.url)
 	state.playing.Swap(state.autoplay.Load())
-	return true
+	return &setEvent, nil
 }
 
 func stripLastSegment(url string) (*string, error) {
@@ -876,6 +899,10 @@ func setupProxy(url string) {
 }
 
 func apiEvents(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
 	connections.mutex.Lock()
 	connection_id := connections.add(w)
 	connection_count := connections.len()
@@ -883,9 +910,13 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 
 	log_info("New connection established with %s. Current connection count: %d", r.RemoteAddr, connection_count)
 
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
+	// NOTE(kihau): This "connection_id" is not very secure. Here an actual uuid could be generated instead.
+	jsonData, err := json.Marshal(connection_id)
+	if err != nil {
+		log_error("Failed to serialize welcome message for: %v", r.RemoteAddr)
+	} else {
+		writeEvent(w, "welcome", string(jsonData))
+	}
 
 	for {
 		var eventType string
@@ -1062,7 +1093,7 @@ func (conns *Connections) len() int {
 }
 
 type PlaylistEntry struct {
-	Uuid     string `json:"uuid"`
+	Uuid     uint64 `json:"uuid"`
 	Username string `json:"username"`
 	Url      string `json:"url"`
 }
@@ -1083,13 +1114,13 @@ type SyncEventForUser struct {
 }
 
 type SyncEventFromUser struct {
+	Uuid      uint64  `json:"uuid"`
 	Timestamp float64 `json:"timestamp"`
-	UUID      string  `json:"uuid"`
 	Username  string  `json:"username"`
 }
 
 type SetEventFromUser struct {
-	UUID  string `json:"uuid"`
+	Uuid  uint64 `json:"uuid"`
 	Url   string `json:"url"`
 	Proxy bool   `json:"proxy"`
 }

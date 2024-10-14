@@ -1,5 +1,7 @@
 const DELTA = 1.5;
 
+var uuid = null;
+
 var player;
 var video;
 var subtitles = []
@@ -17,9 +19,6 @@ var historyEntries = document.getElementById("history_entries");
 var programmaticPlay = false; // Updates before programmatic play() and in .onplay
 var programmaticPause = false; // Updates before programmatic pause() and in .onpause
 var programmaticSeek = false; // Updates before programmatic currentTime assignment and in .onseeked
-var ignoreNextPlayRequest = false; // 'true' before sending a hasty play request, 'false' when its caught
-var ignoreNextPauseRequest = false; // 'true' before sending a hasty pause request, 'false' when its caught
-var ignoreNextSeekRequest = false; // 'true' before sending a hasty seek request, 'false' when its caught
 
 /// --------------- HELPER FUNCTIONS: ---------------
 
@@ -29,13 +28,6 @@ function getUrlMediaType(url) {
     }
 
     return "";
-}
-
-function getRandomId() {
-    const min = 1;
-    const max = 999999999999999;
-    const number = Math.floor(Math.random() * (max - min) + min);
-    return number.toString();
 }
 
 async function httpPost(endpoint, data) {
@@ -52,9 +44,12 @@ async function httpPost(endpoint, data) {
         const response = await fetch(endpoint, options);
         if (!response.ok) {
             console.error("ERROR: POST request for endpoint: " + endpoint + " failed: " + response.status);
+            return false;
         }
+        return true;
     } catch (error) {
         console.error("ERROR: POST request for endpoint: " + endpoint + " failed: " + error);
+        return false;
     }
 }
 
@@ -85,15 +80,9 @@ async function httpGet(endpoint) {
 
 /// --------------- SERVER REQUESTS: ---------------
 
-async function apiPlaylistAdd(url) {
-    const entry = {
-        uuid: getRandomId(),
-        username: name_field.value,
-        url: url,
-    };
-
-    console.info("INFO: Sending playlist add request for url: ", url);
-    httpPost("/watch/api/playlist/add", entry);
+async function apiPlaylistAdd(entry) {
+    console.info("INFO: Sending playlist add request for entry: ", entry);
+    return await httpPost("/watch/api/playlist/add", entry);
 }
 
 async function apiPlaylistClear() {
@@ -154,7 +143,7 @@ async function apiPlaylistMove(source, dest) {
 
 async function apiSetUrl(url) {
     const payload = {
-        uuid: getRandomId(),
+        uuid: uuid,
         url: url,
         proxy: proxy_checkbox.checked,
     };
@@ -172,7 +161,7 @@ async function apiGet() {
 
 async function apiPlay() {
     const payload = {
-        uuid: getRandomId(),
+        uuid: uuid,
         timestamp: video.currentTime,
         username: name_field.value,
     };
@@ -183,7 +172,7 @@ async function apiPlay() {
 
 async function apiPause() {
     const payload = {
-        uuid: getRandomId(),
+        uuid: uuid,
         timestamp: video.currentTime,
         username: name_field.value,
     };
@@ -194,7 +183,7 @@ async function apiPause() {
 
 async function apiSeek(timestamp) {
     const payload = {
-        uuid: getRandomId(),
+        uuid: uuid,
         timestamp: timestamp,
         username: name_field.value,
     };
@@ -214,6 +203,7 @@ function inputUrlOnKeypress(event) {
 
         console.info("INFO: Current video source url: ", url);
         apiSetUrl(url);
+        playerSetUrl(url);
     }
 }
 
@@ -225,6 +215,7 @@ function setUrlOnClick() {
 
     console.info("INFO: Current video source url: ", url);
     apiSetUrl(url);
+    playerSetUrl(url);
 }
 
 function skipOnClick() {
@@ -247,7 +238,7 @@ function inputPlaylistOnKeypress(event) {
             return;
         }
 
-        apiPlaylistAdd(url);
+        sendRequestAndAddToPlaylist(url);
     }
 }
 
@@ -260,7 +251,7 @@ function playlistAddInputOnClick() {
         return;
     }
 
-    apiPlaylistAdd(url);
+    sendRequestAndAddToPlaylist(url);
 }
 
 function autoplayOnClick() {
@@ -283,7 +274,7 @@ function playlistAddOnClick() {
         return;
     }
 
-    apiPlaylistAdd(url);
+    sendRequestAndAddToPlaylist(url);
 }
 
 function playlistShuffleOnClick() {
@@ -319,6 +310,20 @@ function historyClearOnClick() {
 
 /// --------------- PLAYLIST: ---------------
 
+function sendRequestAndAddToPlaylist(url) {
+    const entry = {
+        uuid: uuid,
+        username: name_field.value,
+        url: url,
+    };
+
+    apiPlaylistAdd(entry).then(success => {
+        if (success) {
+            addPlaylistElement(entry);
+        }
+    });
+}
+
 // NOTE(kihau): This function is a big hack. There should be a better way to do it.
 function playlistIndexFromEntry(entry) {
     let th = entry.getElementsByTagName("th")[0];
@@ -350,7 +355,7 @@ function isBefore(element1, element2) {
     }
 }
 
-function addPlaylistElement(playlistHtml, index, entry) {
+function addPlaylistElement(entry) {
     let tr = document.createElement("tr");
     tr.draggable = true;
 
@@ -386,10 +391,10 @@ function addPlaylistElement(playlistHtml, index, entry) {
         apiPlaylistMove(startIndex, endIndex);
     };
 
-    playlistHtml.appendChild(tr);
+    playlistEntries.appendChild(tr);
 
     let th = document.createElement("th");
-    th.textContent = index + 1 + ".";
+    th.textContent =  playlistEntries.childElementCount + 1 + ".";
     th.scope = "row";
     tr.appendChild(th);
 
@@ -420,10 +425,8 @@ function getPlaylist() {
 
         console.log(playlist);
 
-        let playlistHtml = playlistEntries;
-        let playlistSize = playlistHtml.childElementCount;
         for (var i = 0; i < playlist.length; i++) {
-            addPlaylistElement(playlistHtml, i + playlistSize, playlist[i]);
+            addPlaylistElement(playlist[i]);
         }
     });
 }
@@ -508,34 +511,6 @@ function readEventMaybeResync(type, event) {
     let priority = jsonData["priority"];
     let origin = jsonData["origin"];
 
-    // The next request will always be outdated so we can safely ignore it
-    switch (type) {
-        case "play": {
-            if (ignoreNextPlayRequest) {
-                ignoreNextPlayRequest = false;
-                console.log("Ignored ", priority, "play from", origin, "at", timestamp);
-                return;
-            }
-        } break;
-
-        case "pause": {
-            if (ignoreNextPauseRequest) {
-                ignoreNextPauseRequest = false;
-                console.log("Ignored ", priority, "pause from", origin, "at", timestamp);
-                return;
-            }
-            
-        } break;
-
-        case "seek":  {
-            if (ignoreNextSeekRequest) {
-                ignoreNextSeekRequest = false;
-                console.log("Ignored ", priority, "seek from", origin, "at", timestamp);
-                return;
-            }
-        } break;
-    }
-
     console.log(priority, type, "from", origin, "at", timestamp);
 
     let deSync = timestamp - video.currentTime;
@@ -556,6 +531,12 @@ function readEventMaybeResync(type, event) {
 
 function subscribeToServerEvents() {
     let eventSource = new EventSource("/watch/api/events");
+
+    eventSource.addEventListener("welcome", function (event) {
+        console.info("Got a welcome request");
+        console.info(event.data);
+        uuid = JSON.parse(event.data);
+    });
 
     // Allow user to de-sync themselves freely and watch at their own pace
     eventSource.addEventListener("play", function (event) {
@@ -597,12 +578,9 @@ function subscribeToServerEvents() {
     });
 
     eventSource.addEventListener("seturl", function (event) {
-        let jsonData = JSON.parse(event.data);
-        let url = jsonData["url"];
-        console.log("Media url received from the server: ", url);
-
-        destroyPlayer();
-        createPlayer(url);
+        let response = JSON.parse(event.data);
+        console.info("INFO: Media url received from the server: ", response.url);
+        playerSetUrl(response.url);
     });
 
     eventSource.addEventListener("playlistadd", function (event) {
@@ -613,9 +591,7 @@ function subscribeToServerEvents() {
             return;
         }
 
-        let playlistHtml = playlistEntries;
-        let playlistSize = playlistHtml.childElementCount;
-        addPlaylistElement(playlistHtml, playlistSize, entry);
+        addPlaylistElement(entry);
     });
 
     eventSource.addEventListener("playlistclear", function (_event) {
@@ -636,12 +612,11 @@ function subscribeToServerEvents() {
                 username: "<unknown>",
             };
 
-            let playlistHtml = playlistEntries;
-            addPlaylistElement(playlistHtml, playlistHtml.childElementCount + 1, dummyEntry);
+            addPlaylistElement(dummyEntry);
         }
 
         destroyPlayer();
-        createPlayer(url);
+        createFluidPlayer(url);
 
         removeFirstPlaylistElement();
     });
@@ -683,10 +658,8 @@ function subscribeToServerEvents() {
 
         removeAllPlaylistElements();
 
-        let playlistHtml = playlistEntries;
-        let playlistSize = playlistHtml.childElementCount;
         for (var i = 0; i < playlist.length; i++) {
-            addPlaylistElement(playlistHtml, i + playlistSize, playlist[i]);
+            addPlaylistElement(playlist[i]);
         }
     });
 
@@ -700,10 +673,8 @@ function subscribeToServerEvents() {
 
         removeAllPlaylistElements();
 
-        let playlistHtml = playlistEntries;
-        let playlistSize = playlistHtml.childElementCount;
         for (var i = 0; i < playlist.length; i++) {
-            addPlaylistElement(playlistHtml, i + playlistSize, playlist[i]);
+            addPlaylistElement(playlist[i]);
         }
     });
 
@@ -724,6 +695,11 @@ function appendSubtitleTrack(video_element, label, src) {
 
 /// --------------- PLAYER: ---------------
 
+function playerSetUrl(url) {
+    destroyPlayer();
+    createFluidPlayer(url);
+}
+
 function isVideoPlaying() {
     return !video.paused && !video.ended;
 }
@@ -739,7 +715,7 @@ function destroyPlayer() {
     }
 }
 
-function createPlayer(url) {
+function createFluidPlayer(url) {
     current_url.value = url;
 
     let url_missing = url === "";
@@ -805,7 +781,6 @@ function playerOnPlay(_event) {
         return;
     }
 
-    ignoreNextPlayRequest = true;
     apiPlay();
 }
 
@@ -815,7 +790,6 @@ function playerOnPause(_event) {
         return;
     }
 
-    ignoreNextPauseRequest = true;
     apiPause();
 }
 
@@ -826,7 +800,6 @@ function playerOnSeek(_event) {
         return;
     }
 
-    ignoreNextSeekRequest = true;
     apiSeek(video.currentTime);
 }
 
@@ -857,7 +830,7 @@ function main() {
     getHistory();
 
     // dummy player
-    createPlayer("");
+    createFluidPlayer("");
 
     apiGet().then((state) => {
         autoplay_checkbox.checked = state.autoplay;
@@ -865,8 +838,7 @@ function main() {
 
         subtitles = state.subtitles;
 
-        destroyPlayer();
-        createPlayer(state.url);
+        playerSetUrl(state.url);
         subscribeToServerEvents();
     });
 }
