@@ -1025,10 +1025,14 @@ func writeSyncEvent(writer http.ResponseWriter, eventType string, haste bool, us
 
 func writeSetEvent(writer http.ResponseWriter) {
 	// fmt.Printf("Writing set event");
+	escapedUrl, err := json.Marshal(state.url)
+	if err != nil {
+		return
+	}
 	event_id := state.eventId.Add(1)
 	fmt.Fprintln(writer, "id:", event_id)
 	fmt.Fprintln(writer, "event: seturl")
-	fmt.Fprintln(writer, "data:", "{\"url\":\""+state.url+"\"}")
+	fmt.Fprintln(writer, "data:", "{\"url\":"+string(escapedUrl)+"}")
 	fmt.Fprintln(writer, "retry:", RETRY)
 	fmt.Fprintln(writer)
 
