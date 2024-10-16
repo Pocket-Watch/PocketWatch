@@ -27,7 +27,7 @@
 - [x] Display current media url on the client side
 - [x] Get rid of "dummy.mp4", replace it with an indicator that nothing is playing
 - [x] Add option to upload media url, download in on the server and stream to all connected clients
-- [x] Add playlist support and auto-playing
+- [ ] Add playlist support and auto-playing
     - [x] Load playlist on welcome
     - [x] Playlist add
     - [x] Playlist clear
@@ -37,11 +37,14 @@
     - [x] Playlist shuffle
     - [x] Playlist looping
     - [x] Playlist entry reordering
+    - [ ] Update playlist entries when a user changes their name
 - [x] Subtitle support
+- [ ] Display connected users
 - [ ] Convert srt to vtt
 - [ ] Add watch history
     - [x] Implement history add
     - [x] Implement history clear
+    - [ ] Display more data for individual history entries
     - [ ] Implement history limit
     - [ ] Add history persistence (SQL database)
 - [ ] Integrate playback and queueing for youtube urls and youtube playlist urls.
@@ -57,9 +60,6 @@
 - [ ] Add server side and client side authentication and store cookies
 - [ ] Add option to upload media file to the server and stream it to all connected clients (streaming proxy)
 - [ ] Add support for live chat
-- [ ] Display connected users
-- [ ] Improve the UI layout and styling
-- [ ] Add rooms with individual player states
 - [ ] Display connected users
 - [ ] Improve the UI layout and styling
 - [ ] Add rooms with individual player states
