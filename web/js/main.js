@@ -14,7 +14,7 @@ var subtitles = []
 
 var input_url = document.getElementById("input_url");
 var current_url = document.getElementById("current_url");
-var name_field = document.getElementById("user_name");
+var input_username = document.getElementById("input_username");
 var proxy_checkbox = document.getElementById("proxy");
 var autoplay_checkbox = document.getElementById("autoplay");
 var looping_checkbox = document.getElementById("looping");
@@ -102,6 +102,11 @@ async function apiGetUser(token) {
     return data;
 }
 
+async function apiUpdateUserName(username) {
+    console.info("INFO: Sending update username request.");
+    httpPost("/watch/api/updateusername", username);
+}
+
 async function apiGet() {
     let data = await httpGet("/watch/api/get");
     console.info("INFO: Received data from get request to the server:");
@@ -127,7 +132,7 @@ async function apiPlay() {
     const payload = {
         uuid: user.connection_id,
         timestamp: video.currentTime,
-        username: name_field.value,
+        username: user.username,
     };
 
     console.info("INFO: Sending play request to the server.");
@@ -138,7 +143,7 @@ async function apiPause() {
     const payload = {
         uuuid: user.connection_id,
         timestamp: video.currentTime,
-        username: name_field.value,
+        username: user.username,
     };
 
     console.info("INFO: Sending pause request to the server.");
@@ -149,7 +154,7 @@ async function apiSeek(timestamp) {
     const payload = {
         uuuid: user.connection_id,
         timestamp: timestamp,
-        username: name_field.value,
+        username: user.username,
     };
 
     console.info("INFO: Sending seek request to the server.");
@@ -164,7 +169,7 @@ async function apiPlaylistGet() {
 async function apiPlaylistAdd(url) {
     const entry = {
         uuid: user.connection_id,
-        username: name_field.value,
+        username: user.username,
         url: url,
     };
 
@@ -344,6 +349,10 @@ function uploadFile() {
 
 function historyClearOnClick() {
     apiHistoryClear();
+}
+
+function updateUsernameOnClick() {
+    apiUpdateUserName(input_username.value);
 }
 
 /// --------------- PLAYLIST: ---------------
@@ -871,6 +880,7 @@ async function getOrCreateUserInAnExtremelyUglyWay() {
 
 async function main() {
     user = await getOrCreateUserInAnExtremelyUglyWay();
+    input_username.value = user.username;
 
     getPlaylist();
     getHistory();

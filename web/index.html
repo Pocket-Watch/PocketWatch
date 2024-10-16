@@ -54,12 +54,6 @@
     <br>
     <br>
 
-    <label>Put your name here:</label><br />
-    <input id="user_name" name="user_name" maxlength="120" />
-
-    <br>
-    <br>
-
     <label>Currently set URL:</label><br />
     <input readonly="true" , type="text" id="current_url" size="100" />
 
@@ -67,6 +61,13 @@
     <input type="file" id="file_input">
     <button onclick="uploadFile()">Upload</button>
     <progress id="progressBar" value="0" max="100"></progress>
+
+    <br>
+    <br>
+
+    <label>Update your username:</label><br />
+    <input id="input_username" name="input_username" maxlength="120" />
+    <button name="button_update_username" onclick="updateUsernameOnClick()">Update</button>
 
     <br>
     <br>

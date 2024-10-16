@@ -262,7 +262,7 @@ func registerEndpoints(options *Options) {
 
 	http.HandleFunc("/watch/api/createuser", apiCreateUser)
 	http.HandleFunc("/watch/api/getuser", apiGetUser)
-	// http.HandleFunc("/watch/api/updateusername", apiUpdateUserName)
+	http.HandleFunc("/watch/api/updateusername", apiUpdateUserName)
 
 	http.HandleFunc("/watch/api/get", apiGet)
 	http.HandleFunc("/watch/api/seturl", apiSetUrl)
@@ -485,6 +485,48 @@ func apiGetUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	io.WriteString(w, string(jsonData))
+}
+
+func apiUpdateUserName(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	log_info("Connection requested %s user name change.", r.RemoteAddr)
+
+	data, err := io.ReadAll(r.Body)
+	if err != nil {
+		log_error("Get user request handler failed to read request body.")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var new_username string
+	err = json.Unmarshal(data, &new_username)
+
+	if err != nil {
+		log_error("Get user request handler failed to read json payload.")
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("Authorization")
+
+	// TODO(kihau): Send error after failure to find specified user
+	users.mutex.Lock()
+	for i, user := range users.slice {
+		if user.token == token {
+			users.slice[i].Username = new_username
+			break
+		}
+	}
+	users.mutex.Unlock()
+
+	// if user == nil {
+	// 	http.Error(w, "Failed to find user with specified token", http.StatusBadRequest)
+	// }
+
+	io.WriteString(w, "Username updated")
 }
 
 func apiPlaylistGet(w http.ResponseWriter, r *http.Request) {
