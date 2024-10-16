@@ -354,6 +354,11 @@ function updateUsernameOnClick() {
     apiUpdateUserName(input_username.value);
 }
 
+function clearSessionOnClick() {
+    localStorage.removeItem("token");
+    window.location.reload();
+}
+
 /// --------------- PLAYLIST: ---------------
 
 // NOTE(kihau): This function is a big hack. There should be a better way to do it.
