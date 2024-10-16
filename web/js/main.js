@@ -13,6 +13,7 @@ var video;
 var subtitles = []
 
 var input_url = document.getElementById("input_url");
+var referer_input = document.getElementById("referer");
 var current_url = document.getElementById("current_url");
 var input_username = document.getElementById("input_username");
 var proxy_checkbox = document.getElementById("proxy");
@@ -119,6 +120,7 @@ async function apiSetUrl(url) {
         uuid: user.connection_id,
         url: url,
         proxy: proxy_checkbox.checked,
+        referer: referer_input.value,
     };
 
     console.info("INFO: Sending seturl request for a new url");

@@ -336,9 +336,11 @@ func (m3u *M3U) serialize(path string) {
 	file.WriteString(fmt.Sprintf("#EXT-X-ENDLIST\n"))
 }
 
-func downloadM3U(url string, filename string) (*M3U, error) {
+func downloadM3U(url string, filename string, referer string) (*M3U, error) {
 	request, _ := http.NewRequest("GET", url, nil)
-
+	if referer != "" {
+		request.Header.Set("Referer", referer)
+	}
 	response, err := client.Do(request)
 	if err != nil {
 		return nil, err

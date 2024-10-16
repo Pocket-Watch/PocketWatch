@@ -45,6 +45,7 @@ type State struct {
 	playlist      []PlaylistEntry
 
 	proxying       atomic.Bool
+	referer        string
 	chunkLocks     []sync.Mutex
 	fetchedChunks  []bool
 	originalChunks []string
@@ -211,9 +212,10 @@ type SyncEventFromUser struct {
 }
 
 type SetEventFromUser struct {
-	Uuid  uint64 `json:"uuid"`
-	Url   string `json:"url"`
-	Proxy bool   `json:"proxy"`
+	Uuid    uint64 `json:"uuid"`
+	Url     string `json:"url"`
+	Proxy   bool   `json:"proxy"`
+	Referer string `json:"referer"`
 }
 
 var state = State{}
@@ -370,7 +372,7 @@ func watchProxy(writer http.ResponseWriter, request *http.Request) {
 		http.ServeFile(writer, request, WEB_PROXY+chunk)
 		return
 	}
-	fetchErr := downloadFile(state.originalChunks[chunk_id], WEB_PROXY+chunk)
+	fetchErr := downloadFile(state.originalChunks[chunk_id], WEB_PROXY+chunk, state.referer)
 	if fetchErr != nil {
 		mutex.Unlock()
 		log_error("FAILED TO FETCH CHUNK %v", fetchErr)
@@ -383,9 +385,14 @@ func watchProxy(writer http.ResponseWriter, request *http.Request) {
 	http.ServeFile(writer, request, WEB_PROXY+chunk)
 }
 
-func downloadFile(url string, filename string) error {
+func downloadFile(url string, filename string, referer string) error {
 	// Get the data
-	response, err := http.Get(url)
+	request, _ := http.NewRequest("GET", url, nil)
+	if referer != "" {
+		request.Header.Set("Referer", referer)
+	}
+	response, err := client.Do(request)
+
 	if err != nil {
 		return err
 	}
@@ -1240,7 +1247,7 @@ func readSetEventAndUpdateState(w http.ResponseWriter, r *http.Request) (*SetEve
 
 	lastSegment := lastUrlSegment(setEvent.Url)
 	if setEvent.Proxy && strings.HasSuffix(lastSegment, ".m3u8") {
-		setupProxy(setEvent.Url)
+		setupProxy(setEvent.Url, setEvent.Referer)
 	} else {
 		state.url = setEvent.Url
 	}
@@ -1264,14 +1271,23 @@ func toString(num int) string {
 	return strconv.Itoa(num)
 }
 
-func setupProxy(url string) {
+func setupProxy(url string, referer string) {
 	_ = os.Mkdir(WEB_PROXY, os.ModePerm)
-	m3u, err := downloadM3U(url, WEB_PROXY+ORIGINAL_M3U8)
+	m3u, err := downloadM3U(url, WEB_PROXY+ORIGINAL_M3U8, referer)
 	if err != nil {
 		log_error("Failed to fetch m3u8: %v", err)
 		state.url = err.Error()
 		return
 	}
+
+	if m3u.isMasterPlaylist {
+		log_error("Master playlists are currently not supported!")
+		// Fetch highest resolution from m3u.tracks
+		return
+	}
+
+	state.referer = referer
+
 	log_debug("%v %v", EXT_X_PLAYLIST_TYPE, m3u.playlistType)
 	log_debug("%v %v", EXT_X_VERSION, m3u.version)
 	log_debug("%v %v", EXT_X_TARGETDURATION, m3u.targetDuration)
