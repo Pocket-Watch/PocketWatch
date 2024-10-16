@@ -535,10 +535,11 @@ function readEventMaybeResync(type, event) {
     let priority = jsonData["priority"];
     let origin = jsonData["origin"];
 
-    console.log(priority, type, "from", origin, "at", timestamp);
-
     let deSync = timestamp - video.currentTime;
-    console.log("Your deSync:", deSync);
+
+    console.log(priority, type, "from", origin, "at", timestamp, "with desync:", deSync);
+    // console.log("TIME:", video.currentTime, "PAUSED:", video.paused, "ENDED:", video.ended)
+
     if (type === "seek") {
         programmaticSeek = true;
         player.skipTo(timestamp);
@@ -547,7 +548,7 @@ function readEventMaybeResync(type, event) {
 
     if (DELTA < Math.abs(deSync)) {
         let diff = Math.abs(deSync) - DELTA
-        console.log("Resyncing! DELTA(" + DELTA + ") exceeded by", diff);
+        console.warn("You are desynced! DELTA(" + DELTA + ") exceeded by", diff, "Trying to resync now!");
         programmaticSeek = true;
         player.skipTo(timestamp);
     }
@@ -588,8 +589,6 @@ function subscribeToServerEvents() {
         if (isVideoPlaying()) {
             programmaticPause = true;
             player.pause();
-        } else {
-            console.log("TIME:", video.currentTime, "PAUSED:", video.paused, "ENDED:", video.ended)
         }
     });
 
