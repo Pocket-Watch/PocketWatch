@@ -124,10 +124,7 @@ async function apiSetUrl(url) {
     };
 
     console.info("INFO: Sending seturl request for a new url");
-    let success = httpPost("/watch/api/seturl", payload);
-    if (success) {
-        playerSetUrl(url);
-    }
+    httpPost("/watch/api/seturl", payload);
 }
 
 async function apiPlay() {

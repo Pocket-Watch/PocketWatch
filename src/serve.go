@@ -1093,7 +1093,7 @@ func apiSetUrl(w http.ResponseWriter, r *http.Request) {
 	conns.mutex.RUnlock()
 
 	log_info("Connection %s requested media url change.", r.RemoteAddr)
-	data, err := readSetEventAndUpdateState(w, r)
+	_, err := readSetEventAndUpdateState(w, r)
 	if err != nil {
 		log_error("Failed to read set event for %v: %v", r.RemoteAddr, err)
 		return
@@ -1102,9 +1102,9 @@ func apiSetUrl(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, "Setting media url!")
 	conns.mutex.RLock()
 	for _, conn := range conns.slice {
-		if user.Id == conn.userId && conn.id == data.Uuid {
-			continue
-		}
+		// if user.Id == conn.userId && conn.id == data.Uuid {
+		// 	continue
+		// }
 
 		writeSetEvent(conn.writer)
 	}
