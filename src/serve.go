@@ -1,6 +1,8 @@
 package main
 
 import (
+	cryptorand "crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,9 +22,203 @@ import (
 const ANNOUNCE_RECEIVED = true
 const BODY_LIMIT = 1024
 const RETRY = 5000 // Retry time in milliseconds
+const TOKEN_LENGTH = 32
+
+const PROXY_ROUTE = "/watch/proxy/"
+const WEB_PROXY = "web/proxy/"
+const WEB_MEDIA = "web/media/"
+const ORIGINAL_M3U8 = "original.m3u8"
+const PROXY_M3U8 = "proxy.m3u8"
+
+// NOTE(kihau): Some fields are non atomic. This needs to change.
+type State struct {
+	autoplay       atomic.Bool
+	looping        atomic.Bool
+	playing        atomic.Bool
+	timestamp      float64
+	url            string
+	eventId        atomic.Uint64
+	lastTimeUpdate time.Time
+	history        []string
+
+	playlist_lock sync.RWMutex
+	playlist      []PlaylistEntry
+
+	proxying       atomic.Bool
+	chunkLocks     []sync.Mutex
+	fetchedChunks  []bool
+	originalChunks []string
+}
+
+type Connection struct {
+	id     uint64
+	userId uint64
+	writer http.ResponseWriter
+}
+
+type Connections struct {
+	mutex     sync.RWMutex
+	idCounter uint64
+	slice     []Connection
+}
+
+type User struct {
+	Id       uint64 `json:"id"`
+	Username string `json:"username"`
+	Avatar   string `json:"avatar"`
+	// Connected     bool   `json:"connected"`
+	token         string
+	created       time.Time
+	lastUpdate    time.Time
+	connIdCounter uint64
+	connections   []Connection
+}
+
+type Users struct {
+	mutex     sync.RWMutex
+	idCounter uint64
+	slice     []User
+}
+
+func makeUsers() *Users {
+	users := new(Users)
+	users.slice = make([]User, 0)
+	users.idCounter = 1
+	return users
+}
+
+func generateToken() string {
+	bytes := make([]byte, TOKEN_LENGTH)
+	_, err := cryptorand.Read(bytes)
+
+	if err != nil {
+		log_error("Token generation failed, this should not happen!")
+		return ""
+	}
+
+	return base64.URLEncoding.EncodeToString(bytes)
+}
+
+func (users *Users) create() User {
+	id := users.idCounter
+	users.idCounter += 1
+
+	new_user := User{
+		Id:            id,
+		Username:      fmt.Sprintf("User %v", id),
+		Avatar:        "",
+		token:         generateToken(),
+		created:       time.Now(),
+		lastUpdate:    time.Now(),
+		connIdCounter: 1,
+		connections:   make([]Connection, 0),
+	}
+
+	users.slice = append(users.slice, new_user)
+	return new_user
+}
+
+func (users *Users) find(token string) *User {
+	for i, user := range users.slice {
+		if user.token == token {
+			return &users.slice[i]
+		}
+	}
+
+	return nil
+}
+
+func makeConnections() *Connections {
+	conns := new(Connections)
+	conns.slice = make([]Connection, 0)
+	conns.idCounter = 1
+	return conns
+}
+
+func (conns *Connections) add(writer http.ResponseWriter, userId uint64) uint64 {
+	id := conns.idCounter
+	conns.idCounter += 1
+
+	conn := Connection{
+		id:     id,
+		userId: userId,
+		writer: writer,
+	}
+	conns.slice = append(conns.slice, conn)
+
+	return id
+}
+
+func (conns *Connections) remove(id uint64) {
+	for i, conn := range conns.slice {
+		if conn.id != id {
+			continue
+		}
+
+		length := len(conns.slice)
+		conns.slice[i], conns.slice[length-1] = conns.slice[length-1], conns.slice[i]
+		conns.slice = conns.slice[:length-1]
+		break
+	}
+}
+
+type PlaylistEntry struct {
+	Uuid     uint64 `json:"uuid"`
+	Username string `json:"username"`
+	Url      string `json:"url"`
+}
+
+type PlaylistRemoveRequestData struct {
+	Uuid  uint64 `json:"uuid"`
+	Index int    `json:"index"`
+}
+
+type PlaylistAutoplayRequestData struct {
+	Uuid     uint64 `json:"uuid"`
+	Autoplay bool   `json:"autoplay"`
+}
+
+type PlaylistLoopingRequestData struct {
+	Uuid    uint64 `json:"uuid"`
+	Looping bool   `json:"looping"`
+}
+
+type PlaylistMoveRequestData struct {
+	Uuid        uint64 `json:"uuid"`
+	SourceIndex int    `json:"source_index"`
+	DestIndex   int    `json:"dest_index"`
+}
+
+type GetEventForUser struct {
+	Url       string   `json:"url"`
+	Timestamp float64  `json:"timestamp"`
+	IsPlaying bool     `json:"is_playing"`
+	Autoplay  bool     `json:"autoplay"`
+	Looping   bool     `json:"looping"`
+	Subtitles []string `json:"subtitles"`
+}
+
+type SyncEventForUser struct {
+	Timestamp float64 `json:"timestamp"`
+	Priority  string  `json:"priority"`
+	Origin    string  `json:"origin"`
+}
+
+type SyncEventFromUser struct {
+	Uuid      uint64  `json:"uuid"`
+	Timestamp float64 `json:"timestamp"`
+	Username  string  `json:"username"`
+}
+
+type SetEventFromUser struct {
+	Uuid  uint64 `json:"uuid"`
+	Url   string `json:"url"`
+	Proxy bool   `json:"proxy"`
+}
 
 var state = State{}
-var connections = makeConnections()
+var users = makeUsers()
+var conns = makeConnections()
 
 func StartServer(options *Options) {
 	state.lastTimeUpdate = time.Now()
@@ -56,12 +252,6 @@ func StartServer(options *Options) {
 	}
 }
 
-const PROXY_ROUTE = "/watch/proxy/"
-const WEB_PROXY = "web/proxy/"
-const WEB_MEDIA = "web/media/"
-const ORIGINAL_M3U8 = "original.m3u8"
-const PROXY_M3U8 = "proxy.m3u8"
-
 func registerEndpoints(options *Options) {
 	fileserver := http.FileServer(http.Dir("./web"))
 	// fix trailing suffix
@@ -69,6 +259,11 @@ func registerEndpoints(options *Options) {
 
 	http.HandleFunc("/watch/api/version", apiVersion)
 	http.HandleFunc("/watch/api/login", apiLogin)
+
+	http.HandleFunc("/watch/api/createuser", apiCreateUser)
+	http.HandleFunc("/watch/api/getuser", apiGetUser)
+	// http.HandleFunc("/watch/api/updateusername", apiUpdateUserName)
+
 	http.HandleFunc("/watch/api/get", apiGet)
 	http.HandleFunc("/watch/api/seturl", apiSetUrl)
 	http.HandleFunc("/watch/api/play", apiPlay)
@@ -232,6 +427,66 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, "This is unimplemented")
 }
 
+func apiCreateUser(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		return
+	}
+
+	log_info("Connection requested %s user creation.", r.RemoteAddr)
+
+	users.mutex.Lock()
+	user := users.create()
+	users.mutex.Unlock()
+
+	jsonData, err := json.Marshal(user.token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	io.WriteString(w, string(jsonData))
+}
+
+func apiGetUser(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	log_info("Connection requested %s user get.", r.RemoteAddr)
+
+	data, err := io.ReadAll(r.Body)
+	if err != nil {
+		log_error("Get user request handler failed to read request body.")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var token string
+	err = json.Unmarshal(data, &token)
+
+	if err != nil {
+		log_error("Get user request handler failed to read json payload.")
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	users.mutex.Lock()
+	user := users.find(token)
+	users.mutex.Unlock()
+
+	if user == nil {
+		http.Error(w, "Failed to find user with specified token", http.StatusBadRequest)
+	}
+
+	jsonData, err := json.Marshal(user)
+	if err != nil {
+		log_error("Failed to serialize json data")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	io.WriteString(w, string(jsonData))
+}
+
 func apiPlaylistGet(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		return
@@ -253,6 +508,13 @@ func apiPlaylistGet(w http.ResponseWriter, r *http.Request) {
 
 func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
+		return
+	}
+
+	token := r.Header.Get("Authorization")
+	user := users.find(token)
+	if user == nil {
+		http.Error(w, "User not found", http.StatusUnauthorized)
 		return
 	}
 
@@ -278,21 +540,29 @@ func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 	state.playlist = append(state.playlist, entry)
 	state.playlist_lock.Unlock()
 
+	// TODO(kihau): Playlist entry cannot be reused and a new one needs to be created here.
 	jsonData := string(body)
 
-	connections.mutex.RLock()
-	for _, conn := range connections.slice {
-		if entry.Uuid == conn.id {
+	conns.mutex.RLock()
+	for _, conn := range conns.slice {
+		if conn.userId == user.Id && conn.id == entry.Uuid {
 			continue
 		}
 
 		writeEvent(conn.writer, "playlistadd", jsonData)
 	}
-	connections.mutex.RUnlock()
+	conns.mutex.RUnlock()
 }
 
 func apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
+		return
+	}
+
+	token := r.Header.Get("Authorization")
+	user := users.find(token)
+	if user == nil {
+		http.Error(w, "User not found", http.StatusUnauthorized)
 		return
 	}
 
@@ -304,8 +574,8 @@ func apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var uuid uint64
-	err = json.Unmarshal(body, &uuid)
+	var connection_id uint64
+	err = json.Unmarshal(body, &connection_id)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -316,18 +586,26 @@ func apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
 	state.playlist = state.playlist[:0]
 	state.playlist_lock.Unlock()
 
-	connections.mutex.RLock()
-	for _, conn := range connections.slice {
-		if uuid == conn.id {
+	conns.mutex.RLock()
+	for _, conn := range conns.slice {
+		if conn.userId == user.Id && conn.id == connection_id {
 			continue
 		}
+
 		writeEvent(conn.writer, "playlistclear", "")
 	}
-	connections.mutex.RUnlock()
+	conns.mutex.RUnlock()
 }
 
 func apiPlaylistNext(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
+		return
+	}
+
+	token := r.Header.Get("Authorization")
+	user := users.find(token)
+	if user == nil {
+		http.Error(w, "User not found", http.StatusUnauthorized)
 		return
 	}
 
@@ -383,7 +661,7 @@ func apiPlaylistNext(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	connections.mutex.RLock()
+	conns.mutex.RLock()
 	if state.url != "" {
 		state.history = append(state.history, state.url)
 	}
@@ -393,15 +671,23 @@ func apiPlaylistNext(w http.ResponseWriter, r *http.Request) {
 	state.playing.Swap(state.autoplay.Load())
 	state.timestamp = 0
 
-	for _, conn := range connections.slice {
+	for _, conn := range conns.slice {
+		// TOOD(kihau): Do not resend request back to user that sent the request.
 		writeEvent(conn.writer, "playlistnext", string(jsonData))
 	}
 
-	connections.mutex.RUnlock()
+	conns.mutex.RUnlock()
 }
 
 func apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
+		return
+	}
+
+	token := r.Header.Get("Authorization")
+	user := users.find(token)
+	if user == nil {
+		http.Error(w, "User not found", http.StatusUnauthorized)
 		return
 	}
 
@@ -434,15 +720,22 @@ func apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
 	}
 	state.playlist_lock.Unlock()
 
-	connections.mutex.RLock()
-	for _, conn := range connections.slice {
+	conns.mutex.RLock()
+	for _, conn := range conns.slice {
 		writeEvent(conn.writer, "playlistremove", string(data))
 	}
-	connections.mutex.RUnlock()
+	conns.mutex.RUnlock()
 }
 
 func apiPlaylistAutoplay(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
+		return
+	}
+
+	token := r.Header.Get("Authorization")
+	user := users.find(token)
+	if user == nil {
+		http.Error(w, "User not found", http.StatusUnauthorized)
 		return
 	}
 
@@ -466,15 +759,22 @@ func apiPlaylistAutoplay(w http.ResponseWriter, r *http.Request) {
 
 	jsonData := string(data)
 
-	connections.mutex.RLock()
-	for _, conn := range connections.slice {
+	conns.mutex.RLock()
+	for _, conn := range conns.slice {
 		writeEvent(conn.writer, "playlistautoplay", jsonData)
 	}
-	connections.mutex.RUnlock()
+	conns.mutex.RUnlock()
 }
 
 func apiPlaylistLooping(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
+		return
+	}
+
+	token := r.Header.Get("Authorization")
+	requester := users.find(token)
+	if requester == nil {
+		http.Error(w, "User not found", http.StatusUnauthorized)
 		return
 	}
 
@@ -498,15 +798,22 @@ func apiPlaylistLooping(w http.ResponseWriter, r *http.Request) {
 
 	jsonData := string(data)
 
-	connections.mutex.RLock()
-	for _, conn := range connections.slice {
+	conns.mutex.RLock()
+	for _, conn := range conns.slice {
 		writeEvent(conn.writer, "playlistlooping", jsonData)
 	}
-	connections.mutex.RUnlock()
+	conns.mutex.RUnlock()
 }
 
 func apiPlaylistShuffle(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
+		return
+	}
+
+	token := r.Header.Get("Authorization")
+	requester := users.find(token)
+	if requester == nil {
+		http.Error(w, "User not found", http.StatusUnauthorized)
 		return
 	}
 
@@ -526,15 +833,22 @@ func apiPlaylistShuffle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	connections.mutex.RLock()
-	for _, conn := range connections.slice {
+	conns.mutex.RLock()
+	for _, conn := range conns.slice {
 		writeEvent(conn.writer, "playlistshuffle", string(jsonData))
 	}
-	connections.mutex.RUnlock()
+	conns.mutex.RUnlock()
 }
 
 func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
+		return
+	}
+
+	token := r.Header.Get("Authorization")
+	user := users.find(token)
+	if user == nil {
+		http.Error(w, "User not found", http.StatusUnauthorized)
 		return
 	}
 
@@ -587,17 +901,19 @@ func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	connections.mutex.RLock()
-	for _, conn := range connections.slice {
-		if move.Uuid == conn.id {
-			continue
-		}
+	conns.mutex.RLock()
+	for _, conn := range conns.slice {
 		// NOTE(kihau):
 		//     Sending entire playlist in the playlist move event is pretty wasteful,
 		//     but this will do for now.
+
+		if conn.userId == user.Id && entry.Uuid == conn.id {
+			continue
+		}
+
 		writeEvent(conn.writer, "playlistmove", string(jsonData))
 	}
-	connections.mutex.RUnlock()
+	conns.mutex.RUnlock()
 }
 
 func apiHistoryGet(w http.ResponseWriter, r *http.Request) {
@@ -607,9 +923,9 @@ func apiHistoryGet(w http.ResponseWriter, r *http.Request) {
 
 	log_info("Connection %s requested history get.", r.RemoteAddr)
 
-	connections.mutex.RLock()
+	conns.mutex.RLock()
 	jsonData, err := json.Marshal(state.history)
-	connections.mutex.RUnlock()
+	conns.mutex.RUnlock()
 
 	if err != nil {
 		log_warn("Failed to serialize history get event.")
@@ -624,15 +940,22 @@ func apiHistoryClear(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	token := r.Header.Get("Authorization")
+	user := users.find(token)
+	if user == nil {
+		http.Error(w, "User not found", http.StatusUnauthorized)
+		return
+	}
+
 	log_info("Connection %s requested history clear.", r.RemoteAddr)
 
-	connections.mutex.RLock()
+	conns.mutex.RLock()
 	state.history = state.history[:0]
 
-	for _, conn := range connections.slice {
+	for _, conn := range conns.slice {
 		writeEvent(conn.writer, "historyclear", "")
 	}
-	connections.mutex.RUnlock()
+	conns.mutex.RUnlock()
 }
 
 func writeEvent(writer http.ResponseWriter, event string, jsonData string) {
@@ -707,35 +1030,50 @@ func apiSetUrl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	connections.mutex.RLock()
+	token := r.Header.Get("Authorization")
+	user := users.find(token)
+	if user == nil {
+		http.Error(w, "User not found", http.StatusUnauthorized)
+		return
+	}
+
+	conns.mutex.RLock()
 	if state.url != "" {
 		state.history = append(state.history, state.url)
 	}
-	connections.mutex.RUnlock()
+	conns.mutex.RUnlock()
 
 	log_info("Connection %s requested media url change.", r.RemoteAddr)
-	setEvent, err := readSetEventAndUpdateState(w, r)
+	data, err := readSetEventAndUpdateState(w, r)
 	if err != nil {
 		log_error("Failed to read set event for %v: %v", r.RemoteAddr, err)
 		return
 	}
 
 	io.WriteString(w, "Setting media url!")
-	connections.mutex.RLock()
-	for _, conn := range connections.slice {
-		if setEvent.Uuid == conn.id {
+	conns.mutex.RLock()
+	for _, conn := range conns.slice {
+		if user.Id == conn.userId && conn.id == data.Uuid {
 			continue
 		}
 
 		writeSetEvent(conn.writer)
 	}
-	connections.mutex.RUnlock()
+	conns.mutex.RUnlock()
 }
 
 func apiPlay(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
 	}
+
+	token := r.Header.Get("Authorization")
+	user := users.find(token)
+	if user == nil {
+		http.Error(w, "User not found", http.StatusUnauthorized)
+		return
+	}
+
 	state.playing.Swap(true)
 
 	log_info("Connection %s requested player start.", r.RemoteAddr)
@@ -744,21 +1082,28 @@ func apiPlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	connections.mutex.RLock()
-	for _, conn := range connections.slice {
-		if syncEvent.Uuid == conn.id {
+	conns.mutex.RLock()
+	for _, conn := range conns.slice {
+		if user.Id == conn.userId && conn.id == syncEvent.Uuid {
 			continue
 		}
 
 		writeSyncEvent(conn.writer, Play, true, syncEvent.Username)
 	}
-	connections.mutex.RUnlock()
+	conns.mutex.RUnlock()
 
 	io.WriteString(w, "Broadcasting start!\n")
 }
 
 func apiPause(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
+		return
+	}
+
+	token := r.Header.Get("Authorization")
+	user := users.find(token)
+	if user == nil {
+		http.Error(w, "User not found", http.StatusUnauthorized)
 		return
 	}
 
@@ -770,15 +1115,15 @@ func apiPause(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	connections.mutex.RLock()
-	for _, conn := range connections.slice {
-		if syncEvent.Uuid == conn.id {
+	conns.mutex.RLock()
+	for _, conn := range conns.slice {
+		if user.Id == conn.userId && conn.id == syncEvent.Uuid {
 			continue
 		}
 
 		writeSyncEvent(conn.writer, Pause, true, syncEvent.Username)
 	}
-	connections.mutex.RUnlock()
+	conns.mutex.RUnlock()
 
 	io.WriteString(w, "Broadcasting pause!\n")
 }
@@ -788,21 +1133,28 @@ func apiSeek(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	token := r.Header.Get("Authorization")
+	user := users.find(token)
+	if user == nil {
+		http.Error(w, "User not found", http.StatusUnauthorized)
+		return
+	}
+
 	log_info("Connection %s requested player seek.", r.RemoteAddr)
 	syncEvent := receiveSyncEventFromUser(w, r)
 	if syncEvent == nil {
 		return
 	}
 	// this needs a rewrite: /pause /start /seek - a unified format way of
-	connections.mutex.RLock()
-	for _, conn := range connections.slice {
-		if syncEvent.Uuid == conn.id {
+	conns.mutex.RLock()
+	for _, conn := range conns.slice {
+		if user.Id == conn.userId && conn.id == syncEvent.Uuid {
 			continue
 		}
 
 		writeSyncEvent(conn.writer, Seek, true, syncEvent.Username)
 	}
-	connections.mutex.RUnlock()
+	conns.mutex.RUnlock()
 	io.WriteString(w, "Broadcasting seek!\n")
 }
 
@@ -919,21 +1271,41 @@ func setupProxy(url string) {
 }
 
 func apiEvents(w http.ResponseWriter, r *http.Request) {
+	log_debug("URL is %v", r.URL)
+
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		response := "Failed to parse token from the event url."
+		http.Error(w, response, http.StatusInternalServerError)
+		log_error(response)
+		return
+	}
+
+	users.mutex.RLock()
+	user := users.find(token)
+	if user == nil {
+		http.Error(w, "User not found", http.StatusUnauthorized)
+		log_error("Failed to connect to event stream. User not found.")
+		return
+	}
+	users.mutex.RUnlock()
+
+	conns.mutex.Lock()
+	connection_id := conns.add(w, user.Id)
+	connection_count := len(conns.slice)
+	conns.mutex.Unlock()
+
+	log_info("New connection established with %s. Current connection count: %d", r.RemoteAddr, connection_count)
+
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	connections.mutex.Lock()
-	connection_id := connections.add(w)
-	connection_count := connections.len()
-	connections.mutex.Unlock()
-
-	log_info("New connection established with %s. Current connection count: %d", r.RemoteAddr, connection_count)
-
-	// NOTE(kihau): This "connection_id" is not very secure. Here an actual uuid could be generated instead.
 	jsonData, err := json.Marshal(connection_id)
 	if err != nil {
 		log_error("Failed to serialize welcome message for: %v", r.RemoteAddr)
+		http.Error(w, "Failed to serialize welcome message", http.StatusInternalServerError)
+		return
 	} else {
 		writeEvent(w, "welcome", string(jsonData))
 	}
@@ -948,10 +1320,10 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 		connection_error := writeSyncEvent(w, eventType, false, "SERVER")
 
 		if connection_error != nil {
-			connections.mutex.Lock()
-			connections.remove(connection_id)
-			connection_count = connections.len()
-			connections.mutex.Unlock()
+			conns.mutex.Lock()
+			conns.remove(connection_id)
+			connection_count = len(conns.slice)
+			conns.mutex.Unlock()
 
 			log_info("Connection with %s dropped. Current connection count: %d", r.RemoteAddr, connection_count)
 			break
@@ -1049,123 +1421,4 @@ func lastUrlSegment(url string) string {
 		return url
 	}
 	return url[:questionMark]
-}
-
-// NOTE(kihau): Some fields are non atomic. This needs to change.
-type State struct {
-	autoplay       atomic.Bool
-	looping        atomic.Bool
-	playing        atomic.Bool
-	timestamp      float64
-	url            string
-	eventId        atomic.Uint64
-	lastTimeUpdate time.Time
-	history        []string
-
-	playlist_lock sync.RWMutex
-	playlist      []PlaylistEntry
-
-	proxying       atomic.Bool
-	chunkLocks     []sync.Mutex
-	fetchedChunks  []bool
-	originalChunks []string
-}
-
-type Connection struct {
-	id     uint64
-	writer http.ResponseWriter
-}
-
-type Connections struct {
-	mutex      sync.RWMutex
-	id_counter uint64
-	slice      []Connection
-}
-
-func makeConnections() *Connections {
-	conns := new(Connections)
-	conns.slice = make([]Connection, 0)
-	conns.id_counter = 0
-	return conns
-}
-
-func (conns *Connections) add(writer http.ResponseWriter) uint64 {
-	id := conns.id_counter
-	conns.id_counter += 1
-
-	conn := Connection{id, writer}
-	conns.slice = append(conns.slice, conn)
-
-	return id
-}
-
-func (conns *Connections) remove(id uint64) {
-	for i, conn := range conns.slice {
-		if conn.id != id {
-			continue
-		}
-
-		length := conns.len()
-		conns.slice[i], conns.slice[length-1] = conns.slice[length-1], conns.slice[i]
-		conns.slice = conns.slice[:length-1]
-		break
-	}
-}
-
-func (conns *Connections) len() int {
-	return len(conns.slice)
-}
-
-type PlaylistEntry struct {
-	Uuid     uint64 `json:"uuid"`
-	Username string `json:"username"`
-	Url      string `json:"url"`
-}
-
-type PlaylistRemoveRequestData struct {
-	Uuid  uint64 `json:"uuid"`
-	Index int    `json:"index"`
-}
-
-type PlaylistAutoplayRequestData struct {
-	Uuid     uint64 `json:"uuid"`
-	Autoplay bool   `json:"autoplay"`
-}
-
-type PlaylistLoopingRequestData struct {
-	Uuid    uint64 `json:"uuid"`
-	Looping bool   `json:"looping"`
-}
-
-type PlaylistMoveRequestData struct {
-	Uuid        uint64 `json:"uuid"`
-	SourceIndex int    `json:"source_index"`
-	DestIndex   int    `json:"dest_index"`
-}
-
-type GetEventForUser struct {
-	Url       string   `json:"url"`
-	Timestamp float64  `json:"timestamp"`
-	IsPlaying bool     `json:"is_playing"`
-	Autoplay  bool     `json:"autoplay"`
-	Looping   bool     `json:"looping"`
-	Subtitles []string `json:"subtitles"`
-}
-
-type SyncEventForUser struct {
-	Timestamp float64 `json:"timestamp"`
-	Priority  string  `json:"priority"`
-	Origin    string  `json:"origin"`
-}
-
-type SyncEventFromUser struct {
-	Uuid      uint64  `json:"uuid"`
-	Timestamp float64 `json:"timestamp"`
-	Username  string  `json:"username"`
-}
-
-type SetEventFromUser struct {
-	Uuid  uint64 `json:"uuid"`
-	Url   string `json:"url"`
-	Proxy bool   `json:"proxy"`
 }

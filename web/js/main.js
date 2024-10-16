@@ -1,6 +1,12 @@
 const DELTA = 1.5;
 
-var uuid = null;
+var user = {
+    id: null,
+    username: null,
+    avatar: null,
+    token: null,
+    connection_id: null,
+};
 
 var player;
 var video;
@@ -33,6 +39,7 @@ function getUrlMediaType(url) {
 async function httpPost(endpoint, data) {
     const headers = new Headers();
     headers.set("Content-Type", "application/json");
+    headers.set("Authorization", user.token);
 
     const options = {
         method: "POST",
@@ -44,18 +51,19 @@ async function httpPost(endpoint, data) {
         const response = await fetch(endpoint, options);
         if (!response.ok) {
             console.error("ERROR: POST request for endpoint: " + endpoint + " failed: " + response.status);
-            return false;
+            return null;
         }
-        return true;
+        return response.json();
     } catch (error) {
         console.error("ERROR: POST request for endpoint: " + endpoint + " failed: " + error);
-        return false;
+        return null;
     }
 }
 
 async function httpGet(endpoint) {
     const headers = new Headers();
     headers.set("Content-Type", "application/json");
+    headers.set("Authorization", user.token);
 
     const options = {
         method: "GET",
@@ -80,6 +88,20 @@ async function httpGet(endpoint) {
 
 /// --------------- SERVER REQUESTS: ---------------
 
+async function apiCreateUser() {
+    let data = await httpGet("/watch/api/createuser");
+    console.info("INFO: Received data from createuser request to the server:");
+    console.log(data);
+    return data;
+}
+
+async function apiGetUser(token) {
+    let data = await httpPost("/watch/api/getuser", token);
+    console.info("INFO: Received data from getuser request to the server:");
+    console.log(data);
+    return data;
+}
+
 async function apiGet() {
     let data = await httpGet("/watch/api/get");
     console.info("INFO: Received data from get request to the server:");
@@ -89,7 +111,7 @@ async function apiGet() {
 
 async function apiSetUrl(url) {
     const payload = {
-        uuid: uuid,
+        uuid: user.connection_id,
         url: url,
         proxy: proxy_checkbox.checked,
     };
@@ -103,7 +125,7 @@ async function apiSetUrl(url) {
 
 async function apiPlay() {
     const payload = {
-        uuid: uuid,
+        uuid: user.connection_id,
         timestamp: video.currentTime,
         username: name_field.value,
     };
@@ -114,7 +136,7 @@ async function apiPlay() {
 
 async function apiPause() {
     const payload = {
-        uuid: uuid,
+        uuuid: user.connection_id,
         timestamp: video.currentTime,
         username: name_field.value,
     };
@@ -125,7 +147,7 @@ async function apiPause() {
 
 async function apiSeek(timestamp) {
     const payload = {
-        uuid: uuid,
+        uuuid: user.connection_id,
         timestamp: timestamp,
         username: name_field.value,
     };
@@ -141,7 +163,7 @@ async function apiPlaylistGet() {
 
 async function apiPlaylistAdd(url) {
     const entry = {
-        uuid: uuid,
+        uuid: user.connection_id,
         username: name_field.value,
         url: url,
     };
@@ -155,7 +177,7 @@ async function apiPlaylistAdd(url) {
 
 async function apiPlaylistClear() {
     console.info("INFO: Sending playlist clear request.");
-    let success = await httpPost("/watch/api/playlist/clear", uuid);
+    let success = await httpPost("/watch/api/playlist/clear", null);
     if (success) {
         removeAllPlaylistElements();
     }
@@ -189,7 +211,7 @@ async function apiPlaylistShuffle() {
 
 async function apiPlaylistMove(source, dest) {
     const payload = {
-        uuid: uuid,
+        uuid: user.connection_id,
         source_index: source,
         dest_index: dest,
     }
@@ -532,12 +554,12 @@ function readEventMaybeResync(type, event) {
 }
 
 function subscribeToServerEvents() {
-    let eventSource = new EventSource("/watch/api/events");
+    let eventSource = new EventSource("/watch/api/events?token=" + user.token);
 
     eventSource.addEventListener("welcome", function (event) {
         console.info("Got a welcome request");
         console.info(event.data);
-        uuid = JSON.parse(event.data);
+        user.connection_id = JSON.parse(event.data);
     });
 
     // Allow user to de-sync themselves freely and watch at their own pace
@@ -827,22 +849,44 @@ function unsubscribeFromPlayerEvents(player) {
     player.on("ended", emptyFunc);
 }
 
-function main() {
+async function getOrCreateUserInAnExtremelyUglyWay() {
+    let user = null
+
+    let token = localStorage.getItem("token");
+    if (!token) {
+        token = await apiCreateUser();
+        localStorage.setItem("token", token)
+        user = await apiGetUser(token);
+    } else {
+        user = await apiGetUser(token);
+        if (!user) {
+            token = await apiCreateUser();
+            localStorage.setItem("token", token)
+            user = await apiGetUser(token);
+        }
+    }
+
+    user.token = token;
+    return user;
+}
+
+async function main() {
+    user = await getOrCreateUserInAnExtremelyUglyWay();
+
     getPlaylist();
     getHistory();
 
     // dummy player
     createFluidPlayer("");
 
-    apiGet().then((state) => {
-        autoplay_checkbox.checked = state.autoplay;
-        looping_checkbox.checked = state.looping;
+    let state = await apiGet();
+    autoplay_checkbox.checked = state.autoplay;
+    looping_checkbox.checked = state.looping;
 
-        subtitles = state.subtitles;
+    subtitles = state.subtitles;
 
-        playerSetUrl(state.url);
-        subscribeToServerEvents();
-    });
+    playerSetUrl(state.url);
+    subscribeToServerEvents();
 }
 
 main();
