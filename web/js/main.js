@@ -93,22 +93,19 @@ async function httpGet(endpoint) {
 
 async function apiUserCreate() {
     let data = await httpGet("/watch/api/user/create");
-    console.info("INFO: Received data from createuser request to the server:");
-    console.log(data);
+    console.info("INFO: Received data from createuser request to the server: " + data);
     return data;
 }
 
 async function apiUserGetAll() {
     let data = await httpGet("/watch/api/user/getall");
-    console.info("INFO: Received data from user getall request to the server:");
-    console.log(data);
+    console.info("INFO: Received data from user getall request to the server: " + data);
     return data;
 }
 
 async function apiUserVerify(token) {
     let data = await httpPost("/watch/api/user/verify", token);
-    console.info("INFO: Received data from user verify request to the server:");
-    console.log(data);
+    console.info("INFO: Received data from user verify request to the server: " + data);
     return data;
 }
 
@@ -119,8 +116,7 @@ async function apiUserUpdateName(username) {
 
 async function apiGet() {
     let data = await httpGet("/watch/api/get");
-    console.info("INFO: Received data from get request to the server:");
-    console.log(data);
+    console.info("INFO: Received data from get request to the server: " + data);
     return data;
 }
 
@@ -306,12 +302,12 @@ function playlistAddInputOnClick() {
 }
 
 function autoplayOnClick() {
-    console.info("Autoplay clicked");
+    console.info("INFO: Autoplay button clicked");
     apiPlaylistAutoplay(autoplay_checkbox.checked);
 }
 
 function loopingOnClick() {
-    console.info("Looping clicked");
+    console.info("INFO: Looping button clicked");
     apiPlaylistLooping(looping_checkbox.checked);
 }
 
@@ -469,8 +465,6 @@ function getPlaylist() {
             return;
         }
 
-        console.log(playlist);
-
         for (var i = 0; i < playlist.length; i++) {
             addPlaylistElement(playlist[i]);
         }
@@ -534,8 +528,6 @@ function getHistory() {
             return;
         }
 
-        console.log(history);
-
         for (var i = 0; i < history.length; i++) {
             addHistoryElement(history[i]);
         }
@@ -558,7 +550,6 @@ function updateConnectedUsers() {
     }
 
     for (var i = 0; i < allUsers.length; i++) {
-        console.log("ASDA" + allUsers[i].connected)
         if (allUsers[i].connections > 0) {
             let cell = connected_tr.insertCell(-1);
             cell.textContent = allUsers[i].username;
@@ -597,9 +588,8 @@ function subscribeToServerEvents() {
     let eventSource = new EventSource("/watch/api/events?token=" + token);
 
     eventSource.addEventListener("welcome", function (event) {
-        console.info("Got a welcome request");
-        console.info(event.data);
         connection_id = JSON.parse(event.data);
+        console.info("INFO: Received a welcome request with connection id: " + connection_id);
 
         apiUserGetAll().then((users) => {
             allUsers = users;
@@ -608,10 +598,9 @@ function subscribeToServerEvents() {
     });
 
     eventSource.addEventListener("connectionadd", function (event) {
-        console.log("Connection add")
-        console.info(event.data);
-
         let userId = JSON.parse(event.data);
+        console.info("INFO: New connection added for user id: " + userId)
+
         for (var i = 0; i < allUsers.length; i++) {
             if (allUsers[i].id == userId) {
                 allUsers[i].connections += 1;
@@ -623,10 +612,9 @@ function subscribeToServerEvents() {
     });
 
     eventSource.addEventListener("connectiondrop", function (event) {
-        console.log("Connection drop")
-        console.info(event.data);
-
         let userId = JSON.parse(event.data);
+        console.info("INFO: Connection dropped for user id: " + userId)
+
         for (var i = 0; i < allUsers.length; i++) {
             if (allUsers[i].id == userId) {
                 allUsers[i].connections -= 1;
@@ -638,19 +626,16 @@ function subscribeToServerEvents() {
     });
 
     eventSource.addEventListener("usercreate", function (event) {
-        console.log("New user created")
-        console.info(event.data);
         let newUser = JSON.parse(event.data)
         allUsers.push(newUser)
-        
+        console.info("INFO: New user has beed created: " + newUser)
         updateConnectedUsers();
     });
 
     eventSource.addEventListener("usernameupdate", function (event) {
-        console.log("User name updated")
-        console.info(event.data);
-
         let updatedUser = JSON.parse(event.data);
+        console.info("INFO: User updated its name: " + updatedUser)
+
         if (updatedUser.id == userSelf.id) {
             userSelf = updatedUser
             input_username.value = userSelf.username;
@@ -710,7 +695,7 @@ function subscribeToServerEvents() {
     });
 
     eventSource.addEventListener("playlistadd", function (event) {
-        console.log("Got playlist add event " + event.data);
+        console.info("INFO: Received playlist add event " + event.data);
         let entry = JSON.parse(event.data);
 
         if (!entry) {
@@ -721,15 +706,15 @@ function subscribeToServerEvents() {
     });
 
     eventSource.addEventListener("playlistclear", function (_event) {
-        console.log("Got playlist clear event");
+        console.info("INFO: Received playlist clear event");
         removeAllPlaylistElements();
     });
 
     eventSource.addEventListener("playlistnext", function (event) {
-        console.log("Got playlist next event: ", event.data);
+        console.info("Received playlist next event: ", event.data);
 
         let url = JSON.parse(event.data);
-        console.log("Media url received from the server: ", url);
+        console.info("INFO: Media url received from the server: ", url);
 
         if (looping_checkbox.checked) {
             // TODO(kihau): This needs to be changed.
@@ -748,12 +733,12 @@ function subscribeToServerEvents() {
     });
 
     eventSource.addEventListener("playlistremove", function (event) {
-        console.log("Got playlist remove event: ", event.data);
+        console.info("INFO: Received playlist remove event: ", event.data);
         removePlaylistElementAt(JSON.parse(event.data));
     });
 
     eventSource.addEventListener("playlistautoplay", function (event) {
-        console.log("Got playlist autoplay event: ", event.data);
+        console.info("INFO: Received playlist autoplay event: ", event.data);
         let autoplay_enabled = JSON.parse(event.data);
         if (autoplay_enabled === null) {
             console.error("ERROR: Failed to parse autoplay json event");
@@ -764,7 +749,7 @@ function subscribeToServerEvents() {
     });
 
     eventSource.addEventListener("playlistlooping", function (event) {
-        console.log("Got playlist looping event: ", event.data);
+        console.info("INFO: Received playlist looping event: ", event.data);
         let looping_enabled = JSON.parse(event.data);
         if (looping_enabled === null) {
             console.error("ERROR: Failed to parse looping json event");
@@ -775,7 +760,7 @@ function subscribeToServerEvents() {
     });
 
     eventSource.addEventListener("playlistshuffle", function (event) {
-        console.log("Got playlist shuffle event: ", event.data);
+        console.info("INFO: Received playlist shuffle event: ", event.data);
         let playlist = JSON.parse(event.data);
         if (playlist === null) {
             console.error("ERROR: Failed to parse playlist shuffle json event.");
@@ -790,7 +775,7 @@ function subscribeToServerEvents() {
     });
 
     eventSource.addEventListener("playlistmove", function (event) {
-        console.log("Got playlist move event: ", event.data);
+        console.info("INFO: Received playlist move event: ", event.data);
         let playlist = JSON.parse(event.data);
         if (playlist === null) {
             console.error("ERROR: Failed to parse playlist move json event.");
@@ -805,7 +790,7 @@ function subscribeToServerEvents() {
     });
 
     eventSource.addEventListener("historyclear", function (_event) {
-        console.log("Got history clear event");
+        console.info("INFO: Received history clear event");
         removeAllHistoryElements();
     });
 }
@@ -921,7 +906,7 @@ function playerOnPause(_event) {
 
 function playerOnSeek(_event) {
     if (programmaticSeek) {
-        console.log("Programmatic seek caught");
+        console.info("INFO: Programmatic seek caught");
         programmaticSeek = false;
         return;
     }
