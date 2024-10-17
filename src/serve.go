@@ -64,10 +64,10 @@ type Connections struct {
 }
 
 type User struct {
-	Id       uint64 `json:"id"`
-	Username string `json:"username"`
-	Avatar   string `json:"avatar"`
-	// Connected     bool   `json:"connected"`
+	Id            uint64 `json:"id"`
+	Username      string `json:"username"`
+	Avatar        string `json:"avatar"`
+	Connections   uint64 `json:"connections"`
 	token         string
 	created       time.Time
 	lastUpdate    time.Time
@@ -127,6 +127,16 @@ func (users *Users) find(token string) *User {
 	}
 
 	return nil
+}
+
+func (users *Users) findIndex(token string) int {
+	for i, user := range users.slice {
+		if user.token == token {
+			return i
+		}
+	}
+
+	return -1
 }
 
 func makeConnections() *Connections {
@@ -262,9 +272,10 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/watch/api/version", apiVersion)
 	http.HandleFunc("/watch/api/login", apiLogin)
 
-	http.HandleFunc("/watch/api/createuser", apiCreateUser)
-	http.HandleFunc("/watch/api/getuser", apiGetUser)
-	http.HandleFunc("/watch/api/updateusername", apiUpdateUserName)
+	http.HandleFunc("/watch/api/user/create", apiUserCreate)
+	http.HandleFunc("/watch/api/user/getall", apiUserGetAll)
+	http.HandleFunc("/watch/api/user/verify", apiUserVerify)
+	http.HandleFunc("/watch/api/user/updatename", apiUserUpdateName)
 
 	http.HandleFunc("/watch/api/get", apiGet)
 	http.HandleFunc("/watch/api/seturl", apiSetUrl)
@@ -434,7 +445,7 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, "This is unimplemented")
 }
 
-func apiCreateUser(w http.ResponseWriter, r *http.Request) {
+func apiUserCreate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		return
 	}
@@ -445,20 +456,49 @@ func apiCreateUser(w http.ResponseWriter, r *http.Request) {
 	user := users.create()
 	users.mutex.Unlock()
 
-	jsonData, err := json.Marshal(user.token)
+	tokenJson, err := json.Marshal(user.token)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	io.WriteString(w, string(jsonData))
+	io.WriteString(w, string(tokenJson))
+
+	userJson, err := json.Marshal(user)
+	conns.mutex.RLock()
+	for _, conn := range conns.slice {
+		if user.Id == conn.userId {
+			continue
+		}
+		writeEvent(conn.writer, "usercreate", string(userJson))
+	}
+	conns.mutex.RUnlock()
 }
 
-func apiGetUser(w http.ResponseWriter, r *http.Request) {
+func apiUserGetAll(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		return
+	}
+
+	log_info("Connection requested %s user get all.", r.RemoteAddr)
+
+	users.mutex.Lock()
+	usersJson, err := json.Marshal(users.slice)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		users.mutex.Unlock()
+		return
+	}
+	users.mutex.Unlock()
+
+	io.WriteString(w, string(usersJson))
+}
+
+func apiUserVerify(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
 	}
 
-	log_info("Connection requested %s user get.", r.RemoteAddr)
+	log_info("Connection requested %s user verification.", r.RemoteAddr)
 
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -494,7 +534,7 @@ func apiGetUser(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(jsonData))
 }
 
-func apiUpdateUserName(w http.ResponseWriter, r *http.Request) {
+func apiUserUpdateName(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
 	}
@@ -518,22 +558,30 @@ func apiUpdateUserName(w http.ResponseWriter, r *http.Request) {
 	}
 
 	token := r.Header.Get("Authorization")
-
-	// TODO(kihau): Send error after failure to find specified user
 	users.mutex.Lock()
-	for i, user := range users.slice {
-		if user.token == token {
-			users.slice[i].Username = new_username
-			break
-		}
+	userIndex := users.findIndex(token)
+	if userIndex == -1 {
+		users.mutex.Unlock()
+		http.Error(w, "User not found", http.StatusUnauthorized)
+		return
 	}
+
+	users.slice[userIndex].Username = new_username
+	users.slice[userIndex].lastUpdate = time.Now()
+	user := users.slice[userIndex]
 	users.mutex.Unlock()
 
-	// if user == nil {
-	// 	http.Error(w, "Failed to find user with specified token", http.StatusBadRequest)
-	// }
-
 	io.WriteString(w, "Username updated")
+
+	userJson, err := json.Marshal(user)
+	conns.mutex.RLock()
+	for _, conn := range conns.slice {
+		if user.Id == conn.userId {
+			continue
+		}
+		writeEvent(conn.writer, "usernameupdate", string(userJson))
+	}
+	conns.mutex.RUnlock()
 }
 
 func apiPlaylistGet(w http.ResponseWriter, r *http.Request) {
@@ -1339,14 +1387,17 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	users.mutex.RLock()
-	user := users.find(token)
-	if user == nil {
+	users.mutex.Lock()
+	userIndex := users.findIndex(token)
+	if userIndex == -1 {
 		http.Error(w, "User not found", http.StatusUnauthorized)
 		log_error("Failed to connect to event stream. User not found.")
 		return
 	}
-	users.mutex.RUnlock()
+
+	users.slice[userIndex].Connections += 1
+	user := users.slice[userIndex]
+	users.mutex.Unlock()
 
 	conns.mutex.Lock()
 	connection_id := conns.add(w, user.Id)
@@ -1359,14 +1410,24 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	jsonData, err := json.Marshal(connection_id)
+	connIdJson, err := json.Marshal(connection_id)
 	if err != nil {
 		log_error("Failed to serialize welcome message for: %v", r.RemoteAddr)
 		http.Error(w, "Failed to serialize welcome message", http.StatusInternalServerError)
 		return
 	} else {
-		writeEvent(w, "welcome", string(jsonData))
+		writeEvent(w, "welcome", string(connIdJson))
 	}
+
+	userIdJson, _ := json.Marshal(user.Id)
+	conns.mutex.RLock()
+	for _, conn := range conns.slice {
+		if user.Id == conn.userId && conn.id == connection_id {
+			continue
+		}
+		writeEvent(conn.writer, "connectionadd", string(userIdJson))
+	}
+	conns.mutex.RUnlock()
 
 	for {
 		var eventType string
@@ -1382,6 +1443,20 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 			conns.remove(connection_id)
 			connection_count = len(conns.slice)
 			conns.mutex.Unlock()
+
+			users.mutex.Lock()
+			for _, conn := range conns.slice {
+				if user.Id == conn.userId && conn.id == connection_id {
+					continue
+				}
+				writeEvent(conn.writer, "connectiondrop", string(userIdJson))
+			}
+
+			userIndex := users.findIndex(token)
+			if userIndex != -1 {
+				users.slice[userIndex].Connections -= 1
+			}
+			users.mutex.Unlock()
 
 			log_info("Connection with %s dropped. Current connection count: %d", r.RemoteAddr, connection_count)
 			break

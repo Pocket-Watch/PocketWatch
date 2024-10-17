@@ -61,6 +61,29 @@
     <label>Currently set URL:</label><br />
     <input readonly="true" type="text" id="current_url" size="100" />
 
+    <br>
+    <br>
+
+    <link href="css/playlist.css" rel="stylesheet" />
+    <table>
+        <thead>
+            <tr>
+                <th scope="row" colspan="100%">
+                    <label>(TODO) Connected users:</label>
+                </th>
+            </tr>
+        </thead>
+
+        <tbody id="connected_users">
+            <tr>
+                <td>Kihau</td>
+                <td>Frisk</td>
+            </tr>
+        </tbody>
+    </table>
+
+
+
     <h2>Upload media</h2>
     <input type="file" id="file_input">
     <button onclick="uploadFile()">Upload</button>
@@ -145,15 +168,15 @@
         <thead>
             <tr>
                 <th scope="row">
-                    <button onclick="historyClearOnClick()">Clear</button>
-                    <label>History</label>
+                    <button onclick="historyclearonclick()">clear</button>
+                    <label>history</label>
                 </th>
             </tr>
         </thead>
 
         <thead>
             <tr>
-                <th scope="col">Url</th>
+                <th scope="col">url</th>
             </tr>
         </thead>
         <tbody id="history_entries">

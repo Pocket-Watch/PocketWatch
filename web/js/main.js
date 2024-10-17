@@ -89,23 +89,30 @@ async function httpGet(endpoint) {
 
 /// --------------- SERVER REQUESTS: ---------------
 
-async function apiCreateUser() {
-    let data = await httpGet("/watch/api/createuser");
+async function apiUserCreate() {
+    let data = await httpGet("/watch/api/user/create");
     console.info("INFO: Received data from createuser request to the server:");
     console.log(data);
     return data;
 }
 
-async function apiGetUser(token) {
-    let data = await httpPost("/watch/api/getuser", token);
-    console.info("INFO: Received data from getuser request to the server:");
+async function apiUserGetAll() {
+    let data = await httpGet("/watch/api/user/getall");
+    console.info("INFO: Received data from user getall request to the server:");
     console.log(data);
     return data;
 }
 
-async function apiUpdateUserName(username) {
+async function apiUserVerify(token) {
+    let data = await httpPost("/watch/api/user/verify", token);
+    console.info("INFO: Received data from user verify request to the server:");
+    console.log(data);
+    return data;
+}
+
+async function apiUserUpdateName(username) {
     console.info("INFO: Sending update username request.");
-    httpPost("/watch/api/updateusername", username);
+    httpPost("/watch/api/user/updatename", username);
 }
 
 async function apiGet() {
@@ -351,7 +358,7 @@ function historyClearOnClick() {
 }
 
 function updateUsernameOnClick() {
-    apiUpdateUserName(input_username.value);
+    apiUserUpdateName(input_username.value);
 }
 
 function clearSessionOnClick() {
@@ -574,6 +581,26 @@ function subscribeToServerEvents() {
         console.info("Got a welcome request");
         console.info(event.data);
         user.connection_id = JSON.parse(event.data);
+    });
+
+    eventSource.addEventListener("connectionadd", function (event) {
+        console.log("Connection add")
+        console.info(event.data);
+    });
+
+    eventSource.addEventListener("connectiondrop", function (event) {
+        console.log("Connection drop")
+        console.info(event.data);
+    });
+
+    eventSource.addEventListener("usercreate", function (event) {
+        console.log("New user created")
+        console.info(event.data);
+    });
+
+    eventSource.addEventListener("usernameupdate", function (event) {
+        console.log("User name updated")
+        console.info(event.data);
     });
 
     // Allow user to de-sync themselves freely and watch at their own pace
@@ -866,15 +893,15 @@ async function getOrCreateUserInAnExtremelyUglyWay() {
 
     let token = localStorage.getItem("token");
     if (!token) {
-        token = await apiCreateUser();
+        token = await apiUserCreate();
         localStorage.setItem("token", token)
-        user = await apiGetUser(token);
+        user = await apiUserVerify(token);
     } else {
-        user = await apiGetUser(token);
+        user = await apiUserVerify(token);
         if (!user) {
-            token = await apiCreateUser();
+            token = await apiUserCreate();
             localStorage.setItem("token", token)
-            user = await apiGetUser(token);
+            user = await apiUserVerify(token);
         }
     }
 
@@ -885,6 +912,9 @@ async function getOrCreateUserInAnExtremelyUglyWay() {
 async function main() {
     user = await getOrCreateUserInAnExtremelyUglyWay();
     input_username.value = user.username;
+
+    let allUsers = apiUserGetAll();
+    console.log(allUsers);
 
     getPlaylist();
     getHistory();
