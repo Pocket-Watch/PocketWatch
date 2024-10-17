@@ -1329,8 +1329,12 @@ func setupProxy(url string, referer string) {
 	}
 
 	if m3u.isMasterPlaylist {
-		log_error("Master playlists are currently not supported!")
-		// Fetch highest resolution from m3u.tracks
+		log_info("User provided a master playlist. The best track will be chosen based on quality.")
+		track := m3u.getBestTrack()
+		if track != nil {
+			// a malicious user could cause an infinite setup loop if they provided a carefully crafted m3u8
+			setupProxy(track.url, referer)
+		}
 		return
 	}
 

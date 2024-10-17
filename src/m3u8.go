@@ -278,6 +278,34 @@ func (m3u *M3U) totalDuration() float64 {
 	return seconds
 }
 
+// Fetches highest resolution from m3u.tracks
+// this method should only be used if the m3u is a master playlist
+func (m3u *M3U) getBestTrack() *Track {
+	var bestTrack *Track = nil
+	var bestWidth int64 = 0
+	for _, track := range m3u.tracks {
+		for _, param := range track.streamInfo {
+			if param.key != "RESOLUTION" {
+				continue
+			}
+			res := strings.ToLower(param.value)
+			x := strings.Index(res, "x")
+			if x == -1 {
+				continue
+			}
+			vidWidth, err := strconv.ParseInt(res[:x], 10, 32)
+			if err != nil {
+				continue
+			}
+			if vidWidth > bestWidth {
+				bestWidth = vidWidth
+				bestTrack = &track
+			}
+		}
+	}
+	return bestTrack
+}
+
 func (m3u *M3U) copy() M3U {
 	m3uCopy := newM3U(uint32(len(m3u.segments)))
 
