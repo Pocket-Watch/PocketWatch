@@ -39,7 +39,7 @@
     - [x] Playlist entry reordering
     - [ ] Update playlist entries when a user changes their name
 - [x] Subtitle support
-- [ ] Display connected users
+- [x] Display connected users
 - [ ] Convert srt to vtt
 - [ ] Add watch history
     - [x] Implement history add

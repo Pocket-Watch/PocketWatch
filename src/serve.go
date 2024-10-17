@@ -576,9 +576,6 @@ func apiUserUpdateName(w http.ResponseWriter, r *http.Request) {
 	userJson, err := json.Marshal(user)
 	conns.mutex.RLock()
 	for _, conn := range conns.slice {
-		if user.Id == conn.userId {
-			continue
-		}
 		writeEvent(conn.writer, "usernameupdate", string(userJson))
 	}
 	conns.mutex.RUnlock()

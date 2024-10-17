@@ -1,11 +1,13 @@
 const DELTA = 1.5;
 
-var user = {
-    id: null,
-    username: null,
-    avatar: null,
-    token: null,
-    connection_id: null,
+var allUsers = [];
+
+var userSelf = {
+    id: 0,
+    username: "",
+    avatar: "",
+    token: "",
+    connection_id: 0,
 };
 
 var player;
@@ -40,7 +42,7 @@ function getUrlMediaType(url) {
 async function httpPost(endpoint, data) {
     const headers = new Headers();
     headers.set("Content-Type", "application/json");
-    headers.set("Authorization", user.token);
+    headers.set("Authorization", userSelf.token);
 
     const options = {
         method: "POST",
@@ -64,7 +66,7 @@ async function httpPost(endpoint, data) {
 async function httpGet(endpoint) {
     const headers = new Headers();
     headers.set("Content-Type", "application/json");
-    headers.set("Authorization", user.token);
+    headers.set("Authorization", userSelf.token);
 
     const options = {
         method: "GET",
@@ -124,7 +126,7 @@ async function apiGet() {
 
 async function apiSetUrl(url) {
     const payload = {
-        uuid: user.connection_id,
+        uuid: userSelf.connection_id,
         url: url,
         proxy: proxy_checkbox.checked,
         referer: referer_input.value,
@@ -136,9 +138,9 @@ async function apiSetUrl(url) {
 
 async function apiPlay() {
     const payload = {
-        uuid: user.connection_id,
+        uuid: userSelf.connection_id,
         timestamp: video.currentTime,
-        username: user.username,
+        username: userSelf.username,
     };
 
     console.info("INFO: Sending play request to the server.");
@@ -147,9 +149,9 @@ async function apiPlay() {
 
 async function apiPause() {
     const payload = {
-        uuuid: user.connection_id,
+        uuuid: userSelf.connection_id,
         timestamp: video.currentTime,
-        username: user.username,
+        username: userSelf.username,
     };
 
     console.info("INFO: Sending pause request to the server.");
@@ -158,9 +160,9 @@ async function apiPause() {
 
 async function apiSeek(timestamp) {
     const payload = {
-        uuuid: user.connection_id,
+        uuuid: userSelf.connection_id,
         timestamp: timestamp,
-        username: user.username,
+        username: userSelf.username,
     };
 
     console.info("INFO: Sending seek request to the server.");
@@ -174,8 +176,8 @@ async function apiPlaylistGet() {
 
 async function apiPlaylistAdd(url) {
     const entry = {
-        uuid: user.connection_id,
-        username: user.username,
+        uuid: userSelf.connection_id,
+        username: userSelf.username,
         url: url,
     };
 
@@ -222,7 +224,7 @@ async function apiPlaylistShuffle() {
 
 async function apiPlaylistMove(source, dest) {
     const payload = {
-        uuid: user.connection_id,
+        uuid: userSelf.connection_id,
         source_index: source,
         dest_index: dest,
     }
@@ -547,6 +549,23 @@ function removeAllHistoryElements() {
     }
 }
 
+/// --------------- CONNECTED USERS: ---------------
+
+function updateConnectedUsers() {
+    let connected_tr = document.getElementById("connected_users");
+    while (connected_tr.firstChild) {
+        connected_tr.removeChild(connected_tr.firstChild);
+    }
+
+    for (var i = 0; i < allUsers.length; i++) {
+        console.log("ASDA" + allUsers[i].connected)
+        if (allUsers[i].connections > 0) {
+            let cell = connected_tr.insertCell(-1);
+            cell.textContent = allUsers[i].username;
+        }
+    }
+}
+
 /// --------------- SERVER EVENTS: ---------------
 
 function readEventMaybeResync(type, event) {
@@ -575,32 +594,76 @@ function readEventMaybeResync(type, event) {
 }
 
 function subscribeToServerEvents() {
-    let eventSource = new EventSource("/watch/api/events?token=" + user.token);
+    let eventSource = new EventSource("/watch/api/events?token=" + userSelf.token);
 
     eventSource.addEventListener("welcome", function (event) {
         console.info("Got a welcome request");
         console.info(event.data);
-        user.connection_id = JSON.parse(event.data);
+        userSelf.connection_id = JSON.parse(event.data);
+
+        apiUserGetAll().then((users) => {
+            allUsers = users;
+            updateConnectedUsers();
+        })
     });
 
     eventSource.addEventListener("connectionadd", function (event) {
         console.log("Connection add")
         console.info(event.data);
+
+        let userId = JSON.parse(event.data);
+        for (var i = 0; i < allUsers.length; i++) {
+            if (allUsers[i].id == userId) {
+                allUsers[i].connections += 1;
+                break;
+            }
+        }
+
+        updateConnectedUsers();
     });
 
     eventSource.addEventListener("connectiondrop", function (event) {
         console.log("Connection drop")
         console.info(event.data);
+
+        let userId = JSON.parse(event.data);
+        for (var i = 0; i < allUsers.length; i++) {
+            if (allUsers[i].id == userId) {
+                allUsers[i].connections -= 1;
+                break;
+            }
+        }
+        
+        updateConnectedUsers();
     });
 
     eventSource.addEventListener("usercreate", function (event) {
         console.log("New user created")
         console.info(event.data);
+        let newUser = JSON.parse(event.data)
+        allUsers.push(newUser)
+        
+        updateConnectedUsers();
     });
 
     eventSource.addEventListener("usernameupdate", function (event) {
         console.log("User name updated")
         console.info(event.data);
+
+        let updatedUser = JSON.parse(event.data);
+        if (updatedUser.id == userSelf.id) {
+            userSelf = updatedUser
+            input_username.value = userSelf.username;
+        }
+
+        for (var i = 0; i < allUsers.length; i++) {
+            if (allUsers[i].id == updatedUser.id) {
+                allUsers[i] = updatedUser;
+                break;
+            }
+        }
+        
+        updateConnectedUsers();
     });
 
     // Allow user to de-sync themselves freely and watch at their own pace
@@ -910,11 +973,8 @@ async function getOrCreateUserInAnExtremelyUglyWay() {
 }
 
 async function main() {
-    user = await getOrCreateUserInAnExtremelyUglyWay();
-    input_username.value = user.username;
-
-    let allUsers = apiUserGetAll();
-    console.log(allUsers);
+    userSelf = await getOrCreateUserInAnExtremelyUglyWay();
+    input_username.value = userSelf.username;
 
     getPlaylist();
     getHistory();
