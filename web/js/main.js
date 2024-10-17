@@ -93,19 +93,19 @@ async function httpGet(endpoint) {
 
 async function apiUserCreate() {
     let data = await httpGet("/watch/api/user/create");
-    console.info("INFO: Received data from createuser request to the server: " + data);
+    console.info("INFO: Received data from createuser request to the server: ", data);
     return data;
 }
 
 async function apiUserGetAll() {
     let data = await httpGet("/watch/api/user/getall");
-    console.info("INFO: Received data from user getall request to the server: " + data);
+    console.info("INFO: Received data from user getall request to the server: ", data);
     return data;
 }
 
 async function apiUserVerify(token) {
     let data = await httpPost("/watch/api/user/verify", token);
-    console.info("INFO: Received data from user verify request to the server: " + data);
+    console.info("INFO: Received data from user verify request to the server: ", data);
     return data;
 }
 
@@ -116,7 +116,7 @@ async function apiUserUpdateName(username) {
 
 async function apiGet() {
     let data = await httpGet("/watch/api/get");
-    console.info("INFO: Received data from get request to the server: " + data);
+    console.info("INFO: Received data from get request to the server: ", data);
     return data;
 }
 
@@ -589,7 +589,7 @@ function subscribeToServerEvents() {
 
     eventSource.addEventListener("welcome", function (event) {
         connection_id = JSON.parse(event.data);
-        console.info("INFO: Received a welcome request with connection id: " + connection_id);
+        console.info("INFO: Received a welcome request with connection id: ", connection_id);
 
         apiUserGetAll().then((users) => {
             allUsers = users;
@@ -599,7 +599,7 @@ function subscribeToServerEvents() {
 
     eventSource.addEventListener("connectionadd", function (event) {
         let userId = JSON.parse(event.data);
-        console.info("INFO: New connection added for user id: " + userId)
+        console.info("INFO: New connection added for user id: ", userId)
 
         for (var i = 0; i < allUsers.length; i++) {
             if (allUsers[i].id == userId) {
@@ -613,7 +613,7 @@ function subscribeToServerEvents() {
 
     eventSource.addEventListener("connectiondrop", function (event) {
         let userId = JSON.parse(event.data);
-        console.info("INFO: Connection dropped for user id: " + userId)
+        console.info("INFO: Connection dropped for user id: ", userId)
 
         for (var i = 0; i < allUsers.length; i++) {
             if (allUsers[i].id == userId) {
@@ -628,13 +628,13 @@ function subscribeToServerEvents() {
     eventSource.addEventListener("usercreate", function (event) {
         let newUser = JSON.parse(event.data)
         allUsers.push(newUser)
-        console.info("INFO: New user has beed created: " + newUser)
+        console.info("INFO: New user has beed created: ", newUser)
         updateConnectedUsers();
     });
 
     eventSource.addEventListener("usernameupdate", function (event) {
         let updatedUser = JSON.parse(event.data);
-        console.info("INFO: User updated its name: " + updatedUser)
+        console.info("INFO: User updated its name: ", updatedUser)
 
         if (updatedUser.id == userSelf.id) {
             userSelf = updatedUser
@@ -695,7 +695,7 @@ function subscribeToServerEvents() {
     });
 
     eventSource.addEventListener("playlistadd", function (event) {
-        console.info("INFO: Received playlist add event " + event.data);
+        console.info("INFO: Received playlist add event: ", event.data);
         let entry = JSON.parse(event.data);
 
         if (!entry) {
