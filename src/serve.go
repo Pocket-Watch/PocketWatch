@@ -393,10 +393,19 @@ func watchProxy(writer http.ResponseWriter, request *http.Request) {
 	http.ServeFile(writer, request, WEB_PROXY+chunk)
 }
 
+func inferOrigin(referer string) string {
+	if strings.HasSuffix(referer, "/") {
+		length := len(referer)
+		return referer[:length-1]
+	}
+	return referer
+}
+
 func downloadFile(url string, filename string, referer string) error {
 	request, _ := http.NewRequest("GET", url, nil)
 	if referer != "" {
 		request.Header.Set("Referer", referer)
+		request.Header.Set("Origin", inferOrigin(referer))
 	}
 	response, err := client.Do(request)
 

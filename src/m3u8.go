@@ -368,6 +368,7 @@ func downloadM3U(url string, filename string, referer string) (*M3U, error) {
 	request, _ := http.NewRequest("GET", url, nil)
 	if referer != "" {
 		request.Header.Set("Referer", referer)
+		request.Header.Set("Origin", inferOrigin(referer))
 	}
 	response, err := client.Do(request)
 	if err != nil {
