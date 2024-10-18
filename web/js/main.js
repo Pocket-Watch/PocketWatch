@@ -2,7 +2,8 @@ const DELTA = 1.5;
 
 var allUsers = [];
 var token = "";
-var connection_id =  0;
+var connectionId = 0;
+var currentEntryId = 0;
 
 var userSelf = {
     id: 0,
@@ -93,7 +94,38 @@ async function httpGet(endpoint) {
     return null;
 }
 
+function findUserById(userId) {
+    for (let i = 0; i < allUsers.length; i++) {
+        const user = allUsers[i];
+        if (user.id == userId) {
+            return user;
+        }
+    }
+
+    const user = {
+        id: 0,
+        username: "",
+        avatar: "",
+    };
+
+    return user;
+}
+
 /// --------------- SERVER REQUESTS: ---------------
+
+function createApiEntry(url) {
+    const entry = {
+        id: currentEntryId,
+        url: url,
+        title: "TODO(kihau): Add custom titles",
+        user_id: userSelf.id,
+        use_proxy: proxy_checkbox.checked,
+        referer_url: referer_input.value,
+        created: new Date,
+    };
+
+    return entry;
+}
 
 async function apiUserCreate() {
     let data = await httpGet("/watch/api/user/create");
@@ -125,19 +157,9 @@ async function apiGet() {
 }
 
 async function apiSetUrl(url) {
-    const entry = {
-        id: 0,
-        url: url,
-        title: "TODO(kihau): Add custom titles",
-        user_id: userSelf.id,
-        use_proxy: proxy_checkbox.checked,
-        referer_url: referer_input.value,
-        created: new Date,
-    };
-
     const payload = {
-        connection_id: connection_id,
-        entry: entry,
+        connection_id: connectionId,
+        entry: createApiEntry(url),
     };
 
     console.info("INFO: Sending seturl request for a new url");
@@ -146,7 +168,7 @@ async function apiSetUrl(url) {
 
 async function apiPlay() {
     const payload = {
-        connection_id: connection_id,
+        connection_id: connectionId,
         timestamp: video.currentTime,
     };
 
@@ -156,7 +178,7 @@ async function apiPlay() {
 
 async function apiPause() {
     const payload = {
-        connection_id: connection_id,
+        connection_id: connectionId,
         timestamp: video.currentTime,
     };
 
@@ -166,7 +188,7 @@ async function apiPause() {
 
 async function apiSeek() {
     const payload = {
-        connection_id: connection_id,
+        connection_id: connectionId,
         timestamp: video.currentTime,
     };
 
@@ -180,36 +202,40 @@ async function apiPlaylistGet() {
 }
 
 async function apiPlaylistAdd(url) {
-    const entry = {
-        uuid: connection_id,
-        username: userSelf.username,
-        url: url,
+    const payload = {
+        connection_id: connectionId,
+        entry: createApiEntry(url),
     };
 
-    console.info("INFO: Sending playlist add request for entry: ", entry);
-    let success = await httpPost("/watch/api/playlist/add", entry);
-    if (success) {
-        addPlaylistElement(entry);
-    }
+    console.info("INFO: Sending playlist add request for entry: ", payload);
+    httpPost("/watch/api/playlist/add", payload);
 }
 
 async function apiPlaylistClear() {
     console.info("INFO: Sending playlist clear request.");
-    let success = await httpPost("/watch/api/playlist/clear", null);
-    if (success) {
-        removeAllPlaylistElements();
-    }
+    httpPost("/watch/api/playlist/clear", connectionId);
 }
 
-async function apiPlaylistNext(current_url) {
+async function apiPlaylistNext() {
+    const payload = {
+        connection_id: connectionId,
+        entry_id: currentEntryId,
+    };
+
     console.info("INFO: Sending playlist next request.");
-    httpPost("/watch/api/playlist/next", current_url);
+    httpPost("/watch/api/playlist/next", payload);
 }
 
-// NOTE(kihau): Might be faulty. See comment in watchPlaylistRemove() in serve.go.
 async function apiPlaylistRemove(index) {
+    const payload = {
+        connection_id: connectionId,
+        // TODO(kihau): ID of the entry of be removed.
+        entry_id: 0,
+        index: index,
+    };
+
     console.info("INFO: Sending playlist remove request.");
-    httpPost("/watch/api/playlist/remove", index);
+    httpPost("/watch/api/playlist/remove", payload);
 }
 
 async function apiPlaylistAutoplay(state) {
@@ -229,14 +255,15 @@ async function apiPlaylistShuffle() {
 
 async function apiPlaylistMove(source, dest) {
     const payload = {
-        uuid: connection_id,
+        connection_id: connectionId, 
+        // TODO(kihau): ID of the entry of be moved.
+        entry_id: 0,
         source_index: source,
         dest_index: dest,
     }
 
     console.info("INFO: Sending playlist move request with: ", payload);
     httpPost("/watch/api/playlist/move", payload);
-
 }
 
 async function apiHistoryGet() {
@@ -248,7 +275,6 @@ async function apiHistoryClear() {
     console.info("INFO: Sending history clear request.");
     httpPost("/watch/api/history/clear", null);
 }
-
 
 /// --------------- HTML ELEMENT CALLBACKS: ---------------
 
@@ -275,12 +301,10 @@ function setUrlOnClick() {
 }
 
 function skipOnClick() {
-    let url = current_url.value;
+    console.info("INFO: Skip button was clicked");
 
     addHistoryElement(current_url.value);
-
-    console.info("INFO: Current video source url: ", url);
-    apiPlaylistNext(url);
+    apiPlaylistNext();
 }
 
 function inputPlaylistOnKeypress(event) {
@@ -411,8 +435,6 @@ function addPlaylistElement(entry) {
     tr.draggable = true;
 
     tr.ondragstart = (event) => {
-        console.debug(event.target);
-
         event.dataTransfer.effectAllowed = "move";
         // event.dataTransfer.setData("text/plain", null);
 
@@ -445,11 +467,12 @@ function addPlaylistElement(entry) {
     playlistEntries.appendChild(tr);
 
     let th = document.createElement("th");
-    th.textContent =  playlistEntries.childElementCount + ".";
+    th.textContent = playlistEntries.childElementCount + ".";
     th.scope = "row";
     tr.appendChild(th);
 
-    let username = entry.username;
+    let user = findUserById(entry.user_id);
+    let username = user.username;
     if (!username) {
         username = "<unknown>";
     }
@@ -457,6 +480,7 @@ function addPlaylistElement(entry) {
     let cell = tr.insertCell(-1);
     cell.textContent = username;
 
+    // TODO(kihau): Display this as a hlink when entry.title != ""
     cell = tr.insertCell(-1);
     cell.textContent = entry.url;
 
@@ -601,17 +625,20 @@ function readEventMaybeResync(type, event) {
 function subscribeToServerEvents() {
     let eventSource = new EventSource("/watch/api/events?token=" + token);
 
-    eventSource.addEventListener("welcome", function (event) {
-        connection_id = JSON.parse(event.data);
-        console.info("INFO: Received a welcome request with connection id: ", connection_id);
+    eventSource.addEventListener("welcome", function(event) {
+        connectionId = JSON.parse(event.data);
+        console.info("INFO: Received a welcome request with connection id: ", connectionId);
 
         apiUserGetAll().then((users) => {
             allUsers = users;
             updateConnectedUsers();
+
+            getPlaylist();
+            getHistory();
         })
     });
 
-    eventSource.addEventListener("connectionadd", function (event) {
+    eventSource.addEventListener("connectionadd", function(event) {
         let userId = JSON.parse(event.data);
         console.info("INFO: New connection added for user id: ", userId)
 
@@ -625,7 +652,7 @@ function subscribeToServerEvents() {
         updateConnectedUsers();
     });
 
-    eventSource.addEventListener("connectiondrop", function (event) {
+    eventSource.addEventListener("connectiondrop", function(event) {
         let userId = JSON.parse(event.data);
         console.info("INFO: Connection dropped for user id: ", userId)
 
@@ -635,18 +662,18 @@ function subscribeToServerEvents() {
                 break;
             }
         }
-        
+
         updateConnectedUsers();
     });
 
-    eventSource.addEventListener("usercreate", function (event) {
+    eventSource.addEventListener("usercreate", function(event) {
         let newUser = JSON.parse(event.data)
         allUsers.push(newUser)
         console.info("INFO: New user has beed created: ", newUser)
         updateConnectedUsers();
     });
 
-    eventSource.addEventListener("usernameupdate", function (event) {
+    eventSource.addEventListener("usernameupdate", function(event) {
         let updatedUser = JSON.parse(event.data);
         console.info("INFO: User updated its name: ", updatedUser)
 
@@ -661,12 +688,12 @@ function subscribeToServerEvents() {
                 break;
             }
         }
-        
+
         updateConnectedUsers();
     });
 
     // Allow user to de-sync themselves freely and watch at their own pace
-    eventSource.addEventListener("play", function (event) {
+    eventSource.addEventListener("play", function(event) {
         if (!player) {
             return;
         }
@@ -681,7 +708,7 @@ function subscribeToServerEvents() {
         }
     });
 
-    eventSource.addEventListener("pause", function (event) {
+    eventSource.addEventListener("pause", function(event) {
         if (!player) {
             return;
         }
@@ -694,7 +721,7 @@ function subscribeToServerEvents() {
         }
     });
 
-    eventSource.addEventListener("seek", function (event) {
+    eventSource.addEventListener("seek", function(event) {
         if (!player) {
             return;
         }
@@ -702,15 +729,17 @@ function subscribeToServerEvents() {
         readEventMaybeResync("seek", event);
     });
 
-    eventSource.addEventListener("seturl", function (event) {
+    eventSource.addEventListener("seturl", function(event) {
         let entry = JSON.parse(event.data);
         console.info("INFO: Media url received from the server: ", entry.url);
+
+        currentEntryId = entry.id;
         playerSetUrl(entry.url);
     });
 
-    eventSource.addEventListener("playlistadd", function (event) {
-        console.info("INFO: Received playlist add event: ", event.data);
+    eventSource.addEventListener("playlistadd", function(event) {
         let entry = JSON.parse(event.data);
+        console.info("INFO: Received playlist add event:", entry);
 
         if (!entry) {
             return;
@@ -719,39 +748,36 @@ function subscribeToServerEvents() {
         addPlaylistElement(entry);
     });
 
-    eventSource.addEventListener("playlistclear", function (_event) {
+    eventSource.addEventListener("playlistclear", function(_event) {
         console.info("INFO: Received playlist clear event");
         removeAllPlaylistElements();
     });
 
-    eventSource.addEventListener("playlistnext", function (event) {
+    eventSource.addEventListener("playlistnext", function(event) {
         console.info("Received playlist next event: ", event.data);
 
-        let url = JSON.parse(event.data);
-        console.info("INFO: Media url received from the server: ", url);
+        let response = JSON.parse(event.data);
+        console.info("INFO: Received a playlist next server response: ", response);
 
         if (looping_checkbox.checked) {
-            // TODO(kihau): This needs to be changed.
-            const dummyEntry = {
-                url: current_url.value,
-                username: "<unknown>",
-            };
-
-            addPlaylistElement(dummyEntry);
+            addPlaylistElement(response.prev_entry);
         }
 
+        currentEntryId = response.new_entry.id
+
         destroyPlayer();
-        createFluidPlayer(url);
+        createFluidPlayer(response.new_entry.url);
 
         removeFirstPlaylistElement();
     });
 
-    eventSource.addEventListener("playlistremove", function (event) {
-        console.info("INFO: Received playlist remove event: ", event.data);
-        removePlaylistElementAt(JSON.parse(event.data));
+    eventSource.addEventListener("playlistremove", function(event) {
+        let data = JSON.parse(event.data);
+        console.info("INFO: Received playlist remove event:", data);
+        removePlaylistElementAt(data);
     });
 
-    eventSource.addEventListener("playlistautoplay", function (event) {
+    eventSource.addEventListener("playlistautoplay", function(event) {
         console.info("INFO: Received playlist autoplay event: ", event.data);
         let autoplay_enabled = JSON.parse(event.data);
         if (autoplay_enabled === null) {
@@ -762,7 +788,7 @@ function subscribeToServerEvents() {
         autoplay_checkbox.checked = autoplay_enabled;
     });
 
-    eventSource.addEventListener("playlistlooping", function (event) {
+    eventSource.addEventListener("playlistlooping", function(event) {
         console.info("INFO: Received playlist looping event: ", event.data);
         let looping_enabled = JSON.parse(event.data);
         if (looping_enabled === null) {
@@ -773,7 +799,7 @@ function subscribeToServerEvents() {
         looping_checkbox.checked = looping_enabled;
     });
 
-    eventSource.addEventListener("playlistshuffle", function (event) {
+    eventSource.addEventListener("playlistshuffle", function(event) {
         console.info("INFO: Received playlist shuffle event: ", event.data);
         let playlist = JSON.parse(event.data);
         if (playlist === null) {
@@ -788,9 +814,9 @@ function subscribeToServerEvents() {
         }
     });
 
-    eventSource.addEventListener("playlistmove", function (event) {
-        console.info("INFO: Received playlist move event: ", event.data);
+    eventSource.addEventListener("playlistmove", function(event) {
         let playlist = JSON.parse(event.data);
+        console.info("INFO: Received playlist move event:", playlist);
         if (playlist === null) {
             console.error("ERROR: Failed to parse playlist move json event.");
             return;
@@ -803,7 +829,7 @@ function subscribeToServerEvents() {
         }
     });
 
-    eventSource.addEventListener("historyclear", function (_event) {
+    eventSource.addEventListener("historyclear", function(_event) {
         console.info("INFO: Received history clear event");
         removeAllHistoryElements();
     });
@@ -930,8 +956,7 @@ function playerOnSeek(_event) {
 
 function playerOnEnded(_event) {
     if (autoplay_checkbox.checked) {
-        let url = current_url.value;
-        apiPlaylistNext(url);
+        apiPlaylistNext();
     }
 }
 
@@ -943,7 +968,7 @@ function subscribeToPlayerEvents(player) {
 }
 
 function unsubscribeFromPlayerEvents(player) {
-    let emptyFunc = function() {}
+    let emptyFunc = function() { }
     player.on("play", emptyFunc);
     player.on("pause", emptyFunc);
     player.on("seeked", emptyFunc);
@@ -974,16 +999,13 @@ async function main() {
     userSelf = await getOrCreateUserInAnExtremelyUglyWay();
     input_username.value = userSelf.username;
 
-    getPlaylist();
-    getHistory();
-
     // dummy player
     createFluidPlayer("");
 
     let state = await apiGet();
     autoplay_checkbox.checked = state.player.autoplay;
     looping_checkbox.checked = state.player.looping;
-
+    currentEntryId = state.entry.id;
     subtitles = state.subtitles;
 
     playerSetUrl(state.entry.url);

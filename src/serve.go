@@ -196,42 +196,15 @@ func (conns *Connections) remove(id uint64) {
 	}
 }
 
-type PlaylistAddRequestData struct {
-	ConnectionId uint64 `json:"connection_id"`
-	Entry        Entry  `json:"entry"`
-}
-
-type PlaylistNextRequestData struct {
-	ConnectionId   uint64 `json:"connection_id"`
-	CurrentEntryId uint64 `json:"current_entry_id"`
-}
-
-// type PlaylistRemoveRequestData struct {
-// 	ConnectionId   uint64 `json:"connection_id"`
-// 	CurrentEntryId uint64 `json:"current_entry_id"`
-// 	Index          int    `json:"index"`
-// }
-
-type PlaylistAutoplayRequestData struct {
-	Uuid     uint64 `json:"uuid"`
-	Autoplay bool   `json:"autoplay"`
-}
-
-type PlaylistLoopingRequestData struct {
-	Uuid    uint64 `json:"uuid"`
-	Looping bool   `json:"looping"`
-}
-
-type PlaylistMoveRequestData struct {
-	ConnectionId uint64 `json:"connection_id"`
-	SourceIndex  int    `json:"source_index"`
-	DestIndex    int    `json:"dest_index"`
-}
-
 type GetResponseData struct {
 	Player    PlayerState `json:"player"`
 	Entry     Entry       `json:"entry"`
 	Subtitles []string    `json:"subtitles"`
+}
+
+type SyncRequestData struct {
+	ConnectionId uint64  `json:"connection_id"`
+	Timestamp    float64 `json:"timestamp"`
 }
 
 type SyncEventData struct {
@@ -240,14 +213,47 @@ type SyncEventData struct {
 	UserId    uint64  `json:"user_id"`
 }
 
-type SyncRequestData struct {
-	ConnectionId uint64  `json:"connection_id"`
-	Timestamp    float64 `json:"timestamp"`
-}
-
 type SetUrlResponseData struct {
 	ConnectionId uint64 `json:"connection_id"`
 	Entry        Entry  `json:"entry"`
+}
+
+type PlaylistAddRequestData struct {
+	ConnectionId uint64 `json:"connection_id"`
+	Entry        Entry  `json:"entry"`
+}
+
+type PlaylistNextRequestData struct {
+	ConnectionId uint64 `json:"connection_id"`
+	EntryId      uint64 `json:"entry_id"`
+}
+
+type PlaylistNextEventData struct {
+	PrevEntry Entry `json:"prev_entry"`
+	NewEntry  Entry `json:"new_entry"`
+}
+
+type PlaylistRemoveRequestData struct {
+	ConnectionId uint64 `json:"connection_id"`
+	EntryId      uint64 `json:"entry_id"`
+	Index        int    `json:"index"`
+}
+
+type PlaylistAutoplayRequestData struct {
+	ConnectionId uint64 `json:"connection_id"`
+	Autoplay     bool   `json:"autoplay"`
+}
+
+type PlaylistLoopingRequestData struct {
+	ConnectionId uint64 `json:"connection_id"`
+	Looping      bool   `json:"looping"`
+}
+
+type PlaylistMoveRequestData struct {
+	ConnectionId uint64 `json:"connection_id"`
+	EntryId      uint64 `json:"entry_id"`
+	SourceIndex  int    `json:"source_index"`
+	DestIndex    int    `json:"dest_index"`
 }
 
 var state = ServerState{}
@@ -807,8 +813,6 @@ func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 
 	var data PlaylistAddRequestData
 	err = json.Unmarshal(body, &data)
-    LogDebug("%v", err)
-    LogDebug("%v", data)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -822,15 +826,16 @@ func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 	state.mutex.Unlock()
 
 	// TODO(kihau): Playlist entry cannot be reused and a new one needs to be created here.
-	jsonData := string(body)
+	eventData, err := json.Marshal(data.Entry)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		users.mutex.Unlock()
+		return
+	}
 
 	conns.mutex.RLock()
 	for _, conn := range conns.slice {
-		if conn.userId == user.Id && conn.id == data.ConnectionId {
-			continue
-		}
-
-		writeEvent(conn.writer, "playlistadd", jsonData)
+		writeEvent(conn.writer, "playlistadd", string(eventData))
 	}
 	conns.mutex.RUnlock()
 }
@@ -869,10 +874,6 @@ func apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
 
 	conns.mutex.RLock()
 	for _, conn := range conns.slice {
-		if conn.userId == user.Id && conn.id == connection_id {
-			continue
-		}
-
 		writeEvent(conn.writer, "playlistclear", "")
 	}
 	conns.mutex.RUnlock()
@@ -911,27 +912,28 @@ func apiPlaylistNext(w http.ResponseWriter, r *http.Request) {
 	//     This check is necessary because multiple clients can send "playlist next" request on video end,
 	//     resulting in multiple playlist skips, which is not an intended behaviour.
 
-	if state.entry.Id != data.CurrentEntryId {
-		LogWarn("Current URL on the server is not equal to the one provided by the client.")
+	if state.entry.Id != data.EntryId {
+		LogWarn("Current entry ID on the server is not equal to the one provided by the client.")
 		return
 	}
 
-	var entry Entry
-
 	state.mutex.Lock()
+	var newEntry Entry
+	prevEntry := state.entry
+
 	if state.player.Looping {
 		state.playlist = append(state.playlist, state.entry)
 	}
 
 	if len(state.playlist) == 0 {
-		entry = state.entry
+		newEntry = state.entry
 	} else {
-		entry = state.playlist[0]
+		newEntry = state.playlist[0]
 		state.playlist = state.playlist[1:]
 	}
 
-	if entry.Url != "" {
-		state.history = append(state.history, entry)
+	if newEntry.Url != "" {
+		state.history = append(state.history, newEntry)
 	}
 
 	// TODO(kihau):
@@ -940,10 +942,15 @@ func apiPlaylistNext(w http.ResponseWriter, r *http.Request) {
 
 	state.player.Playing = state.player.Autoplay
 	state.player.Timestamp = 0
-	state.entry = entry
+	state.entry = newEntry
 	state.mutex.Unlock()
 
-	entryJson, err := json.Marshal(entry)
+	nextEvent := PlaylistNextEventData{
+		PrevEntry: prevEntry,
+		NewEntry:  newEntry,
+	}
+
+	jsonData, err := json.Marshal(nextEvent)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		LogError("Failed to serialize json data")
@@ -953,7 +960,7 @@ func apiPlaylistNext(w http.ResponseWriter, r *http.Request) {
 	conns.mutex.RLock()
 	for _, conn := range conns.slice {
 		// TOOD(kihau): Do not resend request back to user that sent the request.
-		writeEvent(conn.writer, "playlistnext", string(entryJson))
+		writeEvent(conn.writer, "playlistnext", string(jsonData))
 	}
 	conns.mutex.RUnlock()
 }
@@ -978,30 +985,31 @@ func apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var index int
-	err = json.Unmarshal(body, &index)
+	var data PlaylistRemoveRequestData
+	err = json.Unmarshal(body, &data)
 	if err != nil {
 		LogError("Playlist remove request handler failed to parse current remove index.")
 		return
 	}
 
-	// NOTE(kihau):
-	//     This is potentially faulty. Instead of sending just an index, client should also
-	//     send a URL or a unique ID than corresponds to a playlist entry.
-	//     That way, when multiple clients perform remove request (at the same time) for certain index,
-	//     only one playlist entry will be removed.
-
 	state.mutex.Lock()
-	if index < 0 || index >= len(state.playlist) {
-		LogError("Failed to remove playlist element at index %v.", index)
+	if data.Index < 0 || data.Index >= len(state.playlist) {
+		LogError("Failed to remove playlist element at index %v.", data.Index)
 	} else {
-		state.playlist = append(state.playlist[:index], state.playlist[index+1:]...)
+		state.playlist = append(state.playlist[:data.Index], state.playlist[data.Index+1:]...)
 	}
 	state.mutex.Unlock()
 
+	jsonData, err := json.Marshal(data.Index)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		LogError("Failed to serialize json data")
+		return
+	}
+
 	conns.mutex.RLock()
 	for _, conn := range conns.slice {
-		writeEvent(conn.writer, "playlistremove", string(body))
+		writeEvent(conn.writer, "playlistremove", string(jsonData))
 	}
 	conns.mutex.RUnlock()
 }
