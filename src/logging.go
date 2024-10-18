@@ -17,23 +17,23 @@ const COLOR_GREEN_LIGHT = "\x1b[0;32m"
 
 var ENABLE_COLORS = true
 
-func log_error(format string, args ...any) {
-	log_output("ERROR", COLOR_RED, format, args...)
+func LogError(format string, args ...any) {
+	logOutput("ERROR", COLOR_RED, format, args...)
 }
 
-func log_warn(format string, args ...any) {
-	log_output("WARN ", COLOR_YELLOW, format, args...)
+func LogWarn(format string, args ...any) {
+	logOutput("WARN ", COLOR_YELLOW, format, args...)
 }
 
-func log_info(format string, args ...any) {
-	log_output("INFO ", COLOR_BLUE, format, args...)
+func LogInfo(format string, args ...any) {
+	logOutput("INFO ", COLOR_BLUE, format, args...)
 }
 
-func log_debug(format string, args ...any) {
-	log_output("DEBUG", COLOR_PURPLE, format, args...)
+func LogDebug(format string, args ...any) {
+	logOutput("DEBUG", COLOR_PURPLE, format, args...)
 }
 
-func log_output(severity string, color string, format string, args ...any) {
+func logOutput(severity string, color string, format string, args ...any) {
 	date := time.Now().Format(time.RFC1123)
 	message := fmt.Sprintf(format, args...)
 	if ENABLE_COLORS {

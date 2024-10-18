@@ -110,7 +110,7 @@ func generateToken() string {
 	_, err := rand.Read(bytes)
 
 	if err != nil {
-		log_error("Token generation failed, this should not happen!")
+		LogError("Token generation failed, this should not happen!")
 		return ""
 	}
 
@@ -186,7 +186,7 @@ func StartServer(options *Options) {
 	registerEndpoints(&state, options)
 
 	var address = options.Address + ":" + strconv.Itoa(int(options.Port))
-	log_info("Starting server on address: %s", address)
+	LogInfo("Starting server on address: %s", address)
 
 	const CERT = "./secret/certificate.pem"
 	const PRIV_KEY = "./secret/privatekey.pem"
@@ -252,7 +252,7 @@ func (state *ServerState) apiVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log_info("Connection %s requested server version.", r.RemoteAddr)
+	LogInfo("Connection %s requested server version.", r.RemoteAddr)
 	io.WriteString(w, VERSION)
 }
 
@@ -262,7 +262,7 @@ func (state *ServerState) apiCreateSession(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	log_info("Connection %s requested session creation.", r.RemoteAddr)
+	LogInfo("Connection %s requested session creation.", r.RemoteAddr)
 
 	state.mutex.Lock()
 	new_user := User{
