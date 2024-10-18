@@ -943,6 +943,12 @@ func apiPlaylistNext(w http.ResponseWriter, r *http.Request) {
 	state.player.Playing = state.player.Autoplay
 	state.player.Timestamp = 0
 	state.entry = newEntry
+
+	lastSegment := lastUrlSegment(state.entry.Url)
+	if state.entry.UseProxy && strings.HasSuffix(lastSegment, ".m3u8") {
+		setupProxy(state.entry.Url, state.entry.RefererUrl)
+	}
+
 	state.mutex.Unlock()
 
 	nextEvent := PlaylistNextEventData{
