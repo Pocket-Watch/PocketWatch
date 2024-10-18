@@ -3,12 +3,7 @@ package scratch
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"errors"
-	"fmt"
-	"io"
 	"net/http"
-	"os"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -110,7 +105,7 @@ func generateToken() string {
 	_, err := rand.Read(bytes)
 
 	if err != nil {
-		LogError("Token generation failed, this should not happen!")
+		// LogError("Token generation failed, this should not happen!")
 		return ""
 	}
 
@@ -157,126 +152,102 @@ func generateToken() string {
 // func (conns *Connections) len() int {
 // 	return len(conns.slice)
 // }
-
-func pruneOldUsers(state *ServerState) {
-	for {
-		time.Sleep(time.Hour * 24)
-
-		state.mutex.Lock()
-		for _, user := range state.users {
-			_ = user
-		}
-		state.mutex.Unlock()
-	}
-}
-
-func StartServer(options *Options) {
-	state := ServerState{
-		// entry:       Entry{},
-		// playerState: PlayerState{},
-		// connections: makeConnections(),
-		// playlist:    make([]Entry, 0),
-		// history:     make([]Entry, 0),
-		// eventId:     1,
-		// lastUpdate:  time.Now(),
-	}
-
-	go pruneOldUsers(&state)
-
-	registerEndpoints(&state, options)
-
-	var address = options.Address + ":" + strconv.Itoa(int(options.Port))
-	LogInfo("Starting server on address: %s", address)
-
-	const CERT = "./secret/certificate.pem"
-	const PRIV_KEY = "./secret/privatekey.pem"
-
-	_, err_cert := os.Stat(CERT)
-	_, err_priv := os.Stat(PRIV_KEY)
-
-	missing_ssl_keys := errors.Is(err_priv, os.ErrNotExist) || errors.Is(err_cert, os.ErrNotExist)
-
-	if options.Ssl && missing_ssl_keys {
-		log_error("Failed to find either SSL certificate or the private key.")
-	}
-
-	var server_start_error error
-	if !options.Ssl || missing_ssl_keys {
-		log_warn("Server is running in unencrypted http mode.")
-		server_start_error = http.ListenAndServe(address, nil)
-	} else {
-		server_start_error = http.ListenAndServeTLS(address, CERT, PRIV_KEY, nil)
-	}
-
-	if server_start_error != nil {
-		log_error("Error starting the server: %v", server_start_error)
-	}
-}
-
-func registerEndpoints(state *ServerState, options *Options) {
-	// TODO: Fix trailing suffix
-	fileserver := http.FileServer(http.Dir("./web"))
-	http.Handle("/", http.StripPrefix("/watch/", fileserver))
-
-	http.HandleFunc("/watch/api/version", state.apiVersion)
-	http.HandleFunc("/watch/api/createsession", state.apiCreateSession)
-
-	// http.HandleFunc("/watch/api/login", state.apiLogin)
-	// http.HandleFunc("/watch/api/get", state.apiGet)
-	// http.HandleFunc("/watch/api/seturl", state.apiSetUrl)
-	// http.HandleFunc("/watch/api/play", apiPlay)
-	// http.HandleFunc("/watch/api/pause", apiPause)
-	// http.HandleFunc("/watch/api/seek", apiSeek)
-	// http.HandleFunc("/watch/api/upload", apiUpload)
-	//
-	// http.HandleFunc("/watch/api/playlist/get", apiPlaylistGet)
-	// http.HandleFunc("/watch/api/playlist/add", apiPlaylistAdd)
-	// http.HandleFunc("/watch/api/playlist/clear", apiPlaylistClear)
-	// http.HandleFunc("/watch/api/playlist/next", apiPlaylistNext)
-	// http.HandleFunc("/watch/api/playlist/remove", apiPlaylistRemove)
-	// http.HandleFunc("/watch/api/playlist/autoplay", apiPlaylistAutoplay)
-	// http.HandleFunc("/watch/api/playlist/looping", apiPlaylistLooping)
-	// http.HandleFunc("/watch/api/playlist/shuffle", apiPlaylistShuffle)
-	// http.HandleFunc("/watch/api/playlist/move", apiPlaylistMove)
-	//
-	// http.HandleFunc("/watch/api/history/get", apiHistoryGet)
-	// http.HandleFunc("/watch/api/history/clear", apiHistoryClear)
-	//
-	// http.HandleFunc("/watch/api/events", apiEvents)
-	// http.HandleFunc(PROXY_ROUTE, watchProxy)
-}
-
-func (state *ServerState) apiVersion(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		http.Error(w, "Expected http method GET.", http.StatusMethodNotAllowed)
-		return
-	}
-
-	LogInfo("Connection %s requested server version.", r.RemoteAddr)
-	io.WriteString(w, VERSION)
-}
-
-func (state *ServerState) apiCreateSession(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		http.Error(w, "Expected http method GET.", http.StatusMethodNotAllowed)
-		return
-	}
-
-	LogInfo("Connection %s requested session creation.", r.RemoteAddr)
-
-	state.mutex.Lock()
-	new_user := User{
-		Id:        state.userIdCounter,
-		Username:  fmt.Sprintf("User %v", state.userIdCounter),
-		Avatar:    "",
-		Connected: false,
-		token:     generateToken(),
-		writer:    nil,
-	}
-	state.users = append(state.users, new_user)
-	state.userIdCounter += 1
-	state.mutex.Unlock()
-
-	log_debug("Created new session id%v with token: %v", new_user.Id, new_user.token)
-	io.WriteString(w, new_user.token)
-}
+//
+// func pruneOldUsers(state *ServerState) {
+// 	for {
+// 		time.Sleep(time.Hour * 24)
+//
+// 		state.mutex.Lock()
+// 		for _, user := range state.users {
+// 			_ = user
+// 		}
+// 		state.mutex.Unlock()
+// 	}
+// }
+//
+// func StartServer(options *Options) {
+// 	state := ServerState{
+// 		// entry:       Entry{},
+// 		// playerState: PlayerState{},
+// 		// connections: makeConnections(),
+// 		// playlist:    make([]Entry, 0),
+// 		// history:     make([]Entry, 0),
+// 		// eventId:     1,
+// 		// lastUpdate:  time.Now(),
+// 	}
+//
+// 	go pruneOldUsers(&state)
+//
+// 	registerEndpoints(&state, options)
+//
+// 	var address = options.Address + ":" + strconv.Itoa(int(options.Port))
+// 	LogInfo("Starting server on address: %s", address)
+//
+// 	const CERT = "./secret/certificate.pem"
+// 	const PRIV_KEY = "./secret/privatekey.pem"
+//
+// 	_, err_cert := os.Stat(CERT)
+// 	_, err_priv := os.Stat(PRIV_KEY)
+//
+// 	missing_ssl_keys := errors.Is(err_priv, os.ErrNotExist) || errors.Is(err_cert, os.ErrNotExist)
+//
+// 	if options.Ssl && missing_ssl_keys {
+// 		log_error("Failed to find either SSL certificate or the private key.")
+// 	}
+//
+// 	var server_start_error error
+// 	if !options.Ssl || missing_ssl_keys {
+// 		log_warn("Server is running in unencrypted http mode.")
+// 		server_start_error = http.ListenAndServe(address, nil)
+// 	} else {
+// 		server_start_error = http.ListenAndServeTLS(address, CERT, PRIV_KEY, nil)
+// 	}
+//
+// 	if server_start_error != nil {
+// 		log_error("Error starting the server: %v", server_start_error)
+// 	}
+// }
+//
+// func registerEndpoints(state *ServerState, options *Options) {
+// 	// TODO: Fix trailing suffix
+// 	fileserver := http.FileServer(http.Dir("./web"))
+// 	http.Handle("/", http.StripPrefix("/watch/", fileserver))
+//
+// 	http.HandleFunc("/watch/api/version", state.apiVersion)
+// 	http.HandleFunc("/watch/api/createsession", state.apiCreateSession)
+// }
+//
+// func (state *ServerState) apiVersion(w http.ResponseWriter, r *http.Request) {
+// 	if r.Method != "GET" {
+// 		http.Error(w, "Expected http method GET.", http.StatusMethodNotAllowed)
+// 		return
+// 	}
+//
+// 	LogInfo("Connection %s requested server version.", r.RemoteAddr)
+// 	io.WriteString(w, VERSION)
+// }
+//
+// func (state *ServerState) apiCreateSession(w http.ResponseWriter, r *http.Request) {
+// 	if r.Method != "GET" {
+// 		http.Error(w, "Expected http method GET.", http.StatusMethodNotAllowed)
+// 		return
+// 	}
+//
+// 	LogInfo("Connection %s requested session creation.", r.RemoteAddr)
+//
+// 	state.mutex.Lock()
+// 	new_user := User{
+// 		Id:        state.userIdCounter,
+// 		Username:  fmt.Sprintf("User %v", state.userIdCounter),
+// 		Avatar:    "",
+// 		Connected: false,
+// 		token:     generateToken(),
+// 		writer:    nil,
+// 	}
+// 	state.users = append(state.users, new_user)
+// 	state.userIdCounter += 1
+// 	state.mutex.Unlock()
+//
+// 	log_debug("Created new session id%v with token: %v", new_user.Id, new_user.token)
+// 	io.WriteString(w, new_user.token)
+// }

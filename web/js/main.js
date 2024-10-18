@@ -56,9 +56,13 @@ async function httpPost(endpoint, data) {
             console.error("ERROR: POST request for endpoint: " + endpoint + " failed: " + response.status);
             return null;
         }
-        return response.json();
+
+        // TODO(kihau): 
+        //     Throws exception when response is not a valid json.
+        //     This should be handled this in a nicer way.
+        return await response.json();
     } catch (error) {
-        console.error("ERROR: POST request for endpoint: " + endpoint + " failed: " + error);
+        // console.error("ERROR: POST request for endpoint: " + endpoint + " failed: " + error);
         return null;
     }
 }
@@ -121,11 +125,19 @@ async function apiGet() {
 }
 
 async function apiSetUrl(url) {
-    const payload = {
-        uuid: connection_id,
+    const entry = {
+        id: 0,
         url: url,
-        proxy: proxy_checkbox.checked,
-        referer: referer_input.value,
+        title: "TODO(kihau): Add custom titles",
+        user_id: userSelf.id,
+        use_proxy: proxy_checkbox.checked,
+        referer_url: referer_input.value,
+        created: new Date,
+    };
+
+    const payload = {
+        connection_id: connection_id,
+        entry: entry,
     };
 
     console.info("INFO: Sending seturl request for a new url");
@@ -134,9 +146,8 @@ async function apiSetUrl(url) {
 
 async function apiPlay() {
     const payload = {
-        uuid: connection_id,
+        connection_id: connection_id,
         timestamp: video.currentTime,
-        username: userSelf.username,
     };
 
     console.info("INFO: Sending play request to the server.");
@@ -145,20 +156,18 @@ async function apiPlay() {
 
 async function apiPause() {
     const payload = {
-        uuid: connection_id,
+        connection_id: connection_id,
         timestamp: video.currentTime,
-        username: userSelf.username,
     };
 
     console.info("INFO: Sending pause request to the server.");
     httpPost("/watch/api/pause", payload);
 }
 
-async function apiSeek(timestamp) {
+async function apiSeek() {
     const payload = {
-        uuid: connection_id,
-        timestamp: timestamp,
-        username: userSelf.username,
+        connection_id: connection_id,
+        timestamp: video.currentTime,
     };
 
     console.info("INFO: Sending seek request to the server.");
@@ -561,13 +570,18 @@ function updateConnectedUsers() {
 
 function readEventMaybeResync(type, event) {
     let jsonData = JSON.parse(event.data);
-    let timestamp = jsonData["timestamp"];
-    let priority = jsonData["priority"];
-    let origin = jsonData["origin"];
+
+    let timestamp = jsonData.timestamp;
+    let priority = jsonData.priority;
+    let userId = jsonData.user_id;
 
     let deSync = timestamp - video.currentTime;
 
-    console.log(priority, type, "from", origin, "at", timestamp, "with desync:", deSync);
+    if (userId == 0) {
+        console.info("INFO:", priority, type, "from SERVER at", timestamp, "with desync:", deSync);
+    } else {
+        console.info("INFO:", priority, type, "from USER with id:", userId, "at", timestamp, "with desync:", deSync);
+    }
     // console.log("TIME:", video.currentTime, "PAUSED:", video.paused, "ENDED:", video.ended)
 
     if (type === "seek") {
@@ -689,9 +703,9 @@ function subscribeToServerEvents() {
     });
 
     eventSource.addEventListener("seturl", function (event) {
-        let response = JSON.parse(event.data);
-        console.info("INFO: Media url received from the server: ", response.url);
-        playerSetUrl(response.url);
+        let entry = JSON.parse(event.data);
+        console.info("INFO: Media url received from the server: ", entry.url);
+        playerSetUrl(entry.url);
     });
 
     eventSource.addEventListener("playlistadd", function (event) {
@@ -911,7 +925,7 @@ function playerOnSeek(_event) {
         return;
     }
 
-    apiSeek(video.currentTime);
+    apiSeek();
 }
 
 function playerOnEnded(_event) {
@@ -967,12 +981,12 @@ async function main() {
     createFluidPlayer("");
 
     let state = await apiGet();
-    autoplay_checkbox.checked = state.autoplay;
-    looping_checkbox.checked = state.looping;
+    autoplay_checkbox.checked = state.player.autoplay;
+    looping_checkbox.checked = state.player.looping;
 
     subtitles = state.subtitles;
 
-    playerSetUrl(state.url);
+    playerSetUrl(state.entry.url);
     subscribeToServerEvents();
 }
 

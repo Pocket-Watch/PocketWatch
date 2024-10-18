@@ -23,6 +23,14 @@ const ANNOUNCE_RECEIVED = true
 const BODY_LIMIT = 1024
 const RETRY = 5000 // Retry time in milliseconds
 const TOKEN_LENGTH = 32
+const BROADCAST_INTERVAL = 2 * time.Second
+const MAX_SUBTITLE_SIZE = 512 * 1024
+
+var SUBTITLE_EXTENSIONS = [...]string{".vtt", ".srt"}
+
+const Play = "play"
+const Pause = "pause"
+const Seek = "seek"
 
 const PROXY_ROUTE = "/watch/proxy/"
 const WEB_PROXY = "web/proxy/"
@@ -31,25 +39,36 @@ const ORIGINAL_M3U8 = "original.m3u8"
 const PROXY_M3U8 = "proxy.m3u8"
 
 type PlayerState struct {
-	Playing   atomic.Bool `json:"playing"`
-	Autoplay  atomic.Bool `json:"autoplay"`
-	Looping   atomic.Bool `json:"looping"`
-	Timestamp float64     `json:"timestamp"`
+	Playing   bool    `json:"playing"`
+	Autoplay  bool    `json:"autoplay"`
+	Looping   bool    `json:"looping"`
+	Timestamp float64 `json:"timestamp"`
 }
 
-// NOTE(kihau): Some fields are non atomic. This needs to change.
+type Entry struct {
+	Id         uint64    `json:"id"`
+	Url        string    `json:"url"`
+	Title      string    `json:"title"`
+	UserId     uint64    `json:"user_id"`
+	UseProxy   bool      `json:"use_proxy"`
+	RefererUrl string    `json:"referer_url"`
+	Created    time.Time `json:"created"`
+}
+
 type ServerState struct {
-	player         PlayerState
-	url            string
-	eventId        atomic.Uint64
-	lastTimeUpdate time.Time
-	history        []string
+	mutex sync.RWMutex
 
-	playlist_lock sync.RWMutex
-	playlist      []PlaylistEntry
+	player PlayerState
+	entry  Entry
+	// TODO(kihau): Ids for entries should be generated on the server side.
+	// entryId uint64
 
-	proxying       atomic.Bool
-	referer        string
+	eventId    atomic.Uint64
+	lastUpdate time.Time
+
+	playlist []Entry
+	history  []Entry
+
 	chunkLocks     []sync.Mutex
 	fetchedChunks  []bool
 	originalChunks []string
@@ -177,16 +196,21 @@ func (conns *Connections) remove(id uint64) {
 	}
 }
 
-type PlaylistEntry struct {
-	Uuid     uint64 `json:"uuid"`
-	Username string `json:"username"`
-	Url      string `json:"url"`
+type PlaylistAddRequestData struct {
+	ConnectionId uint64 `json:"connection_id"`
+	Entry        Entry  `json:"entry"`
 }
 
-type PlaylistRemoveRequestData struct {
-	Uuid  uint64 `json:"uuid"`
-	Index int    `json:"index"`
+type PlaylistNextRequestData struct {
+	ConnectionId   uint64 `json:"connection_id"`
+	CurrentEntryId uint64 `json:"current_entry_id"`
 }
+
+// type PlaylistRemoveRequestData struct {
+// 	ConnectionId   uint64 `json:"connection_id"`
+// 	CurrentEntryId uint64 `json:"current_entry_id"`
+// 	Index          int    `json:"index"`
+// }
 
 type PlaylistAutoplayRequestData struct {
 	Uuid     uint64 `json:"uuid"`
@@ -199,37 +223,31 @@ type PlaylistLoopingRequestData struct {
 }
 
 type PlaylistMoveRequestData struct {
-	Uuid        uint64 `json:"uuid"`
-	SourceIndex int    `json:"source_index"`
-	DestIndex   int    `json:"dest_index"`
+	ConnectionId uint64 `json:"connection_id"`
+	SourceIndex  int    `json:"source_index"`
+	DestIndex    int    `json:"dest_index"`
 }
 
-type GetEventForUser struct {
-	Url       string   `json:"url"`
-	Timestamp float64  `json:"timestamp"`
-	IsPlaying bool     `json:"is_playing"`
-	Autoplay  bool     `json:"autoplay"`
-	Looping   bool     `json:"looping"`
-	Subtitles []string `json:"subtitles"`
+type GetResponseData struct {
+	Player    PlayerState `json:"player"`
+	Entry     Entry       `json:"entry"`
+	Subtitles []string    `json:"subtitles"`
 }
 
-type SyncEventForUser struct {
+type SyncEventData struct {
 	Timestamp float64 `json:"timestamp"`
 	Priority  string  `json:"priority"`
-	Origin    string  `json:"origin"`
+	UserId    uint64  `json:"user_id"`
 }
 
-type SyncEventFromUser struct {
-	Uuid      uint64  `json:"uuid"`
-	Timestamp float64 `json:"timestamp"`
-	Username  string  `json:"username"`
+type SyncRequestData struct {
+	ConnectionId uint64  `json:"connection_id"`
+	Timestamp    float64 `json:"timestamp"`
 }
 
-type SetEventFromUser struct {
-	Uuid    uint64 `json:"uuid"`
-	Url     string `json:"url"`
-	Proxy   bool   `json:"proxy"`
-	Referer string `json:"referer"`
+type SetUrlResponseData struct {
+	ConnectionId uint64 `json:"connection_id"`
+	Entry        Entry  `json:"entry"`
 }
 
 var state = ServerState{}
@@ -237,7 +255,7 @@ var users = makeUsers()
 var conns = makeConnections()
 
 func StartServer(options *Options) {
-	state.lastTimeUpdate = time.Now()
+	state.lastUpdate = time.Now()
 	registerEndpoints(options)
 
 	var address = options.Address + ":" + strconv.Itoa(int(options.Port))
@@ -269,8 +287,10 @@ func StartServer(options *Options) {
 }
 
 func registerEndpoints(options *Options) {
+	_ = options
+
+	// TODO: Fix trailing suffix
 	fileserver := http.FileServer(http.Dir("./web"))
-	// fix trailing suffix
 	http.Handle("/", http.StripPrefix("/watch/", fileserver))
 
 	http.HandleFunc("/watch/api/version", apiVersion)
@@ -303,39 +323,6 @@ func registerEndpoints(options *Options) {
 
 	http.HandleFunc("/watch/api/events", apiEvents)
 	http.HandleFunc(PROXY_ROUTE, watchProxy)
-}
-
-// the upload method needs to keep track of bytes to be able to limit filesize
-func apiUpload(writer http.ResponseWriter, request *http.Request) {
-	if request.Method != "POST" {
-		http.Error(writer, "POST was expected", http.StatusMethodNotAllowed)
-		return
-	}
-
-	file, header, err := request.FormFile("file")
-	// It's weird because a temporary file is created in Temp/multipart-
-	if err != nil {
-		http.Error(writer, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer file.Close()
-
-	LogInfo("User is uploading file: %s, size: %v", header.Filename, header.Size)
-
-	out, err := os.Create(WEB_MEDIA + header.Filename)
-	if err != nil {
-		http.Error(writer, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, file)
-	if err != nil {
-		http.Error(writer, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	fmt.Fprintf(writer, "File uploaded successfully: %s", header.Filename)
 }
 
 // This endpoints should serve HLS chunks
@@ -387,7 +374,7 @@ func watchProxy(writer http.ResponseWriter, request *http.Request) {
 		http.ServeFile(writer, request, WEB_PROXY+chunk)
 		return
 	}
-	fetchErr := downloadFile(state.originalChunks[chunk_id], WEB_PROXY+chunk, state.referer)
+	fetchErr := downloadFile(state.originalChunks[chunk_id], WEB_PROXY+chunk, state.entry.RefererUrl)
 	if fetchErr != nil {
 		mutex.Unlock()
 		LogError("FAILED TO FETCH CHUNK %v", fetchErr)
@@ -401,7 +388,6 @@ func watchProxy(writer http.ResponseWriter, request *http.Request) {
 }
 
 func downloadFile(url string, filename string, referer string) error {
-	// Get the data
 	request, _ := http.NewRequest("GET", url, nil)
 	if referer != "" {
 		request.Header.Set("Referer", referer)
@@ -416,14 +402,12 @@ func downloadFile(url string, filename string, referer string) error {
 	}
 	defer response.Body.Close()
 
-	// Create the file
 	out, err := os.Create(filename)
 	if err != nil {
 		return err
 	}
 	defer out.Close()
 
-	// Write the body to file
 	_, err = io.Copy(out, response.Body)
 	if err != nil {
 		return err
@@ -585,6 +569,203 @@ func apiUserUpdateName(w http.ResponseWriter, r *http.Request) {
 	conns.mutex.RUnlock()
 }
 
+func apiGet(w http.ResponseWriter, r *http.Request) {
+	LogInfo("Connection %s requested get.", r.RemoteAddr)
+
+	state.mutex.RLock()
+	getEvent := GetResponseData{
+		Player:    state.player,
+		Entry:     state.entry,
+		Subtitles: getSubtitles(),
+	}
+	state.mutex.RUnlock()
+
+	jsonData, err := json.Marshal(getEvent)
+	if err != nil {
+		LogError("Failed to serialize get event.")
+		return
+	}
+
+	io.WriteString(w, string(jsonData))
+}
+
+func apiSetUrl(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	token := r.Header.Get("Authorization")
+	user := users.find(token)
+	if user == nil {
+		http.Error(w, "User not found", http.StatusUnauthorized)
+		return
+	}
+
+	conns.mutex.Lock()
+	if state.entry.Url != "" {
+		state.history = append(state.history, state.entry)
+	}
+
+	LogInfo("Connection %s requested media url change.", r.RemoteAddr)
+	data, err := readSetUrlResponseAndUpdateState(w, r)
+	if err != nil {
+		LogError("Failed to read set event for %v: %v", r.RemoteAddr, err)
+		return
+	}
+	conns.mutex.Unlock()
+
+	entryJson, err := json.Marshal(data.Entry)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		LogError("Failed to serialize json data")
+		return
+	}
+
+	conns.mutex.RLock()
+	for _, conn := range conns.slice {
+		writeEvent(conn.writer, "seturl", string(entryJson))
+	}
+	conns.mutex.RUnlock()
+
+	io.WriteString(w, "Setting media url!")
+}
+
+func apiPlay(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	token := r.Header.Get("Authorization")
+	user := users.find(token)
+	if user == nil {
+		http.Error(w, "User not found", http.StatusUnauthorized)
+		return
+	}
+
+	state.mutex.Lock()
+	state.player.Playing = true
+	LogInfo("Connection %s requested player start.", r.RemoteAddr)
+	data := receiveSyncRequest(w, r)
+	state.mutex.Unlock()
+
+	if data == nil {
+		return
+	}
+
+	conns.mutex.RLock()
+	for _, conn := range conns.slice {
+		if user.Id == conn.userId && conn.id == data.ConnectionId {
+			continue
+		}
+
+		writeSyncEvent(conn.writer, Play, true, user.Id)
+	}
+	conns.mutex.RUnlock()
+
+	io.WriteString(w, "Broadcasting start!\n")
+}
+
+func apiPause(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	token := r.Header.Get("Authorization")
+	user := users.find(token)
+	if user == nil {
+		http.Error(w, "User not found", http.StatusUnauthorized)
+		return
+	}
+
+	state.mutex.Lock()
+	state.player.Playing = false
+	LogInfo("Connection %s requested player pause.", r.RemoteAddr)
+	data := receiveSyncRequest(w, r)
+	state.mutex.Unlock()
+
+	if data == nil {
+		return
+	}
+
+	conns.mutex.RLock()
+	for _, conn := range conns.slice {
+		if user.Id == conn.userId && conn.id == data.ConnectionId {
+			continue
+		}
+
+		writeSyncEvent(conn.writer, Pause, true, user.Id)
+	}
+	conns.mutex.RUnlock()
+
+	io.WriteString(w, "Broadcasting pause!\n")
+}
+
+func apiSeek(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	token := r.Header.Get("Authorization")
+	user := users.find(token)
+	if user == nil {
+		http.Error(w, "User not found", http.StatusUnauthorized)
+		return
+	}
+
+	state.mutex.Lock()
+	LogInfo("Connection %s requested player seek.", r.RemoteAddr)
+	data := receiveSyncRequest(w, r)
+	state.mutex.Unlock()
+
+	if data == nil {
+		return
+	}
+
+	conns.mutex.RLock()
+	for _, conn := range conns.slice {
+		if user.Id == conn.userId && conn.id == data.ConnectionId {
+			continue
+		}
+
+		writeSyncEvent(conn.writer, Seek, true, user.Id)
+	}
+	conns.mutex.RUnlock()
+	io.WriteString(w, "Broadcasting seek!\n")
+}
+
+// the upload method needs to keep track of bytes to be able to limit filesize
+func apiUpload(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != "POST" {
+		http.Error(writer, "POST was expected", http.StatusMethodNotAllowed)
+		return
+	}
+
+	file, header, err := request.FormFile("file")
+	// It's weird because a temporary file is created in Temp/multipart-
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer file.Close()
+
+	LogInfo("User is uploading file: %s, size: %v", header.Filename, header.Size)
+
+	out, err := os.Create(WEB_MEDIA + header.Filename)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, file)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Fprintf(writer, "File uploaded successfully: %s", header.Filename)
+}
+
 func apiPlaylistGet(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		return
@@ -592,9 +773,9 @@ func apiPlaylistGet(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection %s requested playlist get.", r.RemoteAddr)
 
-	state.playlist_lock.RLock()
+	state.mutex.RLock()
 	jsonData, err := json.Marshal(state.playlist)
-	state.playlist_lock.RUnlock()
+	state.mutex.RUnlock()
 
 	if err != nil {
 		LogWarn("Failed to serialize playlist get event.")
@@ -624,26 +805,28 @@ func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var entry PlaylistEntry
-	err = json.Unmarshal(body, &entry)
+	var data PlaylistAddRequestData
+	err = json.Unmarshal(body, &data)
+    LogDebug("%v", err)
+    LogDebug("%v", data)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	LogInfo("Adding '%s' url to the playlist.", entry.Url)
+	LogInfo("Adding '%s' url to the playlist.", data.Entry.Url)
 
-	state.playlist_lock.Lock()
-	state.playlist = append(state.playlist, entry)
-	state.playlist_lock.Unlock()
+	state.mutex.Lock()
+	state.playlist = append(state.playlist, data.Entry)
+	state.mutex.Unlock()
 
 	// TODO(kihau): Playlist entry cannot be reused and a new one needs to be created here.
 	jsonData := string(body)
 
 	conns.mutex.RLock()
 	for _, conn := range conns.slice {
-		if conn.userId == user.Id && conn.id == entry.Uuid {
+		if conn.userId == user.Id && conn.id == data.ConnectionId {
 			continue
 		}
 
@@ -680,9 +863,9 @@ func apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	state.playlist_lock.Lock()
+	state.mutex.Lock()
 	state.playlist = state.playlist[:0]
-	state.playlist_lock.Unlock()
+	state.mutex.Unlock()
 
 	conns.mutex.RLock()
 	for _, conn := range conns.slice {
@@ -709,71 +892,69 @@ func apiPlaylistNext(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection %s requested playlist next.", r.RemoteAddr)
 
-	// NOTE(kihau):
-	//     We need to check whether currently set URL on the player side matches current URL on the server side.
-	//     This check is necessary because multiple clients can send "playlist next" request on video end,
-	//     resulting in multiple playlist skips, which is not an intended behaviour.
-
-	data, err := io.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		LogError("Playlist next request handler failed to read current client URL.")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	var current_url string
-	err = json.Unmarshal(data, &current_url)
+	var data PlaylistNextRequestData
+	err = json.Unmarshal(body, &data)
 	if err != nil {
 		LogError("Playlist next request handler failed to parse current client URL.")
 		return
 	}
 
-	if state.url != current_url {
+	// NOTE(kihau):
+	//     We need to check whether currently set entry ID on the clent side matches current entry ID on the server side.
+	//     This check is necessary because multiple clients can send "playlist next" request on video end,
+	//     resulting in multiple playlist skips, which is not an intended behaviour.
+
+	if state.entry.Id != data.CurrentEntryId {
 		LogWarn("Current URL on the server is not equal to the one provided by the client.")
 		return
 	}
 
-	var url string
-	state.playlist_lock.Lock()
+	var entry Entry
 
-	if state.player.Looping.Load() {
-		// TODO(kihau): This needs to be changed.
-		dummyEntry := PlaylistEntry{
-			Uuid:     0,
-			Username: "<unknown>",
-			Url:      current_url,
-		}
-		state.playlist = append(state.playlist, dummyEntry)
+	state.mutex.Lock()
+	if state.player.Looping {
+		state.playlist = append(state.playlist, state.entry)
 	}
 
 	if len(state.playlist) == 0 {
-		url = ""
+		entry = state.entry
 	} else {
-		url = state.playlist[0].Url
+		entry = state.playlist[0]
 		state.playlist = state.playlist[1:]
 	}
-	state.playlist_lock.Unlock()
 
-	jsonData, err := json.Marshal(url)
+	if entry.Url != "" {
+		state.history = append(state.history, entry)
+	}
+
+	// TODO(kihau):
+	//     This might cause problems in the future and needs to be cleaned up.
+	//     Also, proxy will not work with this code and a unified function that changes player state should be created.
+
+	state.player.Playing = state.player.Autoplay
+	state.player.Timestamp = 0
+	state.entry = entry
+	state.mutex.Unlock()
+
+	entryJson, err := json.Marshal(entry)
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		LogError("Failed to serialize json data")
 		return
 	}
 
 	conns.mutex.RLock()
-	if state.url != "" {
-		state.history = append(state.history, state.url)
-	}
-
-	// TODO(kihau): This might cause problems in the future and needs to be cleaned up.
-	state.url = url
-	state.player.Playing.Swap(state.player.Autoplay.Load())
-	state.player.Timestamp = 0
-
 	for _, conn := range conns.slice {
 		// TOOD(kihau): Do not resend request back to user that sent the request.
-		writeEvent(conn.writer, "playlistnext", string(jsonData))
+		writeEvent(conn.writer, "playlistnext", string(entryJson))
 	}
-
 	conns.mutex.RUnlock()
 }
 
@@ -791,14 +972,14 @@ func apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection %s requested playlist remove.", r.RemoteAddr)
 
-	data, err := io.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		LogError("Playlist remove request handler failed to read remove index.")
 		return
 	}
 
 	var index int
-	err = json.Unmarshal(data, &index)
+	err = json.Unmarshal(body, &index)
 	if err != nil {
 		LogError("Playlist remove request handler failed to parse current remove index.")
 		return
@@ -810,17 +991,17 @@ func apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
 	//     That way, when multiple clients perform remove request (at the same time) for certain index,
 	//     only one playlist entry will be removed.
 
-	state.playlist_lock.Lock()
+	state.mutex.Lock()
 	if index < 0 || index >= len(state.playlist) {
 		LogError("Failed to remove playlist element at index %v.", index)
 	} else {
 		state.playlist = append(state.playlist[:index], state.playlist[index+1:]...)
 	}
-	state.playlist_lock.Unlock()
+	state.mutex.Unlock()
 
 	conns.mutex.RLock()
 	for _, conn := range conns.slice {
-		writeEvent(conn.writer, "playlistremove", string(data))
+		writeEvent(conn.writer, "playlistremove", string(body))
 	}
 	conns.mutex.RUnlock()
 }
@@ -852,7 +1033,9 @@ func apiPlaylistAutoplay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	state.player.Autoplay.Store(autoplay)
+	state.mutex.Lock()
+	state.player.Autoplay = autoplay
+	state.mutex.Unlock()
 	LogInfo("Setting playlist autoplay to %v.", autoplay)
 
 	jsonData := string(data)
@@ -891,7 +1074,10 @@ func apiPlaylistLooping(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	state.player.Looping.Store(looping)
+	state.mutex.Lock()
+	state.player.Looping = looping
+	state.mutex.Unlock()
+
 	LogInfo("Setting playlist looping to %v.", looping)
 
 	jsonData := string(data)
@@ -917,14 +1103,14 @@ func apiPlaylistShuffle(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection %s requested playlist shuffle.", r.RemoteAddr)
 
-	state.playlist_lock.Lock()
+	state.mutex.Lock()
 	for i := range state.playlist {
 		j := rand.Intn(i + 1)
 		state.playlist[i], state.playlist[j] = state.playlist[j], state.playlist[i]
 	}
 
 	jsonData, err := json.Marshal(state.playlist)
-	state.playlist_lock.Unlock()
+	state.mutex.Unlock()
 
 	if err != nil {
 		LogError("Failed to serialize get event: %v.", err)
@@ -965,8 +1151,7 @@ func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	state.playlist_lock.Lock()
-
+	state.mutex.Lock()
 	if move.SourceIndex < 0 || move.SourceIndex >= len(state.playlist) {
 		LogError("Playlist move failed, source index out of bounds")
 		return
@@ -982,7 +1167,7 @@ func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 	// Remove element from the slice:
 	state.playlist = append(state.playlist[:move.SourceIndex], state.playlist[move.SourceIndex+1:]...)
 
-	list := make([]PlaylistEntry, 0)
+	list := make([]Entry, 0)
 
 	// Appned removed element to a new list:
 	list = append(list, state.playlist[:move.DestIndex]...)
@@ -992,7 +1177,7 @@ func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 	state.playlist = list
 
 	jsonData, err := json.Marshal(state.playlist)
-	state.playlist_lock.Unlock()
+	state.mutex.Unlock()
 
 	if err != nil {
 		LogError("Failed to serialize move event: %v.", err)
@@ -1001,14 +1186,13 @@ func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 
 	conns.mutex.RLock()
 	for _, conn := range conns.slice {
+		// if conn.userId == user.Id && entry.Uuid == conn.id {
+		// 	continue
+		// }
+
 		// NOTE(kihau):
 		//     Sending entire playlist in the playlist move event is pretty wasteful,
 		//     but this will do for now.
-
-		if conn.userId == user.Id && entry.Uuid == conn.id {
-			continue
-		}
-
 		writeEvent(conn.writer, "playlistmove", string(jsonData))
 	}
 	conns.mutex.RUnlock()
@@ -1071,30 +1255,6 @@ func writeEvent(writer http.ResponseWriter, event string, jsonData string) {
 	}
 }
 
-func apiGet(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection %s requested get.", r.RemoteAddr)
-
-	var getEvent GetEventForUser
-	getEvent.Url = state.url
-	getEvent.IsPlaying = state.player.Playing.Load()
-	getEvent.Timestamp = state.player.Timestamp
-	getEvent.Autoplay = state.player.Autoplay.Load()
-	getEvent.Looping = state.player.Looping.Load()
-	getEvent.Subtitles = getSubtitles()
-
-	jsonData, err := json.Marshal(getEvent)
-	if err != nil {
-		LogError("Failed to serialize get event.")
-		return
-	}
-
-	io.WriteString(w, string(jsonData))
-}
-
-var SUBTITLE_EXTENSIONS = [...]string{".vtt", ".srt"}
-
-const MAX_SUBTITLE_SIZE = 512 * 1024
-
 func getSubtitles() []string {
 	subtitles := make([]string, 0)
 	// could create a separate folder for subs if it gets too big
@@ -1123,140 +1283,7 @@ func getSubtitles() []string {
 	return subtitles
 }
 
-func apiSetUrl(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
-	token := r.Header.Get("Authorization")
-	user := users.find(token)
-	if user == nil {
-		http.Error(w, "User not found", http.StatusUnauthorized)
-		return
-	}
-
-	conns.mutex.RLock()
-	if state.url != "" {
-		state.history = append(state.history, state.url)
-	}
-	conns.mutex.RUnlock()
-
-	LogInfo("Connection %s requested media url change.", r.RemoteAddr)
-	_, err := readSetEventAndUpdateState(w, r)
-	if err != nil {
-		LogError("Failed to read set event for %v: %v", r.RemoteAddr, err)
-		return
-	}
-
-	io.WriteString(w, "Setting media url!")
-	conns.mutex.RLock()
-	for _, conn := range conns.slice {
-		// if user.Id == conn.userId && conn.id == data.Uuid {
-		// 	continue
-		// }
-
-		writeSetEvent(conn.writer)
-	}
-	conns.mutex.RUnlock()
-}
-
-func apiPlay(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
-	token := r.Header.Get("Authorization")
-	user := users.find(token)
-	if user == nil {
-		http.Error(w, "User not found", http.StatusUnauthorized)
-		return
-	}
-
-	state.player.Playing.Swap(true)
-
-	LogInfo("Connection %s requested player start.", r.RemoteAddr)
-	syncEvent := receiveSyncEventFromUser(w, r)
-	if syncEvent == nil {
-		return
-	}
-
-	conns.mutex.RLock()
-	for _, conn := range conns.slice {
-		if user.Id == conn.userId && conn.id == syncEvent.Uuid {
-			continue
-		}
-
-		writeSyncEvent(conn.writer, Play, true, syncEvent.Username)
-	}
-	conns.mutex.RUnlock()
-
-	io.WriteString(w, "Broadcasting start!\n")
-}
-
-func apiPause(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
-	token := r.Header.Get("Authorization")
-	user := users.find(token)
-	if user == nil {
-		http.Error(w, "User not found", http.StatusUnauthorized)
-		return
-	}
-
-	state.player.Playing.Store(false)
-
-	LogInfo("Connection %s requested player pause.", r.RemoteAddr)
-	syncEvent := receiveSyncEventFromUser(w, r)
-	if syncEvent == nil {
-		return
-	}
-
-	conns.mutex.RLock()
-	for _, conn := range conns.slice {
-		if user.Id == conn.userId && conn.id == syncEvent.Uuid {
-			continue
-		}
-
-		writeSyncEvent(conn.writer, Pause, true, syncEvent.Username)
-	}
-	conns.mutex.RUnlock()
-
-	io.WriteString(w, "Broadcasting pause!\n")
-}
-
-func apiSeek(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
-	token := r.Header.Get("Authorization")
-	user := users.find(token)
-	if user == nil {
-		http.Error(w, "User not found", http.StatusUnauthorized)
-		return
-	}
-
-	LogInfo("Connection %s requested player seek.", r.RemoteAddr)
-	syncEvent := receiveSyncEventFromUser(w, r)
-	if syncEvent == nil {
-		return
-	}
-	// this needs a rewrite: /pause /start /seek - a unified format way of
-	conns.mutex.RLock()
-	for _, conn := range conns.slice {
-		if user.Id == conn.userId && conn.id == syncEvent.Uuid {
-			continue
-		}
-
-		writeSyncEvent(conn.writer, Seek, true, syncEvent.Username)
-	}
-	conns.mutex.RUnlock()
-	io.WriteString(w, "Broadcasting seek!\n")
-}
-
-func receiveSyncEventFromUser(w http.ResponseWriter, r *http.Request) *SyncEventFromUser {
+func receiveSyncRequest(w http.ResponseWriter, r *http.Request) *SyncRequestData {
 	// Read the request body
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -1265,7 +1292,7 @@ func receiveSyncEventFromUser(w http.ResponseWriter, r *http.Request) *SyncEvent
 	}
 
 	// Unmarshal the JSON data
-	var sync SyncEventFromUser
+	var sync SyncRequestData
 	err = json.Unmarshal(body, &sync)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -1273,37 +1300,36 @@ func receiveSyncEventFromUser(w http.ResponseWriter, r *http.Request) *SyncEvent
 	}
 	// Update state
 	state.player.Timestamp = sync.Timestamp
-	state.lastTimeUpdate = time.Now()
+	state.lastUpdate = time.Now()
 	return &sync
 }
-func readSetEventAndUpdateState(w http.ResponseWriter, r *http.Request) (*SetEventFromUser, error) {
-	// Read the request body
+
+func readSetUrlResponseAndUpdateState(w http.ResponseWriter, r *http.Request) (*SetUrlResponseData, error) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return nil, err
 	}
 
-	// Unmarshal the JSON data
-	var setEvent SetEventFromUser
-	err = json.Unmarshal(body, &setEvent)
+	var data SetUrlResponseData
+	err = json.Unmarshal(body, &data)
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return nil, err
 	}
-	state.player.Timestamp = 0
-	state.url = setEvent.Url
 
-	lastSegment := lastUrlSegment(setEvent.Url)
-	if setEvent.Proxy && strings.HasSuffix(lastSegment, ".m3u8") {
-		setupProxy(setEvent.Url, setEvent.Referer)
-	} else {
-		state.url = setEvent.Url
+	state.player.Timestamp = 0
+	state.player.Playing = state.player.Autoplay
+	state.entry = data.Entry
+
+	lastSegment := lastUrlSegment(state.entry.Url)
+	if state.entry.UseProxy && strings.HasSuffix(lastSegment, ".m3u8") {
+		setupProxy(state.entry.Url, state.entry.RefererUrl)
 	}
 
-	LogInfo("New url is now: '%s'.", state.url)
-	state.player.Playing.Swap(state.player.Autoplay.Load())
-	return &setEvent, nil
+	LogInfo("New url is now: '%s'.", state.entry.Url)
+	return &data, nil
 }
 
 func stripLastSegment(url string) (*string, error) {
@@ -1325,7 +1351,7 @@ func setupProxy(url string, referer string) {
 	m3u, err := downloadM3U(url, WEB_PROXY+ORIGINAL_M3U8, referer)
 	if err != nil {
 		LogError("Failed to fetch m3u8: %v", err)
-		state.url = err.Error()
+		state.entry.Url = err.Error()
 		return
 	}
 
@@ -1339,7 +1365,7 @@ func setupProxy(url string, referer string) {
 		return
 	}
 
-	state.referer = referer
+	state.entry.RefererUrl = referer
 
 	LogDebug("%v %v", EXT_X_PLAYLIST_TYPE, m3u.playlistType)
 	LogDebug("%v %v", EXT_X_VERSION, m3u.version)
@@ -1349,7 +1375,7 @@ func setupProxy(url string, referer string) {
 
 	if len(m3u.segments) == 0 {
 		LogWarn("No segments found")
-		state.url = "No segments found"
+		state.entry.Url = "No segments found"
 		return
 	}
 
@@ -1378,7 +1404,7 @@ func setupProxy(url string, referer string) {
 	routedM3U.serialize(WEB_PROXY + PROXY_M3U8)
 	LogInfo("Prepared proxy file %v", PROXY_M3U8)
 
-	state.url = PROXY_ROUTE + "proxy.m3u8"
+	state.entry.Url = PROXY_ROUTE + "proxy.m3u8"
 }
 
 func apiEvents(w http.ResponseWriter, r *http.Request) {
@@ -1436,12 +1462,16 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 
 	for {
 		var eventType string
-		if state.player.Playing.Load() {
+
+		state.mutex.RLock()
+		if state.player.Playing {
 			eventType = Play
 		} else {
 			eventType = Pause
 		}
-		connection_error := writeSyncEvent(w, eventType, false, "SERVER")
+		state.mutex.RUnlock()
+
+		connection_error := writeSyncEvent(w, eventType, false, 0)
 
 		if connection_error != nil {
 			conns.mutex.Lock()
@@ -1471,14 +1501,12 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-const BROADCAST_INTERVAL = 2 * time.Second
-
 // this will prevent LAZY broadcasts when users make frequent updates
 func smartSleep() {
 	time.Sleep(BROADCAST_INTERVAL)
 	for {
 		now := time.Now()
-		diff := now.Sub(state.lastTimeUpdate)
+		diff := now.Sub(state.lastUpdate)
 
 		if diff > BROADCAST_INTERVAL {
 			break
@@ -1487,11 +1515,7 @@ func smartSleep() {
 	}
 }
 
-const Play = "play"
-const Pause = "pause"
-const Seek = "seek"
-
-func writeSyncEvent(writer http.ResponseWriter, eventType string, haste bool, user string) error {
+func writeSyncEvent(writer http.ResponseWriter, eventType string, haste bool, userId uint64) error {
 	var priority string
 	if haste {
 		priority = "HASTY"
@@ -1499,19 +1523,21 @@ func writeSyncEvent(writer http.ResponseWriter, eventType string, haste bool, us
 		priority = "LAZY"
 	}
 
-	var syncEvent SyncEventForUser
-	// this needs to be reviewed
+	state.mutex.RLock()
 	var timestamp = state.player.Timestamp
-	if state.player.Playing.Load() {
+	if state.player.Playing {
 		now := time.Now()
-		diff := now.Sub(state.lastTimeUpdate)
+		diff := now.Sub(state.lastUpdate)
 		timestamp = state.player.Timestamp + diff.Seconds()
 	}
-	syncEvent = SyncEventForUser{
+	state.mutex.RUnlock()
+
+	syncEvent := SyncEventData{
 		Timestamp: timestamp,
 		Priority:  priority,
-		Origin:    user,
+		UserId:    userId,
 	}
+
 	jsonData, err := json.Marshal(syncEvent)
 	if err != nil {
 		LogError("Failed to serialize sync event")
@@ -1533,24 +1559,24 @@ func writeSyncEvent(writer http.ResponseWriter, eventType string, haste bool, us
 	return nil
 }
 
-func writeSetEvent(writer http.ResponseWriter) {
-	// fmt.Printf("Writing set event");
-	escapedUrl, err := json.Marshal(state.url)
-	if err != nil {
-		return
-	}
-	event_id := state.eventId.Add(1)
-	fmt.Fprintln(writer, "id:", event_id)
-	fmt.Fprintln(writer, "event: seturl")
-	fmt.Fprintln(writer, "data:", "{\"url\":"+string(escapedUrl)+"}")
-	fmt.Fprintln(writer, "retry:", RETRY)
-	fmt.Fprintln(writer)
-
-	// Flush the response to ensure the client receives the event
-	if f, ok := writer.(http.Flusher); ok {
-		f.Flush()
-	}
-}
+// func writeSetEvent(writer http.ResponseWriter) {
+// 	// fmt.Printf("Writing set event");
+// 	escapedUrl, err := json.Marshal(state.url)
+// 	if err != nil {
+// 		return
+// 	}
+// 	event_id := state.eventId.Add(1)
+// 	fmt.Fprintln(writer, "id:", event_id)
+// 	fmt.Fprintln(writer, "event: seturl")
+// 	fmt.Fprintln(writer, "data:", "{\"url\":"+string(escapedUrl)+"}")
+// 	fmt.Fprintln(writer, "retry:", RETRY)
+// 	fmt.Fprintln(writer)
+//
+// 	// Flush the response to ensure the client receives the event
+// 	if f, ok := writer.(http.Flusher); ok {
+// 		f.Flush()
+// 	}
+// }
 
 func lastUrlSegment(url string) string {
 	url = path.Base(url)

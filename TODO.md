@@ -60,6 +60,5 @@
 - [ ] Add server side and client side authentication and store cookies
 - [ ] Add option to upload media file to the server and stream it to all connected clients (streaming proxy)
 - [ ] Add support for live chat
-- [ ] Display connected users
 - [ ] Improve the UI layout and styling
 - [ ] Add rooms with individual player states
