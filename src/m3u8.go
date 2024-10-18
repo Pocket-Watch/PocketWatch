@@ -3,8 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -20,8 +18,6 @@ const EXT_X_MEDIA_SEQUENCE = "#EXT-X-MEDIA-SEQUENCE"
 const EXT_X_PLAYLIST_TYPE = "#EXT-X-PLAYLIST-TYPE"
 
 const EXT_X_STREAM_INF = "#EXT-X-STREAM-INF"
-
-var client = http.Client{}
 
 func detectM3U(path string) (bool, error) {
 	file, err := os.Open(path)
@@ -92,7 +88,6 @@ func parseM3U(path string) (*M3U, error) {
 			parsePlaylistTag(line, m3u)
 			continue
 		}
-
 	}
 
 	return m3u, nil
@@ -320,15 +315,6 @@ func (m3u *M3U) copy() M3U {
 	return *m3uCopy
 }
 
-func stripSuffix(url string) string {
-	lastSlash := strings.LastIndex(url, "/")
-	if lastSlash == -1 {
-		// this could be more robust
-		return url
-	}
-	return url[:lastSlash]
-}
-
 func (m3u *M3U) prefixSegments(urlPrefix string) {
 	// if a range loop is used the track url is effectively not reassigned
 	for i := 0; i < len(m3u.segments); i++ {
@@ -365,29 +351,7 @@ func (m3u *M3U) serialize(path string) {
 }
 
 func downloadM3U(url string, filename string, referer string) (*M3U, error) {
-	request, _ := http.NewRequest("GET", url, nil)
-	if referer != "" {
-		request.Header.Set("Referer", referer)
-		request.Header.Set("Origin", inferOrigin(referer))
-	}
-	response, err := client.Do(request)
-	if err != nil {
-		return nil, err
-	}
-	if response.StatusCode != 200 && response.StatusCode != 206 {
-		return nil, fmt.Errorf("error downloading M3U: status code %d", response.StatusCode)
-	}
-	defer response.Body.Close()
-
-	// Create the file
-	out, err := os.Create(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer out.Close()
-
-	// Write the body to file
-	_, err = io.Copy(out, response.Body)
+	err := downloadFile(url, filename, referer)
 	if err != nil {
 		return nil, err
 	}

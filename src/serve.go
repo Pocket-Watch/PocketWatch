@@ -9,7 +9,6 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
-	url2 "net/url"
 	"os"
 	"path"
 	"strconv"
@@ -19,7 +18,6 @@ import (
 	"time"
 )
 
-const ANNOUNCE_RECEIVED = true
 const BODY_LIMIT = 1024
 const RETRY = 5000 // Retry time in milliseconds
 const TOKEN_LENGTH = 32
@@ -391,43 +389,6 @@ func watchProxy(writer http.ResponseWriter, request *http.Request) {
 	mutex.Unlock()
 
 	http.ServeFile(writer, request, WEB_PROXY+chunk)
-}
-
-func inferOrigin(referer string) string {
-	if strings.HasSuffix(referer, "/") {
-		length := len(referer)
-		return referer[:length-1]
-	}
-	return referer
-}
-
-func downloadFile(url string, filename string, referer string) error {
-	request, _ := http.NewRequest("GET", url, nil)
-	if referer != "" {
-		request.Header.Set("Referer", referer)
-		request.Header.Set("Origin", inferOrigin(referer))
-	}
-	response, err := client.Do(request)
-
-	if err != nil {
-		return err
-	}
-	if response.StatusCode != 200 && response.StatusCode != 206 {
-		return fmt.Errorf("error downloading file: status code %d", response.StatusCode)
-	}
-	defer response.Body.Close()
-
-	out, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, response.Body)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func apiVersion(w http.ResponseWriter, r *http.Request) {
@@ -1355,20 +1316,6 @@ func readSetUrlResponseAndUpdateState(w http.ResponseWriter, r *http.Request) (*
 	return &data, nil
 }
 
-func stripLastSegment(url string) (*string, error) {
-	pUrl, err := url2.Parse(url)
-	if err != nil {
-		return nil, err
-	}
-	lastSlash := strings.LastIndex(pUrl.Path, "/")
-	stripped := pUrl.Scheme + "://" + pUrl.Host + pUrl.Path[:lastSlash+1]
-	return &stripped, nil
-}
-
-func toString(num int) string {
-	return strconv.Itoa(num)
-}
-
 func setupProxy(url string, referer string) {
 	_ = os.Mkdir(WEB_PROXY, os.ModePerm)
 	m3u, err := downloadM3U(url, WEB_PROXY+ORIGINAL_M3U8, referer)
@@ -1600,12 +1547,3 @@ func writeSyncEvent(writer http.ResponseWriter, eventType string, haste bool, us
 // 		f.Flush()
 // 	}
 // }
-
-func lastUrlSegment(url string) string {
-	url = path.Base(url)
-	questionMark := strings.Index(url, "?")
-	if questionMark == -1 {
-		return url
-	}
-	return url[:questionMark]
-}

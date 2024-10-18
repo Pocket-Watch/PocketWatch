@@ -40,7 +40,7 @@
     - [ ] Update playlist entries when a user changes their name
 - [x] Subtitle support
 - [x] Display connected users
-- [ ] Convert srt to vtt
+- [x] Convert srt to vtt
 - [ ] Add watch history
     - [x] Implement history add
     - [x] Implement history clear
