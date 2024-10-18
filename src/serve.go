@@ -613,14 +613,14 @@ func apiSetUrl(w http.ResponseWriter, r *http.Request) {
 	}
 
 	LogInfo("Connection %s requested media url change.", r.RemoteAddr)
-	data, err := readSetUrlResponseAndUpdateState(w, r)
+	_, err := readSetUrlResponseAndUpdateState(w, r)
 	if err != nil {
 		LogError("Failed to read set event for %v: %v", r.RemoteAddr, err)
 		return
 	}
 	conns.mutex.Unlock()
 
-	entryJson, err := json.Marshal(data.Entry)
+	entryJson, err := json.Marshal(state.entry)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		LogError("Failed to serialize json data")
