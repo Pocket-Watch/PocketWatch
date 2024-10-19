@@ -140,16 +140,6 @@ func (users *Users) create() User {
 	return new_user
 }
 
-func (users *Users) find(token string) *User {
-	for i, user := range users.slice {
-		if user.token == token {
-			return &users.slice[i]
-		}
-	}
-
-	return nil
-}
-
 func (users *Users) findIndex(token string) int {
 	for i, user := range users.slice {
 		if user.token == token {
@@ -453,19 +443,16 @@ func apiUserVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user := getAuthorized(w, r)
+	if user == nil {
+		return
+	}
+
 	LogInfo("Connection requested %s user verification.", r.RemoteAddr)
 
 	var token string
 	if !readJsonDataFromRequest(w, r, &token) {
 		return
-	}
-
-	users.mutex.Lock()
-	user := users.find(token)
-	users.mutex.Unlock()
-
-	if user == nil {
-		http.Error(w, "Failed to find user with specified token", http.StatusBadRequest)
 	}
 
 	jsonData, err := json.Marshal(user)
@@ -490,12 +477,11 @@ func apiUserUpdateName(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := r.Header.Get("Authorization")
 	users.mutex.Lock()
-	userIndex := users.findIndex(token)
+	userIndex := getAuthorizedIndex(w, r)
+
 	if userIndex == -1 {
 		users.mutex.Unlock()
-		http.Error(w, "User not found", http.StatusUnauthorized)
 		return
 	}
 
@@ -533,10 +519,7 @@ func apiSetUrl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := r.Header.Get("Authorization")
-	user := users.find(token)
-	if user == nil {
-		http.Error(w, "User not found", http.StatusUnauthorized)
+	if !isAuthorized(w, r) {
 		return
 	}
 
@@ -572,10 +555,8 @@ func apiPlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := r.Header.Get("Authorization")
-	user := users.find(token)
+	user := getAuthorized(w, r)
 	if user == nil {
-		http.Error(w, "User not found", http.StatusUnauthorized)
 		return
 	}
 
@@ -607,10 +588,8 @@ func apiPause(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := r.Header.Get("Authorization")
-	user := users.find(token)
+	user := getAuthorized(w, r)
 	if user == nil {
-		http.Error(w, "User not found", http.StatusUnauthorized)
 		return
 	}
 
@@ -642,10 +621,8 @@ func apiSeek(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := r.Header.Get("Authorization")
-	user := users.find(token)
+	user := getAuthorized(w, r)
 	if user == nil {
-		http.Error(w, "User not found", http.StatusUnauthorized)
 		return
 	}
 
@@ -727,10 +704,7 @@ func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := r.Header.Get("Authorization")
-	user := users.find(token)
-	if user == nil {
-		http.Error(w, "User not found", http.StatusUnauthorized)
+	if !isAuthorized(w, r) {
 		return
 	}
 
@@ -756,10 +730,7 @@ func apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := r.Header.Get("Authorization")
-	user := users.find(token)
-	if user == nil {
-		http.Error(w, "User not found", http.StatusUnauthorized)
+	if !isAuthorized(w, r) {
 		return
 	}
 
@@ -782,10 +753,7 @@ func apiPlaylistNext(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := r.Header.Get("Authorization")
-	user := users.find(token)
-	if user == nil {
-		http.Error(w, "User not found", http.StatusUnauthorized)
+	if !isAuthorized(w, r) {
 		return
 	}
 
@@ -852,10 +820,7 @@ func apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := r.Header.Get("Authorization")
-	user := users.find(token)
-	if user == nil {
-		http.Error(w, "User not found", http.StatusUnauthorized)
+	if !isAuthorized(w, r) {
 		return
 	}
 
@@ -882,10 +847,7 @@ func apiPlaylistAutoplay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := r.Header.Get("Authorization")
-	user := users.find(token)
-	if user == nil {
-		http.Error(w, "User not found", http.StatusUnauthorized)
+	if !isAuthorized(w, r) {
 		return
 	}
 
@@ -910,10 +872,7 @@ func apiPlaylistLooping(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := r.Header.Get("Authorization")
-	requester := users.find(token)
-	if requester == nil {
-		http.Error(w, "User not found", http.StatusUnauthorized)
+	if !isAuthorized(w, r) {
 		return
 	}
 
@@ -938,10 +897,7 @@ func apiPlaylistShuffle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := r.Header.Get("Authorization")
-	requester := users.find(token)
-	if requester == nil {
-		http.Error(w, "User not found", http.StatusUnauthorized)
+	if !isAuthorized(w, r) {
 		return
 	}
 
@@ -962,10 +918,7 @@ func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := r.Header.Get("Authorization")
-	user := users.find(token)
-	if user == nil {
-		http.Error(w, "User not found", http.StatusUnauthorized)
+	if !isAuthorized(w, r) {
 		return
 	}
 
@@ -1032,10 +985,7 @@ func apiHistoryClear(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := r.Header.Get("Authorization")
-	user := users.find(token)
-	if user == nil {
-		http.Error(w, "User not found", http.StatusUnauthorized)
+	if !isAuthorized(w, r) {
 		return
 	}
 
@@ -1046,6 +996,47 @@ func apiHistoryClear(w http.ResponseWriter, r *http.Request) {
 	state.mutex.Unlock()
 
 	writeEventToAllConnections(w, "historyclear", nil)
+}
+
+func isAuthorized(w http.ResponseWriter, r *http.Request) bool {
+	users.mutex.RLock()
+	index := getAuthorizedIndex(w, r)
+	users.mutex.RUnlock()
+
+	return index != -1
+}
+
+func getAuthorized(w http.ResponseWriter, r *http.Request) *User {
+	users.mutex.RLock()
+	defer users.mutex.RUnlock()
+
+	index := getAuthorizedIndex(w, r)
+
+	if index == -1 {
+		return nil
+	}
+
+	user := users.slice[index]
+	return &user
+}
+
+func getAuthorizedIndex(w http.ResponseWriter, r *http.Request) int {
+	token := r.Header.Get("Authorization")
+	if token == "" {
+		LogError("Inavlid token")
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return -1
+	}
+
+	for i, user := range users.slice {
+		if user.token == token {
+			return i
+		}
+	}
+
+	LogError("Failed to find user")
+	http.Error(w, "User not found", http.StatusUnauthorized)
+	return -1
 }
 
 func readJsonDataFromRequest(w http.ResponseWriter, r *http.Request, data any) bool {
