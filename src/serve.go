@@ -426,16 +426,7 @@ func apiUserCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	io.WriteString(w, string(tokenJson))
-
-	userJson, err := json.Marshal(user)
-	conns.mutex.RLock()
-	for _, conn := range conns.slice {
-		if user.Id == conn.userId {
-			continue
-		}
-		writeEvent(conn.writer, "usercreate", string(userJson))
-	}
-	conns.mutex.RUnlock()
+	writeEventToAllConnections(w, "usercreate", user)
 }
 
 func apiUserGetAll(w http.ResponseWriter, r *http.Request) {
@@ -536,13 +527,7 @@ func apiUserUpdateName(w http.ResponseWriter, r *http.Request) {
 	users.mutex.Unlock()
 
 	io.WriteString(w, "Username updated")
-
-	userJson, err := json.Marshal(user)
-	conns.mutex.RLock()
-	for _, conn := range conns.slice {
-		writeEvent(conn.writer, "usernameupdate", string(userJson))
-	}
-	conns.mutex.RUnlock()
+	writeEventToAllConnections(w, "usernameupdate", user)
 }
 
 func apiGet(w http.ResponseWriter, r *http.Request) {
@@ -590,20 +575,8 @@ func apiSetUrl(w http.ResponseWriter, r *http.Request) {
 	}
 	conns.mutex.Unlock()
 
-	entryJson, err := json.Marshal(state.entry)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		LogError("Failed to serialize json data")
-		return
-	}
-
-	conns.mutex.RLock()
-	for _, conn := range conns.slice {
-		writeEvent(conn.writer, "seturl", string(entryJson))
-	}
-	conns.mutex.RUnlock()
-
 	io.WriteString(w, "Setting media url!")
+	writeEventToAllConnections(w, "seturl", state.entry)
 }
 
 func apiPlay(w http.ResponseWriter, r *http.Request) {
@@ -796,18 +769,7 @@ func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 	state.mutex.Unlock()
 
 	// TODO(kihau): Playlist entry cannot be reused and a new one needs to be created here.
-	eventData, err := json.Marshal(data.Entry)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		users.mutex.Unlock()
-		return
-	}
-
-	conns.mutex.RLock()
-	for _, conn := range conns.slice {
-		writeEvent(conn.writer, "playlistadd", string(eventData))
-	}
-	conns.mutex.RUnlock()
+	writeEventToAllConnections(w, "playlistadd", data.Entry)
 }
 
 func apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
@@ -842,11 +804,7 @@ func apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
 	state.playlist = state.playlist[:0]
 	state.mutex.Unlock()
 
-	conns.mutex.RLock()
-	for _, conn := range conns.slice {
-		writeEvent(conn.writer, "playlistclear", "")
-	}
-	conns.mutex.RUnlock()
+	writeEventToAllConnections(w, "playlistclear", nil)
 }
 
 func apiPlaylistNext(w http.ResponseWriter, r *http.Request) {
@@ -925,20 +883,7 @@ func apiPlaylistNext(w http.ResponseWriter, r *http.Request) {
 		PrevEntry: prevEntry,
 		NewEntry:  newEntry,
 	}
-
-	jsonData, err := json.Marshal(nextEvent)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		LogError("Failed to serialize json data")
-		return
-	}
-
-	conns.mutex.RLock()
-	for _, conn := range conns.slice {
-		// TOOD(kihau): Do not resend request back to user that sent the request.
-		writeEvent(conn.writer, "playlistnext", string(jsonData))
-	}
-	conns.mutex.RUnlock()
+	writeEventToAllConnections(w, "playlistnext", nextEvent)
 }
 
 func apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
@@ -976,18 +921,7 @@ func apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
 	}
 	state.mutex.Unlock()
 
-	jsonData, err := json.Marshal(data.Index)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		LogError("Failed to serialize json data")
-		return
-	}
-
-	conns.mutex.RLock()
-	for _, conn := range conns.slice {
-		writeEvent(conn.writer, "playlistremove", string(jsonData))
-	}
-	conns.mutex.RUnlock()
+	writeEventToAllConnections(w, "playlistremove", data.Index)
 }
 
 func apiPlaylistAutoplay(w http.ResponseWriter, r *http.Request) {
@@ -1017,18 +951,13 @@ func apiPlaylistAutoplay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	LogInfo("Setting playlist autoplay to %v.", autoplay)
+
 	state.mutex.Lock()
 	state.player.Autoplay = autoplay
 	state.mutex.Unlock()
-	LogInfo("Setting playlist autoplay to %v.", autoplay)
 
-	jsonData := string(data)
-
-	conns.mutex.RLock()
-	for _, conn := range conns.slice {
-		writeEvent(conn.writer, "playlistautoplay", jsonData)
-	}
-	conns.mutex.RUnlock()
+	writeEventToAllConnections(w, "playlistautoplay", autoplay)
 }
 
 func apiPlaylistLooping(w http.ResponseWriter, r *http.Request) {
@@ -1058,19 +987,13 @@ func apiPlaylistLooping(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	LogInfo("Setting playlist looping to %v.", looping)
+
 	state.mutex.Lock()
 	state.player.Looping = looping
 	state.mutex.Unlock()
 
-	LogInfo("Setting playlist looping to %v.", looping)
-
-	jsonData := string(data)
-
-	conns.mutex.RLock()
-	for _, conn := range conns.slice {
-		writeEvent(conn.writer, "playlistlooping", jsonData)
-	}
-	conns.mutex.RUnlock()
+	writeEventToAllConnections(w, "playlistlooping", looping)
 }
 
 func apiPlaylistShuffle(w http.ResponseWriter, r *http.Request) {
@@ -1092,20 +1015,9 @@ func apiPlaylistShuffle(w http.ResponseWriter, r *http.Request) {
 		j := rand.Intn(i + 1)
 		state.playlist[i], state.playlist[j] = state.playlist[j], state.playlist[i]
 	}
-
-	jsonData, err := json.Marshal(state.playlist)
 	state.mutex.Unlock()
 
-	if err != nil {
-		LogError("Failed to serialize get event: %v.", err)
-		return
-	}
-
-	conns.mutex.RLock()
-	for _, conn := range conns.slice {
-		writeEvent(conn.writer, "playlistshuffle", string(jsonData))
-	}
-	conns.mutex.RUnlock()
+	writeEventToAllConnections(w, "playlistshuffle", state.playlist)
 }
 
 func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
@@ -1159,27 +1071,12 @@ func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 	list = append(list, state.playlist[move.DestIndex:]...)
 
 	state.playlist = list
-
-	jsonData, err := json.Marshal(state.playlist)
 	state.mutex.Unlock()
 
-	if err != nil {
-		LogError("Failed to serialize move event: %v.", err)
-		return
-	}
-
-	conns.mutex.RLock()
-	for _, conn := range conns.slice {
-		// if conn.userId == user.Id && entry.Uuid == conn.id {
-		// 	continue
-		// }
-
-		// NOTE(kihau):
-		//     Sending entire playlist in the playlist move event is pretty wasteful,
-		//     but this will do for now.
-		writeEvent(conn.writer, "playlistmove", string(jsonData))
-	}
-	conns.mutex.RUnlock()
+	// NOTE(kihau):
+	//     Sending entire playlist in the playlist move event is pretty wasteful,
+	//     but this will do for now.
+	writeEventToAllConnections(w, "playlistmove", list)
 }
 
 func apiHistoryGet(w http.ResponseWriter, r *http.Request) {
@@ -1215,11 +1112,33 @@ func apiHistoryClear(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection %s requested history clear.", r.RemoteAddr)
 
-	conns.mutex.RLock()
+	state.mutex.Lock()
 	state.history = state.history[:0]
+	state.mutex.Unlock()
 
+	writeEventToAllConnections(w, "historyclear", nil)
+}
+
+func writeEventToAllConnections(origin http.ResponseWriter, eventName string, data any) {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		LogError("Failed to serialize data for event '%v': %v", eventName, err)
+		http.Error(origin, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	jsonString := string(jsonData)
+
+	eventId := state.eventId.Add(1)
+	event := fmt.Sprintf("id:%v\nevent:%v\ndata:%v\nretry:%v\n", eventId, eventName, jsonString, RETRY)
+
+	conns.mutex.RLock()
 	for _, conn := range conns.slice {
-		writeEvent(conn.writer, "historyclear", "")
+		fmt.Fprintln(conn.writer, event)
+
+		if f, ok := conn.writer.(http.Flusher); ok {
+			f.Flush()
+		}
 	}
 	conns.mutex.RUnlock()
 }
