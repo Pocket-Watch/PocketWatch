@@ -1247,7 +1247,13 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 	writeEventToAllConnectionsExceptSelf(w, "connectionadd", user.Id, user.Id, connectionId)
 
 	for {
-		event := createSyncEvent("seek", 0)
+		var event SyncEventData
+		if state.player.Playing {
+			event = createSyncEvent("play", 0)
+		} else {
+			event = createSyncEvent("pause", 0)
+		}
+
 		connectionErr := writeEvent(w, "sync", event)
 
 		if connectionErr != nil {
