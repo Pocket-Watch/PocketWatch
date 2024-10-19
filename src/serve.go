@@ -455,19 +455,8 @@ func apiUserVerify(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection requested %s user verification.", r.RemoteAddr)
 
-	data, err := io.ReadAll(r.Body)
-	if err != nil {
-		LogError("Get user request handler failed to read request body.")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	var token string
-	err = json.Unmarshal(data, &token)
-
-	if err != nil {
-		LogError("Get user request handler failed to read json payload.")
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if !readJsonDataFromRequest(w, r, &token) {
 		return
 	}
 
@@ -496,19 +485,8 @@ func apiUserUpdateName(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection requested %s user name change.", r.RemoteAddr)
 
-	data, err := io.ReadAll(r.Body)
-	if err != nil {
-		LogError("Get user request handler failed to read request body.")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	var new_username string
-	err = json.Unmarshal(data, &new_username)
-
-	if err != nil {
-		LogError("Get user request handler failed to read json payload.")
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	var newUsername string
+	if !readJsonDataFromRequest(w, r, &newUsername) {
 		return
 	}
 
@@ -521,7 +499,7 @@ func apiUserUpdateName(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	users.slice[userIndex].Username = new_username
+	users.slice[userIndex].Username = newUsername
 	users.slice[userIndex].lastUpdate = time.Now()
 	user := users.slice[userIndex]
 	users.mutex.Unlock()
@@ -562,20 +540,30 @@ func apiSetUrl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conns.mutex.Lock()
+	LogInfo("Connection %s requested media url change.", r.RemoteAddr)
+
+	var data SetUrlResponseData
+	if !readJsonDataFromRequest(w, r, &data) {
+		return
+	}
+
+	state.mutex.Lock()
 	if state.entry.Url != "" {
 		state.history = append(state.history, state.entry)
 	}
 
-	LogInfo("Connection %s requested media url change.", r.RemoteAddr)
-	_, err := readSetUrlResponseAndUpdateState(w, r)
-	if err != nil {
-		LogError("Failed to read set event for %v: %v", r.RemoteAddr, err)
-		return
-	}
-	conns.mutex.Unlock()
+	state.player.Timestamp = 0
+	state.player.Playing = state.player.Autoplay
+	state.entry = data.Entry
 
-	io.WriteString(w, "Setting media url!")
+	lastSegment := lastUrlSegment(state.entry.Url)
+	if state.entry.UseProxy && strings.HasSuffix(lastSegment, ".m3u8") {
+		setupProxy(state.entry.Url, state.entry.RefererUrl)
+	}
+	state.mutex.Unlock()
+
+	LogInfo("New url is now: '%s'.", state.entry.Url)
+
 	writeEventToAllConnections(w, "seturl", state.entry)
 }
 
@@ -748,17 +736,8 @@ func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection %s requested playlist add.", r.RemoteAddr)
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	var data PlaylistAddRequestData
-	err = json.Unmarshal(body, &data)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if !readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
@@ -786,17 +765,8 @@ func apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection %s requested playlist clear.", r.RemoteAddr)
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	var connection_id uint64
-	err = json.Unmarshal(body, &connection_id)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	var connectionId uint64
+	if !readJsonDataFromRequest(w, r, &connectionId) {
 		return
 	}
 
@@ -821,17 +791,8 @@ func apiPlaylistNext(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection %s requested playlist next.", r.RemoteAddr)
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		LogError("Playlist next request handler failed to read current client URL.")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	var data PlaylistNextRequestData
-	err = json.Unmarshal(body, &data)
-	if err != nil {
-		LogError("Playlist next request handler failed to parse current client URL.")
+	if !readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
@@ -900,16 +861,8 @@ func apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection %s requested playlist remove.", r.RemoteAddr)
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		LogError("Playlist remove request handler failed to read remove index.")
-		return
-	}
-
 	var data PlaylistRemoveRequestData
-	err = json.Unmarshal(body, &data)
-	if err != nil {
-		LogError("Playlist remove request handler failed to parse current remove index.")
+	if !readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
@@ -938,16 +891,8 @@ func apiPlaylistAutoplay(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection %s requested playlist autoplay.", r.RemoteAddr)
 
-	data, err := io.ReadAll(r.Body)
-	if err != nil {
-		LogError("Failed to read autoplay payload")
-	}
-
 	var autoplay bool
-	err = json.Unmarshal(data, &autoplay)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if !readJsonDataFromRequest(w, r, &autoplay) {
 		return
 	}
 
@@ -974,16 +919,8 @@ func apiPlaylistLooping(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection %s requested playlist looping.", r.RemoteAddr)
 
-	data, err := io.ReadAll(r.Body)
-	if err != nil {
-		LogError("Failed to read looping payload")
-	}
-
 	var looping bool
-	err = json.Unmarshal(data, &looping)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if !readJsonDataFromRequest(w, r, &looping) {
 		return
 	}
 
@@ -1034,16 +971,8 @@ func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection %s requested playlist move.", r.RemoteAddr)
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		LogError("Failed to read json body for playlist move event.")
-		return
-	}
-
 	var move PlaylistMoveRequestData
-	err = json.Unmarshal(body, &move)
-	if err != nil {
-		LogError("Failed to deserialize json data for playlist move event.")
+	if !readJsonDataFromRequest(w, r, &move) {
 		return
 	}
 
@@ -1119,6 +1048,24 @@ func apiHistoryClear(w http.ResponseWriter, r *http.Request) {
 	writeEventToAllConnections(w, "historyclear", nil)
 }
 
+func readJsonDataFromRequest(w http.ResponseWriter, r *http.Request, data any) bool {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		LogError("Request handler failed to read request body: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return false
+	}
+
+	err = json.Unmarshal(body, &data)
+	if err != nil {
+		LogError("Request handler failed to read json payload: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return false
+	}
+
+	return true
+}
+
 func writeEventToAllConnections(origin http.ResponseWriter, eventName string, data any) {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
@@ -1187,52 +1134,14 @@ func getSubtitles() []string {
 }
 
 func receiveSyncRequest(w http.ResponseWriter, r *http.Request) *SyncRequestData {
-	// Read the request body
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	var sync SyncRequestData
+	if !readJsonDataFromRequest(w, r, &sync) {
 		return nil
 	}
 
-	// Unmarshal the JSON data
-	var sync SyncRequestData
-	err = json.Unmarshal(body, &sync)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return nil
-	}
-	// Update state
 	state.player.Timestamp = sync.Timestamp
 	state.lastUpdate = time.Now()
 	return &sync
-}
-
-func readSetUrlResponseAndUpdateState(w http.ResponseWriter, r *http.Request) (*SetUrlResponseData, error) {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return nil, err
-	}
-
-	var data SetUrlResponseData
-	err = json.Unmarshal(body, &data)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return nil, err
-	}
-
-	state.player.Timestamp = 0
-	state.player.Playing = state.player.Autoplay
-	state.entry = data.Entry
-
-	lastSegment := lastUrlSegment(state.entry.Url)
-	if state.entry.UseProxy && strings.HasSuffix(lastSegment, ".m3u8") {
-		setupProxy(state.entry.Url, state.entry.RefererUrl)
-	}
-
-	LogInfo("New url is now: '%s'.", state.entry.Url)
-	return &data, nil
 }
 
 func setupProxy(url string, referer string) {
@@ -1447,22 +1356,3 @@ func writeSyncEvent(writer http.ResponseWriter, eventType string, haste bool, us
 
 	return nil
 }
-
-// func writeSetEvent(writer http.ResponseWriter) {
-// 	// fmt.Printf("Writing set event");
-// 	escapedUrl, err := json.Marshal(state.url)
-// 	if err != nil {
-// 		return
-// 	}
-// 	event_id := state.eventId.Add(1)
-// 	fmt.Fprintln(writer, "id:", event_id)
-// 	fmt.Fprintln(writer, "event: seturl")
-// 	fmt.Fprintln(writer, "data:", "{\"url\":"+string(escapedUrl)+"}")
-// 	fmt.Fprintln(writer, "retry:", RETRY)
-// 	fmt.Fprintln(writer)
-//
-// 	// Flush the response to ensure the client receives the event
-// 	if f, ok := writer.(http.Flusher); ok {
-// 		f.Flush()
-// 	}
-// }
