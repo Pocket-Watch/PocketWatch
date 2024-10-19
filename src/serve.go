@@ -197,7 +197,6 @@ type SyncRequestData struct {
 
 type SyncEventData struct {
 	Timestamp float64 `json:"timestamp"`
-	Priority  string  `json:"priority"`
 	UserId    uint64  `json:"user_id"`
 }
 
@@ -1046,9 +1045,7 @@ func writeEvent(w http.ResponseWriter, eventName string, data any) error {
 	jsonString := string(jsonData)
 
 	eventId := state.eventId.Add(1)
-	event := fmt.Sprintf("id:%v\nevent:%v\ndata:%v\nretry:%v\n", eventId, eventName, jsonString, RETRY)
-
-	_, err = fmt.Fprintln(w, event)
+	_, err = fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\nretry: %d\n\n", eventId, eventName, jsonString, RETRY)
 	if err != nil {
 		return err
 	}
@@ -1071,7 +1068,7 @@ func writeEventToAllConnections(origin http.ResponseWriter, eventName string, da
 	jsonString := string(jsonData)
 
 	eventId := state.eventId.Add(1)
-	event := fmt.Sprintf("id:%v\nevent:%v\ndata:%v\nretry:%v\n", eventId, eventName, jsonString, RETRY)
+	event := fmt.Sprintf("id: %v\nevent: %v\ndata: %v\nretry: %v\n\n", eventId, eventName, jsonString, RETRY)
 
 	conns.mutex.RLock()
 	for _, conn := range conns.slice {
@@ -1095,7 +1092,7 @@ func writeEventToAllConnectionsExceptSelf(origin http.ResponseWriter, eventName 
 	jsonString := string(jsonData)
 
 	eventId := state.eventId.Add(1)
-	event := fmt.Sprintf("id:%v\nevent:%v\ndata:%v\nretry:%v\n", eventId, eventName, jsonString, RETRY)
+	event := fmt.Sprintf("id: %v\nevent: %v\ndata: %v\nretry: %v\n\n", eventId, eventName, jsonString, RETRY)
 
 	conns.mutex.RLock()
 	for _, conn := range conns.slice {
@@ -1235,13 +1232,11 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	connIdJson, err := json.Marshal(connection_id)
-	if err != nil {
+	welcome_err := writeEvent(w, "welcome", connection_id)
+	if welcome_err != nil {
 		LogError("Failed to serialize welcome message for: %v", r.RemoteAddr)
 		http.Error(w, "Failed to serialize welcome message", http.StatusInternalServerError)
 		return
-	} else {
-		writeEvent(w, "welcome", string(connIdJson))
 	}
 
 	conns.mutex.RLock()
@@ -1265,7 +1260,10 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 		state.mutex.RUnlock()
 
 		event := createSyncEvent(0)
+
+		conns.mutex.Lock()
 		connection_error := writeEvent(w, eventType, event)
+		conns.mutex.Unlock()
 
 		if connection_error != nil {
 			conns.mutex.Lock()
@@ -1288,6 +1286,7 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 			users.mutex.Unlock()
 
 			LogInfo("Connection with %s dropped. Current connection count: %d", r.RemoteAddr, connection_count)
+			LogDebug("Drop error: %v", connection_error)
 			break
 		}
 
@@ -1331,7 +1330,6 @@ func createSyncEvent(userId uint64) SyncEventData {
 
 	event := SyncEventData{
 		Timestamp: timestamp,
-		Priority:  "HASTY",
 		UserId:    userId,
 	}
 

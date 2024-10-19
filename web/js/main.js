@@ -596,17 +596,15 @@ function readEventMaybeResync(type, event) {
     let jsonData = JSON.parse(event.data);
 
     let timestamp = jsonData.timestamp;
-    let priority = jsonData.priority;
     let userId = jsonData.user_id;
 
     let deSync = timestamp - video.currentTime;
 
     if (userId == 0) {
-        console.info("INFO:", priority, type, "from SERVER at", timestamp, "with desync:", deSync);
+        console.info("INFO: Recieved resync event from SERVER for", type, "at", timestamp, "with desync:", deSync);
     } else {
-        console.info("INFO:", priority, type, "from USER with id:", userId, "at", timestamp, "with desync:", deSync);
+        console.info("INFO: Recieved resync event from USER id", userId, "for", type, "at", timestamp, "with desync:", deSync);
     }
-    // console.log("TIME:", video.currentTime, "PAUSED:", video.paused, "ENDED:", video.ended)
 
     if (type === "seek") {
         programmaticSeek = true;
