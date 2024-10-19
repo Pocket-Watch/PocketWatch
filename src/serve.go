@@ -197,6 +197,7 @@ type SyncRequestData struct {
 
 type SyncEventData struct {
 	Timestamp float64 `json:"timestamp"`
+	Action    string  `json:"action"`
 	UserId    uint64  `json:"user_id"`
 }
 
@@ -567,10 +568,10 @@ func apiPlay(w http.ResponseWriter, r *http.Request) {
 	}
 
 	updatePlayerState(true, data.Timestamp)
-	event := createSyncEvent(user.Id)
+	event := createSyncEvent("play", user.Id)
 
 	io.WriteString(w, "Broadcasting start!\n")
-	writeEventToAllConnectionsExceptSelf(w, "play", event, user.Id, data.ConnectionId)
+	writeEventToAllConnectionsExceptSelf(w, "sync", event, user.Id, data.ConnectionId)
 }
 
 func apiPause(w http.ResponseWriter, r *http.Request) {
@@ -591,10 +592,10 @@ func apiPause(w http.ResponseWriter, r *http.Request) {
 	}
 
 	updatePlayerState(false, data.Timestamp)
-	event := createSyncEvent(user.Id)
+	event := createSyncEvent("pause", user.Id)
 
 	io.WriteString(w, "Broadcasting pause!\n")
-	writeEventToAllConnectionsExceptSelf(w, "pause", event, user.Id, data.ConnectionId)
+	writeEventToAllConnectionsExceptSelf(w, "sync", event, user.Id, data.ConnectionId)
 }
 
 func apiSeek(w http.ResponseWriter, r *http.Request) {
@@ -619,10 +620,10 @@ func apiSeek(w http.ResponseWriter, r *http.Request) {
 	state.lastUpdate = time.Now()
 	state.mutex.Unlock()
 
-	event := createSyncEvent(user.Id)
+	event := createSyncEvent("seek", user.Id)
 
 	io.WriteString(w, "Broadcasting seek!\n")
-	writeEventToAllConnectionsExceptSelf(w, "seek", event, user.Id, data.ConnectionId)
+	writeEventToAllConnectionsExceptSelf(w, "sync", event, user.Id, data.ConnectionId)
 }
 
 // the upload method needs to keep track of bytes to be able to limit filesize
@@ -1039,13 +1040,18 @@ func writeEvent(w http.ResponseWriter, eventName string, data any) error {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		LogError("Failed to serialize data for event '%v': %v", eventName, err)
+
+		http.Error(w, "Failed to serialize welcome message", http.StatusInternalServerError)
 		return err
 	}
 
 	jsonString := string(jsonData)
-
 	eventId := state.eventId.Add(1)
+
+	conns.mutex.Lock()
 	_, err = fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\nretry: %d\n\n", eventId, eventName, jsonString, RETRY)
+	conns.mutex.Unlock()
+
 	if err != nil {
 		return err
 	}
@@ -1156,6 +1162,7 @@ func setupProxy(url string, referer string) {
 		return
 	}
 
+	state.entry.Url = url
 	state.entry.RefererUrl = referer
 
 	LogDebug("%v %v", EXT_X_PLAYLIST_TYPE, m3u.playlistType)
@@ -1222,72 +1229,45 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 	users.mutex.Unlock()
 
 	conns.mutex.Lock()
-	connection_id := conns.add(w, user.Id)
-	connection_count := len(conns.slice)
+	connectionId := conns.add(w, user.Id)
+	connectionCount := len(conns.slice)
 	conns.mutex.Unlock()
 
-	LogInfo("New connection established with %s. Current connection count: %d", r.RemoteAddr, connection_count)
+	LogInfo("New connection established with %s. Current connection count: %d", r.RemoteAddr, connectionCount)
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	welcome_err := writeEvent(w, "welcome", connection_id)
-	if welcome_err != nil {
-		LogError("Failed to serialize welcome message for: %v", r.RemoteAddr)
-		http.Error(w, "Failed to serialize welcome message", http.StatusInternalServerError)
+	welcomeErr := writeEvent(w, "welcome", connectionId)
+	if welcomeErr != nil {
 		return
 	}
 
-	conns.mutex.RLock()
-	for _, conn := range conns.slice {
-		if user.Id == conn.userId && conn.id == connection_id {
-			continue
-		}
-		writeEvent(conn.writer, "connectionadd", user.Id)
-	}
-	conns.mutex.RUnlock()
+	writeEventToAllConnectionsExceptSelf(w, "connectionadd", user.Id, user.Id, connectionId)
 
 	for {
-		var eventType string
+		event := createSyncEvent("seek", 0)
+		connectionErr := writeEvent(w, "sync", event)
 
-		state.mutex.RLock()
-		if state.player.Playing {
-			eventType = Play
-		} else {
-			eventType = Pause
-		}
-		state.mutex.RUnlock()
-
-		event := createSyncEvent(0)
-
-		conns.mutex.Lock()
-		connection_error := writeEvent(w, eventType, event)
-		conns.mutex.Unlock()
-
-		if connection_error != nil {
+		if connectionErr != nil {
 			conns.mutex.Lock()
-			conns.remove(connection_id)
-			connection_count = len(conns.slice)
+			conns.remove(connectionId)
+			connectionCount = len(conns.slice)
 			conns.mutex.Unlock()
 
-			users.mutex.Lock()
-			for _, conn := range conns.slice {
-				if user.Id == conn.userId && conn.id == connection_id {
-					continue
-				}
-				writeEvent(conn.writer, "connectiondrop", user.Id)
-			}
+			writeEventToAllConnectionsExceptSelf(w, "connectiondrop", user.Id, user.Id, connectionId)
 
+			users.mutex.Lock()
 			userIndex := users.findIndex(token)
 			if userIndex != -1 {
 				users.slice[userIndex].Connections -= 1
 			}
 			users.mutex.Unlock()
 
-			LogInfo("Connection with %s dropped. Current connection count: %d", r.RemoteAddr, connection_count)
-			LogDebug("Drop error: %v", connection_error)
-			break
+			LogInfo("Connection with %s dropped. Current connection count: %d", r.RemoteAddr, connectionCount)
+			LogDebug("Drop error message: %v", connectionErr)
+			return
 		}
 
 		smartSleep()
@@ -1318,7 +1298,7 @@ func updatePlayerState(isPlaying bool, newTimestamp float64) {
 	state.mutex.Unlock()
 }
 
-func createSyncEvent(userId uint64) SyncEventData {
+func createSyncEvent(action string, userId uint64) SyncEventData {
 	state.mutex.RLock()
 	var timestamp = state.player.Timestamp
 	if state.player.Playing {
@@ -1330,6 +1310,7 @@ func createSyncEvent(userId uint64) SyncEventData {
 
 	event := SyncEventData{
 		Timestamp: timestamp,
+		Action:    action,
 		UserId:    userId,
 	}
 

@@ -300,8 +300,8 @@ function setUrlOnClick() {
     apiSetUrl(url);
 }
 
-function skipOnClick() {
-    console.info("INFO: Skip button was clicked");
+function nextOnClick() {
+    console.info("INFO: Next button was clicked");
 
     addHistoryElement(current_url.value);
     apiPlaylistNext();
@@ -690,41 +690,45 @@ function subscribeToServerEvents() {
         updateConnectedUsers();
     });
 
-    // Allow user to de-sync themselves freely and watch at their own pace
-    eventSource.addEventListener("play", function(event) {
+
+    eventSource.addEventListener("sync", function(event) {
+        let data = JSON.parse(event.data);
+        if (!data) {
+            console.error("ERROR: Failed to parse event data")
+            return;
+        }
+
         if (!player) {
             return;
         }
 
-        readEventMaybeResync("play", event);
+        switch (data.action) {
+            case "play": {
+                readEventMaybeResync("play", event);
 
-        if (!isVideoPlaying()) {
-            programmaticPlay = true;
-            // this will merely append 'onplay' to the synchronous JS event queue
-            // so there's no guarantee that it will be executed next, same logic follows for 'onpause'
-            player.play();
+                if (!isVideoPlaying()) {
+                    programmaticPlay = true;
+                    player.play();
+                }
+            } break;
+
+            case "pause": {
+                readEventMaybeResync("pause", event);
+
+                if (isVideoPlaying()) {
+                    programmaticPause = true;
+                    player.pause();
+                }
+            } break;
+
+            case "seek": {
+                readEventMaybeResync("seek", event);
+            } break;
+
+            default: {
+                console.error("ERROR: Unknown sync action found", data.action)
+            } break;
         }
-    });
-
-    eventSource.addEventListener("pause", function(event) {
-        if (!player) {
-            return;
-        }
-
-        readEventMaybeResync("pause", event);
-
-        if (isVideoPlaying()) {
-            programmaticPause = true;
-            player.pause();
-        }
-    });
-
-    eventSource.addEventListener("seek", function(event) {
-        if (!player) {
-            return;
-        }
-
-        readEventMaybeResync("seek", event);
     });
 
     eventSource.addEventListener("seturl", function(event) {
