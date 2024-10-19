@@ -17,6 +17,7 @@ var subtitles = []
 
 var input_url = document.getElementById("input_url");
 var referer_input = document.getElementById("referer");
+var input_title = document.getElementById("input_title");
 var current_url = document.getElementById("current_url");
 var input_username = document.getElementById("input_username");
 var proxy_checkbox = document.getElementById("proxy");
@@ -117,7 +118,7 @@ function createApiEntry(url) {
     const entry = {
         id: currentEntryId,
         url: url,
-        title: "TODO(kihau): Add custom titles",
+        title: input_title.value,
         user_id: userSelf.id,
         use_proxy: proxy_checkbox.checked,
         referer_url: referer_input.value,
@@ -736,7 +737,7 @@ function subscribeToServerEvents() {
         console.info("INFO: Media url received from the server: ", entry.url);
 
         currentEntryId = entry.id;
-        playerSetUrl(entry.url);
+        playerSetUrl(entry.url, entry.title);
     });
 
     eventSource.addEventListener("playlistadd", function(event) {
@@ -768,7 +769,7 @@ function subscribeToServerEvents() {
         currentEntryId = response.new_entry.id
 
         destroyPlayer();
-        createFluidPlayer(response.new_entry.url);
+        createFluidPlayer(response.new_entry.url, response.new_entry.title);
 
         removeFirstPlaylistElement();
     });
@@ -848,9 +849,9 @@ function appendSubtitleTrack(video_element, label, src) {
 
 /// --------------- PLAYER: ---------------
 
-function playerSetUrl(url) {
+function playerSetUrl(url, title) {
     destroyPlayer();
-    createFluidPlayer(url);
+    createFluidPlayer(url, title);
 }
 
 function isVideoPlaying() {
@@ -868,7 +869,7 @@ function destroyPlayer() {
     }
 }
 
-function createFluidPlayer(url) {
+function createFluidPlayer(url, title) {
     current_url.value = url;
 
     let url_missing = url === "";
@@ -903,7 +904,7 @@ function createFluidPlayer(url) {
                 overrideNative: true,
             },
             layoutControls: {
-                title: "TITLE PLACEHOLDER",
+                title: title,
                 doubleclickFullscreen: true,
                 subtitlesEnabled: true,
                 autoPlay: autoplay_checkbox.checked,
@@ -1002,7 +1003,7 @@ async function main() {
     input_username.value = userSelf.username;
 
     // dummy player
-    createFluidPlayer("");
+    createFluidPlayer("", "");
 
     let state = await apiGet();
     autoplay_checkbox.checked = state.player.autoplay;
@@ -1010,7 +1011,7 @@ async function main() {
     currentEntryId = state.entry.id;
     subtitles = state.subtitles;
 
-    playerSetUrl(state.entry.url);
+    playerSetUrl(state.entry.url, state.entry.title);
     subscribeToServerEvents();
 }
 

@@ -38,9 +38,11 @@
     - [x] Playlist looping
     - [x] Playlist entry reordering
     - [ ] Update playlist entries when a user changes their name
+    - [ ] Display playlist entries as title href to url
 - [x] Subtitle support
 - [x] Display connected users
 - [x] Convert srt to vtt
+- [ ] When title name is empty, set entry titles as the last part of the url
 - [ ] Add watch history
     - [x] Implement history add
     - [x] Implement history clear
