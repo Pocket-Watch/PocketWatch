@@ -560,27 +560,18 @@ func apiPlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	state.mutex.Lock()
-	state.player.Playing = true
 	LogInfo("Connection %s requested player start.", r.RemoteAddr)
-	data := receiveSyncRequest(w, r)
-	state.mutex.Unlock()
 
-	if data == nil {
+	var data SyncRequestData
+	if !readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
-	conns.mutex.RLock()
-	for _, conn := range conns.slice {
-		if user.Id == conn.userId && conn.id == data.ConnectionId {
-			continue
-		}
-
-		writeSyncEvent(conn.writer, Play, true, user.Id)
-	}
-	conns.mutex.RUnlock()
+	updatePlayerState(true, data.Timestamp)
+	event := createSyncEvent(user.Id)
 
 	io.WriteString(w, "Broadcasting start!\n")
+	writeEventToAllConnectionsExceptSelf(w, "play", event, user.Id, data.ConnectionId)
 }
 
 func apiPause(w http.ResponseWriter, r *http.Request) {
@@ -593,27 +584,18 @@ func apiPause(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	state.mutex.Lock()
-	state.player.Playing = false
 	LogInfo("Connection %s requested player pause.", r.RemoteAddr)
-	data := receiveSyncRequest(w, r)
-	state.mutex.Unlock()
 
-	if data == nil {
+	var data SyncRequestData
+	if !readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
-	conns.mutex.RLock()
-	for _, conn := range conns.slice {
-		if user.Id == conn.userId && conn.id == data.ConnectionId {
-			continue
-		}
-
-		writeSyncEvent(conn.writer, Pause, true, user.Id)
-	}
-	conns.mutex.RUnlock()
+	updatePlayerState(false, data.Timestamp)
+	event := createSyncEvent(user.Id)
 
 	io.WriteString(w, "Broadcasting pause!\n")
+	writeEventToAllConnectionsExceptSelf(w, "pause", event, user.Id, data.ConnectionId)
 }
 
 func apiSeek(w http.ResponseWriter, r *http.Request) {
@@ -626,25 +608,22 @@ func apiSeek(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	state.mutex.Lock()
 	LogInfo("Connection %s requested player seek.", r.RemoteAddr)
-	data := receiveSyncRequest(w, r)
-	state.mutex.Unlock()
 
-	if data == nil {
+	var data SyncRequestData
+	if !readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
-	conns.mutex.RLock()
-	for _, conn := range conns.slice {
-		if user.Id == conn.userId && conn.id == data.ConnectionId {
-			continue
-		}
+	state.mutex.Lock()
+	state.player.Timestamp = data.Timestamp
+	state.lastUpdate = time.Now()
+	state.mutex.Unlock()
 
-		writeSyncEvent(conn.writer, Seek, true, user.Id)
-	}
-	conns.mutex.RUnlock()
+	event := createSyncEvent(user.Id)
+
 	io.WriteString(w, "Broadcasting seek!\n")
+	writeEventToAllConnectionsExceptSelf(w, "seek", event, user.Id, data.ConnectionId)
 }
 
 // the upload method needs to keep track of bytes to be able to limit filesize
@@ -1057,6 +1036,30 @@ func readJsonDataFromRequest(w http.ResponseWriter, r *http.Request, data any) b
 	return true
 }
 
+func writeEvent(w http.ResponseWriter, eventName string, data any) error {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		LogError("Failed to serialize data for event '%v': %v", eventName, err)
+		return err
+	}
+
+	jsonString := string(jsonData)
+
+	eventId := state.eventId.Add(1)
+	event := fmt.Sprintf("id:%v\nevent:%v\ndata:%v\nretry:%v\n", eventId, eventName, jsonString, RETRY)
+
+	_, err = fmt.Fprintln(w, event)
+	if err != nil {
+		return err
+	}
+
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
+	}
+
+	return nil
+}
+
 func writeEventToAllConnections(origin http.ResponseWriter, eventName string, data any) {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
@@ -1081,19 +1084,32 @@ func writeEventToAllConnections(origin http.ResponseWriter, eventName string, da
 	conns.mutex.RUnlock()
 }
 
-func writeEvent(writer http.ResponseWriter, event string, jsonData string) {
-	// fmt.Printf("Writing set event");
-	event_id := state.eventId.Add(1)
-	fmt.Fprintln(writer, "id:", event_id)
-	fmt.Fprintln(writer, "event:", event)
-	fmt.Fprintln(writer, "data:", jsonData)
-	fmt.Fprintln(writer, "retry:", RETRY)
-	fmt.Fprintln(writer)
-
-	// Flush the response to ensure the client receives the event
-	if f, ok := writer.(http.Flusher); ok {
-		f.Flush()
+func writeEventToAllConnectionsExceptSelf(origin http.ResponseWriter, eventName string, data any, userId uint64, connectionId uint64) {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		LogError("Failed to serialize data for event '%v': %v", eventName, err)
+		http.Error(origin, err.Error(), http.StatusInternalServerError)
+		return
 	}
+
+	jsonString := string(jsonData)
+
+	eventId := state.eventId.Add(1)
+	event := fmt.Sprintf("id:%v\nevent:%v\ndata:%v\nretry:%v\n", eventId, eventName, jsonString, RETRY)
+
+	conns.mutex.RLock()
+	for _, conn := range conns.slice {
+		if userId == conn.userId && conn.id == connectionId {
+			continue
+		}
+
+		fmt.Fprintln(conn.writer, event)
+
+		if f, ok := conn.writer.(http.Flusher); ok {
+			f.Flush()
+		}
+	}
+	conns.mutex.RUnlock()
 }
 
 func getSubtitles() []string {
@@ -1122,17 +1138,6 @@ func getSubtitles() []string {
 	}
 	LogInfo("Served subtitles: %v", subtitles)
 	return subtitles
-}
-
-func receiveSyncRequest(w http.ResponseWriter, r *http.Request) *SyncRequestData {
-	var sync SyncRequestData
-	if !readJsonDataFromRequest(w, r, &sync) {
-		return nil
-	}
-
-	state.player.Timestamp = sync.Timestamp
-	state.lastUpdate = time.Now()
-	return &sync
 }
 
 func setupProxy(url string, referer string) {
@@ -1239,13 +1244,12 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 		writeEvent(w, "welcome", string(connIdJson))
 	}
 
-	userIdJson, _ := json.Marshal(user.Id)
 	conns.mutex.RLock()
 	for _, conn := range conns.slice {
 		if user.Id == conn.userId && conn.id == connection_id {
 			continue
 		}
-		writeEvent(conn.writer, "connectionadd", string(userIdJson))
+		writeEvent(conn.writer, "connectionadd", user.Id)
 	}
 	conns.mutex.RUnlock()
 
@@ -1260,7 +1264,8 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 		}
 		state.mutex.RUnlock()
 
-		connection_error := writeSyncEvent(w, eventType, false, 0)
+		event := createSyncEvent(0)
+		connection_error := writeEvent(w, eventType, event)
 
 		if connection_error != nil {
 			conns.mutex.Lock()
@@ -1273,7 +1278,7 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 				if user.Id == conn.userId && conn.id == connection_id {
 					continue
 				}
-				writeEvent(conn.writer, "connectiondrop", string(userIdJson))
+				writeEvent(conn.writer, "connectiondrop", user.Id)
 			}
 
 			userIndex := users.findIndex(token)
@@ -1304,14 +1309,17 @@ func smartSleep() {
 	}
 }
 
-func writeSyncEvent(writer http.ResponseWriter, eventType string, haste bool, userId uint64) error {
-	var priority string
-	if haste {
-		priority = "HASTY"
-	} else {
-		priority = "LAZY"
-	}
+func updatePlayerState(isPlaying bool, newTimestamp float64) {
+	state.mutex.Lock()
 
+	state.player.Playing = isPlaying
+	state.player.Timestamp = newTimestamp
+	state.lastUpdate = time.Now()
+
+	state.mutex.Unlock()
+}
+
+func createSyncEvent(userId uint64) SyncEventData {
 	state.mutex.RLock()
 	var timestamp = state.player.Timestamp
 	if state.player.Playing {
@@ -1321,29 +1329,11 @@ func writeSyncEvent(writer http.ResponseWriter, eventType string, haste bool, us
 	}
 	state.mutex.RUnlock()
 
-	syncEvent := SyncEventData{
+	event := SyncEventData{
 		Timestamp: timestamp,
-		Priority:  priority,
+		Priority:  "HASTY",
 		UserId:    userId,
 	}
 
-	jsonData, err := json.Marshal(syncEvent)
-	if err != nil {
-		LogError("Failed to serialize sync event")
-		return nil
-	}
-	eventData := string(jsonData)
-
-	event_id := state.eventId.Add(1)
-	_, err = fmt.Fprintf(writer, "id: %d\nevent: %s\ndata: %s\nretry: %d\n\n", event_id, eventType, eventData, RETRY)
-	if err != nil {
-		return err
-	}
-
-	// Flush the response to ensure the client receives the event
-	if f, ok := writer.(http.Flusher); ok {
-		f.Flush()
-	}
-
-	return nil
+	return event
 }
