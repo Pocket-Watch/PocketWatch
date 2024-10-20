@@ -184,7 +184,7 @@ func (conns *Connections) remove(id uint64) {
 	}
 }
 
-type GetResponseData struct {
+type PlayerGetResponseData struct {
 	Player    PlayerState `json:"player"`
 	Entry     Entry       `json:"entry"`
 	Subtitles []string    `json:"subtitles"`
@@ -201,7 +201,7 @@ type SyncEventData struct {
 	UserId    uint64  `json:"user_id"`
 }
 
-type SetUrlResponseData struct {
+type PlayerSetResponseData struct {
 	ConnectionId uint64 `json:"connection_id"`
 	Entry        Entry  `json:"entry"`
 }
@@ -211,12 +211,12 @@ type PlaylistAddRequestData struct {
 	Entry        Entry  `json:"entry"`
 }
 
-type PlaylistNextRequestData struct {
+type PlayerNextRequestData struct {
 	ConnectionId uint64 `json:"connection_id"`
 	EntryId      uint64 `json:"entry_id"`
 }
 
-type PlaylistNextEventData struct {
+type PlayerNextEventData struct {
 	PrevEntry Entry `json:"prev_entry"`
 	NewEntry  Entry `json:"new_entry"`
 }
@@ -287,98 +287,42 @@ func registerEndpoints(options *Options) {
 	fileserver := http.FileServer(http.Dir("./web"))
 	http.Handle("/", http.StripPrefix("/watch/", fileserver))
 
+	// Unrelated API calls.
 	http.HandleFunc("/watch/api/version", apiVersion)
 	http.HandleFunc("/watch/api/login", apiLogin)
+	http.HandleFunc("/watch/api/upload", apiUpload)
 
+	// User related API calls.
 	http.HandleFunc("/watch/api/user/create", apiUserCreate)
 	http.HandleFunc("/watch/api/user/getall", apiUserGetAll)
 	http.HandleFunc("/watch/api/user/verify", apiUserVerify)
 	http.HandleFunc("/watch/api/user/updatename", apiUserUpdateName)
 
-	http.HandleFunc("/watch/api/get", apiGet)
-	http.HandleFunc("/watch/api/seturl", apiSetUrl)
-	http.HandleFunc("/watch/api/play", apiPlay)
-	http.HandleFunc("/watch/api/pause", apiPause)
-	http.HandleFunc("/watch/api/seek", apiSeek)
-	http.HandleFunc("/watch/api/upload", apiUpload)
+	// API calls that change state of the player.
+	http.HandleFunc("/watch/api/player/get", apiPlayerGet)
+	http.HandleFunc("/watch/api/player/set", apiPlayerSet)
+	http.HandleFunc("/watch/api/player/next", apiPlayerNext)
+	http.HandleFunc("/watch/api/player/play", apiPlayerPlay)
+	http.HandleFunc("/watch/api/player/pause", apiPlayerPause)
+	http.HandleFunc("/watch/api/player/seek", apiPlayerSeek)
+	http.HandleFunc("/watch/api/player/autoplay", apiPlayerAutoplay)
+	http.HandleFunc("/watch/api/player/looping", apiPlayerLooping)
 
+	// API calls that change state of the playlist.
 	http.HandleFunc("/watch/api/playlist/get", apiPlaylistGet)
 	http.HandleFunc("/watch/api/playlist/add", apiPlaylistAdd)
 	http.HandleFunc("/watch/api/playlist/clear", apiPlaylistClear)
-	http.HandleFunc("/watch/api/playlist/next", apiPlaylistNext)
 	http.HandleFunc("/watch/api/playlist/remove", apiPlaylistRemove)
-	http.HandleFunc("/watch/api/playlist/autoplay", apiPlaylistAutoplay)
-	http.HandleFunc("/watch/api/playlist/looping", apiPlaylistLooping)
 	http.HandleFunc("/watch/api/playlist/shuffle", apiPlaylistShuffle)
 	http.HandleFunc("/watch/api/playlist/move", apiPlaylistMove)
 
+	// API calls that change state of the history.
 	http.HandleFunc("/watch/api/history/get", apiHistoryGet)
 	http.HandleFunc("/watch/api/history/clear", apiHistoryClear)
 
+	// Server events and proxy.
 	http.HandleFunc("/watch/api/events", apiEvents)
 	http.HandleFunc(PROXY_ROUTE, watchProxy)
-}
-
-// This endpoints should serve HLS chunks
-// If the chunk is out of range or has no id, then 404 should be returned
-// 1. Download m3u8 provided by a user
-// 2. Serve a modified m3u8 to every user that wants to use a proxy
-// 3. In memory use:
-//   - 0-indexed string[] for original chunk URLs
-//   - 0-indexed mutex[] to ensure the same chunk is not requested while it's being fetched
-func watchProxy(writer http.ResponseWriter, request *http.Request) {
-	if request.Method != "GET" {
-		LogWarn("Proxy not called with GET, received: %v", request.Method)
-		return
-	}
-	urlPath := request.URL.Path
-	chunk := path.Base(urlPath)
-
-	if chunk == PROXY_M3U8 {
-		LogDebug("Serving %v", PROXY_M3U8)
-		http.ServeFile(writer, request, WEB_PROXY+PROXY_M3U8)
-		return
-	}
-
-	if len(chunk) < 4 {
-		http.Error(writer, "Not found", 404)
-		return
-	}
-	// Otherwise it's likely a proxy chunk which is 0-indexed
-	chunk_id, err := strconv.Atoi(chunk[3:])
-	if err != nil {
-		http.Error(writer, "Not a correct chunk id", 404)
-		return
-	}
-
-	if chunk_id < 0 || chunk_id >= len(state.fetchedChunks) {
-		http.Error(writer, "Chunk ID not in range", 404)
-		return
-	}
-
-	if state.fetchedChunks[chunk_id] {
-		http.ServeFile(writer, request, WEB_PROXY+chunk)
-		return
-	}
-
-	mutex := &state.chunkLocks[chunk_id]
-	mutex.Lock()
-	if state.fetchedChunks[chunk_id] {
-		mutex.Unlock()
-		http.ServeFile(writer, request, WEB_PROXY+chunk)
-		return
-	}
-	fetchErr := downloadFile(state.originalChunks[chunk_id], WEB_PROXY+chunk, state.entry.RefererUrl)
-	if fetchErr != nil {
-		mutex.Unlock()
-		LogError("FAILED TO FETCH CHUNK %v", fetchErr)
-		http.Error(writer, "Failed to fetch chunk", 500)
-		return
-	}
-	state.fetchedChunks[chunk_id] = true
-	mutex.Unlock()
-
-	http.ServeFile(writer, request, WEB_PROXY+chunk)
 }
 
 func apiVersion(w http.ResponseWriter, r *http.Request) {
@@ -397,6 +341,38 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection %s attempted to log in.", r.RemoteAddr)
 	io.WriteString(w, "This is unimplemented")
+}
+
+func apiUpload(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != "POST" {
+		http.Error(writer, "POST was expected", http.StatusMethodNotAllowed)
+		return
+	}
+
+	file, header, err := request.FormFile("file")
+	// It's weird because a temporary file is created in Temp/multipart-
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer file.Close()
+
+	LogInfo("User is uploading file: %s, size: %v", header.Filename, header.Size)
+
+	out, err := os.Create(WEB_MEDIA + header.Filename)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, file)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Fprintf(writer, "File uploaded successfully: %s", header.Filename)
 }
 
 func apiUserCreate(w http.ResponseWriter, r *http.Request) {
@@ -450,11 +426,6 @@ func apiUserVerify(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection requested %s user verification.", r.RemoteAddr)
 
-	var token string
-	if !readJsonDataFromRequest(w, r, &token) {
-		return
-	}
-
 	jsonData, err := json.Marshal(user)
 	if err != nil {
 		LogError("Failed to serialize json data")
@@ -494,11 +465,11 @@ func apiUserUpdateName(w http.ResponseWriter, r *http.Request) {
 	writeEventToAllConnections(w, "usernameupdate", user)
 }
 
-func apiGet(w http.ResponseWriter, r *http.Request) {
+func apiPlayerGet(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested get.", r.RemoteAddr)
 
 	state.mutex.RLock()
-	getEvent := GetResponseData{
+	getEvent := PlayerGetResponseData{
 		Player:    state.player,
 		Entry:     state.entry,
 		Subtitles: getSubtitles(),
@@ -514,7 +485,7 @@ func apiGet(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(jsonData))
 }
 
-func apiSetUrl(w http.ResponseWriter, r *http.Request) {
+func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
 	}
@@ -525,7 +496,7 @@ func apiSetUrl(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection %s requested media url change.", r.RemoteAddr)
 
-	var data SetUrlResponseData
+	var data PlayerSetResponseData
 	if !readJsonDataFromRequest(w, r, &data) {
 		return
 	}
@@ -547,10 +518,70 @@ func apiSetUrl(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("New url is now: '%s'.", state.entry.Url)
 
-	writeEventToAllConnections(w, "seturl", state.entry)
+	writeEventToAllConnections(w, "playerset", state.entry)
 }
 
-func apiPlay(w http.ResponseWriter, r *http.Request) {
+func apiPlayerNext(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	if !isAuthorized(w, r) {
+		return
+	}
+
+	LogInfo("Connection %s requested playlist next.", r.RemoteAddr)
+
+	var data PlayerNextRequestData
+	if !readJsonDataFromRequest(w, r, &data) {
+		return
+	}
+
+	// NOTE(kihau):
+	//     We need to check whether currently set entry ID on the clent side matches current entry ID on the server side.
+	//     This check is necessary because multiple clients can send "playlist next" request on video end,
+	//     resulting in multiple playlist skips, which is not an intended behaviour.
+
+	if state.entry.Id != data.EntryId {
+		LogWarn("Current entry ID on the server is not equal to the one provided by the client.")
+		return
+	}
+
+	state.mutex.Lock()
+	if state.player.Looping {
+		state.playlist = append(state.playlist, state.entry)
+	}
+
+	newEntry := Entry{}
+	prevEntry := state.entry
+
+	if len(state.playlist) != 0 {
+		newEntry = state.playlist[0]
+		state.playlist = state.playlist[1:]
+	}
+
+	if prevEntry.Id != 0 {
+		state.history = append(state.history, prevEntry)
+	}
+
+	state.player.Playing = state.player.Autoplay
+	state.player.Timestamp = 0
+	state.entry = newEntry
+
+	lastSegment := lastUrlSegment(state.entry.Url)
+	if state.entry.UseProxy && strings.HasSuffix(lastSegment, ".m3u8") {
+		setupProxy(state.entry.Url, state.entry.RefererUrl)
+	}
+	state.mutex.Unlock()
+
+	nextEvent := PlayerNextEventData{
+		PrevEntry: prevEntry,
+		NewEntry:  newEntry,
+	}
+	writeEventToAllConnections(w, "playernext", nextEvent)
+}
+
+func apiPlayerPlay(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
 	}
@@ -574,7 +605,7 @@ func apiPlay(w http.ResponseWriter, r *http.Request) {
 	writeEventToAllConnectionsExceptSelf(w, "sync", event, user.Id, data.ConnectionId)
 }
 
-func apiPause(w http.ResponseWriter, r *http.Request) {
+func apiPlayerPause(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
 	}
@@ -598,7 +629,7 @@ func apiPause(w http.ResponseWriter, r *http.Request) {
 	writeEventToAllConnectionsExceptSelf(w, "sync", event, user.Id, data.ConnectionId)
 }
 
-func apiSeek(w http.ResponseWriter, r *http.Request) {
+func apiPlayerSeek(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
 	}
@@ -626,37 +657,56 @@ func apiSeek(w http.ResponseWriter, r *http.Request) {
 	writeEventToAllConnectionsExceptSelf(w, "sync", event, user.Id, data.ConnectionId)
 }
 
-// the upload method needs to keep track of bytes to be able to limit filesize
-func apiUpload(writer http.ResponseWriter, request *http.Request) {
-	if request.Method != "POST" {
-		http.Error(writer, "POST was expected", http.StatusMethodNotAllowed)
+func apiPlayerAutoplay(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
 		return
 	}
 
-	file, header, err := request.FormFile("file")
-	// It's weird because a temporary file is created in Temp/multipart-
-	if err != nil {
-		http.Error(writer, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer file.Close()
-
-	LogInfo("User is uploading file: %s, size: %v", header.Filename, header.Size)
-
-	out, err := os.Create(WEB_MEDIA + header.Filename)
-	if err != nil {
-		http.Error(writer, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, file)
-	if err != nil {
-		http.Error(writer, err.Error(), http.StatusInternalServerError)
+	if !isAuthorized(w, r) {
 		return
 	}
 
-	fmt.Fprintf(writer, "File uploaded successfully: %s", header.Filename)
+	LogInfo("Connection %s requested playlist autoplay.", r.RemoteAddr)
+
+	var autoplay bool
+	if !readJsonDataFromRequest(w, r, &autoplay) {
+		return
+	}
+
+	LogInfo("Setting playlist autoplay to %v.", autoplay)
+
+	state.mutex.Lock()
+	state.player.Autoplay = autoplay
+	state.mutex.Unlock()
+
+	writeEventToAllConnections(w, "playerautoplay", autoplay)
+}
+
+func apiPlayerLooping(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	if !isAuthorized(w, r) {
+		return
+	}
+
+	LogInfo("Connection %s requested playlist looping.", r.RemoteAddr)
+
+	// TODO(kihau): Add other looping modes, just like the discord bot had: none, single, playlist, shuffle
+
+	var looping bool
+	if !readJsonDataFromRequest(w, r, &looping) {
+		return
+	}
+
+	LogInfo("Setting playlist looping to %v.", looping)
+
+	state.mutex.Lock()
+	state.player.Looping = looping
+	state.mutex.Unlock()
+
+	writeEventToAllConnections(w, "playerlooping", looping)
 }
 
 func apiPlaylistGet(w http.ResponseWriter, r *http.Request) {
@@ -727,73 +777,6 @@ func apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
 	writeEventToAllConnections(w, "playlistclear", nil)
 }
 
-func apiPlaylistNext(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
-	if !isAuthorized(w, r) {
-		return
-	}
-
-	LogInfo("Connection %s requested playlist next.", r.RemoteAddr)
-
-	var data PlaylistNextRequestData
-	if !readJsonDataFromRequest(w, r, &data) {
-		return
-	}
-
-	// NOTE(kihau):
-	//     We need to check whether currently set entry ID on the clent side matches current entry ID on the server side.
-	//     This check is necessary because multiple clients can send "playlist next" request on video end,
-	//     resulting in multiple playlist skips, which is not an intended behaviour.
-
-	if state.entry.Id != data.EntryId {
-		LogWarn("Current entry ID on the server is not equal to the one provided by the client.")
-		return
-	}
-
-	state.mutex.Lock()
-	var newEntry Entry
-	prevEntry := state.entry
-
-	if state.player.Looping {
-		state.playlist = append(state.playlist, state.entry)
-	}
-
-	if len(state.playlist) == 0 {
-		newEntry = state.entry
-	} else {
-		newEntry = state.playlist[0]
-		state.playlist = state.playlist[1:]
-	}
-
-	if newEntry.Url != "" {
-		state.history = append(state.history, newEntry)
-	}
-
-	// TODO(kihau):
-	//     This might cause problems in the future and needs to be cleaned up.
-	//     Also, proxy will not work with this code and a unified function that changes player state should be created.
-
-	state.player.Playing = state.player.Autoplay
-	state.player.Timestamp = 0
-	state.entry = newEntry
-
-	lastSegment := lastUrlSegment(state.entry.Url)
-	if state.entry.UseProxy && strings.HasSuffix(lastSegment, ".m3u8") {
-		setupProxy(state.entry.Url, state.entry.RefererUrl)
-	}
-
-	state.mutex.Unlock()
-
-	nextEvent := PlaylistNextEventData{
-		PrevEntry: prevEntry,
-		NewEntry:  newEntry,
-	}
-	writeEventToAllConnections(w, "playlistnext", nextEvent)
-}
-
 func apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
@@ -819,56 +802,6 @@ func apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
 	state.mutex.Unlock()
 
 	writeEventToAllConnections(w, "playlistremove", data.Index)
-}
-
-func apiPlaylistAutoplay(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
-	if !isAuthorized(w, r) {
-		return
-	}
-
-	LogInfo("Connection %s requested playlist autoplay.", r.RemoteAddr)
-
-	var autoplay bool
-	if !readJsonDataFromRequest(w, r, &autoplay) {
-		return
-	}
-
-	LogInfo("Setting playlist autoplay to %v.", autoplay)
-
-	state.mutex.Lock()
-	state.player.Autoplay = autoplay
-	state.mutex.Unlock()
-
-	writeEventToAllConnections(w, "playlistautoplay", autoplay)
-}
-
-func apiPlaylistLooping(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
-	if !isAuthorized(w, r) {
-		return
-	}
-
-	LogInfo("Connection %s requested playlist looping.", r.RemoteAddr)
-
-	var looping bool
-	if !readJsonDataFromRequest(w, r, &looping) {
-		return
-	}
-
-	LogInfo("Setting playlist looping to %v.", looping)
-
-	state.mutex.Lock()
-	state.player.Looping = looping
-	state.mutex.Unlock()
-
-	writeEventToAllConnections(w, "playlistlooping", looping)
 }
 
 func apiPlaylistShuffle(w http.ResponseWriter, r *http.Request) {
@@ -1278,6 +1211,68 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 
 		smartSleep()
 	}
+}
+
+// This endpoints should serve HLS chunks
+// If the chunk is out of range or has no id, then 404 should be returned
+// 1. Download m3u8 provided by a user
+// 2. Serve a modified m3u8 to every user that wants to use a proxy
+// 3. In memory use:
+//   - 0-indexed string[] for original chunk URLs
+//   - 0-indexed mutex[] to ensure the same chunk is not requested while it's being fetched
+func watchProxy(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != "GET" {
+		LogWarn("Proxy not called with GET, received: %v", request.Method)
+		return
+	}
+	urlPath := request.URL.Path
+	chunk := path.Base(urlPath)
+
+	if chunk == PROXY_M3U8 {
+		LogDebug("Serving %v", PROXY_M3U8)
+		http.ServeFile(writer, request, WEB_PROXY+PROXY_M3U8)
+		return
+	}
+
+	if len(chunk) < 4 {
+		http.Error(writer, "Not found", 404)
+		return
+	}
+	// Otherwise it's likely a proxy chunk which is 0-indexed
+	chunk_id, err := strconv.Atoi(chunk[3:])
+	if err != nil {
+		http.Error(writer, "Not a correct chunk id", 404)
+		return
+	}
+
+	if chunk_id < 0 || chunk_id >= len(state.fetchedChunks) {
+		http.Error(writer, "Chunk ID not in range", 404)
+		return
+	}
+
+	if state.fetchedChunks[chunk_id] {
+		http.ServeFile(writer, request, WEB_PROXY+chunk)
+		return
+	}
+
+	mutex := &state.chunkLocks[chunk_id]
+	mutex.Lock()
+	if state.fetchedChunks[chunk_id] {
+		mutex.Unlock()
+		http.ServeFile(writer, request, WEB_PROXY+chunk)
+		return
+	}
+	fetchErr := downloadFile(state.originalChunks[chunk_id], WEB_PROXY+chunk, state.entry.RefererUrl)
+	if fetchErr != nil {
+		mutex.Unlock()
+		LogError("FAILED TO FETCH CHUNK %v", fetchErr)
+		http.Error(writer, "Failed to fetch chunk", 500)
+		return
+	}
+	state.fetchedChunks[chunk_id] = true
+	mutex.Unlock()
+
+	http.ServeFile(writer, request, WEB_PROXY+chunk)
 }
 
 // this will prevent LAZY broadcasts when users make frequent updates

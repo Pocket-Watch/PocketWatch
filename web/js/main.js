@@ -140,8 +140,8 @@ async function apiUserGetAll() {
     return data;
 }
 
-async function apiUserVerify(token) {
-    let data = await httpPost("/watch/api/user/verify", token);
+async function apiUserVerify() {
+    let data = await httpPost("/watch/api/user/verify");
     console.info("INFO: Received data from user verify request to the server: ", data);
     return data;
 }
@@ -151,50 +151,70 @@ async function apiUserUpdateName(username) {
     httpPost("/watch/api/user/updatename", username);
 }
 
-async function apiGet() {
-    let data = await httpGet("/watch/api/get");
-    console.info("INFO: Received data from get request to the server: ", data);
+async function apiPlayerGet() {
+    let data = await httpGet("/watch/api/player/get");
+    console.info("INFO: Received data from player get request to the server: ", data);
     return data;
 }
 
-async function apiSetUrl(url) {
+async function apiPlayerSet(url) {
     const payload = {
         connection_id: connectionId,
         entry: createApiEntry(url),
     };
 
-    console.info("INFO: Sending seturl request for a new url");
-    httpPost("/watch/api/seturl", payload);
+    console.info("INFO: Sending player set request for a entry");
+    httpPost("/watch/api/player/set", payload);
 }
 
-async function apiPlay() {
+async function apiPlayerNext() {
+    const payload = {
+        connection_id: connectionId,
+        entry_id: currentEntryId,
+    };
+
+    console.info("INFO: Sending player next request.");
+    httpPost("/watch/api/player/next", payload);
+}
+
+async function apiPlayerPlay() {
     const payload = {
         connection_id: connectionId,
         timestamp: video.currentTime,
     };
 
-    console.info("INFO: Sending play request to the server.");
-    httpPost("/watch/api/play", payload);
+    console.info("INFO: Sending player play request to the server.");
+    httpPost("/watch/api/player/play", payload);
 }
 
-async function apiPause() {
+async function apiPlayerPause() {
     const payload = {
         connection_id: connectionId,
         timestamp: video.currentTime,
     };
 
-    console.info("INFO: Sending pause request to the server.");
-    httpPost("/watch/api/pause", payload);
+    console.info("INFO: Sending player pause request to the server.");
+    httpPost("/watch/api/player/pause", payload);
 }
 
-async function apiSeek() {
+async function apiPlayerSeek() {
     const payload = {
         connection_id: connectionId,
         timestamp: video.currentTime,
     };
 
-    console.info("INFO: Sending seek request to the server.");
-    httpPost("/watch/api/seek", payload);
+    console.info("INFO: Sending player seek request to the server.");
+    httpPost("/watch/api/player/seek", payload);
+}
+
+async function apiPlayerAutoplay(state) {
+    console.info("INFO: Sending player autoplay request.");
+    httpPost("/watch/api/player/autoplay", state);
+}
+
+async function apiPlayerLooping(state) {
+    console.info("INFO: Sending player autoplay request.");
+    httpPost("/watch/api/player/looping", state);
 }
 
 async function apiPlaylistGet() {
@@ -217,16 +237,6 @@ async function apiPlaylistClear() {
     httpPost("/watch/api/playlist/clear", connectionId);
 }
 
-async function apiPlaylistNext() {
-    const payload = {
-        connection_id: connectionId,
-        entry_id: currentEntryId,
-    };
-
-    console.info("INFO: Sending playlist next request.");
-    httpPost("/watch/api/playlist/next", payload);
-}
-
 async function apiPlaylistRemove(index) {
     const payload = {
         connection_id: connectionId,
@@ -237,16 +247,6 @@ async function apiPlaylistRemove(index) {
 
     console.info("INFO: Sending playlist remove request.");
     httpPost("/watch/api/playlist/remove", payload);
-}
-
-async function apiPlaylistAutoplay(state) {
-    console.info("INFO: Sending playlist autoplay request.");
-    httpPost("/watch/api/playlist/autoplay", state);
-}
-
-async function apiPlaylistLooping(state) {
-    console.info("INFO: Sending playlist autoplay request.");
-    httpPost("/watch/api/playlist/looping", state);
 }
 
 async function apiPlaylistShuffle() {
@@ -287,25 +287,25 @@ function inputUrlOnKeypress(event) {
         addHistoryElement(current_url.value);
 
         console.info("INFO: Current video source url: ", url);
-        apiSetUrl(url);
+        apiPlayerSet(url);
     }
 }
 
-function setUrlOnClick() {
+function playerSetOnClick() {
     let url = input_url.value;
     input_url.value = "";
 
     addHistoryElement(current_url.value);
 
     console.info("INFO: Current video source url: ", url);
-    apiSetUrl(url);
+    apiPlayerSet(url);
 }
 
-function nextOnClick() {
+function playerNextOnClick() {
     console.info("INFO: Next button was clicked");
 
     addHistoryElement(current_url.value);
-    apiPlaylistNext();
+    apiPlayerNext();
 }
 
 function inputPlaylistOnKeypress(event) {
@@ -323,7 +323,7 @@ function inputPlaylistOnKeypress(event) {
     }
 }
 
-function playlistAddInputOnClick() {
+function playlistAddTopOnClick() {
     let url = input_url.value;
     input_url.value = "";
 
@@ -337,12 +337,12 @@ function playlistAddInputOnClick() {
 
 function autoplayOnClick() {
     console.info("INFO: Autoplay button clicked");
-    apiPlaylistAutoplay(autoplay_checkbox.checked);
+    apiPlayerAutoplay(autoplay_checkbox.checked);
 }
 
 function loopingOnClick() {
     console.info("INFO: Looping button clicked");
-    apiPlaylistLooping(looping_checkbox.checked);
+    apiPlayerLooping(looping_checkbox.checked);
 }
 
 function playlistAddOnClick() {
@@ -692,6 +692,29 @@ function subscribeToServerEvents() {
     });
 
 
+    eventSource.addEventListener("playerset", function(event) {
+        let entry = JSON.parse(event.data);
+        console.info("INFO: Media entry received from the server: ", entry.url);
+
+        currentEntryId = entry.id;
+        playerSetUrl(entry.url, entry.title);
+    });
+
+    eventSource.addEventListener("playernext", function(event) {
+        let response = JSON.parse(event.data);
+        console.info("INFO: Received player next event: ", response);
+
+        if (looping_checkbox.checked) {
+            addPlaylistElement(response.prev_entry);
+        }
+
+        removeFirstPlaylistElement();
+
+        let entry = response.new_entry;
+        currentEntryId = entry.id
+        playerSetUrl(entry.url, entry.title);
+    });
+
     eventSource.addEventListener("sync", function(event) {
         let data = JSON.parse(event.data);
         if (!data) {
@@ -732,12 +755,16 @@ function subscribeToServerEvents() {
         }
     });
 
-    eventSource.addEventListener("seturl", function(event) {
-        let entry = JSON.parse(event.data);
-        console.info("INFO: Media url received from the server: ", entry.url);
+    eventSource.addEventListener("playerautoplay", function(event) {
+        let autoplay_enabled = JSON.parse(event.data);
+        console.info("INFO: Received player autoplay event: ", autoplay_enabled);
+        autoplay_checkbox.checked = autoplay_enabled;
+    });
 
-        currentEntryId = entry.id;
-        playerSetUrl(entry.url, entry.title);
+    eventSource.addEventListener("playerlooping", function(event) {
+        let looping_enabled = JSON.parse(event.data);
+        console.info("INFO: Received player looping event: ", looping_enabled);
+        looping_checkbox.checked = looping_enabled;
     });
 
     eventSource.addEventListener("playlistadd", function(event) {
@@ -756,50 +783,10 @@ function subscribeToServerEvents() {
         removeAllPlaylistElements();
     });
 
-    eventSource.addEventListener("playlistnext", function(event) {
-        console.info("Received playlist next event: ", event.data);
-
-        let response = JSON.parse(event.data);
-        console.info("INFO: Received a playlist next server response: ", response);
-
-        if (looping_checkbox.checked) {
-            addPlaylistElement(response.prev_entry);
-        }
-
-        currentEntryId = response.new_entry.id
-
-        destroyPlayer();
-        createFluidPlayer(response.new_entry.url, response.new_entry.title);
-
-        removeFirstPlaylistElement();
-    });
-
     eventSource.addEventListener("playlistremove", function(event) {
         let data = JSON.parse(event.data);
         console.info("INFO: Received playlist remove event:", data);
         removePlaylistElementAt(data);
-    });
-
-    eventSource.addEventListener("playlistautoplay", function(event) {
-        console.info("INFO: Received playlist autoplay event: ", event.data);
-        let autoplay_enabled = JSON.parse(event.data);
-        if (autoplay_enabled === null) {
-            console.error("ERROR: Failed to parse autoplay json event");
-            return;
-        }
-
-        autoplay_checkbox.checked = autoplay_enabled;
-    });
-
-    eventSource.addEventListener("playlistlooping", function(event) {
-        console.info("INFO: Received playlist looping event: ", event.data);
-        let looping_enabled = JSON.parse(event.data);
-        if (looping_enabled === null) {
-            console.error("ERROR: Failed to parse looping json event");
-            return;
-        }
-
-        looping_checkbox.checked = looping_enabled;
     });
 
     eventSource.addEventListener("playlistshuffle", function(event) {
@@ -935,7 +922,7 @@ function playerOnPlay(_event) {
         return;
     }
 
-    apiPlay();
+    apiPlayerPlay();
 }
 
 function playerOnPause(_event) {
@@ -944,7 +931,7 @@ function playerOnPause(_event) {
         return;
     }
 
-    apiPause();
+    apiPlayerPause();
 }
 
 function playerOnSeek(_event) {
@@ -954,12 +941,12 @@ function playerOnSeek(_event) {
         return;
     }
 
-    apiSeek();
+    apiPlayerSeek();
 }
 
 function playerOnEnded(_event) {
     if (autoplay_checkbox.checked) {
-        apiPlaylistNext();
+        apiPlayerNext();
     }
 }
 
@@ -1005,7 +992,7 @@ async function main() {
     // dummy player
     createFluidPlayer("", "");
 
-    let state = await apiGet();
+    let state = await apiPlayerGet();
     autoplay_checkbox.checked = state.player.autoplay;
     looping_checkbox.checked = state.player.looping;
     currentEntryId = state.entry.id;
