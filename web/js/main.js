@@ -556,7 +556,7 @@ function removePlaylistElementAt(index) {
 function updatePlaylistUsernames(updatedUser) {
     let table = playlistEntries.rows;
     for (var i = 0; i < playlist.length; i++) {
-        if (playlist[i].user_id == userSelf.id) {
+        if (playlist[i].user_id == updatedUser.id) {
             table[i].getElementsByTagName("td")[0].textContent = updatedUser.username;
         }
     }

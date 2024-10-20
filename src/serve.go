@@ -284,12 +284,17 @@ func StartServer(options *Options) {
 	}
 }
 
+func serveRoot(w http.ResponseWriter, r *http.Request) {
+    http.Redirect(w, r, "/watch/", http.StatusSeeOther)
+}
+
 func registerEndpoints(options *Options) {
 	_ = options
 
-	// TODO: Fix trailing suffix
 	fileserver := http.FileServer(http.Dir("./web"))
 	http.Handle("/", http.StripPrefix("/watch/", fileserver))
+
+    http.HandleFunc("/watch", serveRoot)
 
 	// Unrelated API calls.
 	http.HandleFunc("/watch/api/version", apiVersion)
