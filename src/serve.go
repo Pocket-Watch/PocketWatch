@@ -515,14 +515,11 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 	state.player.Timestamp = 0
 	state.player.Playing = state.player.Autoplay
 
-	newEntry := data.Entry
 	prevEntry := state.entry
 
-	newEntry = data.Entry
-	newEntry.Created = time.Now()
-	newEntry.Id = state.entryId
-
-	state.entry = newEntry
+	state.entry = data.Entry
+	state.entry.Created = time.Now()
+	state.entry.Id = state.entryId
 
 	lastSegment := lastUrlSegment(state.entry.Url)
 	if state.entry.UseProxy && strings.HasSuffix(lastSegment, ".m3u8") {
@@ -534,7 +531,7 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 
 	setEvent := PlayerSetEventData{
 		PrevEntry: prevEntry,
-		NewEntry:  newEntry,
+		NewEntry:  state.entry,
 	}
 	writeEventToAllConnections(w, "playerset", setEvent)
 }
@@ -577,15 +574,13 @@ func apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 	state.player.Playing = state.player.Autoplay
 	state.player.Timestamp = 0
 
-	newEntry := Entry{}
 	prevEntry := state.entry
+	state.entry = Entry{}
 
 	if len(state.playlist) != 0 {
-		newEntry = state.playlist[0]
+		state.entry = state.playlist[0]
 		state.playlist = state.playlist[1:]
 	}
-
-	state.entry = newEntry
 
 	lastSegment := lastUrlSegment(state.entry.Url)
 	if state.entry.UseProxy && strings.HasSuffix(lastSegment, ".m3u8") {
@@ -595,7 +590,7 @@ func apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 
 	nextEvent := PlayerNextEventData{
 		PrevEntry: prevEntry,
-		NewEntry:  newEntry,
+		NewEntry:  state.entry,
 	}
 	writeEventToAllConnections(w, "playernext", nextEvent)
 }
