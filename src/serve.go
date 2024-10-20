@@ -56,10 +56,9 @@ type Entry struct {
 type ServerState struct {
 	mutex sync.RWMutex
 
-	player PlayerState
-	entry  Entry
-	// TODO(kihau): Ids for entries should be generated on the server side.
-	// entryId uint64
+	player  PlayerState
+	entry   Entry
+	entryId uint64
 
 	eventId    atomic.Uint64
 	lastUpdate time.Time
@@ -201,14 +200,14 @@ type SyncEventData struct {
 	UserId    uint64  `json:"user_id"`
 }
 
-type PlayerSetResponseData struct {
+type PlayerSetRequestData struct {
 	ConnectionId uint64 `json:"connection_id"`
 	Entry        Entry  `json:"entry"`
 }
 
-type PlaylistAddRequestData struct {
-	ConnectionId uint64 `json:"connection_id"`
-	Entry        Entry  `json:"entry"`
+type PlayerSetEventData struct {
+	PrevEntry Entry `json:"prev_entry"`
+	NewEntry  Entry `json:"new_entry"`
 }
 
 type PlayerNextRequestData struct {
@@ -219,6 +218,11 @@ type PlayerNextRequestData struct {
 type PlayerNextEventData struct {
 	PrevEntry Entry `json:"prev_entry"`
 	NewEntry  Entry `json:"new_entry"`
+}
+
+type PlaylistAddRequestData struct {
+	ConnectionId uint64 `json:"connection_id"`
+	Entry        Entry  `json:"entry"`
 }
 
 type PlaylistRemoveRequestData struct {
@@ -496,7 +500,7 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection %s requested media url change.", r.RemoteAddr)
 
-	var data PlayerSetResponseData
+	var data PlayerSetRequestData
 	if !readJsonDataFromRequest(w, r, &data) {
 		return
 	}
@@ -506,9 +510,19 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 		state.history = append(state.history, state.entry)
 	}
 
+	state.entryId += 1
+
 	state.player.Timestamp = 0
 	state.player.Playing = state.player.Autoplay
-	state.entry = data.Entry
+
+	newEntry := data.Entry
+	prevEntry := state.entry
+
+	newEntry = data.Entry
+	newEntry.Created = time.Now()
+	newEntry.Id = state.entryId
+
+	state.entry = newEntry
 
 	lastSegment := lastUrlSegment(state.entry.Url)
 	if state.entry.UseProxy && strings.HasSuffix(lastSegment, ".m3u8") {
@@ -518,7 +532,11 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("New url is now: '%s'.", state.entry.Url)
 
-	writeEventToAllConnections(w, "playerset", state.entry)
+	setEvent := PlayerSetEventData{
+		PrevEntry: prevEntry,
+		NewEntry:  newEntry,
+	}
+	writeEventToAllConnections(w, "playerset", setEvent)
 }
 
 func apiPlayerNext(w http.ResponseWriter, r *http.Request) {
@@ -548,9 +566,16 @@ func apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 	}
 
 	state.mutex.Lock()
-	if state.player.Looping {
+	if state.entry.Url != "" {
+		state.history = append(state.history, state.entry)
+	}
+
+	if state.player.Looping && state.entry.Url != "" {
 		state.playlist = append(state.playlist, state.entry)
 	}
+
+	state.player.Playing = state.player.Autoplay
+	state.player.Timestamp = 0
 
 	newEntry := Entry{}
 	prevEntry := state.entry
@@ -560,12 +585,6 @@ func apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 		state.playlist = state.playlist[1:]
 	}
 
-	if prevEntry.Id != 0 {
-		state.history = append(state.history, prevEntry)
-	}
-
-	state.player.Playing = state.player.Autoplay
-	state.player.Timestamp = 0
 	state.entry = newEntry
 
 	lastSegment := lastUrlSegment(state.entry.Url)
@@ -747,11 +766,16 @@ func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Adding '%s' url to the playlist.", data.Entry.Url)
 
 	state.mutex.Lock()
-	state.playlist = append(state.playlist, data.Entry)
+	state.entryId += 1
+
+	entry := data.Entry
+	entry.Id = state.entryId
+	entry.Created = time.Now()
+
+	state.playlist = append(state.playlist, entry)
 	state.mutex.Unlock()
 
-	// TODO(kihau): Playlist entry cannot be reused and a new one needs to be created here.
-	writeEventToAllConnections(w, "playlistadd", data.Entry)
+	writeEventToAllConnections(w, "playlistadd", entry)
 }
 
 func apiPlaylistClear(w http.ResponseWriter, r *http.Request) {

@@ -5,6 +5,8 @@ var token = "";
 var connectionId = 0;
 var currentEntryId = 0;
 
+var playlist = [];
+
 var userSelf = {
     id: 0,
     username: "",
@@ -116,7 +118,7 @@ function findUserById(userId) {
 
 function createApiEntry(url) {
     const entry = {
-        id: currentEntryId,
+        id: 0,
         url: url,
         title: input_title.value,
         user_id: userSelf.id,
@@ -284,8 +286,6 @@ function inputUrlOnKeypress(event) {
         let url = input_url.value;
         input_url.value = "";
 
-        addHistoryElement(current_url.value);
-
         console.info("INFO: Current video source url: ", url);
         apiPlayerSet(url);
     }
@@ -295,16 +295,12 @@ function playerSetOnClick() {
     let url = input_url.value;
     input_url.value = "";
 
-    addHistoryElement(current_url.value);
-
     console.info("INFO: Current video source url: ", url);
     apiPlayerSet(url);
 }
 
 function playerNextOnClick() {
     console.info("INFO: Next button was clicked");
-
-    addHistoryElement(current_url.value);
     apiPlayerNext();
 }
 
@@ -477,16 +473,20 @@ function addPlaylistElement(entry) {
     if (!username) {
         username = "<unknown>";
     }
-
     let cell = tr.insertCell(-1);
     cell.textContent = username;
 
-    // TODO(kihau): Display this as a hlink when entry.title != ""
     cell = tr.insertCell(-1);
-    cell.textContent = entry.url;
+    if (entry.title !== "") {
+        let a = document.createElement("a");
+        a.href = entry.url;
+        a.textContent  = entry.title;
+        cell.appendChild(a);
+    } else {
+        cell.textContent = entry.url;
+    }
 
     cell = tr.insertCell(-1);
-
     let button = document.createElement("button");
     button.onclick = playlistEntryRemoveOnClick;
     button.textContent = "Remove";
@@ -494,13 +494,15 @@ function addPlaylistElement(entry) {
 }
 
 function getPlaylist() {
-    apiPlaylistGet().then((playlist) => {
-        if (!playlist) {
+    apiPlaylistGet().then((new_playlist) => {
+        if (!new_playlist) {
             return;
         }
 
-        for (var i = 0; i < playlist.length; i++) {
-            addPlaylistElement(playlist[i]);
+        playlist = new_playlist;
+
+        for (var i = 0; i < new_playlist.length; i++) {
+            addPlaylistElement(new_playlist[i]);
         }
     });
 }
@@ -537,10 +539,33 @@ function removeAllPlaylistElements() {
     }
 }
 
+function removePlaylistElementAt(index) {
+    let table = playlistEntries.rows;
+
+    if (index < 0 || index >= table.length) {
+        console.error("ERROR: Cannot remove playlist entry, index " + index + " is out of bounds.");
+    } else {
+        table[index].parentNode.removeChild(table[index]);
+    }
+
+    for (var i = 0; i < table.length; i++) {
+        table[i].getElementsByTagName("th")[0].textContent = i + 1 + ".";
+    }
+}
+
+function updatePlaylistUsernames(updatedUser) {
+    let table = playlistEntries.rows;
+    for (var i = 0; i < playlist.length; i++) {
+        if (playlist[i].user_id == userSelf.id) {
+            table[i].getElementsByTagName("td")[0].textContent = updatedUser.username;
+        }
+    }
+}
+
 /// --------------- HISTORY: ---------------
 
-function addHistoryElement(url) {
-    if (url === "") {
+function addHistoryElement(entry) {
+    if (entry.url === "") {
         return;
     }
 
@@ -548,12 +573,9 @@ function addHistoryElement(url) {
     historyEntries.appendChild(tr);
 
     let th = document.createElement("th");
-    th.textContent = url;
+    th.textContent = entry.url;
     th.scope = "row";
     tr.appendChild(th);
-
-    // let cell = tr.insertCell(-1);
-    // cell.textContent = entry.url;
 }
 
 function getHistory() {
@@ -689,20 +711,24 @@ function subscribeToServerEvents() {
         }
 
         updateConnectedUsers();
+        updatePlaylistUsernames(updatedUser);
     });
 
-
     eventSource.addEventListener("playerset", function(event) {
-        let entry = JSON.parse(event.data);
-        console.info("INFO: Media entry received from the server: ", entry.url);
+        let response = JSON.parse(event.data);
+        console.info("INFO: Received player set event: ", response);
 
-        currentEntryId = entry.id;
-        playerSetUrl(entry.url, entry.title);
+        addHistoryElement(response.prev_entry)
+
+        currentEntryId = response.new_entry.id
+        playerSetUrl(response.new_entry.url, response.new_entry.title);
     });
 
     eventSource.addEventListener("playernext", function(event) {
         let response = JSON.parse(event.data);
         console.info("INFO: Received player next event: ", response);
+
+        addHistoryElement(response.prev_entry)
 
         if (looping_checkbox.checked) {
             addPlaylistElement(response.prev_entry);
@@ -710,9 +736,8 @@ function subscribeToServerEvents() {
 
         removeFirstPlaylistElement();
 
-        let entry = response.new_entry;
-        currentEntryId = entry.id
-        playerSetUrl(entry.url, entry.title);
+        currentEntryId = response.new_entry.id
+        playerSetUrl(response.new_entry.url, response.new_entry.title);
     });
 
     eventSource.addEventListener("sync", function(event) {
@@ -776,47 +801,52 @@ function subscribeToServerEvents() {
         }
 
         addPlaylistElement(entry);
+        playlist.push(entry);
     });
 
     eventSource.addEventListener("playlistclear", function(_event) {
         console.info("INFO: Received playlist clear event");
         removeAllPlaylistElements();
+        playlist = [];
     });
 
     eventSource.addEventListener("playlistremove", function(event) {
-        let data = JSON.parse(event.data);
-        console.info("INFO: Received playlist remove event:", data);
-        removePlaylistElementAt(data);
+        let index = JSON.parse(event.data);
+        console.info("INFO: Received playlist remove event:", index);
+        removePlaylistElementAt(index);
+        playlist.splice(index, 1); // 2nd parameter means remove one item only
     });
 
     eventSource.addEventListener("playlistshuffle", function(event) {
         console.info("INFO: Received playlist shuffle event: ", event.data);
-        let playlist = JSON.parse(event.data);
-        if (playlist === null) {
+        let newPlaylist = JSON.parse(event.data);
+        if (newPlaylist === null) {
             console.error("ERROR: Failed to parse playlist shuffle json event.");
             return;
         }
 
         removeAllPlaylistElements();
-
-        for (var i = 0; i < playlist.length; i++) {
-            addPlaylistElement(playlist[i]);
+        for (var i = 0; i < newPlaylist.length; i++) {
+            addPlaylistElement(newPlaylist[i]);
         }
+
+        playlist = newPlaylist;
     });
 
     eventSource.addEventListener("playlistmove", function(event) {
-        let playlist = JSON.parse(event.data);
-        console.info("INFO: Received playlist move event:", playlist);
-        if (playlist === null) {
+        let newPlaylist = JSON.parse(event.data);
+        console.info("INFO: Received playlist move event:", newPlaylist);
+        if (newPlaylist === null) {
             console.error("ERROR: Failed to parse playlist move json event.");
             return;
         }
 
         removeAllPlaylistElements();
-
-        for (var i = 0; i < playlist.length; i++) {
-            addPlaylistElement(playlist[i]);
+        for (var i = 0; i < newPlaylist.length; i++) {
+            addPlaylistElement(newPlaylist[i]);
         }
+
+        playlist = newPlaylist;
     });
 
     eventSource.addEventListener("historyclear", function(_event) {

@@ -37,8 +37,8 @@
     - [x] Playlist shuffle
     - [x] Playlist looping
     - [x] Playlist entry reordering
-    - [ ] Update playlist entries when a user changes their name
-    - [ ] Display playlist entries as title href to url
+    - [x] Display playlist entries as title href to url
+    - [x] Update playlist entries when a user changes their name
 - [x] Subtitle support
 - [x] Display connected users
 - [x] Convert srt to vtt
