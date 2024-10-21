@@ -1,11 +1,13 @@
+import { Playlist } from "./playlist.js"
+
+export { findUserById, apiPlaylistRemove, apiPlaylistMove }
+
 const DELTA = 1.5;
 
 var allUsers = [];
 var token = "";
 var connectionId = 0;
 var currentEntryId = 0;
-
-var playlist = [];
 
 var userSelf = {
     id: 0,
@@ -17,6 +19,8 @@ var player;
 var video;
 var subtitles = []
 
+var playlist = new Playlist();
+
 var input_url = document.getElementById("input_url");
 var referer_input = document.getElementById("referer");
 var input_title = document.getElementById("input_title");
@@ -26,7 +30,6 @@ var proxy_checkbox = document.getElementById("proxy");
 var autoplay_checkbox = document.getElementById("autoplay");
 var looping_checkbox = document.getElementById("looping");
 var audioonly_checkbox = document.getElementById("audioonly");
-var playlistEntries = document.getElementById("playlist_entries");
 var historyEntries = document.getElementById("history_entries");
 
 var programmaticPlay = false; // Updates before programmatic play() and in .onplay
@@ -239,11 +242,10 @@ async function apiPlaylistClear() {
     httpPost("/watch/api/playlist/clear", connectionId);
 }
 
-async function apiPlaylistRemove(index) {
+async function apiPlaylistRemove(entryId, index) {
     const payload = {
         connection_id: connectionId,
-        // TODO(kihau): ID of the entry of be removed.
-        entry_id: 0,
+        entry_id: entryId,
         index: index,
     };
 
@@ -256,11 +258,10 @@ async function apiPlaylistShuffle() {
     httpPost("/watch/api/playlist/shuffle", null);
 }
 
-async function apiPlaylistMove(source, dest) {
+async function apiPlaylistMove(entryId, source, dest) {
     const payload = {
         connection_id: connectionId, 
-        // TODO(kihau): ID of the entry of be moved.
-        entry_id: 0,
+        entry_id: entryId,
         source_index: source,
         dest_index: dest,
     }
@@ -394,174 +395,6 @@ function clearSessionOnClick() {
     window.location.reload();
 }
 
-/// --------------- PLAYLIST: ---------------
-
-// NOTE(kihau): This function is a big hack. There should be a better way to do it.
-function playlistIndexFromEntry(entry) {
-    let th = entry.getElementsByTagName("th")[0];
-    let index_string = th.textContent;
-    index_string = index_string.substring(0, index_string.length - 1);
-
-    let index = Number(index_string) - 1;
-    return index;
-}
-
-function playlistEntryRemoveOnClick(event) {
-    let entry = event.target.parentElement.parentElement;
-    let index = playlistIndexFromEntry(entry);
-    apiPlaylistRemove(index);
-}
-
-var dragTarget = null;
-var startIndex = null;
-
-function isBefore(element1, element2) {
-    if (element1.parentNode !== element2.parentNode) {
-        return false;
-    }
-
-    for (var item = element1.previousSibling; item && item.nodeType !== 9; item = item.previousSibling) {
-        if (item === element2) {
-            return true;
-        }
-    }
-}
-
-function addPlaylistElement(entry) {
-    let tr = document.createElement("tr");
-    tr.draggable = true;
-
-    tr.ondragstart = (event) => {
-        event.dataTransfer.effectAllowed = "move";
-        // event.dataTransfer.setData("text/plain", null);
-
-        startIndex = playlistIndexFromEntry(event.target);
-        dragTarget = event.target;
-    };
-
-    tr.ondragover = (event) => {
-        let dragDest = event.target.parentNode;
-
-        let targetTh = dragTarget.getElementsByTagName("th")[0];
-        let destTh = dragDest.getElementsByTagName("th")[0];
-
-        let tempTh = targetTh.textContent;
-        targetTh.textContent = destTh.textContent;
-        destTh.textContent = tempTh;
-
-        if (isBefore(dragTarget, dragDest)) {
-            dragDest.parentNode.insertBefore(dragTarget, dragDest);
-        } else {
-            dragDest.parentNode.insertBefore(dragTarget, dragDest.nextSibling);
-        }
-    };
-
-    tr.ondragend = (event) => {
-        let endIndex = playlistIndexFromEntry(event.target);
-        apiPlaylistMove(startIndex, endIndex);
-    };
-
-    playlistEntries.appendChild(tr);
-
-    let th = document.createElement("th");
-    th.textContent = playlistEntries.childElementCount + ".";
-    th.scope = "row";
-    tr.appendChild(th);
-
-    let user = findUserById(entry.user_id);
-    let username = user.username;
-    if (!username) {
-        username = "<unknown>";
-    }
-    let cell = tr.insertCell(-1);
-    cell.textContent = username;
-
-    cell = tr.insertCell(-1);
-    if (entry.title !== "") {
-        let a = document.createElement("a");
-        a.href = entry.url;
-        a.textContent  = entry.title;
-        cell.appendChild(a);
-    } else {
-        cell.textContent = entry.url;
-    }
-
-    cell = tr.insertCell(-1);
-    let button = document.createElement("button");
-    button.onclick = playlistEntryRemoveOnClick;
-    button.textContent = "Remove";
-    cell.appendChild(button);
-}
-
-function getPlaylist() {
-    apiPlaylistGet().then((new_playlist) => {
-        if (!new_playlist) {
-            return;
-        }
-
-        playlist = new_playlist;
-
-        for (var i = 0; i < new_playlist.length; i++) {
-            addPlaylistElement(new_playlist[i]);
-        }
-    });
-}
-
-function removeFirstPlaylistElement() {
-    let table = playlistEntries.rows;
-    if (table.length !== 0) {
-        table[0].parentNode.removeChild(table[0]);
-    }
-
-    for (var i = 0; i < table.length; i++) {
-        table[i].getElementsByTagName("th")[0].textContent = i + 1 + ".";
-    }
-}
-
-function removePlaylistElementAt(index) {
-    let table = playlistEntries.rows;
-
-    if (index < 0 || index >= table.length) {
-        console.error("ERROR: Cannot remove playlist entry, index " + index + " is out of bounds.");
-    } else {
-        table[index].parentNode.removeChild(table[index]);
-    }
-
-    for (var i = 0; i < table.length; i++) {
-        table[i].getElementsByTagName("th")[0].textContent = i + 1 + ".";
-    }
-}
-
-function removeAllPlaylistElements() {
-    let container = playlistEntries;
-    while (container.firstChild) {
-        container.removeChild(container.lastChild);
-    }
-}
-
-function removePlaylistElementAt(index) {
-    let table = playlistEntries.rows;
-
-    if (index < 0 || index >= table.length) {
-        console.error("ERROR: Cannot remove playlist entry, index " + index + " is out of bounds.");
-    } else {
-        table[index].parentNode.removeChild(table[index]);
-    }
-
-    for (var i = 0; i < table.length; i++) {
-        table[i].getElementsByTagName("th")[0].textContent = i + 1 + ".";
-    }
-}
-
-function updatePlaylistUsernames(updatedUser) {
-    let table = playlistEntries.rows;
-    for (var i = 0; i < playlist.length; i++) {
-        if (playlist[i].user_id == updatedUser.id) {
-            table[i].getElementsByTagName("td")[0].textContent = updatedUser.username;
-        }
-    }
-}
-
 /// --------------- HISTORY: ---------------
 
 function addHistoryElement(entry) {
@@ -654,7 +487,10 @@ function subscribeToServerEvents() {
             allUsers = users;
             updateConnectedUsers();
 
-            getPlaylist();
+            apiPlaylistGet().then(entries => {
+                playlist.loadNew(entries);
+            });
+
             getHistory();
         })
     });
@@ -711,7 +547,7 @@ function subscribeToServerEvents() {
         }
 
         updateConnectedUsers();
-        updatePlaylistUsernames(updatedUser);
+        playlist.updateUsernames(updatedUser);
     });
 
     eventSource.addEventListener("playerset", function(event) {
@@ -731,11 +567,12 @@ function subscribeToServerEvents() {
         addHistoryElement(response.prev_entry)
 
         if (looping_checkbox.checked) {
-            addPlaylistElement(response.prev_entry);
+            playlist.add(response.prev_entry);
         }
 
-        removeFirstPlaylistElement();
+        playlist.removeFirst();
 
+        // NOTE(kihau): new_entry can be removed.
         currentEntryId = response.new_entry.id
         playerSetUrl(response.new_entry.url, response.new_entry.title);
     });
@@ -795,58 +632,30 @@ function subscribeToServerEvents() {
     eventSource.addEventListener("playlistadd", function(event) {
         let entry = JSON.parse(event.data);
         console.info("INFO: Received playlist add event:", entry);
-
-        if (!entry) {
-            return;
-        }
-
-        addPlaylistElement(entry);
-        playlist.push(entry);
+        playlist.add(entry);
     });
 
     eventSource.addEventListener("playlistclear", function(_event) {
         console.info("INFO: Received playlist clear event");
-        removeAllPlaylistElements();
-        playlist = [];
+        playlist.clear();
     });
 
     eventSource.addEventListener("playlistremove", function(event) {
         let index = JSON.parse(event.data);
         console.info("INFO: Received playlist remove event:", index);
-        removePlaylistElementAt(index);
-        playlist.splice(index, 1); // 2nd parameter means remove one item only
+        playlist.removeAt(index);
     });
 
     eventSource.addEventListener("playlistshuffle", function(event) {
-        console.info("INFO: Received playlist shuffle event: ", event.data);
         let newPlaylist = JSON.parse(event.data);
-        if (newPlaylist === null) {
-            console.error("ERROR: Failed to parse playlist shuffle json event.");
-            return;
-        }
-
-        removeAllPlaylistElements();
-        for (var i = 0; i < newPlaylist.length; i++) {
-            addPlaylistElement(newPlaylist[i]);
-        }
-
-        playlist = newPlaylist;
+        console.info("INFO: Received playlist shuffle event: ", newPlaylist);
+        playlist.loadNew(newPlaylist);
     });
 
     eventSource.addEventListener("playlistmove", function(event) {
-        let newPlaylist = JSON.parse(event.data);
-        console.info("INFO: Received playlist move event:", newPlaylist);
-        if (newPlaylist === null) {
-            console.error("ERROR: Failed to parse playlist move json event.");
-            return;
-        }
-
-        removeAllPlaylistElements();
-        for (var i = 0; i < newPlaylist.length; i++) {
-            addPlaylistElement(newPlaylist[i]);
-        }
-
-        playlist = newPlaylist;
+        let response = JSON.parse(event.data);
+        console.info("INFO: Received playlist move event:", response);
+        playlist.move(response.source_index, response.dest_index);
     });
 
     eventSource.addEventListener("historyclear", function(_event) {
@@ -1015,7 +824,26 @@ async function getOrCreateUserInAnExtremelyUglyWay() {
     return user;
 }
 
+function attachHtmlHandlers() {
+    window.inputUrlOnKeypress = inputUrlOnKeypress;
+    window.playerSetOnClick = playerSetOnClick;
+    window.playerNextOnClick = playerNextOnClick;
+    window.inputPlaylistOnKeypress = inputPlaylistOnKeypress;
+    window.playlistAddOnClick = playlistAddOnClick;
+    window.historyClearOnClick = historyClearOnClick;
+    window.updateUsernameOnClick = updateUsernameOnClick;
+    window.playlistAddTopOnClick = playlistAddTopOnClick;
+    window.clearSessionOnClick = clearSessionOnClick;
+    window.playlistShuffleOnClick = playlistShuffleOnClick;
+    window.playlistClearOnClick = playlistClearOnClick;
+    window.autoplayOnClick = autoplayOnClick;
+    window.loopingOnClick = loopingOnClick;
+    window.uploadFile = uploadFile;
+}
+
 async function main() {
+    attachHtmlHandlers();
+
     userSelf = await getOrCreateUserInAnExtremelyUglyWay();
     input_username.value = userSelf.username;
 

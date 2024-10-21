@@ -248,6 +248,11 @@ type PlaylistMoveRequestData struct {
 	DestIndex    int    `json:"dest_index"`
 }
 
+type PlaylistMoveEventData struct {
+	SourceIndex int `json:"source_index"`
+	DestIndex   int `json:"dest_index"`
+}
+
 var state = ServerState{}
 var users = makeUsers()
 var conns = makeConnections()
@@ -814,9 +819,15 @@ func apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
 	state.mutex.Lock()
 	if data.Index < 0 || data.Index >= len(state.playlist) {
 		LogError("Failed to remove playlist element at index %v.", data.Index)
-	} else {
-		state.playlist = append(state.playlist[:data.Index], state.playlist[data.Index+1:]...)
+		return
 	}
+
+	if state.playlist[data.Index].Id != data.EntryId {
+		LogWarn("Entry ID on the server is not equal to the one provided by the client.")
+		return
+	}
+
+	state.playlist = append(state.playlist[:data.Index], state.playlist[data.Index+1:]...)
 	state.mutex.Unlock()
 
 	writeEventToAllConnections(w, "playlistremove", data.Index)
@@ -865,6 +876,11 @@ func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if state.playlist[move.SourceIndex].Id != move.EntryId {
+		LogWarn("Entry ID on the server is not equal to the one provided by the client.")
+		return
+	}
+
 	if move.DestIndex < 0 || move.DestIndex >= len(state.playlist) {
 		LogError("Playlist move failed, source index out of bounds")
 		return
@@ -885,10 +901,12 @@ func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 	state.playlist = list
 	state.mutex.Unlock()
 
-	// NOTE(kihau):
-	//     Sending entire playlist in the playlist move event is pretty wasteful,
-	//     but this will do for now.
-	writeEventToAllConnections(w, "playlistmove", list)
+	event := PlaylistMoveEventData{
+		SourceIndex: move.SourceIndex,
+		DestIndex:   move.DestIndex,
+	}
+
+	writeEventToAllConnections(w, "playlistmove", event)
 }
 
 func apiHistoryGet(w http.ResponseWriter, r *http.Request) {
