@@ -430,6 +430,9 @@ function removeAllHistoryElements() {
     }
 }
 
+let div = 121;
+var divFooBar = 12122;
+
 /// --------------- CONNECTED USERS: ---------------
 
 function updateConnectedUsers() {
@@ -824,6 +827,34 @@ async function getOrCreateUserInAnExtremelyUglyWay() {
     return user;
 }
 
+function shiftSubtitlesBack() {
+    if (video.textTracks.length === 0) {
+        console.warn("NO SUBTITLE TRACKS")
+        return;
+    }
+    let track = video.textTracks[0];
+    console.info("CUES", track.cues)
+    for (let i = 0; i < track.cues.length; i++) {
+        let cue = track.cues[i];
+        cue.startTime -= 0.5;
+        cue.endTime -= 0.5;
+    }
+}
+
+function shiftSubtitlesForward() {
+    if (video.textTracks.length === 0) {
+        console.warn("NO SUBTITLE TRACKS")
+        return;
+    }
+    let track = video.textTracks[0];
+    console.info("CUES", track.cues)
+    for (let i = 0; i < track.cues.length; i++) {
+        let cue = track.cues[i];
+        cue.startTime += 0.5;
+        cue.endTime += 0.5;
+    }
+}
+
 function attachHtmlHandlers() {
     window.inputUrlOnKeypress = inputUrlOnKeypress;
     window.playerSetOnClick = playerSetOnClick;
@@ -839,6 +870,8 @@ function attachHtmlHandlers() {
     window.autoplayOnClick = autoplayOnClick;
     window.loopingOnClick = loopingOnClick;
     window.uploadFile = uploadFile;
+    window.shiftSubtitlesBack  = shiftSubtitlesBack;
+    window.shiftSubtitlesForward  = shiftSubtitlesForward;
 }
 
 async function main() {
