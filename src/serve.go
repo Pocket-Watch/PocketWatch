@@ -289,11 +289,17 @@ func StartServer(options *Options) {
 	}
 }
 
+func handleUnknownEndpoint(w http.ResponseWriter, r *http.Request) {
+    LogWarn("User %v requested unknown endpoint: %v", r.RemoteAddr, r.RequestURI);
+}
+
 func registerEndpoints(options *Options) {
 	_ = options
 
 	fileserver := http.FileServer(http.Dir("./web"))
 	http.Handle("/watch/", http.StripPrefix("/watch/", fileserver))
+
+	http.HandleFunc("/", handleUnknownEndpoint)
 
 	// Unrelated API calls.
 	http.HandleFunc("/watch/api/version", apiVersion)
