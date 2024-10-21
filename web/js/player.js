@@ -62,12 +62,17 @@ class Player {
         let video = document.createElement('video');
         this.root.appendChild(video);
 
+        let track = document.createElement("track")
+        track.label = "foo";
+        track.kind = "subtitles";
+        track.src = "/watch/media/Cars.vtt";
+        video.appendChild(track)
+
         let width = window.innerWidth * 0.95;
         video.width = width;
         video.height = width * 9 / 16;
         video.id = "player";
-        // video.controls = true;
-        video.controls = false;
+        video.controls = true;
         
         // let data = this;
         video.onclick = () => {

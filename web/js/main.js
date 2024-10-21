@@ -430,9 +430,6 @@ function removeAllHistoryElements() {
     }
 }
 
-let div = 121;
-var divFooBar = 12122;
-
 /// --------------- CONNECTED USERS: ---------------
 
 function updateConnectedUsers() {

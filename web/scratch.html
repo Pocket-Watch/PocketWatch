@@ -12,6 +12,11 @@
     <div id="player_container">
     </div>
 
+    <!-- <video id="myCustomVideo" width="640" height="360" controls> -->
+    <!--     <source src="your-video.mp4" type="video/mp4"> -->
+    <!--     <track id="subTrack" src="your-subtitles.vtt" kind="subtitles" srclang="en" label="English"> -->
+    <!-- </video> -->
+
     <br>
     <br>
 
@@ -21,6 +26,16 @@
     <br>
 
     <button name="set_url" onclick="setUrlOnClick()">Set URL</button>
+
+    <br>
+
+    <button onclick="shiftSubtitlesBack()">
+         Shift left (-500ms)
+    </button>
+    <button onclick="shiftSubtitlesForward()">
+        Shift right (+500ms)
+    </button>
+    <br>
 
     <!-- <script type="module" src="js/player.js"></script> -->
     <script type="module" src="js/scratch.js"></script>
