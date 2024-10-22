@@ -1,4 +1,5 @@
-import { findUserById, apiPlaylistMove, apiPlaylistRemove } from "./main.js"
+import { findUserById } from "./main.js"
+import * as api from "./api.js";
 
 export { Playlist }
 
@@ -62,7 +63,7 @@ class Playlist {
 
             let startIndex = this.findHtmlElementIndex(this.dragEntryStart);
             let endIndex = this.findHtmlElementIndex(this.dragEntryEnd);
-            apiPlaylistMove(this.entries[startIndex].id, startIndex, endIndex);
+            api.playlistMove(this.entries[startIndex].id, startIndex, endIndex);
         };
 
         let positionTh = document.createElement("th");
@@ -94,7 +95,7 @@ class Playlist {
         button.onclick = (event) => {
             let entry = event.target.parentElement.parentElement;
             let index = this.findHtmlElementIndex(entry);
-            apiPlaylistRemove(this.entries[index].id, index);
+            api.playlistRemove(this.entries[index].id, index);
         };
         button.textContent = "Remove";
         buttonCell.appendChild(button);

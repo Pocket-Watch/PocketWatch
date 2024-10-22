@@ -1,12 +1,14 @@
 import { Playlist } from "./playlist.js"
+import * as api from "./api.js";
 
-export { findUserById, apiPlaylistRemove, apiPlaylistMove }
+export { findUserById }
+
+export var token = "";
+export var connectionId = 0;
 
 const DELTA = 1.5;
 
 var allUsers = [];
-var token = "";
-var connectionId = 0;
 var currentEntryId = 0;
 
 var userSelf = {
@@ -46,60 +48,6 @@ function getUrlMediaType(url) {
     return "";
 }
 
-async function httpPost(endpoint, data) {
-    const headers = new Headers();
-    headers.set("Content-Type", "application/json");
-    headers.set("Authorization", token);
-
-    const options = {
-        method: "POST",
-        body: JSON.stringify(data),
-        headers: headers,
-    };
-
-    try {
-        const response = await fetch(endpoint, options);
-        if (!response.ok) {
-            console.error("ERROR: POST request for endpoint: " + endpoint + " failed: " + response.status);
-            return null;
-        }
-
-        // TODO(kihau): 
-        //     Throws exception when response is not a valid json.
-        //     This should be handled this in a nicer way.
-        return await response.json();
-    } catch (error) {
-        // console.error("ERROR: POST request for endpoint: " + endpoint + " failed: " + error);
-        return null;
-    }
-}
-
-async function httpGet(endpoint) {
-    const headers = new Headers();
-    headers.set("Content-Type", "application/json");
-    headers.set("Authorization", token);
-
-    const options = {
-        method: "GET",
-        body: null,
-        headers: headers,
-    };
-
-    try {
-        const response = await fetch(endpoint, options);
-        if (!response.ok) {
-            console.error("ERROR: POST request for endpoint: " + endpoint + " failed: " + response.status);
-            return null;
-        }
-
-        return await response.json();
-    } catch (error) {
-        console.error("ERROR: POST request for endpoint: " + endpoint + " failed: " + error);
-    }
-
-    return null;
-}
-
 function findUserById(userId) {
     for (let i = 0; i < allUsers.length; i++) {
         const user = allUsers[i];
@@ -117,8 +65,6 @@ function findUserById(userId) {
     return user;
 }
 
-/// --------------- SERVER REQUESTS: ---------------
-
 function createApiEntry(url) {
     const entry = {
         id: 0,
@@ -133,176 +79,31 @@ function createApiEntry(url) {
     return entry;
 }
 
-async function apiUserCreate() {
-    let data = await httpGet("/watch/api/user/create");
-    console.info("INFO: Received data from createuser request to the server: ", data);
-    return data;
-}
+function setNewEntry() {
+    let url = input_url.value;
+    input_url.value = "";
 
-async function apiUserGetAll() {
-    let data = await httpGet("/watch/api/user/getall");
-    console.info("INFO: Received data from user getall request to the server: ", data);
-    return data;
-}
+    console.info("INFO: Current video source url: ", url);
 
-async function apiUserVerify() {
-    let data = await httpPost("/watch/api/user/verify");
-    console.info("INFO: Received data from user verify request to the server: ", data);
-    return data;
-}
-
-async function apiUserUpdateName(username) {
-    console.info("INFO: Sending update username request.");
-    httpPost("/watch/api/user/updatename", username);
-}
-
-async function apiPlayerGet() {
-    let data = await httpGet("/watch/api/player/get");
-    console.info("INFO: Received data from player get request to the server: ", data);
-    return data;
-}
-
-async function apiPlayerSet(url) {
-    const payload = {
-        connection_id: connectionId,
-        entry: createApiEntry(url),
-    };
-
-    console.info("INFO: Sending player set request for a entry");
-    httpPost("/watch/api/player/set", payload);
-}
-
-async function apiPlayerNext() {
-    const payload = {
-        connection_id: connectionId,
-        entry_id: currentEntryId,
-    };
-
-    console.info("INFO: Sending player next request.");
-    httpPost("/watch/api/player/next", payload);
-}
-
-async function apiPlayerPlay() {
-    const payload = {
-        connection_id: connectionId,
-        timestamp: video.currentTime,
-    };
-
-    console.info("INFO: Sending player play request to the server.");
-    httpPost("/watch/api/player/play", payload);
-}
-
-async function apiPlayerPause() {
-    const payload = {
-        connection_id: connectionId,
-        timestamp: video.currentTime,
-    };
-
-    console.info("INFO: Sending player pause request to the server.");
-    httpPost("/watch/api/player/pause", payload);
-}
-
-async function apiPlayerSeek() {
-    const payload = {
-        connection_id: connectionId,
-        timestamp: video.currentTime,
-    };
-
-    console.info("INFO: Sending player seek request to the server.");
-    httpPost("/watch/api/player/seek", payload);
-}
-
-async function apiPlayerAutoplay(state) {
-    console.info("INFO: Sending player autoplay request.");
-    httpPost("/watch/api/player/autoplay", state);
-}
-
-async function apiPlayerLooping(state) {
-    console.info("INFO: Sending player autoplay request.");
-    httpPost("/watch/api/player/looping", state);
-}
-
-async function apiPlaylistGet() {
-    console.info("INFO: Sending playlist get request.");
-    return await httpGet("/watch/api/playlist/get");
-}
-
-async function apiPlaylistAdd(url) {
-    const payload = {
-        connection_id: connectionId,
-        entry: createApiEntry(url),
-    };
-
-    console.info("INFO: Sending playlist add request for entry: ", payload);
-    httpPost("/watch/api/playlist/add", payload);
-}
-
-async function apiPlaylistClear() {
-    console.info("INFO: Sending playlist clear request.");
-    httpPost("/watch/api/playlist/clear", connectionId);
-}
-
-async function apiPlaylistRemove(entryId, index) {
-    const payload = {
-        connection_id: connectionId,
-        entry_id: entryId,
-        index: index,
-    };
-
-    console.info("INFO: Sending playlist remove request.");
-    httpPost("/watch/api/playlist/remove", payload);
-}
-
-async function apiPlaylistShuffle() {
-    console.info("INFO: Sending playlist shuffle request.");
-    httpPost("/watch/api/playlist/shuffle", null);
-}
-
-async function apiPlaylistMove(entryId, source, dest) {
-    const payload = {
-        connection_id: connectionId, 
-        entry_id: entryId,
-        source_index: source,
-        dest_index: dest,
-    }
-
-    console.info("INFO: Sending playlist move request with: ", payload);
-    httpPost("/watch/api/playlist/move", payload);
-}
-
-async function apiHistoryGet() {
-    console.info("INFO: Sending history get request.");
-    return await httpGet("/watch/api/history/get");
-}
-
-async function apiHistoryClear() {
-    console.info("INFO: Sending history clear request.");
-    httpPost("/watch/api/history/clear", null);
+    let entry = createApiEntry(url);
+    api.playerSet(entry);
 }
 
 /// --------------- HTML ELEMENT CALLBACKS: ---------------
 
 function inputUrlOnKeypress(event) {
     if (event.key === "Enter") {
-        let url = input_url.value;
-        input_url.value = "";
-
-        console.info("INFO: Current video source url: ", url);
-        apiPlayerSet(url);
+        setNewEntry();
     }
 }
 
 function playerSetOnClick() {
-    let url = input_url.value;
-    input_url.value = "";
-
-    console.info("INFO: Current video source url: ", url);
-    apiPlayerSet(url);
+    setNewEntry();
 }
 
 function playerNextOnClick() {
     console.info("INFO: Next button was clicked");
-    apiPlayerNext();
+    api.playerNext(currentEntryId);
 }
 
 function inputPlaylistOnKeypress(event) {
@@ -316,7 +117,8 @@ function inputPlaylistOnKeypress(event) {
             return;
         }
 
-        apiPlaylistAdd(url);
+        let entry = createApiEntry(url);
+        api.playlistAdd(entry);
     }
 }
 
@@ -329,17 +131,18 @@ function playlistAddTopOnClick() {
         return;
     }
 
-    apiPlaylistAdd(url);
+    let entry = createApiEntry(url);
+    api.playlistAdd(entry);
 }
 
 function autoplayOnClick() {
     console.info("INFO: Autoplay button clicked");
-    apiPlayerAutoplay(autoplay_checkbox.checked);
+    api.playerAutoplay(autoplay_checkbox.checked);
 }
 
 function loopingOnClick() {
     console.info("INFO: Looping button clicked");
-    apiPlayerLooping(looping_checkbox.checked);
+    api.playerLooping(looping_checkbox.checked);
 }
 
 function playlistAddOnClick() {
@@ -352,15 +155,16 @@ function playlistAddOnClick() {
         return;
     }
 
-    apiPlaylistAdd(url);
+    let entry = createApiEntry(url);
+    api.playlistAdd(entry);
 }
 
 function playlistShuffleOnClick() {
-    apiPlaylistShuffle();
+    api.playlistShuffle();
 }
 
 function playlistClearOnClick() {
-    apiPlaylistClear();
+    api.playlistClear();
 }
 
 const fileInput = document.getElementById("file_input");
@@ -383,11 +187,11 @@ function uploadFile() {
 }
 
 function historyClearOnClick() {
-    apiHistoryClear();
+    api.historyClear();
 }
 
 function updateUsernameOnClick() {
-    apiUserUpdateName(input_username.value);
+    api.userUpdateName(input_username.value);
 }
 
 function clearSessionOnClick() {
@@ -412,7 +216,7 @@ function addHistoryElement(entry) {
 }
 
 function getHistory() {
-    apiHistoryGet().then((history) => {
+    api.historyGet().then((history) => {
         if (!history) {
             return;
         }
@@ -483,11 +287,11 @@ function subscribeToServerEvents() {
         connectionId = JSON.parse(event.data);
         console.info("INFO: Received a welcome request with connection id: ", connectionId);
 
-        apiUserGetAll().then((users) => {
+        api.userGetAll().then((users) => {
             allUsers = users;
             updateConnectedUsers();
 
-            apiPlaylistGet().then(entries => {
+            api.playlistGet().then(entries => {
                 playlist.loadNew(entries);
             });
 
@@ -761,7 +565,7 @@ function playerOnPlay(_event) {
         return;
     }
 
-    apiPlayerPlay();
+    api.playerPlay(video.currentTime);
 }
 
 function playerOnPause(_event) {
@@ -770,7 +574,7 @@ function playerOnPause(_event) {
         return;
     }
 
-    apiPlayerPause();
+    api.playerPause(video.currentTime);
 }
 
 function playerOnSeek(_event) {
@@ -780,12 +584,12 @@ function playerOnSeek(_event) {
         return;
     }
 
-    apiPlayerSeek();
+    api.playerSeek(video.currentTime);
 }
 
 function playerOnEnded(_event) {
     if (autoplay_checkbox.checked) {
-        apiPlayerNext();
+        api.playerNext(currentEntryId);
     }
 }
 
@@ -809,15 +613,15 @@ async function getOrCreateUserInAnExtremelyUglyWay() {
 
     token = localStorage.getItem("token");
     if (!token) {
-        token = await apiUserCreate();
+        token = await api.userCreate();
         localStorage.setItem("token", token)
-        user = await apiUserVerify(token);
+        user = await api.userVerify(token);
     } else {
-        user = await apiUserVerify(token);
+        user = await api.userVerify(token);
         if (!user) {
-            token = await apiUserCreate();
+            token = await api.userCreate();
             localStorage.setItem("token", token)
-            user = await apiUserVerify(token);
+            user = await api.userVerify(token);
         }
     }
 
@@ -880,7 +684,7 @@ async function main() {
     // dummy player
     createFluidPlayer("", "");
 
-    let state = await apiPlayerGet();
+    let state = await api.playerGet();
     autoplay_checkbox.checked = state.player.autoplay;
     looping_checkbox.checked = state.player.looping;
     currentEntryId = state.entry.id;
