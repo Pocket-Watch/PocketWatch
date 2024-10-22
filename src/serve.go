@@ -220,6 +220,20 @@ type PlayerNextEventData struct {
 	NewEntry  Entry `json:"new_entry"`
 }
 
+type PlaylistEventData struct {
+	Action string `json:"action"`
+	Data   any    `json:"data"`
+}
+
+func createPlaylistEvent(action string, data any) PlaylistEventData {
+	event := PlaylistEventData{
+		Action: action,
+		Data:   data,
+	}
+
+	return event
+}
+
 type PlaylistAddRequestData struct {
 	ConnectionId uint64 `json:"connection_id"`
 	Entry        Entry  `json:"entry"`
@@ -290,7 +304,7 @@ func StartServer(options *Options) {
 }
 
 func handleUnknownEndpoint(w http.ResponseWriter, r *http.Request) {
-    LogWarn("User %v requested unknown endpoint: %v", r.RemoteAddr, r.RequestURI);
+	LogWarn("User %v requested unknown endpoint: %v", r.RemoteAddr, r.RequestURI)
 }
 
 func registerEndpoints(options *Options) {
@@ -780,7 +794,8 @@ func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 	state.playlist = append(state.playlist, entry)
 	state.mutex.Unlock()
 
-	writeEventToAllConnections(w, "playlistadd", entry)
+	event := createPlaylistEvent("add", entry)
+	writeEventToAllConnections(w, "playlist", event)
 }
 
 func apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
@@ -803,7 +818,8 @@ func apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
 	state.playlist = state.playlist[:0]
 	state.mutex.Unlock()
 
-	writeEventToAllConnections(w, "playlistclear", nil)
+	event := createPlaylistEvent("clear", nil)
+	writeEventToAllConnections(w, "playlist", event)
 }
 
 func apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
@@ -836,7 +852,8 @@ func apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
 	state.playlist = append(state.playlist[:data.Index], state.playlist[data.Index+1:]...)
 	state.mutex.Unlock()
 
-	writeEventToAllConnections(w, "playlistremove", data.Index)
+	event := createPlaylistEvent("remove", data.Index)
+	writeEventToAllConnections(w, "playlist", event)
 }
 
 func apiPlaylistShuffle(w http.ResponseWriter, r *http.Request) {
@@ -857,7 +874,8 @@ func apiPlaylistShuffle(w http.ResponseWriter, r *http.Request) {
 	}
 	state.mutex.Unlock()
 
-	writeEventToAllConnections(w, "playlistshuffle", state.playlist)
+	event := createPlaylistEvent("shuffle", state.playlist)
+	writeEventToAllConnections(w, "playlist", event)
 }
 
 func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
@@ -907,12 +925,13 @@ func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 	state.playlist = list
 	state.mutex.Unlock()
 
-	event := PlaylistMoveEventData{
+	eventData := PlaylistMoveEventData{
 		SourceIndex: move.SourceIndex,
 		DestIndex:   move.DestIndex,
 	}
 
-	writeEventToAllConnections(w, "playlistmove", event)
+	event := createPlaylistEvent("move", eventData)
+	writeEventToAllConnections(w, "playlist", event)
 }
 
 func apiHistoryGet(w http.ResponseWriter, r *http.Request) {

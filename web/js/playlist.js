@@ -173,4 +173,32 @@ class Playlist {
             }
         }
     }
+
+    handleServerEvent(action, data) {
+        switch (action) {
+            case "add": {
+                this.add(data);
+            } break;
+
+            case "clear": {
+                this.clear()
+            } break;
+
+            case "remove": {
+                this.removeAt(data)
+            } break;
+
+            case "shuffle": {
+                this.loadNew(data);
+            } break;
+
+            case "move": {
+                this.move(data.source_index, data.dest_index);
+            } break;
+
+            default: {
+                console.error("Unknown playlist action:", action, "with data:", data);
+            } break;
+        }
+    }
 }

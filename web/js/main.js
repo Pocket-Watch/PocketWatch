@@ -433,33 +433,10 @@ function subscribeToServerEvents() {
         looping_checkbox.checked = looping_enabled;
     });
 
-    eventSource.addEventListener("playlistadd", function(event) {
-        let entry = JSON.parse(event.data);
-        console.info("INFO: Received playlist add event:", entry);
-        playlist.add(entry);
-    });
-
-    eventSource.addEventListener("playlistclear", function(_event) {
-        console.info("INFO: Received playlist clear event");
-        playlist.clear();
-    });
-
-    eventSource.addEventListener("playlistremove", function(event) {
-        let index = JSON.parse(event.data);
-        console.info("INFO: Received playlist remove event:", index);
-        playlist.removeAt(index);
-    });
-
-    eventSource.addEventListener("playlistshuffle", function(event) {
-        let newPlaylist = JSON.parse(event.data);
-        console.info("INFO: Received playlist shuffle event: ", newPlaylist);
-        playlist.loadNew(newPlaylist);
-    });
-
-    eventSource.addEventListener("playlistmove", function(event) {
+    eventSource.addEventListener("playlist", function(event) {
         let response = JSON.parse(event.data);
-        console.info("INFO: Received playlist move event:", response);
-        playlist.move(response.source_index, response.dest_index);
+        console.info("INFO: Received playlist event for:", response.action, "with:", response.data);
+        playlist.handleServerEvent(response.action, response.data);
     });
 
     eventSource.addEventListener("historyclear", function(_event) {
