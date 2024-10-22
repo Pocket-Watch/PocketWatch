@@ -1,42 +1,47 @@
 import { Playlist } from "./playlist.js"
 import * as api from "./api.js";
 
-export { findUserById }
-
-export var token = "";
-export var connectionId = 0;
+export { findUserById, createApiEntry }
 
 const DELTA = 1.5;
 
-var allUsers = [];
-var currentEntryId = 0;
 
+// User and connection data.
+export var token = "";
+export var connectionId = 0;
+
+var allUsers = [];
+var input_username = document.getElementById("input_username");
 var userSelf = {
     id: 0,
     username: "",
     avatar: "",
 };
 
+
+// Player relevant data.
 var player;
 var video;
 var subtitles = []
-
-var playlist = new Playlist();
+var currentEntryId = 0;
 
 var input_url = document.getElementById("input_url");
 var referer_input = document.getElementById("referer");
 var input_title = document.getElementById("input_title");
 var current_url = document.getElementById("current_url");
-var input_username = document.getElementById("input_username");
 var proxy_checkbox = document.getElementById("proxy");
 var autoplay_checkbox = document.getElementById("autoplay");
-var looping_checkbox = document.getElementById("looping");
 var audioonly_checkbox = document.getElementById("audioonly");
-var historyEntries = document.getElementById("history_entries");
+var looping_checkbox = document.getElementById("looping");
 
 var programmaticPlay = false; // Updates before programmatic play() and in .onplay
 var programmaticPause = false; // Updates before programmatic pause() and in .onpause
 var programmaticSeek = false; // Updates before programmatic currentTime assignment and in .onseeked
+
+
+// Playlist and history.
+var playlist = new Playlist();
+var historyEntries = document.getElementById("history_entries");
 
 /// --------------- HELPER FUNCTIONS: ---------------
 
@@ -106,22 +111,6 @@ function playerNextOnClick() {
     api.playerNext(currentEntryId);
 }
 
-function inputPlaylistOnKeypress(event) {
-    if (event.key === "Enter") {
-        let input_playlist = document.getElementById("input_playlist");
-        let url = input_playlist.value;
-        input_playlist.value = "";
-
-        if (!url) {
-            console.warn("WARNING: Url is empty, not adding to the playlist.");
-            return;
-        }
-
-        let entry = createApiEntry(url);
-        api.playlistAdd(entry);
-    }
-}
-
 function playlistAddTopOnClick() {
     let url = input_url.value;
     input_url.value = "";
@@ -143,28 +132,6 @@ function autoplayOnClick() {
 function loopingOnClick() {
     console.info("INFO: Looping button clicked");
     api.playerLooping(looping_checkbox.checked);
-}
-
-function playlistAddOnClick() {
-    let input_playlist = document.getElementById("input_playlist");
-    let url = input_playlist.value;
-    input_playlist.value = "";
-
-    if (!url) {
-        console.warn("WARNING: Url is empty, not adding to the playlist.");
-        return;
-    }
-
-    let entry = createApiEntry(url);
-    api.playlistAdd(entry);
-}
-
-function playlistShuffleOnClick() {
-    api.playlistShuffle();
-}
-
-function playlistClearOnClick() {
-    api.playlistClear();
 }
 
 const fileInput = document.getElementById("file_input");
@@ -637,19 +604,17 @@ function attachHtmlHandlers() {
     window.inputUrlOnKeypress = inputUrlOnKeypress;
     window.playerSetOnClick = playerSetOnClick;
     window.playerNextOnClick = playerNextOnClick;
-    window.inputPlaylistOnKeypress = inputPlaylistOnKeypress;
-    window.playlistAddOnClick = playlistAddOnClick;
     window.historyClearOnClick = historyClearOnClick;
     window.updateUsernameOnClick = updateUsernameOnClick;
     window.playlistAddTopOnClick = playlistAddTopOnClick;
     window.clearSessionOnClick = clearSessionOnClick;
-    window.playlistShuffleOnClick = playlistShuffleOnClick;
-    window.playlistClearOnClick = playlistClearOnClick;
     window.autoplayOnClick = autoplayOnClick;
     window.loopingOnClick = loopingOnClick;
     window.uploadFile = uploadFile;
     window.shiftSubtitlesBack  = shiftSubtitlesBack;
     window.shiftSubtitlesForward  = shiftSubtitlesForward;
+
+    playlist.attachHtmlEventHandlers();
 }
 
 async function main() {

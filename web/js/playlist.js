@@ -1,11 +1,15 @@
-import { findUserById } from "./main.js"
+import { findUserById, createApiEntry } from "./main.js"
 import * as api from "./api.js";
 
 export { Playlist }
 
 class Playlist {
     constructor() {
+        this.htmlRoot = document.getElementById("playlist_root");
+        this.htmlUrlInput = document.getElementById("playlist_url_input");
         this.htmlEntries = document.getElementById("playlist_entries");
+        this.htmlEntryCount = document.getElementById("playlist_entry_count");
+
         this.entries = [];
 
         this.dragEntryStart = null;
@@ -31,10 +35,15 @@ class Playlist {
         return index;
     }
 
+    updateHtmlEntryCount() {
+        this.htmlEntryCount.textContent = this.entries.length;
+    }
+
     add(entry) {
         this.entries.push(entry);
         let element = this.createHtmlEntry(entry, this.entries.length);
         this.htmlEntries.appendChild(element);
+        this.updateHtmlEntryCount();
     }
 
     createHtmlEntry(entry, position) {
@@ -104,11 +113,12 @@ class Playlist {
     }
 
     removeFirst() {
-        if (this.entries.length >= 0) {
-            return this.removeAt(0);
+        if (this.entries.length === 0) {
+            console.warn("WARN: Playlist::removeFirst called but entries length is 0");
+            return null;
         } 
 
-        return null;
+        return this.removeAt(0);
     }
 
     removeAt(index) {
@@ -126,6 +136,7 @@ class Playlist {
             table[i].getElementsByTagName("th")[0].textContent = i + 1 + ".";
         }
 
+        this.updateHtmlEntryCount();
         return entry;
     }
 
@@ -137,6 +148,8 @@ class Playlist {
         while (container.firstChild) {
             container.removeChild(container.lastChild);
         }
+
+        this.updateHtmlEntryCount();
     }
 
     loadNew(entries) {
@@ -151,6 +164,7 @@ class Playlist {
         }
 
         this.entries = entries;
+        this.updateHtmlEntryCount();
     }
 
     move(sourceIndex, destIndex) {
@@ -172,6 +186,37 @@ class Playlist {
                 table[i].getElementsByTagName("td")[0].textContent = updatedUser.username;
             }
         }
+    }
+
+    requestEntryAdd() {
+        if (!this.htmlUrlInput.value) {
+            console.warn("WARNING: Url is empty, not adding to the playlist.");
+            return;
+        }
+
+        // NOTE(kihau): This creates entry based on input options below the player, which is werid.
+        let entry = createApiEntry(this.htmlUrlInput.value);
+        api.playlistAdd(entry);
+
+        // NOTE(kihau): Do not clear on request failed?
+        this.htmlUrlInput.value = "";
+    }
+
+    attachHtmlEventHandlers() {
+        let data = this;
+
+        window.inputPlaylistOnKeypress = (event) => {
+            if (event.key === "Enter") {
+                data.requestEntryAdd();
+            }
+        };
+
+        window.playlistAddOnClick = () => {
+            data.requestEntryAdd();
+        };
+
+        window.playlistShuffleOnClick = api.playlistShuffle;
+        window.playlistClearOnClick = api.playlistClear;
     }
 
     handleServerEvent(action, data) {

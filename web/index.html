@@ -120,7 +120,7 @@
     <br>
 
     <link href="css/playlist.css" rel="stylesheet" />
-    <table>
+    <table id="playlist_root">
         <caption>
             Playlist
         </caption>
@@ -128,7 +128,7 @@
             <tr>
                 <th scope="row" colspan="4">
                     <label>Add URL to the playlist:</label><br />
-                    <input type="url" id="input_playlist" name="input_playlist" onkeypress="inputPlaylistOnKeypress(event)" size="100" />
+                    <input type="url" id="playlist_url_input" onkeypress="inputPlaylistOnKeypress(event)" size="100" />
                     <button onclick="playlistAddOnClick()">Add</button>
                     <button onclick="playlistShuffleOnClick()">Shuffle</button>
                 </th>
@@ -170,7 +170,7 @@
         <tfoot>
             <tr>
                 <th scope="row" colspan="3">Total entries:</th>
-                <td>[Object object]</td>
+                <td id="playlist_entry_count">0</td>
             </tr>
         </tfoot>
     </table>
