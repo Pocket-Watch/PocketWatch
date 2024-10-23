@@ -59,6 +59,7 @@
     - [ ] HSL support
     - [ ] Autoplay toggle
     - [ ] Looping toggle (or dropdown with multiple looping options such as: none, single, playlist or shuffle)
+    - [ ] Skip/Remove entries that fail to load on the client side
 - [ ] On first website load, indicate to the user that autoplay policy is disabled and manual action is required in order to play the video.
 - [ ] Detect mobile client and adjust the page appropriately
     - [ ] Don't auto-hide player

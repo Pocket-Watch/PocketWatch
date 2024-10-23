@@ -425,7 +425,7 @@ function playerSetUrl(entry) {
     if (!entry || !entry.url) {
         createDummyPlayer();
         return;
-    } 
+    }
 
     currentEntryId = entry.id
     current_url.value = entry.url;
@@ -442,7 +442,7 @@ function destroyPlayer() {
     current_url.value = "";
 
     if (player) {
-        unsubscribeFromPlayerEvents(player);
+        unsubscribeFromPlayerEvents(video);
         player.pause();
         player.destroy();
         player = null;
@@ -455,7 +455,7 @@ function createDummyPlayer() {
     let container = document.getElementById("player_container");
 
     let new_video = document.createElement("video");
-    new_video.width = window.innerWidth;
+    new_video.width = window.innerWidth * 0.95;
     new_video.id = "player";
 
     let new_source = document.createElement("source");
@@ -484,12 +484,19 @@ function createFluidPlayer(entry) {
     let url = entry.url
     if (entry.use_proxy) {
         url = "/watch/proxy/proxy.m3u8"
-    } 
+    }
 
     let new_source = document.createElement("source");
     new_source.src = url;
     new_source.type = getUrlMediaType(entry.url);
     new_video.appendChild(new_source);
+
+    // TOOD(kihau): Remove invalid entries.
+    // new_source.addEventListener("error", () => {
+    //     // TODO(kihau): Display pop-up notification that the playback failed.
+    //     api.playerNext(currentEntryId);
+    // });
+
     container.appendChild(new_video);
 
     let new_player = fluidPlayer("player", {
@@ -515,7 +522,8 @@ function createFluidPlayer(entry) {
         },
     });
 
-    subscribeToPlayerEvents(new_player);
+    // subscribeToPlayerEvents(new_player);
+    subscribeToPlayerEvents(new_video);
 
     player = new_player;
     video = new_video;
@@ -555,19 +563,33 @@ function playerOnEnded(_event) {
     }
 }
 
-function subscribeToPlayerEvents(player) {
-    player.on("play", playerOnPlay);
-    player.on("pause", playerOnPause);
-    player.on("seeked", playerOnSeek);
-    player.on("ended", playerOnEnded);
+// function subscribeToPlayerEvents(player) {
+//     player.on("play", playerOnPlay);
+//     player.on("pause", playerOnPause);
+//     player.on("seeked", playerOnSeek);
+//     player.on("ended", playerOnEnded);
+// }
+//
+// function unsubscribeFromPlayerEvents(player) {
+//     let emptyFunc = function() { }
+//     player.on("play", emptyFunc);
+//     player.on("pause", emptyFunc);
+//     player.on("seeked", emptyFunc);
+//     player.on("ended", emptyFunc);
+// }
+
+function subscribeToPlayerEvents(video) {
+    video.addEventListener("play", playerOnPlay);
+    video.addEventListener("pause", playerOnPause);
+    video.addEventListener("seeked", playerOnSeek);
+    video.addEventListener("ended", playerOnEnded);
 }
 
-function unsubscribeFromPlayerEvents(player) {
-    let emptyFunc = function() { }
-    player.on("play", emptyFunc);
-    player.on("pause", emptyFunc);
-    player.on("seeked", emptyFunc);
-    player.on("ended", emptyFunc);
+function unsubscribeFromPlayerEvents(video) {
+    video.removeEventListener("play", playerOnPlay);
+    video.removeEventListener("pause", playerOnPause);
+    video.removeEventListener("seeked", playerOnSeek);
+    video.removeEventListener("ended", playerOnEnded);
 }
 
 async function getOrCreateUserInAnExtremelyUglyWay() {
@@ -629,8 +651,8 @@ function attachHtmlHandlers() {
     window.autoplayOnClick = autoplayOnClick;
     window.loopingOnClick = loopingOnClick;
     window.uploadFile = uploadFile;
-    window.shiftSubtitlesBack  = shiftSubtitlesBack;
-    window.shiftSubtitlesForward  = shiftSubtitlesForward;
+    window.shiftSubtitlesBack = shiftSubtitlesBack;
+    window.shiftSubtitlesForward = shiftSubtitlesForward;
 
     playlist.attachHtmlEventHandlers();
 }
