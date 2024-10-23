@@ -544,6 +544,7 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 	state.entry = data.Entry
 	state.entry.Created = time.Now()
 	state.entry.Id = state.entryId
+	state.entry.Title = constructTitle(&state.entry)
 
 	lastSegment := lastUrlSegment(state.entry.Url)
 	if state.entry.UseProxy && strings.HasSuffix(lastSegment, ".m3u8") {
@@ -790,6 +791,7 @@ func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 	entry := data.Entry
 	entry.Id = state.entryId
 	entry.Created = time.Now()
+	entry.Title = constructTitle(&entry)
 
 	state.playlist = append(state.playlist, entry)
 	state.mutex.Unlock()

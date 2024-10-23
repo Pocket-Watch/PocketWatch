@@ -7,11 +7,22 @@ import (
 	url2 "net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
 
 var client = http.Client{}
+
+func constructTitle(entry *Entry) string {
+    if entry.Title != "" {
+        return entry.Title
+    }
+
+    base := path.Base(entry.Url)
+    title := strings.TrimSuffix(base, filepath.Ext(base))
+    return title
+}
 
 func stripSuffix(url string) string {
 	lastSlash := strings.LastIndex(url, "/")

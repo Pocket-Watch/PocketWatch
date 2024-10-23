@@ -42,15 +42,16 @@
 - [x] Subtitle support
 - [x] Display connected users
 - [x] Convert srt to vtt
-- [ ] When title name is empty, set entry titles as the last part of the url
+- [x] When title name is empty, set entry titles as the last part of the url
+- [ ] Do not send watch proxy endpoint to clients, set it automatically on the client side.
+- [ ] Integrate playback and queueing for youtube urls and youtube playlist urls.
+- [ ] Audio only option that removes player video (only client side?)
 - [ ] Add watch history
     - [x] Implement history add
     - [x] Implement history clear
     - [ ] Display more data for individual history entries
     - [ ] Implement history limit
     - [ ] Add history persistence (SQL database)
-- [ ] Integrate playback and queueing for youtube urls and youtube playlist urls.
-- [ ] Audio only option that removes player video (only client side?)
 - [ ] Rewrite the player and clean up the frontend code. (?)
 - [ ] On first website load, indicate to the user that autoplay policy is disabled and manual action is required in order to play the video.
 - [ ] Investigate and fix seek issue where sometimes performing seek does nothing
