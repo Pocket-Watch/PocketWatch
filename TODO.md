@@ -53,7 +53,12 @@
     - [ ] Display more data for individual history entries
     - [ ] Implement history limit
     - [ ] Add history persistence (SQL database)
-- [ ] Rewrite the player and clean up the frontend code. (?)
+- [ ] Custom player implementation
+    - [ ] Display who performed certain action (ex. seek, play, pause)
+    - [ ] Subtitles support
+    - [ ] HSL support
+    - [ ] Autoplay toggle
+    - [ ] Looping toggle (or dropdown with multiple looping options such as: none, single, playlist or shuffle)
 - [ ] On first website load, indicate to the user that autoplay policy is disabled and manual action is required in order to play the video.
 - [ ] Detect mobile client and adjust the page appropriately
     - [ ] Don't auto-hide player
