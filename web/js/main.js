@@ -326,9 +326,7 @@ function subscribeToServerEvents() {
         console.info("INFO: Received player set event: ", response);
 
         addHistoryElement(response.prev_entry)
-
-        currentEntryId = response.new_entry.id
-        playerSetUrl(response.new_entry.url, response.new_entry.title);
+        playerSetUrl(response.new_entry);
     });
 
     eventSource.addEventListener("playernext", function(event) {
@@ -343,9 +341,7 @@ function subscribeToServerEvents() {
 
         playlist.removeFirst();
 
-        // NOTE(kihau): new_entry can be removed.
-        currentEntryId = response.new_entry.id
-        playerSetUrl(response.new_entry.url, response.new_entry.title);
+        playerSetUrl(response.new_entry);
     });
 
     eventSource.addEventListener("sync", function(event) {
@@ -423,9 +419,18 @@ function appendSubtitleTrack(video_element, label, src) {
 
 /// --------------- PLAYER: ---------------
 
-function playerSetUrl(url, title) {
+function playerSetUrl(entry) {
     destroyPlayer();
-    createFluidPlayer(url, title);
+
+    if (!entry || !entry.url) {
+        createDummyPlayer();
+        return;
+    } 
+
+    currentEntryId = entry.id
+    current_url.value = entry.url;
+
+    createFluidPlayer(entry);
 }
 
 function isVideoPlaying() {
@@ -433,6 +438,9 @@ function isVideoPlaying() {
 }
 
 function destroyPlayer() {
+    currentEntryId = 0;
+    current_url.value = "";
+
     if (player) {
         unsubscribeFromPlayerEvents(player);
         player.pause();
@@ -443,11 +451,25 @@ function destroyPlayer() {
     }
 }
 
-function createFluidPlayer(url, title) {
-    current_url.value = url;
+function createDummyPlayer() {
+    let container = document.getElementById("player_container");
 
-    let url_missing = url === "";
+    let new_video = document.createElement("video");
+    new_video.width = window.innerWidth;
+    new_video.id = "player";
 
+    let new_source = document.createElement("source");
+    new_video.poster = "img/nothing_is_playing.png";
+    new_source.src = "video/nothing_is_playing.mp4";
+    new_video.appendChild(new_source);
+
+    container.appendChild(new_video);
+
+    player = null;
+    video = new_video;
+}
+
+function createFluidPlayer(entry) {
     let container = document.getElementById("player_container");
     let new_video = document.createElement("video");
     new_video.width = window.innerWidth;
@@ -459,45 +481,41 @@ function createFluidPlayer(url, title) {
         }
     }
 
+    let url = entry.url
+    if (entry.use_proxy) {
+        url = "/watch/proxy/proxy.m3u8"
+    } 
+
     let new_source = document.createElement("source");
-    if (url_missing) {
-        new_video.poster = "img/nothing_is_playing.png";
-        url = "video/nothing_is_playing.mp4";
-    }
-
     new_source.src = url;
-    new_source.type = getUrlMediaType(url);
+    new_source.type = getUrlMediaType(entry.url);
     new_video.appendChild(new_source);
-
     container.appendChild(new_video);
 
-    let new_player = null;
-    if (!url_missing) {
-        new_player = fluidPlayer("player", {
-            hls: {
-                overrideNative: true,
+    let new_player = fluidPlayer("player", {
+        hls: {
+            overrideNative: true,
+        },
+        layoutControls: {
+            title: entry.title,
+            doubleclickFullscreen: true,
+            subtitlesEnabled: true,
+            autoPlay: autoplay_checkbox.checked,
+            controlBar: {
+                autoHide: true,
+                autoHideTimeout: 2.5,
+                animated: true,
+                playbackRates: ["x2", "x1.5", "x1", "x0.5"],
             },
-            layoutControls: {
-                title: title,
-                doubleclickFullscreen: true,
-                subtitlesEnabled: true,
-                autoPlay: autoplay_checkbox.checked,
-                controlBar: {
-                    autoHide: true,
-                    autoHideTimeout: 2.5,
-                    animated: true,
-                    playbackRates: ["x2", "x1.5", "x1", "x0.5"],
-                },
-                miniPlayer: {
-                    enabled: false,
-                    width: 400,
-                    height: 225,
-                },
+            miniPlayer: {
+                enabled: false,
+                width: 400,
+                height: 225,
             },
-        });
+        },
+    });
 
-        subscribeToPlayerEvents(new_player);
-    }
+    subscribeToPlayerEvents(new_player);
 
     player = new_player;
     video = new_video;
@@ -623,8 +641,7 @@ async function main() {
     userSelf = await getOrCreateUserInAnExtremelyUglyWay();
     input_username.value = userSelf.username;
 
-    // dummy player
-    createFluidPlayer("", "");
+    createDummyPlayer();
 
     let state = await api.playerGet();
     autoplay_checkbox.checked = state.player.autoplay;
@@ -632,7 +649,7 @@ async function main() {
     currentEntryId = state.entry.id;
     subtitles = state.subtitles;
 
-    playerSetUrl(state.entry.url, state.entry.title);
+    playerSetUrl(state.entry);
     subscribeToServerEvents();
 }
 

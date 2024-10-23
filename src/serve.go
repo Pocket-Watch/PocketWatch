@@ -1144,7 +1144,7 @@ func setupProxy(url string, referer string) {
 	m3u, err := downloadM3U(url, WEB_PROXY+ORIGINAL_M3U8, referer)
 	if err != nil {
 		LogError("Failed to fetch m3u8: %v", err)
-		state.entry.Url = err.Error()
+		// state.entry.Url = err.Error()
 		return
 	}
 
@@ -1158,8 +1158,8 @@ func setupProxy(url string, referer string) {
 		return
 	}
 
-	state.entry.Url = url
-	state.entry.RefererUrl = referer
+	// state.entry.Url = url
+	// state.entry.RefererUrl = referer
 
 	LogDebug("%v %v", EXT_X_PLAYLIST_TYPE, m3u.playlistType)
 	LogDebug("%v %v", EXT_X_VERSION, m3u.version)
@@ -1169,7 +1169,7 @@ func setupProxy(url string, referer string) {
 
 	if len(m3u.segments) == 0 {
 		LogWarn("No segments found")
-		state.entry.Url = "No segments found"
+		// state.entry.Url = "No segments found"
 		return
 	}
 
@@ -1198,7 +1198,7 @@ func setupProxy(url string, referer string) {
 	routedM3U.serialize(WEB_PROXY + PROXY_M3U8)
 	LogInfo("Prepared proxy file %v", PROXY_M3U8)
 
-	state.entry.Url = PROXY_ROUTE + "proxy.m3u8"
+	// state.entry.Url = PROXY_ROUTE + "proxy.m3u8"
 }
 
 func apiEvents(w http.ResponseWriter, r *http.Request) {

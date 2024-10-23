@@ -27,7 +27,7 @@
 - [x] Display current media url on the client side
 - [x] Get rid of "dummy.mp4", replace it with an indicator that nothing is playing
 - [x] Add option to upload media url, download in on the server and stream to all connected clients
-- [ ] Add playlist support and auto-playing
+- [x] Add playlist support and auto-playing
     - [x] Load playlist on welcome
     - [x] Playlist add
     - [x] Playlist clear
@@ -39,11 +39,12 @@
     - [x] Playlist entry reordering
     - [x] Display playlist entries as title href to url
     - [x] Update playlist entries when a user changes their name
+- [x] Investigate and fix seek issue where sometimes performing seek does nothing
 - [x] Subtitle support
 - [x] Display connected users
 - [x] Convert srt to vtt
 - [x] When title name is empty, set entry titles as the last part of the url
-- [ ] Do not send watch proxy endpoint to clients, set it automatically on the client side.
+- [x] Do not send watch proxy endpoint to clients, set it automatically on the client side.
 - [ ] Integrate playback and queueing for youtube urls and youtube playlist urls.
 - [ ] Audio only option that removes player video (only client side?)
 - [ ] Add watch history
@@ -54,7 +55,6 @@
     - [ ] Add history persistence (SQL database)
 - [ ] Rewrite the player and clean up the frontend code. (?)
 - [ ] On first website load, indicate to the user that autoplay policy is disabled and manual action is required in order to play the video.
-- [ ] Investigate and fix seek issue where sometimes performing seek does nothing
 - [ ] Detect mobile client and adjust the page appropriately
     - [ ] Don't auto-hide player
     - [ ] Reduce horizontal player size for mobile (portrait)
