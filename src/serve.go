@@ -843,11 +843,13 @@ func apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
 	state.mutex.Lock()
 	if data.Index < 0 || data.Index >= len(state.playlist) {
 		LogError("Failed to remove playlist element at index %v.", data.Index)
+		state.mutex.Unlock()
 		return
 	}
 
 	if state.playlist[data.Index].Id != data.EntryId {
 		LogWarn("Entry ID on the server is not equal to the one provided by the client.")
+		state.mutex.Unlock()
 		return
 	}
 
@@ -899,16 +901,19 @@ func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 	state.mutex.Lock()
 	if move.SourceIndex < 0 || move.SourceIndex >= len(state.playlist) {
 		LogError("Playlist move failed, source index out of bounds")
+		state.mutex.Unlock()
 		return
 	}
 
 	if state.playlist[move.SourceIndex].Id != move.EntryId {
 		LogWarn("Entry ID on the server is not equal to the one provided by the client.")
+		state.mutex.Unlock()
 		return
 	}
 
 	if move.DestIndex < 0 || move.DestIndex >= len(state.playlist) {
 		LogError("Playlist move failed, source index out of bounds")
+		state.mutex.Unlock()
 		return
 	}
 
@@ -1217,6 +1222,7 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 	if userIndex == -1 {
 		http.Error(w, "User not found", http.StatusUnauthorized)
 		LogError("Failed to connect to event stream. User not found.")
+        users.mutex.Unlock()
 		return
 	}
 
