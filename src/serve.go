@@ -50,6 +50,7 @@ type Entry struct {
 	UserId     uint64    `json:"user_id"`
 	UseProxy   bool      `json:"use_proxy"`
 	RefererUrl string    `json:"referer_url"`
+	Sources    []string  `json:"sources"`
 	Created    time.Time `json:"created"`
 }
 
@@ -528,6 +529,10 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 	if !readJsonDataFromRequest(w, r, &data) {
 		return
 	}
+
+    if isYoutube(data.Entry.Url) {
+        loadYoutube(&data.Entry)
+    }
 
 	state.mutex.Lock()
 	if state.entry.Url != "" {
@@ -1222,7 +1227,7 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 	if userIndex == -1 {
 		http.Error(w, "User not found", http.StatusUnauthorized)
 		LogError("Failed to connect to event stream. User not found.")
-        users.mutex.Unlock()
+		users.mutex.Unlock()
 		return
 	}
 
