@@ -3,7 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"net/url"
+	net_url "net/url"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -13,27 +13,15 @@ import (
 var YOUTUBE_ENABLED bool = true
 
 func isYoutubeUrl(url string) bool {
-	if strings.HasPrefix(url, "https://youtube.com/") {
-		return true
+	parsedUrl, err := net_url.Parse(url)
+	if err != nil {
+		return false
 	}
-
-	if strings.HasPrefix(url, "https://www.youtube.com/") {
-		return true
-	}
-
-	if strings.HasPrefix(url, "https://youtu.be/") {
-		return true
-	}
-
-	if strings.HasPrefix(url, "https://www.youtu.be/") {
-		return true
-	}
-
-	if strings.HasPrefix(url, "https://music.youtube.com/") {
-		return true
-	}
-
-	return false
+	/*if parsedUrl.Scheme != "https" {
+		return false
+	}*/
+	host := parsedUrl.Host
+	return strings.HasSuffix(host, "youtube.com") || strings.HasSuffix(host, "youtu.be")
 }
 
 func isYoutubeSourceExpired(sourceUrl string) bool {
@@ -94,7 +82,7 @@ func preloadYoutubeSourceOnNextEntry() {
 		return
 	}
 
-    LogInfo("Preloading youtube source for an entry with an ID: %v", nextEntry.Id)
+	LogInfo("Preloading youtube source for an entry with an ID: %v", nextEntry.Id)
 	nextEntry.SourceUrl = getYoutubeAudioSource(nextEntry.Url)
 
 	state.mutex.Lock()
