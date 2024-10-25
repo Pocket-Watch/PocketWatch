@@ -17,7 +17,15 @@ func isYoutubeUrl(url string) bool {
 		return true
 	}
 
+	if strings.HasPrefix(url, "https://www.youtube.com/") {
+		return true
+	}
+
 	if strings.HasPrefix(url, "https://youtu.be/") {
+		return true
+	}
+
+	if strings.HasPrefix(url, "https://www.youtu.be/") {
 		return true
 	}
 
@@ -86,6 +94,7 @@ func preloadYoutubeSourceOnNextEntry() {
 		return
 	}
 
+    LogInfo("Preloading youtube source for an entry with an ID: %v", nextEntry.Id)
 	nextEntry.SourceUrl = getYoutubeAudioSource(nextEntry.Url)
 
 	state.mutex.Lock()

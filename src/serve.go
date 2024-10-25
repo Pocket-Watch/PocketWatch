@@ -801,8 +801,6 @@ func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 	entry.Id = state.entryId
 	entry.Created = time.Now()
 	entry.Title = constructTitleWhenMissing(&entry)
-
-	state.playlist = append(state.playlist, entry)
 	state.mutex.Unlock()
 
 	loadYoutubeEntry(&entry)
