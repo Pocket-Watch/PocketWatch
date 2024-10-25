@@ -1161,15 +1161,12 @@ func setupProxy(url string, referer string) {
 	if m3u.isMasterPlaylist {
 		// Rarely tracks are not fully qualified
 		if !strings.HasPrefix(m3u.tracks[0].url, "http") {
-			segment, err := stripLastSegment(url)
+			prefix, err := stripLastSegment(url)
 			if err != nil {
 				LogError(err.Error())
 				return
 			}
-			m3u.prefixTracks(*segment)
-			for i := 0; i < len(m3u.tracks); i++ {
-				fmt.Println("TRACK", m3u.tracks[i].url)
-			}
+			m3u.prefixTracks(*prefix)
 		}
 		LogInfo("User provided a master playlist. The best track will be chosen based on quality.")
 		track := m3u.getBestTrack()
@@ -1197,12 +1194,12 @@ func setupProxy(url string, referer string) {
 
 	// Sometimes m3u8 chunks are not fully qualified
 	if !strings.HasPrefix(m3u.segments[0].url, "http") {
-		segment, err := stripLastSegment(url)
+		prefix, err := stripLastSegment(url)
 		if err != nil {
 			LogError(err.Error())
 			return
 		}
-		m3u.prefixSegments(*segment)
+		m3u.prefixSegments(*prefix)
 	}
 
 	routedM3U := m3u.copy()
