@@ -219,6 +219,18 @@ type Track struct {
 	url        string
 }
 
+// internally modifies track
+func (track *Track) prefixUrl(prefix string) {
+	if prefix == "" {
+		return
+	}
+	if strings.HasSuffix(prefix, "/") || strings.HasPrefix(track.url, "/") {
+		track.url = prefix + track.url
+		return
+	}
+	track.url = prefix + "/" + track.url
+}
+
 type M3U struct {
 	isMasterPlaylist bool
 	tracks           []Track
@@ -235,14 +247,16 @@ type Segment struct {
 	url    string
 }
 
-func (segment *Segment) getUrl(prefix string) string {
+// internally modify segment
+func (segment *Segment) prefixUrl(prefix string) {
 	if prefix == "" {
-		return segment.url
+		return
 	}
 	if strings.HasSuffix(prefix, "/") || strings.HasPrefix(segment.url, "/") {
-		return prefix + segment.url
+		segment.url = prefix + segment.url
+		return
 	}
-	return prefix + "/" + segment.url
+	segment.url = prefix + "/" + segment.url
 }
 
 func newM3U(capacity uint32) *M3U {
@@ -301,6 +315,13 @@ func (m3u *M3U) getBestTrack() *Track {
 	return bestTrack
 }
 
+func (m3u *M3U) prefixTracks(prefix string) {
+	// if a range loop is used the track url is effectively not reassigned
+	for i := 0; i < len(m3u.tracks); i++ {
+		m3u.tracks[i].prefixUrl(prefix)
+	}
+}
+
 func (m3u *M3U) copy() M3U {
 	m3uCopy := newM3U(uint32(len(m3u.segments)))
 
@@ -318,8 +339,7 @@ func (m3u *M3U) copy() M3U {
 func (m3u *M3U) prefixSegments(urlPrefix string) {
 	// if a range loop is used the track url is effectively not reassigned
 	for i := 0; i < len(m3u.segments); i++ {
-		fullUrl := m3u.segments[i].getUrl(urlPrefix)
-		m3u.segments[i].url = fullUrl
+		m3u.segments[i].prefixUrl(urlPrefix)
 	}
 }
 

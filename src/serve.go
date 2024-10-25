@@ -530,9 +530,9 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-    if isYoutube(data.Entry.Url) {
-        loadYoutube(&data.Entry)
-    }
+	if isYoutube(data.Entry.Url) {
+		loadYoutube(&data.Entry)
+	}
 
 	state.mutex.Lock()
 	if state.entry.Url != "" {
@@ -1159,6 +1159,18 @@ func setupProxy(url string, referer string) {
 	}
 
 	if m3u.isMasterPlaylist {
+		// Rarely tracks are not fully qualified
+		if !strings.HasPrefix(m3u.tracks[0].url, "http") {
+			segment, err := stripLastSegment(url)
+			if err != nil {
+				LogError(err.Error())
+				return
+			}
+			m3u.prefixTracks(*segment)
+			for i := 0; i < len(m3u.tracks); i++ {
+				fmt.Println("TRACK", m3u.tracks[i].url)
+			}
+		}
 		LogInfo("User provided a master playlist. The best track will be chosen based on quality.")
 		track := m3u.getBestTrack()
 		if track != nil {
