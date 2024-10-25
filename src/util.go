@@ -14,7 +14,7 @@ import (
 
 var client = http.Client{}
 
-func constructTitle(entry *Entry) string {
+func constructTitleWhenMissing(entry *Entry) string {
     if entry.Title != "" {
         return entry.Title
     }

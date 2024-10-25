@@ -486,6 +486,10 @@ function createFluidPlayer(entry) {
         url = "/watch/proxy/proxy.m3u8"
     }
 
+    if (entry.source_url) {
+        url = entry.source_url;
+    }
+
     let new_source = document.createElement("source");
     new_source.src = url;
     new_source.type = getUrlMediaType(entry.url);

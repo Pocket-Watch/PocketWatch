@@ -45,8 +45,13 @@
 - [x] Convert srt to vtt
 - [x] When title name is empty, set entry titles as the last part of the url
 - [x] Do not send watch proxy endpoint to clients, set it automatically on the client side.
-- [ ] Integrate playback and queueing for youtube urls and youtube playlist urls.
+- [ ] Youtube support:
+    - [x] Initial integration of the audio playback and queueing for youtube urls and youtube playlist urls.
+    - [ ] Add proxy support
+    - [ ] Custom youtube parser and downloader
+    - [ ] Add video support (might require custom player implementation)
 - [ ] Audio only option that removes player video (only client side?)
+- [ ] Display errors on the web page when they occur
 - [ ] Add watch history
     - [x] Implement history add
     - [x] Implement history clear

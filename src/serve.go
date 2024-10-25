@@ -50,7 +50,7 @@ type Entry struct {
 	UserId     uint64    `json:"user_id"`
 	UseProxy   bool      `json:"use_proxy"`
 	RefererUrl string    `json:"referer_url"`
-	Sources    []string  `json:"sources"`
+	SourceUrl  string    `json:"source_url"`
 	Created    time.Time `json:"created"`
 }
 
@@ -531,7 +531,7 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if isYoutube(data.Entry.Url) {
-		loadYoutube(&data.Entry)
+		loadYoutubeEntries(&data.Entry)
 	}
 
 	state.mutex.Lock()
@@ -549,7 +549,7 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 	state.entry = data.Entry
 	state.entry.Created = time.Now()
 	state.entry.Id = state.entryId
-	state.entry.Title = constructTitle(&state.entry)
+	state.entry.Title = constructTitleWhenMissing(&state.entry)
 
 	lastSegment := lastUrlSegment(state.entry.Url)
 	if state.entry.UseProxy && strings.HasSuffix(lastSegment, ".m3u8") {
@@ -593,34 +593,42 @@ func apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 	}
 
 	state.mutex.Lock()
-	if state.entry.Url != "" {
-		state.history = append(state.history, state.entry)
-	}
-
-	if state.player.Looping && state.entry.Url != "" {
-		state.playlist = append(state.playlist, state.entry)
-	}
-
-	state.player.Playing = state.player.Autoplay
-	state.player.Timestamp = 0
-
 	prevEntry := state.entry
-	state.entry = Entry{}
+
+	if prevEntry.Url != "" {
+		state.history = append(state.history, prevEntry)
+	}
+
+	if state.player.Looping && prevEntry.Url != "" {
+		state.playlist = append(state.playlist, prevEntry)
+	}
+
+	newEntry := Entry{}
 
 	if len(state.playlist) != 0 {
-		state.entry = state.playlist[0]
+		newEntry = state.playlist[0]
 		state.playlist = state.playlist[1:]
 	}
 
-	lastSegment := lastUrlSegment(state.entry.Url)
-	if state.entry.UseProxy && strings.HasSuffix(lastSegment, ".m3u8") {
-		setupProxy(state.entry.Url, state.entry.RefererUrl)
+	lastSegment := lastUrlSegment(newEntry.Url)
+	if newEntry.UseProxy && strings.HasSuffix(lastSegment, ".m3u8") {
+		setupProxy(newEntry.Url, newEntry.RefererUrl)
 	}
+	state.mutex.Unlock()
+
+	if isYoutube(newEntry.Url) {
+		loadYoutubeEntries(&newEntry)
+	}
+
+	state.mutex.Lock()
+	state.player.Playing = state.player.Autoplay
+	state.player.Timestamp = 0
+	state.entry = newEntry
 	state.mutex.Unlock()
 
 	nextEvent := PlayerNextEventData{
 		PrevEntry: prevEntry,
-		NewEntry:  state.entry,
+		NewEntry:  newEntry,
 	}
 	writeEventToAllConnections(w, "playernext", nextEvent)
 }
@@ -796,8 +804,16 @@ func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 	entry := data.Entry
 	entry.Id = state.entryId
 	entry.Created = time.Now()
-	entry.Title = constructTitle(&entry)
+	entry.Title = constructTitleWhenMissing(&entry)
 
+	state.playlist = append(state.playlist, entry)
+	state.mutex.Unlock()
+
+	if isYoutube(entry.Url) {
+		loadYoutubeEntries(&entry)
+	}
+
+	state.mutex.Lock()
 	state.playlist = append(state.playlist, entry)
 	state.mutex.Unlock()
 
@@ -1073,7 +1089,9 @@ func writeEventToAllConnections(origin http.ResponseWriter, eventName string, da
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		LogError("Failed to serialize data for event '%v': %v", eventName, err)
-		http.Error(origin, err.Error(), http.StatusInternalServerError)
+		if origin != nil {
+			http.Error(origin, err.Error(), http.StatusInternalServerError)
+		}
 		return
 	}
 
