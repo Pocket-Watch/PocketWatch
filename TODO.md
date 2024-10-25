@@ -47,6 +47,7 @@
 - [x] Do not send watch proxy endpoint to clients, set it automatically on the client side.
 - [ ] Youtube support:
     - [x] Initial integration of the audio playback and queueing for youtube urls and youtube playlist urls.
+    - [x] Preload youtube sources
     - [ ] Add proxy support
     - [ ] Custom youtube parser and downloader
     - [ ] Add video support (might require custom player implementation)

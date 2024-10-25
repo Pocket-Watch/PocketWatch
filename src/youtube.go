@@ -3,18 +3,16 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"net/url"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 )
 
 var YOUTUBE_ENABLED bool = true
 
-func isYoutube(url string) bool {
-	if !YOUTUBE_ENABLED {
-		return false
-	}
-
+func isYoutubeUrl(url string) bool {
 	if strings.HasPrefix(url, "https://youtube.com/") {
 		return true
 	}
@@ -28,6 +26,28 @@ func isYoutube(url string) bool {
 	}
 
 	return false
+}
+
+func isYoutubeSourceExpired(sourceUrl string) bool {
+	if sourceUrl == "" {
+		return true
+	}
+
+	parsedUrl, err := url.Parse(sourceUrl)
+	if err != nil {
+		LogError("Failed to parse youtube source url: %v", err)
+		return true
+	}
+
+	expire := parsedUrl.Query().Get("expire")
+	expire_unix, err := strconv.ParseInt(expire, 10, 64)
+	if err != nil {
+		LogError("Failed to parse expiration time from youtube source url: %v", err)
+		return true
+	}
+
+	now_unix := time.Now().Unix()
+	return now_unix > expire_unix
 }
 
 func loadYoutube(entry *Entry) {
@@ -48,7 +68,53 @@ type YtdlpEntry struct {
 	SourceUrl   string `json:"url"`
 }
 
-func loadYoutubeEntries(entry *Entry) {
+func preloadYoutubeSourceOnNextEntry() {
+	state.mutex.RLock()
+	if len(state.playlist) == 0 {
+		state.mutex.RUnlock()
+		return
+	}
+
+	nextEntry := state.playlist[0]
+	state.mutex.RUnlock()
+
+	if !isYoutubeUrl(nextEntry.Url) {
+		return
+	}
+
+	if !isYoutubeSourceExpired(nextEntry.SourceUrl) {
+		return
+	}
+
+	nextEntry.SourceUrl = getYoutubeAudioSource(nextEntry.Url)
+
+	state.mutex.Lock()
+	if len(state.playlist) == 0 {
+		state.mutex.Unlock()
+		return
+	}
+
+	if state.playlist[0].Id == nextEntry.Id {
+		state.playlist[0] = nextEntry
+	}
+	state.mutex.Unlock()
+}
+
+func loadYoutubeEntry(entry *Entry) {
+	if !YOUTUBE_ENABLED {
+		return
+	}
+
+	go preloadYoutubeSourceOnNextEntry()
+
+	if !isYoutubeUrl(entry.Url) {
+		return
+	}
+
+	if !isYoutubeSourceExpired(entry.SourceUrl) {
+		return
+	}
+
 	cmd := exec.Command("yt-dlp", "--extract-audio", "--dump-json", entry.Url)
 
 	stdout, err := cmd.StdoutPipe()
@@ -81,7 +147,7 @@ func loadYoutubeEntries(entry *Entry) {
 		}
 	}
 
-	// TODO(kihau): Preload second entry?
+	LogDebug("%v", entry)
 
 	userId := entry.UserId
 
@@ -104,7 +170,7 @@ func loadYoutubeEntries(entry *Entry) {
 				UserId:     userId,
 				UseProxy:   false,
 				RefererUrl: "",
-				SourceUrl:  "",
+				SourceUrl:  ytdlpEntry.SourceUrl,
 				Created:    time.Now(),
 			}
 
@@ -125,7 +191,7 @@ func loadYoutubeEntries(entry *Entry) {
 	}()
 }
 
-func getYoutubeAudioUrl(youtubeUrl string) string {
+func getYoutubeAudioSource(youtubeUrl string) string {
 	cmd := exec.Command("yt-dlp", "--get-url", "--extract-audio", "--no-playlist", youtubeUrl)
 	output, err := cmd.Output()
 	if err != nil {

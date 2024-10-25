@@ -530,9 +530,7 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if isYoutube(data.Entry.Url) {
-		loadYoutubeEntries(&data.Entry)
-	}
+	loadYoutubeEntry(&data.Entry)
 
 	state.mutex.Lock()
 	if state.entry.Url != "" {
@@ -616,9 +614,7 @@ func apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 	}
 	state.mutex.Unlock()
 
-	if isYoutube(newEntry.Url) {
-		loadYoutubeEntries(&newEntry)
-	}
+	loadYoutubeEntry(&newEntry)
 
 	state.mutex.Lock()
 	state.player.Playing = state.player.Autoplay
@@ -809,9 +805,7 @@ func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 	state.playlist = append(state.playlist, entry)
 	state.mutex.Unlock()
 
-	if isYoutube(entry.Url) {
-		loadYoutubeEntries(&entry)
-	}
+	loadYoutubeEntry(&entry)
 
 	state.mutex.Lock()
 	state.playlist = append(state.playlist, entry)
