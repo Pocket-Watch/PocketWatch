@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	url2 "net/url"
+	net_url "net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -15,13 +15,13 @@ import (
 var client = http.Client{}
 
 func constructTitleWhenMissing(entry *Entry) string {
-    if entry.Title != "" {
-        return entry.Title
-    }
+	if entry.Title != "" {
+		return entry.Title
+	}
 
-    base := path.Base(entry.Url)
-    title := strings.TrimSuffix(base, filepath.Ext(base))
-    return title
+	base := path.Base(entry.Url)
+	title := strings.TrimSuffix(base, filepath.Ext(base))
+	return title
 }
 
 func stripSuffix(url string) string {
@@ -42,7 +42,7 @@ func inferOrigin(referer string) string {
 }
 
 func stripLastSegment(url string) (*string, error) {
-	pUrl, err := url2.Parse(url)
+	pUrl, err := net_url.Parse(url)
 	if err != nil {
 		return nil, err
 	}
