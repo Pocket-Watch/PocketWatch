@@ -1,4 +1,5 @@
 import { Player } from "./external_player.js"
+// import { Player } from "./custom_player.js"
 import { Playlist } from "./playlist.js"
 
 import * as api from "./api.js";
@@ -316,7 +317,7 @@ async function main() {
     userSelf = await getOrCreateUserInAnExtremelyUglyWay();
     input_username.value = userSelf.username;
 
-    player.setUrl(null);
+    player.createPlayer();
 
     let state = await api.playerGet();
 

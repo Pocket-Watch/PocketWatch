@@ -48,6 +48,10 @@ class Player {
         this.htmlLoopingCheckbox.checked = looping;
     }
 
+    createPlayer() {
+        this.setUrl(null);
+    }
+
     setUrl(entry) {
         this.destroyFluidPlayer();
 

@@ -3,7 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	net_url "net/url"
+	neturl "net/url"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -13,7 +13,7 @@ import (
 var YOUTUBE_ENABLED bool = true
 
 func isYoutubeUrl(url string) bool {
-	parsedUrl, err := net_url.Parse(url)
+	parsedUrl, err := neturl.Parse(url)
 	if err != nil {
 		return false
 	}
@@ -29,7 +29,7 @@ func isYoutubeSourceExpired(sourceUrl string) bool {
 		return true
 	}
 
-	parsedUrl, err := url.Parse(sourceUrl)
+	parsedUrl, err := neturl.Parse(sourceUrl)
 	if err != nil {
 		LogError("Failed to parse youtube source url: %v", err)
 		return true

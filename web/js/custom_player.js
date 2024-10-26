@@ -1,40 +1,65 @@
+import * as api from "./api.js";
+
 export { Player };
+
+const MAX_DESYNC = 1.5;
 
 class Player {
     constructor() {
         // Div container where either the player or the placeholder resides.
-        this.root = document.getElementById("player_container");
+        this.htmlPlayerRoot = document.getElementById("player_container");
         // this.root = document.getElementById("player_root");
 
         // Corresponds to the actual html player element called either </video> or </audio>. 
-        this.player = null;
+        this.htmlPlayer = null;
 
         this.controls = {
             playButton: null,
             volumeSlider: null,
             seekSlider: null,
         };
+
+        this.htmlInputUrl = document.getElementById("input_url");
+        this.htmlRefererInput = document.getElementById("referer");
+        this.htmlInputTitle = document.getElementById("input_title");
+        this.htmlCurrentUrl = document.getElementById("current_url");
+        this.htmlProxyCheckbox = document.getElementById("proxy");
+        this.htmlAutoplayCheckbox = document.getElementById("autoplay");
+        this.htmlAudioonlyCheckbox = document.getElementById("audioonly");
+        this.htmlLoopingCheckbox = document.getElementById("looping");
+    }
+
+    loopingEnabled() {
+        return this.htmlLoopingCheckbox.checked;
+    }
+
+    loopingSet(looping) {
+        this.htmlLoopingCheckbox.checked = looping;
+    }
+
+    autoplaySet(looping) {
+        this.htmlLoopingCheckbox.checked = looping;
     }
 
     play() {
         // Send server play request here.
-        this.player.play();
+        this.htmlPlayer.play();
         this.controls.playButton.textContent = "Pause";
     }
 
     pause() {
         // Send server pause request here.
-        this.player.pause();
+        this.htmlPlayer.pause();
         this.controls.playButton.textContent = "Play";
     }
 
     seek(timestamp) {
         // Send server seek request here.
-        this.player.currentTime = timestamp;
+        this.htmlPlayer.currentTime = timestamp;
     }
 
     seekRelative(timeOffset) {
-        var timestamp = this.player.currentTime + timeOffset;
+        var timestamp = this.htmlPlayer.currentTime + timeOffset;
         if (timestamp < 0) {
             timestamp = 0;
         }
@@ -43,12 +68,12 @@ class Player {
     };
 
     onUserPlayToggle() {
-        if (!this.player) {
-            console.warn("WARN: Player::playOrPause was invoked but the player has not been initialized");
+        if (!this.htmlPlayer) {
+            console.warn("WARN: Player::onUserPlayToggle was invoked but the player has not been initialized");
             return;
         }
 
-        if (this.player.paused) {
+        if (this.htmlPlayer.paused) {
             this.play();
         } else {
             this.pause();
@@ -60,7 +85,7 @@ class Player {
 
     createPlayerVideo(url) {
         let video = document.createElement('video');
-        this.root.appendChild(video);
+        this.htmlPlayerRoot.appendChild(video);
 
         let track = document.createElement("track")
         track.label = "foo";
@@ -100,7 +125,7 @@ class Player {
 
                 // F key
                 case 70: {
-                    this.player.requestFullscreen();
+                    this.htmlPlayer.requestFullscreen();
                 } break;
             }
         }
@@ -109,13 +134,29 @@ class Player {
         video.appendChild(source);
         source.src = url;
 
-        this.player = video;
+        this.htmlPlayer = video;
+    }
+
+    resync(timestamp, userId) {
+        let desync = timestamp - this.htmlPlayer.currentTime;
+
+        if (userId == 0) {
+            console.info("INFO: Recieved resync event from SERVER at", timestamp, "with desync:", desync);
+        } else {
+            console.info("INFO: Recieved resync event from USER id", userId, "at", timestamp, "with desync:", desync);
+        }
+
+        if (Math.abs(desync) > MAX_DESYNC) {
+            let diff = Math.abs(desync) - MAX_DESYNC
+            console.warn("You are desynced! MAX_DESYNC(" + MAX_DESYNC + ") exceeded by:", diff, "Trying to resync now!");
+            this.seek(timestamp);
+        }
     }
 
     createPlayerControls() {
         let controls = document.createElement('div');
         controls.className = "player_controls_root";
-        this.root.appendChild(controls);
+        this.htmlPlayerRoot.appendChild(controls);
 
         let playButton = document.createElement('button');
         playButton.id = "play_button";
@@ -149,8 +190,80 @@ class Player {
         this.controls.seekSlider = seekSlider;
     }
 
-    createPlayer(url) {
-        this.createPlayerVideo(url);
+    createPlayer(entry) {
+        this.createPlayerVideo(entry.url);
         this.createPlayerControls();
+    }
+
+    setUrl(url) {
+        // this.createPlayerVideo(url);
+        // this.createPlayerControls();
+    }
+
+    attachHtmlEventHandlers() {
+        window.inputUrlOnKeypress = (event) => {
+            if (event.key === "Enter") {
+                this.setNewEntry();
+            }
+        };
+
+        window.playerSetOnClick = () => {
+            this.setNewEntry();
+        };
+
+        window.playerNextOnClick = () => {
+            api.playerNext(this.currentEntryId);
+        };
+
+        window.playlistAddTopOnClick = () => {
+            let url = this.htmlInputUrl.value;
+            this.htmlInputUrl.value = "";
+
+            if (!url) {
+                console.warn("WARNING: Url is empty, not adding to the playlist.");
+                return;
+            }
+
+            let entry = this.createApiEntry(url);
+            api.playlistAdd(entry);
+        };
+
+        window.autoplayOnClick = () => {
+            api.playerAutoplay(this.htmlAutoplayCheckbox.checked);
+        };
+
+        window.loopingOnClick = () => {
+            api.playerLooping(this.htmlLoopingCheckbox.checked);
+        };
+
+        window.shiftSubtitlesBack = () => {
+            if (this.htmlPlayer.textTracks.length === 0) {
+                console.warn("NO SUBTITLE TRACKS")
+                return;
+            }
+
+            let track = this.htmlPlayer.textTracks[0];
+            console.debug("DEBUG: CUES", track.cues)
+            for (let i = 0; i < track.cues.length; i++) {
+                let cue = track.cues[i];
+                cue.startTime -= 0.5;
+                cue.endTime -= 0.5;
+            }
+        };
+
+        window.shiftSubtitlesForward = () => {
+            if (this.htmlPlayer.textTracks.length === 0) {
+                console.warn("NO SUBTITLE TRACKS")
+                return;
+            }
+
+            let track = this.htmlPlayer.textTracks[0];
+            console.info("CUES", track.cues)
+            for (let i = 0; i < track.cues.length; i++) {
+                let cue = track.cues[i];
+                cue.startTime += 0.5;
+                cue.endTime += 0.5;
+            }
+        };
     }
 }
