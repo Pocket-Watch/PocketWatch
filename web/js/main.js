@@ -1,57 +1,29 @@
+import { Player } from "./external_player.js"
 import { Playlist } from "./playlist.js"
+
 import * as api from "./api.js";
 
-export { findUserById, createApiEntry }
-
-const DELTA = 1.5;
-
+export { findUserById }
 
 // User and connection data.
 export var token = "";
 export var connectionId = 0;
-
-var allUsers = [];
-var input_username = document.getElementById("input_username");
-var userSelf = {
+export var allUsers = [];
+export var userSelf = {
     id: 0,
     username: "",
     avatar: "",
 };
+var input_username = document.getElementById("input_username");
 
-
-// Player relevant data.
-var player;
-var video;
-var subtitles = []
-var currentEntryId = 0;
-
-var input_url = document.getElementById("input_url");
-var referer_input = document.getElementById("referer");
-var input_title = document.getElementById("input_title");
-var current_url = document.getElementById("current_url");
-var proxy_checkbox = document.getElementById("proxy");
-var autoplay_checkbox = document.getElementById("autoplay");
-var audioonly_checkbox = document.getElementById("audioonly");
-var looping_checkbox = document.getElementById("looping");
-
-var programmaticPlay = false; // Updates before programmatic play() and in .onplay
-var programmaticPause = false; // Updates before programmatic pause() and in .onpause
-var programmaticSeek = false; // Updates before programmatic currentTime assignment and in .onseeked
-
+// Player
+export var player = new Player();
 
 // Playlist and history.
 var playlist = new Playlist();
 var historyEntries = document.getElementById("history_entries");
 
 /// --------------- HELPER FUNCTIONS: ---------------
-
-function getUrlMediaType(url) {
-    if (url.endsWith(".m3u8")) {
-        return "application/x-mpegURL";
-    }
-
-    return "";
-}
 
 function findUserById(userId) {
     for (let i = 0; i < allUsers.length; i++) {
@@ -70,69 +42,7 @@ function findUserById(userId) {
     return user;
 }
 
-function createApiEntry(url) {
-    const entry = {
-        id: 0,
-        url: url,
-        title: input_title.value,
-        user_id: userSelf.id,
-        use_proxy: proxy_checkbox.checked,
-        referer_url: referer_input.value,
-        created: new Date,
-    };
-
-    return entry;
-}
-
-function setNewEntry() {
-    let url = input_url.value;
-    input_url.value = "";
-
-    console.info("INFO: Current video source url: ", url);
-
-    let entry = createApiEntry(url);
-    api.playerSet(entry);
-}
-
 /// --------------- HTML ELEMENT CALLBACKS: ---------------
-
-function inputUrlOnKeypress(event) {
-    if (event.key === "Enter") {
-        setNewEntry();
-    }
-}
-
-function playerSetOnClick() {
-    setNewEntry();
-}
-
-function playerNextOnClick() {
-    console.info("INFO: Next button was clicked");
-    api.playerNext(currentEntryId);
-}
-
-function playlistAddTopOnClick() {
-    let url = input_url.value;
-    input_url.value = "";
-
-    if (!url) {
-        console.warn("WARNING: Url is empty, not adding to the playlist.");
-        return;
-    }
-
-    let entry = createApiEntry(url);
-    api.playlistAdd(entry);
-}
-
-function autoplayOnClick() {
-    console.info("INFO: Autoplay button clicked");
-    api.playerAutoplay(autoplay_checkbox.checked);
-}
-
-function loopingOnClick() {
-    console.info("INFO: Looping button clicked");
-    api.playerLooping(looping_checkbox.checked);
-}
 
 const fileInput = document.getElementById("file_input");
 const progressBar = document.getElementById("progressBar");
@@ -164,6 +74,16 @@ function updateUsernameOnClick() {
 function clearSessionOnClick() {
     localStorage.removeItem("token");
     window.location.reload();
+}
+
+function attachHtmlHandlers() {
+    window.uploadFile = uploadFile;
+    window.clearSessionOnClick = clearSessionOnClick;
+    window.updateUsernameOnClick = updateUsernameOnClick;
+    window.historyClearOnClick = historyClearOnClick;
+
+    playlist.attachHtmlEventHandlers();
+    player.attachHtmlEventHandlers();
 }
 
 /// --------------- HISTORY: ---------------
@@ -217,35 +137,27 @@ function updateConnectedUsers() {
     }
 }
 
-/// --------------- SERVER EVENTS: ---------------
+async function getOrCreateUserInAnExtremelyUglyWay() {
+    let user = null
 
-function readEventMaybeResync(type, event) {
-    let jsonData = JSON.parse(event.data);
-
-    let timestamp = jsonData.timestamp;
-    let userId = jsonData.user_id;
-
-    let deSync = timestamp - video.currentTime;
-
-    if (userId == 0) {
-        console.info("INFO: Recieved resync event from SERVER for", type, "at", timestamp, "with desync:", deSync);
+    token = localStorage.getItem("token");
+    if (!token) {
+        token = await api.userCreate();
+        localStorage.setItem("token", token)
+        user = await api.userVerify(token);
     } else {
-        console.info("INFO: Recieved resync event from USER id", userId, "for", type, "at", timestamp, "with desync:", deSync);
+        user = await api.userVerify(token);
+        if (!user) {
+            token = await api.userCreate();
+            localStorage.setItem("token", token)
+            user = await api.userVerify(token);
+        }
     }
 
-    if (type === "seek") {
-        programmaticSeek = true;
-        player.skipTo(timestamp);
-        return;
-    }
-
-    if (DELTA < Math.abs(deSync)) {
-        let diff = Math.abs(deSync) - DELTA
-        console.warn("You are desynced! DELTA(" + DELTA + ") exceeded by", diff, "Trying to resync now!");
-        programmaticSeek = true;
-        player.skipTo(timestamp);
-    }
+    return user;
 }
+
+/// --------------- SERVER EVENTS: ---------------
 
 function subscribeToServerEvents() {
     let eventSource = new EventSource("/watch/api/events?token=" + token);
@@ -326,7 +238,7 @@ function subscribeToServerEvents() {
         console.info("INFO: Received player set event: ", response);
 
         addHistoryElement(response.prev_entry)
-        playerSetUrl(response.new_entry);
+        player.setUrl(response.new_entry);
     });
 
     eventSource.addEventListener("playernext", function(event) {
@@ -335,13 +247,12 @@ function subscribeToServerEvents() {
 
         addHistoryElement(response.prev_entry)
 
-        if (looping_checkbox.checked) {
+        if (player.loopingEnabled()) {
             playlist.add(response.prev_entry);
         }
 
         playlist.removeFirst();
-
-        playerSetUrl(response.new_entry);
+        player.setUrl(response.new_entry);
     });
 
     eventSource.addEventListener("sync", function(event) {
@@ -351,31 +262,22 @@ function subscribeToServerEvents() {
             return;
         }
 
-        if (!player) {
-            return;
-        }
+        let timestamp = data.timestamp;
+        let userId = data.user_id;
 
         switch (data.action) {
             case "play": {
-                readEventMaybeResync("play", event);
-
-                if (!isVideoPlaying()) {
-                    programmaticPlay = true;
-                    player.play();
-                }
+                player.resync(timestamp, userId);
+                player.play();
             } break;
 
             case "pause": {
-                readEventMaybeResync("pause", event);
-
-                if (isVideoPlaying()) {
-                    programmaticPause = true;
-                    player.pause();
-                }
+                player.resync(timestamp, userId);
+                player.pause();
             } break;
 
             case "seek": {
-                readEventMaybeResync("seek", event);
+                player.seek(timestamp);
             } break;
 
             default: {
@@ -387,13 +289,13 @@ function subscribeToServerEvents() {
     eventSource.addEventListener("playerautoplay", function(event) {
         let autoplay_enabled = JSON.parse(event.data);
         console.info("INFO: Received player autoplay event: ", autoplay_enabled);
-        autoplay_checkbox.checked = autoplay_enabled;
+        player.autoplaySet(autoplay_enabled);
     });
 
     eventSource.addEventListener("playerlooping", function(event) {
         let looping_enabled = JSON.parse(event.data);
         console.info("INFO: Received player looping event: ", looping_enabled);
-        looping_checkbox.checked = looping_enabled;
+        player.loopingSet(looping_enabled);
     });
 
     eventSource.addEventListener("playlist", function(event) {
@@ -408,274 +310,23 @@ function subscribeToServerEvents() {
     });
 }
 
-// label: String, src: String
-function appendSubtitleTrack(video_element, label, src) {
-    let track = document.createElement("track")
-    track.label = label
-    track.kind = "metadata"
-    track.src = src
-    video_element.appendChild(track)
-}
-
-/// --------------- PLAYER: ---------------
-
-function playerSetUrl(entry) {
-    destroyPlayer();
-
-    if (!entry || !entry.url) {
-        createDummyPlayer();
-        return;
-    }
-
-    currentEntryId = entry.id
-    current_url.value = entry.url;
-
-    createFluidPlayer(entry);
-}
-
-function isVideoPlaying() {
-    return !video.paused && !video.ended;
-}
-
-function destroyPlayer() {
-    currentEntryId = 0;
-    current_url.value = "";
-
-    if (player) {
-        unsubscribeFromPlayerEvents(video);
-        player.pause();
-        player.destroy();
-        player = null;
-    } else {
-        video.parentNode.removeChild(video);
-    }
-}
-
-function createDummyPlayer() {
-    let container = document.getElementById("player_container");
-
-    let new_video = document.createElement("video");
-    new_video.width = window.innerWidth * 0.95;
-    new_video.id = "player";
-
-    let new_source = document.createElement("source");
-    new_video.poster = "img/nothing_is_playing.png";
-    new_source.src = "video/nothing_is_playing.mp4";
-    new_video.appendChild(new_source);
-
-    container.appendChild(new_video);
-
-    player = null;
-    video = new_video;
-}
-
-function createFluidPlayer(entry) {
-    let container = document.getElementById("player_container");
-    let new_video = document.createElement("video");
-    new_video.width = window.innerWidth;
-    // new_video.height = window.innerHeight;
-    new_video.id = "player";
-    if (subtitles.length > 0) {
-        for (let i = 0; i < subtitles.length; i++) {
-            appendSubtitleTrack(new_video, subtitles[i], subtitles[i]);
-        }
-    }
-
-    let url = entry.url
-    if (entry.use_proxy) {
-        url = "/watch/proxy/proxy.m3u8"
-    }
-
-    if (entry.source_url) {
-        url = entry.source_url;
-    }
-
-    let new_source = document.createElement("source");
-    new_source.src = url;
-    new_source.type = getUrlMediaType(entry.url);
-    new_video.appendChild(new_source);
-
-    // TOOD(kihau): Remove invalid entries.
-    // new_source.addEventListener("error", () => {
-    //     // TODO(kihau): Display pop-up notification that the playback failed.
-    //     api.playerNext(currentEntryId);
-    // });
-
-    container.appendChild(new_video);
-
-    let new_player = fluidPlayer("player", {
-        hls: {
-            overrideNative: true,
-        },
-        layoutControls: {
-            title: entry.title,
-            doubleclickFullscreen: true,
-            subtitlesEnabled: true,
-            autoPlay: autoplay_checkbox.checked,
-            controlBar: {
-                autoHide: true,
-                autoHideTimeout: 2.5,
-                animated: true,
-                playbackRates: ["x2", "x1.5", "x1", "x0.5"],
-            },
-            miniPlayer: {
-                enabled: false,
-                width: 400,
-                height: 225,
-            },
-        },
-    });
-
-    // subscribeToPlayerEvents(new_player);
-    subscribeToPlayerEvents(new_video);
-
-    player = new_player;
-    video = new_video;
-}
-
-function playerOnPlay(_event) {
-    if (programmaticPlay) {
-        programmaticPlay = false;
-        return;
-    }
-
-    api.playerPlay(video.currentTime);
-}
-
-function playerOnPause(_event) {
-    if (programmaticPause) {
-        programmaticPause = false;
-        return;
-    }
-
-    api.playerPause(video.currentTime);
-}
-
-function playerOnSeek(_event) {
-    if (programmaticSeek) {
-        console.info("INFO: Programmatic seek caught");
-        programmaticSeek = false;
-        return;
-    }
-
-    api.playerSeek(video.currentTime);
-}
-
-function playerOnEnded(_event) {
-    if (autoplay_checkbox.checked) {
-        api.playerNext(currentEntryId);
-    }
-}
-
-// function subscribeToPlayerEvents(player) {
-//     player.on("play", playerOnPlay);
-//     player.on("pause", playerOnPause);
-//     player.on("seeked", playerOnSeek);
-//     player.on("ended", playerOnEnded);
-// }
-//
-// function unsubscribeFromPlayerEvents(player) {
-//     let emptyFunc = function() { }
-//     player.on("play", emptyFunc);
-//     player.on("pause", emptyFunc);
-//     player.on("seeked", emptyFunc);
-//     player.on("ended", emptyFunc);
-// }
-
-function subscribeToPlayerEvents(video) {
-    video.addEventListener("play", playerOnPlay);
-    video.addEventListener("pause", playerOnPause);
-    video.addEventListener("seeked", playerOnSeek);
-    video.addEventListener("ended", playerOnEnded);
-}
-
-function unsubscribeFromPlayerEvents(video) {
-    video.removeEventListener("play", playerOnPlay);
-    video.removeEventListener("pause", playerOnPause);
-    video.removeEventListener("seeked", playerOnSeek);
-    video.removeEventListener("ended", playerOnEnded);
-}
-
-async function getOrCreateUserInAnExtremelyUglyWay() {
-    let user = null
-
-    token = localStorage.getItem("token");
-    if (!token) {
-        token = await api.userCreate();
-        localStorage.setItem("token", token)
-        user = await api.userVerify(token);
-    } else {
-        user = await api.userVerify(token);
-        if (!user) {
-            token = await api.userCreate();
-            localStorage.setItem("token", token)
-            user = await api.userVerify(token);
-        }
-    }
-
-    return user;
-}
-
-function shiftSubtitlesBack() {
-    if (video.textTracks.length === 0) {
-        console.warn("NO SUBTITLE TRACKS")
-        return;
-    }
-    let track = video.textTracks[0];
-    console.info("CUES", track.cues)
-    for (let i = 0; i < track.cues.length; i++) {
-        let cue = track.cues[i];
-        cue.startTime -= 0.5;
-        cue.endTime -= 0.5;
-    }
-}
-
-function shiftSubtitlesForward() {
-    if (video.textTracks.length === 0) {
-        console.warn("NO SUBTITLE TRACKS")
-        return;
-    }
-    let track = video.textTracks[0];
-    console.info("CUES", track.cues)
-    for (let i = 0; i < track.cues.length; i++) {
-        let cue = track.cues[i];
-        cue.startTime += 0.5;
-        cue.endTime += 0.5;
-    }
-}
-
-function attachHtmlHandlers() {
-    window.inputUrlOnKeypress = inputUrlOnKeypress;
-    window.playerSetOnClick = playerSetOnClick;
-    window.playerNextOnClick = playerNextOnClick;
-    window.historyClearOnClick = historyClearOnClick;
-    window.updateUsernameOnClick = updateUsernameOnClick;
-    window.playlistAddTopOnClick = playlistAddTopOnClick;
-    window.clearSessionOnClick = clearSessionOnClick;
-    window.autoplayOnClick = autoplayOnClick;
-    window.loopingOnClick = loopingOnClick;
-    window.uploadFile = uploadFile;
-    window.shiftSubtitlesBack = shiftSubtitlesBack;
-    window.shiftSubtitlesForward = shiftSubtitlesForward;
-
-    playlist.attachHtmlEventHandlers();
-}
-
 async function main() {
     attachHtmlHandlers();
 
     userSelf = await getOrCreateUserInAnExtremelyUglyWay();
     input_username.value = userSelf.username;
 
-    createDummyPlayer();
+    player.setUrl(null);
 
     let state = await api.playerGet();
-    autoplay_checkbox.checked = state.player.autoplay;
-    looping_checkbox.checked = state.player.looping;
-    currentEntryId = state.entry.id;
-    subtitles = state.subtitles;
 
-    playerSetUrl(state.entry);
+    player.autoplaySet(state.player.autoplay);
+    player.loopingSet(state.player.looping);
+
+    player.currentEntryId = state.entry.id;
+    player.subtitles = state.subtitles;
+
+    player.setUrl(state.entry);
     subscribeToServerEvents();
 }
 

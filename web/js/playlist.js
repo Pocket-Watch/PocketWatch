@@ -1,4 +1,4 @@
-import { findUserById, createApiEntry } from "./main.js"
+import { findUserById, player } from "./main.js"
 import * as api from "./api.js";
 
 export { Playlist }
@@ -195,7 +195,7 @@ class Playlist {
         }
 
         // NOTE(kihau): This creates entry based on input options below the player, which is werid.
-        let entry = createApiEntry(this.htmlUrlInput.value);
+        let entry = player.createApiEntry(this.htmlUrlInput.value);
         api.playlistAdd(entry);
 
         // NOTE(kihau): Do not clear on request failed?
