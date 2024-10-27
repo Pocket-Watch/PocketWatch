@@ -4,34 +4,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video Player</title>
-    <link rel="stylesheet" href="css/player.css">
 </head>
 <body>
+    <link rel="stylesheet" href="css/player.css">
     <div id="player_container">
-        <video>
-            <source src="https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_640x360.m4v" type="video/mp4">
-            Your browser does not support the video tag.
-        </video>
-        <!-- <div id="player_timestamp_slider"></div> -->
-
-        <input id="player_timestamp_slider" type="range" min="0" max="100" value="0">
-        
-        <div id="player_controls">
-            <div id="player_play_toggle">
-                <svg><use href="svg/player_icons.svg#play"></use></svg>
-            </div>
-            <div id="player_next">
-                <svg><use href="svg/player_icons.svg#next"></use></svg>
-            </div>
-            <div id="player_volume">
-                <svg><use href="svg/player_icons.svg#volume"></use></svg>
-            </div>
-            <input id="volume_slider" type="range" min="0" max="100" value="50">
-            <span id="timestamp">00:00 / 12:34</span>
-            <div id="player_fullscreen">
-                <svg><use href="svg/player_icons.svg#fullscreen"></use></svg>
-            </div>
-        </div>
+        <!-- <video> -->
+        <!--     <source src="https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_640x360.m4v" type="video/mp4"> -->
+        <!--     Your browser does not support the video tag. -->
+        <!-- </video> -->
+        <!-- <input id="player_timestamp_slider" type="range" min="0" max="100" value="0"> -->
+        <!-- <div id="player_controls"> -->
+        <!--     <div id="player_play_toggle"> -->
+        <!--         <svg><use href="svg/player_icons.svg#play"></use></svg> -->
+        <!--     </div> -->
+        <!--     <div id="player_next"> -->
+        <!--         <svg><use href="svg/player_icons.svg#next"></use></svg> -->
+        <!--     </div> -->
+        <!--     <div id="player_volume"> -->
+        <!--         <svg><use href="svg/player_icons.svg#volume"></use></svg> -->
+        <!--     </div> -->
+        <!--     <input id="volume_slider" type="range" min="0" max="100" value="50"> -->
+        <!--     <span id="timestamp">00:00 / 12:34</span> -->
+        <!--     <div id="player_fullscreen"> -->
+        <!--         <svg><use href="svg/player_icons.svg#fullscreen"></use></svg> -->
+        <!--     </div> -->
+        <!-- </div> -->
     </div>
+
+    <script type="module" src="js/scratch.js"></script>
 </body>
 </html>

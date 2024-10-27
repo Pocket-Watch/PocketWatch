@@ -1,269 +1,174 @@
-import * as api from "./api.js";
-
 export { Player };
-
-const MAX_DESYNC = 1.5;
 
 class Player {
     constructor() {
         // Div container where either the player or the placeholder resides.
         this.htmlPlayerRoot = document.getElementById("player_container");
-        // this.root = document.getElementById("player_root");
 
         // Corresponds to the actual html player element called either </video> or </audio>. 
-        this.htmlPlayer = null;
+        this.htmlVideo = null;
 
-        this.controls = {
-            playButton: null,
+        this.htmlControls = {
+            playToggleButton: null,
+            nextButton: null,
+            volume: null,
             volumeSlider: null,
-            seekSlider: null,
         };
 
-        // this.htmlInputUrl = document.getElementById("input_url");
-        // this.htmlRefererInput = document.getElementById("referer");
-        // this.htmlInputTitle = document.getElementById("input_title");
-        // this.htmlCurrentUrl = document.getElementById("current_url");
-        // this.htmlProxyCheckbox = document.getElementById("proxy");
-        // this.htmlAutoplayCheckbox = document.getElementById("autoplay");
-        // this.htmlAudioonlyCheckbox = document.getElementById("audioonly");
-        // this.htmlLoopingCheckbox = document.getElementById("looping");
     }
 
-    // loopingEnabled() {
-    //     return this.htmlLoopingCheckbox.checked;
-    // }
-    //
-    // loopingSet(looping) {
-    //     this.htmlLoopingCheckbox.checked = looping;
-    // }
-    //
-    // autoplaySet(looping) {
-    //     this.htmlLoopingCheckbox.checked = looping;
+    // isVideoPlaying() {
+    //     return !this.htmlVideo.paused && !this.htmlPlayer.ended;
     // }
 
     play() {
-        // Send server play request here.
-        this.htmlPlayer.play();
-        this.controls.playButton.textContent = "Pause";
+        // TODO(kihau): Do not recreate those every time and instead create them once and then reuse them?
+        let pauseSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        let pauseUse = document.createElementNS("http://www.w3.org/2000/svg", "use");
+        pauseSvg.appendChild(pauseUse);
+        pauseUse.setAttribute("href", "svg/player_icons.svg#pause");
+        this.htmlControls.playToggleButton.getElementsByTagName("svg")[0].replaceWith(pauseSvg);
+
+        this.htmlVideo.play();
     }
 
     pause() {
-        // Send server pause request here.
-        this.htmlPlayer.pause();
-        this.controls.playButton.textContent = "Play";
+        // TODO(kihau): Do not recreate those every time and instead create them once and then reuse them?
+        let playSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        let playUse = document.createElementNS("http://www.w3.org/2000/svg", "use");
+        playUse.setAttribute("href", "svg/player_icons.svg#play");
+        playSvg.appendChild(playUse);
+        this.htmlControls.playToggleButton.getElementsByTagName("svg")[0].replaceWith(playSvg);
+        this.htmlVideo.pause();
     }
 
     seek(timestamp) {
-        // Send server seek request here.
-        this.htmlPlayer.currentTime = timestamp;
     }
 
     seekRelative(timeOffset) {
-        var timestamp = this.htmlPlayer.currentTime + timeOffset;
-        if (timestamp < 0) {
-            timestamp = 0;
-        }
-
-        this.seek(timestamp);
     };
-
-    onUserPlayToggle() {
-        if (!this.htmlPlayer) {
-            console.warn("WARN: Player::onUserPlayToggle was invoked but the player has not been initialized");
-            return;
-        }
-
-        if (this.htmlPlayer.paused) {
-            this.play();
-        } else {
-            this.pause();
-        }
-    }
 
     destroyPlayer() {
     }
 
-    createPlayerVideo(url) {
-        let video = document.createElement('video');
+    createPlayer() {
+        this.createHtmlVideo();
+        this.createHtmlControls();
+        this.attachHtmlEvents();
+    }
+
+    createHtmlVideo() {
+        let video = document.createElement("video");
+        video.id = "player_video"
         this.htmlPlayerRoot.appendChild(video);
+        this.htmlVideo = video;
+    }
 
-        let track = document.createElement("track")
-        track.label = "foo";
-        track.kind = "subtitles";
-        track.src = "/watch/media/Cars.vtt";
-        video.appendChild(track)
+    onControlsPlay() { }
+    onControlsPause() { }
+    onControlsNext() { }
 
-        let width = window.innerWidth * 0.95;
-        video.width = width;
-        video.height = width * 9 / 16;
-        video.id = "player";
-        video.controls = true;
-        
-        // let data = this;
-        video.onclick = () => {
-            this.onUserPlayToggle();
+    togglePlay() {
+        if (this.htmlVideo.paused) {
+            this.onControlsPlay();
+            this.play();
+        } else {
+            this.onControlsPause();
+            this.pause();
+        }
+    }
+
+    attachHtmlEvents() {
+        this.htmlControls.playToggleButton.onclick = () => {
+            this.togglePlay();
         };
 
-        video.onkeydown = (event) => {
-            console.debug(event);
+        this.htmlControls.nextButton.onclick = () => {
+            this.onControlsNext();
+        };
 
-            switch (event.keyCode) {
-                // Space
-                case 32: {
-                    this.onUserPlayToggle();
-                } break;
-
-                // Left arrow
-                case 37: {
-                    this.seekRelative(-10.0);
-                } break;
-
-                // Right arrow
-                case 39: {
-                    this.seekRelative(10.0);
-                } break;
-
-                // F key
-                case 70: {
-                    this.htmlPlayer.requestFullscreen();
-                } break;
+        this.htmlVideo.onkeydown = (event) => {
+            if (event.key == " " || event.code == "Space" || event.keyCode == 32) {
+                this.togglePlay();
             }
         }
 
-        let source = document.createElement('source');
-        video.appendChild(source);
-        source.src = url;
-
-        this.htmlPlayer = video;
-    }
-
-    resync(timestamp, userId) {
-        let desync = timestamp - this.htmlPlayer.currentTime;
-
-        if (userId == 0) {
-            console.info("INFO: Recieved resync event from SERVER at", timestamp, "with desync:", desync);
-        } else {
-            console.info("INFO: Recieved resync event from USER id", userId, "at", timestamp, "with desync:", desync);
-        }
-
-        if (Math.abs(desync) > MAX_DESYNC) {
-            let diff = Math.abs(desync) - MAX_DESYNC
-            console.warn("You are desynced! MAX_DESYNC(" + MAX_DESYNC + ") exceeded by:", diff, "Trying to resync now!");
-            this.seek(timestamp);
+        this.htmlVideo.onclick = (event) => {
+            this.togglePlay();
         }
     }
 
-    createPlayerControls() {
-        let controls = document.createElement('div');
-        controls.className = "player_controls_root";
-        this.htmlPlayerRoot.appendChild(controls);
+    createHtmlControls() {
+        let timestampSlider = document.createElement("input");
+        timestampSlider.id = "player_timestamp_slider";
+        timestampSlider.type = "range";
+        timestampSlider.min = "0";
+        timestampSlider.max = "100";
+        timestampSlider.value = "0";
+        this.htmlPlayerRoot.appendChild(timestampSlider);
 
-        let playButton = document.createElement('button');
-        playButton.id = "play_button";
-        playButton.textContent = "Play";
-        playButton.onclick = (_event) => {
-            this.onUserPlayToggle();
-        };
+        let playerControls = document.createElement("div");
+        playerControls.id = "player_controls";
 
-        controls.appendChild(playButton);
+        let playToggle = document.createElement("div");
+        playToggle.id = "player_play_toggle";
+        let playSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        let playUse = document.createElementNS("http://www.w3.org/2000/svg", "use");
+        playUse.setAttribute("href", "svg/player_icons.svg#play");
+        playSvg.appendChild(playUse);
+        playToggle.appendChild(playSvg);
+        playerControls.appendChild(playToggle);
+        this.htmlControls.playToggleButton = playToggle;
 
-        let volumeSlider = document.createElement('input');
+        let next = document.createElement("div");
+        next.id = "player_next";
+        let nextSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        let nextUse = document.createElementNS("http://www.w3.org/2000/svg", "use");
+        nextUse.setAttribute("href", "svg/player_icons.svg#next");
+        nextSvg.appendChild(nextUse);
+        next.appendChild(nextSvg);
+        playerControls.appendChild(next);
+        this.htmlControls.nextButton = next;
+
+        let volume = document.createElement("div");
+        volume.id = "player_volume";
+        let volumeSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        let volumeUse = document.createElementNS("http://www.w3.org/2000/svg", "use");
+        volumeUse.setAttribute("href", "svg/player_icons.svg#volume");
+        volumeSvg.appendChild(volumeUse);
+        volume.appendChild(volumeSvg);
+        playerControls.appendChild(volume);
+        this.htmlControls.volume = volume;
+
+        let volumeSlider = document.createElement("input");
         volumeSlider.id = "volume_slider";
         volumeSlider.type = "range";
-        volumeSlider.min = 0;
-        volumeSlider.max = 100;
-        controls.appendChild(volumeSlider);
+        volumeSlider.min = "0";
+        volumeSlider.max = "100";
+        volumeSlider.value = "50";
+        playerControls.appendChild(volumeSlider);
+        this.htmlControls.volumeSlider = volumeSlider;
 
-        // let volumeLabel = document.createElement('label');
-        // volumeLabel.textContent = "Volume";
-        // controls.appendChild(volumeLabel);
+        let timestamp = document.createElement("span");
+        timestamp.id = "timestamp";
+        timestamp.textContent = "00:00 / 12:34";
+        playerControls.appendChild(timestamp);
 
-        let seekSlider = document.createElement('input');
-        seekSlider.id = "seek_slider";
-        seekSlider.type = "range";
-        seekSlider.min = 0;
-        seekSlider.max = 100;
-        controls.appendChild(seekSlider);
-
-        this.controls.playButton = playButton;
-        this.controls.volumeSlider = volumeSlider;
-        this.controls.seekSlider = seekSlider;
+        let fullscreen = document.createElement("div");
+        fullscreen.id = "player_fullscreen";
+        let fullscreenSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        let fullscreenUse = document.createElementNS("http://www.w3.org/2000/svg", "use");
+        fullscreenUse.setAttribute("href", "svg/player_icons.svg#fullscreen");
+        fullscreenSvg.appendChild(fullscreenUse);
+        fullscreen.appendChild(fullscreenSvg);
+        playerControls.appendChild(fullscreen);
+        this.htmlPlayerRoot.appendChild(playerControls);
     }
 
-    createPlayer(entry) {
-        this.createPlayerVideo(entry.url);
-        this.createPlayerControls();
-    }
-
-    setUrl(url) {
-        // this.createPlayerVideo(url);
-        // this.createPlayerControls();
-    }
-
-    attachHtmlEventHandlers() {
-        window.inputUrlOnKeypress = (event) => {
-            if (event.key === "Enter") {
-                this.setNewEntry();
-            }
-        };
-
-        window.playerSetOnClick = () => {
-            this.setNewEntry();
-        };
-
-        window.playerNextOnClick = () => {
-            api.playerNext(this.currentEntryId);
-        };
-
-        window.playlistAddTopOnClick = () => {
-            let url = this.htmlInputUrl.value;
-            this.htmlInputUrl.value = "";
-
-            if (!url) {
-                console.warn("WARNING: Url is empty, not adding to the playlist.");
-                return;
-            }
-
-            let entry = this.createApiEntry(url);
-            api.playlistAdd(entry);
-        };
-
-        window.autoplayOnClick = () => {
-            api.playerAutoplay(this.htmlAutoplayCheckbox.checked);
-        };
-
-        window.loopingOnClick = () => {
-            api.playerLooping(this.htmlLoopingCheckbox.checked);
-        };
-
-        window.shiftSubtitlesBack = () => {
-            if (this.htmlPlayer.textTracks.length === 0) {
-                console.warn("NO SUBTITLE TRACKS")
-                return;
-            }
-
-            let track = this.htmlPlayer.textTracks[0];
-            console.debug("DEBUG: CUES", track.cues)
-            for (let i = 0; i < track.cues.length; i++) {
-                let cue = track.cues[i];
-                cue.startTime -= 0.5;
-                cue.endTime -= 0.5;
-            }
-        };
-
-        window.shiftSubtitlesForward = () => {
-            if (this.htmlPlayer.textTracks.length === 0) {
-                console.warn("NO SUBTITLE TRACKS")
-                return;
-            }
-
-            let track = this.htmlPlayer.textTracks[0];
-            console.info("CUES", track.cues)
-            for (let i = 0; i < track.cues.length; i++) {
-                let cue = track.cues[i];
-                cue.startTime += 0.5;
-                cue.endTime += 0.5;
-            }
-        };
+    setVideoTrack(url) {
+        let source = document.createElement("source");
+        source.src = url;
+        source.type = "video/mp4";
+        this.htmlVideo.appendChild(source);
     }
 }
