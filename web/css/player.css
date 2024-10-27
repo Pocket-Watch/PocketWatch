@@ -1,16 +1,96 @@
-.player_root {
+#player_container {
     position: relative;
-    display: inline-block;
+    width: 100%;
+    height: 400px;
+    background-color: lightgray;
 }
 
-.player_root .player_controls_root {
-    color: white;
+#player_container video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+#player_controls {
     position: absolute;
     bottom: 0;
-    left: 0;
-    right: 0;
-    background: red;
-    /* filter: blur(1px); */
-    height: 53px;
-    z-index: 1;
+    width: 100%;
+    height: 40px;
+    background-color: rgba(128, 128, 128, 0.5); /* Transparent gray */
+    color: white;
+    display: flex;
+    justify-content: flex-start; /* Align items to the left */
+    align-items: center;
+}
+
+
+#player_timestamp_slider {
+    position: absolute;
+    bottom: 40px; /* Position it just above player_controls */
+    width: 100%;
+    height: 10px;
+    background: transparent;
+    -webkit-appearance: none; /* Remove default styles */
+    appearance: none;
+}
+
+#player_timestamp_slider::-webkit-slider-runnable-track {
+    height: 10px;
+    background: rgba(204, 204, 204, 0.5); /* Semi-transparent gray */
+}
+
+#player_timestamp_slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 0;
+    height: 10px;
+}
+
+#player_timestamp_slider::-moz-range-track {
+    height: 10px;
+    background: rgba(204, 204, 204, 0.5); /* Semi-transparent gray */
+}
+
+#player_timestamp_slider::-moz-range-progress {
+    height: 10px;
+    background: rgba(255, 0, 0, 0.5); /* Semi-transparent red */
+}
+
+#player_timestamp_slider::-moz-range-thumb {
+    width: 0;
+    height: 10px;
+    background: rgba(255, 0, 0, 0.5); /* Semi-transparent red */
+    border: none;
+}
+
+
+#player_controls > div {
+    width: 30px; /* Square size */
+    height: 30px;
+    margin: 0 5px; /* Space between the squares */
+    background-color: rgba(255, 255, 255, 0.2);
+    display: flex; /* Flexbox to center content */
+    justify-content: center; /* Center horizontally */
+    align-items: center; /* Center vertically */
+}
+
+#volume_slider {
+    margin-left: 5px;
+}
+
+#timestamp {
+    margin-left: 10px;
+    color: white;
+    font-size: 14px;
+    align-self: center;
+}
+
+#player_fullscreen {
+    width: 40px; /* Square size */
+    height: 40px;
+    background-color: rgba(255, 255, 255, 0.2);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-left: auto; /* Push to the right */
 }

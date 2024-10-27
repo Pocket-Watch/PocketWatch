@@ -1,46 +1,37 @@
-<!doctype html>
-<html lang="en-US">
-
-
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <meta name="referrer" content="no-referrer">
-    <title>Watch Locally</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Player</title>
+    <link rel="stylesheet" href="css/player.css">
 </head>
-
 <body>
-    <video id="myCustomVideo" width="640" height="360" controls>
-        <source src="placeholder"/>
-        <audio id="myCustomAudio">
-            <source src="placeholder">
-        </audio>
-    </video>
+    <div id="player_container">
+        <video>
+            <source src="https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_640x360.m4v" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+        <!-- <div id="player_timestamp_slider"></div> -->
 
-    <!-- <div id="player_container"> -->
-    <!-- </div> -->
-    <!---->
-    <!-- <br> -->
-    <!-- <br> -->
-    <!---->
-    <!-- <label>Input the media URL here:</label><br /> -->
-    <!-- <input type="url" id="input_url" name="input_url" onkeypress="inputUrlOnKeypress(event)" size="100" /> -->
-    <!---->
-    <!-- <br> -->
-    <!---->
-    <!-- <button name="set_url" onclick="setUrlOnClick()">Set URL</button> -->
-    <!---->
-    <!-- <br> -->
-    <!---->
-    <!-- <button onclick="shiftSubtitlesBack()"> -->
-    <!--      Shift left (-500ms) -->
-    <!-- </button> -->
-    <!-- <button onclick="shiftSubtitlesForward()"> -->
-    <!--     Shift right (+500ms) -->
-    <!-- </button> -->
-    <!-- <br> -->
-    <!---->
-    <!-- <script type="module" src="js/player.js"></script> -->
-    <!-- <script type="module" src="js/scratch.js"></script> -->
+        <input id="player_timestamp_slider" type="range" min="0" max="100" value="0">
+        
+        <div id="player_controls">
+            <div id="player_play_toggle">
+                <svg><use href="svg/player_icons.svg#play"></use></svg>
+            </div>
+            <div id="player_next">
+                <svg><use href="svg/player_icons.svg#next"></use></svg>
+            </div>
+            <div id="player_volume">
+                <svg><use href="svg/player_icons.svg#volume"></use></svg>
+            </div>
+            <input id="volume_slider" type="range" min="0" max="100" value="50">
+            <span id="timestamp">00:00 / 12:34</span>
+            <div id="player_fullscreen">
+                <svg><use href="svg/player_icons.svg#fullscreen"></use></svg>
+            </div>
+        </div>
+    </div>
 </body>
-
 </html>

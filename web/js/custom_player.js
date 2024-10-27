@@ -19,27 +19,27 @@ class Player {
             seekSlider: null,
         };
 
-        this.htmlInputUrl = document.getElementById("input_url");
-        this.htmlRefererInput = document.getElementById("referer");
-        this.htmlInputTitle = document.getElementById("input_title");
-        this.htmlCurrentUrl = document.getElementById("current_url");
-        this.htmlProxyCheckbox = document.getElementById("proxy");
-        this.htmlAutoplayCheckbox = document.getElementById("autoplay");
-        this.htmlAudioonlyCheckbox = document.getElementById("audioonly");
-        this.htmlLoopingCheckbox = document.getElementById("looping");
+        // this.htmlInputUrl = document.getElementById("input_url");
+        // this.htmlRefererInput = document.getElementById("referer");
+        // this.htmlInputTitle = document.getElementById("input_title");
+        // this.htmlCurrentUrl = document.getElementById("current_url");
+        // this.htmlProxyCheckbox = document.getElementById("proxy");
+        // this.htmlAutoplayCheckbox = document.getElementById("autoplay");
+        // this.htmlAudioonlyCheckbox = document.getElementById("audioonly");
+        // this.htmlLoopingCheckbox = document.getElementById("looping");
     }
 
-    loopingEnabled() {
-        return this.htmlLoopingCheckbox.checked;
-    }
-
-    loopingSet(looping) {
-        this.htmlLoopingCheckbox.checked = looping;
-    }
-
-    autoplaySet(looping) {
-        this.htmlLoopingCheckbox.checked = looping;
-    }
+    // loopingEnabled() {
+    //     return this.htmlLoopingCheckbox.checked;
+    // }
+    //
+    // loopingSet(looping) {
+    //     this.htmlLoopingCheckbox.checked = looping;
+    // }
+    //
+    // autoplaySet(looping) {
+    //     this.htmlLoopingCheckbox.checked = looping;
+    // }
 
     play() {
         // Send server play request here.

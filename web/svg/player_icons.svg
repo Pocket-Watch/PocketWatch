@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+    <symbol id="play" viewBox="0 0 24 24">
+        <path d="M8 5v14l11-7L8 5z" fill="white"/>
+    </symbol>
+    <symbol id="pause" viewBox="0 0 24 24">
+        <path d="M6 4h4v16H6zM14 4h4v16h-4z" fill="white"/>
+    </symbol>
+    <symbol id="next" viewBox="0 0 24 24">
+        <path d="M6 4v16l8.5-8L6 4zM14.5 4v16H16V4h-1.5z" fill="white"/>
+    </symbol>
+    <symbol id="volume" viewBox="0 0 24 24">
+        <path d="M3 9v6h4l5 5V4l-5 5H3z" fill="white"/>
+        <path d="M14.5 4.5a4 4 0 0 1 0 15L14 19a2.5 2.5 0 0 0 0-10L14.5 4.5z" fill="white"/>
+    </symbol>
+    <symbol id="fullscreen" viewBox="0 0 24 24">
+        <path d="M7 14h-4v7h7v-2h-5v-5zm-4-4v7h7v-2h-5v-5h-2zm10 10h7v-7h-2v5h-5v2zm7-14h-7v2h5v5h2v-7z" fill="white"/>
+    </symbol>
+</svg>
