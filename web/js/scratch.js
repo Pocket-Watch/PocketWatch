@@ -2,15 +2,21 @@ import { Player } from "./custom_player.js"
 
 
 function main() {
-    let player = new Player();
-    player.createPlayer();
-    player.setVideoTrack("https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_640x360.m4v");
+    let video1 = document.getElementById("video0");
+    let video2 = document.getElementById("video1");
+    let player1 = new Player(video1);
+    let player2 = new Player(video2);
 
-    player.onControlsPlay = () => {
+    let track = "https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_640x360.m4v";
+    //let track = "media/anime.mp4";
+    player1.setVideoTrack(track);
+    player2.setVideoTrack(track);
+
+    player1.onControlsPlay = () => {
         console.log("user clicked play");
     }
 
-    player.onControlsPause = () => {
+    player1.onControlsPause = () => {
         console.log("user clicked pause");
     }
 }
