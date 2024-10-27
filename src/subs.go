@@ -18,7 +18,12 @@ type Timecode struct {
 	Hours, Minutes, Seconds, Milliseconds int
 }
 
+var ZERO_TIMECODE = Timecode{0, 0, 0, 0}
 var INVALID_TIMECODE = Timecode{-1, -1, -1, -1}
+
+func (timecode *Timecode) isNegative() bool {
+	return timecode.Hours < 0 || timecode.Minutes < 0 || timecode.Seconds < 0 || timecode.Milliseconds < 0
+}
 
 func (timecode *Timecode) ToSrt() string {
 	return formatUnit(timecode.Hours, 2) + ":" +
@@ -28,7 +33,11 @@ func (timecode *Timecode) ToSrt() string {
 }
 
 func (timecode *Timecode) toVtt() string {
-	return formatUnit(timecode.Hours, 2) + ":" +
+	hourFormat := ""
+	if timecode.Hours > 0 {
+		hourFormat = formatUnit(timecode.Hours, 2) + ":"
+	}
+	return hourFormat +
 		formatUnit(timecode.Minutes, 2) + ":" +
 		formatUnit(timecode.Seconds, 2) + "." +
 		formatUnit(timecode.Milliseconds, 3)
@@ -97,7 +106,10 @@ func parseSRT(path string) ([]Subtitle, error) {
 	subtitles := make([]Subtitle, 0, 2048)
 
 	for scanner.Scan() {
-		_ = scanner.Text()
+		counter := scanner.Text()
+		if _, err := strconv.Atoi(counter); err != nil {
+			break
+		}
 		if !scanner.Scan() {
 			return subtitles, errors.New("expected timestamps [start --> end]")
 		}
@@ -106,20 +118,32 @@ func parseSRT(path string) ([]Subtitle, error) {
 		if err != nil {
 			return subtitles, err
 		}
-		// Parse sub text (may span over one or more lines)
-		var content strings.Builder
-		for scanner.Scan() {
-			line := scanner.Text()
-			if line == "" {
-				break
-			}
-			content.WriteString(line)
-			content.WriteString("\n")
-		}
-		sub := newSubtitle(start, end, content.String())
+		var content string = parseContent(scanner)
+		sub := newSubtitle(start, end, content)
 		subtitles = append(subtitles, sub)
 	}
 	return subtitles, nil
+}
+
+func parseContent(scanner *bufio.Scanner) string {
+	// Parse sub text (may span over one or more lines)
+	var content strings.Builder
+	if scanner.Scan() {
+		firstLine := scanner.Text()
+		if firstLine != "" {
+			content.WriteString(firstLine)
+		}
+	}
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			break
+		}
+		content.WriteString("\n")
+		content.WriteString(line)
+	}
+	return content.String()
 }
 
 func parseTimestamps(timestamps string) (Timecode, Timecode, error) {
@@ -154,6 +178,13 @@ func serializeToVTT(subtitles []Subtitle, path string) error {
 	file.WriteString("WEBVTT\n\n")
 
 	for _, sub := range subtitles {
+		if sub.Start.isNegative() {
+			if sub.End.isNegative() {
+				continue
+			}
+			// it's possible to preserve the subtitle if the end stamp is non-negative
+			sub.Start = ZERO_TIMECODE
+		}
 		timestamps := fmt.Sprintf("%s --> %s\n", sub.Start.toVtt(), sub.End.toVtt())
 		file.WriteString(timestamps)
 		file.WriteString(sub.Content)
@@ -162,9 +193,52 @@ func serializeToVTT(subtitles []Subtitle, path string) error {
 	return nil
 }
 
-func (sub *Subtitle) shiftForwardBy(ms int) {
-	sub.Start.shiftForwardBy(ms)
-	sub.End.shiftForwardBy(ms)
+// negative / positive
+func (sub *Subtitle) shiftBy(ms int) {
+	if ms > 0 {
+		sub.Start.shiftForwardBy(ms)
+		sub.End.shiftForwardBy(ms)
+	} else if ms < 0 {
+		ms = -ms
+		sub.Start.shiftBackBy(ms)
+		sub.End.shiftBackBy(ms)
+	}
+}
+
+// expects a positive ms value despite shifting back
+func (timecode *Timecode) shiftBackBy(ms int) {
+	timecode.Milliseconds -= ms
+
+	secondsOffset := timecode.Milliseconds / 1000
+	if timecode.Milliseconds < 0 {
+		timecode.Milliseconds %= 1000
+		if timecode.Milliseconds < 0 {
+			timecode.Milliseconds += 1000
+			secondsOffset -= 1
+		}
+	}
+	timecode.Seconds += secondsOffset
+
+	minutesOffset := timecode.Seconds / 60
+	if timecode.Seconds < 0 {
+		timecode.Seconds %= 60
+		if timecode.Seconds < 0 {
+			timecode.Seconds += 60
+			minutesOffset -= 1
+		}
+	}
+	timecode.Minutes += minutesOffset
+
+	hoursOffset := timecode.Minutes / 60
+	if timecode.Minutes < 0 {
+		timecode.Minutes %= 60
+		if timecode.Minutes < 0 {
+			timecode.Minutes += 60
+			hoursOffset -= 1
+		}
+	}
+	timecode.Hours += hoursOffset
+	// if hours are negative then the time code will not be serialized
 }
 
 func (timecode *Timecode) shiftForwardBy(ms int) {
