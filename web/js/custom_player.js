@@ -19,15 +19,17 @@ class Player {
 
         // We actually need to append the <div> to document.body (or <video>'s parent)
         // otherwise the <video> tag will disappear entirely!
-        let videoParent = this.htmlVideo.parentNode
+        let videoParent = this.htmlVideo.parentNode;
         videoParent.appendChild(this.htmlPlayerRoot);
         this.htmlPlayerRoot.appendChild(this.htmlVideo);
 
         this.htmlControls = {
+            timestampSlider: null,
             playToggleButton: null,
             nextButton: null,
             volume: null,
             volumeSlider: null,
+            timestamp: null,
         };
 
         // This should probably be a separate class for more clarity,
@@ -40,7 +42,7 @@ class Player {
             showFullscreenButton: true,
             showSubtitlesButton: true,
             showAutoPlay: true,
-        }
+        };
 
         // We could store references to images/svg/videos here for easy access
         // TODO? IDK if we need to store references to 'use' ones
@@ -55,7 +57,7 @@ class Player {
             volumeUse: null,
             fullscreenSvg: null,
             fullscreenUse: null,
-        }
+        };
 
         this.initializeSvgResources();
         this.createHtmlControls();
@@ -67,31 +69,84 @@ class Player {
     // }
 
     play() {
-        // TODO(kihau): Do not recreate those every time and instead create them once and then reuse them?
-
         this.htmlControls.playToggleButton.getElementsByTagName("svg")[0].replaceWith(this.resources.pauseSvg);
-
         this.htmlVideo.play();
     }
 
     pause() {
-        // TODO(kihau): Do not recreate those every time and instead create them once and then reuse them?
         this.htmlControls.playToggleButton.getElementsByTagName("svg")[0].replaceWith(this.resources.playSvg);
         this.htmlVideo.pause();
     }
 
     seek(timestamp) {
+        this.htmlVideo.currentTime = timestamp;
+        this.updateTimestamps(timestamp);
+    }
+
+    createTimestampString(timestamp) {
+        let seconds = Math.floor(timestamp % 60.0);
+        let minutes = Math.floor(timestamp / 60.0);
+
+        let timestamp_string = ""
+        if (minutes < 10) {
+            timestamp_string += "0";
+        }
+
+        timestamp_string += minutes;
+        timestamp_string += ":";
+
+        if (seconds < 10) {
+            timestamp_string += "0";
+        }
+
+        timestamp_string += seconds;
+        return timestamp_string
+    }
+
+    updateTimestamps(timestamp) {
+        let position = timestamp / this.htmlVideo.duration;
+        this.htmlControls.timestampSlider.value = position;
+
+        let current = this.createTimestampString(this.htmlVideo.currentTime);
+        // NOTE(kihau): This duration string does not need to be updated every time since the duration does not change?
+        let duration = this.createTimestampString(this.htmlVideo.duration);
+        
+        this.htmlControls.timestamp.textContent = current + " / " + duration;
+    }
+
+    updateVolumeSlider(volume) {
+        if (volume > 1.0) {
+            volume = 1.0;
+        }
+
+        if (volume < 0.0) {
+            volume = 0.0;
+        }
+
+        this.htmlControls.volumeSlider.value = volume;
     }
 
     seekRelative(timeOffset) {
-    };
+        var timestamp = this.htmlVideo.currentTime + timeOffset;
+        if (timestamp < 0) {
+            timestamp = 0;
+        }
 
-    destroyPlayer() {
+        this.seek(timestamp);
     }
 
-    onControlsPlay() { }
-    onControlsPause() { }
-    onControlsNext() { }
+    setVolume(volume) {
+        this.htmlVideo.volume = volume;
+        this.updateVolumeSlider(volume);
+    }
+
+    destroyPlayer() {}
+
+    onControlsPlay() {}
+    onControlsPause() {}
+    onControlsNext() {}
+    onControlsSeek(_timestamp) {}
+    onControlsVolumeSet(_volume) {}
 
     togglePlay() {
         if (this.htmlVideo.paused) {
@@ -106,7 +161,7 @@ class Player {
     setVideoTrack(url) {
         let source = this.htmlVideo.querySelector("source");
         if (!source) {
-            console.debug("Creating a source tag")
+            console.debug("Creating a source tag");
             source = document.createElement("source");
             this.htmlVideo.appendChild(source);
         }
@@ -114,7 +169,7 @@ class Player {
         source.setAttribute("type", "video/mp4");
         // source.src = url;
         // source.type = "video/mp4";
-        this.htmlVideo.load()
+        this.htmlVideo.load();
     }
 
     attachHtmlEvents() {
@@ -130,11 +185,29 @@ class Player {
             if (event.key == " " || event.code == "Space" || event.keyCode == 32) {
                 this.togglePlay();
             }
-        }
+        };
 
-        this.htmlVideo.onclick = (event) => {
+        this.htmlVideo.onclick = (_event) => {
             this.togglePlay();
-        }
+        };
+
+        this.htmlControls.volumeSlider.oninput = (_event) => {
+            let volume = this.htmlControls.volumeSlider.value;
+            this.onControlsVolumeSet(volume);
+            this.setVolume(volume);
+        };
+
+        this.htmlControls.timestampSlider.oninput = (_event) => {
+            let position = this.htmlControls.timestampSlider.value;
+            let timestamp = this.htmlVideo.duration * position;
+            this.onControlsSeek(timestamp);
+            this.seek(timestamp);
+        };
+
+        this.htmlVideo.ontimeupdate = (_event) => {
+            let timestamp = this.htmlVideo.currentTime;
+            this.updateTimestamps(timestamp);
+        };
     }
 
     initializeSvgResources() {
@@ -167,16 +240,19 @@ class Player {
     }
 
     createHtmlControls() {
+        let playerControls = document.createElement("div");
+        playerControls.id = "player_controls";
+
         let timestampSlider = document.createElement("input");
         timestampSlider.id = "player_timestamp_slider";
         timestampSlider.type = "range";
         timestampSlider.min = "0";
-        timestampSlider.max = "100";
+        timestampSlider.max = "1";
         timestampSlider.value = "0";
+        timestampSlider.step = "any";
+        // NOTE(kihau): This will be part of the player_controls <div/>.
         this.htmlPlayerRoot.appendChild(timestampSlider);
-
-        let playerControls = document.createElement("div");
-        playerControls.id = "player_controls";
+        this.htmlControls.timestampSlider = timestampSlider;
 
         let playToggle = document.createElement("div");
         playToggle.id = "player_play_toggle";
@@ -200,15 +276,17 @@ class Player {
         volumeSlider.id = "volume_slider";
         volumeSlider.type = "range";
         volumeSlider.min = "0";
-        volumeSlider.max = "100";
-        volumeSlider.value = "50";
+        volumeSlider.max = "1";
+        volumeSlider.value = "1";
+        volumeSlider.step = "any";
         playerControls.appendChild(volumeSlider);
         this.htmlControls.volumeSlider = volumeSlider;
 
         let timestamp = document.createElement("span");
         timestamp.id = "timestamp";
-        timestamp.textContent = "00:00 / 12:34";
+        timestamp.textContent = "00:00 / 00:00";
         playerControls.appendChild(timestamp);
+        this.htmlControls.timestamp = timestamp;
 
         let fullscreen = document.createElement("div");
         fullscreen.id = "player_fullscreen";
