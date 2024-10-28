@@ -136,8 +136,21 @@ class Player {
     }
 
     setVolume(volume) {
+        if (volume > 1.0) {
+            volume = 1.0;
+        }
+
+        if (volume < 0.0) {
+            volume = 0.0;
+        }
+
         this.htmlVideo.volume = volume;
         this.updateVolumeSlider(volume);
+    }
+
+    // TODO(kihau): Non linear scaling?
+    setVolumeRelative(volume) {
+        this.setVolume(this.htmlVideo.volume + volume)
     }
 
     destroyPlayer() {}
@@ -184,6 +197,22 @@ class Player {
         this.htmlVideo.onkeydown = (event) => {
             if (event.key == " " || event.code == "Space" || event.keyCode == 32) {
                 this.togglePlay();
+            }
+
+            if (event.key == "ArrowLeft" || event.keyCode == 37) {
+                this.seekRelative(-10);
+            }
+
+            if (event.key == "ArrowRight" || event.keyCode == 39) {
+                this.seekRelative(10);
+            }
+
+            if (event.key == "ArrowUp" || event.keyCode == 38) {
+                this.setVolumeRelative(0.1);
+            }
+
+            if (event.key == "ArrowDown" || event.keyCode == 40) {
+                this.setVolumeRelative(-0.1);
             }
         };
 
