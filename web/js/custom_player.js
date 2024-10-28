@@ -15,7 +15,7 @@ class Player {
 
         // Div container where either the player or the placeholder resides.
         this.htmlPlayerRoot = document.createElement("div");
-        this.htmlPlayerRoot.id = "player_container" + Player.containerSeed++;
+        this.htmlPlayerRoot.id = "player_container";
 
         // We actually need to append the <div> to document.body (or <video>'s parent)
         // otherwise the <video> tag will disappear entirely!
