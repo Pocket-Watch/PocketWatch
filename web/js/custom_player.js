@@ -1,11 +1,6 @@
 export { Player };
 
 class Player {
-    // guarantee uniqueness
-    static containerSeed = 0;
-    // https://developer.mozilla.org/en-US/docs/Web/API/Document/createElementNS#important_namespace_uris
-    static SVG_URI = "http://www.w3.org/2000/svg";
-
     constructor(videoElement) {
         if (!videoElement || videoElement.tagName.toLowerCase() !== "video") {
             throw new Error("An invalid video element was passed!");
@@ -42,6 +37,8 @@ class Player {
             showFullscreenButton: true,
             showSubtitlesButton: true,
             showAutoPlay: true,
+            // video.width = video.videoWidth, video.height = video.videoHeight
+            resizeToMedia: true,
         };
 
         // We could store references to images/svg/videos here for easy access
@@ -240,30 +237,32 @@ class Player {
     }
 
     initializeSvgResources() {
+        // https://developer.mozilla.org/en-US/docs/Web/API/Document/createElementNS#important_namespace_uris
+        let SVG_URI = "http://www.w3.org/2000/svg";
         // Lift and shifted
         let res = this.resources;
-        res.playSvg = document.createElementNS(Player.SVG_URI, "svg");
-        res.playUse = document.createElementNS(Player.SVG_URI, "use");
+        res.playSvg = document.createElementNS(SVG_URI, "svg");
+        res.playUse = document.createElementNS(SVG_URI, "use");
         res.playUse.setAttribute("href", "svg/player_icons.svg#play");
         res.playSvg.appendChild(res.playUse);
 
-        res.pauseSvg = document.createElementNS(Player.SVG_URI, "svg");
-        res.pauseUse = document.createElementNS(Player.SVG_URI, "use");
+        res.pauseSvg = document.createElementNS(SVG_URI, "svg");
+        res.pauseUse = document.createElementNS(SVG_URI, "use");
         res.pauseSvg.appendChild(res.pauseUse);
         res.pauseUse.setAttribute("href", "svg/player_icons.svg#pause");
 
-        res.nextSvg = document.createElementNS(Player.SVG_URI, "svg");
-        res.nextUse = document.createElementNS(Player.SVG_URI, "use");
+        res.nextSvg = document.createElementNS(SVG_URI, "svg");
+        res.nextUse = document.createElementNS(SVG_URI, "use");
         res.nextUse.setAttribute("href", "svg/player_icons.svg#next");
         res.nextSvg.appendChild(res.nextUse);
 
-        res.volumeSvg = document.createElementNS(Player.SVG_URI, "svg");
-        res.volumeUse = document.createElementNS(Player.SVG_URI, "use");
+        res.volumeSvg = document.createElementNS(SVG_URI, "svg");
+        res.volumeUse = document.createElementNS(SVG_URI, "use");
         res.volumeUse.setAttribute("href", "svg/player_icons.svg#volume");
         res.volumeSvg.appendChild(res.volumeUse);
 
-        res.fullscreenSvg = document.createElementNS(Player.SVG_URI, "svg");
-        res.fullscreenUse = document.createElementNS(Player.SVG_URI, "use");
+        res.fullscreenSvg = document.createElementNS(SVG_URI, "svg");
+        res.fullscreenUse = document.createElementNS(SVG_URI, "use");
         res.fullscreenUse.setAttribute("href", "svg/player_icons.svg#fullscreen");
         res.fullscreenSvg.appendChild(res.fullscreenUse);
     }
