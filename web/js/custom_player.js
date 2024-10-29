@@ -5,6 +5,9 @@ class Player {
         if (!videoElement || videoElement.tagName.toLowerCase() !== "video") {
             throw new Error("An invalid video element was passed!");
         }
+        if (!(options instanceof Options) || !options.valid()) {
+            options = new Options();
+        }
         this.internals = new Internals(videoElement, options)
     }
 
@@ -74,6 +77,8 @@ class Player {
 
 class Internals {
     constructor(videoElement, options) {
+        console.log("OPTIONS:", options);
+        this.options = options;
         // Corresponds to the actual html player element called either </video> or </audio>.
         this.htmlVideo = videoElement;
 
@@ -98,15 +103,6 @@ class Internals {
             settings: null,
             fullscreen: null,
         };
-
-        // instance of which can be passed on player initialization for more customizability
-        // We could then pass these options during the creation of controls or svg resource loaders
-        if (options instanceof Options && options.valid()) {
-            this.options = options
-        } else {
-            this.options = new Options()
-        }
-
 
         // We could store references to images/svg/videos here for easy access
         // TODO? IDK if we need to store references to 'use' ones
@@ -263,6 +259,10 @@ class Internals {
             this.togglePlay();
         };
 
+        this.htmlControls.fullscreen.onclick = () => {
+            // handle with Promise
+            this.htmlVideo.requestFullscreen();
+        };
         this.htmlControls.volumeSlider.oninput = (_event) => {
             let volume = this.htmlControls.volumeSlider.value;
             this.fireControlsVolumeSet(volume);
@@ -433,11 +433,17 @@ class Options {
         this.showAutoPlay = true
         // video.width = video.videoWidth, video.height = video.videoHeight
         this.resizeToMedia =  true
-        this.seekBy = 5 // arrow seeking offset
+        this.seekBy = 5 // arrow seeking offset provided in seconds
         this.hideControlsDelay = 2.5 // time in seconds before controls disappear
     }
     // Ensure values are the intended type and within some reasonable range
     valid() {
+        if (typeof this.seekBy !== "number" || this.seekBy < 0) {
+            return false
+        }
+        if (typeof this.hideControlsDelay !== "number") {
+            return false
+        }
         return true
     }
 }
