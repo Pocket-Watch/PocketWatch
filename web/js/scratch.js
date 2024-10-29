@@ -12,13 +12,17 @@ function main() {
     player1.setVideoTrack(track);
     player2.setVideoTrack(track);
 
-    player1.onControlsPlay = () => {
-        console.log("user clicked play");
-    }
+    player1.onControlsPlay(() => {
+        console.log("User clicked play.");
+    })
 
-    player1.onControlsPause = () => {
-        console.log("user clicked pause");
-    }
+    player1.onControlsPause(() => {
+        console.log("User clicked pause.");
+    })
+
+    player1.onControlsSeek(function(timestamp) {
+        console.log("User seeked to", timestamp);
+    })
 }
 
 main();

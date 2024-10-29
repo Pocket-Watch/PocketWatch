@@ -1,10 +1,79 @@
 export { Player };
 
 class Player {
-    constructor(videoElement) {
+    constructor(videoElement, options) {
         if (!videoElement || videoElement.tagName.toLowerCase() !== "video") {
             throw new Error("An invalid video element was passed!");
         }
+        this.internals = new Internals(videoElement, options)
+    }
+
+    // isVideoPlaying() {
+    //     return !this.htmlVideo.paused && !this.htmlPlayer.ended;
+    // }
+
+    play() {
+       this.internals.play()
+    }
+
+    pause() {
+        this.internals.pause()
+    }
+
+    seek(timestamp) {
+        this.internals.seek(timestamp)
+    }
+
+    setVolume(volume) {
+        this.internals.setVolume(volume)
+    }
+
+    destroyPlayer() {}
+
+    onControlsPlay(func) {
+        if (!isFunction(func)) {
+            return;
+        }
+        this.internals.fireControlsPlay = func;
+    }
+    onControlsPause(func) {
+        if (!isFunction(func)) {
+            return;
+        }
+        this.internals.fireControlsPause = func;
+    }
+    onControlsNext(func) {
+        if (!isFunction(func)) {
+            return;
+        }
+        this.internals.fireControlsNext = func;
+    }
+    onControlsSeek(func) {
+        if (!isFunction(func)) {
+            return;
+        }
+        // an anonymous function is needed to receive arguments from the underlying function
+        this.internals.fireControlsSeek = function(timestamp) {
+            func(timestamp);
+        }
+    }
+    onControlsVolumeSet(func) {
+        if (!isFunction(func)) {
+            return;
+        }
+        // an anonymous function is needed to receive arguments from the underlying function
+        this.internals.fireControlsVolumeSet = function(volume) {
+            func(volume);
+        }
+    }
+
+    setVideoTrack(url) {
+        this.internals.setVideoTrack(url)
+    }
+}
+
+class Internals {
+    constructor(videoElement, options) {
         // Corresponds to the actual html player element called either </video> or </audio>.
         this.htmlVideo = videoElement;
 
@@ -27,19 +96,14 @@ class Player {
             timestamp: null,
         };
 
-        // This should probably be a separate class for more clarity,
         // instance of which can be passed on player initialization for more customizability
-        // We could then pass these options to controls creation and svg resource loaders
-        this.options = {
-            showPlayToggleButton: true,
-            showNextButton: true,
-            showVolumeSlider: true,
-            showFullscreenButton: true,
-            showSubtitlesButton: true,
-            showAutoPlay: true,
-            // video.width = video.videoWidth, video.height = video.videoHeight
-            resizeToMedia: true,
-        };
+        // We could then pass these options during the creation of controls or svg resource loaders
+        if (options instanceof Options && options.valid()) {
+            this.options = options
+        } else {
+            this.options = new Options()
+        }
+
 
         // We could store references to images/svg/videos here for easy access
         // TODO? IDK if we need to store references to 'use' ones
@@ -61,53 +125,33 @@ class Player {
         this.attachHtmlEvents();
     }
 
-    // isVideoPlaying() {
-    //     return !this.htmlVideo.paused && !this.htmlPlayer.ended;
-    // }
+    fireControlsPlay() {}
+    fireControlsPause() {}
+    fireControlsNext() {}
+    fireControlsSeek(_timestamp) {}
+    fireControlsVolumeSet(_volume) {}
 
     play() {
         this.htmlControls.playToggleButton.getElementsByTagName("svg")[0].replaceWith(this.resources.pauseSvg);
         this.htmlVideo.play();
     }
-
     pause() {
         this.htmlControls.playToggleButton.getElementsByTagName("svg")[0].replaceWith(this.resources.playSvg);
         this.htmlVideo.pause();
     }
-
     seek(timestamp) {
         this.htmlVideo.currentTime = timestamp;
         this.updateTimestamps(timestamp);
-    }
-
-    createTimestampString(timestamp) {
-        let seconds = Math.floor(timestamp % 60.0);
-        let minutes = Math.floor(timestamp / 60.0);
-
-        let timestamp_string = ""
-        if (minutes < 10) {
-            timestamp_string += "0";
-        }
-
-        timestamp_string += minutes;
-        timestamp_string += ":";
-
-        if (seconds < 10) {
-            timestamp_string += "0";
-        }
-
-        timestamp_string += seconds;
-        return timestamp_string
     }
 
     updateTimestamps(timestamp) {
         let position = timestamp / this.htmlVideo.duration;
         this.htmlControls.timestampSlider.value = position;
 
-        let current = this.createTimestampString(this.htmlVideo.currentTime);
+        let current = createTimestampString(this.htmlVideo.currentTime);
         // NOTE(kihau): This duration string does not need to be updated every time since the duration does not change?
-        let duration = this.createTimestampString(this.htmlVideo.duration);
-        
+        let duration = createTimestampString(this.htmlVideo.duration);
+
         this.htmlControls.timestamp.textContent = current + " / " + duration;
     }
 
@@ -123,13 +167,12 @@ class Player {
         this.htmlControls.volumeSlider.value = volume;
     }
 
-    seekRelative(timeOffset) {
-        var timestamp = this.htmlVideo.currentTime + timeOffset;
+    getNewTime(timeOffset) {
+        let timestamp = this.htmlVideo.currentTime + timeOffset;
         if (timestamp < 0) {
             timestamp = 0;
         }
-
-        this.seek(timestamp);
+        return timestamp
     }
 
     setVolume(volume) {
@@ -150,20 +193,12 @@ class Player {
         this.setVolume(this.htmlVideo.volume + volume)
     }
 
-    destroyPlayer() {}
-
-    onControlsPlay() {}
-    onControlsPause() {}
-    onControlsNext() {}
-    onControlsSeek(_timestamp) {}
-    onControlsVolumeSet(_volume) {}
-
     togglePlay() {
         if (this.htmlVideo.paused) {
-            this.onControlsPlay();
+            this.fireControlsPlay();
             this.play();
         } else {
-            this.onControlsPause();
+            this.fireControlsPause();
             this.pause();
         }
     }
@@ -188,29 +223,40 @@ class Player {
         };
 
         this.htmlControls.nextButton.onclick = () => {
-            this.onControlsNext();
+            this.fireControlsNext();
         };
 
         this.htmlVideo.onkeydown = (event) => {
             if (event.key == " " || event.code == "Space" || event.keyCode == 32) {
                 this.togglePlay();
+                consumeEvent(event)
             }
 
             if (event.key == "ArrowLeft" || event.keyCode == 37) {
-                this.seekRelative(-10);
+                let timestamp = this.getNewTime(-this.options.seekBy);
+                this.fireControlsSeek(timestamp);
+                this.seek(timestamp)
+                consumeEvent(event)
             }
 
             if (event.key == "ArrowRight" || event.keyCode == 39) {
-                this.seekRelative(10);
+                // We should use options here
+                let timestamp = this.getNewTime(this.options.seekBy);
+                this.fireControlsSeek(timestamp);
+                this.seek(timestamp)
+                consumeEvent(event)
             }
 
             if (event.key == "ArrowUp" || event.keyCode == 38) {
                 this.setVolumeRelative(0.1);
+                consumeEvent(event)
             }
 
             if (event.key == "ArrowDown" || event.keyCode == 40) {
                 this.setVolumeRelative(-0.1);
+                consumeEvent(event)
             }
+
         };
 
         this.htmlVideo.onclick = (_event) => {
@@ -219,15 +265,16 @@ class Player {
 
         this.htmlControls.volumeSlider.oninput = (_event) => {
             let volume = this.htmlControls.volumeSlider.value;
-            this.onControlsVolumeSet(volume);
+            this.fireControlsVolumeSet(volume);
             this.setVolume(volume);
         };
 
         this.htmlControls.timestampSlider.oninput = (_event) => {
             let position = this.htmlControls.timestampSlider.value;
             let timestamp = this.htmlVideo.duration * position;
-            this.onControlsSeek(timestamp);
+            this.fireControlsSeek(timestamp);
             this.seek(timestamp);
+            this.htmlControls.timestampSlider.blur()
         };
 
         this.htmlVideo.ontimeupdate = (_event) => {
@@ -322,5 +369,54 @@ class Player {
         fullscreen.appendChild(this.resources.fullscreenSvg);
         playerControls.appendChild(fullscreen);
         this.htmlPlayerRoot.appendChild(playerControls);
+    }
+}
+
+function createTimestampString(timestamp) {
+    let seconds = Math.floor(timestamp % 60.0);
+    let minutes = Math.floor(timestamp / 60.0);
+
+    let timestamp_string = ""
+    if (minutes < 10) {
+        timestamp_string += "0";
+    }
+
+    timestamp_string += minutes;
+    timestamp_string += ":";
+
+    if (seconds < 10) {
+        timestamp_string += "0";
+    }
+
+    timestamp_string += seconds;
+    return timestamp_string
+}
+
+function consumeEvent(event) {
+    event.stopPropagation();
+    event.preventDefault();
+}
+
+function isFunction(func) {
+    return func != null && typeof func === "function";
+}
+
+// This is a separate class for more clarity
+class Options {
+    constructor() {
+        this.showPlayToggleButton = true
+        this.showNextButton = true
+        this.showVolumeSlider = true
+        this.showFullscreenButton = true
+        this.showSubtitlesButton = true
+        this.showAutoPlay = true
+        // video.width = video.videoWidth, video.height = video.videoHeight
+        this.resizeToMedia =  true
+        this.seekBy = 5 // arrow seeking offset
+        this.hideControlsDelay = 2.5 // time in seconds before controls disappear
+    }
+    // Ensure values are the intended type and within some reasonable range
+    valid() {
+        return true
     }
 }
