@@ -94,6 +94,9 @@ class Internals {
             volume: null,
             volumeSlider: null,
             timestamp: null,
+            subs: null,
+            settings: null,
+            fullscreen: null,
         };
 
         // instance of which can be passed on player initialization for more customizability
@@ -112,6 +115,8 @@ class Internals {
             playImg: null,
             nextImg: null,
             volumeImg: null,
+            subsImg: null,
+            settingsImg: null,
             fullscreenImg: null,
         };
 
@@ -269,7 +274,6 @@ class Internals {
             let timestamp = this.htmlVideo.duration * position;
             this.fireControlsSeek(timestamp);
             this.seek(timestamp);
-            this.htmlControls.timestampSlider.blur()
         };
 
         this.htmlVideo.ontimeupdate = (_event) => {
@@ -302,6 +306,16 @@ class Internals {
         res.volumeImg.width = 20;
         res.volumeImg.height = 20;
 
+        res.subsImg = document.createElement("img");
+        res.subsImg.src = "svg/subs.svg";
+        res.subsImg.width = 20;
+        res.subsImg.height = 20;
+
+        res.settingsImg = document.createElement("img");
+        res.settingsImg.src = "svg/settings.svg";
+        res.settingsImg.width = 20;
+        res.settingsImg.height = 20;
+
         res.fullscreenImg = document.createElement("img");
         res.fullscreenImg.src = "svg/fullscreen.svg";
         res.fullscreenImg.width = 20;
@@ -319,8 +333,7 @@ class Internals {
         timestampSlider.max = "1";
         timestampSlider.value = "0";
         timestampSlider.step = "any";
-        // NOTE(kihau): This will be part of the player_controls <div/>.
-        this.htmlPlayerRoot.appendChild(timestampSlider);
+        playerControls.appendChild(timestampSlider);
         this.htmlControls.timestampSlider = timestampSlider;
 
         let playToggle = document.createElement("div");
@@ -342,7 +355,7 @@ class Internals {
         this.htmlControls.volume = volume;
 
         let volumeSlider = document.createElement("input");
-        volumeSlider.id = "volume_slider";
+        volumeSlider.id = "player_volume_slider";
         volumeSlider.type = "range";
         volumeSlider.min = "0";
         volumeSlider.max = "1";
@@ -352,17 +365,31 @@ class Internals {
         this.htmlControls.volumeSlider = volumeSlider;
 
         let timestamp = document.createElement("span");
-        timestamp.id = "timestamp";
+        timestamp.id = "player_timestamp";
         timestamp.textContent = "00:00 / 00:00";
         playerControls.appendChild(timestamp);
         this.htmlControls.timestamp = timestamp;
 
+        let subs = document.createElement("div");
+        subs.id = "player_subs";
+        subs.appendChild(this.resources.subsImg);
+        playerControls.appendChild(subs);
+        this.htmlPlayerRoot.appendChild(playerControls);
+        this.htmlControls.subs = subs;
+
+        let settings = document.createElement("div");
+        settings.id = "player_settings";
+        settings.appendChild(this.resources.settingsImg);
+        playerControls.appendChild(settings);
+        this.htmlPlayerRoot.appendChild(playerControls);
+        this.htmlControls.settings = settings;
+
         let fullscreen = document.createElement("div");
         fullscreen.id = "player_fullscreen";
-
         fullscreen.appendChild(this.resources.fullscreenImg);
         playerControls.appendChild(fullscreen);
         this.htmlPlayerRoot.appendChild(playerControls);
+        this.htmlControls.fullscreen = fullscreen;
     }
 }
 
