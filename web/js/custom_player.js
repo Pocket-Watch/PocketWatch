@@ -108,16 +108,11 @@ class Internals {
         // We could store references to images/svg/videos here for easy access
         // TODO? IDK if we need to store references to 'use' ones
         this.resources = {
-            pauseSvg: null,
-            pauseUse: null,
-            playSvg: null,
-            playUse: null,
-            nextSvg: null,
-            nextUse: null,
-            volumeSvg: null,
-            volumeUse: null,
-            fullscreenSvg: null,
-            fullscreenUse: null,
+            pauseImg: null,
+            playImg: null,
+            nextImg: null,
+            volumeImg: null,
+            fullscreenImg: null,
         };
 
         this.initializeSvgResources();
@@ -132,11 +127,11 @@ class Internals {
     fireControlsVolumeSet(_volume) {}
 
     play() {
-        this.htmlControls.playToggleButton.getElementsByTagName("svg")[0].replaceWith(this.resources.pauseSvg);
+        this.htmlControls.playToggleButton.getElementsByTagName("img")[0].replaceWith(this.resources.pauseImg);
         this.htmlVideo.play();
     }
     pause() {
-        this.htmlControls.playToggleButton.getElementsByTagName("svg")[0].replaceWith(this.resources.playSvg);
+        this.htmlControls.playToggleButton.getElementsByTagName("img")[0].replaceWith(this.resources.playImg);
         this.htmlVideo.pause();
     }
     seek(timestamp) {
@@ -284,34 +279,33 @@ class Internals {
     }
 
     initializeSvgResources() {
-        // https://developer.mozilla.org/en-US/docs/Web/API/Document/createElementNS#important_namespace_uris
-        let SVG_URI = "http://www.w3.org/2000/svg";
         // Lift and shifted
         let res = this.resources;
-        res.playSvg = document.createElementNS(SVG_URI, "svg");
-        res.playUse = document.createElementNS(SVG_URI, "use");
-        res.playUse.setAttribute("href", "svg/player_icons.svg#play");
-        res.playSvg.appendChild(res.playUse);
 
-        res.pauseSvg = document.createElementNS(SVG_URI, "svg");
-        res.pauseUse = document.createElementNS(SVG_URI, "use");
-        res.pauseSvg.appendChild(res.pauseUse);
-        res.pauseUse.setAttribute("href", "svg/player_icons.svg#pause");
+        res.playImg = document.createElement("img");
+        res.playImg.src = "svg/play.svg";
+        res.playImg.width = 20;
+        res.playImg.height = 20;
 
-        res.nextSvg = document.createElementNS(SVG_URI, "svg");
-        res.nextUse = document.createElementNS(SVG_URI, "use");
-        res.nextUse.setAttribute("href", "svg/player_icons.svg#next");
-        res.nextSvg.appendChild(res.nextUse);
+        res.pauseImg = document.createElement("img");
+        res.pauseImg.src = "svg/pause.svg";
+        res.pauseImg.width = 20;
+        res.pauseImg.height = 20;
 
-        res.volumeSvg = document.createElementNS(SVG_URI, "svg");
-        res.volumeUse = document.createElementNS(SVG_URI, "use");
-        res.volumeUse.setAttribute("href", "svg/player_icons.svg#volume");
-        res.volumeSvg.appendChild(res.volumeUse);
+        res.nextImg = document.createElement("img");
+        res.nextImg.src = "svg/next.svg";
+        res.nextImg.width = 20;
+        res.nextImg.height = 20;
 
-        res.fullscreenSvg = document.createElementNS(SVG_URI, "svg");
-        res.fullscreenUse = document.createElementNS(SVG_URI, "use");
-        res.fullscreenUse.setAttribute("href", "svg/player_icons.svg#fullscreen");
-        res.fullscreenSvg.appendChild(res.fullscreenUse);
+        res.volumeImg = document.createElement("img");
+        res.volumeImg.src = "svg/volume.svg";
+        res.volumeImg.width = 20;
+        res.volumeImg.height = 20;
+
+        res.fullscreenImg = document.createElement("img");
+        res.fullscreenImg.src = "svg/fullscreen.svg";
+        res.fullscreenImg.width = 20;
+        res.fullscreenImg.height = 20;
     }
 
     createHtmlControls() {
@@ -331,19 +325,19 @@ class Internals {
 
         let playToggle = document.createElement("div");
         playToggle.id = "player_play_toggle";
-        playToggle.appendChild(this.resources.playSvg);
+        playToggle.appendChild(this.resources.playImg);
         playerControls.appendChild(playToggle);
         this.htmlControls.playToggleButton = playToggle;
 
         let next = document.createElement("div");
         next.id = "player_next";
-        next.appendChild(this.resources.nextSvg);
+        next.appendChild(this.resources.nextImg);
         playerControls.appendChild(next);
         this.htmlControls.nextButton = next;
 
         let volume = document.createElement("div");
         volume.id = "player_volume";
-        volume.appendChild(this.resources.volumeSvg);
+        volume.appendChild(this.resources.volumeImg);
         playerControls.appendChild(volume);
         this.htmlControls.volume = volume;
 
@@ -366,7 +360,7 @@ class Internals {
         let fullscreen = document.createElement("div");
         fullscreen.id = "player_fullscreen";
 
-        fullscreen.appendChild(this.resources.fullscreenSvg);
+        fullscreen.appendChild(this.resources.fullscreenImg);
         playerControls.appendChild(fullscreen);
         this.htmlPlayerRoot.appendChild(playerControls);
     }
