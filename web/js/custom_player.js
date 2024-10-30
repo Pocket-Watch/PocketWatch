@@ -260,7 +260,7 @@ class Internals {
         };
 
         this.htmlControls.fullscreen.onclick = () => {
-            // handle with Promise
+            // handle with Promise, it has controls on Chromium based browsers?
             this.htmlVideo.requestFullscreen();
         };
         this.htmlControls.volumeSlider.oninput = (_event) => {
@@ -290,36 +290,43 @@ class Internals {
         res.playImg.src = "svg/play.svg";
         res.playImg.width = 20;
         res.playImg.height = 20;
+        res.playImg.setAttribute("class", "unselectable");
 
         res.pauseImg = document.createElement("img");
         res.pauseImg.src = "svg/pause.svg";
         res.pauseImg.width = 20;
         res.pauseImg.height = 20;
+        res.pauseImg.setAttribute("class", "unselectable");
 
         res.nextImg = document.createElement("img");
         res.nextImg.src = "svg/next.svg";
         res.nextImg.width = 20;
         res.nextImg.height = 20;
+        res.nextImg.setAttribute("class", "unselectable");
 
         res.volumeImg = document.createElement("img");
         res.volumeImg.src = "svg/volume.svg";
         res.volumeImg.width = 20;
         res.volumeImg.height = 20;
+        res.volumeImg.setAttribute("class", "unselectable");
 
         res.subsImg = document.createElement("img");
         res.subsImg.src = "svg/subs.svg";
         res.subsImg.width = 20;
         res.subsImg.height = 20;
+        res.subsImg.setAttribute("class", "unselectable");
 
         res.settingsImg = document.createElement("img");
         res.settingsImg.src = "svg/settings.svg";
         res.settingsImg.width = 20;
         res.settingsImg.height = 20;
+        res.settingsImg.setAttribute("class", "unselectable");
 
         res.fullscreenImg = document.createElement("img");
         res.fullscreenImg.src = "svg/fullscreen.svg";
         res.fullscreenImg.width = 20;
         res.fullscreenImg.height = 20;
+        res.fullscreenImg.setAttribute("class", "unselectable");
     }
 
     createHtmlControls() {
@@ -426,7 +433,7 @@ function isFunction(func) {
 class Options {
     constructor() {
         this.showPlayToggleButton = true
-        this.showNextButton = true
+        this.showNextButton = false
         this.showVolumeSlider = true
         this.showFullscreenButton = true
         this.showSubtitlesButton = true
