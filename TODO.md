@@ -60,8 +60,23 @@
     - [ ] Implement history limit
     - [ ] Add history persistence (SQL database)
 - [ ] Custom player implementation
+    - [x] Play toggle button and custom events
+    - [x] Next button and with custom events
+    - [ ] Display player loading animation
+    - [ ] Display loading progress on timestamp slider bar
+    - [ ] Display video/audio track title.
+    - [ ] Custom options that include:
+        - [ ] Playback speed
+        - [ ] Audio source switch
+        - [ ] Video source switch
+        - [ ] Audio only mode
+    - [ ] Fullscreen support
     - [ ] Display who performed certain action (ex. seek, play, pause)
     - [ ] Subtitles support
+        - [ ] Subtitle popup menu with selection and options
+        - [ ] Option to change subtitle size
+        - [ ] Option to change subtitle color
+        - [ ] Option to change timestamp offset
     - [ ] HSL support
     - [ ] Autoplay toggle
     - [ ] Looping toggle (or dropdown with multiple looping options such as: none, single, playlist or shuffle)
