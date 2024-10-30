@@ -62,7 +62,7 @@
 - [ ] Custom player implementation
     - [x] Play toggle button and custom events
     - [x] Next button and with custom events
-    - [ ] Display player loading animation
+    - [x] Display player loading animation
     - [ ] Display loading progress on timestamp slider bar
     - [ ] Display video/audio track title.
     - [ ] Custom options that include:

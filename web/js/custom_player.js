@@ -92,6 +92,12 @@ class Internals {
         videoParent.appendChild(this.htmlPlayerRoot);
         this.htmlPlayerRoot.appendChild(this.htmlVideo);
 
+        this.htmlBuffering = document.createElement("img");
+        this.htmlBuffering.id = "player_buffering";
+        this.htmlBuffering.src = "svg/buffering.svg";
+        this.htmlBuffering.style.visibility = 'hidden';
+        this.htmlPlayerRoot.appendChild(this.htmlBuffering);
+
         this.htmlControls = {
             timestampSlider: null,
             playToggleButton: null,
@@ -257,6 +263,14 @@ class Internals {
 
         this.htmlVideo.onclick = (_event) => {
             this.togglePlay();
+        };
+
+        this.htmlVideo.onwaiting = () => {
+            this.htmlBuffering.style.visibility = 'visible';
+        };
+
+        this.htmlVideo.onplaying = () => {
+            this.htmlBuffering.style.visibility = 'hidden';
         };
 
         this.htmlControls.fullscreen.onclick = () => {
