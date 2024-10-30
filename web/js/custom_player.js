@@ -96,6 +96,7 @@ class Internals {
         this.htmlBuffering.id = "player_buffering";
         this.htmlBuffering.src = "svg/buffering.svg";
         this.htmlBuffering.style.visibility = 'hidden';
+        this.htmlBuffering.setAttribute("class", "unselectable");
         this.htmlPlayerRoot.appendChild(this.htmlBuffering);
 
         this.htmlControls = {
@@ -116,11 +117,16 @@ class Internals {
             pauseImg: null,
             playImg: null,
             nextImg: null,
-            volumeImg: null,
+            volumeImgFull: null,
+            volumeImgMedium: null,
+            volumeImgLow: null,
+            volumeImgMuted: null,
             subsImg: null,
             settingsImg: null,
             fullscreenImg: null,
         };
+
+        this.volumeBeforeMute = 0.0;
 
         this.initializeSvgResources();
         this.createHtmlControls();
@@ -157,13 +163,23 @@ class Internals {
         this.htmlControls.timestamp.textContent = current + " / " + duration;
     }
 
-    updateVolumeSlider(volume) {
+    updateHtmlVolume(volume) {
         if (volume > 1.0) {
             volume = 1.0;
         }
 
         if (volume < 0.0) {
             volume = 0.0;
+        }
+
+        if (volume == 0.0) {
+            this.htmlControls.volume.getElementsByTagName("img")[0].replaceWith(this.resources.volumeImgMuted);
+        } else if (volume < 0.3) {
+            this.htmlControls.volume.getElementsByTagName("img")[0].replaceWith(this.resources.volumeImgLow);
+        } else if (volume < 0.6) {
+            this.htmlControls.volume.getElementsByTagName("img")[0].replaceWith(this.resources.volumeImgMedium);
+        } else {
+            this.htmlControls.volume.getElementsByTagName("img")[0].replaceWith(this.resources.volumeImgFull);
         }
 
         this.htmlControls.volumeSlider.value = volume;
@@ -187,7 +203,7 @@ class Internals {
         }
 
         this.htmlVideo.volume = volume;
-        this.updateVolumeSlider(volume);
+        this.updateHtmlVolume(volume);
     }
 
     // TODO(kihau): Non linear scaling?
@@ -226,6 +242,18 @@ class Internals {
 
         this.htmlControls.nextButton.onclick = () => {
             this.fireControlsNext();
+        };
+
+
+        this.htmlControls.volume.onclick = () => {
+            if (this.htmlControls.volumeSlider.value == 0) {
+                this.fireControlsVolumeSet(this.volumeBeforeMute);
+                this.setVolume(this.volumeBeforeMute);
+            } else {
+                 this.volumeBeforeMute = this.htmlControls.volumeSlider.value;
+                this.fireControlsVolumeSet(0);
+                this.setVolume(0);
+            }
         };
 
         this.htmlVideo.onkeydown = (event) => {
@@ -318,11 +346,35 @@ class Internals {
         res.nextImg.height = 20;
         res.nextImg.setAttribute("class", "unselectable");
 
-        res.volumeImg = document.createElement("img");
-        res.volumeImg.src = "svg/volume.svg";
-        res.volumeImg.width = 20;
-        res.volumeImg.height = 20;
-        res.volumeImg.setAttribute("class", "unselectable");
+        res.loopImg = document.createElement("img");
+        res.loopImg.src = "svg/loop.svg";
+        res.loopImg.width = 20;
+        res.loopImg.height = 20;
+        res.loopImg.setAttribute("class", "unselectable");
+
+        res.volumeImgFull = document.createElement("img");
+        res.volumeImgFull.src = "svg/volume_full.svg";
+        res.volumeImgFull.width = 20;
+        res.volumeImgFull.height = 20;
+        res.volumeImgFull.setAttribute("class", "unselectable");
+
+        res.volumeImgMedium = document.createElement("img");
+        res.volumeImgMedium.src = "svg/volume_medium.svg";
+        res.volumeImgMedium.width = 20;
+        res.volumeImgMedium.height = 20;
+        res.volumeImgMedium.setAttribute("class", "unselectable");
+
+        res.volumeImgLow = document.createElement("img");
+        res.volumeImgLow.src = "svg/volume_low.svg";
+        res.volumeImgLow.width = 20;
+        res.volumeImgLow.height = 20;
+        res.volumeImgLow.setAttribute("class", "unselectable");
+
+        res.volumeImgMuted = document.createElement("img");
+        res.volumeImgMuted.src = "svg/volume_muted.svg";
+        res.volumeImgMuted.width = 20;
+        res.volumeImgMuted.height = 20;
+        res.volumeImgMuted.setAttribute("class", "unselectable");
 
         res.subsImg = document.createElement("img");
         res.subsImg.src = "svg/subs.svg";
@@ -369,9 +421,15 @@ class Internals {
         playerControls.appendChild(next);
         this.htmlControls.nextButton = next;
 
+        let loop = document.createElement("div");
+        loop.id = "player_loop";
+        loop.appendChild(this.resources.loopImg);
+        playerControls.appendChild(loop);
+        this.htmlControls.loopButton = loop;
+
         let volume = document.createElement("div");
         volume.id = "player_volume";
-        volume.appendChild(this.resources.volumeImg);
+        volume.appendChild(this.resources.volumeImgFull);
         playerControls.appendChild(volume);
         this.htmlControls.volume = volume;
 
