@@ -8,6 +8,7 @@ function main() {
     let track = "https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_640x360.m4v";
     // let track = "http://localhost:1234/watch/media/INVISIBLE.mp4";
     player1.setVideoTrack(track);
+    player1.setTitle("Big Buck Bunny");
 
     player1.onControlsPlay(() => {
         console.log("User clicked play.");

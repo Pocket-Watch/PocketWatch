@@ -8,7 +8,7 @@ class Player {
         if (!(options instanceof Options) || !options.valid()) {
             options = new Options();
         }
-        this.internals = new Internals(videoElement, options)
+        this.internals = new Internals(videoElement, options);
     }
 
     // isVideoPlaying() {
@@ -16,19 +16,23 @@ class Player {
     // }
 
     play() {
-       this.internals.play()
+        this.internals.play();
     }
 
     pause() {
-        this.internals.pause()
+        this.internals.pause();
     }
 
     seek(timestamp) {
-        this.internals.seek(timestamp)
+        this.internals.seek(timestamp);
     }
 
     setVolume(volume) {
-        this.internals.setVolume(volume)
+        this.internals.setVolume(volume);
+    }
+
+    setTitle(title) {
+        this.internals.setTitle(title);
     }
 
     destroyPlayer() {}
@@ -56,22 +60,22 @@ class Player {
             return;
         }
         // an anonymous function is needed to receive arguments from the underlying function
-        this.internals.fireControlsSeek = function(timestamp) {
+        this.internals.fireControlsSeek = function (timestamp) {
             func(timestamp);
-        }
+        };
     }
     onControlsVolumeSet(func) {
         if (!isFunction(func)) {
             return;
         }
         // an anonymous function is needed to receive arguments from the underlying function
-        this.internals.fireControlsVolumeSet = function(volume) {
+        this.internals.fireControlsVolumeSet = function (volume) {
             func(volume);
-        }
+        };
     }
 
     setVideoTrack(url) {
-        this.internals.setVideoTrack(url)
+        this.internals.setVideoTrack(url);
     }
 }
 
@@ -92,10 +96,19 @@ class Internals {
         videoParent.appendChild(this.htmlPlayerRoot);
         this.htmlPlayerRoot.appendChild(this.htmlVideo);
 
+        this.htmlTitleContainer = document.createElement("div");
+        this.htmlTitleContainer.id = "player_title_container";
+        this.htmlTitleContainer.style.visibility = "hidden";
+        this.htmlPlayerRoot.appendChild(this.htmlTitleContainer);
+
+        this.htmlTitle = document.createElement("span");
+        this.htmlTitle.id = "player_title";
+        this.htmlTitleContainer.appendChild(this.htmlTitle);
+
         this.htmlBuffering = document.createElement("img");
         this.htmlBuffering.id = "player_buffering";
         this.htmlBuffering.src = "svg/buffering.svg";
-        this.htmlBuffering.style.visibility = 'hidden';
+        this.htmlBuffering.style.visibility = "hidden";
         this.htmlBuffering.setAttribute("class", "unselectable");
         this.htmlPlayerRoot.appendChild(this.htmlBuffering);
 
@@ -145,10 +158,12 @@ class Internals {
         this.htmlControls.playToggleButton.getElementsByTagName("img")[0].replaceWith(this.resources.pauseImg);
         this.htmlVideo.play();
     }
+
     pause() {
         this.htmlControls.playToggleButton.getElementsByTagName("img")[0].replaceWith(this.resources.playImg);
         this.htmlVideo.pause();
     }
+
     seek(timestamp) {
         this.htmlVideo.currentTime = timestamp;
         this.updateTimestamps(timestamp);
@@ -198,7 +213,7 @@ class Internals {
         if (timestamp < 0) {
             timestamp = 0;
         }
-        return timestamp
+        return timestamp;
     }
 
     setVolume(volume) {
@@ -216,7 +231,16 @@ class Internals {
 
     // TODO(kihau): Non linear scaling?
     setVolumeRelative(volume) {
-        this.setVolume(this.htmlVideo.volume + volume)
+        this.setVolume(this.htmlVideo.volume + volume);
+    }
+
+    setTitle(title) {
+        if (!title) {
+            this.htmlTitleContainer.style.visibility = "hidden";
+        } else {
+            this.htmlTitleContainer.style.visibility = "visible";
+            this.htmlTitle.textContent = title;
+        }
     }
 
     togglePlay() {
@@ -252,13 +276,12 @@ class Internals {
             this.fireControlsNext();
         };
 
-
         this.htmlControls.volume.onclick = () => {
             if (this.htmlControls.volumeSlider.value == 0) {
                 this.fireControlsVolumeSet(this.volumeBeforeMute);
                 this.setVolume(this.volumeBeforeMute);
             } else {
-                 this.volumeBeforeMute = this.htmlControls.volumeSlider.value;
+                this.volumeBeforeMute = this.htmlControls.volumeSlider.value;
                 this.fireControlsVolumeSet(0);
                 this.setVolume(0);
             }
@@ -267,34 +290,33 @@ class Internals {
         this.htmlVideo.onkeydown = (event) => {
             if (event.key == " " || event.code == "Space" || event.keyCode == 32) {
                 this.togglePlay();
-                consumeEvent(event)
+                consumeEvent(event);
             }
 
             if (event.key == "ArrowLeft" || event.keyCode == 37) {
                 let timestamp = this.getNewTime(-this.options.seekBy);
                 this.fireControlsSeek(timestamp);
-                this.seek(timestamp)
-                consumeEvent(event)
+                this.seek(timestamp);
+                consumeEvent(event);
             }
 
             if (event.key == "ArrowRight" || event.keyCode == 39) {
                 // We should use options here
                 let timestamp = this.getNewTime(this.options.seekBy);
                 this.fireControlsSeek(timestamp);
-                this.seek(timestamp)
-                consumeEvent(event)
+                this.seek(timestamp);
+                consumeEvent(event);
             }
 
             if (event.key == "ArrowUp" || event.keyCode == 38) {
                 this.setVolumeRelative(0.1);
-                consumeEvent(event)
+                consumeEvent(event);
             }
 
             if (event.key == "ArrowDown" || event.keyCode == 40) {
                 this.setVolumeRelative(-0.1);
-                consumeEvent(event)
+                consumeEvent(event);
             }
-
         };
 
         this.htmlVideo.onclick = (_event) => {
@@ -302,11 +324,11 @@ class Internals {
         };
 
         this.htmlVideo.onwaiting = () => {
-            this.htmlBuffering.style.visibility = 'visible';
+            this.htmlBuffering.style.visibility = "visible";
         };
 
         this.htmlVideo.onplaying = () => {
-            this.htmlBuffering.style.visibility = 'hidden';
+            this.htmlBuffering.style.visibility = "hidden";
         };
 
         this.htmlControls.fullscreen.onclick = () => {
@@ -498,7 +520,7 @@ function createTimestampString(timestamp) {
     let seconds = Math.floor(timestamp % 60.0);
     let minutes = Math.floor(timestamp / 60.0);
 
-    let timestamp_string = ""
+    let timestamp_string = "";
     if (minutes < 10) {
         timestamp_string += "0";
     }
@@ -511,7 +533,7 @@ function createTimestampString(timestamp) {
     }
 
     timestamp_string += seconds;
-    return timestamp_string
+    return timestamp_string;
 }
 
 function consumeEvent(event) {
@@ -526,25 +548,25 @@ function isFunction(func) {
 // This is a separate class for more clarity
 class Options {
     constructor() {
-        this.showPlayToggleButton = true
-        this.showNextButton = false
-        this.showVolumeSlider = true
-        this.showFullscreenButton = true
-        this.showSubtitlesButton = true
-        this.showAutoPlay = true
+        this.showPlayToggleButton = true;
+        this.showNextButton = false;
+        this.showVolumeSlider = true;
+        this.showFullscreenButton = true;
+        this.showSubtitlesButton = true;
+        this.showAutoPlay = true;
         // video.width = video.videoWidth, video.height = video.videoHeight
-        this.resizeToMedia =  true
-        this.seekBy = 5 // arrow seeking offset provided in seconds
-        this.hideControlsDelay = 2.5 // time in seconds before controls disappear
+        this.resizeToMedia = true;
+        this.seekBy = 5; // arrow seeking offset provided in seconds
+        this.hideControlsDelay = 2.5; // time in seconds before controls disappear
     }
     // Ensure values are the intended type and within some reasonable range
     valid() {
         if (typeof this.seekBy !== "number" || this.seekBy < 0) {
-            return false
+            return false;
         }
         if (typeof this.hideControlsDelay !== "number") {
-            return false
+            return false;
         }
-        return true
+        return true;
     }
 }

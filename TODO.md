@@ -64,8 +64,8 @@
     - [x] Next button and with custom events
     - [x] Display player loading animation
     - [x] Looping toggle (or dropdown with multiple looping options such as: none, single, playlist or shuffle)
+    - [x] Display video/audio track title.
     - [ ] Display loading progress on timestamp slider bar
-    - [ ] Display video/audio track title.
     - [ ] Custom options that include:
         - [ ] Playback speed
         - [ ] Audio source switch

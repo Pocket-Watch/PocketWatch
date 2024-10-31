@@ -11,6 +11,28 @@
     object-fit: cover;
 }
 
+
+#player_title_container {
+    width: auto;
+    height: 36px;
+    /* object-fit: cover; */
+    top: 0;
+    left: 0;
+    position: absolute;
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+    margin-left: 10px;
+    background-color: rgba(128, 128, 128, 0.5);
+}
+
+
+#player_title {
+    color: white;
+    margin: 16px;
+    font-size: 16px;
+}
+
 #player_controls {
     width: 100%;
     height: 64px;
