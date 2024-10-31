@@ -128,6 +128,8 @@ class Internals {
         // We could store references to images/svg/videos here for easy access
         // TODO? IDK if we need to store references to 'use' ones
         this.resources = {
+            seekForwardImg: null,
+            seekBackwardImg: null,
             pauseImg: null,
             playImg: null,
             nextImg: null,
@@ -146,6 +148,18 @@ class Internals {
         this.initializeSvgResources();
         this.createHtmlControls();
         this.attachHtmlEvents();
+
+        this.htmlSeekForward = document.createElement("div");
+        this.htmlSeekForward.id = "player_forward_container";
+        this.htmlSeekForward.appendChild(this.resources.seekForwardImg);
+        this.htmlSeekForward.ontransitionend = () => this.htmlSeekForward.classList.remove("animate");
+        this.htmlPlayerRoot.appendChild(this.htmlSeekForward);
+
+        this.htmlSeekBackward = document.createElement("div");
+        this.htmlSeekBackward.id = "player_backward_container";
+        this.htmlSeekBackward.appendChild(this.resources.seekBackwardImg);
+        this.htmlSeekBackward.ontransitionend = () => this.htmlSeekBackward.classList.remove("animate");
+        this.htmlPlayerRoot.appendChild(this.htmlSeekBackward);
     }
 
     fireControlsPlay() {}
@@ -294,6 +308,8 @@ class Internals {
             }
 
             if (event.key == "ArrowLeft" || event.keyCode == 37) {
+                this.htmlSeekBackward.classList.add("animate");
+
                 let timestamp = this.getNewTime(-this.options.seekBy);
                 this.fireControlsSeek(timestamp);
                 this.seek(timestamp);
@@ -301,6 +317,8 @@ class Internals {
             }
 
             if (event.key == "ArrowRight" || event.keyCode == 39) {
+                this.htmlSeekForward.classList.add("animate");
+
                 // We should use options here
                 let timestamp = this.getNewTime(this.options.seekBy);
                 this.fireControlsSeek(timestamp);
@@ -357,6 +375,18 @@ class Internals {
     initializeSvgResources() {
         // Lift and shifted
         let res = this.resources;
+
+        res.seekForwardImg = document.createElement("img");
+        res.seekForwardImg.src = "svg/seek10.svg";
+        res.seekForwardImg.width = 70;
+        res.seekForwardImg.height = 70;
+        res.seekForwardImg.setAttribute("class", "unselectable");
+
+        res.seekBackwardImg = document.createElement("img");
+        res.seekBackwardImg.src = "svg/seek10.svg";
+        res.seekBackwardImg.width = 70;
+        res.seekBackwardImg.height = 70;
+        res.seekBackwardImg.setAttribute("class", "unselectable");
 
         res.playImg = document.createElement("img");
         res.playImg.src = "svg/play.svg";

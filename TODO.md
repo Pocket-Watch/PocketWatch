@@ -65,20 +65,22 @@
     - [x] Display player loading animation
     - [x] Looping toggle (or dropdown with multiple looping options such as: none, single, playlist or shuffle)
     - [x] Display video/audio track title.
+    - [x] Display seek +10/-10 on keybord arrow click.
+    - [ ] HSL support
+    - [ ] Display who performed certain action (ex. seek, play, pause)
     - [ ] Display loading progress on timestamp slider bar
+    - [ ] Perform seek only on timestamp slider drag end (fluid player behaviour)
     - [ ] Custom options that include:
         - [ ] Playback speed
         - [ ] Audio source switch
         - [ ] Video source switch
         - [ ] Audio only mode
     - [ ] Fullscreen support
-    - [ ] Display who performed certain action (ex. seek, play, pause)
     - [ ] Subtitles support
         - [ ] Subtitle popup menu with selection and options
         - [ ] Option to change subtitle size
         - [ ] Option to change subtitle color
         - [ ] Option to change timestamp offset
-    - [ ] HSL support
     - [ ] Autoplay toggle
     - [ ] Skip/Remove entries that fail to load on the client side
 - [ ] On first website load, indicate to the user that autoplay policy is disabled and manual action is required in order to play the video.
