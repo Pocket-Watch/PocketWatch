@@ -106,6 +106,7 @@ class Internals {
             volume: null,
             volumeSlider: null,
             timestamp: null,
+            download: null,
             subs: null,
             settings: null,
             fullscreen: null,
@@ -121,6 +122,7 @@ class Internals {
             volumeImgMedium: null,
             volumeImgLow: null,
             volumeImgMuted: null,
+            downloadImg: null,
             subsImg: null,
             settingsImg: null,
             fullscreenImg: null,
@@ -153,14 +155,20 @@ class Internals {
     }
 
     updateTimestamps(timestamp) {
-        let position = timestamp / this.htmlVideo.duration;
-        this.htmlControls.timestampSlider.value = position;
+        let duration = 0.0;
+        if (isNaN(this.htmlVideo.duration) || this.htmlVideo.duration === 0.0) {
+            this.htmlControls.timestampSlider.value = 0.0;
+        } else {
+            duration = this.htmlVideo.duration;
+            let position = timestamp / duration;
+            this.htmlControls.timestampSlider.value = position;
+        }
 
-        let current = createTimestampString(this.htmlVideo.currentTime);
+        let current_string = createTimestampString(this.htmlVideo.currentTime);
         // NOTE(kihau): This duration string does not need to be updated every time since the duration does not change?
-        let duration = createTimestampString(this.htmlVideo.duration);
+        let duration_string = createTimestampString(duration);
 
-        this.htmlControls.timestamp.textContent = current + " / " + duration;
+        this.htmlControls.timestamp.textContent = current_string + " / " + duration_string;
     }
 
     updateHtmlVolume(volume) {
@@ -376,6 +384,12 @@ class Internals {
         res.volumeImgMuted.height = 20;
         res.volumeImgMuted.setAttribute("class", "unselectable");
 
+        res.downloadImg = document.createElement("img");
+        res.downloadImg.src = "svg/download.svg";
+        res.downloadImg.width = 20;
+        res.downloadImg.height = 20;
+        res.downloadImg.setAttribute("class", "unselectable");
+
         res.subsImg = document.createElement("img");
         res.subsImg.src = "svg/subs.svg";
         res.subsImg.width = 20;
@@ -448,6 +462,13 @@ class Internals {
         timestamp.textContent = "00:00 / 00:00";
         playerControls.appendChild(timestamp);
         this.htmlControls.timestamp = timestamp;
+
+        let download = document.createElement("div");
+        download.id = "player_download";
+        download.appendChild(this.resources.downloadImg);
+        playerControls.appendChild(download);
+        this.htmlPlayerRoot.appendChild(playerControls);
+        this.htmlControls.download = download;
 
         let subs = document.createElement("div");
         subs.id = "player_subs";
