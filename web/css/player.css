@@ -203,17 +203,15 @@
 }
 
 #player_buffering {
-    width: 200px;
-    height: 200px;
-    top: 0; 
-    left: 0; 
-    right: 0; 
-    bottom: 0; 
-    position: absolute; 
+    width: 150px;
+    height: 150px;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    position: absolute;
     margin: auto;
     animation: spin 4s linear infinite;
-    -webkit-animation: spin 4s linear infinite;
-    -moz-animation: spin 4s linear infinite;
 }
 
 @keyframes spin {
@@ -222,8 +220,6 @@
 
 .unselectable {
     user-select: none;
-    -moz-user-select: none;
     -webkit-user-drag: none;
-    -webkit-user-select: none;
-    -ms-user-select: none;
 }
+
