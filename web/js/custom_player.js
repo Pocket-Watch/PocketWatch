@@ -412,6 +412,7 @@ class Internals {
     createHtmlControls() {
         let playerControls = document.createElement("div");
         playerControls.id = "player_controls";
+        playerControls.setAttribute("ondragstart", "return false");
 
         let timestampSlider = document.createElement("input");
         timestampSlider.id = "player_timestamp_slider";
