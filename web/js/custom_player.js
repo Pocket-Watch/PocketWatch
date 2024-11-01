@@ -35,7 +35,7 @@ class Player {
         this.internals.setTitle(title);
     }
 
-    destroyPlayer() {}
+    destroyPlayer() { }
 
     onControlsPlay(func) {
         if (!isFunction(func)) {
@@ -60,7 +60,7 @@ class Player {
             return;
         }
         // an anonymous function is needed to receive arguments from the underlying function
-        this.internals.fireControlsSeek = function (timestamp) {
+        this.internals.fireControlsSeek = function(timestamp) {
             func(timestamp);
         };
     }
@@ -69,7 +69,7 @@ class Player {
             return;
         }
         // an anonymous function is needed to receive arguments from the underlying function
-        this.internals.fireControlsVolumeSet = function (volume) {
+        this.internals.fireControlsVolumeSet = function(volume) {
             func(volume);
         };
     }
@@ -152,21 +152,21 @@ class Internals {
         this.htmlSeekForward = document.createElement("div");
         this.htmlSeekForward.id = "player_forward_container";
         this.htmlSeekForward.appendChild(this.resources.seekForwardImg);
-        this.htmlSeekForward.ontransitionend = () => this.htmlSeekForward.classList.remove("animate");
+        this.htmlSeekForward.addEventListener('transitionend', () => this.htmlSeekForward.classList.remove("animate"));
         this.htmlPlayerRoot.appendChild(this.htmlSeekForward);
 
         this.htmlSeekBackward = document.createElement("div");
         this.htmlSeekBackward.id = "player_backward_container";
         this.htmlSeekBackward.appendChild(this.resources.seekBackwardImg);
-        this.htmlSeekBackward.ontransitionend = () => this.htmlSeekBackward.classList.remove("animate");
+        this.htmlSeekBackward.addEventListener('transitionend', () => this.htmlSeekBackward.classList.remove("animate"));
         this.htmlPlayerRoot.appendChild(this.htmlSeekBackward);
     }
 
-    fireControlsPlay() {}
-    fireControlsPause() {}
-    fireControlsNext() {}
-    fireControlsSeek(_timestamp) {}
-    fireControlsVolumeSet(_volume) {}
+    fireControlsPlay() { }
+    fireControlsPause() { }
+    fireControlsNext() { }
+    fireControlsSeek(_timestamp) { }
+    fireControlsVolumeSet(_volume) { }
 
     play() {
         this.htmlControls.playToggleButton.getElementsByTagName("img")[0].replaceWith(this.resources.pauseImg);
@@ -282,15 +282,15 @@ class Internals {
     }
 
     attachHtmlEvents() {
-        this.htmlControls.playToggleButton.onclick = () => {
+        this.htmlControls.playToggleButton.addEventListener('click', () => {
             this.togglePlay();
-        };
+        });
 
-        this.htmlControls.nextButton.onclick = () => {
+        this.htmlControls.nextButton.addEventListener('click', () => {
             this.fireControlsNext();
-        };
+        });
 
-        this.htmlControls.volume.onclick = () => {
+        this.htmlControls.volume.addEventListener('click', () => {
             if (this.htmlControls.volumeSlider.value == 0) {
                 this.fireControlsVolumeSet(this.volumeBeforeMute);
                 this.setVolume(this.volumeBeforeMute);
@@ -299,9 +299,9 @@ class Internals {
                 this.fireControlsVolumeSet(0);
                 this.setVolume(0);
             }
-        };
+        });
 
-        this.htmlVideo.onkeydown = (event) => {
+        this.htmlVideo.addEventListener('keydown', (event) => {
             if (event.key == " " || event.code == "Space" || event.keyCode == 32) {
                 this.togglePlay();
                 consumeEvent(event);
@@ -335,41 +335,44 @@ class Internals {
                 this.setVolumeRelative(-0.1);
                 consumeEvent(event);
             }
-        };
+        });
 
-        this.htmlVideo.onclick = (_event) => {
+        this.htmlVideo.addEventListener('click', (_event) => {
             this.togglePlay();
-        };
+        });
 
-        this.htmlVideo.onwaiting = () => {
-            this.htmlBuffering.style.visibility = "visible";
-        };
+        this.htmlVideo.addEventListener("waiting", () => {
+            this.bufferingTimeoutId = setTimeout(() => {
+                this.htmlBuffering.style.visibility = "visible";
+            }, 200);
+        });
 
-        this.htmlVideo.onplaying = () => {
+        this.htmlVideo.addEventListener("playing", () => {
+            clearTimeout(this.bufferingTimeoutId);
             this.htmlBuffering.style.visibility = "hidden";
-        };
+        });
 
-        this.htmlControls.fullscreen.onclick = () => {
+        this.htmlControls.fullscreen.addEventListener('click', () => {
             // handle with Promise, it has controls on Chromium based browsers?
             this.htmlVideo.requestFullscreen();
-        };
-        this.htmlControls.volumeSlider.oninput = (_event) => {
+        });
+        this.htmlControls.volumeSlider.addEventListener('input', (_event) => {
             let volume = this.htmlControls.volumeSlider.value;
             this.fireControlsVolumeSet(volume);
             this.setVolume(volume);
-        };
+        });
 
-        this.htmlControls.timestampSlider.oninput = (_event) => {
+        this.htmlControls.timestampSlider.addEventListener('input', (_event) => {
             let position = this.htmlControls.timestampSlider.value;
             let timestamp = this.htmlVideo.duration * position;
             this.fireControlsSeek(timestamp);
             this.seek(timestamp);
-        };
+        });
 
-        this.htmlVideo.ontimeupdate = (_event) => {
+        this.htmlVideo.addEventListener('timeupdate', (_event) => {
             let timestamp = this.htmlVideo.currentTime;
             this.updateTimestamps(timestamp);
-        };
+        });
     }
 
     initializeSvgResources() {

@@ -65,7 +65,12 @@
     - [x] Display player loading animation
     - [x] Looping toggle (or dropdown with multiple looping options such as: none, single, playlist or shuffle)
     - [x] Display video/audio track title.
-    - [x] Display seek +10/-10 on keybord arrow click.
+    - [ ] Auto-hide player UI
+    - [ ] Seek arrow and double click indicator:
+        - [x] Display seek +10/-10 on keybord arrow click
+        - [ ] Perform seeks screen double tap
+        - [ ] Display variable seek indicator number on arrow press or screen double tap
+        - [ ] Seek indicator value stacking
     - [ ] HSL support
     - [ ] Display who performed certain action (ex. seek, play, pause)
     - [ ] Display loading progress on timestamp slider bar
