@@ -1,4 +1,4 @@
-export { Player };
+export { Player, Options };
 
 class Player {
     constructor(videoElement, options) {
@@ -167,6 +167,7 @@ class Internals {
         this.attachHtmlEvents();
     }
 
+
     fireControlsPlay() { }
     fireControlsPause() { }
     fireControlsNext() { }
@@ -307,8 +308,8 @@ class Internals {
     resetPlayerUIHideTimeout() {
         clearTimeout(this.playerUIHideTimeoutID);
         this.playerUIHideTimeoutID = setTimeout(() => {
-            this.hidePlayerUI();
-        }, this.options.hideControlsInactivity);
+            this.hidePlayerUI()
+        }, this.options.inactivityTime);
     }
 
     attachHtmlEvents() {
@@ -545,24 +546,28 @@ class Internals {
         let playToggle = document.createElement("div");
         playToggle.id = "player_play_toggle";
         playToggle.appendChild(this.resources.playImg);
+        playToggle.style.display = this.options.hidePlayToggleButton ? "none" : "";
         playerControls.appendChild(playToggle);
         this.htmlControls.playToggleButton = playToggle;
 
         let next = document.createElement("div");
         next.id = "player_next";
         next.appendChild(this.resources.nextImg);
+        next.style.display = this.options.hideNextButton ? "none" : "";
         playerControls.appendChild(next);
         this.htmlControls.nextButton = next;
 
         let loop = document.createElement("div");
         loop.id = "player_loop";
         loop.appendChild(this.resources.loopImg);
+        loop.style.display = this.options.hideLoopingButton ? "none" : "";
         playerControls.appendChild(loop);
         this.htmlControls.loopButton = loop;
 
         let volume = document.createElement("div");
         volume.id = "player_volume";
         volume.appendChild(this.resources.volumeImgFull);
+        volume.style.display = this.options.hideVolumeButton ? "none" : "";
         playerControls.appendChild(volume);
         this.htmlControls.volume = volume;
 
@@ -573,18 +578,29 @@ class Internals {
         volumeSlider.max = "1";
         volumeSlider.value = "1";
         volumeSlider.step = "any";
+        volumeSlider.style.display = this.options.hideVolumeSlider ? "none" : "";
         playerControls.appendChild(volumeSlider);
         this.htmlControls.volumeSlider = volumeSlider;
 
         let timestamp = document.createElement("span");
         timestamp.id = "player_timestamp";
         timestamp.textContent = "00:00 / 00:00";
+        timestamp.style.display = this.options.hideTimestamps ? "none" : "";
         playerControls.appendChild(timestamp);
         this.htmlControls.timestamp = timestamp;
+
+        let firstAutoMargin = true;
 
         let download = document.createElement("div");
         download.id = "player_download";
         download.appendChild(this.resources.downloadImg);
+        if (this.options.hideDownloadButton) {
+            download.style.display = "none";
+        } else {
+            download.style.marginLeft = firstAutoMargin ? "auto" : "0";
+            firstAutoMargin = false;
+        }
+
         playerControls.appendChild(download);
         this.htmlPlayerRoot.appendChild(playerControls);
         this.htmlControls.download = download;
@@ -592,6 +608,12 @@ class Internals {
         let subs = document.createElement("div");
         subs.id = "player_subs";
         subs.appendChild(this.resources.subsImg);
+        if (this.options.hideSubtitlesButton) {
+            subs.style.display = "none";
+        } else {
+            subs.style.marginLeft = firstAutoMargin ? "auto" : "0";
+            firstAutoMargin = false;
+        }
         playerControls.appendChild(subs);
         this.htmlPlayerRoot.appendChild(playerControls);
         this.htmlControls.subs = subs;
@@ -599,6 +621,12 @@ class Internals {
         let settings = document.createElement("div");
         settings.id = "player_settings";
         settings.appendChild(this.resources.settingsImg);
+        if (this.options.hideSettingsButton) {
+            settings.style.display = "none";
+        } else {
+            settings.style.marginLeft = firstAutoMargin ? "auto" : "0";
+            firstAutoMargin = false;
+        }
         playerControls.appendChild(settings);
         this.htmlPlayerRoot.appendChild(playerControls);
         this.htmlControls.settings = settings;
@@ -606,6 +634,11 @@ class Internals {
         let fullscreen = document.createElement("div");
         fullscreen.id = "player_fullscreen";
         fullscreen.appendChild(this.resources.fullscreenImg);
+        if (this.options.hideFullscreenButton) {
+            fullscreen.style.display = "none";
+        } else {
+            fullscreen.style.marginLeft = firstAutoMargin ? "auto" : "0";
+        }
         playerControls.appendChild(fullscreen);
         this.htmlPlayerRoot.appendChild(playerControls);
         this.htmlControls.fullscreen = fullscreen;
@@ -644,18 +677,25 @@ function isFunction(func) {
 // This is a separate class for more clarity
 class Options {
     constructor() {
-        this.showPlayToggleButton = true;
-        this.showNextButton = false;
-        this.showVolumeSlider = true;
-        this.showFullscreenButton = true;
-        this.showSubtitlesButton = true;
-        this.showAutoPlay = true;
+        this.hidePlayToggleButton = false;
+        this.hideNextButton = false;
+        this.hideLoopingButton = false;
+        this.hideVolumeButton = false;
+        this.hideVolumeSlider = false;
+        this.hideTimestamps = false;
+        this.hideDownloadButton = false;
+        this.hideSubtitlesButton = false;
+        this.hideSettingsButton = false;
+        this.hideFullscreenButton = false;
+
         // video.width = video.videoWidth, video.height = video.videoHeight
         this.resizeToMedia = true;
-        this.seekBy = 5; // arrow seeking offset provided in seconds
 
-        // Time in miliseconds before controls disappear.
-        this.hideControlsInactivity = 2500;
+        // [Arrow keys/Double tap] seeking offset provided in seconds.
+        this.seekBy = 5;
+
+        // Delay in milliseconds before controls disappear.
+        this.inactivityTime = 2500;
     }
 
     // Ensure values are the intended type and within some reasonable range
@@ -663,8 +703,23 @@ class Options {
         if (typeof this.seekBy !== "number" || this.seekBy < 0) {
             return false;
         }
-        if (typeof this.hideControlsDelay !== "number") {
+        if (typeof this.inactivityTime !== "number" || this.inactivityTime < 0) {
             return false;
+        }
+        if (!this.areAllBooleans(
+            this.hidePlayToggleButton, this.hideNextButton, this.hideLoopingButton,
+            this.hideVolumeButton, this.hideVolumeSlider, this.hideTimestamps, this.hideDownloadButton,
+            this.hideSubtitlesButton, this.hideSettingsButton, this.hideFullscreenButton)) {
+            console.debug("Visibility flags are not all booleans!")
+            return false;
+        }
+        return true;
+    }
+    areAllBooleans(...variables) {
+        for (let i = 0; i < variables.length; i++) {
+            if (typeof variables[i] != "boolean") {
+                return false;
+            }
         }
         return true;
     }
