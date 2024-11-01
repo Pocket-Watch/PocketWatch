@@ -66,8 +66,12 @@
     - [x] Looping toggle (or dropdown with multiple looping options such as: none, single, playlist or shuffle)
     - [x] Display video/audio track title.
     - [ ] Auto-hide player UI
+        - [x] Show/Hide elements when mouse enters/leaves the player area
+        - [ ] Add support for touchscreen devices
+        - [ ] Do not hide player elements when playback is paused?
+        - [ ] Do not hide elements when mouse cursor is hovering over player controls?
     - [ ] Seek arrow and double click indicator:
-        - [x] Display seek +10/-10 on keybord arrow click
+        - [x] Display seek +10/-10 on keyboard arrow click
         - [ ] Perform seeks screen double tap
         - [ ] Display variable seek indicator number on arrow press or screen double tap
         - [ ] Seek indicator value stacking

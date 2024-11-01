@@ -43,18 +43,21 @@ class Player {
         }
         this.internals.fireControlsPlay = func;
     }
+
     onControlsPause(func) {
         if (!isFunction(func)) {
             return;
         }
         this.internals.fireControlsPause = func;
     }
+
     onControlsNext(func) {
         if (!isFunction(func)) {
             return;
         }
         this.internals.fireControlsNext = func;
     }
+
     onControlsSeek(func) {
         if (!isFunction(func)) {
             return;
@@ -64,6 +67,7 @@ class Player {
             func(timestamp);
         };
     }
+
     onControlsVolumeSet(func) {
         if (!isFunction(func)) {
             return;
@@ -113,6 +117,7 @@ class Internals {
         this.htmlPlayerRoot.appendChild(this.htmlBuffering);
 
         this.htmlControls = {
+            root: null,
             timestampSlider: null,
             playToggleButton: null,
             nextButton: null,
@@ -147,19 +152,19 @@ class Internals {
 
         this.initializeSvgResources();
         this.createHtmlControls();
-        this.attachHtmlEvents();
 
+        // Werid
         this.htmlSeekForward = document.createElement("div");
         this.htmlSeekForward.id = "player_forward_container";
         this.htmlSeekForward.appendChild(this.resources.seekForwardImg);
-        this.htmlSeekForward.addEventListener('transitionend', () => this.htmlSeekForward.classList.remove("animate"));
         this.htmlPlayerRoot.appendChild(this.htmlSeekForward);
 
         this.htmlSeekBackward = document.createElement("div");
         this.htmlSeekBackward.id = "player_backward_container";
         this.htmlSeekBackward.appendChild(this.resources.seekBackwardImg);
-        this.htmlSeekBackward.addEventListener('transitionend', () => this.htmlSeekBackward.classList.remove("animate"));
         this.htmlPlayerRoot.appendChild(this.htmlSeekBackward);
+
+        this.attachHtmlEvents();
     }
 
     fireControlsPlay() { }
@@ -281,7 +286,56 @@ class Internals {
         this.htmlVideo.load();
     }
 
+    showPlayerUI() {
+        this.htmlVideo.style.cursor = "auto";
+        this.htmlControls.root.classList.remove("player_fade_out");
+        this.htmlControls.root.classList.add("player_fade_in");
+
+        this.htmlTitleContainer.classList.remove("player_fade_out");
+        this.htmlTitleContainer.classList.add("player_fade_in");
+    }
+
+    hidePlayerUI() {
+        this.htmlVideo.style.cursor = "none";
+        this.htmlControls.root.classList.remove("player_fade_in");
+        this.htmlControls.root.classList.add("player_fade_out");
+
+        this.htmlTitleContainer.classList.remove("player_fade_in");
+        this.htmlTitleContainer.classList.add("player_fade_out");
+    }
+
+    resetPlayerUIHideTimeout() {
+        clearTimeout(this.playerUIHideTimeoutID);
+        this.playerUIHideTimeoutID = setTimeout(() => {
+            this.hidePlayerUI();
+        }, this.options.hideControlsInactivity);
+    }
+
     attachHtmlEvents() {
+        this.htmlPlayerRoot.addEventListener('mousemove', () => {
+            this.showPlayerUI();
+            this.resetPlayerUIHideTimeout();
+        });
+
+        this.htmlPlayerRoot.addEventListener('mousedown', () => {
+            this.showPlayerUI();
+            this.resetPlayerUIHideTimeout();
+        });
+
+        this.htmlPlayerRoot.addEventListener('mouseup', () => {
+            this.showPlayerUI();
+            this.resetPlayerUIHideTimeout();
+        });
+
+        this.htmlPlayerRoot.addEventListener('mouseenter', () => {
+            this.showPlayerUI();
+            this.resetPlayerUIHideTimeout();
+        });
+
+        this.htmlPlayerRoot.addEventListener('mouseleave', () => {
+            this.hidePlayerUI();
+        });
+
         this.htmlControls.playToggleButton.addEventListener('click', () => {
             this.togglePlay();
         });
@@ -372,6 +426,14 @@ class Internals {
         this.htmlVideo.addEventListener('timeupdate', (_event) => {
             let timestamp = this.htmlVideo.currentTime;
             this.updateTimestamps(timestamp);
+        });
+
+        this.htmlSeekBackward.addEventListener('transitionend', () => { 
+            this.htmlSeekBackward.classList.remove("animate") 
+        });
+
+        this.htmlSeekForward.addEventListener('transitionend', () => {
+            this.htmlSeekForward.classList.remove("animate");
         });
     }
 
@@ -468,6 +530,7 @@ class Internals {
         let playerControls = document.createElement("div");
         playerControls.id = "player_controls";
         playerControls.setAttribute("ondragstart", "return false");
+        this.htmlControls.root = playerControls;
 
         let timestampSlider = document.createElement("input");
         timestampSlider.id = "player_timestamp_slider";
@@ -590,8 +653,11 @@ class Options {
         // video.width = video.videoWidth, video.height = video.videoHeight
         this.resizeToMedia = true;
         this.seekBy = 5; // arrow seeking offset provided in seconds
-        this.hideControlsDelay = 2.5; // time in seconds before controls disappear
+
+        // Time in miliseconds before controls disappear.
+        this.hideControlsInactivity = 2500;
     }
+
     // Ensure values are the intended type and within some reasonable range
     valid() {
         if (typeof this.seekBy !== "number" || this.seekBy < 0) {

@@ -1,3 +1,15 @@
+.player_fade_out {
+    visibility: hidden;
+    opacity: 0;
+    transition: visibility 0.6s, opacity 0.6s;
+}
+
+.player_fade_in {
+    visibility: visible;
+    opacity: 1;
+    transition: visibility 0.3s, opacity 0.3s;
+}
+
 #player_container {
     position: relative;
     width: 100%;
