@@ -158,6 +158,7 @@ class Internals {
             fullscreenImg: null,
         };
 
+        this.isDraggingTimestampSlider = false;
         this.volumeBeforeMute = 0.0;
 
         this.initializeSvgResources();
@@ -197,16 +198,18 @@ class Internals {
 
     seek(timestamp) {
         this.htmlVideo.currentTime = timestamp;
-        this.updateTimestamps(timestamp);
     }
 
     updateTimestamps(timestamp) {
         let duration = 0.0;
-        if (isNaN(this.htmlVideo.duration) || this.htmlVideo.duration === 0.0) {
-            this.htmlControls.timestampSlider.value = 0.0;
-        } else {
+        let position = 0.0;
+
+        if (!isNaN(this.htmlVideo.duration) && this.htmlVideo.duration !== 0.0) {
             duration = this.htmlVideo.duration;
-            let position = timestamp / duration;
+            position = timestamp / duration;
+        }  
+
+        if (!this.isDraggingTimestampSlider) {
             this.htmlControls.timestampSlider.value = position;
         }
 
@@ -429,13 +432,16 @@ class Internals {
         });
 
         this.htmlControls.timestampSlider.addEventListener('input', (_event) => {
+            this.isDraggingTimestampSlider = true;
+
             let position = this.htmlControls.timestampSlider.value;
             let timestamp = this.htmlVideo.duration * position;
             this.fireControlsSeeking(timestamp);
-            this.seek(timestamp);
         });
 
         this.htmlControls.timestampSlider.addEventListener('change', (_event) => {
+            this.isDraggingTimestampSlider = false;
+
             let position = this.htmlControls.timestampSlider.value;
             let timestamp = this.htmlVideo.duration * position;
             this.fireControlsSeeked(timestamp);
