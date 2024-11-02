@@ -22,8 +22,12 @@ function main() {
         console.log("User clicked pause.");
     })
 
-    player.onControlsSeek(function(timestamp) {
+    player.onControlsSeeked(function(timestamp) {
         console.log("User seeked to", timestamp);
+    })
+
+    player.onControlsSeeking(function(timestamp) {
+        console.log("User seeking to", timestamp);
     })
 }
 

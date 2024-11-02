@@ -58,12 +58,22 @@ class Player {
         this.internals.fireControlsNext = func;
     }
 
-    onControlsSeek(func) {
+    onControlsSeeking(func) {
         if (!isFunction(func)) {
             return;
         }
         // an anonymous function is needed to receive arguments from the underlying function
-        this.internals.fireControlsSeek = function(timestamp) {
+        this.internals.fireControlsSeeking = function(timestamp) {
+            func(timestamp);
+        };
+    }
+
+    onControlsSeeked(func) {
+        if (!isFunction(func)) {
+            return;
+        }
+        // an anonymous function is needed to receive arguments from the underlying function
+        this.internals.fireControlsSeeked = function(timestamp) {
             func(timestamp);
         };
     }
@@ -171,7 +181,8 @@ class Internals {
     fireControlsPlay() { }
     fireControlsPause() { }
     fireControlsNext() { }
-    fireControlsSeek(_timestamp) { }
+    fireControlsSeeking(_timestamp) { }
+    fireControlsSeeked(_timestamp) { }
     fireControlsVolumeSet(_volume) { }
 
     play() {
@@ -366,7 +377,7 @@ class Internals {
                 this.htmlSeekBackward.classList.add("animate");
 
                 let timestamp = this.getNewTime(-this.options.seekBy);
-                this.fireControlsSeek(timestamp);
+                this.fireControlsSeeked(timestamp);
                 this.seek(timestamp);
                 consumeEvent(event);
             }
@@ -376,7 +387,7 @@ class Internals {
 
                 // We should use options here
                 let timestamp = this.getNewTime(this.options.seekBy);
-                this.fireControlsSeek(timestamp);
+                this.fireControlsSeeked(timestamp);
                 this.seek(timestamp);
                 consumeEvent(event);
             }
@@ -420,7 +431,14 @@ class Internals {
         this.htmlControls.timestampSlider.addEventListener('input', (_event) => {
             let position = this.htmlControls.timestampSlider.value;
             let timestamp = this.htmlVideo.duration * position;
-            this.fireControlsSeek(timestamp);
+            this.fireControlsSeeking(timestamp);
+            this.seek(timestamp);
+        });
+
+        this.htmlControls.timestampSlider.addEventListener('change', (_event) => {
+            let position = this.htmlControls.timestampSlider.value;
+            let timestamp = this.htmlVideo.duration * position;
+            this.fireControlsSeeked(timestamp);
             this.seek(timestamp);
         });
 
