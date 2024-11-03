@@ -454,92 +454,31 @@ class Internals {
     }
 
     initializeSvgResources() {
-        // Lift and shifted
         let res = this.resources;
 
-        res.seekForwardImg = document.createElement("img");
-        res.seekForwardImg.src = "svg/seek10.svg";
-        res.seekForwardImg.width = 70;
-        res.seekForwardImg.height = 70;
-        res.seekForwardImg.setAttribute("class", "unselectable");
+        res.seekForwardImg = this.createImgElementWithSrc("svg/seek10.svg", 70, 70)
+        res.seekBackwardImg = this.createImgElementWithSrc("svg/seek10.svg", 70, 70)
+        res.playImg = this.createImgElementWithSrc("svg/play.svg", 20, 20)
+        res.pauseImg = this.createImgElementWithSrc("svg/pause.svg", 20, 20)
+        res.nextImg = this.createImgElementWithSrc("svg/next.svg", 20, 20)
+        res.loopImg = this.createImgElementWithSrc("svg/loop.svg", 20, 20)
+        res.volumeImgFull = this.createImgElementWithSrc("svg/volume_full.svg", 20, 20)
+        res.volumeImgMedium = this.createImgElementWithSrc("svg/volume_medium.svg", 20, 20)
+        res.volumeImgLow = this.createImgElementWithSrc("svg/volume_low.svg", 20, 20)
+        res.volumeImgMuted = this.createImgElementWithSrc("svg/volume_muted.svg", 20, 20)
+        res.downloadImg = this.createImgElementWithSrc("svg/download.svg", 20, 20)
+        res.subsImg = this.createImgElementWithSrc("svg/subs.svg", 20, 20)
+        res.settingsImg = this.createImgElementWithSrc("svg/settings.svg", 20, 20)
+        res.fullscreenImg = this.createImgElementWithSrc("svg/fullscreen.svg", 20, 20)
+    }
 
-        res.seekBackwardImg = document.createElement("img");
-        res.seekBackwardImg.src = "svg/seek10.svg";
-        res.seekBackwardImg.width = 70;
-        res.seekBackwardImg.height = 70;
-        res.seekBackwardImg.setAttribute("class", "unselectable");
-
-        res.playImg = document.createElement("img");
-        res.playImg.src = "svg/play.svg";
-        res.playImg.width = 20;
-        res.playImg.height = 20;
-        res.playImg.setAttribute("class", "unselectable");
-
-        res.pauseImg = document.createElement("img");
-        res.pauseImg.src = "svg/pause.svg";
-        res.pauseImg.width = 20;
-        res.pauseImg.height = 20;
-        res.pauseImg.setAttribute("class", "unselectable");
-
-        res.nextImg = document.createElement("img");
-        res.nextImg.src = "svg/next.svg";
-        res.nextImg.width = 20;
-        res.nextImg.height = 20;
-        res.nextImg.setAttribute("class", "unselectable");
-
-        res.loopImg = document.createElement("img");
-        res.loopImg.src = "svg/loop.svg";
-        res.loopImg.width = 20;
-        res.loopImg.height = 20;
-        res.loopImg.setAttribute("class", "unselectable");
-
-        res.volumeImgFull = document.createElement("img");
-        res.volumeImgFull.src = "svg/volume_full.svg";
-        res.volumeImgFull.width = 20;
-        res.volumeImgFull.height = 20;
-        res.volumeImgFull.setAttribute("class", "unselectable");
-
-        res.volumeImgMedium = document.createElement("img");
-        res.volumeImgMedium.src = "svg/volume_medium.svg";
-        res.volumeImgMedium.width = 20;
-        res.volumeImgMedium.height = 20;
-        res.volumeImgMedium.setAttribute("class", "unselectable");
-
-        res.volumeImgLow = document.createElement("img");
-        res.volumeImgLow.src = "svg/volume_low.svg";
-        res.volumeImgLow.width = 20;
-        res.volumeImgLow.height = 20;
-        res.volumeImgLow.setAttribute("class", "unselectable");
-
-        res.volumeImgMuted = document.createElement("img");
-        res.volumeImgMuted.src = "svg/volume_muted.svg";
-        res.volumeImgMuted.width = 20;
-        res.volumeImgMuted.height = 20;
-        res.volumeImgMuted.setAttribute("class", "unselectable");
-
-        res.downloadImg = document.createElement("img");
-        res.downloadImg.src = "svg/download.svg";
-        res.downloadImg.width = 20;
-        res.downloadImg.height = 20;
-        res.downloadImg.setAttribute("class", "unselectable");
-
-        res.subsImg = document.createElement("img");
-        res.subsImg.src = "svg/subs.svg";
-        res.subsImg.width = 20;
-        res.subsImg.height = 20;
-        res.subsImg.setAttribute("class", "unselectable");
-
-        res.settingsImg = document.createElement("img");
-        res.settingsImg.src = "svg/settings.svg";
-        res.settingsImg.width = 20;
-        res.settingsImg.height = 20;
-        res.settingsImg.setAttribute("class", "unselectable");
-
-        res.fullscreenImg = document.createElement("img");
-        res.fullscreenImg.src = "svg/fullscreen.svg";
-        res.fullscreenImg.width = 20;
-        res.fullscreenImg.height = 20;
-        res.fullscreenImg.setAttribute("class", "unselectable");
+    createImgElementWithSrc(src, width, height) {
+        let img = document.createElement("img");
+        img.src = src;
+        img.width = width;
+        img.height = height;
+        img.setAttribute("class", "unselectable");
+        return img;
     }
 
     createHtmlControls() {
