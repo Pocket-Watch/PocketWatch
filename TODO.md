@@ -66,6 +66,8 @@
     - [x] Looping toggle (or dropdown with multiple looping options such as: none, single, playlist or shuffle)
     - [x] Display video/audio track title.
     - [x] Perform seek only on timestamp slider drag end (fluid player behaviour)
+    - [ ] Show timestamp when hovering over timestamp slider
+    - [ ] Make timestamp slider smaller, and expand it on mouse hover
     - [ ] Auto-hide player UI
         - [x] Show/Hide elements when mouse enters/leaves the player area
         - [ ] Add support for touchscreen devices

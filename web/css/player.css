@@ -37,7 +37,7 @@
     background-color: rgba(128, 128, 128, 0.5);
 }
 
-#player_title {
+#player_title_text {
     color: white;
     margin: 16px;
     font-size: 16px;
@@ -84,6 +84,23 @@
     color: white;
     justify-content: flex-start;
     align-items: center;
+}
+
+#player_timestamp_popup {
+    width: auto;
+    height: auto;
+    bottom: 64px;
+    /* left: 0; */
+    position: absolute;
+    display: flex;
+    align-items: center;
+    background-color: rgba(128, 128, 128, 0.5);
+}
+
+#player_timestamp_popup_text {
+    color: white;
+    margin: 6px;
+    font-size: 16px;
 }
 
 #player_timestamp_slider {

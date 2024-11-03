@@ -35,7 +35,7 @@ class Player {
         this.internals.setTitle(title);
     }
 
-    destroyPlayer() { }
+    destroyPlayer() {}
 
     onControlsPlay(func) {
         if (!isFunction(func)) {
@@ -107,7 +107,7 @@ class Internals {
         this.htmlPlayerRoot.appendChild(this.htmlTitleContainer);
 
         this.htmlTitle = document.createElement("span");
-        this.htmlTitle.id = "player_title";
+        this.htmlTitle.id = "player_title_text";
         this.htmlTitleContainer.appendChild(this.htmlTitle);
 
         this.htmlBuffering = document.createElement("img");
@@ -119,6 +119,7 @@ class Internals {
 
         this.htmlControls = {
             root: null,
+            timestampPopup: null,
             timestampSlider: null,
             playToggleButton: null,
             nextButton: null,
@@ -169,13 +170,12 @@ class Internals {
         this.attachHtmlEvents();
     }
 
-
-    fireControlsPlay() { }
-    fireControlsPause() { }
-    fireControlsNext() { }
-    fireControlsSeeking(_timestamp) { }
-    fireControlsSeeked(_timestamp) { }
-    fireControlsVolumeSet(_volume) { }
+    fireControlsPlay() {}
+    fireControlsPause() {}
+    fireControlsNext() {}
+    fireControlsSeeking(_timestamp) {}
+    fireControlsSeeked(_timestamp) {}
+    fireControlsVolumeSet(_volume) {}
 
     play() {
         this.htmlControls.playToggleButton.getElementsByTagName("img")[0].replaceWith(this.resources.pauseImg);
@@ -198,7 +198,7 @@ class Internals {
         if (!isNaN(this.htmlVideo.duration) && this.htmlVideo.duration !== 0.0) {
             duration = this.htmlVideo.duration;
             position = timestamp / duration;
-        }  
+        }
 
         if (!this.isDraggingTimestampSlider) {
             this.htmlControls.timestampSlider.value = position;
@@ -313,44 +313,44 @@ class Internals {
     resetPlayerUIHideTimeout() {
         clearTimeout(this.playerUIHideTimeoutID);
         this.playerUIHideTimeoutID = setTimeout(() => {
-            this.hidePlayerUI()
+            this.hidePlayerUI();
         }, this.options.inactivityTime);
     }
 
     attachHtmlEvents() {
-        this.htmlPlayerRoot.addEventListener('mousemove', () => {
+        this.htmlPlayerRoot.addEventListener("mousemove", () => {
             this.showPlayerUI();
             this.resetPlayerUIHideTimeout();
         });
 
-        this.htmlPlayerRoot.addEventListener('mousedown', () => {
+        this.htmlPlayerRoot.addEventListener("mousedown", () => {
             this.showPlayerUI();
             this.resetPlayerUIHideTimeout();
         });
 
-        this.htmlPlayerRoot.addEventListener('mouseup', () => {
+        this.htmlPlayerRoot.addEventListener("mouseup", () => {
             this.showPlayerUI();
             this.resetPlayerUIHideTimeout();
         });
 
-        this.htmlPlayerRoot.addEventListener('mouseenter', () => {
+        this.htmlPlayerRoot.addEventListener("mouseenter", () => {
             this.showPlayerUI();
             this.resetPlayerUIHideTimeout();
         });
 
-        this.htmlPlayerRoot.addEventListener('mouseleave', () => {
+        this.htmlPlayerRoot.addEventListener("mouseleave", () => {
             this.hidePlayerUI();
         });
 
-        this.htmlControls.playToggleButton.addEventListener('click', () => {
+        this.htmlControls.playToggleButton.addEventListener("click", () => {
             this.togglePlay();
         });
 
-        this.htmlControls.nextButton.addEventListener('click', () => {
+        this.htmlControls.nextButton.addEventListener("click", () => {
             this.fireControlsNext();
         });
 
-        this.htmlControls.volume.addEventListener('click', () => {
+        this.htmlControls.volume.addEventListener("click", () => {
             if (this.htmlControls.volumeSlider.value == 0) {
                 this.fireControlsVolumeSet(this.volumeBeforeMute);
                 this.setVolume(this.volumeBeforeMute);
@@ -361,7 +361,7 @@ class Internals {
             }
         });
 
-        this.htmlVideo.addEventListener('keydown', (event) => {
+        this.htmlVideo.addEventListener("keydown", (event) => {
             if (event.key == " " || event.code == "Space" || event.keyCode == 32) {
                 this.togglePlay();
                 consumeEvent(event);
@@ -397,7 +397,7 @@ class Internals {
             }
         });
 
-        this.htmlVideo.addEventListener('click', (_event) => {
+        this.htmlVideo.addEventListener("click", (_event) => {
             this.togglePlay();
         });
 
@@ -412,17 +412,17 @@ class Internals {
             this.htmlBuffering.style.visibility = "hidden";
         });
 
-        this.htmlControls.fullscreen.addEventListener('click', () => {
+        this.htmlControls.fullscreen.addEventListener("click", () => {
             // handle with Promise, it has controls on Chromium based browsers?
             this.htmlVideo.requestFullscreen();
         });
-        this.htmlControls.volumeSlider.addEventListener('input', (_event) => {
+        this.htmlControls.volumeSlider.addEventListener("input", (_event) => {
             let volume = this.htmlControls.volumeSlider.value;
             this.fireControlsVolumeSet(volume);
             this.setVolume(volume);
         });
 
-        this.htmlControls.timestampSlider.addEventListener('input', (_event) => {
+        this.htmlControls.timestampSlider.addEventListener("input", (_event) => {
             this.isDraggingTimestampSlider = true;
 
             let position = this.htmlControls.timestampSlider.value;
@@ -430,7 +430,7 @@ class Internals {
             this.fireControlsSeeking(timestamp);
         });
 
-        this.htmlControls.timestampSlider.addEventListener('change', (_event) => {
+        this.htmlControls.timestampSlider.addEventListener("change", (_event) => {
             this.isDraggingTimestampSlider = false;
 
             let position = this.htmlControls.timestampSlider.value;
@@ -439,16 +439,30 @@ class Internals {
             this.seek(timestamp);
         });
 
-        this.htmlVideo.addEventListener('timeupdate', (_event) => {
+        this.htmlControls.timestampSlider.addEventListener("mouseout", (_event) => {
+            this.htmlControls.timestampPopup.style.display = "none";
+        });
+
+        this.htmlControls.timestampSlider.addEventListener("mousemove", (event) => {
+            // TODO(kihau): This, without a doubt, needs to be refined.
+            const width = this.htmlControls.timestampSlider.clientWidth;
+            const left = event.offsetX / width;
+
+            this.htmlControls.timestampPopup.style.left = left * 100 + "%";
+            this.htmlControls.timestampPopup.style.display = "";
+            this.htmlControls.timestampPopupText.textContent = createTimestampString(this.htmlVideo.duration * left);
+        });
+
+        this.htmlVideo.addEventListener("timeupdate", (_event) => {
             let timestamp = this.htmlVideo.currentTime;
             this.updateTimestamps(timestamp);
         });
 
-        this.htmlSeekBackward.addEventListener('transitionend', () => { 
-            this.htmlSeekBackward.classList.remove("animate") 
+        this.htmlSeekBackward.addEventListener("transitionend", () => {
+            this.htmlSeekBackward.classList.remove("animate");
         });
 
-        this.htmlSeekForward.addEventListener('transitionend', () => {
+        this.htmlSeekForward.addEventListener("transitionend", () => {
             this.htmlSeekForward.classList.remove("animate");
         });
     }
@@ -496,6 +510,18 @@ class Internals {
         timestampSlider.step = "any";
         playerControls.appendChild(timestampSlider);
         this.htmlControls.timestampSlider = timestampSlider;
+
+        let timestampPopup = document.createElement("div");
+        timestampPopup.id = "player_timestamp_popup";
+        timestampPopup.style.display = "none";
+        playerControls.appendChild(timestampPopup);
+        this.htmlControls.timestampPopup = timestampPopup;
+
+        let timestampPopupText = document.createElement("span");
+        timestampPopupText.id = "player_timestamp_popup_text";
+        timestampPopupText.textContent = "00:00";
+        this.htmlControls.timestampPopup.appendChild(timestampPopupText);
+        this.htmlControls.timestampPopupText = timestampPopupText;
 
         let playToggle = document.createElement("div");
         playToggle.id = "player_play_toggle";
@@ -631,7 +657,7 @@ function isFunction(func) {
 // For example: Linux cannot be included as a desktop agent because it also appears along Android
 // Similarly: Macintosh cannot be included as a desktop agent because it also appears along iPad
 // What about TVs?
-const MOBILE_AGENTS = ["Mobile", "Tablet", "Android", "iPhone", "iPod", "iPad"]
+const MOBILE_AGENTS = ["Mobile", "Tablet", "Android", "iPhone", "iPod", "iPad"];
 function isMobileAgent() {
     let userAgent = navigator.userAgent.trim();
     if (!userAgent || userAgent === "") {
@@ -641,13 +667,13 @@ function isMobileAgent() {
     if (bracketOpen === -1) {
         return false;
     }
-    let bracketClose = userAgent.indexOf(")", bracketOpen+1);
+    let bracketClose = userAgent.indexOf(")", bracketOpen + 1);
     if (bracketClose === -1) {
         return false;
     }
 
-    let systemInfo = userAgent.substring(bracketOpen+1, bracketClose).trim();
-    console.log(systemInfo)
+    let systemInfo = userAgent.substring(bracketOpen + 1, bracketClose).trim();
+    console.log(systemInfo);
     for (let i = 0; i < systemInfo.length; i++) {
         if (systemInfo.includes(MOBILE_AGENTS[i])) {
             return true;
@@ -688,11 +714,21 @@ class Options {
         if (typeof this.inactivityTime !== "number" || this.inactivityTime < 0) {
             return false;
         }
-        if (!this.areAllBooleans(
-            this.hidePlayToggleButton, this.hideNextButton, this.hideLoopingButton,
-            this.hideVolumeButton, this.hideVolumeSlider, this.hideTimestamps, this.hideDownloadButton,
-            this.hideSubtitlesButton, this.hideSettingsButton, this.hideFullscreenButton)) {
-            console.debug("Visibility flags are not all booleans!")
+        if (
+            !this.areAllBooleans(
+                this.hidePlayToggleButton,
+                this.hideNextButton,
+                this.hideLoopingButton,
+                this.hideVolumeButton,
+                this.hideVolumeSlider,
+                this.hideTimestamps,
+                this.hideDownloadButton,
+                this.hideSubtitlesButton,
+                this.hideSettingsButton,
+                this.hideFullscreenButton,
+            )
+        ) {
+            console.debug("Visibility flags are not all booleans!");
             return false;
         }
         return true;
