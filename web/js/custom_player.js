@@ -35,6 +35,16 @@ class Player {
         this.internals.setTitle(title);
     }
 
+    // How to set a track once it has been added? Programmatic selection through setSubtitleTrack?
+    addSubtitleTrack(subtitleUrl) {
+        this.internals.addSubtitleTrack(subtitleUrl);
+    }
+
+    // How to set a track once it has been added? Programmatic selection through setSubtitleTrack?
+    setSubtitleTrack(subtitleUrl) {
+        this.internals.addSubtitleTrack(subtitleUrl);
+    }
+
     destroyPlayer() {}
 
     onControlsPlay(func) {
@@ -290,6 +300,27 @@ class Internals {
         // source.src = url;
         // source.type = "video/mp4";
         this.htmlVideo.load();
+    }
+
+    addSubtitleTrack(url) {
+        let filename = url.substring(url.lastIndexOf("/") + 1);
+        let extension = filename.substring(filename.lastIndexOf(".") + 1).toLowerCase();
+        if (extension != "vtt" && extension != "srt") {
+            console.debug("Unsupported extension:", extension)
+            return
+        }
+
+        let track = document.createElement("track")
+        track.label = filename
+        track.kind = "subtitles"
+        track.src = url
+        track.default = true;
+
+        this.htmlVideo.appendChild(track)
+
+        let lastIndex = this.htmlVideo.textTracks.length - 1;
+        console.info(this.htmlVideo.textTracks[lastIndex])
+        console.info("Loaded", this.htmlVideo.textTracks[lastIndex].cues, "cues!")
     }
 
     showPlayerUI() {

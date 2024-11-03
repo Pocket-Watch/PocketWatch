@@ -10,9 +10,10 @@ function main() {
 
     let track = "https://ftp.halifax.rwth-aachen.de/blender/demo/movies/ToS/ToS-4k-1920.mov";
     // let track = "https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_640x360.m4v";
-    // let track = "http://localhost:1234/watch/media/INVISIBLE.mp4";
+    let subtitle = "media/Tears.of.Steel.2012.vtt";
     player.setVideoTrack(track);
     player.setTitle("Tears of Steel");
+    player.addSubtitleTrack(subtitle)
 
     player.onControlsPlay(() => {
         console.log("User clicked play.");
