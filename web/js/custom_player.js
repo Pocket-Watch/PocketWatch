@@ -62,30 +62,21 @@ class Player {
         if (!isFunction(func)) {
             return;
         }
-        // an anonymous function is needed to receive arguments from the underlying function
-        this.internals.fireControlsSeeking = function(timestamp) {
-            func(timestamp);
-        };
+        this.internals.fireControlsSeeking = func;
     }
 
     onControlsSeeked(func) {
         if (!isFunction(func)) {
             return;
         }
-        // an anonymous function is needed to receive arguments from the underlying function
-        this.internals.fireControlsSeeked = function(timestamp) {
-            func(timestamp);
-        };
+        this.internals.fireControlsSeeked = func;
     }
 
     onControlsVolumeSet(func) {
         if (!isFunction(func)) {
             return;
         }
-        // an anonymous function is needed to receive arguments from the underlying function
-        this.internals.fireControlsVolumeSet = function(volume) {
-            func(volume);
-        };
+        this.internals.fireControlsVolumeSet = func;
     }
 
     setVideoTrack(url) {
@@ -696,6 +687,34 @@ function consumeEvent(event) {
 
 function isFunction(func) {
     return func != null && typeof func === "function";
+}
+
+// For example: Linux cannot be included as a desktop agent because it also appears along Android
+// Similarly: Macintosh cannot be included as a desktop agent because it also appears along iPad
+// What about TVs?
+const MOBILE_AGENTS = ["Mobile", "Tablet", "Android", "iPhone", "iPod", "iPad"]
+function isMobileAgent() {
+    let userAgent = navigator.userAgent.trim();
+    if (!userAgent || userAgent === "") {
+        return false;
+    }
+    let bracketOpen = userAgent.indexOf("(");
+    if (bracketOpen === -1) {
+        return false;
+    }
+    let bracketClose = userAgent.indexOf(")", bracketOpen+1);
+    if (bracketClose === -1) {
+        return false;
+    }
+
+    let systemInfo = userAgent.substring(bracketOpen+1, bracketClose).trim();
+    console.log(systemInfo)
+    for (let i = 0; i < systemInfo.length; i++) {
+        if (systemInfo.includes(MOBILE_AGENTS[i])) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // This is a separate class for more clarity
