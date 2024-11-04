@@ -508,6 +508,7 @@ class Internals {
 
             const buffered_width = this.htmlControls.progress.buffered.width;
             const buffered_height = this.htmlControls.progress.buffered.height;
+            context.clearRect(0, 0, buffered_width, buffered_height);
 
             const duration = this.htmlVideo.duration;
             for (let i = 0; i < this.htmlVideo.buffered.length; i++) {
