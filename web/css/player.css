@@ -109,6 +109,7 @@
     width: 100%;
     left: 0;
     position: absolute;
+    image-rendering: pixelated; 
     background: transparent;
 }
 

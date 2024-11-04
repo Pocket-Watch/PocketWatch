@@ -516,8 +516,9 @@ class Internals {
                 let start = this.htmlVideo.buffered.start(i) / duration;
                 let end = this.htmlVideo.buffered.end(i) / duration;
 
-                let width = buffered_width * end - buffered_width * start;
-                context.fillRect(buffered_width * start, 0, width, buffered_height);
+                let x = Math.floor(buffered_width * start);
+                let width = Math.ceil(buffered_width * end - buffered_width * start);
+                context.fillRect(x, 0, width, buffered_height);
             }
         });
 
