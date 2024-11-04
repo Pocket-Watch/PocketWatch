@@ -129,8 +129,15 @@ class Internals {
 
         this.htmlControls = {
             root: null,
-            timestampPopup: null,
-            timestampSlider: null,
+            progress: {
+                root: null,
+                current: null,
+                buffered: null,
+                total: null,
+                thumb: null,
+                popupRoot: null,
+                popupText: null,
+            },
             playToggleButton: null,
             nextButton: null,
             volume: null,
@@ -160,7 +167,7 @@ class Internals {
             fullscreenImg: null,
         };
 
-        this.isDraggingTimestampSlider = false;
+        this.isDraggingProgressBar = false;
         this.volumeBeforeMute = 0.0;
 
         this.initializeSvgResources();
@@ -178,6 +185,7 @@ class Internals {
         this.htmlPlayerRoot.appendChild(this.htmlSeekBackward);
 
         this.attachHtmlEvents();
+        this.autoUpdateProgressBuffer();
     }
 
     fireControlsPlay() {}
@@ -201,6 +209,32 @@ class Internals {
         this.htmlVideo.currentTime = timestamp;
     }
 
+    updateProgressBar(progress) {
+        this.htmlControls.progress.current.style.width = progress * 100 + "%"
+
+        const width = this.htmlControls.progress.root.clientWidth;
+        let thumb_left = width * progress; 
+        thumb_left -= this.htmlControls.progress.thumb.offsetWidth / 2.0;
+        this.htmlControls.progress.thumb.style.left = thumb_left + "px";
+    }
+
+    setProgressMargin(marginSize) {
+        let margin = marginSize + "px";
+        this.htmlControls.progress.total.style.marginTop = margin;
+        this.htmlControls.progress.current.style.marginTop = margin;
+        this.htmlControls.progress.buffered.style.marginTop = margin;
+
+        this.htmlControls.progress.total.style.marginBottom = margin;
+        this.htmlControls.progress.current.style.marginBottom = margin;
+        this.htmlControls.progress.buffered.style.marginBottom = margin;
+
+        let rootHeight = this.htmlControls.progress.root.clientHeight;
+        let height = (rootHeight - marginSize * 2.0) + "px";
+        this.htmlControls.progress.total.style.height = height;
+        this.htmlControls.progress.current.style.height = height;
+        this.htmlControls.progress.buffered.style.height = height;
+    }
+
     updateTimestamps(timestamp) {
         let duration = 0.0;
         let position = 0.0;
@@ -210,8 +244,8 @@ class Internals {
             position = timestamp / duration;
         }
 
-        if (!this.isDraggingTimestampSlider) {
-            this.htmlControls.timestampSlider.value = position;
+        if (!this.isDraggingProgressBar) {
+            this.updateProgressBar(position);
         }
 
         let current_string = createTimestampString(this.htmlVideo.currentTime);
@@ -333,6 +367,10 @@ class Internals {
     }
 
     hidePlayerUI() {
+        if (this.options.disableControlsAutoHide) {
+            return;
+        }
+
         this.htmlVideo.style.cursor = "none";
         this.htmlControls.root.classList.remove("player_fade_in");
         this.htmlControls.root.classList.add("player_fade_out");
@@ -346,6 +384,23 @@ class Internals {
         this.playerUIHideTimeoutID = setTimeout(() => {
             this.hidePlayerUI();
         }, this.options.inactivityTime);
+    }
+
+    autoUpdateProgressBuffer() {
+        setInterval(() => {
+            let currentTime = this.htmlVideo.currentTime;
+            for (let i = 0; i < this.htmlVideo.buffered.length; i++) {
+                let start = this.htmlVideo.buffered.start(i);
+                let end = this.htmlVideo.buffered.end(i);
+
+                if (currentTime >= start && currentTime <= end) {
+                    const progress = end / this.htmlVideo.duration;
+                    console.log("index:", i, "start:", start, "end:", end, "progress:", progress);
+                    this.htmlControls.progress.buffered.style.width = progress * 100 + "%";
+                    break;
+                }
+            }
+        }, 500);
     }
 
     attachHtmlEvents() {
@@ -443,50 +498,109 @@ class Internals {
             this.htmlBuffering.style.visibility = "hidden";
         });
 
+        this.htmlVideo.addEventListener("timeupdate", (_event) => {
+            let timestamp = this.htmlVideo.currentTime;
+            this.updateTimestamps(timestamp);
+        });
+
         this.htmlControls.fullscreen.addEventListener("click", () => {
             // handle with Promise, it has controls on Chromium based browsers?
             this.htmlVideo.requestFullscreen();
         });
-        this.htmlControls.volumeSlider.addEventListener("input", (_event) => {
+
+        this.htmlControls.volumeSlider.addEventListener("input", _event => {
             let volume = this.htmlControls.volumeSlider.value;
             this.fireControlsVolumeSet(volume);
             this.setVolume(volume);
         });
 
-        this.htmlControls.timestampSlider.addEventListener("input", (_event) => {
-            this.isDraggingTimestampSlider = true;
+        // NOTE(kihau): Helper function grabbed from fluid-player source code.
+        let getEventOffsetX = (event, element) => {
+            let x = 0;
 
-            let position = this.htmlControls.timestampSlider.value;
-            let timestamp = this.htmlVideo.duration * position;
-            this.fireControlsSeeking(timestamp);
+            while (element && !isNaN(element.offsetLeft)) {
+                if (element.tagName === 'BODY') {
+                    x += element.offsetLeft + element.clientLeft - (element.scrollLeft || document.documentElement.scrollLeft);
+                } else {
+                    x += element.offsetLeft + element.clientLeft - element.scrollLeft;
+                }
+
+                element = element.offsetParent;
+            }
+
+            let eventX;
+            if (typeof event.touches !== 'undefined' && typeof event.touches[0] !== 'undefined') {
+                eventX = event.touches[0].clientX;
+            } else {
+                eventX = event.clientX
+            }
+
+            return eventX - x;
+        };
+
+        let calculateProgress = (event) => {
+            const width = this.htmlControls.progress.root.clientWidth;
+            const offsetX = getEventOffsetX(event, this.htmlControls.progress.root);
+            const progress = offsetX / width;
+
+            if (isNaN(progress)) {
+                return 0.0;
+            }
+
+            if (progress > 1.0) {
+                return 1.0;
+            }
+
+            if (progress < 0.0) {
+                return 0.0;
+            }
+
+            return progress;
+        }
+
+        this.htmlControls.progress.root.addEventListener("mousedown", _event => {
+            const onProgressBarMouseMove = event => {
+                const progress = calculateProgress(event);
+                this.updateProgressBar(progress);
+            }
+
+            const onProgressBarMouseUp = event => {
+                this.isDraggingProgressBar = false;
+                document.removeEventListener('mousemove', onProgressBarMouseMove);
+                document.removeEventListener('mouseup', onProgressBarMouseUp);
+
+                const progress = calculateProgress(event);
+                const timestamp = this.htmlVideo.duration * progress;
+
+                this.fireControlsSeeked(timestamp);
+                this.seek(timestamp);
+            }
+
+            this.isDraggingProgressBar = true;
+            document.addEventListener('mousemove', onProgressBarMouseMove);
+            document.addEventListener('mouseup', onProgressBarMouseUp);
         });
 
-        this.htmlControls.timestampSlider.addEventListener("change", (_event) => {
-            this.isDraggingTimestampSlider = false;
+        this.htmlControls.progress.root.addEventListener("mousemove", event => {
+            this.htmlControls.progress.thumb.style.display = "";
+            this.htmlControls.progress.popupRoot.style.display = "";
 
-            let position = this.htmlControls.timestampSlider.value;
-            let timestamp = this.htmlVideo.duration * position;
-            this.fireControlsSeeked(timestamp);
-            this.seek(timestamp);
+            const width = this.htmlControls.progress.root.clientWidth;
+            // TODO(kihau): Fix me!
+            const value = event.offsetX / width;
+            const timestamp = this.htmlVideo.duration * value;
+
+            this.htmlControls.progress.popupRoot.style.left = value * 100 + "%";
+            this.htmlControls.progress.popupRoot.style.display = "";
+            this.htmlControls.progress.popupText.textContent = createTimestampString(timestamp);
+
+            this.setProgressMargin(0);
         });
 
-        this.htmlControls.timestampSlider.addEventListener("mouseout", (_event) => {
-            this.htmlControls.timestampPopup.style.display = "none";
-        });
-
-        this.htmlControls.timestampSlider.addEventListener("mousemove", (event) => {
-            // TODO(kihau): This, without a doubt, needs to be refined.
-            const width = this.htmlControls.timestampSlider.clientWidth;
-            const left = event.offsetX / width;
-
-            this.htmlControls.timestampPopup.style.left = left * 100 + "%";
-            this.htmlControls.timestampPopup.style.display = "";
-            this.htmlControls.timestampPopupText.textContent = createTimestampString(this.htmlVideo.duration * left);
-        });
-
-        this.htmlVideo.addEventListener("timeupdate", (_event) => {
-            let timestamp = this.htmlVideo.currentTime;
-            this.updateTimestamps(timestamp);
+        this.htmlControls.progress.root.addEventListener("mouseleave", _event => {
+            this.htmlControls.progress.thumb.style.display = "none";
+            this.htmlControls.progress.popupRoot.style.display = "none";
+            this.setProgressMargin(5);
         });
 
         this.htmlSeekBackward.addEventListener("transitionend", () => {
@@ -526,33 +640,52 @@ class Internals {
         return img;
     }
 
+    createProgressBar() {
+        let progressRoot = document.createElement("div");
+        progressRoot.id = "player_progress_root";
+        this.htmlControls.root.appendChild(progressRoot);
+        this.htmlControls.progress.root = progressRoot;
+
+        let progressTotal = document.createElement("div");
+        progressTotal.id = "player_progress_total";
+        progressRoot.appendChild(progressTotal);
+        this.htmlControls.progress.total = progressTotal;
+
+        let progressBuffered = document.createElement("div");
+        progressBuffered.id = "player_progress_buffered";
+        progressRoot.appendChild(progressBuffered);
+        this.htmlControls.progress.buffered = progressBuffered;
+
+        let progressCurrent = document.createElement("div");
+        progressCurrent.id = "player_progress_current";
+        progressRoot.appendChild(progressCurrent);
+        this.htmlControls.progress.current = progressCurrent;
+
+        let progressThumb = document.createElement("div");
+        progressThumb.id = "player_progress_thumb";
+        progressRoot.appendChild(progressThumb);
+        this.htmlControls.progress.thumb = progressThumb;
+
+        let progressPopupRoot = document.createElement("div");
+        progressPopupRoot.id = "player_progress_popup_root";
+        progressPopupRoot.style.display = "none";
+        progressRoot.appendChild(progressPopupRoot);
+        this.htmlControls.progress.popupRoot = progressPopupRoot;
+
+        let progressPopupText = document.createElement("div");
+        progressPopupText.id = "player_progress_popup_text";
+        progressPopupText.textContent = "00:00";
+        progressPopupRoot.appendChild(progressPopupText);
+        this.htmlControls.progress.popupText = progressPopupText;
+    }
+
     createHtmlControls() {
         let playerControls = document.createElement("div");
         playerControls.id = "player_controls";
         playerControls.setAttribute("ondragstart", "return false");
         this.htmlControls.root = playerControls;
 
-        let timestampSlider = document.createElement("input");
-        timestampSlider.id = "player_timestamp_slider";
-        timestampSlider.type = "range";
-        timestampSlider.min = "0";
-        timestampSlider.max = "1";
-        timestampSlider.value = "0";
-        timestampSlider.step = "any";
-        playerControls.appendChild(timestampSlider);
-        this.htmlControls.timestampSlider = timestampSlider;
-
-        let timestampPopup = document.createElement("div");
-        timestampPopup.id = "player_timestamp_popup";
-        timestampPopup.style.display = "none";
-        playerControls.appendChild(timestampPopup);
-        this.htmlControls.timestampPopup = timestampPopup;
-
-        let timestampPopupText = document.createElement("span");
-        timestampPopupText.id = "player_timestamp_popup_text";
-        timestampPopupText.textContent = "00:00";
-        this.htmlControls.timestampPopup.appendChild(timestampPopupText);
-        this.htmlControls.timestampPopupText = timestampPopupText;
+        this.createProgressBar();
 
         let playToggle = document.createElement("div");
         playToggle.id = "player_play_toggle";
@@ -735,6 +868,9 @@ class Options {
 
         // Delay in milliseconds before controls disappear.
         this.inactivityTime = 2500;
+
+        // Disable the auto hide for player controls.
+        this.disableControlsAutoHide = true;
     }
 
     // Ensure values are the intended type and within some reasonable range

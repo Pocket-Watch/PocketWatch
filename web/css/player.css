@@ -76,7 +76,7 @@
 
 #player_controls {
     width: 100%;
-    height: 64px;
+    height: 70px;
     position: absolute;
     bottom: 0;
     display: flex;
@@ -86,65 +86,64 @@
     align-items: center;
 }
 
-#player_timestamp_popup {
+#player_progress_root {
+    width: 100%;
+    height: 16px;
+    top: 0;
+    position: absolute;
+    /* appearance: none; */
+    /* margin-left: 8px; */
+    /* margin-right: 8px; */
+    background: transparent;
+}
+
+#player_progress_total {
+    height: auto;
+    width: 100%;
+    position: absolute;
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+#player_progress_buffered {
+    height: auto;
+    width: 0%;
+    left: 0;
+    position: absolute;
+    background: rgba(204, 204, 204, 0.5);
+}
+
+#player_progress_current {
+    height: auto;
+    width: 0%;
+    left: 0;
+    position: absolute;
+    background: rgba(255, 0, 0, 0.5);
+}
+
+#player_progress_thumb {
+    height: 18px;
+    width: 6px;
+    border-radius: 6px;
+    top: -1px;
+    left: -6px;
+    position: absolute;
+    background: rgba(255, 255, 255, 1.0);
+}
+
+#player_progress_popup_root {
     width: auto;
     height: auto;
-    bottom: 64px;
-    /* left: 0; */
+    bottom: 16px;
     position: absolute;
     display: flex;
     align-items: center;
     background-color: rgba(128, 128, 128, 0.5);
 }
 
-#player_timestamp_popup_text {
+#player_progress_popup_text {
     color: white;
     margin: 6px;
     font-size: 16px;
-}
-
-#player_timestamp_slider {
-    position: absolute;
-    /* bottom: 40px; */
-    top: 0;
-    width: 100%;
-    height: 10px;
-    background: transparent;
-    -webkit-appearance: none;
-    appearance: none;
-}
-
-#player_timestamp_slider::-webkit-slider-runnable-track {
-    -webkit-appearance: none;
-    appearance: none;
-    height: 10px;
-    background: rgba(204, 204, 204, 0.5);
-}
-
-#player_timestamp_slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    background: rgba(255, 0, 0, 0.5);
-    width: 5px;
-    height: 10px;
-    cursor: pointer;
-}
-
-#player_timestamp_slider::-moz-range-track {
-    height: 10px;
-    background: rgba(204, 204, 204, 0.5);
-}
-
-#player_timestamp_slider::-moz-range-progress {
-    height: 10px;
-    background: rgba(255, 0, 0, 0.5);
-}
-
-#player_timestamp_slider::-moz-range-thumb {
-    width: 5px;
-    height: 10px;
-    border: none;
-    background: rgba(0, 0, 0, 0.5);
 }
 
 #player_play_toggle {
