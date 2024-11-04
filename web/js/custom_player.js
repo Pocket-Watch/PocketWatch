@@ -185,6 +185,7 @@ class Internals {
         this.htmlPlayerRoot.appendChild(this.htmlSeekBackward);
 
         this.attachHtmlEvents();
+        this.setProgressMargin(5);
     }
 
     fireControlsPlay() {}
@@ -517,7 +518,6 @@ class Internals {
 
                 let width = buffered_width * end - buffered_width * start;
                 context.fillRect(buffered_width * start, 0, width, buffered_height);
-                console.log(buffered_width * start, 0, width, buffered_height);
             }
         });
 
@@ -599,20 +599,21 @@ class Internals {
             document.addEventListener('mouseup', onProgressBarMouseUp);
         });
 
-        this.htmlControls.progress.root.addEventListener("mousemove", event => {
+        this.htmlControls.progress.root.addEventListener("mouseenter", _event => {
             this.htmlControls.progress.thumb.style.display = "";
             this.htmlControls.progress.popupRoot.style.display = "";
+            this.setProgressMargin(4);
+            this.updateTimestamps(this.htmlVideo.currentTime);
+        });
 
+        this.htmlControls.progress.root.addEventListener("mousemove", event => {
             const width = this.htmlControls.progress.root.clientWidth;
-            // TODO(kihau): Fix me!
-            const value = event.offsetX / width;
+            const value = getEventOffsetX(event, this.htmlControls.progress.root) / width;
             const timestamp = this.htmlVideo.duration * value;
 
             this.htmlControls.progress.popupRoot.style.left = value * 100 + "%";
             this.htmlControls.progress.popupRoot.style.display = "";
             this.htmlControls.progress.popupText.textContent = createTimestampString(timestamp);
-
-            this.setProgressMargin(4);
         });
 
         this.htmlControls.progress.root.addEventListener("mouseleave", _event => {
