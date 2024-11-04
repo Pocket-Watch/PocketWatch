@@ -186,6 +186,7 @@ class Internals {
 
         this.attachHtmlEvents();
         this.setProgressMargin(5);
+        setInterval(() => this.redrawBufferedBars(), this.options.bufferingRedrawInterval);
     }
 
     fireControlsPlay() {}
@@ -386,22 +387,24 @@ class Internals {
         }, this.options.inactivityTime);
     }
 
-    // autoUpdateProgressBuffer() {
-    //     setInterval(() => {
-    //         let currentTime = this.htmlVideo.currentTime;
-    //         for (let i = 0; i < this.htmlVideo.buffered.length; i++) {
-    //             let start = this.htmlVideo.buffered.start(i);
-    //             let end = this.htmlVideo.buffered.end(i);
-    //
-    //             if (currentTime >= start && currentTime <= end) {
-    //                 const progress = end / this.htmlVideo.duration;
-    //                 console.log("index:", i, "start:", start, "end:", end, "progress:", progress);
-    //                 this.htmlControls.progress.buffered.style.width = progress * 100 + "%";
-    //                 break;
-    //             }
-    //         }
-    //     }, 500);
-    // }
+    redrawBufferedBars() {
+        const context = this.htmlControls.progress.buffered.getContext("2d");
+        context.fillStyle = "rgb(204, 204, 204, 0.5)";
+
+        const buffered_width = this.htmlControls.progress.buffered.width;
+        const buffered_height = this.htmlControls.progress.buffered.height;
+        context.clearRect(0, 0, buffered_width, buffered_height);
+
+        const duration = this.htmlVideo.duration;
+        for (let i = 0; i < this.htmlVideo.buffered.length; i++) {
+            let start = this.htmlVideo.buffered.start(i) / duration;
+            let end = this.htmlVideo.buffered.end(i) / duration;
+
+            let x = Math.floor(buffered_width * start);
+            let width = Math.ceil(buffered_width * end - buffered_width * start);
+            context.fillRect(x, 0, width, buffered_height);
+        }
+    };
 
     attachHtmlEvents() {
         this.htmlPlayerRoot.addEventListener("mousemove", () => {
@@ -501,25 +504,6 @@ class Internals {
         this.htmlVideo.addEventListener("timeupdate", (_event) => {
             let timestamp = this.htmlVideo.currentTime;
             this.updateTimestamps(timestamp);
-        });
-
-        this.htmlVideo.addEventListener("progress", _event => {
-            const context = this.htmlControls.progress.buffered.getContext("2d");
-            context.fillStyle = "rgb(204, 204, 204, 0.5)";
-
-            const buffered_width = this.htmlControls.progress.buffered.width;
-            const buffered_height = this.htmlControls.progress.buffered.height;
-            context.clearRect(0, 0, buffered_width, buffered_height);
-
-            const duration = this.htmlVideo.duration;
-            for (let i = 0; i < this.htmlVideo.buffered.length; i++) {
-                let start = this.htmlVideo.buffered.start(i) / duration;
-                let end = this.htmlVideo.buffered.end(i) / duration;
-
-                let x = Math.floor(buffered_width * start);
-                let width = Math.ceil(buffered_width * end - buffered_width * start);
-                context.fillRect(x, 0, width, buffered_height);
-            }
         });
 
         this.htmlControls.fullscreen.addEventListener("click", () => {
@@ -891,6 +875,8 @@ class Options {
 
         // Disable the auto hide for player controls.
         this.disableControlsAutoHide = true;
+
+        this.bufferingRedrawInterval = 1000;
     }
 
     // Ensure values are the intended type and within some reasonable range
