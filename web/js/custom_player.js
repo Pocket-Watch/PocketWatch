@@ -337,7 +337,7 @@ class Internals {
         this.htmlVideo.load();
     }
 
-    addSubtitleTrack(url) {
+    addSubtitleTrack(url, set) {
         let filename = url.substring(url.lastIndexOf("/") + 1);
         let extension = filename.substring(filename.lastIndexOf(".") + 1).toLowerCase();
         if (extension != "vtt" && extension != "srt") {
@@ -349,13 +349,20 @@ class Internals {
         track.label = filename
         track.kind = "subtitles"
         track.src = url
-        track.default = true;
 
+        // This will cause a new text track to appear in video.textTracks even if it's invalid
         this.htmlVideo.appendChild(track)
 
         let lastIndex = this.htmlVideo.textTracks.length - 1;
-        console.info(this.htmlVideo.textTracks[lastIndex])
-        console.info("Loaded", this.htmlVideo.textTracks[lastIndex].cues, "cues!")
+        let textTrack = this.htmlVideo.textTracks[lastIndex];
+
+        // By default, every track is appended in the 'disabled' mode which prevents any initialization
+        textTrack.mode = set ? "showing" : "hidden";
+        // Although we cannot access cues immediately here (not loaded yet)
+        // We do have access to the textTrack and can attach a listener to it
+        track.addEventListener("load", (event) => {
+            console.info("Text track loaded successfully", event.target)
+        });
     }
 
     showPlayerUI() {
