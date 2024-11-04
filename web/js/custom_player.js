@@ -113,7 +113,7 @@ class Internals {
 
         this.htmlTitleContainer = document.createElement("div");
         this.htmlTitleContainer.id = "player_title_container";
-        this.htmlTitleContainer.style.visibility = "hidden";
+        this.htmlTitleContainer.style.display = "none";
         this.htmlPlayerRoot.appendChild(this.htmlTitleContainer);
 
         this.htmlTitle = document.createElement("span");
@@ -123,7 +123,7 @@ class Internals {
         this.htmlBuffering = document.createElement("img");
         this.htmlBuffering.id = "player_buffering";
         this.htmlBuffering.src = "svg/buffering.svg";
-        this.htmlBuffering.style.visibility = "hidden";
+        this.htmlBuffering.style.display = "none";
         this.htmlBuffering.setAttribute("class", "unselectable");
         this.htmlPlayerRoot.appendChild(this.htmlBuffering);
 
@@ -306,9 +306,9 @@ class Internals {
 
     setTitle(title) {
         if (!title) {
-            this.htmlTitleContainer.style.visibility = "hidden";
+            this.htmlTitleContainer.style.display = "none";
         } else {
-            this.htmlTitleContainer.style.visibility = "visible";
+            this.htmlTitleContainer.style.display = "";
             this.htmlTitle.textContent = title;
         }
     }
@@ -361,7 +361,7 @@ class Internals {
         // Although we cannot access cues immediately here (not loaded yet)
         // We do have access to the textTrack and can attach a listener to it
         track.addEventListener("load", (event) => {
-            console.info("Text track loaded successfully", event.target)
+            console.info("Text track loaded successfully", event)
         });
     }
 
@@ -499,13 +499,13 @@ class Internals {
 
         this.htmlVideo.addEventListener("waiting", () => {
             this.bufferingTimeoutId = setTimeout(() => {
-                this.htmlBuffering.style.visibility = "visible";
+            this.htmlBuffering.style.display = "";
             }, 200);
         });
 
         this.htmlVideo.addEventListener("playing", () => {
             clearTimeout(this.bufferingTimeoutId);
-            this.htmlBuffering.style.visibility = "hidden";
+            this.htmlBuffering.style.display = "none";
         });
 
         this.htmlVideo.addEventListener("timeupdate", (_event) => {
@@ -524,6 +524,7 @@ class Internals {
             this.setVolume(volume);
         });
 
+        // TODO(kihau): Discover behaviour of this function.
         // NOTE(kihau): Helper function grabbed from fluid-player source code.
         let getEventOffsetX = (event, element) => {
             let x = 0;

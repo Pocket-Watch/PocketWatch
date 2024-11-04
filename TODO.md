@@ -68,6 +68,7 @@
     - [x] Perform seek only on timestamp slider drag end (fluid player behaviour)
     - [x] Show timestamp when hovering over timestamp slider
     - [x] Make timestamp slider smaller, and expand it on mouse hover
+    - [x] Display loading progress on timestamp slider bar
     - [ ] HSL support
     - [ ] Auto-hide player UI
         - [x] Show/Hide elements when mouse enters/leaves the player area
@@ -79,8 +80,8 @@
         - [ ] Perform seeks screen double tap
         - [ ] Display variable seek indicator number on arrow press or screen double tap
         - [ ] Seek indicator value stacking
-    - [ ] Display who performed certain action (ex. seek, play, pause)
-    - [ ] Display loading progress on timestamp slider bar
+    - [ ] Display last action (ex. seek, play, pause) in the center of the player
+    - [ ] Display custom popup messages (ex. User 'frisk' clicked play) as a toast attached to the top right side
     - [ ] Custom options that include:
         - [ ] Playback speed
         - [ ] Audio source switch

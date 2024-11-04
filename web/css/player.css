@@ -34,7 +34,7 @@
     align-items: center;
     margin-top: 10px;
     margin-left: 10px;
-    background-color: rgba(128, 128, 128, 0.3);
+    background-color: rgba(40, 40, 40, 0.3);
 }
 
 #player_title_text {
@@ -80,7 +80,7 @@
     position: absolute;
     bottom: 0;
     display: flex;
-    background-color: rgba(128, 128, 128, 0.3);
+    background-color: rgba(40, 40, 40, 0.3);
     color: white;
     justify-content: flex-start;
     align-items: center;
@@ -138,7 +138,7 @@
     position: absolute;
     display: flex;
     align-items: center;
-    background-color: rgba(128, 128, 128, 0.5);
+    background-color: rgba(40, 40, 40, 0.5);
 }
 
 #player_progress_popup_text {
