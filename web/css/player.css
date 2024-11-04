@@ -106,10 +106,10 @@
 
 #player_progress_buffered {
     height: auto;
-    width: 0%;
+    width: 100%;
     left: 0;
     position: absolute;
-    background: rgba(204, 204, 204, 0.5);
+    background: transparent;
 }
 
 #player_progress_current {

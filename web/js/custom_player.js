@@ -185,7 +185,6 @@ class Internals {
         this.htmlPlayerRoot.appendChild(this.htmlSeekBackward);
 
         this.attachHtmlEvents();
-        this.autoUpdateProgressBuffer();
     }
 
     fireControlsPlay() {}
@@ -386,22 +385,22 @@ class Internals {
         }, this.options.inactivityTime);
     }
 
-    autoUpdateProgressBuffer() {
-        setInterval(() => {
-            let currentTime = this.htmlVideo.currentTime;
-            for (let i = 0; i < this.htmlVideo.buffered.length; i++) {
-                let start = this.htmlVideo.buffered.start(i);
-                let end = this.htmlVideo.buffered.end(i);
-
-                if (currentTime >= start && currentTime <= end) {
-                    const progress = end / this.htmlVideo.duration;
-                    console.log("index:", i, "start:", start, "end:", end, "progress:", progress);
-                    this.htmlControls.progress.buffered.style.width = progress * 100 + "%";
-                    break;
-                }
-            }
-        }, 500);
-    }
+    // autoUpdateProgressBuffer() {
+    //     setInterval(() => {
+    //         let currentTime = this.htmlVideo.currentTime;
+    //         for (let i = 0; i < this.htmlVideo.buffered.length; i++) {
+    //             let start = this.htmlVideo.buffered.start(i);
+    //             let end = this.htmlVideo.buffered.end(i);
+    //
+    //             if (currentTime >= start && currentTime <= end) {
+    //                 const progress = end / this.htmlVideo.duration;
+    //                 console.log("index:", i, "start:", start, "end:", end, "progress:", progress);
+    //                 this.htmlControls.progress.buffered.style.width = progress * 100 + "%";
+    //                 break;
+    //             }
+    //         }
+    //     }, 500);
+    // }
 
     attachHtmlEvents() {
         this.htmlPlayerRoot.addEventListener("mousemove", () => {
@@ -503,6 +502,24 @@ class Internals {
             this.updateTimestamps(timestamp);
         });
 
+        this.htmlVideo.addEventListener("progress", _event => {
+            const context = this.htmlControls.progress.buffered.getContext("2d");
+            context.fillStyle = "rgb(204, 204, 204, 0.5)";
+
+            const buffered_width = this.htmlControls.progress.buffered.width;
+            const buffered_height = this.htmlControls.progress.buffered.height;
+
+            const duration = this.htmlVideo.duration;
+            for (let i = 0; i < this.htmlVideo.buffered.length; i++) {
+                let start = this.htmlVideo.buffered.start(i) / duration;
+                let end = this.htmlVideo.buffered.end(i) / duration;
+
+                let width = buffered_width * end - buffered_width * start;
+                context.fillRect(buffered_width * start, 0, width, buffered_height);
+                console.log(buffered_width * start, 0, width, buffered_height);
+            }
+        });
+
         this.htmlControls.fullscreen.addEventListener("click", () => {
             // handle with Promise, it has controls on Chromium based browsers?
             this.htmlVideo.requestFullscreen();
@@ -594,7 +611,7 @@ class Internals {
             this.htmlControls.progress.popupRoot.style.display = "";
             this.htmlControls.progress.popupText.textContent = createTimestampString(timestamp);
 
-            this.setProgressMargin(0);
+            this.setProgressMargin(4);
         });
 
         this.htmlControls.progress.root.addEventListener("mouseleave", _event => {
@@ -651,7 +668,7 @@ class Internals {
         progressRoot.appendChild(progressTotal);
         this.htmlControls.progress.total = progressTotal;
 
-        let progressBuffered = document.createElement("div");
+        let progressBuffered = document.createElement("canvas");
         progressBuffered.id = "player_progress_buffered";
         progressRoot.appendChild(progressBuffered);
         this.htmlControls.progress.buffered = progressBuffered;
