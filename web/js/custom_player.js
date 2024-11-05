@@ -138,6 +138,11 @@ class Internals {
                 popupRoot: null,
                 popupText: null,
             },
+            subtitleMenu: {
+                root: null,
+                customization: null,
+                selection: null,
+            },
             playToggleButton: null,
             nextButton: null,
             volume: null,
@@ -184,6 +189,7 @@ class Internals {
 
         this.initializeImageSources();
         this.createHtmlControls();
+        this.createSubtitleMenu();
 
         this.htmlSeekForward = document.createElement("div");
         this.htmlSeekForward.id = "player_forward_container";
@@ -465,6 +471,16 @@ class Internals {
                 this.volumeBeforeMute = this.htmlControls.volumeSlider.value;
                 this.fireControlsVolumeSet(0);
                 this.setVolume(0);
+            }
+        });
+
+        this.htmlControls.subs.addEventListener("click", () => {
+            let menuRootElement = this.htmlControls.subtitleMenu.root;
+            let visible = menuRootElement.style.display !== "none";
+            if (visible) {
+                menuRootElement.style.display = "none";
+            } else {
+                menuRootElement.style.display = "";
             }
         });
 
@@ -835,6 +851,28 @@ class Internals {
         playerControls.appendChild(fullscreen);
         this.htmlPlayerRoot.appendChild(playerControls);
         this.htmlControls.fullscreen = fullscreen;
+    }
+
+    createSubtitleMenu() {
+        let menuRoot = document.createElement("div");
+        menuRoot.id = "player_subtitle_menu"
+        this.htmlControls.subtitleMenu.root = menuRoot;
+
+        let selection = document.createElement("div");
+        selection.classList.add("menu_item")
+        selection.classList.add("unselectable")
+        selection.innerHTML = "Select";
+        this.htmlControls.subtitleMenu.selection = selection;
+        menuRoot.appendChild(selection);
+
+        let customization = document.createElement("div");
+        customization.classList.add("menu_item")
+        customization.classList.add("unselectable")
+        customization.innerHTML = "Customize";
+        this.htmlControls.subtitleMenu.customization = customization;
+        menuRoot.appendChild(customization);
+
+        this.htmlPlayerRoot.appendChild(menuRoot);
     }
 }
 
