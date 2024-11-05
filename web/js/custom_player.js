@@ -157,31 +157,42 @@ class Internals {
             pauseImg: null,
             playImg: null,
             nextImg: null,
-            volumeImgFull: null,
-            volumeImgMedium: null,
-            volumeImgLow: null,
-            volumeImgMuted: null,
+            volumeFullImg: null,
+            volumeMediumImg: null,
+            volumeLowImg: null,
+            volumeMutedImg: null,
             downloadImg: null,
             subsImg: null,
             settingsImg: null,
             fullscreenImg: null,
         };
 
+        this.htmlImgs = {
+            seekForward: null,
+            seekBackward: null,
+            playToggle: null,
+            next: null,
+            volume: null,
+            download: null,
+            subs: null,
+            settings: null,
+            fullscreen: null,
+        };
+
         this.isDraggingProgressBar = false;
         this.volumeBeforeMute = 0.0;
 
-        this.initializeSvgResources();
+        this.initializeImageSources();
         this.createHtmlControls();
 
-        // Werid
         this.htmlSeekForward = document.createElement("div");
         this.htmlSeekForward.id = "player_forward_container";
-        this.htmlSeekForward.appendChild(this.resources.seekForwardImg);
+        this.htmlSeekForward.appendChild(this.htmlImgs.seekForward);
         this.htmlPlayerRoot.appendChild(this.htmlSeekForward);
 
         this.htmlSeekBackward = document.createElement("div");
         this.htmlSeekBackward.id = "player_backward_container";
-        this.htmlSeekBackward.appendChild(this.resources.seekBackwardImg);
+        this.htmlSeekBackward.appendChild(this.htmlImgs.seekBackward);
         this.htmlPlayerRoot.appendChild(this.htmlSeekBackward);
 
         this.attachHtmlEvents();
@@ -197,12 +208,12 @@ class Internals {
     fireControlsVolumeSet(_volume) {}
 
     play() {
-        this.htmlControls.playToggleButton.getElementsByTagName("img")[0].replaceWith(this.resources.pauseImg);
+        this.htmlImgs.playToggle.src = this.resources.pauseImg;
         this.htmlVideo.play();
     }
 
     pause() {
-        this.htmlControls.playToggleButton.getElementsByTagName("img")[0].replaceWith(this.resources.playImg);
+        this.htmlImgs.playToggle.src = this.resources.playImg;
         this.htmlVideo.pause();
     }
 
@@ -265,14 +276,14 @@ class Internals {
             volume = 0.0;
         }
 
-        if (volume == 0.0) {
-            this.htmlControls.volume.getElementsByTagName("img")[0].replaceWith(this.resources.volumeImgMuted);
+        if (volume === 0.0) {
+            this.htmlImgs.volume.src = this.resources.volumeMutedImg;
         } else if (volume < 0.3) {
-            this.htmlControls.volume.getElementsByTagName("img")[0].replaceWith(this.resources.volumeImgLow);
+            this.htmlImgs.volume.src = this.resources.volumeLowImg;
         } else if (volume < 0.6) {
-            this.htmlControls.volume.getElementsByTagName("img")[0].replaceWith(this.resources.volumeImgMedium);
+            this.htmlImgs.volume.src = this.resources.volumeMediumImg;
         } else {
-            this.htmlControls.volume.getElementsByTagName("img")[0].replaceWith(this.resources.volumeImgFull);
+            this.htmlImgs.volume.src = this.resources.volumeFullImg;
         }
 
         this.htmlControls.volumeSlider.value = volume;
@@ -624,23 +635,34 @@ class Internals {
         });
     }
 
-    initializeSvgResources() {
+    initializeImageSources() {
         let res = this.resources;
+        res.seekForwardImg = "svg/seek10.svg";
+        res.seekBackwardImg = "svg/seek10.svg";
+        res.playImg = "svg/play.svg";
+        res.pauseImg = "svg/pause.svg";
+        res.nextImg = "svg/next.svg";
+        res.loopImg = "svg/loop.svg";
+        res.volumeFullImg = "svg/volume_full.svg";
+        res.volumeMediumImg = "svg/volume_medium.svg";
+        res.volumeLowImg = "svg/volume_low.svg";
+        res.volumeMutedImg = "svg/volume_muted.svg";
+        res.downloadImg = "svg/download.svg";
+        res.subsImg = "svg/subs.svg";
+        res.settingsImg = "svg/settings.svg";
+        res.fullscreenImg = "svg/fullscreen.svg";
 
-        res.seekForwardImg = this.createImgElementWithSrc("svg/seek10.svg", 70, 70)
-        res.seekBackwardImg = this.createImgElementWithSrc("svg/seek10.svg", 70, 70)
-        res.playImg = this.createImgElementWithSrc("svg/play.svg", 20, 20)
-        res.pauseImg = this.createImgElementWithSrc("svg/pause.svg", 20, 20)
-        res.nextImg = this.createImgElementWithSrc("svg/next.svg", 20, 20)
-        res.loopImg = this.createImgElementWithSrc("svg/loop.svg", 20, 20)
-        res.volumeImgFull = this.createImgElementWithSrc("svg/volume_full.svg", 20, 20)
-        res.volumeImgMedium = this.createImgElementWithSrc("svg/volume_medium.svg", 20, 20)
-        res.volumeImgLow = this.createImgElementWithSrc("svg/volume_low.svg", 20, 20)
-        res.volumeImgMuted = this.createImgElementWithSrc("svg/volume_muted.svg", 20, 20)
-        res.downloadImg = this.createImgElementWithSrc("svg/download.svg", 20, 20)
-        res.subsImg = this.createImgElementWithSrc("svg/subs.svg", 20, 20)
-        res.settingsImg = this.createImgElementWithSrc("svg/settings.svg", 20, 20)
-        res.fullscreenImg = this.createImgElementWithSrc("svg/fullscreen.svg", 20, 20)
+        let imgs = this.htmlImgs;
+        imgs.seekForward = this.createImgElementWithSrc(res.seekForwardImg, 70, 70);
+        imgs.seekBackward = this.createImgElementWithSrc(res.seekBackwardImg, 70, 70);
+        imgs.playToggle = this.createImgElementWithSrc(res.playImg, 20, 20)
+        imgs.next = this.createImgElementWithSrc(res.nextImg, 20, 20);
+        imgs.loop = this.createImgElementWithSrc(res.loopImg, 20, 20)
+        imgs.volume = this.createImgElementWithSrc(res.volumeFullImg, 20, 20);
+        imgs.downloadImg = this.createImgElementWithSrc(res.downloadImg, 20, 20);
+        imgs.subsImg = this.createImgElementWithSrc(res.loopImg, 20, 20)
+        imgs.settingsImg = this.createImgElementWithSrc(res.loopImg, 20, 20)
+        imgs.fullscreenImg = this.createImgElementWithSrc(res.loopImg, 20, 20)
     }
 
     createImgElementWithSrc(src, width, height) {
@@ -701,28 +723,28 @@ class Internals {
 
         let playToggle = document.createElement("div");
         playToggle.id = "player_play_toggle";
-        playToggle.appendChild(this.resources.playImg);
+        playToggle.appendChild(this.htmlImgs.playToggle);
         playToggle.style.display = this.options.hidePlayToggleButton ? "none" : "";
         playerControls.appendChild(playToggle);
         this.htmlControls.playToggleButton = playToggle;
 
         let next = document.createElement("div");
         next.id = "player_next";
-        next.appendChild(this.resources.nextImg);
+        next.appendChild(this.htmlImgs.next);
         next.style.display = this.options.hideNextButton ? "none" : "";
         playerControls.appendChild(next);
         this.htmlControls.nextButton = next;
 
         let loop = document.createElement("div");
         loop.id = "player_loop";
-        loop.appendChild(this.resources.loopImg);
+        loop.appendChild(this.htmlImgs.loop);
         loop.style.display = this.options.hideLoopingButton ? "none" : "";
         playerControls.appendChild(loop);
         this.htmlControls.loopButton = loop;
 
         let volume = document.createElement("div");
         volume.id = "player_volume";
-        volume.appendChild(this.resources.volumeImgFull);
+        volume.appendChild(this.htmlImgs.volume);
         volume.style.display = this.options.hideVolumeButton ? "none" : "";
         playerControls.appendChild(volume);
         this.htmlControls.volume = volume;
@@ -749,7 +771,7 @@ class Internals {
 
         let download = document.createElement("div");
         download.id = "player_download";
-        download.appendChild(this.resources.downloadImg);
+        download.appendChild(this.htmlImgs.downloadImg);
         if (this.options.hideDownloadButton) {
             download.style.display = "none";
         } else {
@@ -763,7 +785,7 @@ class Internals {
 
         let subs = document.createElement("div");
         subs.id = "player_subs";
-        subs.appendChild(this.resources.subsImg);
+        subs.appendChild(this.htmlImgs.subsImg);
         if (this.options.hideSubtitlesButton) {
             subs.style.display = "none";
         } else {
@@ -776,7 +798,7 @@ class Internals {
 
         let settings = document.createElement("div");
         settings.id = "player_settings";
-        settings.appendChild(this.resources.settingsImg);
+        settings.appendChild(this.htmlImgs.settingsImg);
         if (this.options.hideSettingsButton) {
             settings.style.display = "none";
         } else {
@@ -789,7 +811,7 @@ class Internals {
 
         let fullscreen = document.createElement("div");
         fullscreen.id = "player_fullscreen";
-        fullscreen.appendChild(this.resources.fullscreenImg);
+        fullscreen.appendChild(this.htmlImgs.fullscreenImg);
         if (this.options.hideFullscreenButton) {
             fullscreen.style.display = "none";
         } else {
