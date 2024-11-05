@@ -652,6 +652,8 @@ class Internals {
         res.settingsImg = "svg/settings.svg";
         res.fullscreenImg = "svg/fullscreen.svg";
 
+        this.preloadResources()
+
         let imgs = this.htmlImgs;
         imgs.seekForward = this.createImgElementWithSrc(res.seekForwardImg, 70, 70);
         imgs.seekBackward = this.createImgElementWithSrc(res.seekBackwardImg, 70, 70);
@@ -659,10 +661,23 @@ class Internals {
         imgs.next = this.createImgElementWithSrc(res.nextImg, 20, 20);
         imgs.loop = this.createImgElementWithSrc(res.loopImg, 20, 20)
         imgs.volume = this.createImgElementWithSrc(res.volumeFullImg, 20, 20);
-        imgs.downloadImg = this.createImgElementWithSrc(res.downloadImg, 20, 20);
-        imgs.subsImg = this.createImgElementWithSrc(res.loopImg, 20, 20)
-        imgs.settingsImg = this.createImgElementWithSrc(res.loopImg, 20, 20)
-        imgs.fullscreenImg = this.createImgElementWithSrc(res.loopImg, 20, 20)
+        imgs.download = this.createImgElementWithSrc(res.downloadImg, 20, 20);
+        imgs.subs = this.createImgElementWithSrc(res.subsImg, 20, 20)
+        imgs.settings = this.createImgElementWithSrc(res.settingsImg, 20, 20)
+        imgs.fullscreen = this.createImgElementWithSrc(res.fullscreenImg, 20, 20)
+
+    }
+
+    preloadResources() {
+        // Not preloading swappable graphic is very likely to trigger multiple NS_BINDING_ABORTED exceptions
+        // and also lag the browser, therefore we must preload or merge all icons into a single .svg file
+        let res = this.resources;
+        new Image().src = res.playImg;
+        new Image().src = res.pauseImg;
+        new Image().src = res.volumeFullImg;
+        new Image().src = res.volumeMediumImg;
+        new Image().src = res.volumeLowImg;
+        new Image().src = res.volumeMutedImg;
     }
 
     createImgElementWithSrc(src, width, height) {
@@ -771,7 +786,7 @@ class Internals {
 
         let download = document.createElement("div");
         download.id = "player_download";
-        download.appendChild(this.htmlImgs.downloadImg);
+        download.appendChild(this.htmlImgs.download);
         if (this.options.hideDownloadButton) {
             download.style.display = "none";
         } else {
@@ -785,7 +800,7 @@ class Internals {
 
         let subs = document.createElement("div");
         subs.id = "player_subs";
-        subs.appendChild(this.htmlImgs.subsImg);
+        subs.appendChild(this.htmlImgs.subs);
         if (this.options.hideSubtitlesButton) {
             subs.style.display = "none";
         } else {
@@ -798,7 +813,7 @@ class Internals {
 
         let settings = document.createElement("div");
         settings.id = "player_settings";
-        settings.appendChild(this.htmlImgs.settingsImg);
+        settings.appendChild(this.htmlImgs.settings);
         if (this.options.hideSettingsButton) {
             settings.style.display = "none";
         } else {
@@ -811,7 +826,7 @@ class Internals {
 
         let fullscreen = document.createElement("div");
         fullscreen.id = "player_fullscreen";
-        fullscreen.appendChild(this.htmlImgs.fullscreenImg);
+        fullscreen.appendChild(this.htmlImgs.fullscreen);
         if (this.options.hideFullscreenButton) {
             fullscreen.style.display = "none";
         } else {
