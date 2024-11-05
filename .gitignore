@@ -3,7 +3,6 @@ web/favicon.ico
 web/media/**
 build/**
 secret/**
-lib/**
 
 *.exe
 web/proxy/*
