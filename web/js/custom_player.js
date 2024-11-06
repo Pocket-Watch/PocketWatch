@@ -142,6 +142,8 @@ class Internals {
                 root: null,
                 customization: null,
                 selection: null,
+                subtitleList: null,
+                back: null,
             },
             playToggleButton: null,
             nextButton: null,
@@ -482,6 +484,34 @@ class Internals {
             } else {
                 menuRootElement.style.display = "";
             }
+        });
+
+        this.htmlControls.subtitleMenu.selection.addEventListener("click", () => {
+            this.htmlControls.subtitleMenu.selection.style.display = "none";
+            this.htmlControls.subtitleMenu.customization.style.display = "none";
+            this.htmlControls.subtitleMenu.back.style.display = "";
+            let textTracks = this.htmlVideo.textTracks;
+            let subtitleList = this.htmlControls.subtitleMenu.subtitleList;
+            for (let i = 0; i < textTracks.length; i++) {
+                let track = textTracks[i];
+                const trackDiv = document.createElement("a");
+                trackDiv.textContent = track.label;
+                console.log("Adding", track.label)
+                trackDiv.onclick = () => {
+                    console.log("Clicked on", track.label)
+                    track.mode = "showing";
+                }
+                subtitleList.appendChild(trackDiv);
+            }
+            subtitleList.style.display = "block";
+        });
+
+        this.htmlControls.subtitleMenu.back.addEventListener("click", () => {
+            this.htmlControls.subtitleMenu.selection.style.display = "";
+            this.htmlControls.subtitleMenu.customization.style.display = "";
+            this.htmlControls.subtitleMenu.subtitleList.style.display = "none";
+            this.htmlControls.subtitleMenu.back.style.display = "none";
+            this.htmlControls.subtitleMenu.subtitleList.innerHTML = ""
         });
 
         this.htmlVideo.addEventListener("keydown", (event) => {
@@ -854,23 +884,42 @@ class Internals {
     }
 
     createSubtitleMenu() {
-        let menuRoot = document.createElement("div");
+        this.htmlControls.subtitleMenu.root = document.createElement("div");
+        let menuRoot = this.htmlControls.subtitleMenu.root;
         menuRoot.id = "player_subtitle_menu"
-        this.htmlControls.subtitleMenu.root = menuRoot;
+        menuRoot.style.display = "none"
 
-        let selection = document.createElement("div");
+        this.htmlControls.subtitleMenu.selection = document.createElement("div");
+        let selection = this.htmlControls.subtitleMenu.selection;
         selection.classList.add("menu_item")
         selection.classList.add("unselectable")
         selection.innerHTML = "Select";
-        this.htmlControls.subtitleMenu.selection = selection;
         menuRoot.appendChild(selection);
 
-        let customization = document.createElement("div");
+        this.htmlControls.subtitleMenu.customization = document.createElement("div");
+        let customization = this.htmlControls.subtitleMenu.customization;
         customization.classList.add("menu_item")
         customization.classList.add("unselectable")
         customization.innerHTML = "Customize";
-        this.htmlControls.subtitleMenu.customization = customization;
         menuRoot.appendChild(customization);
+
+        // Scrollable pane for selection
+        this.htmlControls.subtitleMenu.subtitleList = document.createElement("div");
+        let subtitleList = this.htmlControls.subtitleMenu.subtitleList;
+        subtitleList.id = "subtitle_list";
+        subtitleList.classList.add("scrollable_pane")
+        subtitleList.classList.add("unselectable")
+        subtitleList.style.display = "none"
+        menuRoot.appendChild(subtitleList);
+
+        // Back button for any action item
+        this.htmlControls.subtitleMenu.back = document.createElement("div");
+        let back = this.htmlControls.subtitleMenu.back;
+        back.innerHTML = "←"
+        back.classList.add("menu_item")
+        back.classList.add("unselectable")
+        back.style.display = "none"
+        menuRoot.appendChild(back);
 
         this.htmlPlayerRoot.appendChild(menuRoot);
     }

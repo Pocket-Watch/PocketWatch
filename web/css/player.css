@@ -305,6 +305,14 @@
     margin-top: 8px;
 }
 
+#subtitle_list {
+    display: none;
+    position: absolute;
+    background-color: #f1f1f1;
+    min-width: 160px;
+    box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2);
+}
+
 #player_buffering {
     width: 150px;
     height: 150px;
