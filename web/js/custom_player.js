@@ -343,17 +343,24 @@ class Internals {
     }
 
     setVideoTrack(url) {
-        let source = this.htmlVideo.querySelector("source");
-        if (!source) {
-            console.debug("Creating a source tag");
-            source = document.createElement("source");
-            this.htmlVideo.appendChild(source);
+        let is_hls = false;
+        try {
+            let new_url = new URL(url);
+            if (new_url.pathname.endsWith("m3u8")) {
+                is_hls = true;
+            }
+        } catch(_) {}
+
+        if (is_hls) {
+            if (Hls.isSupported()) {
+                var hls = new Hls();
+                hls.loadSource(url);
+                hls.attachMedia(this.htmlVideo);
+            }  
+        } else {
+            this.htmlVideo.src = url;
+            this.htmlVideo.load();
         }
-        source.setAttribute("src", url);
-        source.setAttribute("type", "video/mp4");
-        // source.src = url;
-        // source.type = "video/mp4";
-        this.htmlVideo.load();
     }
 
     addSubtitleTrack(url, set) {
