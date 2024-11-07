@@ -1,3 +1,5 @@
+// import { Hls } from "../external/hls.js"
+
 export { Player, Options };
 
 class Player {
@@ -352,11 +354,13 @@ class Internals {
         } catch(_) {}
 
         if (is_hls) {
-            if (Hls.isSupported()) {
-                var hls = new Hls();
-                hls.loadSource(url);
-                hls.attachMedia(this.htmlVideo);
-            }  
+            import("../external/hls.js").then(module => {
+                if (module.Hls.isSupported()) {
+                    var hls = new module.Hls();
+                    hls.loadSource(url);
+                    hls.attachMedia(this.htmlVideo);
+                }  
+            });
         } else {
             this.htmlVideo.src = url;
             this.htmlVideo.load();

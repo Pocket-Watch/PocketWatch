@@ -69,7 +69,7 @@
     - [x] Show timestamp when hovering over timestamp slider
     - [x] Make timestamp slider smaller, and expand it on mouse hover
     - [x] Display loading progress on timestamp slider bar
-    - [ ] HSL support
+    - [x] HSL support
     - [ ] Auto-hide player UI
         - [x] Show/Hide elements when mouse enters/leaves the player area
         - [ ] Add support for touchscreen devices
@@ -106,3 +106,4 @@
 - [ ] Add support for live chat
 - [ ] Improve the UI layout and styling
 - [ ] Add rooms with individual player states
+- [ ] Create an extension to easily copy media urls and open them on the website
