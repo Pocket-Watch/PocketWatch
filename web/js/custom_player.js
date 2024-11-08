@@ -805,6 +805,7 @@ class Internals {
         this.createProgressBar();
 
         let playToggle = document.createElement("div");
+        playToggle.classList.add("responsive");
         playToggle.id = "player_play_toggle";
         playToggle.appendChild(this.htmlImgs.playToggle);
         playToggle.style.display = this.options.hidePlayToggleButton ? "none" : "";
@@ -812,6 +813,7 @@ class Internals {
         this.htmlControls.playToggleButton = playToggle;
 
         let next = document.createElement("div");
+        next.classList.add("responsive");
         next.id = "player_next";
         next.appendChild(this.htmlImgs.next);
         next.style.display = this.options.hideNextButton ? "none" : "";
@@ -819,6 +821,7 @@ class Internals {
         this.htmlControls.nextButton = next;
 
         let loop = document.createElement("div");
+        loop.classList.add("responsive");
         loop.id = "player_loop";
         loop.appendChild(this.htmlImgs.loop);
         loop.style.display = this.options.hideLoopingButton ? "none" : "";
@@ -826,6 +829,7 @@ class Internals {
         this.htmlControls.loopButton = loop;
 
         let volume = document.createElement("div");
+        volume.classList.add("responsive");
         volume.id = "player_volume";
         volume.appendChild(this.htmlImgs.volume);
         volume.style.display = this.options.hideVolumeButton ? "none" : "";
@@ -853,6 +857,7 @@ class Internals {
         let firstAutoMargin = true;
 
         let download = document.createElement("div");
+        download.classList.add("responsive");
         download.id = "player_download";
         download.appendChild(this.htmlImgs.download);
         if (this.options.hideDownloadButton) {
@@ -867,6 +872,7 @@ class Internals {
         this.htmlControls.download = download;
 
         let subs = document.createElement("div");
+        subs.classList.add("responsive");
         subs.id = "player_subs";
         subs.appendChild(this.htmlImgs.subs);
         if (this.options.hideSubtitlesButton) {
@@ -880,6 +886,7 @@ class Internals {
         this.htmlControls.subs = subs;
 
         let settings = document.createElement("div");
+        settings.classList.add("responsive");
         settings.id = "player_settings";
         settings.appendChild(this.htmlImgs.settings);
         if (this.options.hideSettingsButton) {
@@ -893,6 +900,7 @@ class Internals {
         this.htmlControls.settings = settings;
 
         let fullscreen = document.createElement("div");
+        fullscreen.classList.add("responsive");
         fullscreen.id = "player_fullscreen";
         fullscreen.appendChild(this.htmlImgs.fullscreen);
         if (this.options.hideFullscreenButton) {

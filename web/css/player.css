@@ -269,7 +269,6 @@
     align-items: center;
     text-align: center;
     font-size: 20px;
-    transition: background-color 0.3s;
 }
 
 .menu_item:hover {
@@ -332,5 +331,14 @@
 .unselectable {
     user-select: none;
     -webkit-user-drag: none;
+}
+
+.responsive {
+    transition: transform 0.3s ease-in-out, outline 0.5s;
+}
+
+.responsive:hover {
+    outline: 2px solid;
+    transform: scale(1.08); /* Zoom in */
 }
 
