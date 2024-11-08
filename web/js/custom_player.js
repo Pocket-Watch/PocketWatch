@@ -345,21 +345,22 @@ class Internals {
     }
 
     setVideoTrack(url) {
-        let is_hls = false;
-        try {
-            let new_url = new URL(url);
-            if (new_url.pathname.endsWith("m3u8")) {
-                is_hls = true;
-            }
-        } catch(_) {}
+        if(!URL.canParse(url, document.baseURI)){
+            console.debug("Failed to set a new URL. It's not parsable.")
+            // We should probably inform the user about the error either via debug log or return false
+            return
+        }
+        // This covers both relative and fully qualified URLs because we always specify the base
+        // and when the base is not provided, the second argument is used to construct a valid URL
+        let pathname = new URL(url, document.baseURI).pathname;
 
-        if (is_hls) {
+        if (pathname.endsWith(".m3u8")) {
             import("../external/hls.js").then(module => {
                 if (module.Hls.isSupported()) {
-                    var hls = new module.Hls();
+                    const hls = new module.Hls();
                     hls.loadSource(url);
                     hls.attachMedia(this.htmlVideo);
-                }  
+                }
             });
         } else {
             this.htmlVideo.src = url;
