@@ -70,6 +70,7 @@
     - [x] Make timestamp slider smaller, and expand it on mouse hover
     - [x] Display loading progress on timestamp slider bar
     - [x] HSL support
+    - [x] Fullscreen support
     - [ ] Auto-hide player UI
         - [x] Show/Hide elements when mouse enters/leaves the player area
         - [ ] Add support for touchscreen devices
@@ -87,7 +88,6 @@
         - [ ] Audio source switch
         - [ ] Video source switch
         - [ ] Audio only mode
-    - [ ] Fullscreen support
     - [ ] Subtitles support
         - [ ] Subtitle popup menu with selection and options
         - [ ] Option to change subtitle size

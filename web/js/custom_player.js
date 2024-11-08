@@ -174,6 +174,7 @@ class Internals {
             subsImg: null,
             settingsImg: null,
             fullscreenImg: null,
+            fullscreenExitImg: null,
         };
 
         this.htmlImgs = {
@@ -583,8 +584,13 @@ class Internals {
         });
 
         this.htmlControls.fullscreen.addEventListener("click", () => {
-            // handle with Promise, it has controls on Chromium based browsers?
-            this.htmlVideo.requestFullscreen();
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+                this.htmlImgs.fullscreen.src = this.resources.fullscreenImg;
+            } else {
+                this.htmlPlayerRoot.requestFullscreen();
+                this.htmlImgs.fullscreen.src = this.resources.fullscreenExitImg;
+            }
         });
 
         this.htmlControls.volumeSlider.addEventListener("input", _event => {
@@ -709,6 +715,7 @@ class Internals {
         res.subsImg = "svg/subs.svg";
         res.settingsImg = "svg/settings.svg";
         res.fullscreenImg = "svg/fullscreen.svg";
+        res.fullscreenExitImg = "svg/fullscreen_exit.svg";
 
         this.preloadResources()
 
