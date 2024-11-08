@@ -101,7 +101,10 @@ class Internals {
         console.log("OPTIONS:", options);
         this.options = options;
         // Corresponds to the actual html player element called either </video> or </audio>.
+
         this.htmlVideo = videoElement;
+        this.htmlVideo.disablePictureInPicture = true;
+        this.htmlVideo.controls = false;
 
         // Div container where either the player or the placeholder resides.
         this.htmlPlayerRoot = document.createElement("div");
