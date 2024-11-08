@@ -90,6 +90,7 @@
         - [ ] Audio source switch
         - [ ] Video source switch
         - [ ] Audio only mode
+        - [ ] Disable control auto-hide
     - [ ] Subtitles support
         - [ ] Subtitle popup menu with selection and options
         - [ ] Option to change subtitle size
