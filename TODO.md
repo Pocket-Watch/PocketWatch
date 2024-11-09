@@ -71,7 +71,7 @@
     - [x] Display loading progress on timestamp slider bar
     - [x] HSL support
     - [x] Fullscreen support
-        - [ ] Listen to user exit to change svg icon
+        - [x] Listen to user exit to change svg icon
     - [ ] Tool tips on button hover
     - [ ] Auto-hide player UI
         - [x] Show/Hide elements when mouse enters/leaves the player area

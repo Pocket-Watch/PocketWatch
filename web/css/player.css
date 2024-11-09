@@ -349,4 +349,5 @@
 
 .responsive:active {
     transform: scale(0.96);
+    outline: 1px solid;
 }

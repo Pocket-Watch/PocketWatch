@@ -596,6 +596,15 @@ class Internals {
             }
         });
 
+        document.addEventListener("fullscreenchange", () => {
+            // This is after the fact when a user exited without using the icon
+            if (document.fullscreenElement) {
+                this.htmlImgs.fullscreen.src = this.resources.fullscreenExitImg;
+            } else {
+                this.htmlImgs.fullscreen.src = this.resources.fullscreenImg;
+            }
+        });
+
         this.htmlControls.volumeSlider.addEventListener("input", _event => {
             let volume = this.htmlControls.volumeSlider.value;
             this.fireControlsVolumeSet(volume);
@@ -1036,7 +1045,7 @@ class Options {
         this.inactivityTime = 2500;
 
         // Disable the auto hide for player controls.
-        this.disableControlsAutoHide = true;
+        this.disableControlsAutoHide = false;
 
         this.bufferingRedrawInterval = 1000;
     }
