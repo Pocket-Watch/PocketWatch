@@ -149,7 +149,16 @@ func loadYoutubeEntry(entry *Entry) {
 	userId := entry.UserId
 
 	go func() {
+		const ENTRY_LIMIT = 250
+		entryCount := 0
+
 		for scanner.Scan() {
+			if entryCount >= ENTRY_LIMIT {
+				break
+			}
+
+			entryCount += 1
+
 			var ytdlpEntry YtdlpEntry
 			err = json.Unmarshal(scanner.Bytes(), &ytdlpEntry)
 			if err != nil {
