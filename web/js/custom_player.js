@@ -108,6 +108,7 @@ class Player {
 
 class Internals {
     constructor(videoElement, options) {
+        this.isMobile = isMobileAgent();
         console.log("OPTIONS:", options);
         this.options = options;
         // Corresponds to the actual html player element called either </video> or </audio>.
@@ -373,11 +374,13 @@ class Internals {
             import("../external/hls.js").then(module => {
                 if (module.Hls.isSupported()) {
                     const hls = new module.Hls();
+                    this.htmlVideo.currentTime = 0;
                     hls.loadSource(url);
                     hls.attachMedia(this.htmlVideo);
                 }
             });
         } else {
+            this.htmlVideo.currentTime = 0;
             this.htmlVideo.src = url;
             this.htmlVideo.load();
         }
@@ -460,6 +463,9 @@ class Internals {
     };
 
     attachHtmlEvents() {
+        // Prevents selecting the video element along with the rest of the page
+        this.htmlVideo.classList.add("unselectable");
+
         this.htmlPlayerRoot.addEventListener("mousemove", () => {
             this.showPlayerUI();
             this.resetPlayerUIHideTimeout();
