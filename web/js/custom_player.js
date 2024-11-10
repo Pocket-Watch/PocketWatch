@@ -1,5 +1,3 @@
-// import { Hls } from "../external/hls.js"
-
 export { Player, Options };
 
 class Player {
@@ -35,6 +33,10 @@ class Player {
 
     setTitle(title) {
         this.internals.setTitle(title);
+    }
+
+    getCurrentTime() {
+        return this.internals.htmlVideo.currentTime;
     }
 
     // How to set a track once it has been added? Programmatic selection through setSubtitleTrack?
@@ -89,6 +91,14 @@ class Player {
             return;
         }
         this.internals.fireControlsVolumeSet = func;
+    }
+
+    onPlaybackEnd(func) {
+        if (!isFunction(func)) {
+            return;
+        }
+
+        this.internals.firePlaybackEnd = func;
     }
 
     setVideoTrack(url) {
@@ -220,6 +230,7 @@ class Internals {
     fireControlsSeeking(_timestamp) {}
     fireControlsSeeked(_timestamp) {}
     fireControlsVolumeSet(_volume) {}
+    firePlaybackEnd() {}
 
     play() {
         this.htmlImgs.playToggle.src = this.resources.pauseImg;
@@ -584,6 +595,10 @@ class Internals {
         this.htmlVideo.addEventListener("timeupdate", (_event) => {
             let timestamp = this.htmlVideo.currentTime;
             this.updateTimestamps(timestamp);
+        });
+
+        this.htmlVideo.addEventListener("ended", (_event) => {
+            this.firePlaybackEnd();
         });
 
         this.htmlControls.fullscreen.addEventListener("click", () => {

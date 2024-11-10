@@ -1,7 +1,5 @@
-import { Player } from "./external_player.js"
-// import { Player } from "./custom_player.js"
+import { PlayerArea } from "./player_area.js"
 import { Playlist } from "./playlist.js"
-
 import * as api from "./api.js";
 
 export { findUserById }
@@ -18,7 +16,7 @@ export var userSelf = {
 var input_username = document.getElementById("input_username");
 
 // Player
-export var player = new Player();
+export var playerArea = new PlayerArea();
 
 // Playlist and history.
 var playlist = new Playlist();
@@ -84,7 +82,7 @@ function attachHtmlHandlers() {
     window.historyClearOnClick = historyClearOnClick;
 
     playlist.attachHtmlEventHandlers();
-    player.attachHtmlEventHandlers();
+    playerArea.attachHtmlEventHandlers();
 }
 
 /// --------------- HISTORY: ---------------
@@ -239,7 +237,7 @@ function subscribeToServerEvents() {
         console.info("INFO: Received player set event: ", response);
 
         addHistoryElement(response.prev_entry)
-        player.setUrl(response.new_entry);
+        playerArea.setUrl(response.new_entry);
     });
 
     eventSource.addEventListener("playernext", function(event) {
@@ -248,12 +246,12 @@ function subscribeToServerEvents() {
 
         addHistoryElement(response.prev_entry)
 
-        if (player.loopingEnabled()) {
+        if (playerArea.loopingEnabled()) {
             playlist.add(response.prev_entry);
         }
 
         playlist.removeFirst();
-        player.setUrl(response.new_entry);
+        playerArea.setUrl(response.new_entry);
     });
 
     eventSource.addEventListener("sync", function(event) {
@@ -268,17 +266,17 @@ function subscribeToServerEvents() {
 
         switch (data.action) {
             case "play": {
-                player.resync(timestamp, userId);
-                player.play();
+                playerArea.resync(timestamp, userId);
+                playerArea.play();
             } break;
 
             case "pause": {
-                player.resync(timestamp, userId);
-                player.pause();
+                playerArea.resync(timestamp, userId);
+                playerArea.pause();
             } break;
 
             case "seek": {
-                player.seek(timestamp);
+                playerArea.seek(timestamp);
             } break;
 
             default: {
@@ -290,13 +288,13 @@ function subscribeToServerEvents() {
     eventSource.addEventListener("playerautoplay", function(event) {
         let autoplay_enabled = JSON.parse(event.data);
         console.info("INFO: Received player autoplay event: ", autoplay_enabled);
-        player.autoplaySet(autoplay_enabled);
+        playerArea.autoplaySet(autoplay_enabled);
     });
 
     eventSource.addEventListener("playerlooping", function(event) {
         let looping_enabled = JSON.parse(event.data);
         console.info("INFO: Received player looping event: ", looping_enabled);
-        player.loopingSet(looping_enabled);
+        playerArea.loopingSet(looping_enabled);
     });
 
     eventSource.addEventListener("playlist", function(event) {
@@ -317,17 +315,17 @@ async function main() {
     userSelf = await getOrCreateUserInAnExtremelyUglyWay();
     input_username.value = userSelf.username;
 
-    player.createPlayer();
-
     let state = await api.playerGet();
 
-    player.autoplaySet(state.player.autoplay);
-    player.loopingSet(state.player.looping);
+    playerArea.setUrl("https://ftp.halifax.rwth-aachen.de/blender/demo/movies/ToS/ToS-4k-1920.mov");
 
-    player.currentEntryId = state.entry.id;
-    player.subtitles = state.subtitles;
+    playerArea.autoplaySet(state.player.autoplay);
+    playerArea.loopingSet(state.player.looping);
 
-    player.setUrl(state.entry);
+    playerArea.currentEntryId = state.entry.id;
+    playerArea.subtitles = state.subtitles;
+
+    playerArea.setUrl(state.entry);
     subscribeToServerEvents();
 }
 
