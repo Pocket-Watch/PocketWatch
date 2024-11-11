@@ -237,7 +237,7 @@ function subscribeToServerEvents() {
         console.info("INFO: Received player set event: ", response);
 
         addHistoryElement(response.prev_entry)
-        playerArea.setUrl(response.new_entry);
+        playerArea.setEntry(response.new_entry);
     });
 
     eventSource.addEventListener("playernext", function(event) {
@@ -251,7 +251,7 @@ function subscribeToServerEvents() {
         }
 
         playlist.removeFirst();
-        playerArea.setUrl(response.new_entry);
+        playerArea.setEntry(response.new_entry);
     });
 
     eventSource.addEventListener("sync", function(event) {
@@ -288,13 +288,13 @@ function subscribeToServerEvents() {
     eventSource.addEventListener("playerautoplay", function(event) {
         let autoplay_enabled = JSON.parse(event.data);
         console.info("INFO: Received player autoplay event: ", autoplay_enabled);
-        playerArea.autoplaySet(autoplay_enabled);
+        playerArea.setAutoplay(autoplay_enabled);
     });
 
     eventSource.addEventListener("playerlooping", function(event) {
         let looping_enabled = JSON.parse(event.data);
         console.info("INFO: Received player looping event: ", looping_enabled);
-        playerArea.loopingSet(looping_enabled);
+        playerArea.setLooping(looping_enabled);
     });
 
     eventSource.addEventListener("playlist", function(event) {
@@ -317,15 +317,15 @@ async function main() {
 
     let state = await api.playerGet();
 
-    playerArea.setUrl("https://ftp.halifax.rwth-aachen.de/blender/demo/movies/ToS/ToS-4k-1920.mov");
+    playerArea.setEntry("https://ftp.halifax.rwth-aachen.de/blender/demo/movies/ToS/ToS-4k-1920.mov");
 
-    playerArea.autoplaySet(state.player.autoplay);
-    playerArea.loopingSet(state.player.looping);
+    playerArea.setAutoplay(state.player.autoplay);
+    playerArea.setLooping(state.player.looping);
 
     playerArea.currentEntryId = state.entry.id;
     playerArea.subtitles = state.subtitles;
 
-    playerArea.setUrl(state.entry);
+    playerArea.setEntry(state.entry);
     subscribeToServerEvents();
 }
 

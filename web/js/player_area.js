@@ -32,17 +32,21 @@ class PlayerArea {
         return this.htmlLoopingCheckbox.checked;
     }
 
-    loopingSet(looping) {
+    setLooping(looping) {
         this.htmlLoopingCheckbox.checked = looping;
     }
 
-    autoplaySet(looping) {
-        this.htmlLoopingCheckbox.checked = looping;
+    setAutoplay(autoplay) {
+        this.htmlAutoplayCheckbox.checked = autoplay;
     }
 
-    setUrl(entry) {
+    setEntry(entry) {
         if (!entry || !entry.url) {
             this.player.setVideoTrack("video/nothing_is_playing.mp4");
+            this.player.setTitle("Nothing is playing");
+
+            this.currentEntryId = 0;
+            this.htmlCurrentUrl.value = "";
             return;
         }
 
@@ -59,6 +63,7 @@ class PlayerArea {
         }
 
         this.player.setVideoTrack(url);
+        this.player.setTitle(entry.title);
     }
 
     play() {
