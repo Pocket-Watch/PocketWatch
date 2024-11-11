@@ -34,7 +34,7 @@ class PlayerArea {
     }
 
     setAutoplay(autoplay) {
-        this.htmlAutoplayCheckbox.checked = autoplay;
+        this.player.setAutoplay(autoplay);
     }
 
     setEntry(entry) {
@@ -112,6 +112,10 @@ class PlayerArea {
             api.playerLooping(enabled);
         });
 
+        this.player.onControlsAutoplay(enabled => {
+            api.playerAutoplay(enabled);
+        });
+
         this.player.onPlaybackEnd(() => {
             if (this.htmlAutoplayCheckbox.checked) {
                 api.playerNext(this.currentEntryId);
@@ -165,10 +169,6 @@ class PlayerArea {
 
             let entry = this.createApiEntry(url);
             api.playlistAdd(entry);
-        };
-
-        window.autoplayOnClick = () => {
-            api.playerAutoplay(this.htmlAutoplayCheckbox.checked);
         };
     }
 }

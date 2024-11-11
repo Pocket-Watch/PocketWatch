@@ -40,8 +40,12 @@ class Player {
         this.internals.setLoop(enabled);
     }
 
-    getLoop(enabled) {
-        return this.internals.loopEnabled;
+    setAutoplay(enabled) {
+        this.internals.setAutoplay(enabled);
+    }
+
+    getAutoplay(enabled) {
+        return this.internals.autoplayEnabled;
     }
 
     getCurrentTime() {
@@ -88,6 +92,13 @@ class Player {
         this.internals.fireControlsLoop = func;
     }
 
+    onControlsAutoplay(func) {
+        if (!isFunction(func)) {
+            return;
+        }
+        this.internals.fireControlsAutoplay = func;
+    }
+
     onControlsSeeking(func) {
         if (!isFunction(func)) {
             return;
@@ -130,6 +141,7 @@ class Internals {
         // Corresponds to the actual html player element called either </video> or </audio>.
 
         this.loopEnabled = false;
+        this.autoplayEnabled = false;
 
         this.htmlVideo = videoElement;
         this.htmlVideo.disablePictureInPicture = true;
@@ -185,6 +197,7 @@ class Internals {
             volumeSlider: null,
             timestamp: null,
             download: null,
+            autoplay: null,
             subs: null,
             settings: null,
             fullscreen: null,
@@ -203,6 +216,7 @@ class Internals {
             volumeLowImg: null,
             volumeMutedImg: null,
             downloadImg: null,
+            autoplayImg: null,
             subsImg: null,
             settingsImg: null,
             fullscreenImg: null,
@@ -216,6 +230,7 @@ class Internals {
             next: null,
             volume: null,
             download: null,
+            autoplay: null,
             subs: null,
             settings: null,
             fullscreen: null,
@@ -247,6 +262,7 @@ class Internals {
     fireControlsPause() {}
     fireControlsNext() {}
     fireControlsLoop(_enabled) {}
+    fireControlsAutoplay(_enabled) {}
     fireControlsSeeking(_timestamp) {}
     fireControlsSeeked(_timestamp) {}
     fireControlsVolumeSet(_volume) {}
@@ -381,6 +397,17 @@ class Internals {
             this.htmlImgs.loop.style.filter = "invert(19%) sepia(80%) saturate(4866%) hue-rotate(354deg) brightness(106%) contrast(127%)";
         } else {
             this.htmlImgs.loop.style.filter = "invert(100%) sepia(63%) saturate(0%) hue-rotate(137deg) brightness(112%) contrast(101%)";
+        }
+    }
+
+    setAutoplay(enabled) {
+        this.autoplayEnabled = enabled;
+
+        // NOTE(kihau): Temporary goofyness for testing
+        if (this.autoplayEnabled) {
+            this.htmlImgs.autoplay.style.filter = "invert(19%) sepia(80%) saturate(4866%) hue-rotate(354deg) brightness(106%) contrast(127%)";
+        } else {
+            this.htmlImgs.autoplay.style.filter = "invert(100%) sepia(63%) saturate(0%) hue-rotate(137deg) brightness(112%) contrast(101%)";
         }
     }
 
@@ -541,6 +568,18 @@ class Internals {
                 this.htmlImgs.loop.style.filter = "invert(19%) sepia(80%) saturate(4866%) hue-rotate(354deg) brightness(106%) contrast(127%)";
             } else {
                 this.htmlImgs.loop.style.filter = "invert(100%) sepia(63%) saturate(0%) hue-rotate(137deg) brightness(112%) contrast(101%)";
+            }
+        });
+
+        this.htmlControls.autoplay.addEventListener("click", () => {
+            this.autoplayEnabled = !this.autoplayEnabled;
+            this.fireControlsAutoplay(this.autoplayEnabled);
+
+            // NOTE(kihau): Temporary goofyness for testing
+            if (this.autoplayEnabled) {
+                this.htmlImgs.autoplay.style.filter = "invert(19%) sepia(80%) saturate(4866%) hue-rotate(354deg) brightness(106%) contrast(127%)";
+            } else {
+                this.htmlImgs.autoplay.style.filter = "invert(100%) sepia(63%) saturate(0%) hue-rotate(137deg) brightness(112%) contrast(101%)";
             }
         });
 
@@ -791,6 +830,7 @@ class Internals {
         res.volumeLowImg = "svg/volume_low.svg";
         res.volumeMutedImg = "svg/volume_muted.svg";
         res.downloadImg = "svg/download.svg";
+        res.autoplayImg = "svg/autoplay.svg";
         res.subsImg = "svg/subs.svg";
         res.settingsImg = "svg/settings.svg";
         res.fullscreenImg = "svg/fullscreen.svg";
@@ -810,6 +850,11 @@ class Internals {
 
         imgs.volume = this.createImgElementWithSrc(res.volumeFullImg, 20, 20);
         imgs.download = this.createImgElementWithSrc(res.downloadImg, 20, 20);
+        imgs.autoplay = this.createImgElementWithSrc(res.autoplayImg, 20, 20);
+
+        // NOTE(kihau): Temporary goofyness for testing
+        imgs.autoplay.style.filter = "invert(100%) sepia(63%) saturate(0%) hue-rotate(137deg) brightness(112%) contrast(101%)";
+
         imgs.subs = this.createImgElementWithSrc(res.subsImg, 20, 20)
         imgs.settings = this.createImgElementWithSrc(res.settingsImg, 20, 20)
         imgs.fullscreen = this.createImgElementWithSrc(res.fullscreenImg, 20, 20)
@@ -950,6 +995,21 @@ class Internals {
         playerControls.appendChild(download);
         this.htmlPlayerRoot.appendChild(playerControls);
         this.htmlControls.download = download;
+
+        let autoplay = document.createElement("div");
+        autoplay.classList.add("responsive");
+        autoplay.id = "player_autoplay";
+        autoplay.appendChild(this.htmlImgs.autoplay);
+        if (this.options.hideAutoplayButton) {
+            autoplay.style.display = "none";
+        } else {
+            autoplay.style.marginLeft = firstAutoMargin ? "auto" : "0";
+            firstAutoMargin = false;
+        }
+
+        playerControls.appendChild(autoplay);
+        this.htmlPlayerRoot.appendChild(playerControls);
+        this.htmlControls.autoplay = autoplay;
 
         let subs = document.createElement("div");
         subs.classList.add("responsive");
@@ -1102,6 +1162,7 @@ class Options {
         this.hideVolumeSlider = false;
         this.hideTimestamps = false;
         this.hideDownloadButton = false;
+        this.hideAutoplayButton = false;
         this.hideSubtitlesButton = false;
         this.hideSettingsButton = false;
         this.hideFullscreenButton = false;
