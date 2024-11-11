@@ -35,6 +35,14 @@ class Player {
         this.internals.setTitle(title);
     }
 
+    setLoop(enabled) {
+        this.internals.setLoop(enabled);
+    }
+
+    getLoop(enabled) {
+        return this.internals.loopEnabled;
+    }
+
     getCurrentTime() {
         return this.internals.htmlVideo.currentTime;
     }
@@ -70,6 +78,13 @@ class Player {
             return;
         }
         this.internals.fireControlsNext = func;
+    }
+
+    onControlsLoop(func) {
+        if (!isFunction(func)) {
+            return;
+        }
+        this.internals.fireControlsLoop = func;
     }
 
     onControlsSeeking(func) {
@@ -112,6 +127,8 @@ class Internals {
         console.log("OPTIONS:", options);
         this.options = options;
         // Corresponds to the actual html player element called either </video> or </audio>.
+
+        this.loopEnabled = false;
 
         this.htmlVideo = videoElement;
         this.htmlVideo.disablePictureInPicture = true;
@@ -228,6 +245,7 @@ class Internals {
     fireControlsPlay() {}
     fireControlsPause() {}
     fireControlsNext() {}
+    fireControlsLoop(_enabled) {}
     fireControlsSeeking(_timestamp) {}
     fireControlsSeeked(_timestamp) {}
     fireControlsVolumeSet(_volume) {}
@@ -347,6 +365,17 @@ class Internals {
         } else {
             this.htmlTitleContainer.style.display = "";
             this.htmlTitle.textContent = title;
+        }
+    }
+
+    setLoop(enabled) {
+        this.loopEnabled = enabled;
+
+        // NOTE(kihau): Temporary goofyness for testing
+        if (this.loopEnabled) {
+            this.htmlImgs.loop.style.filter = "invert(19%) sepia(80%) saturate(4866%) hue-rotate(354deg) brightness(106%) contrast(127%)";
+        } else {
+            this.htmlImgs.loop.style.filter = "invert(100%) sepia(63%) saturate(0%) hue-rotate(137deg) brightness(112%) contrast(101%)";
         }
     }
 
@@ -496,6 +525,18 @@ class Internals {
 
         this.htmlControls.nextButton.addEventListener("click", () => {
             this.fireControlsNext();
+        });
+
+        this.htmlControls.loopButton.addEventListener("click", () => {
+            this.loopEnabled = !this.loopEnabled;
+            this.fireControlsLoop(this.loopEnabled);
+
+            // NOTE(kihau): Temporary goofyness for testing
+            if (this.loopEnabled) {
+                this.htmlImgs.loop.style.filter = "invert(19%) sepia(80%) saturate(4866%) hue-rotate(354deg) brightness(106%) contrast(127%)";
+            } else {
+                this.htmlImgs.loop.style.filter = "invert(100%) sepia(63%) saturate(0%) hue-rotate(137deg) brightness(112%) contrast(101%)";
+            }
         });
 
         this.htmlControls.volume.addEventListener("click", () => {
@@ -758,6 +799,10 @@ class Internals {
         imgs.playToggle = this.createImgElementWithSrc(res.playImg, 20, 20)
         imgs.next = this.createImgElementWithSrc(res.nextImg, 20, 20);
         imgs.loop = this.createImgElementWithSrc(res.loopImg, 20, 20)
+
+        // NOTE(kihau): Temporary goofyness for testing
+        imgs.loop.style.filter = "invert(100%) sepia(63%) saturate(0%) hue-rotate(137deg) brightness(112%) contrast(101%)";
+
         imgs.volume = this.createImgElementWithSrc(res.volumeFullImg, 20, 20);
         imgs.download = this.createImgElementWithSrc(res.downloadImg, 20, 20);
         imgs.subs = this.createImgElementWithSrc(res.subsImg, 20, 20)

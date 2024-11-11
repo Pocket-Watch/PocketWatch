@@ -20,7 +20,6 @@ class PlayerArea {
         this.htmlProxyCheckbox = document.getElementById("proxy");
         this.htmlAutoplayCheckbox = document.getElementById("autoplay");
         this.htmlAudioonlyCheckbox = document.getElementById("audioonly");
-        this.htmlLoopingCheckbox = document.getElementById("looping");
 
         this.currentEntryId = 0;
         this.subtitles = [];
@@ -29,11 +28,11 @@ class PlayerArea {
     }
 
     loopingEnabled() {
-        return this.htmlLoopingCheckbox.checked;
+        return this.player.getLoop();
     }
 
     setLooping(looping) {
-        this.htmlLoopingCheckbox.checked = looping;
+        this.player.setLoop(looping);
     }
 
     setAutoplay(autoplay) {
@@ -107,6 +106,14 @@ class PlayerArea {
             api.playerSeek(timestamp);
         });
 
+        this.player.onControlsNext(() => {
+            api.playerNext(this.currentEntryId);
+        });
+
+        this.player.onControlsLoop(enabled => {
+            api.playerLooping(enabled);
+        });
+
         this.player.onPlaybackEnd(() => {
             if (this.htmlAutoplayCheckbox.checked) {
                 api.playerNext(this.currentEntryId);
@@ -149,10 +156,6 @@ class PlayerArea {
             this.setNewEntry();
         };
 
-        window.playerNextOnClick = () => {
-            api.playerNext(this.currentEntryId);
-        };
-
         window.playlistAddTopOnClick = () => {
             let url = this.htmlInputUrl.value;
             this.htmlInputUrl.value = "";
@@ -168,10 +171,6 @@ class PlayerArea {
 
         window.autoplayOnClick = () => {
             api.playerAutoplay(this.htmlAutoplayCheckbox.checked);
-        };
-
-        window.loopingOnClick = () => {
-            api.playerLooping(this.htmlLoopingCheckbox.checked);
         };
 
         window.shiftSubtitlesBack = () => {
