@@ -19,10 +19,8 @@ class PlayerArea {
         this.htmlCurrentUrl = document.getElementById("current_url");
         this.htmlProxyCheckbox = document.getElementById("proxy");
         this.htmlAutoplayCheckbox = document.getElementById("autoplay");
-        this.htmlAudioonlyCheckbox = document.getElementById("audioonly");
 
         this.currentEntryId = 0;
-        this.subtitles = [];
 
         this.attachPlayerEvents();
     }
@@ -102,7 +100,7 @@ class PlayerArea {
             api.playerPause(this.player.getCurrentTime());
         });
 
-        this.player.onControlsSeeked((timestamp) => {
+        this.player.onControlsSeeked(timestamp => {
             api.playerSeek(timestamp);
         });
 
@@ -171,36 +169,6 @@ class PlayerArea {
 
         window.autoplayOnClick = () => {
             api.playerAutoplay(this.htmlAutoplayCheckbox.checked);
-        };
-
-        window.shiftSubtitlesBack = () => {
-            if (this.htmlPlayer.textTracks.length === 0) {
-                console.warn("NO SUBTITLE TRACKS")
-                return;
-            }
-
-            let track = this.htmlPlayer.textTracks[0];
-            console.debug("DEBUG: CUES", track.cues)
-            for (let i = 0; i < track.cues.length; i++) {
-                let cue = track.cues[i];
-                cue.startTime -= 0.5;
-                cue.endTime -= 0.5;
-            }
-        };
-
-        window.shiftSubtitlesForward = () => {
-            if (this.htmlPlayer.textTracks.length === 0) {
-                console.warn("NO SUBTITLE TRACKS")
-                return;
-            }
-
-            let track = this.htmlPlayer.textTracks[0];
-            console.info("CUES", track.cues)
-            for (let i = 0; i < track.cues.length; i++) {
-                let cue = track.cues[i];
-                cue.startTime += 0.5;
-                cue.endTime += 0.5;
-            }
         };
     }
 }

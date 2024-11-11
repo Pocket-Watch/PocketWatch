@@ -223,6 +223,7 @@ class Internals {
         this.isDraggingProgressBar = false;
         this.volumeBeforeMute = 0.0;
 
+        this.loadPlayerCss();
         this.initializeImageSources();
         this.createHtmlControls();
         this.createSubtitleMenu();
@@ -250,6 +251,14 @@ class Internals {
     fireControlsSeeked(_timestamp) {}
     fireControlsVolumeSet(_volume) {}
     firePlaybackEnd() {}
+
+    loadPlayerCss() {
+        var stylesheet = document.createElement("link");
+        stylesheet.rel = "stylesheet";
+        stylesheet.type = "text/css";
+        stylesheet.href = "css/player.css";
+        document.head.appendChild(stylesheet);
+    }
 
     play() {
         this.htmlImgs.playToggle.src = this.resources.pauseImg;
@@ -320,7 +329,7 @@ class Internals {
             volume = 0.0;
         }
 
-        if (volume === 0.0) {
+        if (volume == 0.0) {
             this.htmlImgs.volume.src = this.resources.volumeMutedImg;
         } else if (volume < 0.3) {
             this.htmlImgs.volume.src = this.resources.volumeLowImg;
