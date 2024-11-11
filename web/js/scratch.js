@@ -41,6 +41,10 @@ function main() {
     player.onControlsSeeking(function (timestamp) {
         console.log("User seeking to", timestamp);
     })
+
+    player.onPlaybackError(function (event) {
+        console.log(event.name, "-", event.message);
+    })
 }
 
 main();

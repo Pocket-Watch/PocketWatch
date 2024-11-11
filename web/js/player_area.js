@@ -120,6 +120,13 @@ class PlayerArea {
                 api.playerNext(this.currentEntryId);
             }
         });
+
+        this.player.onPlaybackError((event) => {
+            if (event.name === "NotAllowedError") {
+                // Perhaps alert() the user? The majority of Chromium-based browsers allow autoplay anyway
+                console.log("Playback is not allowed by the browser!", event.message);
+            }
+        })
     }
 
     createApiEntry(url) {

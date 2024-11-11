@@ -124,6 +124,14 @@ class Player {
         this.internals.fireControlsVolumeSet = func;
     }
 
+    onPlaybackError(func) {
+        if (!isFunction(func)) {
+            return;
+        }
+
+        this.internals.firePlaybackError = func;
+    }
+
     onPlaybackEnd(func) {
         if (!isFunction(func)) {
             return;
@@ -270,6 +278,7 @@ class Internals {
     fireControlsSeeking(_timestamp) {}
     fireControlsSeeked(_timestamp) {}
     fireControlsVolumeSet(_volume) {}
+    firePlaybackError(_event) {}
     firePlaybackEnd() {}
 
     isVideoPlaying() {
@@ -278,7 +287,9 @@ class Internals {
 
     play() {
         this.htmlImgs.playToggle.src = this.resources.pauseImg;
-        this.htmlVideo.play();
+        this.htmlVideo.play().catch(e => {
+            this.firePlaybackError(e);
+        });
     }
 
     pause() {
@@ -435,7 +446,7 @@ class Internals {
         // and when the base is not provided, the second argument is used to construct a valid URL
         let pathname = new URL(url, document.baseURI).pathname;
 
-        if (pathname.endsWith(".m3u8")) {
+        if (pathname.endsWith(".m3u8") || pathname.endsWith(".ts")) {
             import("../external/hls.js").then(module => {
                 if (module.Hls.isSupported()) {
                     const hls = new module.Hls();
