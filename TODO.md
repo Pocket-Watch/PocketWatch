@@ -72,6 +72,7 @@
     - [x] HSL support
     - [x] Fullscreen support
         - [x] Listen to user exit to change svg icon
+    - [x] Autoplay toggle
     - [ ] Tool tips on button hover
     - [ ] Auto-hide player UI
         - [x] Show/Hide elements when mouse enters/leaves the player area
@@ -96,7 +97,6 @@
         - [ ] Option to change subtitle size
         - [ ] Option to change subtitle color
         - [ ] Option to change timestamp offset
-    - [ ] Autoplay toggle
     - [ ] Skip/Remove entries that fail to load on the client side
 - [ ] On first website load, indicate to the user that autoplay policy is disabled and manual action is required in order to play the video.
 - [ ] Detect mobile client and adjust the page appropriately

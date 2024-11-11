@@ -18,7 +18,6 @@ class PlayerArea {
         this.htmlInputTitle = document.getElementById("input_title");
         this.htmlCurrentUrl = document.getElementById("current_url");
         this.htmlProxyCheckbox = document.getElementById("proxy");
-        this.htmlAutoplayCheckbox = document.getElementById("autoplay");
 
         this.currentEntryId = 0;
 
@@ -117,7 +116,7 @@ class PlayerArea {
         });
 
         this.player.onPlaybackEnd(() => {
-            if (this.htmlAutoplayCheckbox.checked) {
+            if (this.player.getAutoplay()) {
                 api.playerNext(this.currentEntryId);
             }
         });

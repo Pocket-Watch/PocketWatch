@@ -36,6 +36,10 @@ class Player {
         this.internals.setTitle(title);
     }
 
+    getLoop(enabled) {
+        return this.internals.loopEnabled;
+    }
+
     setLoop(enabled) {
         this.internals.setLoop(enabled);
     }
