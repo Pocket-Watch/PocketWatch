@@ -1,19 +1,39 @@
 export { Player, Options };
 
 class Player {
+    static loadedCss = false;
     constructor(videoElement, options) {
         if (!videoElement || videoElement.tagName.toLowerCase() !== "video") {
             throw new Error("An invalid video element was passed!");
         }
+
+        if (!Player.loadedCss) {
+            // We should load it only once and as soon as possible
+            // so the styling can be applied to elements as we create them
+            Player.loadPlayerCss();
+            Player.loadedCss = true;
+        }
+
         if (!(options instanceof Options) || !options.valid()) {
             options = new Options();
         }
         this.internals = new Internals(videoElement, options);
     }
 
-    // isVideoPlaying() {
-    //     return !this.htmlVideo.paused && !this.htmlPlayer.ended;
-    // }
+    static loadPlayerCss() {
+        let stylesheet = document.createElement("link");
+        stylesheet.rel = "stylesheet";
+        stylesheet.type = "text/css";
+        stylesheet.href = "css/player.css";
+        document.head.appendChild(stylesheet);
+        stylesheet.onerror = function () {
+            console.error("Failed to load CSS (from css/player.css)");
+        };
+    }
+
+    isPlaying() {
+        return this.internals.isVideoPlaying();
+    }
 
     play() {
         this.internals.play();
@@ -223,7 +243,6 @@ class Internals {
         this.isDraggingProgressBar = false;
         this.volumeBeforeMute = 0.0;
 
-        this.loadPlayerCss();
         this.initializeImageSources();
         this.createHtmlControls();
         this.createSubtitleMenu();
@@ -252,12 +271,8 @@ class Internals {
     fireControlsVolumeSet(_volume) {}
     firePlaybackEnd() {}
 
-    loadPlayerCss() {
-        var stylesheet = document.createElement("link");
-        stylesheet.rel = "stylesheet";
-        stylesheet.type = "text/css";
-        stylesheet.href = "css/player.css";
-        document.head.appendChild(stylesheet);
+    isVideoPlaying() {
+        return !this.htmlVideo.paused && !this.htmlVideo.ended;
     }
 
     play() {
