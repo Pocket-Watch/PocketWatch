@@ -1,6 +1,6 @@
-[submodule "lib/fluid-player"]
-	path = lib/fluid-player
-	url = https://github.com/fluid-player/fluid-player
 [submodule "lib/PocketYT"]
 	path = lib/PocketYT
 	url = https://github.com/Pocket-Watch/PocketYT.git
+[submodule "lib/hlsjs"]
+	path = lib/hlsjs
+	url = https://github.com/Pocket-Watch/hls.js
