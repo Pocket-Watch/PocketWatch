@@ -316,9 +316,6 @@ async function main() {
     input_username.value = userSelf.username;
 
     let state = await api.playerGet();
-
-    playerArea.setEntry("https://ftp.halifax.rwth-aachen.de/blender/demo/movies/ToS/ToS-4k-1920.mov");
-
     playerArea.setAutoplay(state.player.autoplay);
     playerArea.setLooping(state.player.looping);
 

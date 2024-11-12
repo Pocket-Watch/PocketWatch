@@ -446,17 +446,17 @@ class Internals {
         // and when the base is not provided, the second argument is used to construct a valid URL
         let pathname = new URL(url, document.baseURI).pathname;
 
+        this.seek(0);
+
         if (pathname.endsWith(".m3u8") || pathname.endsWith(".ts")) {
             import("../external/hls.js").then(module => {
                 if (module.Hls.isSupported()) {
                     const hls = new module.Hls();
-                    this.htmlVideo.currentTime = 0;
                     hls.loadSource(url);
                     hls.attachMedia(this.htmlVideo);
                 }
             });
         } else {
-            this.htmlVideo.currentTime = 0;
             this.htmlVideo.src = url;
             this.htmlVideo.load();
         }

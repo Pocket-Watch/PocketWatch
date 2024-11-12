@@ -540,6 +540,7 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 	state.entryId += 1
 
 	state.player.Timestamp = 0
+	state.lastUpdate = time.Now()
 	state.player.Playing = state.player.Autoplay
 
 	prevEntry := state.entry
@@ -612,13 +613,13 @@ func apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 	if newEntry.UseProxy && strings.HasSuffix(lastSegment, ".m3u8") {
 		setupProxy(newEntry.Url, newEntry.RefererUrl)
 	}
-	state.mutex.Unlock()
+
+	state.player.Playing = state.player.Autoplay
+	state.player.Timestamp = 0
+	state.lastUpdate = time.Now()
 
 	loadYoutubeEntry(&newEntry)
 
-	state.mutex.Lock()
-	state.player.Playing = state.player.Autoplay
-	state.player.Timestamp = 0
 	state.entry = newEntry
 	state.mutex.Unlock()
 
@@ -1274,7 +1275,11 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 
 	for {
 		var event SyncEventData
-		if state.player.Playing {
+		state.mutex.RLock()
+		playing := state.player.Playing
+		state.mutex.RUnlock()
+
+		if playing {
 			event = createSyncEvent("play", 0)
 		} else {
 			event = createSyncEvent("pause", 0)
