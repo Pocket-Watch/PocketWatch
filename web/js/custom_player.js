@@ -185,6 +185,12 @@ class Internals {
         this.htmlBuffering.setAttribute("class", "unselectable");
         this.htmlPlayerRoot.appendChild(this.htmlBuffering);
 
+        this.htmlPlayTogglePopup = document.createElement("img");
+        this.htmlPlayTogglePopup.id = "player_playtoggle_popup";
+        this.htmlPlayTogglePopup.src = "svg/play_popup.svg";
+        this.htmlPlayTogglePopup.setAttribute("class", "unselectable");
+        this.htmlPlayerRoot.appendChild(this.htmlPlayTogglePopup);
+
         this.htmlControls = {
             root: null,
             progress: {
@@ -286,6 +292,12 @@ class Internals {
     }
 
     play() {
+        if (this.isVideoPlaying()) {
+            return;
+        }
+
+        this.htmlPlayTogglePopup.src = "svg/play_popup.svg";
+        this.htmlPlayTogglePopup.classList.add("animate");
         this.htmlImgs.playToggle.src = this.resources.pauseImg;
         this.htmlVideo.play().catch(e => {
             this.firePlaybackError(e);
@@ -293,6 +305,12 @@ class Internals {
     }
 
     pause() {
+        if (!this.isVideoPlaying()) {
+            return;
+        }
+
+        this.htmlPlayTogglePopup.src = "svg/pause_popup.svg";
+        this.htmlPlayTogglePopup.classList.add("animate");
         this.htmlImgs.playToggle.src = this.resources.playImg;
         this.htmlVideo.pause();
     }
@@ -829,6 +847,10 @@ class Internals {
 
         this.htmlSeekForward.addEventListener("transitionend", () => {
             this.htmlSeekForward.classList.remove("animate");
+        });
+
+        this.htmlPlayTogglePopup.addEventListener("transitionend", () => {
+            this.htmlPlayTogglePopup.classList.remove("animate");
         });
     }
 
