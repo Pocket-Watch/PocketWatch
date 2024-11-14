@@ -15,6 +15,11 @@ function main() {
     player.setVideoTrack(track);
     player.setTitle("Tears of Steel");
 
+    let subtitle1 = "media/Elephants.Dream.2006.vtt";
+    let subtitle2 = "media/Tears.of.Steel.2012.vtt";
+    player.addSubtitleTrack(subtitle1)
+    player.addSubtitleTrack(subtitle2)
+
     player.onControlsPlay(() => {
         console.log("User clicked play.");
     })

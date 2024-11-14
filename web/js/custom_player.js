@@ -1225,7 +1225,6 @@ class Internals {
         menu.subtitleList = document.createElement("div");
         let subtitleList = menu.subtitleList;
         subtitleList.id = "subtitle_list";
-        subtitleList.classList.add("menu_item");
         subtitleList.classList.add("unselectable");
         subtitleList.style.display = "none";
         bottomRoot.appendChild(subtitleList);
