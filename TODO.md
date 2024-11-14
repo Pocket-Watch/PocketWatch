@@ -73,6 +73,7 @@
     - [x] Fullscreen support
         - [x] Listen to user exit to change svg icon
     - [x] Autoplay toggle
+    - [x] Display last action (ex. seek, play, pause) in the center of the player
     - [ ] Tool tips on button hover
     - [ ] Auto-hide player UI
         - [x] Show/Hide elements when mouse enters/leaves the player area
@@ -84,7 +85,6 @@
         - [ ] Perform seeks screen double tap
         - [ ] Display variable seek indicator number on arrow press or screen double tap
         - [ ] Seek indicator value stacking
-    - [ ] Display last action (ex. seek, play, pause) in the center of the player
     - [ ] Display custom popup messages (ex. User 'frisk' clicked play) as a toast attached to the top right side
     - [ ] Custom options that include:
         - [ ] Playback speed
