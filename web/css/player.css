@@ -305,11 +305,15 @@
 #player_bot_root{
     display: flex;
     height: 80%;
-    flex-direction: column;
     overflow: auto;
 }
 
-#subtitle_entries {
+#subtitle_list {
+    flex-direction: column;
+    width: 100%;
+}
+
+#option_buttons {
     flex-direction: column;
     width: 100%;
 }

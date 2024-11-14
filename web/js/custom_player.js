@@ -56,14 +56,24 @@ class Player {
         return this.internals.htmlVideo.currentTime;
     }
 
-    // How to set a track once it has been added? Programmatic selection through setSubtitleTrack?
-    addSubtitleTrack(subtitleUrl) {
-        this.internals.addSubtitleTrack(subtitleUrl);
+    // Adds a new subtitle track in the 'showing' mode, hiding the previous track. Returns the index of the new track.
+    setSubtitleTrack(subtitleUrl) {
+        this.internals.addSubtitleTrack(subtitleUrl, true);
     }
 
-    // How to set a track once it has been added? Programmatic selection through setSubtitleTrack?
-    setSubtitleTrack(subtitleUrl) {
-        this.internals.addSubtitleTrack(subtitleUrl);
+    // Adds a new subtitle track in the 'hidden' mode. Returns the index of the new track.
+    addSubtitleTrack(subtitleUrl) {
+        return this.internals.addSubtitleTrack(subtitleUrl, false);
+    }
+
+    // Disables and removes the track at the specified index.
+    removeSubtitleTrackAt(index) {
+        this.internals.removeSubtitleTrackAt(index);
+    }
+
+    // Hides the previously selected track. Shows the track at the specified index.
+    enableSubtitleTrack(index) {
+        this.internals.enableSubtitleTrack(index);
     }
 
     destroyPlayer() {}
@@ -148,9 +158,10 @@ class Player {
 class Internals {
     constructor(videoElement, options) {
         this.isMobile = isMobileAgent();
-        console.log("OPTIONS:", options);
         this.options = options;
-        // Corresponds to the actual html player element called either </video> or </audio>.
+
+        this.hls = null;
+        this.playingHls = false;
 
         this.loopEnabled = false;
         this.autoplayEnabled = false;
@@ -203,15 +214,21 @@ class Internals {
                 popupText: null,
             },
             subtitleMenu: {
-                root: null, // root contains: topRoot, bottomRoot
+                // root contains: topRoot, bottomRoot
+                root: null,
                 topRoot: null,
-                selected: null,
+                selectedLabel: null,
                 back: null,
+                // bottomRoot contains subtitleList, optionButtons
                 bottomRoot: null,
-                selectButton: null,
+                subtitleList: null,
+                optionButtons: null,
+                toggleButton: null,
+                chooseButton: null,
                 customizeButton: null,
                 downloadButton: null,
-                enabled: false,
+                enabledSubs: false,
+                depth: 0,
             },
             playToggleButton: null,
             nextButton: null,
@@ -260,6 +277,7 @@ class Internals {
 
         this.isDraggingProgressBar = false;
         this.volumeBeforeMute = 0.0;
+        this.selectedSubtitleIndex = -1;
 
         this.initializeImageSources();
         this.createHtmlControls();
@@ -476,22 +494,27 @@ class Internals {
         if (pathname.endsWith(".m3u8") || pathname.endsWith(".ts")) {
             import("../external/hls.js").then(module => {
                 if (module.Hls.isSupported()) {
-                    const hls = new module.Hls();
-                    hls.loadSource(url);
-                    hls.attachMedia(this.htmlVideo);
+                    this.hls = new module.Hls();
+                    this.hls.loadSource(url);
+                    this.hls.attachMedia(this.htmlVideo);
+                    this.playingHls = true;
                 }
             });
         } else {
+            if (this.playingHls) {
+                this.hls.detachMedia();
+                this.playingHls = false;
+            }
             this.htmlVideo.src = url;
             this.htmlVideo.load();
         }
     }
 
-    addSubtitleTrack(url, set) {
+    addSubtitleTrack(url, show) {
         let filename = url.substring(url.lastIndexOf("/") + 1);
         let extension = filename.substring(filename.lastIndexOf(".") + 1).toLowerCase();
         if (extension != "vtt" && extension != "srt") {
-            console.debug("Unsupported extension:", extension)
+            console.debug("Unsupported subtitle extension:", extension)
             return
         }
 
@@ -503,16 +526,88 @@ class Internals {
         // This will cause a new text track to appear in video.textTracks even if it's invalid
         this.htmlVideo.appendChild(track)
 
-        let lastIndex = this.htmlVideo.textTracks.length - 1;
-        let textTrack = this.htmlVideo.textTracks[lastIndex];
+        let textTracks = this.htmlVideo.textTracks;
+        let newIndex = textTracks.length - 1;
+        let newTrack = textTracks[newIndex];
 
-        // By default, every track is appended in the 'disabled' mode which prevents any initialization
-        textTrack.mode = set ? "showing" : "hidden";
+        if (show) {
+            let previous = this.selectedSubtitleIndex;
+            if (0 <= previous && previous < textTracks.length) {
+                textTracks[previous].mode = "hidden";
+            }
+            this.selectedSubtitleIndex = newIndex;
+            newTrack.mode = "showing";
+            if (this.playingHls) {
+                this.hls.subtitleTrack = newIndex;
+            }
+        } else {
+            // By default, every track is appended in the 'disabled' mode which prevents any initialization
+            newTrack.mode = "hidden";
+        }
+
         // Although we cannot access cues immediately here (not loaded yet)
-        // We do have access to the textTrack and can attach a listener to it
+        // we do have access to the textTrack so it's possible to change its mode
         track.addEventListener("load", (event) => {
             console.info("Text track loaded successfully", event)
         });
+        return newIndex
+    }
+
+    enableSubtitleTrack(index) {
+        let textTracks = this.htmlVideo.textTracks;
+        let current = this.selectedSubtitleIndex;
+        if (0 <= current && current < textTracks.length) {
+            textTracks[current].mode = "hidden";
+            if (this.playingHls) {
+                console.log("Setting hls track to negative")
+                this.hls.subtitleTrack = -1;
+            }
+        }
+        if (0 <= index && index < textTracks.length) {
+            textTracks[index].mode = "showing";
+            if (this.playingHls) {
+                this.hls.subtitleTrack = index;
+            }
+            this.selectedSubtitleIndex = index;
+        }
+    }
+
+    toggleCurrentTrackVisibility() {
+        let textTracks = this.htmlVideo.textTracks;
+        let index = this.selectedSubtitleIndex;
+
+        if (index < 0 || index >= textTracks.length) {
+            return;
+        }
+        let isShowing = textTracks[index].mode === "showing";
+        if (isShowing) {
+            textTracks[index].mode = "hidden";
+            if (this.playingHls) {
+                this.hls.subtitleDisplay = false;
+            }
+        } else {
+            textTracks[index].mode = "showing";
+            if (this.playingHls) {
+                this.hls.subtitleDisplay = true;
+            }
+        }
+    }
+
+    removeSubtitleTrackAt(index) {
+        let textTracks = this.htmlVideo.textTracks;
+        if (index < 0 || index >= textTracks.length) {
+            return;
+        }
+        textTracks[index].mode = "disabled";
+        let tracks = this.htmlVideo.getElementsByTagName("track");
+        this.htmlVideo.removeChild(tracks[index]);
+        // Index-tracking mechanism
+        if (index < this.selectedSubtitleIndex) {
+            this.selectedSubtitleIndex--;
+            if (this.playingHls) {
+                this.hls.subtitleTrack = this.selectedSubtitleIndex;
+            }
+        }
     }
 
     showPlayerUI() {
@@ -645,11 +740,18 @@ class Internals {
         });
 
         this.htmlControls.subtitleMenu.back.addEventListener("click", () => {
-            this.htmlControls.subtitleMenu.selected.innerHTML = "Options"
-            this.htmlControls.subtitleMenu.selectButton.style.display = ""
-            this.htmlControls.subtitleMenu.downloadButton.style.display = ""
-            this.htmlControls.subtitleMenu.customizeButton.style.display = ""
-
+            let menu = this.htmlControls.subtitleMenu;
+            if (menu.depth === 0) {
+                // Equivalent to hiding the menu by clicking the [CC] button
+                menu.root.style.display = "none";
+                return;
+            }
+            if (menu.depth === 1) {
+                menu.selectedLabel.innerHTML = "Options"
+                menu.optionButtons.style.display = "";
+                menu.subtitleList.style.display = "none";
+            }
+            menu.depth--;
         });
 
         this.htmlVideo.addEventListener("keydown", (event) => {
@@ -1078,68 +1180,88 @@ class Internals {
     }
 
     createSubtitleMenu() {
-        this.htmlControls.subtitleMenu.root = document.createElement("div");
-        let menuRoot = this.htmlControls.subtitleMenu.root;
+        let menu = this.htmlControls.subtitleMenu;
+
+        menu.root = document.createElement("div");
+        let menuRoot = menu.root;
         menuRoot.id = "player_subtitle_root"
         menuRoot.style.display = "none"
 
-        this.htmlControls.subtitleMenu.topRoot = document.createElement("div");
-        let topRoot = this.htmlControls.subtitleMenu.topRoot;
+        menu.topRoot = document.createElement("div");
+        let topRoot = menu.topRoot;
         topRoot.id = "player_top_root"
         menuRoot.appendChild(topRoot);
 
-        this.htmlControls.subtitleMenu.bottomRoot = document.createElement("div");
-        let bottomRoot = this.htmlControls.subtitleMenu.bottomRoot;
+        menu.bottomRoot = document.createElement("div");
+        let bottomRoot = menu.bottomRoot;
         bottomRoot.id = "player_bot_root"
         menuRoot.appendChild(bottomRoot);
 
         // Back button for any action item
-        this.htmlControls.subtitleMenu.back = document.createElement("div");
-        let back = this.htmlControls.subtitleMenu.back;
+        menu.back = document.createElement("div");
+        let back = menu.back;
         back.innerHTML = "←"
         back.classList.add("menu_item")
         back.classList.add("unselectable")
         back.style.display = ""
         topRoot.appendChild(back);
 
-        this.htmlControls.subtitleMenu.selected = document.createElement("div");
-        let selected = this.htmlControls.subtitleMenu.selected;
-        selected.innerHTML = "Options"
-        selected.classList.add("menu_item")
-        selected.classList.add("unselectable")
-        selected.style.display = ""
-        topRoot.appendChild(selected);
+        menu.selectedLabel = document.createElement("div");
+        let label = menu.selectedLabel;
+        label.innerHTML = "Options"
+        label.classList.add("menu_item")
+        label.classList.add("unselectable")
+        label.style.display = ""
+        topRoot.appendChild(label);
+
+        menu.optionButtons = document.createElement("div");
+        let optionButtons = menu.optionButtons;
+        optionButtons.id = "option_buttons";
+        optionButtons.classList.add("menu_item");
+        optionButtons.classList.add("unselectable");
+        optionButtons.style.display = "";
+        bottomRoot.appendChild(optionButtons);
+
+        menu.subtitleList = document.createElement("div");
+        let subtitleList = menu.subtitleList;
+        subtitleList.id = "subtitle_list";
+        subtitleList.classList.add("menu_item");
+        subtitleList.classList.add("unselectable");
+        subtitleList.style.display = "none";
+        bottomRoot.appendChild(subtitleList);
 
         // Move these click actions below to attachHtmlEvents?
 
         // Append options
-        let enableButton = document.createElement("div");
-        this.htmlControls.subtitleMenu.enableButton = enableButton
-        enableButton.innerHTML = "Enable subs"
-        enableButton.classList.add("menu_item")
-        enableButton.classList.add("unselectable")
-        enableButton.addEventListener("click", () => {
-            let textTracks = this.htmlVideo.textTracks;
-            let mode = this.htmlControls.subtitleMenu.enabled ? "showing" : "hidden";
-            for (let i = 0; i < textTracks.length; i++) {
-                let track = textTracks[i];
-                track.mode = mode;
+        let toggleButton = document.createElement("div");
+        menu.toggleButton = toggleButton
+        toggleButton.textContent = "Enable subs"
+        toggleButton.classList.add("menu_item")
+        toggleButton.classList.add("unselectable")
+        toggleButton.addEventListener("click", () => {
+            this.toggleCurrentTrackVisibility()
+            if (menu.enabledSubs) {
+                menu.enabledSubs = false;
+                toggleButton.textContent = "Enable subs";
+            } else {
+                menu.enabledSubs = true;
+                toggleButton.textContent = "Disable subs";
             }
-            this.htmlControls.subtitleMenu.enabled = !this.htmlControls.subtitleMenu.enabled;
         });
 
-        bottomRoot.appendChild(enableButton);
+        optionButtons.appendChild(toggleButton);
 
-        let selectButton = document.createElement("div");
-        this.htmlControls.subtitleMenu.selectButton = selectButton
-        selectButton.innerHTML = "Select sub"
-        selectButton.classList.add("menu_item")
-        selectButton.classList.add("unselectable")
-        selectButton.addEventListener("click", () => {
-            this.htmlControls.subtitleMenu.selected.innerHTML = "Selecting"
-            this.htmlControls.subtitleMenu.selectButton.style.display = "none"
-            this.htmlControls.subtitleMenu.customizeButton.style.display = "none"
-            this.htmlControls.subtitleMenu.downloadButton.style.display = "none"
+        let chooseButton = document.createElement("div");
+        menu.chooseButton = chooseButton
+        chooseButton.textContent = "Choosing"
+        chooseButton.classList.add("menu_item")
+        chooseButton.classList.add("unselectable")
+        chooseButton.addEventListener("click", () => {
+            menu.depth++;
+            menu.selectedLabel.textContent = "Choose track";
+            menu.optionButtons.style.display = "none";
+            menu.subtitleList.style.display = "";
+            menu.subtitleList.innerHTML = "";
             let textTracks = this.htmlVideo.textTracks;
             for (let i = 0; i < textTracks.length; i++) {
                 let track = textTracks[i];
@@ -1147,41 +1269,39 @@ class Internals {
                 trackDiv.textContent = track.label;
                 trackDiv.classList.add("subtitle_item");
                 trackDiv.classList.add("unselectable");
-                console.log("Adding", track.label)
                 trackDiv.onclick = () => {
-                    console.log("Clicked on", track.label)
-                    track.mode = "showing";
+                    console.log("User selected", track.label)
+                    this.enableSubtitleTrack(i)
                 }
-                bottomRoot.appendChild(trackDiv);
+                console.log("Appending", track.label)
+                menu.subtitleList.appendChild(trackDiv);
             }
         })
-        bottomRoot.appendChild(selectButton);
+        optionButtons.appendChild(chooseButton);
 
         let customizeButton = document.createElement("div");
-        this.htmlControls.subtitleMenu.customizeButton = customizeButton
+        menu.customizeButton = customizeButton
         customizeButton.innerHTML = "Customize sub"
         customizeButton.classList.add("menu_item")
         customizeButton.classList.add("unselectable")
         customizeButton.addEventListener("click", () => {
-            this.htmlControls.subtitleMenu.selected.innerHTML = "Customizing"
-            this.htmlControls.subtitleMenu.selectButton.style.display = "none"
-            this.htmlControls.subtitleMenu.customizeButton.style.display = "none"
-            this.htmlControls.subtitleMenu.downloadButton.style.display = "none"
+            menu.depth++;
+            menu.selectedLabel.innerHTML = "Customizing"
+            menu.optionButtons.style.display = "none"
         })
-        bottomRoot.appendChild(customizeButton);
+        optionButtons.appendChild(customizeButton);
 
         let downloadButton = document.createElement("div");
-        this.htmlControls.subtitleMenu.downloadButton = downloadButton
+        menu.downloadButton = downloadButton
         downloadButton.innerHTML = "Download sub"
         downloadButton.classList.add("menu_item")
         downloadButton.classList.add("unselectable")
         downloadButton.addEventListener("click", () => {
-            this.htmlControls.subtitleMenu.selected.innerHTML = "Download?"
-            this.htmlControls.subtitleMenu.selectButton.style.display = "none"
-            this.htmlControls.subtitleMenu.customizeButton.style.display = "none"
-            this.htmlControls.subtitleMenu.downloadButton.style.display = "none"
+            menu.depth++;
+            menu.selectedLabel.innerHTML = "Download"
+            menu.optionButtons.style.display = "none"
         })
-        bottomRoot.appendChild(downloadButton);
+        optionButtons.appendChild(downloadButton);
 
         this.htmlPlayerRoot.appendChild(menuRoot);
     }

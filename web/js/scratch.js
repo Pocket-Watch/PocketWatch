@@ -17,14 +17,16 @@ function main() {
     // options.hideDownloadButton = true;
     player = new Player(video0, options);
 
-    let track = "https://ftp.halifax.rwth-aachen.de/blender/demo/movies/ToS/ToS-4k-1920.mov";
-    // let track = "https://test-streams.mux.dev/x36xhzz/url_6/193039199_mp4_h264_aac_hq_7.m3u8"
+    //let track = "https://ftp.halifax.rwth-aachen.de/blender/demo/movies/ToS/ToS-4k-1920.mov";
+    let track = "https://test-streams.mux.dev/x36xhzz/url_6/193039199_mp4_h264_aac_hq_7.m3u8"
     // let track = "https:///////"
     // let track = "https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_640x360.m4v";
-    let subtitle = "media/Tears.of.Steel.2012.vtt";
+    let subtitle1 = "media/Elephants.Dream.2006.vtt";
+    let subtitle2 = "media/Tears.of.Steel.2012.vtt";
     player.setVideoTrack(track);
     player.setTitle("Tears of Steel");
-    player.addSubtitleTrack(subtitle)
+    player.addSubtitleTrack(subtitle1)
+    player.addSubtitleTrack(subtitle2)
 
     player.onControlsPlay(() => {
         console.log("User clicked play.");
