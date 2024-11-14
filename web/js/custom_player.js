@@ -155,6 +155,10 @@ class Player {
     }
 }
 
+function hideElement(element) {
+    element.style.display = "none";
+}
+
 class Internals {
     constructor(videoElement, options) {
         this.isMobile = isMobileAgent();
@@ -182,7 +186,7 @@ class Internals {
 
         this.htmlTitleContainer = document.createElement("div");
         this.htmlTitleContainer.id = "player_title_container";
-        this.htmlTitleContainer.style.display = "none";
+        hideElement(this.htmlTitleContainer);
         this.htmlPlayerRoot.appendChild(this.htmlTitleContainer);
 
         this.htmlTitle = document.createElement("span");
@@ -192,7 +196,7 @@ class Internals {
         this.htmlBuffering = document.createElement("img");
         this.htmlBuffering.id = "player_buffering";
         this.htmlBuffering.src = "svg/buffering.svg";
-        this.htmlBuffering.style.display = "none";
+        hideElement(this.htmlBuffering);
         this.htmlBuffering.setAttribute("class", "unselectable");
         this.htmlPlayerRoot.appendChild(this.htmlBuffering);
 
@@ -308,6 +312,7 @@ class Internals {
     fireControlsVolumeSet(_volume) {}
     firePlaybackError(_event) {}
     firePlaybackEnd() {}
+
 
     isVideoPlaying() {
         return !this.htmlVideo.paused && !this.htmlVideo.ended;
@@ -437,7 +442,7 @@ class Internals {
 
     setTitle(title) {
         if (!title) {
-            this.htmlTitleContainer.style.display = "none";
+            hideElement(this.htmlTitleContainer);
         } else {
             this.htmlTitleContainer.style.display = "";
             this.htmlTitle.textContent = title;
@@ -624,7 +629,7 @@ class Internals {
             return;
         }
 
-        this.htmlVideo.style.cursor = "none";
+        hideElement(this.htmlVideo);
         this.htmlControls.root.classList.remove("player_fade_in");
         this.htmlControls.root.classList.add("player_fade_out");
 
@@ -733,7 +738,7 @@ class Internals {
             let menuRootElement = this.htmlControls.subtitleMenu.root;
             let visible = menuRootElement.style.display !== "none";
             if (visible) {
-                menuRootElement.style.display = "none";
+                hideElement(menuRootElement);
             } else {
                 menuRootElement.style.display = "";
             }
@@ -743,13 +748,13 @@ class Internals {
             let menu = this.htmlControls.subtitleMenu;
             if (menu.depth === 0) {
                 // Equivalent to hiding the menu by clicking the [CC] button
-                menu.root.style.display = "none";
+                hideElement(menu.root);
                 return;
             }
             if (menu.depth === 1) {
                 menu.selectedLabel.innerHTML = "Options"
                 menu.optionButtons.style.display = "";
-                menu.subtitleList.style.display = "none";
+                hideElement(menu.subtitleList);
             }
             menu.depth--;
         });
@@ -802,7 +807,7 @@ class Internals {
 
         this.htmlVideo.addEventListener("playing", () => {
             clearTimeout(this.bufferingTimeoutId);
-            this.htmlBuffering.style.display = "none";
+            hideElement(this.htmlBuffering);
         });
 
         this.htmlVideo.addEventListener("timeupdate", (_event) => {
@@ -925,8 +930,8 @@ class Internals {
         });
 
         this.htmlControls.progress.root.addEventListener("mouseleave", _event => {
-            this.htmlControls.progress.thumb.style.display = "none";
-            this.htmlControls.progress.popupRoot.style.display = "none";
+            hideElement(this.htmlControls.progress.thumb);
+            hideElement(this.htmlControls.progress.popupRoot);
             this.setProgressMargin(5);
         });
 
@@ -1036,7 +1041,7 @@ class Internals {
 
         let progressPopupRoot = document.createElement("div");
         progressPopupRoot.id = "player_progress_popup_root";
-        progressPopupRoot.style.display = "none";
+        hideElement(progressPopupRoot);
         progressRoot.appendChild(progressPopupRoot);
         this.htmlControls.progress.popupRoot = progressPopupRoot;
 
@@ -1112,7 +1117,7 @@ class Internals {
         download.id = "player_download";
         download.appendChild(this.htmlImgs.download);
         if (this.options.hideDownloadButton) {
-            download.style.display = "none";
+            hideElement(download);
         } else {
             download.style.marginLeft = firstAutoMargin ? "auto" : "0";
             firstAutoMargin = false;
@@ -1127,7 +1132,7 @@ class Internals {
         autoplay.id = "player_autoplay";
         autoplay.appendChild(this.htmlImgs.autoplay);
         if (this.options.hideAutoplayButton) {
-            autoplay.style.display = "none";
+            hideElement(autoplay);
         } else {
             autoplay.style.marginLeft = firstAutoMargin ? "auto" : "0";
             firstAutoMargin = false;
@@ -1142,7 +1147,7 @@ class Internals {
         subs.id = "player_subs";
         subs.appendChild(this.htmlImgs.subs);
         if (this.options.hideSubtitlesButton) {
-            subs.style.display = "none";
+            hideElement(subs);
         } else {
             subs.style.marginLeft = firstAutoMargin ? "auto" : "0";
             firstAutoMargin = false;
@@ -1156,7 +1161,7 @@ class Internals {
         settings.id = "player_settings";
         settings.appendChild(this.htmlImgs.settings);
         if (this.options.hideSettingsButton) {
-            settings.style.display = "none";
+            hideElement(settings);
         } else {
             settings.style.marginLeft = firstAutoMargin ? "auto" : "0";
             firstAutoMargin = false;
@@ -1170,7 +1175,7 @@ class Internals {
         fullscreen.id = "player_fullscreen";
         fullscreen.appendChild(this.htmlImgs.fullscreen);
         if (this.options.hideFullscreenButton) {
-            fullscreen.style.display = "none";
+            hideElement(fullscreen);
         } else {
             fullscreen.style.marginLeft = firstAutoMargin ? "auto" : "0";
         }
@@ -1185,7 +1190,7 @@ class Internals {
         menu.root = document.createElement("div");
         let menuRoot = menu.root;
         menuRoot.id = "player_subtitle_root"
-        menuRoot.style.display = "none"
+        hideElement(menuRoot);
 
         menu.topRoot = document.createElement("div");
         let topRoot = menu.topRoot;
@@ -1226,7 +1231,7 @@ class Internals {
         let subtitleList = menu.subtitleList;
         subtitleList.id = "subtitle_list";
         subtitleList.classList.add("unselectable");
-        subtitleList.style.display = "none";
+        hideElement(subtitleList);
         bottomRoot.appendChild(subtitleList);
 
         // Move these click actions below to attachHtmlEvents?
@@ -1258,7 +1263,7 @@ class Internals {
         chooseButton.addEventListener("click", () => {
             menu.depth++;
             menu.selectedLabel.textContent = "Choose track";
-            menu.optionButtons.style.display = "none";
+            hideElement(menu.optionButtons);
             menu.subtitleList.style.display = "";
             menu.subtitleList.innerHTML = "";
             let textTracks = this.htmlVideo.textTracks;
@@ -1286,7 +1291,7 @@ class Internals {
         customizeButton.addEventListener("click", () => {
             menu.depth++;
             menu.selectedLabel.innerHTML = "Customizing"
-            menu.optionButtons.style.display = "none"
+            hideElement(menu.optionButtons);
         })
         optionButtons.appendChild(customizeButton);
 
@@ -1298,7 +1303,7 @@ class Internals {
         downloadButton.addEventListener("click", () => {
             menu.depth++;
             menu.selectedLabel.innerHTML = "Download"
-            menu.optionButtons.style.display = "none"
+            hideElement(menu.optionButtons);
         })
         optionButtons.appendChild(downloadButton);
 
