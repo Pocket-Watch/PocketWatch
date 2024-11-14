@@ -203,11 +203,15 @@ class Internals {
                 popupText: null,
             },
             subtitleMenu: {
-                root: null,
-                customization: null,
-                selection: null,
-                subtitleList: null,
+                root: null, // root contains: topRoot, bottomRoot
+                topRoot: null,
+                selected: null,
                 back: null,
+                bottomRoot: null,
+                selectButton: null,
+                customizeButton: null,
+                downloadButton: null,
+                enabled: false,
             },
             playToggleButton: null,
             nextButton: null,
@@ -445,12 +449,15 @@ class Internals {
     }
 
     togglePlay() {
+        let perf = Perf.start();
         if (this.htmlVideo.paused) {
             this.fireControlsPlay();
             this.play();
         } else {
             this.fireControlsPause();
             this.pause();
+            let end = perf.getElapsed();
+            console.log("to PAUSE: ", end);
         }
     }
 
@@ -637,32 +644,12 @@ class Internals {
             }
         });
 
-        this.htmlControls.subtitleMenu.selection.addEventListener("click", () => {
-            this.htmlControls.subtitleMenu.selection.style.display = "none";
-            this.htmlControls.subtitleMenu.customization.style.display = "none";
-            this.htmlControls.subtitleMenu.back.style.display = "";
-            let textTracks = this.htmlVideo.textTracks;
-            let subtitleList = this.htmlControls.subtitleMenu.subtitleList;
-            for (let i = 0; i < textTracks.length; i++) {
-                let track = textTracks[i];
-                const trackDiv = document.createElement("a");
-                trackDiv.textContent = track.label;
-                console.log("Adding", track.label)
-                trackDiv.onclick = () => {
-                    console.log("Clicked on", track.label)
-                    track.mode = "showing";
-                }
-                subtitleList.appendChild(trackDiv);
-            }
-            subtitleList.style.display = "block";
-        });
-
         this.htmlControls.subtitleMenu.back.addEventListener("click", () => {
-            this.htmlControls.subtitleMenu.selection.style.display = "";
-            this.htmlControls.subtitleMenu.customization.style.display = "";
-            this.htmlControls.subtitleMenu.subtitleList.style.display = "none";
-            this.htmlControls.subtitleMenu.back.style.display = "none";
-            this.htmlControls.subtitleMenu.subtitleList.innerHTML = ""
+            this.htmlControls.subtitleMenu.selected.innerHTML = "Options"
+            this.htmlControls.subtitleMenu.selectButton.style.display = ""
+            this.htmlControls.subtitleMenu.downloadButton.style.display = ""
+            this.htmlControls.subtitleMenu.customizeButton.style.display = ""
+
         });
 
         this.htmlVideo.addEventListener("keydown", (event) => {
@@ -1093,31 +1080,18 @@ class Internals {
     createSubtitleMenu() {
         this.htmlControls.subtitleMenu.root = document.createElement("div");
         let menuRoot = this.htmlControls.subtitleMenu.root;
-        menuRoot.id = "player_subtitle_menu"
+        menuRoot.id = "player_subtitle_root"
         menuRoot.style.display = "none"
 
-        this.htmlControls.subtitleMenu.selection = document.createElement("div");
-        let selection = this.htmlControls.subtitleMenu.selection;
-        selection.classList.add("menu_item")
-        selection.classList.add("unselectable")
-        selection.innerHTML = "Select";
-        menuRoot.appendChild(selection);
+        this.htmlControls.subtitleMenu.topRoot = document.createElement("div");
+        let topRoot = this.htmlControls.subtitleMenu.topRoot;
+        topRoot.id = "player_top_root"
+        menuRoot.appendChild(topRoot);
 
-        this.htmlControls.subtitleMenu.customization = document.createElement("div");
-        let customization = this.htmlControls.subtitleMenu.customization;
-        customization.classList.add("menu_item")
-        customization.classList.add("unselectable")
-        customization.innerHTML = "Customize";
-        menuRoot.appendChild(customization);
-
-        // Scrollable pane for selection
-        this.htmlControls.subtitleMenu.subtitleList = document.createElement("div");
-        let subtitleList = this.htmlControls.subtitleMenu.subtitleList;
-        subtitleList.id = "subtitle_list";
-        subtitleList.classList.add("scrollable_pane")
-        subtitleList.classList.add("unselectable")
-        subtitleList.style.display = "none"
-        menuRoot.appendChild(subtitleList);
+        this.htmlControls.subtitleMenu.bottomRoot = document.createElement("div");
+        let bottomRoot = this.htmlControls.subtitleMenu.bottomRoot;
+        bottomRoot.id = "player_bot_root"
+        menuRoot.appendChild(bottomRoot);
 
         // Back button for any action item
         this.htmlControls.subtitleMenu.back = document.createElement("div");
@@ -1125,8 +1099,89 @@ class Internals {
         back.innerHTML = "←"
         back.classList.add("menu_item")
         back.classList.add("unselectable")
-        back.style.display = "none"
-        menuRoot.appendChild(back);
+        back.style.display = ""
+        topRoot.appendChild(back);
+
+        this.htmlControls.subtitleMenu.selected = document.createElement("div");
+        let selected = this.htmlControls.subtitleMenu.selected;
+        selected.innerHTML = "Options"
+        selected.classList.add("menu_item")
+        selected.classList.add("unselectable")
+        selected.style.display = ""
+        topRoot.appendChild(selected);
+
+        // Move these click actions below to attachHtmlEvents?
+
+        // Append options
+        let enableButton = document.createElement("div");
+        this.htmlControls.subtitleMenu.enableButton = enableButton
+        enableButton.innerHTML = "Enable subs"
+        enableButton.classList.add("menu_item")
+        enableButton.classList.add("unselectable")
+        enableButton.addEventListener("click", () => {
+            let textTracks = this.htmlVideo.textTracks;
+            let mode = this.htmlControls.subtitleMenu.enabled ? "showing" : "hidden";
+            for (let i = 0; i < textTracks.length; i++) {
+                let track = textTracks[i];
+                track.mode = mode;
+            }
+            this.htmlControls.subtitleMenu.enabled = !this.htmlControls.subtitleMenu.enabled;
+        });
+
+        bottomRoot.appendChild(enableButton);
+
+        let selectButton = document.createElement("div");
+        this.htmlControls.subtitleMenu.selectButton = selectButton
+        selectButton.innerHTML = "Select sub"
+        selectButton.classList.add("menu_item")
+        selectButton.classList.add("unselectable")
+        selectButton.addEventListener("click", () => {
+            this.htmlControls.subtitleMenu.selected.innerHTML = "Selecting"
+            this.htmlControls.subtitleMenu.selectButton.style.display = "none"
+            this.htmlControls.subtitleMenu.customizeButton.style.display = "none"
+            this.htmlControls.subtitleMenu.downloadButton.style.display = "none"
+            let textTracks = this.htmlVideo.textTracks;
+            for (let i = 0; i < textTracks.length; i++) {
+                let track = textTracks[i];
+                const trackDiv = document.createElement("div");
+                trackDiv.textContent = track.label;
+                trackDiv.classList.add("subtitle_item");
+                trackDiv.classList.add("unselectable");
+                console.log("Adding", track.label)
+                trackDiv.onclick = () => {
+                    console.log("Clicked on", track.label)
+                    track.mode = "showing";
+                }
+                bottomRoot.appendChild(trackDiv);
+            }
+        })
+        bottomRoot.appendChild(selectButton);
+
+        let customizeButton = document.createElement("div");
+        this.htmlControls.subtitleMenu.customizeButton = customizeButton
+        customizeButton.innerHTML = "Customize sub"
+        customizeButton.classList.add("menu_item")
+        customizeButton.classList.add("unselectable")
+        customizeButton.addEventListener("click", () => {
+            this.htmlControls.subtitleMenu.selected.innerHTML = "Customizing"
+            this.htmlControls.subtitleMenu.selectButton.style.display = "none"
+            this.htmlControls.subtitleMenu.customizeButton.style.display = "none"
+            this.htmlControls.subtitleMenu.downloadButton.style.display = "none"
+        })
+        bottomRoot.appendChild(customizeButton);
+
+        let downloadButton = document.createElement("div");
+        this.htmlControls.subtitleMenu.downloadButton = downloadButton
+        downloadButton.innerHTML = "Download sub"
+        downloadButton.classList.add("menu_item")
+        downloadButton.classList.add("unselectable")
+        downloadButton.addEventListener("click", () => {
+            this.htmlControls.subtitleMenu.selected.innerHTML = "Download?"
+            this.htmlControls.subtitleMenu.selectButton.style.display = "none"
+            this.htmlControls.subtitleMenu.customizeButton.style.display = "none"
+            this.htmlControls.subtitleMenu.downloadButton.style.display = "none"
+        })
+        bottomRoot.appendChild(downloadButton);
 
         this.htmlPlayerRoot.appendChild(menuRoot);
     }
@@ -1253,5 +1308,24 @@ class Options {
             }
         }
         return true;
+    }
+}
+
+export class Perf {
+    constructor() {
+        this.start = performance.now();
+    }
+
+    static start() {
+        return new Perf()
+    }
+
+    getElapsed() {
+        return performance.now() - this.start
+    }
+
+    printElapsed() {
+        let end = performance.now();
+        console.log(end - this.start)
     }
 }
