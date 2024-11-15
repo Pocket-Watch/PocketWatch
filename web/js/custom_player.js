@@ -357,24 +357,19 @@ class Internals {
 
     setProgressMargin(marginSize) {
         let margin = marginSize + "px";
+        this.htmlControls.progress.total.style.marginTop = margin;
+        this.htmlControls.progress.current.style.marginTop = margin;
+        this.htmlControls.progress.buffered.style.marginTop = margin;
 
-        let totalStyle = this.htmlControls.progress.total.style;
-        let currentStyle = this.htmlControls.progress.current.style;
-        let bufferedStyle = this.htmlControls.progress.buffered.style;
-
-        totalStyle.marginTop = margin;
-        currentStyle.marginTop = margin;
-        bufferedStyle.marginTop = margin;
-
-        totalStyle.marginBottom = margin;
-        currentStyle.marginBottom = margin;
-        bufferedStyle.marginBottom = margin;
+        this.htmlControls.progress.total.style.marginBottom = margin;
+        this.htmlControls.progress.current.style.marginBottom = margin;
+        this.htmlControls.progress.buffered.style.marginBottom = margin;
 
         let rootHeight = this.htmlControls.progress.root.clientHeight;
         let height = (rootHeight - marginSize * 2.0) + "px";
-        totalStyle.height = height;
-        currentStyle.height = height;
-        bufferedStyle.height = height;
+        this.htmlControls.progress.total.style.height = height;
+        this.htmlControls.progress.current.style.height = height;
+        this.htmlControls.progress.buffered.style.height = height;
     }
 
     updateTimestamps(timestamp) {
