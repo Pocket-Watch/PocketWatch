@@ -629,7 +629,7 @@ class Internals {
             return;
         }
 
-        hideElement(this.htmlVideo);
+        this.htmlVideo.style.cursor = "none";
         this.htmlControls.root.classList.remove("player_fade_in");
         this.htmlControls.root.classList.add("player_fade_out");
 
