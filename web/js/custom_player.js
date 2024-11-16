@@ -505,7 +505,14 @@ class Internals {
             import("../external/hls.js").then(module => {
                 if (module.Hls.isSupported()) {
                     if (this.hls == null) {
-                        this.hls = new module.Hls();
+                        this.hls = new module.Hls({
+                            // If these controllers are used, they'll clear tracks or cues when HLS is attached/detached.
+                            // HLS does not provide a way to make it optional, therefore we don't want HLS to mess with
+                            // our subtitle tracks, handling it would require hacky solutions or modifying HLS source code
+                            timelineController: null,
+                            subtitleTrackController: null,
+                            subtitleStreamController: null,
+                        });
                     }
 
                     this.hls.loadSource(url);
