@@ -17,26 +17,49 @@
             </div>
 
             <div id="url_area">
-                <div id="url_dropdown_container">
-                    <button class="fit_to_div" id="url_dropdown_button">V</button>
-                </div>
-
-                <div id="url_input_container">
-                    <input type="url" class="fit_to_div" id="url_input_box" />
-                </div>
-
-                <div id="url_controls_container">
-                    <div id="url_controls_set">
-                        <button class="fit_to_div" id="url_set_button">Set</button>
+                <div id="url_controls_container"> 
+                    <div id="url_left_buttons_container">
+                        <button class="fit_to_div" id="url_dropdown_button">V</button>
                     </div>
 
-                    <div id="url_controls_add_playlist">
-                        <button class="fit_to_div" id="url_add_playlist_button">Add to playlist</button>
+                    <div id="url_input_container">
+                        <input type="url" class="fit_to_div" id="url_input_box" />
+                    </div>
+
+                    <div id="url_right_buttons_container">
+                        <div id="url_controls_set">
+                            <button class="fit_to_div" id="url_set_button">Set</button>
+                        </div>
+
+                        <div id="url_controls_add_playlist">
+                            <button class="fit_to_div" id="url_add_playlist_button">Add to playlist</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="url_dropdown_container"> 
+                    <div id="url_dropdown_top"> 
+                        <label>Input your custom media title:</label>
+                        <input id="url_dropdown_title_input" class="fit_to_div"></input>
+                    </div>
+
+                    <div id="url_dropdown_bottom"> 
+                        <label class>
+                            Create proxy:
+                            <input type="checkbox" id="proxy" name="Proxy">
+                        </label>
+
+                        <label>Media referer:</label>
+                        <input type="url" id="url_dropdown_referer_input" class="fit_to_div"></input>
                     </div>
                 </div>
             </div>
 
             <div id="users_area">
+                <div id="user1" class="user_box"></div>
+                <div id="user2" class="user_box"></div>
+                <div id="user3" class="user_box"></div>
+                <div id="user4" class="user_box"></div>
             </div>
         </div>
 
