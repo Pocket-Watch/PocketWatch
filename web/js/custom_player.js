@@ -504,7 +504,10 @@ class Internals {
         if (pathname.endsWith(".m3u8") || pathname.endsWith(".ts")) {
             import("../external/hls.js").then(module => {
                 if (module.Hls.isSupported()) {
-                    this.hls = new module.Hls();
+                    if (this.hls == null) {
+                        this.hls = new module.Hls();
+                    }
+
                     this.hls.loadSource(url);
                     this.hls.attachMedia(this.htmlVideo);
                     this.playingHls = true;
@@ -547,9 +550,6 @@ class Internals {
             }
             this.selectedSubtitleIndex = newIndex;
             newTrack.mode = "showing";
-            if (this.playingHls) {
-                this.hls.subtitleTrack = newIndex;
-            }
         } else {
             // By default, every track is appended in the 'disabled' mode which prevents any initialization
             newTrack.mode = "hidden";
@@ -568,16 +568,9 @@ class Internals {
         let current = this.selectedSubtitleIndex;
         if (0 <= current && current < textTracks.length) {
             textTracks[current].mode = "hidden";
-            if (this.playingHls) {
-                console.log("Setting hls track to negative")
-                this.hls.subtitleTrack = -1;
-            }
         }
         if (0 <= index && index < textTracks.length) {
             textTracks[index].mode = "showing";
-            if (this.playingHls) {
-                this.hls.subtitleTrack = index;
-            }
             this.selectedSubtitleIndex = index;
         }
     }
@@ -592,14 +585,8 @@ class Internals {
         let isShowing = textTracks[index].mode === "showing";
         if (isShowing) {
             textTracks[index].mode = "hidden";
-            if (this.playingHls) {
-                this.hls.subtitleDisplay = false;
-            }
         } else {
             textTracks[index].mode = "showing";
-            if (this.playingHls) {
-                this.hls.subtitleDisplay = true;
-            }
         }
     }
 
@@ -614,9 +601,6 @@ class Internals {
         // Index-tracking mechanism
         if (index < this.selectedSubtitleIndex) {
             this.selectedSubtitleIndex--;
-            if (this.playingHls) {
-                this.hls.subtitleTrack = this.selectedSubtitleIndex;
-            }
         }
     }
 
