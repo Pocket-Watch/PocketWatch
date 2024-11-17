@@ -36,6 +36,10 @@ class Player {
         this.internals.setTitle(title);
     }
 
+    setToast(toast) {
+        this.internals.setToast(toast);
+    }
+
     getLoop(enabled) {
         return this.internals.loopEnabled;
     }
@@ -188,10 +192,17 @@ class Internals {
         this.htmlTitleContainer.id = "player_title_container";
         hideElement(this.htmlTitleContainer);
         this.htmlPlayerRoot.appendChild(this.htmlTitleContainer);
-
         this.htmlTitle = document.createElement("span");
         this.htmlTitle.id = "player_title_text";
         this.htmlTitleContainer.appendChild(this.htmlTitle);
+
+        this.htmlToastContainer = document.createElement("div");
+        this.htmlToastContainer.id = "player_toast_container";
+        hideElement(this.htmlToastContainer);
+        this.htmlPlayerRoot.appendChild(this.htmlToastContainer);
+        this.htmlToast = document.createElement("span");
+        this.htmlToast.id = "player_toast_text";
+        this.htmlToastContainer.appendChild(this.htmlToast);
 
         this.htmlBuffering = document.createElement("img");
         this.htmlBuffering.id = "player_buffering";
@@ -455,6 +466,17 @@ class Internals {
             this.htmlTitleContainer.style.display = "";
             this.htmlTitle.textContent = title;
         }
+    }
+
+    setToast(toast) {
+        this.htmlToast.textContent = toast;
+        this.htmlToastContainer.classList.remove("player_fade_out");
+        this.htmlToastContainer.style.display = "flex";
+
+        clearTimeout(this.playerHideToastTimeoutId);
+        this.playerHideToastTimeoutId = setTimeout(() => {
+            this.htmlToastContainer.classList.add("player_fade_out");
+        }, 3000);
     }
 
     setLoop(enabled) {

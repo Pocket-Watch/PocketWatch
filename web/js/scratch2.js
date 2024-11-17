@@ -20,16 +20,17 @@ function main() {
     player.addSubtitleTrack(subtitle1)
     player.addSubtitleTrack(subtitle2)
 
+
     player.onControlsPlay(() => {
-        console.log("User clicked play.");
+        player.setPopup("User clicked play.");
     })
 
     player.onControlsPause(() => {
-        console.log("User clicked pause.");
+        player.setPopup("User clicked pause.");
     })
 
     player.onControlsSeeked(function (timestamp) {
-        console.log("User seeked to", timestamp);
+        player.setPopup("User seeked to: " + timestamp);
     })
 
     player.onControlsSeeking(function (timestamp) {
@@ -37,7 +38,7 @@ function main() {
     })
 
     player.onPlaybackError(function (event) {
-        console.log(event.name, "-", event.message);
+        player.setPopup(event.name + " - " + event.message);
     })
 }
 

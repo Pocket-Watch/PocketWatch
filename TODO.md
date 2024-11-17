@@ -74,7 +74,8 @@
         - [x] Listen to user exit to change svg icon
     - [x] Autoplay toggle
     - [x] Display last action (ex. seek, play, pause) in the center of the player
-    - [ ] Tool tips on button hover
+    - [x] Display custom popup messages (ex. User 'frisk' clicked play) as a toast attached to the top right side
+    - [x] Tool tips on button hover
     - [ ] Auto-hide player UI
         - [x] Show/Hide elements when mouse enters/leaves the player area
         - [ ] Add support for touchscreen devices
@@ -85,7 +86,6 @@
         - [ ] Perform seeks screen double tap
         - [ ] Display variable seek indicator number on arrow press or screen double tap
         - [ ] Seek indicator value stacking
-    - [ ] Display custom popup messages (ex. User 'frisk' clicked play) as a toast attached to the top right side
     - [ ] Custom options that include:
         - [ ] Playback speed
         - [ ] Audio source switch
@@ -93,7 +93,7 @@
         - [ ] Audio only mode
         - [ ] Disable control auto-hide
     - [ ] Subtitles support
-        - [ ] Subtitle popup menu with selection and options
+        - [x] Subtitle popup menu with selection and options
         - [ ] Option to change subtitle size
         - [ ] Option to change subtitle color
         - [ ] Option to change timestamp offset

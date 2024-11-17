@@ -8,41 +8,42 @@
 #left_panel {
     /* width: 70%; */
     height: 100%;
+    border: 1px solid red;
     position: relative;
-    /* height: 100%; */
-    background: red;
     flex: 4 1 600px;
 }
 
 #player_area {
     width: calc(100% - 32px);
+    /* aspect-ratio: 16.0 / 9.0; */
     height: 64%;
     margin: 16px;
     align-items: center;
     justify-content: center;
-    background: purple;
 }
 
 #url_area {
-    width: calc(100% - 32px);
+    width: calc(100% - 32px - 16px);
     /* height: 10%; */
     height: auto;
+    border: 2px solid black;
+    border-radius: 6px;
     margin: 16px;
-    background: blue;
+    padding: 8px;
 }
 
 #url_controls_container {
     width: 100%;
     height: 40px;
+    /* border: 1px solid darkblue; */
+    box-sizing: border-box;
     display: flex;
-    margin: 0px;
-    background: darkblue;
+    padding: 1px;
 }
 
 #url_left_buttons_container {
     width: 25px;
     height: 100%;
-    background: green;
 }
 
 .fit_to_div {
@@ -75,45 +76,42 @@
     height: 80px;
     width: 100%;
     /* display: none; */
-    background: purple;
 }
 
 #url_dropdown_top {
     height: 50%;
     width: 100%;
     display: flex;
-    background: darkcyan;
 }
 
 #url_dropdown_bottom {
     height: 50%;
     width: 100%;
     display: flex;
-    background: darkblue;
 }
 
 #users_area {
     width: calc(100% - 32px);
     height: 150px;
+    border: 1px solid green;
     display: flex;
     margin: 16px;
-    background: cyan;
-    overflow: auto;
+    overflow-x: auto;
 }
 
 .user_box {
     height: calc(100% - 16px);
-    aspect-ratio: 1 / 1;
+    aspect-ratio: 1.0;
+    border: 1px solid purple;
     margin: 8px;
-    background: purple;
 }
 
 #right_panel {
     /* width: 30%; */
     height: 100%;
     min-width: 500px;
+    border: 1px solid green;
     position: relative;
     /* height: 100%; */
-    background: green;
     flex: 1;
 }

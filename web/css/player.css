@@ -10,6 +10,12 @@
     transition: visibility 0.3s, opacity 0.3s;
 }
 
+/* @keyframes outline_flash { */
+/*     50% { */
+/*         opacity: 0; */
+/*     } */
+/* } */
+
 #player_container {
     position: relative;
     width: 100%;
@@ -40,6 +46,28 @@
 }
 
 #player_title_text {
+    font-family: 'Arial', sans-serif;
+    color: white;
+    margin: 16px;
+    font-size: 16px;
+}
+
+#player_toast_container {
+    width: auto;
+    height: 36px;
+    border-radius: 3px;
+    /* object-fit: cover; */
+    top: 0;
+    right: 0;
+    position: absolute;
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+    margin-right: 10px;
+    background-color: rgba(40, 40, 40, 0.3);
+}
+
+#player_toast_text {
     font-family: 'Arial', sans-serif;
     color: white;
     margin: 16px;
