@@ -364,7 +364,7 @@ class Internals {
         this.htmlControls.progress.current.style.width = progress * 100 + "%"
 
         const width = this.htmlControls.progress.root.clientWidth;
-        let thumb_left = width * progress; 
+        let thumb_left = width * progress;
         thumb_left -= this.htmlControls.progress.thumb.offsetWidth / 2.0;
         this.htmlControls.progress.thumb.style.left = thumb_left + "px";
     }
@@ -515,7 +515,7 @@ class Internals {
     }
 
     setVideoTrack(url) {
-        if(!URL.canParse(url, document.baseURI)){
+        if(URL.canParse && !URL.canParse(url, document.baseURI)){
             console.debug("Failed to set a new URL. It's not parsable.")
             // We should probably inform the user about the error either via debug log or return false
             return
