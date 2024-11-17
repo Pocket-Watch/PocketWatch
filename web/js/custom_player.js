@@ -302,7 +302,7 @@ class Internals {
         setInterval(() => this.redrawBufferedBars(), this.options.bufferingRedrawInterval);
     }
 
-    fireControlsPlay() {}
+    async fireControlsPlay() {}
     fireControlsPause() {}
     fireControlsNext() {}
     fireControlsLoop(_enabled) {}
@@ -1059,6 +1059,7 @@ class Internals {
         let playToggle = document.createElement("div");
         playToggle.classList.add("responsive");
         playToggle.id = "player_play_toggle";
+        playToggle.title = "Play/Pause";
         playToggle.appendChild(this.htmlImgs.playToggle);
         playToggle.style.display = this.options.hidePlayToggleButton ? "none" : "";
         playerControls.appendChild(playToggle);
@@ -1067,6 +1068,7 @@ class Internals {
         let next = document.createElement("div");
         next.classList.add("responsive");
         next.id = "player_next";
+        next.title = "Next";
         next.appendChild(this.htmlImgs.next);
         next.style.display = this.options.hideNextButton ? "none" : "";
         playerControls.appendChild(next);
@@ -1075,6 +1077,7 @@ class Internals {
         let loop = document.createElement("div");
         loop.classList.add("responsive");
         loop.id = "player_loop";
+        loop.title = "Loop";
         loop.appendChild(this.htmlImgs.loop);
         loop.style.display = this.options.hideLoopingButton ? "none" : "";
         playerControls.appendChild(loop);
@@ -1083,6 +1086,7 @@ class Internals {
         let volume = document.createElement("div");
         volume.classList.add("responsive");
         volume.id = "player_volume";
+        volume.title = "Mute/Unmute";
         volume.appendChild(this.htmlImgs.volume);
         volume.style.display = this.options.hideVolumeButton ? "none" : "";
         playerControls.appendChild(volume);
@@ -1111,6 +1115,7 @@ class Internals {
         let download = document.createElement("div");
         download.classList.add("responsive");
         download.id = "player_download";
+        download.title = "Download";
         download.appendChild(this.htmlImgs.download);
         if (this.options.hideDownloadButton) {
             hideElement(download);
@@ -1126,6 +1131,7 @@ class Internals {
         let autoplay = document.createElement("div");
         autoplay.classList.add("responsive");
         autoplay.id = "player_autoplay";
+        autoplay.title = "Autoplay";
         autoplay.appendChild(this.htmlImgs.autoplay);
         if (this.options.hideAutoplayButton) {
             hideElement(autoplay);
@@ -1141,6 +1147,7 @@ class Internals {
         let subs = document.createElement("div");
         subs.classList.add("responsive");
         subs.id = "player_subs";
+        subs.title = "Subtitles";
         subs.appendChild(this.htmlImgs.subs);
         if (this.options.hideSubtitlesButton) {
             hideElement(subs);
@@ -1155,6 +1162,7 @@ class Internals {
         let settings = document.createElement("div");
         settings.classList.add("responsive");
         settings.id = "player_settings";
+        settings.title = "Settings";
         settings.appendChild(this.htmlImgs.settings);
         if (this.options.hideSettingsButton) {
             hideElement(settings);
@@ -1169,6 +1177,7 @@ class Internals {
         let fullscreen = document.createElement("div");
         fullscreen.classList.add("responsive");
         fullscreen.id = "player_fullscreen";
+        fullscreen.title = "Fullscreen";
         fullscreen.appendChild(this.htmlImgs.fullscreen);
         if (this.options.hideFullscreenButton) {
             hideElement(fullscreen);
