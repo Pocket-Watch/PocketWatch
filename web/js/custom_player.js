@@ -502,15 +502,12 @@ class Internals {
     }
 
     togglePlay() {
-        let perf = Perf.start();
         if (this.htmlVideo.paused) {
             this.fireControlsPlay();
             this.play();
         } else {
             this.fireControlsPause();
             this.pause();
-            let end = perf.getElapsed();
-            console.log("to PAUSE: ", end);
         }
     }
 

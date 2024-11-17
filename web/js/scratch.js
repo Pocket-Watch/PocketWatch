@@ -27,21 +27,21 @@ function main() {
     player.setTitle("Tears of Steel");
     player.addSubtitleTrack(subtitle1)
     player.addSubtitleTrack(subtitle2)
-
+    player.setVolume(0.01)
     player.onControlsPlay(() => {
-        console.log("User clicked play.");
+        player.setToast("User clicked play.");
     })
 
     player.onControlsPause(() => {
-        console.log("User clicked pause.");
+        player.setToast("User clicked pause.");
     })
 
     player.onControlsSeeked(function (timestamp) {
-        console.log("User seeked to", timestamp);
+        player.setToast("User seeked to", timestamp);
     })
 
     player.onControlsSeeking(function (timestamp) {
-        console.log("User seeking to", timestamp);
+        player.setToast("User seeking to", timestamp);
     })
 
     player.onPlaybackError(function (event) {
