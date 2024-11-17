@@ -302,7 +302,7 @@ class Internals {
         setInterval(() => this.redrawBufferedBars(), this.options.bufferingRedrawInterval);
     }
 
-    async fireControlsPlay() {}
+    fireControlsPlay() {}
     fireControlsPause() {}
     fireControlsNext() {}
     fireControlsLoop(_enabled) {}
@@ -343,6 +343,9 @@ class Internals {
     }
 
     seek(timestamp) {
+        if (isNaN(timestamp)) {
+            return
+        }
         this.htmlVideo.currentTime = timestamp;
     }
 
