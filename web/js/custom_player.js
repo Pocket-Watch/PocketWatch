@@ -1216,125 +1216,222 @@ class Internals {
 
         menu.root = document.createElement("div");
         let menuRoot = menu.root;
-        menuRoot.id = "player_subtitle_root"
-        hideElement(menuRoot);
+        menuRoot.id = "player_submenu_root"
+        // hideElement(menuRoot);
+        this.htmlPlayerRoot.appendChild(menuRoot);
 
+
+        // Subtitle menu top
         menu.topRoot = document.createElement("div");
         let topRoot = menu.topRoot;
-        topRoot.id = "player_top_root"
+        topRoot.id = "player_submenu_top"
         menuRoot.appendChild(topRoot);
 
-        menu.bottomRoot = document.createElement("div");
-        let bottomRoot = menu.bottomRoot;
-        bottomRoot.id = "player_bot_root"
-        menuRoot.appendChild(bottomRoot);
-
-        // Back button for any action item
         menu.back = document.createElement("div");
         let back = menu.back;
         back.innerHTML = "←"
-        back.classList.add("menu_item")
+        back.classList.add("player_submenu_top_button")
         back.classList.add("unselectable")
         back.style.display = ""
         topRoot.appendChild(back);
 
-        menu.selectedLabel = document.createElement("div");
-        let label = menu.selectedLabel;
-        label.innerHTML = "Options"
-        label.classList.add("menu_item")
-        label.classList.add("unselectable")
-        label.style.display = ""
-        topRoot.appendChild(label);
+        menu.selectButton = document.createElement("div");
+        let selectButton = menu.selectButton;
+        selectButton.innerHTML = "Select"
+        selectButton.classList.add("player_submenu_top_button")
+        selectButton.classList.add("unselectable")
+        selectButton.style.display = ""
+        topRoot.appendChild(selectButton);
 
-        menu.optionButtons = document.createElement("div");
-        let optionButtons = menu.optionButtons;
-        optionButtons.id = "option_buttons";
-        optionButtons.classList.add("menu_item");
-        optionButtons.classList.add("unselectable");
-        optionButtons.style.display = "";
-        bottomRoot.appendChild(optionButtons);
+        menu.searchButton = document.createElement("div");
+        let searchButton = menu.searchButton;
+        searchButton.innerHTML = "Search"
+        searchButton.classList.add("player_submenu_top_button")
+        searchButton.classList.add("unselectable")
+        searchButton.style.display = ""
+        topRoot.appendChild(searchButton);
 
-        menu.subtitleList = document.createElement("div");
-        let subtitleList = menu.subtitleList;
-        subtitleList.id = "subtitle_list";
-        subtitleList.classList.add("unselectable");
-        hideElement(subtitleList);
-        bottomRoot.appendChild(subtitleList);
+        menu.optionsButton = document.createElement("div");
+        let optionsButton = menu.optionsButton;
+        optionsButton.innerHTML = "Options"
+        optionsButton.classList.add("player_submenu_top_button")
+        optionsButton.classList.add("unselectable")
+        optionsButton.style.display = ""
+        topRoot.appendChild(optionsButton);
 
-        // Move these click actions below to attachHtmlEvents?
 
-        // Append options
-        let toggleButton = document.createElement("div");
-        menu.toggleButton = toggleButton
-        toggleButton.textContent = "Enable subs"
-        toggleButton.classList.add("menu_item")
-        toggleButton.classList.add("unselectable")
-        toggleButton.addEventListener("click", () => {
-            this.toggleCurrentTrackVisibility()
-            if (menu.enabledSubs) {
-                menu.enabledSubs = false;
-                toggleButton.textContent = "Enable subs";
-            } else {
-                menu.enabledSubs = true;
-                toggleButton.textContent = "Disable subs";
-            }
+        // Subtitle menu top and bottom separator
+        menu.seprator = document.createElement("hr");
+        let seprator = menu.seprator;
+        seprator.className = "player_submenu_separator";
+        menuRoot.appendChild(seprator);
+
+
+        // Subtitle menu bottom
+        menu.submenuBottom = document.createElement("div");
+        let submenuBottom = menu.submenuBottom;
+        submenuBottom.id = "player_submenu_buttom";
+        menuRoot.appendChild(submenuBottom);
+
+
+        let listTop = document.createElement("div");
+        submenuBottom.appendChild(listTop);
+
+        let subsToggle = document.createElement("label");
+        subsToggle.className = "toggle";
+        listTop.appendChild(subsToggle);
+
+        let toggleCheckbox = document.createElement("input");
+        toggleCheckbox.className = "toggle-checkbox";
+        toggleCheckbox.type = "checkbox";
+        subsToggle.appendChild(toggleCheckbox);
+        toggleCheckbox.addEventListener("change", (event) => {
+            console.log(event.target.checked);
         });
 
-        optionButtons.appendChild(toggleButton);
+        let toggleSwitch = document.createElement("div");
+        toggleSwitch.className = "toggle-switch";
+        subsToggle.appendChild(toggleSwitch);
 
-        let chooseButton = document.createElement("div");
-        menu.chooseButton = chooseButton
-        chooseButton.textContent = "Choosing"
-        chooseButton.classList.add("menu_item")
-        chooseButton.classList.add("unselectable")
-        chooseButton.addEventListener("click", () => {
-            menu.depth++;
-            menu.selectedLabel.textContent = "Choose track";
-            hideElement(menu.optionButtons);
-            menu.subtitleList.style.display = "";
-            menu.subtitleList.innerHTML = "";
-            let textTracks = this.htmlVideo.textTracks;
-            for (let i = 0; i < textTracks.length; i++) {
-                let track = textTracks[i];
-                const trackDiv = document.createElement("div");
-                trackDiv.textContent = track.label;
-                trackDiv.classList.add("subtitle_item");
-                trackDiv.classList.add("unselectable");
-                trackDiv.onclick = () => {
-                    console.log("User selected", track.label)
-                    this.enableSubtitleTrack(i)
-                }
-                console.log("Appending", track.label)
-                menu.subtitleList.appendChild(trackDiv);
-            }
-        })
-        optionButtons.appendChild(chooseButton);
+        let toggleText = document.createElement("span");
+        toggleText.textContent = "    Enable subtitles";
+        toggleText.className = "text_color";
+        listTop.appendChild(toggleText);
 
-        let customizeButton = document.createElement("div");
-        menu.customizeButton = customizeButton
-        customizeButton.innerHTML = "Customize sub"
-        customizeButton.classList.add("menu_item")
-        customizeButton.classList.add("unselectable")
-        customizeButton.addEventListener("click", () => {
-            menu.depth++;
-            menu.selectedLabel.innerHTML = "Customizing"
-            hideElement(menu.optionButtons);
-        })
-        optionButtons.appendChild(customizeButton);
 
-        let downloadButton = document.createElement("div");
-        menu.downloadButton = downloadButton
-        downloadButton.innerHTML = "Download sub"
-        downloadButton.classList.add("menu_item")
-        downloadButton.classList.add("unselectable")
-        downloadButton.addEventListener("click", () => {
-            menu.depth++;
-            menu.selectedLabel.innerHTML = "Download"
-            hideElement(menu.optionButtons);
-        })
-        optionButtons.appendChild(downloadButton);
+        let listSeprator = document.createElement("hr");
+        listSeprator.className = "player_submenu_separator";
+        submenuBottom.appendChild(listSeprator);
 
-        this.htmlPlayerRoot.appendChild(menuRoot);
+        let listBottom = document.createElement("div");
+        listBottom.id = "subtitle_track_list";
+        submenuBottom.appendChild(listBottom);
+
+        function createTrackElement(title) {
+            let track = document.createElement("div");
+            track.className = "subtitle_track";
+
+            let trackTitle = document.createElement("div");
+            trackTitle.textContent = title;
+            trackTitle.className = "subtitle_track_text";
+
+            let trackButtons = document.createElement("div");
+            trackButtons.className = "subtitle_track_buttons";
+
+            let trackEdit = document.createElement("button");
+            trackEdit.className = "subtitle_track_edit_button";
+            trackEdit.textContent = "⚙️";
+            let trackRemove = document.createElement("button");
+            trackRemove.className = "subtitle_track_remove_button";
+            trackRemove.textContent = "🗑";
+
+            trackButtons.appendChild(trackEdit);
+            trackButtons.appendChild(trackRemove);
+
+            track.appendChild(trackTitle);
+            track.appendChild(trackButtons);
+
+            return track;
+        }
+
+        listBottom.appendChild(createTrackElement("Tears of Steel.vtt"));
+        listBottom.appendChild(createTrackElement("Big Buck Bunny.srt"));
+
+        // Subtitle menu bottom div
+        // menu.bottomRoot = document.createElement("div");
+        // let bottomRoot = menu.bottomRoot;
+        // bottomRoot.id = "player_bot_root"
+        // menuRoot.appendChild(bottomRoot);
+        //
+        // menu.optionButtons = document.createElement("div");
+        // let optionButtons = menu.optionButtons;
+        // optionButtons.id = "option_buttons";
+        // optionButtons.classList.add("menu_item");
+        // optionButtons.classList.add("unselectable");
+        // optionButtons.style.display = "";
+        // bottomRoot.appendChild(optionButtons);
+        //
+        // menu.subtitleList = document.createElement("div");
+        // let subtitleList = menu.subtitleList;
+        // subtitleList.id = "subtitle_list";
+        // subtitleList.classList.add("unselectable");
+        // hideElement(subtitleList);
+        // bottomRoot.appendChild(subtitleList);
+        //
+        // // Move these click actions below to attachHtmlEvents?
+        //
+        // // Append options
+        // let toggleButton = document.createElement("div");
+        // menu.toggleButton = toggleButton
+        // toggleButton.textContent = "Enable subs"
+        // toggleButton.classList.add("menu_item")
+        // toggleButton.classList.add("unselectable")
+        // toggleButton.addEventListener("click", () => {
+        //     this.toggleCurrentTrackVisibility()
+        //     if (menu.enabledSubs) {
+        //         menu.enabledSubs = false;
+        //         toggleButton.textContent = "Enable subs";
+        //     } else {
+        //         menu.enabledSubs = true;
+        //         toggleButton.textContent = "Disable subs";
+        //     }
+        // });
+        //
+        // optionButtons.appendChild(toggleButton);
+        //
+        // let chooseButton = document.createElement("div");
+        // menu.chooseButton = chooseButton
+        // chooseButton.textContent = "Choosing"
+        // chooseButton.classList.add("menu_item")
+        // chooseButton.classList.add("unselectable")
+        // chooseButton.addEventListener("click", () => {
+        //     menu.depth++;
+        //     menu.selectedLabel.textContent = "Choose track";
+        //     hideElement(menu.optionButtons);
+        //     menu.subtitleList.style.display = "";
+        //     menu.subtitleList.innerHTML = "";
+        //     let textTracks = this.htmlVideo.textTracks;
+        //     for (let i = 0; i < textTracks.length; i++) {
+        //         let track = textTracks[i];
+        //         const trackDiv = document.createElement("div");
+        //         trackDiv.textContent = track.label;
+        //         trackDiv.classList.add("subtitle_item");
+        //         trackDiv.classList.add("unselectable");
+        //         trackDiv.onclick = () => {
+        //             console.log("User selected", track.label)
+        //             this.enableSubtitleTrack(i)
+        //         }
+        //         console.log("Appending", track.label)
+        //         menu.subtitleList.appendChild(trackDiv);
+        //     }
+        // })
+        // optionButtons.appendChild(chooseButton);
+        //
+        // let customizeButton = document.createElement("div");
+        // menu.customizeButton = customizeButton
+        // customizeButton.innerHTML = "Customize sub"
+        // customizeButton.classList.add("menu_item")
+        // customizeButton.classList.add("unselectable")
+        // customizeButton.addEventListener("click", () => {
+        //     menu.depth++;
+        //     menu.selectedLabel.innerHTML = "Customizing"
+        //     hideElement(menu.optionButtons);
+        // })
+        // optionButtons.appendChild(customizeButton);
+        //
+        // let downloadButton = document.createElement("div");
+        // menu.downloadButton = downloadButton
+        // downloadButton.innerHTML = "Download sub"
+        // downloadButton.classList.add("menu_item")
+        // downloadButton.classList.add("unselectable")
+        // downloadButton.addEventListener("click", () => {
+        //     menu.depth++;
+        //     menu.selectedLabel.innerHTML = "Download"
+        //     hideElement(menu.optionButtons);
+        // })
+        // optionButtons.appendChild(downloadButton);
+        //
+        // this.htmlPlayerRoot.appendChild(menuRoot);
     }
 }
 

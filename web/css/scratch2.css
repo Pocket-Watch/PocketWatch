@@ -1,3 +1,7 @@
+html {
+    background-color: #1d2021
+}
+
 #root_panel {
     height: 1200px;
     display: flex;
@@ -8,9 +12,12 @@
 #left_panel {
     /* width: 70%; */
     height: 100%;
-    border: 1px solid red;
+    border-radius: 12px;
+    /* border: 1px solid red; */
     position: relative;
     flex: 4 1 600px;
+    background-color: #282828;
+    margin: 0px 6px 6px 0px;
 }
 
 #player_area {
@@ -22,28 +29,33 @@
     justify-content: center;
 }
 
+#player_container {
+    border-radius: 6px;
+}
+
 #url_area {
-    width: calc(100% - 32px - 16px);
+    width: calc(100% - 32px);
     /* height: 10%; */
     height: auto;
-    border: 2px solid black;
+    border: 2px solid #a89984;
     border-radius: 6px;
     margin: 16px;
-    padding: 8px;
+    /* padding: 8px; */
 }
 
 #url_controls_container {
     width: 100%;
-    height: 40px;
+    height: 54px;
     /* border: 1px solid darkblue; */
     box-sizing: border-box;
     display: flex;
-    padding: 1px;
+    padding: 6px;
 }
 
 #url_left_buttons_container {
-    width: 25px;
+    width: 50px;
     height: 100%;
+    display: flex;
 }
 
 .fit_to_div {
@@ -72,9 +84,17 @@
     width: 50%;
 }
 
+#url_seprarator {
+    border: 0px;
+    border-top: 2px solid black;
+    margin: 0px;
+    display: none;
+}
+
 #url_dropdown_container {
     height: 80px;
     width: 100%;
+    padding: 3px;
     /* display: none; */
 }
 
@@ -110,8 +130,11 @@
     /* width: 30%; */
     height: 100%;
     min-width: 500px;
-    border: 1px solid green;
+    border-radius: 12px;
+    /* border: 1px solid green; */
     position: relative;
     /* height: 100%; */
     flex: 1;
+    background-color: #282828;
+    margin: 0px 6px 6px 0px;
 }

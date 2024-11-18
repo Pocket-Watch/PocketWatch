@@ -1,44 +1,54 @@
-import {Options, Player} from "./custom_player.js"
+import { Options, Player } from "./custom_player.js"
 
 let player = null;
 
 function main() {
     let video0 = document.getElementById("video0");
     console.log(video0);
-    let options = new Options();
     player = new Player(video0);
 
-    // let track = "https://ftp.halifax.rwth-aachen.de/blender/demo/movies/ToS/ToS-4k-1920.mov";
-    let track = "https://test-streams.mux.dev/x36xhzz/url_6/193039199_mp4_h264_aac_hq_7.m3u8"
-    // let track = "https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_640x360.m4v";
+    player.setVolume(0.1);
+
+    let test_sub = "media/Elephants.Dream.2006.vtt";
+    player.addSubtitleTrack(test_sub)
+
+    // {
+    //     let track = "https://ftp.halifax.rwth-aachen.de/blender/demo/movies/ToS/ToS-4k-1920.mov";
+    //     player.setVideoTrack(track);
+    //     player.setTitle("Tears of Steel");
     //
-    player.setVideoTrack(track);
-    player.setTitle("Tears of Steel");
+    //     let subtitle = "media/Tears.of.Steel.2012.vtt";
+    //     player.addSubtitleTrack(subtitle)
+    // }
 
-    let subtitle1 = "media/Elephants.Dream.2006.vtt";
-    let subtitle2 = "media/Tears.of.Steel.2012.vtt";
-    player.addSubtitleTrack(subtitle1)
-    player.addSubtitleTrack(subtitle2)
+    {
+        let track = "https://test-streams.mux.dev/x36xhzz/url_6/193039199_mp4_h264_aac_hq_7.m3u8"
+        // let track = "https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_640x360.m4v";
+        player.setVideoTrack(track);
+        player.setTitle("Big Buck Bunny");
+    }
 
+    player.seek(17.0);
 
     player.onControlsPlay(() => {
-        player.setPopup("User clicked play.");
+        player.setToast("User clicked play.");
     })
 
     player.onControlsPause(() => {
-        player.setPopup("User clicked pause.");
+        player.setToast("User clicked pause.");
     })
 
-    player.onControlsSeeked(function (timestamp) {
-        player.setPopup("User seeked to: " + timestamp);
+    player.onControlsSeeked(function(timestamp) {
+        let rounded = Math.round(timestamp * 100) / 100.0;
+        player.setToast("User seeked to: " + rounded);
     })
 
-    player.onControlsSeeking(function (timestamp) {
+    player.onControlsSeeking(function(timestamp) {
         console.log("User seeking to", timestamp);
     })
 
-    player.onPlaybackError(function (event) {
-        player.setPopup(event.name + " - " + event.message);
+    player.onPlaybackError(function(event) {
+        player.setToast(event.name + " - " + event.message);
     })
 }
 

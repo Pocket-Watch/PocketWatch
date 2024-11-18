@@ -19,7 +19,8 @@
             <div id="url_area">
                 <div id="url_controls_container"> 
                     <div id="url_left_buttons_container">
-                        <button class="fit_to_div" id="url_dropdown_button" title="Show advanced options">V</button>
+                        <button class="fit_to_div" id="url_dropdown_button" title="Show advanced options">⏷</button>
+                        <button class="fit_to_div" id="url_reset_button" title="Reset all fields">🗑</button>
                     </div>
 
                     <div id="url_input_container">
@@ -37,6 +38,8 @@
                     </div>
                 </div>
 
+                <hr id="url_seprarator">
+
                 <div id="url_dropdown_container"> 
                     <div id="url_dropdown_top"> 
                         <label>Input your custom media title:</label>
@@ -44,10 +47,17 @@
                     </div>
 
                     <div id="url_dropdown_bottom"> 
-                        <label class>
-                            Create proxy:
-                            <input type="checkbox" id="proxy" name="Proxy">
+
+                        <label class="toggle">
+                            <input class="toggle-checkbox" type="checkbox">
+                            <div class="toggle-switch"></div>
                         </label>
+                        <span class="toggle-label">Create proxy</span>
+
+                        <!-- <label class> -->
+                        <!--     Create proxy: -->
+                        <!--     <input type="checkbox" id="proxy" name="Proxy"> -->
+                        <!-- </label> -->
 
                         <label>Media referer:</label>
                         <input type="url" id="url_dropdown_referer_input" class="fit_to_div"></input>
