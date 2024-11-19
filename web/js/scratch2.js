@@ -1,8 +1,47 @@
 import { Options, Player } from "./custom_player.js"
 
+var dropdownIsDown = true;
+var dropdownContainer = document.getElementById("url_dropdown_container");
+
+var entryInputUrl = document.getElementById("url_input_box");
+var entryInputTitle = document.getElementById("url_title_input");
+var entryInputReferer = document.getElementById("url_dropdown_referer_input");
+
+function dropdownButtonOnClick(event) {
+    let button = event.target;
+
+    if (dropdownIsDown) {
+        button.textContent = "▲";
+        dropdownContainer.style.display = "";
+    } else {
+        button.textContent = "▼";
+        dropdownContainer.style.display = "none";
+    }
+
+    dropdownIsDown = !dropdownIsDown;
+}
+
+function clearEntryInputElements() {
+    entryInputUrl.value = "";
+    entryInputTitle.value = "";
+    entryInputReferer.value = "";
+}
+
+function resetButtonOnClick(event) {
+    clearEntryInputElements();
+}
+
+function attachHtmlEvents() {
+    window.dropdownButtonOnClick = dropdownButtonOnClick;
+    window.resetButtonOnClick = resetButtonOnClick;
+    dropdownContainer.style.display = "none";
+}
+
 let player = null;
 
 function main() {
+    attachHtmlEvents();
+
     let video0 = document.getElementById("video0");
     console.log(video0);
     player = new Player(video0);

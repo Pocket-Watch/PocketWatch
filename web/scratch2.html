@@ -18,32 +18,25 @@
 
             <div id="url_area">
                 <div id="url_controls_container"> 
-                    <div id="url_left_buttons_container">
-                        <button class="fit_to_div" id="url_dropdown_button" title="Show advanced options">⏷</button>
-                        <button class="fit_to_div" id="url_reset_button" title="Reset all fields">🗑</button>
-                    </div>
+                    <button id="url_dropdown_button" onclick="dropdownButtonOnClick(event)" title="Show more options">▼</button>
+                    <button id="url_reset_button" onclick="resetButtonOnClick(event)" title="Reset all fields">🗑</button>
 
-                    <div id="url_input_container">
-                        <input type="url" class="fit_to_div" id="url_input_box" />
+                    <div class="input_area" id="url_input_container">
+                        <span>Media URL:</span>
+                        <!-- TODO(?): Use placeholder do display currently playing video? -->
+                        <input type="url" id="url_input_box" placeholder="Enter video or audio URL here. Could be a YouTube link or any other media URL."/>
                     </div>
 
                     <div id="url_right_buttons_container">
-                        <div id="url_controls_set">
-                            <button class="fit_to_div" id="url_set_button">Set</button>
-                        </div>
-
-                        <div id="url_controls_add_playlist">
-                            <button class="fit_to_div" id="url_add_playlist_button">Add to playlist</button>
-                        </div>
+                        <button id="url_set_button">Set</button>
+                        <button id="url_add_playlist_button">Add to playlist</button>
                     </div>
                 </div>
 
-                <hr id="url_seprarator">
-
                 <div id="url_dropdown_container"> 
-                    <div id="url_dropdown_top"> 
-                        <label>Input your custom media title:</label>
-                        <input id="url_dropdown_title_input" class="fit_to_div"></input>
+                    <div class="input_area" id="url_dropdown_top"> 
+                        <span>Media Title:</span>
+                        <input id="url_title_input" placeholder="Enter your custom media title. This field is optional."></input>
                     </div>
 
                     <div id="url_dropdown_bottom"> 
@@ -59,8 +52,10 @@
                         <!--     <input type="checkbox" id="proxy" name="Proxy"> -->
                         <!-- </label> -->
 
-                        <label>Media referer:</label>
-                        <input type="url" id="url_dropdown_referer_input" class="fit_to_div"></input>
+                        <div class="input_area" id="referef_container">
+                            <span>Media Referer:</span>
+                            <input type="url" id="url_dropdown_referer_input"  placeholder="Enter media referer URL. This field is optional."></input>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -79,6 +74,40 @@
         </div>
 
         <div id="right_panel">
+            <link href="css/playlist.css" rel="stylesheet" />
+            <table id="playlist_root">
+                <caption>
+                    Playlist
+                </caption>
+                <thead>
+                    <tr>
+                        <th scope="row" colspan="4">
+                            <label>Add URL to the playlist:</label><br />
+                            <input type="url" id="playlist_url_input" onkeypress="inputPlaylistOnKeypress(event)" size="100" />
+                            <button onclick="playlistAddOnClick()">Add</button>
+                            <button onclick="playlistShuffleOnClick()">Shuffle</button>
+                        </th>
+                    </tr>
+                </thead>
+                <thead>
+                    <tr>
+                        <th scope="col">Position</th>
+                        <th scope="col">Requested by</th>
+                        <th scope="col">Url</th>
+                        <th scope="col">
+                            <button onclick="playlistClearOnClick()">Clear playlist</button>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="playlist_entries">
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th scope="row" colspan="3">Total entries:</th>
+                        <td id="playlist_entry_count">0</td>
+                    </tr>
+                </tfoot>
+            </table>
         </div>
 
     </div>

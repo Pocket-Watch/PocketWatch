@@ -35,27 +35,56 @@ html {
 
 #url_area {
     width: calc(100% - 32px);
-    /* height: 10%; */
     height: auto;
     border: 2px solid #a89984;
     border-radius: 6px;
     margin: 16px;
-    /* padding: 8px; */
+    background-color: #3c3836;
 }
 
 #url_controls_container {
     width: 100%;
     height: 54px;
-    /* border: 1px solid darkblue; */
     box-sizing: border-box;
     display: flex;
     padding: 6px;
 }
 
-#url_left_buttons_container {
+#url_dropdown_button {
+    width: 24px;
+    height: 100%;
+    border: none;
+    border-radius: 6px;
+    box-sizing: border-box;
+    /* margin-left: 6px; */
+    /* background-color: #fb4934; */
+    background-color: #665c54;
+}
+
+#url_dropdown_button:hover {
+    background-color: #7c6f64;
+}
+
+#url_dropdown_button:active {
+    background-color: #928374;
+}
+
+#url_reset_button {
     width: 50px;
     height: 100%;
-    display: flex;
+    border: none;
+    border-radius: 6px;
+    box-sizing: border-box;
+    margin-left: 6px;
+    background-color: #fb4934;
+}
+
+#url_reset_button:hover {
+    background-color: #cc241d;
+}
+
+#url_reset_button:active {
+    background-color: #9d0006;
 }
 
 .fit_to_div {
@@ -66,64 +95,128 @@ html {
 }
 
 #url_input_container {
-    width: 86%;
+    width: 100%;
     height: 100%;
+    margin-left: 6px;
+    margin-right: 6px;
 }
 
-#url_right_buttons_container {
-    width: calc(100% - 86% - 25px);
+.input_area {
+    width: 100%;
     height: 100%;
     display: flex;
 }
 
-#url_controls_set {
-    width: 50%;
+.input_area span {
+    border-radius: 6px 0px 0px 6px;
+    display: flex;
+    white-space: nowrap;
+    padding: 16px;
+    background-color: #ebdbb2;
+    align-items: center;
 }
 
-#url_controls_add_playlist {
-    width: 50%;
+.input_area input {
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 0px 6px 6px 0px;
+    box-sizing: border-box;
+    padding: 16px;
+    background-color: #f9f5d7;
 }
 
-#url_seprarator {
-    border: 0px;
-    border-top: 2px solid black;
-    margin: 0px;
-    display: none;
+.input_area input:focus {
+    outline: 2px solid #928374;
+}
+
+#url_right_buttons_container {
+    width: 150px;
+    height: 100%;
+    border-radius: 6px;
+    display: flex;
+    overflow: hidden;
+}
+
+#url_set_button {
+    width: 100%;
+    height: 100%;
+    border: none;
+    /* border-radius: 6px; */
+    box-sizing: border-box;
+    /* margin-right: 4px; */
+    background-color: #8ec07c;
+}
+
+#url_set_button:hover {
+    background-color: #689d6a;
+}
+
+#url_set_button:active {
+    background-color: #427b58;
+}
+
+#url_add_playlist_button {
+    width: 100%;
+    height: 100%;
+    border: none;
+    /* border-radius: 6px; */
+    box-sizing: border-box;
+    background-color: #83a598;
+}
+
+#url_add_playlist_button:hover {
+    background-color: #458588;
+}
+
+#url_add_playlist_button:active {
+    background-color: #076678;
 }
 
 #url_dropdown_container {
-    height: 80px;
+    height: 100px;
     width: 100%;
     padding: 3px;
+    /* NOTE(kihau): When set to none, resetting the value from JS code does nothing. */
     /* display: none; */
 }
 
 #url_dropdown_top {
-    height: 50%;
-    width: 100%;
-    display: flex;
+    height: calc(50% - 6px);
+    width: calc(100% - 18px);
+    margin-right: 6px;
+    margin-left: 6px;
+    margin-bottom: 6px;
+    /* display: flex; */
 }
 
 #url_dropdown_bottom {
-    height: 50%;
-    width: 100%;
+    height: calc(50% - 6px);
+    width: calc(100% - 12px);
     display: flex;
+    margin-bottom: 6px;
+    margin-right: 6px;
 }
 
 #users_area {
-    width: calc(100% - 32px);
+    width: calc(100% - 60px);
     height: 150px;
-    border: 1px solid green;
+    /* border: 2px solid #a89984; */
+    border-radius: 8px;
     display: flex;
+    padding: 16px;
     margin: 16px;
-    overflow-x: auto;
+    /* overflow-y: scroll; */
+    background-color: #3c3836;
 }
 
 .user_box {
-    height: calc(100% - 16px);
+    height: 100%;
     aspect-ratio: 1.0;
-    border: 1px solid purple;
-    margin: 8px;
+    /* border: 1px solid purple; */
+    border-radius: 8px;
+    margin-right: 10px;
+    background-color: #504945;
 }
 
 #right_panel {
