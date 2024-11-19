@@ -643,7 +643,7 @@ class Internals {
     }
 
     hidePlayerUI() {
-        if (this.options.disableControlsAutoHide) {
+        if (this.options.disableControlsAutoHide || !this.isVideoPlaying()) {
             return;
         }
 
