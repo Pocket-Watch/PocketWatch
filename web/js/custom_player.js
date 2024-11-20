@@ -179,8 +179,7 @@ class Internals {
         this.htmlVideo.controls = false;
 
         // Div container where either the player or the placeholder resides.
-        this.htmlPlayerRoot = newDiv();
-        this.htmlPlayerRoot.id = "player_container";
+        this.htmlPlayerRoot = newDiv("player_container");
 
         // We actually need to append the <div> to document.body (or <video>'s parent)
         // otherwise the <video> tag will disappear entirely!
@@ -188,16 +187,14 @@ class Internals {
         videoParent.appendChild(this.htmlPlayerRoot);
         this.htmlPlayerRoot.appendChild(this.htmlVideo);
 
-        this.htmlTitleContainer = newDiv();
-        this.htmlTitleContainer.id = "player_title_container";
+        this.htmlTitleContainer = newDiv("player_title_container");
         hideElement(this.htmlTitleContainer);
         this.htmlPlayerRoot.appendChild(this.htmlTitleContainer);
         this.htmlTitle = document.createElement("span");
         this.htmlTitle.id = "player_title_text";
         this.htmlTitleContainer.appendChild(this.htmlTitle);
 
-        this.htmlToastContainer = newDiv();
-        this.htmlToastContainer.id = "player_toast_container";
+        this.htmlToastContainer = newDiv("player_toast_container");
         hideElement(this.htmlToastContainer);
         this.htmlPlayerRoot.appendChild(this.htmlToastContainer);
         this.htmlToast = document.createElement("span");
@@ -298,13 +295,11 @@ class Internals {
         this.createHtmlControls();
         this.createSubtitleMenu();
 
-        this.htmlSeekForward = newDiv();
-        this.htmlSeekForward.id = "player_forward_container";
+        this.htmlSeekForward = newDiv("player_forward_container");
         this.htmlSeekForward.appendChild(this.htmlImgs.seekForward);
         this.htmlPlayerRoot.appendChild(this.htmlSeekForward);
 
-        this.htmlSeekBackward = newDiv();
-        this.htmlSeekBackward.id = "player_backward_container";
+        this.htmlSeekBackward = newDiv("player_backward_container");
         this.htmlSeekBackward.appendChild(this.htmlImgs.seekBackward);
         this.htmlPlayerRoot.appendChild(this.htmlSeekBackward);
 
@@ -1032,13 +1027,11 @@ class Internals {
     }
 
     createProgressBar() {
-        let progressRoot = newDiv();
-        progressRoot.id = "player_progress_root";
+        let progressRoot = newDiv("player_progress_root");
         this.htmlControls.root.appendChild(progressRoot);
         this.htmlControls.progress.root = progressRoot;
 
-        let progressTotal = newDiv();
-        progressTotal.id = "player_progress_total";
+        let progressTotal = newDiv("player_progress_total");
         progressRoot.appendChild(progressTotal);
         this.htmlControls.progress.total = progressTotal;
 
@@ -1047,67 +1040,58 @@ class Internals {
         progressRoot.appendChild(progressBuffered);
         this.htmlControls.progress.buffered = progressBuffered;
 
-        let progressCurrent = newDiv();;
-        progressCurrent.id = "player_progress_current";
+        let progressCurrent = newDiv("player_progress_current");
         progressRoot.appendChild(progressCurrent);
         this.htmlControls.progress.current = progressCurrent;
 
-        let progressThumb = newDiv();
-        progressThumb.id = "player_progress_thumb";
+        let progressThumb = newDiv("player_progress_thumb");
         progressRoot.appendChild(progressThumb);
         this.htmlControls.progress.thumb = progressThumb;
 
-        let progressPopupRoot = newDiv();
-        progressPopupRoot.id = "player_progress_popup_root";
+        let progressPopupRoot = newDiv("player_progress_popup_root");
         hideElement(progressPopupRoot);
         progressRoot.appendChild(progressPopupRoot);
         this.htmlControls.progress.popupRoot = progressPopupRoot;
 
-        let progressPopupText = newDiv();
-        progressPopupText.id = "player_progress_popup_text";
+        let progressPopupText = newDiv("player_progress_popup_text");
         progressPopupText.textContent = "00:00";
         progressPopupRoot.appendChild(progressPopupText);
         this.htmlControls.progress.popupText = progressPopupText;
     }
 
     createHtmlControls() {
-        let playerControls = newDiv();
-        playerControls.id = "player_controls";
+        let playerControls = newDiv("player_controls");
         playerControls.setAttribute("ondragstart", "return false");
         this.htmlControls.root = playerControls;
 
         this.createProgressBar();
 
-        let playToggle = newDiv();
+        let playToggle = newDiv("player_play_toggle");
         playToggle.classList.add("responsive");
-        playToggle.id = "player_play_toggle";
         playToggle.title = "Play/Pause";
         playToggle.appendChild(this.htmlImgs.playToggle);
         playToggle.style.display = this.options.hidePlayToggleButton ? "none" : "";
         playerControls.appendChild(playToggle);
         this.htmlControls.playToggleButton = playToggle;
 
-        let next = newDiv();
+        let next = newDiv("player_next");
         next.classList.add("responsive");
-        next.id = "player_next";
         next.title = "Next";
         next.appendChild(this.htmlImgs.next);
         next.style.display = this.options.hideNextButton ? "none" : "";
         playerControls.appendChild(next);
         this.htmlControls.nextButton = next;
 
-        let loop = newDiv();
+        let loop = newDiv("player_loop");
         loop.classList.add("responsive");
-        loop.id = "player_loop";
         loop.title = "Loop";
         loop.appendChild(this.htmlImgs.loop);
         loop.style.display = this.options.hideLoopingButton ? "none" : "";
         playerControls.appendChild(loop);
         this.htmlControls.loopButton = loop;
 
-        let volume = newDiv();
+        let volume = newDiv("player_volume");
         volume.classList.add("responsive");
-        volume.id = "player_volume";
         volume.title = "Mute/Unmute";
         volume.appendChild(this.htmlImgs.volume);
         volume.style.display = this.options.hideVolumeButton ? "none" : "";
@@ -1134,9 +1118,8 @@ class Internals {
 
         let firstAutoMargin = true;
 
-        let download = newDiv();
+        let download = newDiv("player_download");
         download.classList.add("responsive");
-        download.id = "player_download";
         download.title = "Download";
         download.appendChild(this.htmlImgs.download);
         if (this.options.hideDownloadButton) {
@@ -1150,9 +1133,8 @@ class Internals {
         this.htmlPlayerRoot.appendChild(playerControls);
         this.htmlControls.download = download;
 
-        let autoplay = newDiv();
+        let autoplay = newDiv("player_autoplay");
         autoplay.classList.add("responsive");
-        autoplay.id = "player_autoplay";
         autoplay.title = "Autoplay";
         autoplay.appendChild(this.htmlImgs.autoplay);
         if (this.options.hideAutoplayButton) {
@@ -1166,9 +1148,8 @@ class Internals {
         this.htmlPlayerRoot.appendChild(playerControls);
         this.htmlControls.autoplay = autoplay;
 
-        let subs = newDiv();
+        let subs = newDiv("player_subs");
         subs.classList.add("responsive");
-        subs.id = "player_subs";
         subs.title = "Subtitles";
         subs.appendChild(this.htmlImgs.subs);
         if (this.options.hideSubtitlesButton) {
@@ -1181,9 +1162,8 @@ class Internals {
         this.htmlPlayerRoot.appendChild(playerControls);
         this.htmlControls.subs = subs;
 
-        let settings = newDiv();
+        let settings = newDiv("player_settings");
         settings.classList.add("responsive");
-        settings.id = "player_settings";
         settings.title = "Settings";
         settings.appendChild(this.htmlImgs.settings);
         if (this.options.hideSettingsButton) {
@@ -1196,9 +1176,8 @@ class Internals {
         this.htmlPlayerRoot.appendChild(playerControls);
         this.htmlControls.settings = settings;
 
-        let fullscreen = newDiv();
+        let fullscreen = newDiv( "player_fullscreen");
         fullscreen.classList.add("responsive");
-        fullscreen.id = "player_fullscreen";
         fullscreen.title = "Fullscreen";
         fullscreen.appendChild(this.htmlImgs.fullscreen);
         if (this.options.hideFullscreenButton) {
@@ -1214,17 +1193,15 @@ class Internals {
     createSubtitleMenu() {
         let menu = this.htmlControls.subtitleMenu;
 
-        menu.root = newDiv();
+        menu.root = newDiv("player_submenu_root");
         let menuRoot = menu.root;
-        menuRoot.id = "player_submenu_root"
         // hideElement(menuRoot);
         this.htmlPlayerRoot.appendChild(menuRoot);
 
 
         // Subtitle menu top
-        menu.topRoot = newDiv();
+        menu.topRoot = newDiv("player_submenu_top");
         let topRoot = menu.topRoot;
-        topRoot.id = "player_submenu_top"
         menuRoot.appendChild(topRoot);
 
         menu.back = newDiv();
@@ -1268,9 +1245,8 @@ class Internals {
 
 
         // Subtitle menu bottom
-        menu.submenuBottom = newDiv();
+        menu.submenuBottom = newDiv("player_submenu_buttom");
         let submenuBottom = menu.submenuBottom;
-        submenuBottom.id = "player_submenu_buttom";
         menuRoot.appendChild(submenuBottom);
 
 
@@ -1303,8 +1279,7 @@ class Internals {
         listSeprator.className = "player_submenu_separator";
         submenuBottom.appendChild(listSeprator);
 
-        let listBottom = newDiv();
-        listBottom.id = "subtitle_track_list";
+        let listBottom = newDiv("subtitle_track_list");
         submenuBottom.appendChild(listBottom);
 
         function createTrackElement(title) {
@@ -1338,22 +1313,19 @@ class Internals {
         listBottom.appendChild(createTrackElement("Big Buck Bunny.srt"));
 
         // Subtitle menu bottom div
-        // menu.bottomRoot = newDiv();
+        // menu.bottomRoot = newDiv("player_bot_root");
         // let bottomRoot = menu.bottomRoot;
-        // bottomRoot.id = "player_bot_root"
         // menuRoot.appendChild(bottomRoot);
         //
-        // menu.optionButtons = newDiv();
+        // menu.optionButtons = newDiv("option_buttons");
         // let optionButtons = menu.optionButtons;
-        // optionButtons.id = "option_buttons";
         // optionButtons.classList.add("menu_item");
         // optionButtons.classList.add("unselectable");
         // optionButtons.style.display = "";
         // bottomRoot.appendChild(optionButtons);
         //
-        // menu.subtitleList = newDiv();
+        // menu.subtitleList = newDiv("subtitle_list");
         // let subtitleList = menu.subtitleList;
-        // subtitleList.id = "subtitle_list";
         // subtitleList.classList.add("unselectable");
         // hideElement(subtitleList);
         // bottomRoot.appendChild(subtitleList);
@@ -1455,8 +1427,12 @@ function createTimestampString(timestamp) {
     return timestamp_string;
 }
 
-function newDiv() {
-    return document.createElement("div")
+function newDiv(id) {
+    let div = document.createElement("div")
+    if (id) {
+        div.id = id
+    }
+    return div;
 }
 
 function consumeEvent(event) {
