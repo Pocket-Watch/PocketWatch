@@ -1130,7 +1130,6 @@ class Internals {
         }
 
         playerControls.appendChild(download);
-        this.htmlPlayerRoot.appendChild(playerControls);
         this.htmlControls.download = download;
 
         let autoplay = newDiv("player_autoplay");
@@ -1145,7 +1144,6 @@ class Internals {
         }
 
         playerControls.appendChild(autoplay);
-        this.htmlPlayerRoot.appendChild(playerControls);
         this.htmlControls.autoplay = autoplay;
 
         let subs = newDiv("player_subs");
@@ -1159,7 +1157,6 @@ class Internals {
             firstAutoMargin = false;
         }
         playerControls.appendChild(subs);
-        this.htmlPlayerRoot.appendChild(playerControls);
         this.htmlControls.subs = subs;
 
         let settings = newDiv("player_settings");
@@ -1173,7 +1170,6 @@ class Internals {
             firstAutoMargin = false;
         }
         playerControls.appendChild(settings);
-        this.htmlPlayerRoot.appendChild(playerControls);
         this.htmlControls.settings = settings;
 
         let fullscreen = newDiv( "player_fullscreen");
