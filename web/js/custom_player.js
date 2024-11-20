@@ -40,7 +40,7 @@ class Player {
         this.internals.setToast(toast);
     }
 
-    getLoop(enabled) {
+    getLoop() {
         return this.internals.loopEnabled;
     }
 
@@ -52,7 +52,7 @@ class Player {
         this.internals.setAutoplay(enabled);
     }
 
-    getAutoplay(enabled) {
+    getAutoplay() {
         return this.internals.autoplayEnabled;
     }
 
@@ -201,30 +201,40 @@ class Internals {
         this.htmlToast.id = "player_toast_text";
         this.htmlToastContainer.appendChild(this.htmlToast);
 
-        this.htmlBuffering = document.createElement("img");
-        this.htmlBuffering.id = "player_buffering";
+        this.htmlBuffering = newImg("player_buffering");
         this.htmlBuffering.src = "svg/buffering.svg";
         hideElement(this.htmlBuffering);
         this.htmlBuffering.setAttribute("class", "unselectable");
         this.htmlPlayerRoot.appendChild(this.htmlBuffering);
 
-        this.htmlPlayTogglePopup = document.createElement("img");
-        this.htmlPlayTogglePopup.id = "player_playtoggle_popup";
+        this.htmlPlayTogglePopup = newImg("player_playtoggle_popup");
         this.htmlPlayTogglePopup.src = "svg/play_popup.svg";
         this.htmlPlayTogglePopup.setAttribute("class", "unselectable");
         this.htmlPlayerRoot.appendChild(this.htmlPlayTogglePopup);
 
         this.htmlControls = {
-            root: null,
+            root: newDiv("player_controls"),
             progress: {
-                root: null,
-                current: null,
-                buffered: null,
-                total: null,
-                thumb: null,
-                popupRoot: null,
-                popupText: null,
+                root: newDiv("player_progress_root"),
+                current: newDiv("player_progress_current"),
+                buffered: document.createElement("canvas"),
+                total: newDiv("player_progress_total"),
+                thumb: newDiv("player_progress_thumb"),
+                popupRoot: newDiv("player_progress_popup_root"),
+                popupText: newDiv("player_progress_popup_text"),
             },
+            playToggleButton: newDiv("player_play_toggle"),
+            nextButton: newDiv("player_next"),
+            loopButton: newDiv("player_loop"),
+            volume: newDiv("player_volume"),
+            volumeSlider: document.createElement("input"),
+            timestamp: document.createElement("span"),
+            download: newDiv("player_download"),
+            autoplay: newDiv("player_autoplay"),
+            subs: newDiv("player_subs"),
+            settings: newDiv("player_settings"),
+            fullscreen: newDiv( "player_fullscreen"),
+
             subtitleMenu: {
                 // root contains: topRoot, bottomRoot
                 root: null,
@@ -241,37 +251,27 @@ class Internals {
                 downloadButton: null,
                 enabledSubs: false,
                 depth: 0,
-            },
-            playToggleButton: null,
-            nextButton: null,
-            volume: null,
-            volumeSlider: null,
-            timestamp: null,
-            download: null,
-            autoplay: null,
-            subs: null,
-            settings: null,
-            fullscreen: null,
+            }
         };
 
         // We could store references to images/svg/videos here for easy access
-        // TODO? IDK if we need to store references to 'use' ones
         this.resources = {
-            seekForwardImg: null,
-            seekBackwardImg: null,
-            pauseImg: null,
-            playImg: null,
-            nextImg: null,
-            volumeFullImg: null,
-            volumeMediumImg: null,
-            volumeLowImg: null,
-            volumeMutedImg: null,
-            downloadImg: null,
-            autoplayImg: null,
-            subsImg: null,
-            settingsImg: null,
-            fullscreenImg: null,
-            fullscreenExitImg: null,
+            seekForwardImg: "svg/seek10.svg",
+            seekBackwardImg: "svg/seek10.svg",
+            playImg: "svg/play.svg",
+            pauseImg: "svg/pause.svg",
+            nextImg: "svg/next.svg",
+            loopImg: "svg/loop.svg",
+            volumeFullImg: "svg/volume_full.svg",
+            volumeMediumImg: "svg/volume_medium.svg",
+            volumeLowImg: "svg/volume_low.svg",
+            volumeMutedImg: "svg/volume_muted.svg",
+            downloadImg: "svg/download.svg",
+            autoplayImg: "svg/autoplay.svg",
+            subsImg: "svg/subs.svg",
+            settingsImg: "svg/settings.svg",
+            fullscreenImg: "svg/fullscreen.svg",
+            fullscreenExitImg: "svg/fullscreen_exit.svg",
         };
 
         this.htmlImgs = {
@@ -963,22 +963,6 @@ class Internals {
 
     initializeImageSources() {
         let res = this.resources;
-        res.seekForwardImg = "svg/seek10.svg";
-        res.seekBackwardImg = "svg/seek10.svg";
-        res.playImg = "svg/play.svg";
-        res.pauseImg = "svg/pause.svg";
-        res.nextImg = "svg/next.svg";
-        res.loopImg = "svg/loop.svg";
-        res.volumeFullImg = "svg/volume_full.svg";
-        res.volumeMediumImg = "svg/volume_medium.svg";
-        res.volumeLowImg = "svg/volume_low.svg";
-        res.volumeMutedImg = "svg/volume_muted.svg";
-        res.downloadImg = "svg/download.svg";
-        res.autoplayImg = "svg/autoplay.svg";
-        res.subsImg = "svg/subs.svg";
-        res.settingsImg = "svg/settings.svg";
-        res.fullscreenImg = "svg/fullscreen.svg";
-        res.fullscreenExitImg = "svg/fullscreen_exit.svg";
 
         this.preloadResources()
 
@@ -1002,7 +986,6 @@ class Internals {
         imgs.subs = this.createImgElementWithSrc(res.subsImg, 20, 20)
         imgs.settings = this.createImgElementWithSrc(res.settingsImg, 20, 20)
         imgs.fullscreen = this.createImgElementWithSrc(res.fullscreenImg, 20, 20)
-
     }
 
     preloadResources() {
@@ -1026,79 +1009,67 @@ class Internals {
         return img;
     }
 
-    createProgressBar() {
-        let progressRoot = newDiv("player_progress_root");
+    assembleProgressBar() {
+        let progressRoot = this.htmlControls.progress.root;
         this.htmlControls.root.appendChild(progressRoot);
-        this.htmlControls.progress.root = progressRoot;
 
-        let progressTotal = newDiv("player_progress_total");
+        let progressTotal = this.htmlControls.progress.total;
         progressRoot.appendChild(progressTotal);
-        this.htmlControls.progress.total = progressTotal;
 
-        let progressBuffered = document.createElement("canvas");
+        let progressBuffered = this.htmlControls.progress.buffered;
         progressBuffered.id = "player_progress_buffered";
         progressRoot.appendChild(progressBuffered);
-        this.htmlControls.progress.buffered = progressBuffered;
 
-        let progressCurrent = newDiv("player_progress_current");
+        let progressCurrent = this.htmlControls.progress.current;
         progressRoot.appendChild(progressCurrent);
-        this.htmlControls.progress.current = progressCurrent;
 
-        let progressThumb = newDiv("player_progress_thumb");
+        let progressThumb = this.htmlControls.progress.thumb;
         progressRoot.appendChild(progressThumb);
-        this.htmlControls.progress.thumb = progressThumb;
 
-        let progressPopupRoot = newDiv("player_progress_popup_root");
+        let progressPopupRoot = this.htmlControls.progress.popupRoot;
         hideElement(progressPopupRoot);
         progressRoot.appendChild(progressPopupRoot);
-        this.htmlControls.progress.popupRoot = progressPopupRoot;
 
-        let progressPopupText = newDiv("player_progress_popup_text");
+        let progressPopupText = this.htmlControls.progress.popupText;
         progressPopupText.textContent = "00:00";
         progressPopupRoot.appendChild(progressPopupText);
-        this.htmlControls.progress.popupText = progressPopupText;
     }
 
     createHtmlControls() {
-        let playerControls = newDiv("player_controls");
+        let playerControls = this.htmlControls.root;
         playerControls.setAttribute("ondragstart", "return false");
-        this.htmlControls.root = playerControls;
 
-        this.createProgressBar();
+        this.assembleProgressBar();
 
-        let playToggle = newDiv("player_play_toggle");
+        let playToggle = this.htmlControls.playToggleButton;
         playToggle.classList.add("responsive");
         playToggle.title = "Play/Pause";
         playToggle.appendChild(this.htmlImgs.playToggle);
         playToggle.style.display = this.options.hidePlayToggleButton ? "none" : "";
         playerControls.appendChild(playToggle);
-        this.htmlControls.playToggleButton = playToggle;
 
-        let next = newDiv("player_next");
+        let next = this.htmlControls.nextButton;
         next.classList.add("responsive");
         next.title = "Next";
         next.appendChild(this.htmlImgs.next);
         next.style.display = this.options.hideNextButton ? "none" : "";
         playerControls.appendChild(next);
-        this.htmlControls.nextButton = next;
 
-        let loop = newDiv("player_loop");
+        let loop = this.htmlControls.loopButton;
         loop.classList.add("responsive");
         loop.title = "Loop";
         loop.appendChild(this.htmlImgs.loop);
         loop.style.display = this.options.hideLoopingButton ? "none" : "";
         playerControls.appendChild(loop);
-        this.htmlControls.loopButton = loop;
 
-        let volume = newDiv("player_volume");
+        let volume = this.htmlControls.volume;
         volume.classList.add("responsive");
         volume.title = "Mute/Unmute";
         volume.appendChild(this.htmlImgs.volume);
         volume.style.display = this.options.hideVolumeButton ? "none" : "";
         playerControls.appendChild(volume);
-        this.htmlControls.volume = volume;
 
-        let volumeSlider = document.createElement("input");
+        let volumeSlider = this.htmlControls.volumeSlider;
         volumeSlider.id = "player_volume_slider";
         volumeSlider.type = "range";
         volumeSlider.min = "0";
@@ -1107,18 +1078,16 @@ class Internals {
         volumeSlider.step = "any";
         volumeSlider.style.display = this.options.hideVolumeSlider ? "none" : "";
         playerControls.appendChild(volumeSlider);
-        this.htmlControls.volumeSlider = volumeSlider;
 
-        let timestamp = document.createElement("span");
+        let timestamp = this.htmlControls.timestamp;
         timestamp.id = "player_timestamp";
         timestamp.textContent = "00:00 / 00:00";
         timestamp.style.display = this.options.hideTimestamps ? "none" : "";
         playerControls.appendChild(timestamp);
-        this.htmlControls.timestamp = timestamp;
 
         let firstAutoMargin = true;
 
-        let download = newDiv("player_download");
+        let download = this.htmlControls.download;
         download.classList.add("responsive");
         download.title = "Download";
         download.appendChild(this.htmlImgs.download);
@@ -1128,11 +1097,9 @@ class Internals {
             download.style.marginLeft = firstAutoMargin ? "auto" : "0";
             firstAutoMargin = false;
         }
-
         playerControls.appendChild(download);
-        this.htmlControls.download = download;
 
-        let autoplay = newDiv("player_autoplay");
+        let autoplay = this.htmlControls.autoplay;
         autoplay.classList.add("responsive");
         autoplay.title = "Autoplay";
         autoplay.appendChild(this.htmlImgs.autoplay);
@@ -1144,9 +1111,8 @@ class Internals {
         }
 
         playerControls.appendChild(autoplay);
-        this.htmlControls.autoplay = autoplay;
 
-        let subs = newDiv("player_subs");
+        let subs = this.htmlControls.subs;
         subs.classList.add("responsive");
         subs.title = "Subtitles";
         subs.appendChild(this.htmlImgs.subs);
@@ -1157,9 +1123,8 @@ class Internals {
             firstAutoMargin = false;
         }
         playerControls.appendChild(subs);
-        this.htmlControls.subs = subs;
 
-        let settings = newDiv("player_settings");
+        let settings = this.htmlControls.settings;
         settings.classList.add("responsive");
         settings.title = "Settings";
         settings.appendChild(this.htmlImgs.settings);
@@ -1170,9 +1135,8 @@ class Internals {
             firstAutoMargin = false;
         }
         playerControls.appendChild(settings);
-        this.htmlControls.settings = settings;
 
-        let fullscreen = newDiv( "player_fullscreen");
+        let fullscreen = this.htmlControls.fullscreen;
         fullscreen.classList.add("responsive");
         fullscreen.title = "Fullscreen";
         fullscreen.appendChild(this.htmlImgs.fullscreen);
@@ -1183,7 +1147,6 @@ class Internals {
         }
         playerControls.appendChild(fullscreen);
         this.htmlPlayerRoot.appendChild(playerControls);
-        this.htmlControls.fullscreen = fullscreen;
     }
 
     createSubtitleMenu() {
@@ -1271,9 +1234,9 @@ class Internals {
         listTop.appendChild(toggleText);
 
 
-        let listSeprator = document.createElement("hr");
-        listSeprator.className = "player_submenu_separator";
-        submenuBottom.appendChild(listSeprator);
+        let listSeparator = document.createElement("hr");
+        listSeparator.className = "player_submenu_separator";
+        submenuBottom.appendChild(listSeparator);
 
         let listBottom = newDiv("subtitle_track_list");
         submenuBottom.appendChild(listBottom);
@@ -1429,6 +1392,14 @@ function newDiv(id) {
         div.id = id
     }
     return div;
+}
+
+function newImg(id) {
+    let img = document.createElement("img")
+    if (id) {
+        img.id = id
+    }
+    return img;
 }
 
 function consumeEvent(event) {
