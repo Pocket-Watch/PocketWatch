@@ -179,7 +179,7 @@ class Internals {
         this.htmlVideo.controls = false;
 
         // Div container where either the player or the placeholder resides.
-        this.htmlPlayerRoot = document.createElement("div");
+        this.htmlPlayerRoot = newDiv();
         this.htmlPlayerRoot.id = "player_container";
 
         // We actually need to append the <div> to document.body (or <video>'s parent)
@@ -188,7 +188,7 @@ class Internals {
         videoParent.appendChild(this.htmlPlayerRoot);
         this.htmlPlayerRoot.appendChild(this.htmlVideo);
 
-        this.htmlTitleContainer = document.createElement("div");
+        this.htmlTitleContainer = newDiv();
         this.htmlTitleContainer.id = "player_title_container";
         hideElement(this.htmlTitleContainer);
         this.htmlPlayerRoot.appendChild(this.htmlTitleContainer);
@@ -196,7 +196,7 @@ class Internals {
         this.htmlTitle.id = "player_title_text";
         this.htmlTitleContainer.appendChild(this.htmlTitle);
 
-        this.htmlToastContainer = document.createElement("div");
+        this.htmlToastContainer = newDiv();
         this.htmlToastContainer.id = "player_toast_container";
         hideElement(this.htmlToastContainer);
         this.htmlPlayerRoot.appendChild(this.htmlToastContainer);
@@ -298,12 +298,12 @@ class Internals {
         this.createHtmlControls();
         this.createSubtitleMenu();
 
-        this.htmlSeekForward = document.createElement("div");
+        this.htmlSeekForward = newDiv();
         this.htmlSeekForward.id = "player_forward_container";
         this.htmlSeekForward.appendChild(this.htmlImgs.seekForward);
         this.htmlPlayerRoot.appendChild(this.htmlSeekForward);
 
-        this.htmlSeekBackward = document.createElement("div");
+        this.htmlSeekBackward = newDiv();
         this.htmlSeekBackward.id = "player_backward_container";
         this.htmlSeekBackward.appendChild(this.htmlImgs.seekBackward);
         this.htmlPlayerRoot.appendChild(this.htmlSeekBackward);
@@ -1032,12 +1032,12 @@ class Internals {
     }
 
     createProgressBar() {
-        let progressRoot = document.createElement("div");
+        let progressRoot = newDiv();
         progressRoot.id = "player_progress_root";
         this.htmlControls.root.appendChild(progressRoot);
         this.htmlControls.progress.root = progressRoot;
 
-        let progressTotal = document.createElement("div");
+        let progressTotal = newDiv();
         progressTotal.id = "player_progress_total";
         progressRoot.appendChild(progressTotal);
         this.htmlControls.progress.total = progressTotal;
@@ -1047,23 +1047,23 @@ class Internals {
         progressRoot.appendChild(progressBuffered);
         this.htmlControls.progress.buffered = progressBuffered;
 
-        let progressCurrent = document.createElement("div");
+        let progressCurrent = newDiv();;
         progressCurrent.id = "player_progress_current";
         progressRoot.appendChild(progressCurrent);
         this.htmlControls.progress.current = progressCurrent;
 
-        let progressThumb = document.createElement("div");
+        let progressThumb = newDiv();
         progressThumb.id = "player_progress_thumb";
         progressRoot.appendChild(progressThumb);
         this.htmlControls.progress.thumb = progressThumb;
 
-        let progressPopupRoot = document.createElement("div");
+        let progressPopupRoot = newDiv();
         progressPopupRoot.id = "player_progress_popup_root";
         hideElement(progressPopupRoot);
         progressRoot.appendChild(progressPopupRoot);
         this.htmlControls.progress.popupRoot = progressPopupRoot;
 
-        let progressPopupText = document.createElement("div");
+        let progressPopupText = newDiv();
         progressPopupText.id = "player_progress_popup_text";
         progressPopupText.textContent = "00:00";
         progressPopupRoot.appendChild(progressPopupText);
@@ -1071,14 +1071,14 @@ class Internals {
     }
 
     createHtmlControls() {
-        let playerControls = document.createElement("div");
+        let playerControls = newDiv();
         playerControls.id = "player_controls";
         playerControls.setAttribute("ondragstart", "return false");
         this.htmlControls.root = playerControls;
 
         this.createProgressBar();
 
-        let playToggle = document.createElement("div");
+        let playToggle = newDiv();
         playToggle.classList.add("responsive");
         playToggle.id = "player_play_toggle";
         playToggle.title = "Play/Pause";
@@ -1087,7 +1087,7 @@ class Internals {
         playerControls.appendChild(playToggle);
         this.htmlControls.playToggleButton = playToggle;
 
-        let next = document.createElement("div");
+        let next = newDiv();
         next.classList.add("responsive");
         next.id = "player_next";
         next.title = "Next";
@@ -1096,7 +1096,7 @@ class Internals {
         playerControls.appendChild(next);
         this.htmlControls.nextButton = next;
 
-        let loop = document.createElement("div");
+        let loop = newDiv();
         loop.classList.add("responsive");
         loop.id = "player_loop";
         loop.title = "Loop";
@@ -1105,7 +1105,7 @@ class Internals {
         playerControls.appendChild(loop);
         this.htmlControls.loopButton = loop;
 
-        let volume = document.createElement("div");
+        let volume = newDiv();
         volume.classList.add("responsive");
         volume.id = "player_volume";
         volume.title = "Mute/Unmute";
@@ -1134,7 +1134,7 @@ class Internals {
 
         let firstAutoMargin = true;
 
-        let download = document.createElement("div");
+        let download = newDiv();
         download.classList.add("responsive");
         download.id = "player_download";
         download.title = "Download";
@@ -1150,7 +1150,7 @@ class Internals {
         this.htmlPlayerRoot.appendChild(playerControls);
         this.htmlControls.download = download;
 
-        let autoplay = document.createElement("div");
+        let autoplay = newDiv();
         autoplay.classList.add("responsive");
         autoplay.id = "player_autoplay";
         autoplay.title = "Autoplay";
@@ -1166,7 +1166,7 @@ class Internals {
         this.htmlPlayerRoot.appendChild(playerControls);
         this.htmlControls.autoplay = autoplay;
 
-        let subs = document.createElement("div");
+        let subs = newDiv();
         subs.classList.add("responsive");
         subs.id = "player_subs";
         subs.title = "Subtitles";
@@ -1181,7 +1181,7 @@ class Internals {
         this.htmlPlayerRoot.appendChild(playerControls);
         this.htmlControls.subs = subs;
 
-        let settings = document.createElement("div");
+        let settings = newDiv();
         settings.classList.add("responsive");
         settings.id = "player_settings";
         settings.title = "Settings";
@@ -1196,7 +1196,7 @@ class Internals {
         this.htmlPlayerRoot.appendChild(playerControls);
         this.htmlControls.settings = settings;
 
-        let fullscreen = document.createElement("div");
+        let fullscreen = newDiv();
         fullscreen.classList.add("responsive");
         fullscreen.id = "player_fullscreen";
         fullscreen.title = "Fullscreen";
@@ -1214,7 +1214,7 @@ class Internals {
     createSubtitleMenu() {
         let menu = this.htmlControls.subtitleMenu;
 
-        menu.root = document.createElement("div");
+        menu.root = newDiv();
         let menuRoot = menu.root;
         menuRoot.id = "player_submenu_root"
         // hideElement(menuRoot);
@@ -1222,12 +1222,12 @@ class Internals {
 
 
         // Subtitle menu top
-        menu.topRoot = document.createElement("div");
+        menu.topRoot = newDiv();
         let topRoot = menu.topRoot;
         topRoot.id = "player_submenu_top"
         menuRoot.appendChild(topRoot);
 
-        menu.back = document.createElement("div");
+        menu.back = newDiv();
         let back = menu.back;
         back.innerHTML = "←"
         back.classList.add("player_submenu_top_button")
@@ -1235,7 +1235,7 @@ class Internals {
         back.style.display = ""
         topRoot.appendChild(back);
 
-        menu.selectButton = document.createElement("div");
+        menu.selectButton = newDiv();
         let selectButton = menu.selectButton;
         selectButton.innerHTML = "Select"
         selectButton.classList.add("player_submenu_top_button")
@@ -1243,7 +1243,7 @@ class Internals {
         selectButton.style.display = ""
         topRoot.appendChild(selectButton);
 
-        menu.searchButton = document.createElement("div");
+        menu.searchButton = newDiv();
         let searchButton = menu.searchButton;
         searchButton.innerHTML = "Search"
         searchButton.classList.add("player_submenu_top_button")
@@ -1251,7 +1251,7 @@ class Internals {
         searchButton.style.display = ""
         topRoot.appendChild(searchButton);
 
-        menu.optionsButton = document.createElement("div");
+        menu.optionsButton = newDiv();
         let optionsButton = menu.optionsButton;
         optionsButton.innerHTML = "Options"
         optionsButton.classList.add("player_submenu_top_button")
@@ -1268,13 +1268,13 @@ class Internals {
 
 
         // Subtitle menu bottom
-        menu.submenuBottom = document.createElement("div");
+        menu.submenuBottom = newDiv();
         let submenuBottom = menu.submenuBottom;
         submenuBottom.id = "player_submenu_buttom";
         menuRoot.appendChild(submenuBottom);
 
 
-        let listTop = document.createElement("div");
+        let listTop = newDiv();
         submenuBottom.appendChild(listTop);
 
         let subsToggle = document.createElement("label");
@@ -1289,7 +1289,7 @@ class Internals {
             console.log(event.target.checked);
         });
 
-        let toggleSwitch = document.createElement("div");
+        let toggleSwitch = newDiv();
         toggleSwitch.className = "toggle-switch";
         subsToggle.appendChild(toggleSwitch);
 
@@ -1303,19 +1303,19 @@ class Internals {
         listSeprator.className = "player_submenu_separator";
         submenuBottom.appendChild(listSeprator);
 
-        let listBottom = document.createElement("div");
+        let listBottom = newDiv();
         listBottom.id = "subtitle_track_list";
         submenuBottom.appendChild(listBottom);
 
         function createTrackElement(title) {
-            let track = document.createElement("div");
+            let track = newDiv();
             track.className = "subtitle_track";
 
-            let trackTitle = document.createElement("div");
+            let trackTitle = newDiv();
             trackTitle.textContent = title;
             trackTitle.className = "subtitle_track_text";
 
-            let trackButtons = document.createElement("div");
+            let trackButtons = newDiv();
             trackButtons.className = "subtitle_track_buttons";
 
             let trackEdit = document.createElement("button");
@@ -1338,12 +1338,12 @@ class Internals {
         listBottom.appendChild(createTrackElement("Big Buck Bunny.srt"));
 
         // Subtitle menu bottom div
-        // menu.bottomRoot = document.createElement("div");
+        // menu.bottomRoot = newDiv();
         // let bottomRoot = menu.bottomRoot;
         // bottomRoot.id = "player_bot_root"
         // menuRoot.appendChild(bottomRoot);
         //
-        // menu.optionButtons = document.createElement("div");
+        // menu.optionButtons = newDiv();
         // let optionButtons = menu.optionButtons;
         // optionButtons.id = "option_buttons";
         // optionButtons.classList.add("menu_item");
@@ -1351,7 +1351,7 @@ class Internals {
         // optionButtons.style.display = "";
         // bottomRoot.appendChild(optionButtons);
         //
-        // menu.subtitleList = document.createElement("div");
+        // menu.subtitleList = newDiv();
         // let subtitleList = menu.subtitleList;
         // subtitleList.id = "subtitle_list";
         // subtitleList.classList.add("unselectable");
@@ -1361,7 +1361,7 @@ class Internals {
         // // Move these click actions below to attachHtmlEvents?
         //
         // // Append options
-        // let toggleButton = document.createElement("div");
+        // let toggleButton = newDiv();
         // menu.toggleButton = toggleButton
         // toggleButton.textContent = "Enable subs"
         // toggleButton.classList.add("menu_item")
@@ -1379,7 +1379,7 @@ class Internals {
         //
         // optionButtons.appendChild(toggleButton);
         //
-        // let chooseButton = document.createElement("div");
+        // let chooseButton = newDiv();
         // menu.chooseButton = chooseButton
         // chooseButton.textContent = "Choosing"
         // chooseButton.classList.add("menu_item")
@@ -1393,7 +1393,7 @@ class Internals {
         //     let textTracks = this.htmlVideo.textTracks;
         //     for (let i = 0; i < textTracks.length; i++) {
         //         let track = textTracks[i];
-        //         const trackDiv = document.createElement("div");
+        //         const trackDiv = newDiv();
         //         trackDiv.textContent = track.label;
         //         trackDiv.classList.add("subtitle_item");
         //         trackDiv.classList.add("unselectable");
@@ -1407,7 +1407,7 @@ class Internals {
         // })
         // optionButtons.appendChild(chooseButton);
         //
-        // let customizeButton = document.createElement("div");
+        // let customizeButton = newDiv();
         // menu.customizeButton = customizeButton
         // customizeButton.innerHTML = "Customize sub"
         // customizeButton.classList.add("menu_item")
@@ -1419,7 +1419,7 @@ class Internals {
         // })
         // optionButtons.appendChild(customizeButton);
         //
-        // let downloadButton = document.createElement("div");
+        // let downloadButton = newDiv();
         // menu.downloadButton = downloadButton
         // downloadButton.innerHTML = "Download sub"
         // downloadButton.classList.add("menu_item")
@@ -1453,6 +1453,10 @@ function createTimestampString(timestamp) {
 
     timestamp_string += seconds;
     return timestamp_string;
+}
+
+function newDiv() {
+    return document.createElement("div")
 }
 
 function consumeEvent(event) {
