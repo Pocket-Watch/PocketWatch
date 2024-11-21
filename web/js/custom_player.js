@@ -772,7 +772,7 @@ class Internals {
             menu.depth--;
         });
 
-        this.htmlVideo.addEventListener("keydown", (event) => {
+        this.htmlPlayerRoot.addEventListener("keydown", (event) => {
             if (event.key == " " || event.code == "Space" || event.keyCode == 32) {
                 this.togglePlay();
                 consumeEvent(event);
@@ -808,7 +808,7 @@ class Internals {
             }
         });
 
-        this.htmlVideo.addEventListener("click", (_event) => {
+        this.htmlPlayerRoot.addEventListener("click", (_event) => {
             this.togglePlay();
         });
 
@@ -1037,7 +1037,14 @@ class Internals {
 
     createHtmlControls() {
         let playerControls = this.htmlControls.root;
-        playerControls.setAttribute("ondragstart", "return false");
+        playerControls.addEventListener("focusout", () => {
+            // otherwise document.body will receive focus
+            this.htmlPlayerRoot.focus();
+        });
+        playerControls.addEventListener("click", (e) => {
+            console.log("CONSUMING CLICK")
+            consumeEvent(e);
+        });
 
         this.assembleProgressBar();
 
@@ -1198,9 +1205,9 @@ class Internals {
 
         // Subtitle menu top and bottom separator
         menu.seprator = document.createElement("hr");
-        let seprator = menu.seprator;
-        seprator.className = "player_submenu_separator";
-        menuRoot.appendChild(seprator);
+        let separator = menu.seprator;
+        separator.className = "player_submenu_separator";
+        menuRoot.appendChild(separator);
 
 
         // Subtitle menu bottom
@@ -1388,6 +1395,8 @@ function createTimestampString(timestamp) {
 
 function newDiv(id) {
     let div = document.createElement("div")
+    // tabIndex makes divs focusable so that they can receive and bubble key events
+    div.tabIndex = -1
     if (id) {
         div.id = id
     }
