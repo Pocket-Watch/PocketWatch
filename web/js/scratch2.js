@@ -1,6 +1,8 @@
 import { Player } from "./custom_player.js"
 import * as api from "./scratch2_api.js";
 
+const SERVER_ID = 0;
+
 class Room {
     constructor() {
         let video0 = document.getElementById("video0");
@@ -22,9 +24,14 @@ class Room {
         this.dropdownIsDown = false;
         this.urlArea.dropdownContainer.style.display = "none"
 
+        /// Current connection id.
         this.connectionId = 0;
-        this.user = null;
-        this.token = null;
+
+        /// Server User structure.
+        this.currentUser = null;
+
+        /// User token string.
+        this.token = "";
     }
 
     attachPlayerEvents() {
@@ -45,7 +52,8 @@ class Room {
         })
 
         this.player.onPlaybackError((event) => {
-            this.player.setToast(event.name + " - " + event.message);
+            this.player.setToast("ERROR: Something went wrong, press F12 to see what happened");
+            console.error(event.name + ":", event.message);
         })
     }
 
@@ -53,6 +61,20 @@ class Room {
         this.urlArea.urlInput.value = "";
         this.urlArea.titleInput.value = "";
         this.urlArea.refererInput.value = "";
+    }
+
+    sendNewEntry() {
+        const entry = {
+            id:          0,
+            url:         this.urlArea.urlInput.value,
+            title:       this.urlArea.titleInput.value,
+            user_id:     0,
+            use_proxy:   false,
+            referer_url: this.urlArea.refererInput.value,
+            created:     new Date,
+        };
+
+        api.playerSet(entry);
     }
 
     attachHtmlEvents() {
@@ -76,18 +98,15 @@ class Room {
         }
 
         this.urlArea.setButton.onclick = () => {
-            const entry = {
-                id: 0,
-                url: this.urlArea.urlInput.value,
-                title: this.urlArea.titleInput.value,
-                user_id: 0,
-                use_proxy: false,
-                referer_url: this.urlArea.refererInput.value,
-                created: new Date,
-            };
-
-            api.playerSet(entry);
+            this.sendNewEntry();
             this.resetUrlAreaElements();
+        }
+
+        this.urlArea.urlInput.onkeypress = (event) => {
+            if (event.key == "Enter") {
+                this.sendNewEntry();
+                this.resetUrlAreaElements();
+            }
         }
     }
 
@@ -96,7 +115,7 @@ class Room {
         if (!token) {
             token = await api.userCreate();
             localStorage.setItem("token", token)
-            this.user = await api.userVerify(token);
+            this.currentUser = await api.userVerify(token);
         } else {
             let user = await api.userVerify(token);
             if (!user) {
@@ -105,7 +124,7 @@ class Room {
                 user = await api.userVerify(token);
             }
 
-            this.user = user;
+            this.currentUser = user;
         }
 
         this.token = token;
@@ -116,6 +135,10 @@ class Room {
         let state = await api.playerGet();
         this.player.setAutoplay(state.player.autoplay);
         this.player.setLoop(state.player.looping);
+
+        let entry = state.entry;
+        this.player.setVideoTrack(entry.url);
+        this.player.setTitle(entry.title);
     }
 
     resyncPlayer(timestamp, userId) {
@@ -135,7 +158,7 @@ class Room {
         }
     }
 
-    async subscribeToServerEvents() {
+    subscribeToServerEvents() {
         let events = new EventSource("/watch/api/events?token=" + this.token);
 
         events.addEventListener("welcome", (event) => {
@@ -167,19 +190,25 @@ class Room {
 
             switch (data.action) {
                 case "play": {
-                    this.player.setToast("User clicked play.");
+                    if (userId != SERVER_ID) {
+                        this.player.setToast("User clicked play.");
+                    }
                     this.resyncPlayer(timestamp, userId);
                     this.player.play();
                 } break;
 
                 case "pause": {
-                    this.player.setToast("User clicked pause.");
+                    if (userId != SERVER_ID) {
+                        this.player.setToast("User clicked pause.");
+                    }
                     this.resyncPlayer(timestamp, userId);
                     this.player.pause();
                 } break;
 
                 case "seek": {
-                    this.player.setToast("User seeked.");
+                    if (userId != SERVER_ID) {
+                        this.player.setToast("User seeked.");
+                    }
                     this.player.seek(timestamp);
                 } break;
 
@@ -188,14 +217,14 @@ class Room {
                 } break;
             }
         });
-
     }
 
     async connectToServer() {
         await this.loadOrCreateUser();
         await this.loadPlayerData();
+        // await this.loadUsersData();
         // await this.loadPlaylistData();
-        await this.subscribeToServerEvents();
+        this.subscribeToServerEvents();
     }
 }
 

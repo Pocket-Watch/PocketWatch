@@ -61,15 +61,41 @@
             </div>
 
             <div id="users_area">
-                <div id="user1" class="user_box"></div>
-                <div id="user2" class="user_box"></div>
-                <div id="user3" class="user_box"></div>
-                <div id="user4" class="user_box"></div>
-                <!-- <div id="user5" class="user_box"></div> -->
-                <!-- <div id="user6" class="user_box"></div> -->
-                <!-- <div id="user7" class="user_box"></div> -->
-                <!-- <div id="user8" class="user_box"></div> -->
-                <!-- <div id="user9" class="user_box"></div> -->
+                <div id="users_list">
+                    <div id="user1" class="user_box"></div>
+                    <div id="user2" class="user_box"></div>
+                    <div id="user3" class="user_box"></div>
+                    <div id="user4" class="user_box"></div>
+                    <!-- <div id="user5" class="user_box"></div> -->
+                    <!-- <div id="user6" class="user_box"></div> -->
+                    <!-- <div id="user7" class="user_box"></div> -->
+                    <!-- <div id="user8" class="user_box"></div> -->
+                    <!-- <div id="user9" class="user_box"></div> -->
+                </div>
+                <div id="users_right_panel">
+                    <div id="users_connected" class="users_indicator" title="Number of users currently online.">
+                        <!-- <svg class="users_indicator_icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"> -->
+                        <!--     <path d="M8 7C9.65685 7 11 5.65685 11 4C11 2.34315 9.65685 1 8 1C6.34315 1 5 2.34315 5 4C5 5.65685 6.34315 7 8 7Z" fill="#98971a"/> -->
+                        <!--     <path d="M14 12C14 10.3431 12.6569 9 11 9H5C3.34315 9 2 10.3431 2 12V15H14V12Z" fill="#98971a"/> -->
+                        <!-- </svg> -->
+
+                        <svg class="users_indicator_icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 7C9.65685 7 11 5.65685 11 4C11 2.34315 9.65685 1 8 1C6.34315 1 5 2.34315 5 4C5 5.65685 6.34315 7 8 7Z" fill="#1d2021"/>
+                            <path d="M14 12C14 10.3431 12.6569 9 11 9H5C3.34315 9 2 10.3431 2 12V15H14V12Z" fill="#1d2021"/>
+                        </svg>
+                        <span  class="users_indicator_count" id="users_connected_count">1</span>
+                    </div>
+
+                    <div id="users_total" class="users_indicator" title="Total number of users in the room.">
+                        <svg class="users_indicator_icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 7C9.65685 7 11 5.65685 11 4C11 2.34315 9.65685 1 8 1C6.34315 1 5 2.34315 5 4C5 5.65685 6.34315 7 8 7Z" fill="#1d2021"/>
+                            <path d="M14 12C14 10.3431 12.6569 9 11 9H5C3.34315 9 2 10.3431 2 12V15H14V12Z" fill="#1d2021"/>
+                        </svg>
+
+                        <span class="users_indicator_count" id="users_total_count">12</span>
+                    </div>
+                    <button id="users_settings_button"></button>
+                </div>
             </div>
         </div>
 
