@@ -26,10 +26,6 @@ const MAX_SUBTITLE_SIZE = 512 * 1024
 
 var SUBTITLE_EXTENSIONS = [...]string{".vtt", ".srt"}
 
-const Play = "play"
-const Pause = "pause"
-const Seek = "seek"
-
 const PROXY_ROUTE = "/watch/proxy/"
 const WEB_PROXY = "web/proxy/"
 const WEB_MEDIA = "web/media/"
@@ -211,6 +207,10 @@ type PlayerSetEventData struct {
 	NewEntry  Entry `json:"new_entry"`
 }
 
+type PlaybackEnded struct {
+	EntryId uint64 `json:"entry_id"`
+}
+
 type PlayerNextRequestData struct {
 	ConnectionId uint64 `json:"connection_id"`
 	EntryId      uint64 `json:"entry_id"`
@@ -330,6 +330,7 @@ func registerEndpoints(options *Options) {
 	// API calls that change state of the player.
 	http.HandleFunc("/watch/api/player/get", apiPlayerGet)
 	http.HandleFunc("/watch/api/player/set", apiPlayerSet)
+	http.HandleFunc("/watch/api/player/end", apiPlayerEnd)
 	http.HandleFunc("/watch/api/player/next", apiPlayerNext)
 	http.HandleFunc("/watch/api/player/play", apiPlayerPlay)
 	http.HandleFunc("/watch/api/player/pause", apiPlayerPause)
@@ -563,6 +564,24 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 		NewEntry:  state.entry,
 	}
 	writeEventToAllConnections(w, "playerset", setEvent)
+}
+
+func apiPlayerEnd(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" || !isAuthorized(w, r) {
+		return
+	}
+
+	LogInfo("Connection %s reported that video ended.", r.RemoteAddr)
+
+	var data PlaybackEnded
+	if !readJsonDataFromRequest(w, r, &data) {
+		return
+	}
+	state.mutex.Lock()
+	if data.EntryId == state.entry.Id {
+		state.player.Playing = false
+	}
+	state.mutex.Unlock()
 }
 
 func apiPlayerNext(w http.ResponseWriter, r *http.Request) {
