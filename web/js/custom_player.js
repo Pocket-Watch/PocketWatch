@@ -292,8 +292,6 @@ class Internals {
         this.selectedSubtitleIndex = -1;
 
         this.initializeImageSources();
-        this.createHtmlControls();
-        this.createSubtitleMenu();
 
         this.htmlSeekForward = newDiv("player_forward_container");
         this.htmlSeekForward.appendChild(this.htmlImgs.seekForward);
@@ -302,6 +300,9 @@ class Internals {
         this.htmlSeekBackward = newDiv("player_backward_container");
         this.htmlSeekBackward.appendChild(this.htmlImgs.seekBackward);
         this.htmlPlayerRoot.appendChild(this.htmlSeekBackward);
+
+        this.createHtmlControls();
+        this.createSubtitleMenu();
 
         this.attachHtmlEvents();
         this.setProgressMargin(5);
@@ -677,6 +678,30 @@ class Internals {
     };
 
     attachHtmlEvents() {
+        this.htmlSeekBackward.addEventListener("dblclick", (e) => {
+            if (!this.options.enableDoubleTapSeek) {
+                return;
+            }
+
+            this.htmlSeekBackward.classList.add("animate");
+            let timestamp = this.getNewTime(-this.options.seekBy);
+            this.fireControlsSeeked(timestamp);
+            this.seek(timestamp);
+            consumeEvent(e);
+        });
+
+        this.htmlSeekForward.addEventListener("dblclick", (e) => {
+            if (!this.options.enableDoubleTapSeek) {
+                return;
+            }
+
+            this.htmlSeekForward.classList.add("animate");
+            let timestamp = this.getNewTime(this.options.seekBy);
+            this.fireControlsSeeked(timestamp);
+            this.seek(timestamp);
+            consumeEvent(e);
+        });
+
         // Prevents selecting the video element along with the rest of the page
         this.htmlVideo.classList.add("unselectable");
 
@@ -1463,8 +1488,8 @@ class Options {
         this.hideSettingsButton = false;
         this.hideFullscreenButton = false;
 
-        // video.width = video.videoWidth, video.height = video.videoHeight
-        this.resizeToMedia = true;
+        this.doubleTapThresholdMs = 300;
+        this.enableDoubleTapSeek = isMobileAgent();
 
         // [Arrow keys/Double tap] seeking offset provided in seconds.
         this.seekBy = 5;
