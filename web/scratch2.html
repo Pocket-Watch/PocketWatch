@@ -40,7 +40,6 @@
                     </div>
 
                     <div id="url_dropdown_bottom"> 
-
                         <label class="toggle">
                             <input class="toggle-checkbox" type="checkbox">
                             <div class="toggle-switch"></div>
@@ -62,7 +61,23 @@
 
             <div id="users_area">
                 <div id="users_list">
-                    <div id="user1" class="user_box"></div>
+                    <div id="user1" class="user_box">
+                        <div class="user_box_top">
+                            <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M8 7C9.65685 7 11 5.65685 11 4C11 2.34315 9.65685 1 8 1C6.34315 1 5 2.34315 5 4C5 5.65685 6.34315 7 8 7Z"/>
+                                <path d="M14 12C14 10.3431 12.6569 9 11 9H5C3.34315 9 2 10.3431 2 12V15H14V12Z"/>
+                            </svg>
+                        </div>
+                        <div class="user_box_bottom">
+                            <input value="User 1" readonly />
+                            <button class="user_box_edit_name_button">
+                                <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M8.29289 3.70711L1 11V15H5L12.2929 7.70711L8.29289 3.70711Z"/>
+                                    <path d="M9.70711 2.29289L13.7071 6.29289L15.1716 4.82843C15.702 4.29799 16 3.57857 16 2.82843C16 1.26633 14.7337 0 13.1716 0C12.4214 0 11.702 0.297995 11.1716 0.828428L9.70711 2.29289Z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
                     <div id="user2" class="user_box"></div>
                     <div id="user3" class="user_box"></div>
                     <div id="user4" class="user_box"></div>
@@ -73,28 +88,27 @@
                     <!-- <div id="user9" class="user_box"></div> -->
                 </div>
                 <div id="users_right_panel">
-                    <div id="users_connected" class="users_indicator" title="Number of users currently online.">
-                        <!-- <svg class="users_indicator_icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"> -->
-                        <!--     <path d="M8 7C9.65685 7 11 5.65685 11 4C11 2.34315 9.65685 1 8 1C6.34315 1 5 2.34315 5 4C5 5.65685 6.34315 7 8 7Z" fill="#98971a"/> -->
-                        <!--     <path d="M14 12C14 10.3431 12.6569 9 11 9H5C3.34315 9 2 10.3431 2 12V15H14V12Z" fill="#98971a"/> -->
-                        <!-- </svg> -->
-
-                        <svg class="users_indicator_icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M8 7C9.65685 7 11 5.65685 11 4C11 2.34315 9.65685 1 8 1C6.34315 1 5 2.34315 5 4C5 5.65685 6.34315 7 8 7Z" fill="#1d2021"/>
-                            <path d="M14 12C14 10.3431 12.6569 9 11 9H5C3.34315 9 2 10.3431 2 12V15H14V12Z" fill="#1d2021"/>
+                    <div id="users_connected" class="users_indicator" title="Number of currently online users.">
+                        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 7C9.65685 7 11 5.65685 11 4C11 2.34315 9.65685 1 8 1C6.34315 1 5 2.34315 5 4C5 5.65685 6.34315 7 8 7Z"/>
+                            <path d="M14 12C14 10.3431 12.6569 9 11 9H5C3.34315 9 2 10.3431 2 12V15H14V12Z"/>
                         </svg>
-                        <span  class="users_indicator_count" id="users_connected_count">1</span>
+                        <span id="users_connected_count">1</span>
                     </div>
 
                     <div id="users_total" class="users_indicator" title="Total number of users in the room.">
-                        <svg class="users_indicator_icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M8 7C9.65685 7 11 5.65685 11 4C11 2.34315 9.65685 1 8 1C6.34315 1 5 2.34315 5 4C5 5.65685 6.34315 7 8 7Z" fill="#1d2021"/>
-                            <path d="M14 12C14 10.3431 12.6569 9 11 9H5C3.34315 9 2 10.3431 2 12V15H14V12Z" fill="#1d2021"/>
+                        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 7C9.65685 7 11 5.65685 11 4C11 2.34315 9.65685 1 8 1C6.34315 1 5 2.34315 5 4C5 5.65685 6.34315 7 8 7Z"/>
+                            <path d="M14 12C14 10.3431 12.6569 9 11 9H5C3.34315 9 2 10.3431 2 12V15H14V12Z"/>
                         </svg>
 
-                        <span class="users_indicator_count" id="users_total_count">12</span>
+                        <span id="users_total_count">12</span>
                     </div>
-                    <button id="users_settings_button"></button>
+                    <button id="users_settings_button" title="This button will open your user profile menu, but for now it does nothing.">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path fill-rule="evenodd" d="M9.024 2.783A1 1 0 0 1 10 2h4a1 1 0 0 1 .976.783l.44 1.981c.4.19.781.41 1.14.66l1.938-.61a1 1 0 0 1 1.166.454l2 3.464a1 1 0 0 1-.19 1.237l-1.497 1.373a8.1 8.1 0 0 1 0 1.316l1.497 1.373a1 1 0 0 1 .19 1.237l-2 3.464a1 1 0 0 1-1.166.454l-1.937-.61c-.36.25-.741.47-1.14.66l-.44 1.98A1 1 0 0 1 14 22h-4a1 1 0 0 1-.976-.783l-.44-1.981c-.4-.19-.781-.41-1.14-.66l-1.938.61a1 1 0 0 1-1.166-.454l-2-3.464a1 1 0 0 1 .19-1.237l1.497-1.373a8.097 8.097 0 0 1 0-1.316L2.53 9.97a1 1 0 0 1-.19-1.237l2-3.464a1 1 0 0 1 1.166-.454l1.937.61c.36-.25.741-.47 1.14-.66l.44-1.98zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" clip-rule="evenodd"/>
+                        </svg>
+                    </button>
                 </div>
             </div>
         </div>
