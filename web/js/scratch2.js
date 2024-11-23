@@ -21,6 +21,13 @@ class Room {
             dropdownContainer: document.getElementById("url_dropdown_container"),
         };
 
+        this.usersArea = {
+            userList: document.getElementById("users_list"),
+
+            onlineCount: document.getElementById("users_online_count"),
+            offlineCount:     document.getElementById("users_offline_count"),
+        };
+
         this.dropdownIsDown = false;
         this.urlArea.dropdownContainer.style.display = "none"
 
@@ -32,6 +39,9 @@ class Room {
 
         /// User token string.
         this.token = "";
+
+        /// List of all users
+        this.allUsers = [];
     }
 
     attachPlayerEvents() {
@@ -110,25 +120,22 @@ class Room {
         }
     }
 
-    async loadOrCreateUser() {
-        let token = localStorage.getItem("token");
-        if (!token) {
-            token = await api.userCreate();
-            localStorage.setItem("token", token)
-            this.currentUser = await api.userVerify(token);
-        } else {
-            let user = await api.userVerify(token);
-            if (!user) {
-                token = await api.userCreate();
-                localStorage.setItem("token", token)
-                user = await api.userVerify(token);
-            }
+    async createNewAccount() {
+        this.token = await api.userCreate();
+        api.setToken(this.token);
+        localStorage.setItem("token", this.token);
 
-            this.currentUser = user;
+        this.currentUser = await api.userVerify();
+    }
+
+    async authenticateAccount() {
+        this.token = localStorage.getItem("token");
+        api.setToken(this.token);
+
+        this.currentUser = await api.userVerify();
+        if (!this.currentUser) {
+            await this.createNewAccount();
         }
-
-        this.token = token;
-        api.setToken(token);
     }
 
     async loadPlayerData() {
@@ -139,6 +146,133 @@ class Room {
         let entry = state.entry;
         this.player.setVideoTrack(entry.url);
         this.player.setTitle(entry.title);
+    }
+
+    async loadUsersData() {
+        this.allUsers = await api.userGetAll();
+
+        for (var i = 0; i < this.allUsers.length; i++) {
+            if (this.allUsers[i].id == this.currentUser.id) {
+                this.allUsers[i].connections += 1;
+                break;
+            }
+        }
+        this.updateUsersArea();
+    }
+
+    createUserBox(user) {
+        let userBox = document.createElement("div");
+        userBox.className = "user_box";
+
+        { // user_box_top
+            let userBoxTop = document.createElement("div");
+            userBoxTop.className = "user_box_top";
+
+            { // user_box_top img
+                let userAvatar = document.createElement("img");
+                userAvatar.src = user.avatar ? user.avatar : "img/default_avatar.png"; 
+                userBoxTop.append(userAvatar);
+            }
+
+            userBox.append(userBoxTop);
+        }
+
+        { // user_box_bottom
+            let userBoxBottom = document.createElement("div");
+            userBoxBottom.className = "user_box_bottom";
+
+            { // user_box_bottom input + user_box_edit_name_button
+                let usernameInput = document.createElement("input");
+                usernameInput.readOnly = true;
+                usernameInput.value = user.username;
+
+                userBoxBottom.append(usernameInput);
+
+                if (user.id == this.currentUser.id) {
+                    usernameInput.addEventListener("focusout", () => {
+                        usernameInput.readOnly = true;
+                        api.userUpdateName(usernameInput.value);
+                    });
+
+                    usernameInput.addEventListener("keypress", (event) => {
+                        if (event.key === "Enter") {
+                            usernameInput.readOnly = true;
+                            api.userUpdateName(usernameInput.value);
+                        }
+                    });
+
+                    // usernameInput.addEventListener("dblclick", (event) => {
+                    //     usernameInput.readOnly = false;
+                    //     usernameInput.focus();
+                    // });
+
+                    let editNameButton = document.createElement("button");
+                    editNameButton.className = "user_box_edit_name_button";
+                    editNameButton.onclick = () => {
+                        usernameInput.readOnly = false;
+                        usernameInput.focus();
+                    };
+
+                    { // user_box_edit_name_button svg
+                        let editSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                        editSvg.setAttribute("viewBox", "0 0 16 16");
+
+                        let path1 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                        path1.setAttribute("d", "M8.29289 3.70711L1 11V15H5L12.2929 7.70711L8.29289 3.70711Z");
+                        editSvg.append(path1);
+
+                        let path2 = document.createElementNS("http://www.w3.org/2000/svg","path");
+                        path2.setAttribute("d", "M9.70711 2.29289L13.7071 6.29289L15.1716 4.82843C15.702 4.29799 16 3.57857 16 2.82843C16 1.26633 14.7337 0 13.1716 0C12.4214 0 11.702 0.297995 11.1716 0.828428L9.70711 2.29289Z");
+                        editSvg.append(path2);
+
+                        editNameButton.append(editSvg);
+                    }
+
+                    userBoxBottom.append(editNameButton);
+                }
+            }
+
+            userBox.append(userBoxBottom);
+        }
+
+        return userBox;
+    }
+
+    updateUsersArea() {
+        let onlineUsers = [];
+        let offlineUsers = [];
+
+        for (var i = 0; i < this.allUsers.length; i++) {
+            let newUserBox = this.createUserBox(this.allUsers[i]);
+
+            if (this.allUsers[i].connections > 0) {
+                newUserBox.classList.add("user_box_online");
+                onlineUsers.push(newUserBox);
+            } else {
+                newUserBox.classList.add("user_box_offline");
+                offlineUsers.push(newUserBox);
+            }
+        }
+
+        this.usersArea.onlineCount.textContent = onlineUsers.length;
+        this.usersArea.offlineCount.textContent = offlineUsers.length;
+
+        // NOTE(kihau): 
+        //     Those should not be removed every time, but rather modified according to the action that 
+        //     occurred (user connected, user name change, etc.). This will prevent all kinds of weird issues
+        //     such as username change input getting canceled when someone joins the room.
+        let userList = this.usersArea.userList;
+        while (userList.lastChild) {
+            userList.removeChild(userList.lastChild);
+        }
+
+        for (let i = 0; i < onlineUsers.length; i++) {
+            userList.append(onlineUsers[i]);
+        }
+
+        for (let i = 0; i < offlineUsers.length; i++) {
+            userList.append(offlineUsers[i]);
+        }
     }
 
     resyncPlayer(timestamp, userId) {
@@ -167,6 +301,41 @@ class Room {
             this.connectionId = connectionId;
 
             api.setConnectionId(this.connectionId);
+        });
+
+        events.addEventListener("usercreate", (event) => {
+            let newUser = JSON.parse(event.data)
+            this.allUsers.push(newUser)
+            console.info("INFO: New user has beed created: ", newUser)
+            this.updateUsersArea();
+        });
+
+        events.addEventListener("connectionadd", (event) => {
+            let userId = JSON.parse(event.data);
+            console.info("INFO: New connection added for user id: ", userId)
+
+            for (var i = 0; i < this.allUsers.length; i++) {
+                if (this.allUsers[i].id == userId) {
+                    this.allUsers[i].connections += 1;
+                    break;
+                }
+            }
+
+            this.updateUsersArea();
+        });
+
+        events.addEventListener("connectiondrop", (event) => {
+            let userId = JSON.parse(event.data);
+            console.info("INFO: Connection dropped for user id: ", userId)
+
+            for (var i = 0; i < this.allUsers.length; i++) {
+                if (this.allUsers[i].id == userId) {
+                    this.allUsers[i].connections -= 1;
+                    break;
+                }
+            }
+
+            this.updateUsersArea();
         });
 
         events.addEventListener("playerset", (event) => {
@@ -220,9 +389,9 @@ class Room {
     }
 
     async connectToServer() {
-        await this.loadOrCreateUser();
+        await this.authenticateAccount();
         await this.loadPlayerData();
-        // await this.loadUsersData();
+        await this.loadUsersData();
         // await this.loadPlaylistData();
         this.subscribeToServerEvents();
     }

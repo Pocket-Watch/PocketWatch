@@ -46,11 +46,6 @@
                         </label>
                         <span class="toggle-label">Create proxy</span>
 
-                        <!-- <label class> -->
-                        <!--     Create proxy: -->
-                        <!--     <input type="checkbox" id="proxy" name="Proxy"> -->
-                        <!-- </label> -->
-
                         <div class="input_area" id="referef_container">
                             <span>Media Referer:</span>
                             <input type="url" id="url_dropdown_referer_input"  placeholder="Enter media referer URL. This field is optional."></input>
@@ -61,48 +56,51 @@
 
             <div id="users_area">
                 <div id="users_list">
-                    <div id="user1" class="user_box">
-                        <div class="user_box_top">
-                            <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M8 7C9.65685 7 11 5.65685 11 4C11 2.34315 9.65685 1 8 1C6.34315 1 5 2.34315 5 4C5 5.65685 6.34315 7 8 7Z"/>
-                                <path d="M14 12C14 10.3431 12.6569 9 11 9H5C3.34315 9 2 10.3431 2 12V15H14V12Z"/>
-                            </svg>
-                        </div>
-                        <div class="user_box_bottom">
-                            <input value="User 1" readonly />
-                            <button class="user_box_edit_name_button">
-                                <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M8.29289 3.70711L1 11V15H5L12.2929 7.70711L8.29289 3.70711Z"/>
-                                    <path d="M9.70711 2.29289L13.7071 6.29289L15.1716 4.82843C15.702 4.29799 16 3.57857 16 2.82843C16 1.26633 14.7337 0 13.1716 0C12.4214 0 11.702 0.297995 11.1716 0.828428L9.70711 2.29289Z"/>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                    <div id="user2" class="user_box"></div>
-                    <div id="user3" class="user_box"></div>
-                    <div id="user4" class="user_box"></div>
-                    <!-- <div id="user5" class="user_box"></div> -->
-                    <!-- <div id="user6" class="user_box"></div> -->
-                    <!-- <div id="user7" class="user_box"></div> -->
-                    <!-- <div id="user8" class="user_box"></div> -->
-                    <!-- <div id="user9" class="user_box"></div> -->
+                    <!-- <div id="user1" class="user_box user_box_online"> -->
+                    <!--     <div class="user_box_top"> -->
+                    <!--         <img src="img/default_avatar.png"/> -->
+                    <!--     </div> -->
+                    <!--     <div class="user_box_bottom"> -->
+                    <!--         <input value="User 1" readonly/> -->
+                    <!--         <button class="user_box_edit_name_button"> -->
+                    <!--             <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"> -->
+                    <!--                 <path d="M8.29289 3.70711L1 11V15H5L12.2929 7.70711L8.29289 3.70711Z"/> -->
+                    <!--                 <path d="M9.70711 2.29289L13.7071 6.29289L15.1716 4.82843C15.702 4.29799 16 3.57857 16 2.82843C16 1.26633 14.7337 0 13.1716 0C12.4214 0 11.702 0.297995 11.1716 0.828428L9.70711 2.29289Z"/> -->
+                    <!--             </svg> -->
+                    <!--         </button> -->
+                    <!--     </div> -->
+                    <!-- </div> -->
+                    <!-- <div id="user2" class="user_box user_box_offline"> -->
+                    <!--     <div class="user_box_top"> -->
+                    <!--         <img src="img/default_avatar.png"/> -->
+                    <!--     </div> -->
+                    <!--     <div class="user_box_bottom"> -->
+                    <!--         <input value="User 2" readonly/> -->
+                    <!--         <button class="user_box_edit_name_button"> -->
+                    <!--             <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"> -->
+                    <!--                 <path d="M8.29289 3.70711L1 11V15H5L12.2929 7.70711L8.29289 3.70711Z"/> -->
+                    <!--                 <path d="M9.70711 2.29289L13.7071 6.29289L15.1716 4.82843C15.702 4.29799 16 3.57857 16 2.82843C16 1.26633 14.7337 0 13.1716 0C12.4214 0 11.702 0.297995 11.1716 0.828428L9.70711 2.29289Z"/> -->
+                    <!--             </svg> -->
+                    <!--         </button> -->
+                    <!--     </div> -->
+                    <!-- </div> -->
                 </div>
                 <div id="users_right_panel">
-                    <div id="users_connected" class="users_indicator" title="Number of currently online users.">
+                    <div id="users_online" class="users_indicator" title="Number users online.">
                         <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
                             <path d="M8 7C9.65685 7 11 5.65685 11 4C11 2.34315 9.65685 1 8 1C6.34315 1 5 2.34315 5 4C5 5.65685 6.34315 7 8 7Z"/>
                             <path d="M14 12C14 10.3431 12.6569 9 11 9H5C3.34315 9 2 10.3431 2 12V15H14V12Z"/>
                         </svg>
-                        <span id="users_connected_count">1</span>
+                        <span id="users_online_count">0</span>
                     </div>
 
-                    <div id="users_total" class="users_indicator" title="Total number of users in the room.">
+                    <div id="users_offline" class="users_indicator" title="Number users offline.">
                         <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
                             <path d="M8 7C9.65685 7 11 5.65685 11 4C11 2.34315 9.65685 1 8 1C6.34315 1 5 2.34315 5 4C5 5.65685 6.34315 7 8 7Z"/>
                             <path d="M14 12C14 10.3431 12.6569 9 11 9H5C3.34315 9 2 10.3431 2 12V15H14V12Z"/>
                         </svg>
 
-                        <span id="users_total_count">12</span>
+                        <span id="users_offline_count">0</span>
                     </div>
                     <button id="users_settings_button" title="This button will open your user profile menu, but for now it does nothing.">
                         <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
