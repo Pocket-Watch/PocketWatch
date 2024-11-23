@@ -76,7 +76,7 @@ func parseM3U(path string) (*M3U, error) {
 			}
 			url := scanner.Text()
 			track := Track{params, url}
-			m3u.tracks = append(m3u.tracks, track)
+			m3u.addTrack(track)
 			continue
 		}
 
@@ -259,15 +259,19 @@ func (segment *Segment) prefixUrl(prefix string) {
 	segment.url = prefix + "/" + segment.url
 }
 
-func newM3U(capacity uint32) *M3U {
+func newM3U(segmentCapacity uint32) *M3U {
 	m3u := new(M3U)
-	m3u.segments = make([]Segment, 0, capacity)
+	m3u.segments = make([]Segment, 0, segmentCapacity)
 	m3u.tracks = make([]Track, 0)
 	return m3u
 }
 
 func (m3u *M3U) addSegment(seg Segment) {
 	m3u.segments = append(m3u.segments, seg)
+}
+
+func (m3u *M3U) addTrack(track Track) {
+	m3u.tracks = append(m3u.tracks, track)
 }
 
 func (m3u *M3U) avgSegmentLength() float64 {
@@ -315,31 +319,44 @@ func (m3u *M3U) getBestTrack() *Track {
 	return bestTrack
 }
 
-func (m3u *M3U) prefixTracks(prefix string) {
-	// if a range loop is used the track url is effectively not reassigned
+// This method will only prefix relative URLs
+func (m3u *M3U) prefixRelativeTracks(prefix string) {
 	for i := 0; i < len(m3u.tracks); i++ {
-		m3u.tracks[i].prefixUrl(prefix)
+		if !strings.HasPrefix(m3u.tracks[i].url, "http") {
+			m3u.tracks[i].prefixUrl(prefix)
+		}
 	}
 }
 
 func (m3u *M3U) copy() M3U {
 	m3uCopy := newM3U(uint32(len(m3u.segments)))
 
+	m3uCopy.isMasterPlaylist = m3u.isMasterPlaylist
 	m3uCopy.version = m3u.version
 	m3uCopy.targetDuration = m3u.targetDuration
 	m3uCopy.playlistType = m3u.playlistType
 	m3uCopy.mediaSequence = m3u.mediaSequence
 
-	for _, seg := range m3u.segments {
-		m3uCopy.addSegment(seg)
+	if m3u.isMasterPlaylist {
+		for _, track := range m3u.tracks {
+			m3uCopy.addTrack(track)
+		}
+	} else {
+		for _, seg := range m3u.segments {
+			m3uCopy.addSegment(seg)
+		}
 	}
+
 	return *m3uCopy
 }
 
-func (m3u *M3U) prefixSegments(urlPrefix string) {
+// This will only prefix URLs which are not fully qualified
+func (m3u *M3U) prefixRelativeSegments(prefix string) {
 	// if a range loop is used the track url is effectively not reassigned
 	for i := 0; i < len(m3u.segments); i++ {
-		m3u.segments[i].prefixUrl(urlPrefix)
+		if !strings.HasPrefix(m3u.segments[i].url, "http") {
+			m3u.segments[i].prefixUrl(prefix)
+		}
 	}
 }
 

@@ -41,14 +41,10 @@ func inferOrigin(referer string) string {
 	return referer
 }
 
-func stripLastSegment(url string) (*string, error) {
-	pUrl, err := net_url.Parse(url)
-	if err != nil {
-		return nil, err
-	}
-	lastSlash := strings.LastIndex(pUrl.Path, "/")
-	stripped := pUrl.Scheme + "://" + pUrl.Host + pUrl.Path[:lastSlash+1]
-	return &stripped, nil
+func stripLastSegment(url *net_url.URL) string {
+	lastSlash := strings.LastIndex(url.Path, "/")
+	stripped := url.Scheme + "://" + url.Host + url.Path[:lastSlash+1]
+	return stripped
 }
 
 func toString(num int) string {
@@ -64,6 +60,10 @@ func lastUrlSegment(url string) string {
 	return url[:questionMark]
 }
 
+func getRootDomain(url *net_url.URL) string {
+	return url.Scheme + "://" + url.Host
+}
+
 func downloadFile(url string, filename string, referer string) error {
 	request, _ := http.NewRequest("GET", url, nil)
 	if referer != "" {
@@ -76,7 +76,7 @@ func downloadFile(url string, filename string, referer string) error {
 		return err
 	}
 	if response.StatusCode != 200 && response.StatusCode != 206 {
-		return fmt.Errorf("error downloading file: status code %d", response.StatusCode)
+		return &DownloadError{Code: response.StatusCode, Message: "Failed to download file"}
 	}
 	defer response.Body.Close()
 
@@ -91,4 +91,14 @@ func downloadFile(url string, filename string, referer string) error {
 		return err
 	}
 	return nil
+}
+
+type DownloadError struct {
+	Code    int
+	Message string
+}
+
+// Implement the error interface for NetworkError
+func (e *DownloadError) Error() string {
+	return fmt.Sprintf("NetworkError: Code=%d, Message=%s", e.Code, e.Message)
 }

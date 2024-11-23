@@ -9,6 +9,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	net_url "net/url"
 	"os"
 	"path"
 	"strconv"
@@ -553,7 +554,12 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 
 	lastSegment := lastUrlSegment(state.entry.Url)
 	if state.entry.UseProxy && strings.HasSuffix(lastSegment, ".m3u8") {
-		setupProxy(state.entry.Url, state.entry.RefererUrl)
+		setup := setupProxy(state.entry.Url, state.entry.RefererUrl)
+		if setup {
+			LogWarn("SETUP PROXY SUCCEEDED")
+		} else {
+			LogWarn("SETUP PROXY FAILED")
+		}
 	}
 	state.mutex.Unlock()
 
@@ -1179,32 +1185,60 @@ func getSubtitles() []string {
 	return subtitles
 }
 
-func setupProxy(url string, referer string) {
+func setupProxy(url string, referer string) bool {
 	_ = os.Mkdir(WEB_PROXY, os.ModePerm)
 	m3u, err := downloadM3U(url, WEB_PROXY+ORIGINAL_M3U8, referer)
 	if err != nil {
 		LogError("Failed to fetch m3u8: %v", err)
-		// state.entry.Url = err.Error()
-		return
+		return false
 	}
 
+	parsedUrl, err := net_url.Parse(url)
+	if err != nil {
+		LogError("The provided URL is invalid: %v", err)
+		return false
+	}
+	prefix := stripLastSegment(parsedUrl)
+
 	if m3u.isMasterPlaylist {
-		// Rarely tracks are not fully qualified
-		if !strings.HasPrefix(m3u.tracks[0].url, "http") {
-			prefix, err := stripLastSegment(url)
-			if err != nil {
-				LogError(err.Error())
-				return
-			}
-			m3u.prefixTracks(*prefix)
+		if len(m3u.tracks) == 0 {
+			LogError("Master playlist contains 0 tracks!")
+			return false
 		}
+
+		// Rarely tracks are not fully qualified
+		originalMasterPlaylist := m3u.copy()
+		m3u.prefixRelativeTracks(prefix)
 		LogInfo("User provided a master playlist. The best track will be chosen based on quality.")
 		track := m3u.getBestTrack()
-		if track != nil {
-			// a malicious user could cause an infinite setup loop if they provided a carefully crafted m3u8
-			setupProxy(track.url, referer)
+		if track == nil {
+			track = &m3u.tracks[0]
 		}
-		return
+		m3u, err = downloadM3U(track.url, WEB_PROXY+ORIGINAL_M3U8, referer)
+		var downloadErr *DownloadError
+		if errors.As(err, &downloadErr) && downloadErr.Code == 404 {
+			// Hacky trick for relative non-compliant m3u8's 💩
+			domain := getRootDomain(parsedUrl)
+			originalMasterPlaylist.prefixRelativeTracks(domain)
+			track = originalMasterPlaylist.getBestTrack()
+			if track == nil {
+				track = &originalMasterPlaylist.tracks[0]
+			}
+			m3u, err = downloadM3U(track.url, WEB_PROXY+ORIGINAL_M3U8, referer)
+			if err != nil {
+				LogError("Fallback failed :( %v", err.Error())
+				return false
+			}
+		} else if err != nil {
+			LogError("Failed to fetch track from master playlist: %v", err.Error())
+			return false
+		}
+	}
+	// At this point it either succeeded or it already returned
+
+	if len(m3u.segments) == 0 {
+		LogWarn("No segments found")
+		return false
 	}
 
 	// state.entry.Url = url
@@ -1216,21 +1250,8 @@ func setupProxy(url string, referer string) {
 	LogDebug("segments: %v", len(m3u.segments))
 	LogDebug("total duration: %v", m3u.totalDuration())
 
-	if len(m3u.segments) == 0 {
-		LogWarn("No segments found")
-		// state.entry.Url = "No segments found"
-		return
-	}
-
 	// Sometimes m3u8 chunks are not fully qualified
-	if !strings.HasPrefix(m3u.segments[0].url, "http") {
-		prefix, err := stripLastSegment(url)
-		if err != nil {
-			LogError(err.Error())
-			return
-		}
-		m3u.prefixSegments(*prefix)
-	}
+	m3u.prefixRelativeSegments(prefix)
 
 	routedM3U := m3u.copy()
 	// lock on proxy setup here! also discard the previous proxy state somehow?
@@ -1248,6 +1269,7 @@ func setupProxy(url string, referer string) {
 	LogInfo("Prepared proxy file %v", PROXY_M3U8)
 
 	// state.entry.Url = PROXY_ROUTE + "proxy.m3u8"
+	return true
 }
 
 func apiEvents(w http.ResponseWriter, r *http.Request) {
