@@ -556,9 +556,9 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 	if state.entry.UseProxy && strings.HasSuffix(lastSegment, ".m3u8") {
 		setup := setupProxy(state.entry.Url, state.entry.RefererUrl)
 		if setup {
-			LogWarn("SETUP PROXY SUCCEEDED")
+			LogDebug("Proxy setup SUCCEEDED")
 		} else {
-			LogWarn("SETUP PROXY FAILED")
+			LogWarn("Proxy setup FAILED")
 		}
 	}
 	state.mutex.Unlock()

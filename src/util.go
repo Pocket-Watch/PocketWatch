@@ -98,7 +98,7 @@ type DownloadError struct {
 	Message string
 }
 
-// Implement the error interface for NetworkError
+// Implements the error interface
 func (e *DownloadError) Error() string {
 	return fmt.Sprintf("NetworkError: Code=%d, Message=%s", e.Code, e.Message)
 }
