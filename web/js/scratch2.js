@@ -19,17 +19,18 @@ class Room {
             addPlaylistButton: document.getElementById("url_add_playlist_button"),
 
             dropdownContainer: document.getElementById("url_dropdown_container"),
+            proxyToggle:       document.getElementById("proxy_toggle"),
         };
 
         this.usersArea = {
             userList: document.getElementById("users_list"),
 
-            onlineCount: document.getElementById("users_online_count"),
-            offlineCount:     document.getElementById("users_offline_count"),
+            onlineCount:  document.getElementById("users_online_count"),
+            offlineCount: document.getElementById("users_offline_count"),
         };
 
+        this.proxyEnabled = false;
         this.dropdownIsDown = false;
-        this.urlArea.dropdownContainer.style.display = "none"
 
         /// Current connection id.
         this.connectionId = 0;
@@ -71,6 +72,9 @@ class Room {
         this.urlArea.urlInput.value = "";
         this.urlArea.titleInput.value = "";
         this.urlArea.refererInput.value = "";
+
+        this.proxyEnabled = false;
+        this.urlArea.proxyToggle.classList.remove("proxy_active");
     }
 
     sendNewEntry() {
@@ -79,7 +83,7 @@ class Room {
             url:         this.urlArea.urlInput.value,
             title:       this.urlArea.titleInput.value,
             user_id:     0,
-            use_proxy:   false,
+            use_proxy:   this.proxyEnabled,
             referer_url: this.urlArea.refererInput.value,
             created:     new Date,
         };
@@ -94,13 +98,14 @@ class Room {
 
             if (this.dropdownIsDown) {
                 button.textContent = "▼";
-                div.style.display = "none";
-                this.dropdownIsDown = false;
             } else {
                 button.textContent = "▲";
-                div.style.display = "";
-                this.dropdownIsDown = true;
             }
+
+            div.classList.toggle("url_dropdown_collapsed");
+            div.classList.toggle("url_dropdown_expanded");
+
+            this.dropdownIsDown = !this.dropdownIsDown;
         }
 
         this.urlArea.resetButton.onclick = () => {
@@ -117,6 +122,11 @@ class Room {
                 this.sendNewEntry();
                 this.resetUrlAreaElements();
             }
+        }
+
+        this.urlArea.proxyToggle.onclick = () => {
+            this.urlArea.proxyToggle.classList.toggle("proxy_active");
+            this.proxyEnabled = !this.proxyEnabled;
         }
     }
 

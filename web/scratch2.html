@@ -33,22 +33,23 @@
                     </div>
                 </div>
 
-                <div id="url_dropdown_container"> 
+                <div id="url_dropdown_container" class="url_dropdown_collapsed"> 
                     <div class="input_area" id="url_dropdown_top"> 
                         <span>Media Title:</span>
                         <input id="url_title_input" placeholder="Enter your custom media title. This field is optional. If you don't set it, it will be set automatically."></input>
                     </div>
 
                     <div id="url_dropdown_bottom"> 
-                        <label class="toggle">
-                            <input class="toggle-checkbox" type="checkbox">
-                            <div class="toggle-switch"></div>
-                        </label>
-                        <span class="toggle-label">Create proxy</span>
+                        <div id="proxy_toggle_container">
+                            <div id="proxy_toggle" class="proxy_inactive_color">
+                                <div class="proxy_toggle_circle"></div>
+                            </div>
+                            <span id="proxy_toggle_text">Create Proxy</span>
+                        </div>
 
                         <div class="input_area" id="referef_container">
                             <span>Media Referer:</span>
-                            <input type="url" id="url_dropdown_referer_input"  placeholder="Enter media referer URL. This field is optional."></input>
+                            <input type="url" id="url_dropdown_referer_input" placeholder="Enter media referer URL. This field is optional."></input>
                         </div>
                     </div>
                 </div>
