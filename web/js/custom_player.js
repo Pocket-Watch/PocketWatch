@@ -80,6 +80,11 @@ class Player {
         this.internals.enableSubtitleTrack(index);
     }
 
+    // The seconds argument is a double, negative shifts back, positive shifts forward
+    shiftCurrentSubtitleTrackBy(seconds) {
+        return this.internals.shiftCurrentSubtitleTrackBy(seconds)
+    }
+
     destroyPlayer() {}
 
     onControlsPlay(func) {
@@ -613,6 +618,25 @@ class Internals {
         } else {
             textTracks[index].mode = "showing";
         }
+    }
+
+    // Returns the number of cues shifted, it's possible to call this method when the cues are not yet loaded returning 0
+    shiftCurrentSubtitleTrackBy(seconds) {
+        let index = this.selectedSubtitleIndex;
+        let textTracks = this.htmlVideo.textTracks;
+        if (index < 0 || index >= textTracks.length) {
+            return 0;
+        }
+
+        let track = textTracks[index];
+        let shifted = 0;
+        for (let i = 0; i < track.cues.length; i++) {
+            let cue = track.cues[i];
+            cue.startTime += seconds;
+            cue.endTime += seconds;
+            shifted++;
+        }
+        return shifted;
     }
 
     removeSubtitleTrackAt(index) {
