@@ -220,42 +220,46 @@ class Internals {
         this.htmlControls = {
             root: newDiv("player_controls"),
             progress: {
-                root: newDiv("player_progress_root"),
-                current: newDiv("player_progress_current"),
-                buffered: document.createElement("canvas"),
-                total: newDiv("player_progress_total"),
-                thumb: newDiv("player_progress_thumb"),
+                root:      newDiv("player_progress_root"),
+                current:   newDiv("player_progress_current"),
+                buffered:  newElement("canvas", "player_progress_buffered"),
+                total:     newDiv("player_progress_total"),
+                thumb:     newDiv("player_progress_thumb"),
                 popupRoot: newDiv("player_progress_popup_root"),
                 popupText: newDiv("player_progress_popup_text"),
             },
-            playToggleButton: newDiv("player_play_toggle"),
-            nextButton: newDiv("player_next"),
-            loopButton: newDiv("player_loop"),
-            volume: newDiv("player_volume"),
-            volumeSlider: document.createElement("input"),
-            timestamp: document.createElement("span"),
-            download: newDiv("player_download"),
-            autoplay: newDiv("player_autoplay"),
-            subs: newDiv("player_subs"),
-            settings: newDiv("player_settings"),
-            fullscreen: newDiv( "player_fullscreen"),
 
-            subtitleMenu: {
-                // root contains: topRoot, bottomRoot
-                root: null,
-                topRoot: null,
-                selectedLabel: null,
-                back: null,
-                // bottomRoot contains subtitleList, optionButtons
-                bottomRoot: null,
-                subtitleList: null,
-                optionButtons: null,
-                toggleButton: null,
-                chooseButton: null,
-                customizeButton: null,
-                downloadButton: null,
-                enabledSubs: false,
-                depth: 0,
+            playToggleButton: newDiv("player_play_toggle"),
+            nextButton:       newDiv("player_next"),
+            loopButton:       newDiv("player_loop"),
+            volume:           newDiv("player_volume"),
+            volumeSlider:     newElement("input", "player_volume_slider"),
+            timestamp:        newElement("span", "player_timestamp"),
+            download:         newDiv("player_download"),
+            autoplay:         newDiv("player_autoplay"),
+            subs:             newDiv("player_subs"),
+            settings:         newDiv("player_settings"),
+            fullscreen:       newDiv( "player_fullscreen"),
+
+            subMenu: {
+                root: newDiv("player_submenu_root"),
+
+                selected: {
+                    button: null,
+                    bottom: null,
+                },
+
+                top: {
+                    selectButton:  newDiv("player_submenu_select_button"),
+                    searchButton:  newDiv("player_submenu_search_button"),
+                    optionsButton: newDiv("player_submenu_options_button"),
+                },
+
+                bottom: {
+                    selectRoot:  newDiv("player_submenu_bottom_select"),
+                    searchRoot:  newDiv("player_submenu_bottom_search"),
+                    optionsRoot: newDiv("player_submenu_bottom_options"),
+                },
             }
         };
 
@@ -798,28 +802,13 @@ class Internals {
         });
 
         this.htmlControls.subs.addEventListener("click", () => {
-            let menuRootElement = this.htmlControls.subtitleMenu.root;
+            let menuRootElement = this.htmlControls.subMenu.root;
             let visible = menuRootElement.style.display !== "none";
             if (visible) {
                 hideElement(menuRootElement);
             } else {
                 menuRootElement.style.display = "";
             }
-        });
-
-        this.htmlControls.subtitleMenu.back.addEventListener("click", () => {
-            let menu = this.htmlControls.subtitleMenu;
-            if (menu.depth === 0) {
-                // Equivalent to hiding the menu by clicking the [CC] button
-                hideElement(menu.root);
-                return;
-            }
-            if (menu.depth === 1) {
-                menu.selectedLabel.innerHTML = "Options"
-                menu.optionButtons.style.display = "";
-                hideElement(menu.subtitleList);
-            }
-            menu.depth--;
         });
 
         this.htmlPlayerRoot.addEventListener("keydown", (event) => {
@@ -1060,40 +1049,27 @@ class Internals {
     }
 
     assembleProgressBar() {
-        let progressRoot = this.htmlControls.progress.root;
-        this.htmlControls.root.appendChild(progressRoot);
+        let progress =  this.htmlControls.progress;
+        this.htmlControls.root.appendChild(progress.root);
 
-        let progressTotal = this.htmlControls.progress.total;
-        progressRoot.appendChild(progressTotal);
+        progress.root.appendChild(progress.total);
+        progress.root.appendChild(progress.buffered);
+        progress.root.appendChild(progress.current);
+        progress.root.appendChild(progress.thumb);
+        progress.root.appendChild(progress.popupRoot);
 
-        let progressBuffered = this.htmlControls.progress.buffered;
-        progressBuffered.id = "player_progress_buffered";
-        progressRoot.appendChild(progressBuffered);
+        progress.popupText.textContent = "00:00";
+        progress.popupRoot.appendChild(progress.popupText);
 
-        let progressCurrent = this.htmlControls.progress.current;
-        progressRoot.appendChild(progressCurrent);
-
-        let progressThumb = this.htmlControls.progress.thumb;
-        progressRoot.appendChild(progressThumb);
-
-        let progressPopupRoot = this.htmlControls.progress.popupRoot;
-        hideElement(progressPopupRoot);
-        progressRoot.appendChild(progressPopupRoot);
-
-        let progressPopupText = this.htmlControls.progress.popupText;
-        progressPopupText.textContent = "00:00";
-        progressPopupRoot.appendChild(progressPopupText);
+        hideElement(progress.popupRoot);
     }
 
     createHtmlControls() {
         let playerControls = this.htmlControls.root;
+        playerControls.addEventListener("click", consumeEvent);
         playerControls.addEventListener("focusout", () => {
             // otherwise document.body will receive focus
             this.htmlPlayerRoot.focus();
-        });
-        playerControls.addEventListener("click", (e) => {
-            console.log("CONSUMING CLICK")
-            consumeEvent(e);
         });
 
         this.assembleProgressBar();
@@ -1127,7 +1103,6 @@ class Internals {
         playerControls.appendChild(volume);
 
         let volumeSlider = this.htmlControls.volumeSlider;
-        volumeSlider.id = "player_volume_slider";
         volumeSlider.type = "range";
         volumeSlider.min = "0";
         volumeSlider.max = "1";
@@ -1137,7 +1112,6 @@ class Internals {
         playerControls.appendChild(volumeSlider);
 
         let timestamp = this.htmlControls.timestamp;
-        timestamp.id = "player_timestamp";
         timestamp.textContent = "00:00 / 00:00";
         timestamp.style.display = this.options.hideTimestamps ? "none" : "";
         playerControls.appendChild(timestamp);
@@ -1206,127 +1180,156 @@ class Internals {
         this.htmlPlayerRoot.appendChild(playerControls);
     }
 
-    createSubtitleMenu() {
-        let menu = this.htmlControls.subtitleMenu;
+   createSubtitleMenu() {
+        let menu = this.htmlControls.subMenu;
 
-        menu.root = newDiv("player_submenu_root");
-        let menuRoot = menu.root;
-        // hideElement(menuRoot);
-        this.htmlPlayerRoot.appendChild(menuRoot);
+        let root = menu.root;
+        root.onclick = consumeEvent;
+        // hideElement(root);
+        this.htmlPlayerRoot.appendChild(root);
 
+        { // player_submenu_top
+            let top = newDiv("player_submenu_top");
+            root.appendChild(top);
 
-        // Subtitle menu top
-        menu.topRoot = newDiv("player_submenu_top");
-        let topRoot = menu.topRoot;
-        menuRoot.appendChild(topRoot);
+            let select = menu.top.selectButton;
+            select.innerHTML = "Select"
+            select.classList.add("player_submenu_top_button")
+            select.classList.add("unselectable")
+            select.style.display = ""
 
-        menu.back = newDiv();
-        let back = menu.back;
-        back.innerHTML = "←"
-        back.classList.add("player_submenu_top_button")
-        back.classList.add("unselectable")
-        back.style.display = ""
-        topRoot.appendChild(back);
+            top.appendChild(select);
 
-        menu.selectButton = newDiv();
-        let selectButton = menu.selectButton;
-        selectButton.innerHTML = "Select"
-        selectButton.classList.add("player_submenu_top_button")
-        selectButton.classList.add("unselectable")
-        selectButton.style.display = ""
-        topRoot.appendChild(selectButton);
+            let search = menu.top.searchButton
+            search.innerHTML = "Search"
+            search.classList.add("player_submenu_top_button")
+            search.classList.add("unselectable")
+            search.style.display = ""
+            top.appendChild(search);
 
-        menu.searchButton = newDiv();
-        let searchButton = menu.searchButton;
-        searchButton.innerHTML = "Search"
-        searchButton.classList.add("player_submenu_top_button")
-        searchButton.classList.add("unselectable")
-        searchButton.style.display = ""
-        topRoot.appendChild(searchButton);
+            let options = menu.top.optionsButton;
+            options.innerHTML = "Options"
+            options.classList.add("player_submenu_top_button")
+            options.classList.add("unselectable")
+            options.style.display = ""
+            top.appendChild(options);
 
-        menu.optionsButton = newDiv();
-        let optionsButton = menu.optionsButton;
-        optionsButton.innerHTML = "Options"
-        optionsButton.classList.add("player_submenu_top_button")
-        optionsButton.classList.add("unselectable")
-        optionsButton.style.display = ""
-        topRoot.appendChild(optionsButton);
+            let attachSelectionClick = (button, bottom) => {
+                button.onclick = () => {
+                    let selected = this.htmlControls.subMenu.selected;
+                    selected.button.classList.remove("player_submenu_top_button_selected");
+                    selected.bottom.style.display = "none";
 
+                    selected.button = button
+                    selected.bottom = bottom;
 
-        // Subtitle menu top and bottom separator
-        menu.seprator = document.createElement("hr");
-        let separator = menu.seprator;
-        separator.className = "player_submenu_separator";
-        menuRoot.appendChild(separator);
+                    selected.button.classList.add("player_submenu_top_button_selected");
+                    selected.bottom.style.display = "";
+                };
+            }
 
-
-        // Subtitle menu bottom
-        menu.submenuBottom = newDiv("player_submenu_buttom");
-        let submenuBottom = menu.submenuBottom;
-        menuRoot.appendChild(submenuBottom);
-
-
-        let listTop = newDiv();
-        submenuBottom.appendChild(listTop);
-
-        let subsToggle = document.createElement("label");
-        subsToggle.className = "toggle";
-        listTop.appendChild(subsToggle);
-
-        let toggleCheckbox = document.createElement("input");
-        toggleCheckbox.className = "toggle-checkbox";
-        toggleCheckbox.type = "checkbox";
-        subsToggle.appendChild(toggleCheckbox);
-        toggleCheckbox.addEventListener("change", (event) => {
-            console.log(event.target.checked);
-        });
-
-        let toggleSwitch = newDiv();
-        toggleSwitch.className = "toggle-switch";
-        subsToggle.appendChild(toggleSwitch);
-
-        let toggleText = document.createElement("span");
-        toggleText.textContent = "    Enable subtitles";
-        toggleText.className = "text_color";
-        listTop.appendChild(toggleText);
-
-
-        let listSeparator = document.createElement("hr");
-        listSeparator.className = "player_submenu_separator";
-        submenuBottom.appendChild(listSeparator);
-
-        let listBottom = newDiv("subtitle_track_list");
-        submenuBottom.appendChild(listBottom);
-
-        function createTrackElement(title) {
-            let track = newDiv();
-            track.className = "subtitle_track";
-
-            let trackTitle = newDiv();
-            trackTitle.textContent = title;
-            trackTitle.className = "subtitle_track_text";
-
-            let trackButtons = newDiv();
-            trackButtons.className = "subtitle_track_buttons";
-
-            let trackEdit = document.createElement("button");
-            trackEdit.className = "subtitle_track_edit_button";
-            trackEdit.textContent = "⚙️";
-            let trackRemove = document.createElement("button");
-            trackRemove.className = "subtitle_track_remove_button";
-            trackRemove.textContent = "🗑";
-
-            trackButtons.appendChild(trackEdit);
-            trackButtons.appendChild(trackRemove);
-
-            track.appendChild(trackTitle);
-            track.appendChild(trackButtons);
-
-            return track;
+            attachSelectionClick(menu.top.selectButton, menu.bottom.selectRoot);
+            attachSelectionClick(menu.top.searchButton, menu.bottom.searchRoot);
+            attachSelectionClick(menu.top.optionsButton, menu.bottom.optionsRoot);
         }
 
-        listBottom.appendChild(createTrackElement("Tears of Steel.vtt"));
-        listBottom.appendChild(createTrackElement("Big Buck Bunny.srt"));
+        // Separator between top and bottom menu.
+        let separator = document.createElement("hr");
+        separator.className = "player_submenu_separator";
+        root.appendChild(separator);
+
+        { // player_submenu_bottom
+            let bottom = newDiv("player_submenu_bottom");
+            root.appendChild(bottom);
+
+            let select = menu.bottom.selectRoot;
+            select.textContent = "SELECT";
+            select.style.display = "none";
+            bottom.appendChild(select);
+
+            let search = menu.bottom.searchRoot;
+            search.textContent = "SEARCH";
+            search.style.display = "none";
+            bottom.appendChild(search);
+
+            let options = menu.bottom.optionsRoot;
+            options.textContent = "OPTIONS";
+            options.style.display = "none";
+            bottom.appendChild(options);
+        }
+
+        menu.selected.button = menu.top.selectButton;
+        menu.selected.bottom = menu.bottom.selectRoot;
+
+        menu.selected.button.classList.add("player_submenu_top_button_selected");
+        menu.selected.bottom.style.display = "";
+
+        // Subtitle menu bottom
+        // menu.submenuBottom = newDiv("player_submenu_buttom");
+        // let submenuBottom = menu.submenuBottom;
+        // root.appendChild(submenuBottom);
+        //
+        // let listTop = newDiv();
+        // submenuBottom.appendChild(listTop);
+        //
+        // let subsToggle = document.createElement("label");
+        // subsToggle.className = "toggle";
+        // listTop.appendChild(subsToggle);
+        //
+        // let toggleCheckbox = document.createElement("input");
+        // toggleCheckbox.className = "toggle-checkbox";
+        // toggleCheckbox.type = "checkbox";
+        // subsToggle.appendChild(toggleCheckbox);
+        // toggleCheckbox.addEventListener("change", (event) => {
+        //     console.log(event.target.checked);
+        // });
+        //
+        // let toggleSwitch = newDiv();
+        // toggleSwitch.className = "toggle-switch";
+        // subsToggle.appendChild(toggleSwitch);
+        //
+        // let toggleText = document.createElement("span");
+        // toggleText.textContent = "    Enable subtitles";
+        // toggleText.className = "text_color";
+        // listTop.appendChild(toggleText);
+        //
+        //
+        // let listSeparator = document.createElement("hr");
+        // listSeparator.className = "player_submenu_separator";
+        // submenuBottom.appendChild(listSeparator);
+        //
+        // let listBottom = newDiv("subtitle_track_list");
+        // submenuBottom.appendChild(listBottom);
+        //
+        // function createTrackElement(title) {
+        //     let track = newDiv();
+        //     track.className = "subtitle_track";
+        //
+        //     let trackTitle = newDiv();
+        //     trackTitle.textContent = title;
+        //     trackTitle.className = "subtitle_track_text";
+        //
+        //     let trackButtons = newDiv();
+        //     trackButtons.className = "subtitle_track_buttons";
+        //
+        //     let trackEdit = document.createElement("button");
+        //     trackEdit.className = "subtitle_track_edit_button";
+        //     trackEdit.textContent = "⚙️";
+        //     let trackRemove = document.createElement("button");
+        //     trackRemove.className = "subtitle_track_remove_button";
+        //     trackRemove.textContent = "🗑";
+        //
+        //     trackButtons.appendChild(trackEdit);
+        //     trackButtons.appendChild(trackRemove);
+        //
+        //     track.appendChild(trackTitle);
+        //     track.appendChild(trackButtons);
+        //
+        //     return track;
+        // }
+        //
+        // listBottom.appendChild(createTrackElement("Tears of Steel.vtt"));
+        // listBottom.appendChild(createTrackElement("Big Buck Bunny.srt"));
 
         // Subtitle menu bottom div
         // menu.bottomRoot = newDiv("player_bot_root");
@@ -1451,6 +1454,18 @@ function newDiv(id) {
         div.id = id
     }
     return div;
+}
+
+function newElement(type, id) {
+    let element = document.createElement(type);
+
+    // element.tabIndex = -1;
+
+    if (id) {
+        element.id = id;
+    }
+
+    return element;
 }
 
 function newImg(id) {
