@@ -630,10 +630,11 @@ class Internals {
 
         let track = textTracks[index];
         let shifted = 0;
-        for (let i = 0; i < track.cues.length; i++) {
-            let cue = track.cues[i];
-            cue.startTime += seconds;
-            cue.endTime += seconds;
+        let cues = track.cues;
+        for (let i = 0; i < cues.length; i++) {
+            // Cannot assign cue[i] to a variable or an arbitrary number of cues may be shifted
+            cues[i].startTime += seconds;
+            cues[i].endTime += seconds;
             shifted++;
         }
         return shifted;
