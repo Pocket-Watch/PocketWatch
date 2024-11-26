@@ -50,7 +50,16 @@ document.addEventListener("touchmove", function(e) {
 
 function calculateOffset(e) {
     let rect = sliderContainer.getBoundingClientRect();
-    let offsetX = e.clientX - rect.left;
+    let offsetX;
+
+    if (e.touches) {
+        if (e.touches.length !== 1) {
+            return;
+        }
+        offsetX = e.touches[0].clientX - rect.left;
+    } else {
+        offsetX = e.clientX - rect.left;
+    }
 
     // Ensure the slider stays within bounds
     if (offsetX < 0) offsetX = 0;
