@@ -5,17 +5,42 @@ sliderValue.style.pointerEvents = "none";
 
 var isDragging = false;
 
+console.log("Running")
+
 sliderContainer.addEventListener("mousedown", function (e) {
+    console.log("sliderContainer mousedown")
+    calculateOffset(e)
+    isDragging = true;
+})
+
+sliderContainer.addEventListener("touchstart", function (e) {
+    console.log("sliderContainer touchstart")
     calculateOffset(e)
     isDragging = true;
 })
 
 
 document.addEventListener("mouseup", function() {
+    console.log("document mouseup")
     isDragging = false;
 });
 
+sliderContainer.addEventListener("touchend", function (e) {
+    console.log("sliderContainer touchend")
+    isDragging = false;
+})
+
 document.addEventListener("mousemove", function(e) {
+    console.log("document mousemove")
+    if(!isDragging) {
+        return;
+    }
+
+    calculateOffset(e)
+});
+
+document.addEventListener("touchmove", function(e) {
+    console.log("document touchmove")
     if(!isDragging) {
         return;
     }
@@ -37,4 +62,3 @@ function calculateOffset(e) {
     let percentage = Math.round((offsetX / rect.width) * 100);
     sliderValue.innerHTML = percentage + "%";
 }
-
