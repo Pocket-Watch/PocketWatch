@@ -260,9 +260,10 @@ class Internals {
                     selectRoot:  newDiv("player_submenu_bottom_select"),
                     searchRoot:  newDiv("player_submenu_bottom_search"),
                     optionsRoot: newDiv("player_submenu_bottom_options"),
-
-                    trackList: newDiv("subtitle_track_list"),
                 },
+
+                /// Part of the bottom selection panel, html track elements are appended here.
+                trackList: newDiv("subtitle_track_list"),
             }
         };
 
@@ -597,8 +598,8 @@ class Internals {
         track.addEventListener("load", (event) => {
             console.info("Text track loaded successfully", event)
 
-            let trackList = this.htmlControls.subMenu.bottom.trackList;
-            let htmlTrack = this.createSubmenuTrackElement(filename);
+            let trackList = this.htmlControls.subMenu.trackList;
+            let htmlTrack = this.createSubtitleTrackElement(filename);
             trackList.appendChild(htmlTrack);
         });
         return newIndex
@@ -1187,7 +1188,7 @@ class Internals {
         this.htmlPlayerRoot.appendChild(playerControls);
     }
 
-    createSubmenuTrackElement(title) {
+    createSubtitleTrackElement(title) {
         let menu = this.htmlControls.subMenu;
 
         let track = newDiv();
@@ -1314,16 +1315,31 @@ class Internals {
 
             let separator = newElement("hr", null, "player_submenu_separator");
             select.appendChild(separator);
-            select.appendChild(menu.bottom.trackList);
+            select.appendChild(menu.trackList);
             bottom.appendChild(select);
 
+            // // NOTE(kihau): Dummy code for testing:
+            menu.trackList.appendChild(this.createSubtitleTrackElement("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"));
+            menu.trackList.appendChild(this.createSubtitleTrackElement("This is a long subtitle name.vtt"));
+            menu.trackList.appendChild(this.createSubtitleTrackElement("Foo Bar"));
+            menu.trackList.appendChild(this.createSubtitleTrackElement("AAAAAA"));
+            menu.trackList.appendChild(this.createSubtitleTrackElement("BBBBBB"));
+            menu.trackList.appendChild(this.createSubtitleTrackElement("CCCCCC"));
+            menu.trackList.appendChild(this.createSubtitleTrackElement("DDDDDD"));
+            menu.trackList.appendChild(this.createSubtitleTrackElement("EEEEEE"));
+            menu.trackList.appendChild(this.createSubtitleTrackElement("FFFFFF"));
+            menu.trackList.appendChild(this.createSubtitleTrackElement("GGGGGG"));
+            menu.trackList.appendChild(this.createSubtitleTrackElement("HHHHHH"));
+            menu.trackList.appendChild(this.createSubtitleTrackElement("IIIIII"));
+            // // -----------------------------------
+
             let search = menu.bottom.searchRoot;
-            search.textContent = "SEARCH";
+            // search.textContent = "SEARCH";
             search.style.display = "none";
             bottom.appendChild(search);
 
             let options = menu.bottom.optionsRoot;
-            options.textContent = "OPTIONS";
+            // options.textContent = "OPTIONS";
             options.style.display = "none";
             bottom.appendChild(options);
         }
