@@ -5,63 +5,43 @@ sliderValue.style.pointerEvents = "none";
 
 var isDragging = false;
 
-console.log("Running")
+console.log("Running!");
 
-sliderContainer.addEventListener("mousedown", function (e) {
-    console.log("sliderContainer mousedown")
-    calculateOffset(e)
+function cursorPress(e) {
     isDragging = true;
-})
-
-sliderContainer.addEventListener("touchstart", function (e) {
-    console.log("sliderContainer touchstart")
     calculateOffset(e)
-    isDragging = true;
-})
+}
 
-
-document.addEventListener("mouseup", function() {
-    console.log("document mouseup")
+function cursorRelease() {
     isDragging = false;
-});
+}
 
-sliderContainer.addEventListener("touchend", function (e) {
-    console.log("sliderContainer touchend")
-    isDragging = false;
-})
-
-document.addEventListener("mousemove", function(e) {
-    console.log("document mousemove")
+function cursorMove(e) {
     if(!isDragging) {
         return;
     }
-
     calculateOffset(e)
-});
+}
 
-document.addEventListener("touchmove", function(e) {
-    console.log("document touchmove")
-    if(!isDragging) {
-        return;
-    }
+sliderContainer.addEventListener("touchstart", cursorPress);
+document.addEventListener("touchmove", cursorMove);
+sliderContainer.addEventListener("touchend", cursorRelease);
 
-    calculateOffset(e)
-});
+sliderContainer.addEventListener("mousedown", cursorPress);
+document.addEventListener("mousemove", cursorMove);
+document.addEventListener("mouseup", cursorRelease);
 
 function calculateOffset(e) {
     let rect = sliderContainer.getBoundingClientRect();
     let offsetX;
 
     if (e.touches) {
-        if (e.touches.length !== 1) {
-            return;
-        }
         offsetX = e.touches[0].clientX - rect.left;
     } else {
         offsetX = e.clientX - rect.left;
     }
 
-    // Ensure the slider stays within bounds
+    // Ensure the touch doesn't exceed slider bounds
     if (offsetX < 0) offsetX = 0;
     if (offsetX > rect.width) offsetX = rect.width;
 
