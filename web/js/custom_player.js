@@ -247,6 +247,7 @@ class Internals {
                 selected: {
                     button: null,
                     bottom: null,
+                    track:  null,
                 },
 
                 top: {
@@ -259,6 +260,8 @@ class Internals {
                     selectRoot:  newDiv("player_submenu_bottom_select"),
                     searchRoot:  newDiv("player_submenu_bottom_search"),
                     optionsRoot: newDiv("player_submenu_bottom_options"),
+
+                    trackList: newDiv("subtitle_track_list"),
                 },
             }
         };
@@ -593,6 +596,10 @@ class Internals {
         // we do have access to the textTrack so it's possible to change its mode
         track.addEventListener("load", (event) => {
             console.info("Text track loaded successfully", event)
+
+            let trackList = this.htmlControls.subMenu.bottom.trackList;
+            let htmlTrack = this.createSubmenuTrackElement(filename);
+            trackList.appendChild(htmlTrack);
         });
         return newIndex
     }
@@ -1180,6 +1187,45 @@ class Internals {
         this.htmlPlayerRoot.appendChild(playerControls);
     }
 
+    createSubmenuTrackElement(title) {
+        let menu = this.htmlControls.subMenu;
+
+        let track = newDiv();
+        track.className = "subtitle_track";
+        track.onclick = (event) => {
+            if (menu.selected.track) {
+                menu.selected.track.classList.remove("player_submenu_selected");
+            }
+
+            track.classList.add("player_submenu_selected");
+            menu.selected.track = track;
+
+            // TODO(kihau): We can now do something here on subtitle track selection.
+        }
+
+        let trackTitle = newDiv();
+        trackTitle.textContent = title;
+        trackTitle.className = "subtitle_track_text";
+
+        let trackButtons = newDiv();
+        trackButtons.className = "subtitle_track_buttons";
+
+        let trackEdit = document.createElement("button");
+        trackEdit.className = "subtitle_track_edit_button";
+        trackEdit.textContent = "⚙️";
+        let trackRemove = document.createElement("button");
+        trackRemove.className = "subtitle_track_remove_button";
+        trackRemove.textContent = "🗑";
+
+        trackButtons.appendChild(trackEdit);
+        trackButtons.appendChild(trackRemove);
+
+        track.appendChild(trackTitle);
+        track.appendChild(trackButtons);
+
+        return track;
+    }
+
    createSubtitleMenu() {
         let menu = this.htmlControls.subMenu;
 
@@ -1217,13 +1263,13 @@ class Internals {
             let attachSelectionClick = (button, bottom) => {
                 button.onclick = () => {
                     let selected = this.htmlControls.subMenu.selected;
-                    selected.button.classList.remove("player_submenu_top_button_selected");
+                    selected.button.classList.remove("player_submenu_selected");
                     selected.bottom.style.display = "none";
 
                     selected.button = button
                     selected.bottom = bottom;
 
-                    selected.button.classList.add("player_submenu_top_button_selected");
+                    selected.button.classList.add("player_submenu_selected");
                     selected.bottom.style.display = "";
                 };
             }
@@ -1234,8 +1280,7 @@ class Internals {
         }
 
         // Separator between top and bottom menu.
-        let separator = document.createElement("hr");
-        separator.className = "player_submenu_separator";
+        let separator = newElement("hr", null, "player_submenu_separator");
         root.appendChild(separator);
 
         { // player_submenu_bottom
@@ -1243,8 +1288,33 @@ class Internals {
             root.appendChild(bottom);
 
             let select = menu.bottom.selectRoot;
-            select.textContent = "SELECT";
             select.style.display = "none";
+
+            { // The horrible toggle that needs to be changed
+                let toggle = newElement("toggle", null, "toggle");
+                select.appendChild(toggle);
+
+                let checkbox = document.createElement("input");
+                checkbox.className = "toggle-checkbox";
+                checkbox.type = "checkbox";
+                toggle.appendChild(checkbox);
+                checkbox.addEventListener("change", (event) => {
+                    console.log(event.target.checked);
+                });
+
+                let toggleSwitch = newDiv();
+                toggleSwitch.className = "toggle-switch";
+                toggle.appendChild(toggleSwitch);
+
+                let text = document.createElement("span");
+                text.textContent = "    Enable subtitles";
+                text.className = "text_color";
+                toggle.appendChild(text);
+            }
+
+            let separator = newElement("hr", null, "player_submenu_separator");
+            select.appendChild(separator);
+            select.appendChild(menu.bottom.trackList);
             bottom.appendChild(select);
 
             let search = menu.bottom.searchRoot;
@@ -1261,75 +1331,9 @@ class Internals {
         menu.selected.button = menu.top.selectButton;
         menu.selected.bottom = menu.bottom.selectRoot;
 
-        menu.selected.button.classList.add("player_submenu_top_button_selected");
+        menu.selected.button.classList.add("player_submenu_selected");
         menu.selected.bottom.style.display = "";
 
-        // Subtitle menu bottom
-        // menu.submenuBottom = newDiv("player_submenu_buttom");
-        // let submenuBottom = menu.submenuBottom;
-        // root.appendChild(submenuBottom);
-        //
-        // let listTop = newDiv();
-        // submenuBottom.appendChild(listTop);
-        //
-        // let subsToggle = document.createElement("label");
-        // subsToggle.className = "toggle";
-        // listTop.appendChild(subsToggle);
-        //
-        // let toggleCheckbox = document.createElement("input");
-        // toggleCheckbox.className = "toggle-checkbox";
-        // toggleCheckbox.type = "checkbox";
-        // subsToggle.appendChild(toggleCheckbox);
-        // toggleCheckbox.addEventListener("change", (event) => {
-        //     console.log(event.target.checked);
-        // });
-        //
-        // let toggleSwitch = newDiv();
-        // toggleSwitch.className = "toggle-switch";
-        // subsToggle.appendChild(toggleSwitch);
-        //
-        // let toggleText = document.createElement("span");
-        // toggleText.textContent = "    Enable subtitles";
-        // toggleText.className = "text_color";
-        // listTop.appendChild(toggleText);
-        //
-        //
-        // let listSeparator = document.createElement("hr");
-        // listSeparator.className = "player_submenu_separator";
-        // submenuBottom.appendChild(listSeparator);
-        //
-        // let listBottom = newDiv("subtitle_track_list");
-        // submenuBottom.appendChild(listBottom);
-        //
-        // function createTrackElement(title) {
-        //     let track = newDiv();
-        //     track.className = "subtitle_track";
-        //
-        //     let trackTitle = newDiv();
-        //     trackTitle.textContent = title;
-        //     trackTitle.className = "subtitle_track_text";
-        //
-        //     let trackButtons = newDiv();
-        //     trackButtons.className = "subtitle_track_buttons";
-        //
-        //     let trackEdit = document.createElement("button");
-        //     trackEdit.className = "subtitle_track_edit_button";
-        //     trackEdit.textContent = "⚙️";
-        //     let trackRemove = document.createElement("button");
-        //     trackRemove.className = "subtitle_track_remove_button";
-        //     trackRemove.textContent = "🗑";
-        //
-        //     trackButtons.appendChild(trackEdit);
-        //     trackButtons.appendChild(trackRemove);
-        //
-        //     track.appendChild(trackTitle);
-        //     track.appendChild(trackButtons);
-        //
-        //     return track;
-        // }
-        //
-        // listBottom.appendChild(createTrackElement("Tears of Steel.vtt"));
-        // listBottom.appendChild(createTrackElement("Big Buck Bunny.srt"));
 
         // Subtitle menu bottom div
         // menu.bottomRoot = newDiv("player_bot_root");
@@ -1456,13 +1460,17 @@ function newDiv(id) {
     return div;
 }
 
-function newElement(type, id) {
+function newElement(type, id, className) {
     let element = document.createElement(type);
 
     // element.tabIndex = -1;
 
     if (id) {
         element.id = id;
+    }
+
+    if (className) {
+        element.className = className;
     }
 
     return element;
