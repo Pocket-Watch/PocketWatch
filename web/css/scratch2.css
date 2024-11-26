@@ -297,6 +297,7 @@ html {
     aspect-ratio: 1.0;
     border-radius: 8px;
     border: 2px solid #a89984;
+    /* tabindex: -1; */
     /* margin-top: 1em; */
     background-color: #504945;
     overflow: hidden;
@@ -382,6 +383,11 @@ html {
 }
 
 .user_box_bottom input:hover + .user_box_edit_name_button {
+    display: block;
+}
+
+/* TOOD(kihau): Maybe catch focus on user_box instead of just input box from user_box_bottom? */
+.user_box_bottom input:focus + .user_box_edit_name_button {
     display: block;
 }
 
