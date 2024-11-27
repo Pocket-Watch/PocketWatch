@@ -371,6 +371,10 @@
     color: rgba(220, 220, 220, 1.0);
 }
 
+.player_submenu_selected .subtitle_track_buttons {
+    display: flex;
+}
+
 .player_submenu_separator {
     border-radius: 2px;
     margin-top: 8px;
@@ -428,6 +432,8 @@
     display: flex;
     /* display: block; */
     scrollbar-width: none;
+    flex: 1 0 0;
+    margin-right: 6px;
     white-space: pre;
     padding-left: 8px;
     align-items: center;

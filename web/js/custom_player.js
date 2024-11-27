@@ -1320,6 +1320,43 @@ class Internals {
             let options = menu.bottom.optionsRoot;
             // options.textContent = "OPTIONS";
             options.style.display = "none";
+
+            { // player_submenu_shift_root
+                let root = newDiv("player_submenu_shift_root");
+
+                // Top container:
+
+                let top = newDiv("player_submenu_shift_top");
+                root.appendChild(top);
+
+                let text = newElement("span", "player_submenu_shift_text");
+                text.textContent = "Subtitle shift:";
+                top.appendChild(text);
+
+                let value = newElement("span", "player_submenu_shift_value");
+                value.textContent = "+0.0s";
+                top.appendChild(value);
+
+                // Bottom container:
+
+                let bottom = newDiv("player_submenu_shift_bottom");
+                root.appendChild(bottom);
+
+                let leftButton = newElement("button", "player_submenu_shift_left_button");
+                leftButton.textContent = "<";
+                bottom.appendChild(leftButton);
+
+                let slider = newElement("input", "player_submenu_shift_slider");
+                slider.type = "range";
+                bottom.appendChild(slider);
+
+                let rightButton = newElement("button", "player_submenu_shift_right_button");
+                rightButton.textContent = ">";
+                bottom.appendChild(rightButton);
+
+                options.appendChild(root);
+            }
+
             bottom.appendChild(options);
         }
 
