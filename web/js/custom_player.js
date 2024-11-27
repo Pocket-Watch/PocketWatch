@@ -1332,34 +1332,85 @@ class Internals {
                 let root = newDiv("player_submenu_shift_root");
 
                 // Top container:
-
                 let top = newDiv("player_submenu_shift_top");
-                root.appendChild(top);
+                let textSpan = newElement("span", "player_submenu_shift_text");
+                textSpan.textContent = "Subtitle shift:";
 
-                let text = newElement("span", "player_submenu_shift_text");
-                text.textContent = "Subtitle shift:";
-                top.appendChild(text);
-
-                let value = newElement("span", "player_submenu_shift_value");
-                value.textContent = "+0.0s";
-                top.appendChild(value);
+                let valueSpan = newElement("span", "player_submenu_shift_value");
+                valueSpan.textContent = "+0.0s";
 
                 // Bottom container:
-
                 let bottom = newDiv("player_submenu_shift_bottom");
-                root.appendChild(bottom);
 
                 let leftButton = newElement("button", "player_submenu_shift_left_button");
                 leftButton.textContent = "<";
-                bottom.appendChild(leftButton);
 
                 let slider = newElement("input", "player_submenu_shift_slider");
                 slider.type = "range";
-                bottom.appendChild(slider);
+                slider.min = -10.0;
+                slider.max = 10.0;
+                slider.step = 0.1;
+                slider.value = 0.0;
 
                 let rightButton = newElement("button", "player_submenu_shift_right_button");
                 rightButton.textContent = ">";
+
+                let setValueSpan = (value) => {
+                    let max = Number(slider.max);
+                    if (value > max) {
+                        value = max;
+                    }
+
+                    let min = Number(slider.min);
+                    if (value < min) {
+                        value = min;
+                    }
+
+                    // Set precision to a single digit of the fractional part;
+                    value = Math.ceil(value * 10.0) / 10.0;
+
+                    let valueString = "";
+                    if (value >= 0) {
+                        valueString = "+";
+                    }
+
+                    valueString += value;
+
+                    // Append ".0" when the value has no fractional part.
+                    if ((value * 10) % 10 === 0.0) {
+                        valueString += ".0";
+                    }
+
+                    valueString += "s";
+                    valueSpan.textContent = valueString;
+                }
+
+                rightButton.onclick = () => {
+                    let newValue = Number(slider.value) + 0.3;
+                    setValueSpan(newValue);
+                    slider.value = newValue;
+                }
+
+                slider.oninput = () => {
+                    let value = Number(slider.value);
+                    setValueSpan(value);
+                }
+
+                leftButton.onclick = () => {
+                    let newValue = Number(slider.value) - 0.3;
+                    setValueSpan(newValue);
+                    slider.value = newValue;
+                }
+
+                top.appendChild(textSpan);
+                top.appendChild(valueSpan);
+
+                bottom.appendChild(leftButton);
+                bottom.appendChild(slider);
                 bottom.appendChild(rightButton);
+
+                root.appendChild(top);
+                root.appendChild(bottom);
 
                 options.appendChild(root);
             }
