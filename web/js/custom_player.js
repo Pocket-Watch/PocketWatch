@@ -147,7 +147,6 @@ class Player {
         if (!isFunction(func)) {
             return;
         }
-
         this.internals.firePlaybackError = func;
     }
 
@@ -155,8 +154,14 @@ class Player {
         if (!isFunction(func)) {
             return;
         }
-
         this.internals.firePlaybackEnd = func;
+    }
+
+    onSubtitleTrackLoad(func) {
+        if (!isFunction(func)) {
+            return;
+        }
+        this.internals.fireSubtitleTrackLoad = func;
     }
 
     setVideoTrack(url) {
@@ -333,6 +338,7 @@ class Internals {
     fireControlsVolumeSet(_volume) {}
     firePlaybackError(_event) {}
     firePlaybackEnd() {}
+    fireSubtitleTrackLoad(_event) {}
 
 
     isVideoPlaying() {
@@ -597,7 +603,8 @@ class Internals {
         // Although we cannot access cues immediately here (not loaded yet)
         // we do have access to the textTrack so it's possible to change its mode
         track.addEventListener("load", (event) => {
-            console.info("Text track loaded successfully", event)
+            this.fireSubtitleTrackLoad(event);
+            console.info("Text track loaded successfully", event.target)
 
             let trackList = this.htmlControls.subMenu.trackList;
             let htmlTrack = this.createSubtitleTrackElement(filename);
