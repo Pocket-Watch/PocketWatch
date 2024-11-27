@@ -301,6 +301,7 @@ class Internals {
         };
 
         this.isDraggingProgressBar = false;
+        this.isHoveringProgressBar = false;
         this.volumeBeforeMute = 0.0;
         this.selectedSubtitleIndex = -1;
 
@@ -904,46 +905,23 @@ class Internals {
             this.setVolume(volume);
         });
 
-        // TODO(kihau): Discover behaviour of this function.
-        // NOTE(kihau): Helper function grabbed from fluid-player source code.
-        let getEventOffsetX = (event, element) => {
-            let x = 0;
+        let calculateProgress = (event, element) => {
+            let rect = element.getBoundingClientRect();
+            let offsetX;
 
-            while (element && !isNaN(element.offsetLeft)) {
-                if (element.tagName === 'BODY') {
-                    x += element.offsetLeft + element.clientLeft - (element.scrollLeft || document.documentElement.scrollLeft);
-                } else {
-                    x += element.offsetLeft + element.clientLeft - element.scrollLeft;
-                }
-
-                element = element.offsetParent;
-            }
-
-            let eventX;
-            if (typeof event.touches !== 'undefined' && typeof event.touches[0] !== 'undefined') {
-                eventX = event.touches[0].clientX;
+            if (event.touches) {
+                offsetX = event.touches[0].clientX - rect.left;
             } else {
-                eventX = event.clientX
+                offsetX = event.clientX - rect.left;
             }
 
-            return eventX - x;
-        };
+            // Ensure the touch doesn't exceed slider bounds
+            if (offsetX < 0) offsetX = 0;
+            if (offsetX > rect.width) offsetX = rect.width;
 
-        let calculateProgress = (event) => {
-            const width = this.htmlControls.progress.root.clientWidth;
-            const offsetX = getEventOffsetX(event, this.htmlControls.progress.root);
-            const progress = offsetX / width;
-
+            let progress = offsetX / rect.width;
             if (isNaN(progress)) {
-                return 0.0;
-            }
-
-            if (progress > 1.0) {
-                return 1.0;
-            }
-
-            if (progress < 0.0) {
-                return 0.0;
+                progress = 0;
             }
 
             return progress;
@@ -951,7 +929,8 @@ class Internals {
 
         this.htmlControls.progress.root.addEventListener("mousedown", _event => {
             const onProgressBarMouseMove = event => {
-                const progress = calculateProgress(event);
+                const progressRoot = this.htmlControls.progress.root;
+                const progress = calculateProgress(event, progressRoot);
                 this.updateProgressBar(progress);
             }
 
@@ -960,7 +939,8 @@ class Internals {
                 document.removeEventListener('mousemove', onProgressBarMouseMove);
                 document.removeEventListener('mouseup', onProgressBarMouseUp);
 
-                const progress = calculateProgress(event);
+                const progressRoot = this.htmlControls.progress.root;
+                const progress = calculateProgress(event, progressRoot);
                 const timestamp = this.htmlVideo.duration * progress;
 
                 this.fireControlsSeeked(timestamp);
@@ -980,8 +960,7 @@ class Internals {
         });
 
         this.htmlControls.progress.root.addEventListener("mousemove", event => {
-            const width = this.htmlControls.progress.root.clientWidth;
-            const value = getEventOffsetX(event, this.htmlControls.progress.root) / width;
+            const value = calculateProgress(event, this.htmlControls.progress.root);
             const timestamp = this.htmlVideo.duration * value;
 
             this.htmlControls.progress.popupRoot.style.left = value * 100 + "%";
@@ -1193,7 +1172,7 @@ class Internals {
 
         let track = newDiv();
         track.className = "subtitle_track";
-        track.onclick = (event) => {
+        track.onclick = _event => {
             if (menu.selected.track) {
                 menu.selected.track.classList.remove("player_submenu_selected");
             }
