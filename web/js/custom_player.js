@@ -214,12 +214,12 @@ class Internals {
         this.htmlBuffering = newImg("player_buffering");
         this.htmlBuffering.src = "svg/buffering.svg";
         hideElement(this.htmlBuffering);
-        this.htmlBuffering.setAttribute("class", "unselectable");
+        this.htmlBuffering.className = "unselectable";
         this.htmlPlayerRoot.appendChild(this.htmlBuffering);
 
         this.htmlPlayTogglePopup = newImg("player_playtoggle_popup");
         this.htmlPlayTogglePopup.src = "svg/play_popup.svg";
-        this.htmlPlayTogglePopup.setAttribute("class", "unselectable");
+        this.htmlPlayTogglePopup.className = "unselectable";
         this.htmlPlayerRoot.appendChild(this.htmlPlayTogglePopup);
 
         this.htmlControls = {
@@ -1038,7 +1038,7 @@ class Internals {
         img.src = src;
         img.width = width;
         img.height = height;
-        img.setAttribute("class", "unselectable");
+        img.className = "unselectable";
         return img;
     }
 
@@ -1711,24 +1711,5 @@ class Options {
             }
         }
         return true;
-    }
-}
-
-export class Perf {
-    constructor() {
-        this.start = performance.now();
-    }
-
-    static start() {
-        return new Perf()
-    }
-
-    getElapsed() {
-        return performance.now() - this.start
-    }
-
-    printElapsed() {
-        let end = performance.now();
-        console.log(end - this.start)
     }
 }
