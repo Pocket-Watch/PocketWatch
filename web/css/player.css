@@ -252,13 +252,60 @@
 #player_volume_slider {
     height: 40px;
     width: 160px;
-    bottom: 0;
-    display: flex;
     margin-left: 8px;
+    -webkit-appearance: none;
     margin-top: 8px;
-    background-color: rgba(255, 255, 255, 0.2);
-    justify-content: center;
-    align-items: center;
+    background-color: transparent;
+}
+
+#player_volume_slider::-webkit-slider-runnable-track {
+    height: 5px;
+    border: none;
+    border-radius: 2px;
+    background-color: rgba(255, 255, 255, 0.4);
+    color: red;
+}
+
+#player_volume_slider::-moz-range-track {
+    height: 5px;
+    border: none;
+    border-radius: 2px;
+    background-color: rgba(255, 255, 255, 0.4);
+    color: red;
+}
+
+/* TODO(kihau): Also add progress slider styling for chromium-based browsers. */
+
+#player_volume_slider::-moz-range-progress {
+    height: 5px;
+    border: none;
+    border-radius: 2px;
+    background-color: rgba(255, 0, 0, 0.5);
+}
+
+#player_volume_slider::-webkit-slider-thumb {
+    height: 14px;
+    width: 14px;
+    border: none;
+    border-radius: 10px;
+    -webkit-appearance: none;
+    background-color: rgba(200, 200, 200, 1.0);
+}
+
+#player_volume_slider:active::-webkit-slider-thumb {
+    background-color: rgba(220, 220, 200, 1.0);
+}
+
+#player_volume_slider::-moz-range-thumb {
+    height: 14px;
+    width: 14px;
+    border: none;
+    border-radius: 10px;
+    background-color: rgba(200, 200, 200, 1.0);
+}
+
+#player_volume_slider:active::-moz-range-thumb {
+    background-color: rgba(220, 220, 200, 1.0);
 }
 
 #player_timestamp {
