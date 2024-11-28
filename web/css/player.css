@@ -277,7 +277,7 @@
 /* TODO(kihau): Also add progress slider styling for chromium-based browsers. */
 
 #player_volume_slider::-moz-range-progress {
-    height: 5px;
+    height: 6px;
     border: none;
     border-radius: 2px;
     background-color: rgba(255, 0, 0, 0.5);
@@ -289,6 +289,7 @@
     border: none;
     border-radius: 10px;
     -webkit-appearance: none;
+    margin-top: -5px;
     background-color: rgba(200, 200, 200, 1.0);
 }
 
@@ -648,12 +649,13 @@
 }
 
 #player_submenu_shift_slider::-webkit-slider-thumb {
-    height: 6px;
-    width: 6px;
+    height: 17px;
+    width: 17px;
     border: 5px solid rgba(200, 200, 200, 1.0);
     border-radius: 10px;
     -webkit-appearance: none;
     background-color: transparent;
+    margin-top: -7px;
 }
 
 #player_submenu_shift_slider:active::-webkit-slider-thumb {
@@ -661,8 +663,8 @@
 }
 
 #player_submenu_shift_slider::-moz-range-thumb {
-    height: 6px;
-    width: 6px;
+    height: 7px;
+    width: 7px;
     border: 5px solid rgba(200, 200, 200, 1.0);
     border-radius: 10px;
     background-color: transparent;
