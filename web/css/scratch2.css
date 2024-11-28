@@ -291,6 +291,7 @@ html {
     overflow-y: auto;
 }
 
+
 .user_box {
     /* height: calc(100% - 4px); */
     height: calc(100% - 4px);
@@ -382,7 +383,7 @@ html {
     margin: 3px;
 }
 
-.user_box_bottom input:hover + .user_box_edit_name_button {
+.user_box:hover .user_box_edit_name_button {
     display: block;
 }
 

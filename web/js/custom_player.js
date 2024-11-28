@@ -1334,7 +1334,7 @@ class Internals {
                 // Top container:
                 let top = newDiv("player_submenu_shift_top");
                 let textSpan = newElement("span", "player_submenu_shift_text");
-                textSpan.textContent = "Subtitle shift:";
+                textSpan.textContent = "Subtitle delay";
 
                 let valueSpan = newElement("span", "player_submenu_shift_value");
                 valueSpan.textContent = "+0.0s";
@@ -1342,8 +1342,17 @@ class Internals {
                 // Bottom container:
                 let bottom = newDiv("player_submenu_shift_bottom");
 
-                let leftButton = newElement("button", "player_submenu_shift_left_button");
-                leftButton.textContent = "<";
+                let leftButton = newElement("button", null, "player_submenu_shift_button");
+                // leftButton.appendChild(newSvg("svg/arrow.svg#left", null, "shift_arrow"));
+
+                {
+                    let svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                    svg.setAttribute("viewBox", "0 0 24 24");
+                    let path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    path.setAttribute("d", "M14.2893 5.70708C13.8988 5.31655 13.2657 5.31655 12.8751 5.70708L7.98768 10.5993C7.20729 11.3805 7.2076 12.6463 7.98837 13.427L12.8787 18.3174C13.2693 18.7079 13.9024 18.7079 14.293 18.3174C14.6835 17.9269 14.6835 17.2937 14.293 16.9032L10.1073 12.7175C9.71678 12.327 9.71678 11.6939 10.1073 11.3033L14.2893 7.12129C14.6799 6.73077 14.6799 6.0976 14.2893 5.70708Z");
+                    svg.append(path);
+                    leftButton.appendChild(svg);
+                }
 
                 let slider = newElement("input", "player_submenu_shift_slider");
                 slider.type = "range";
@@ -1352,8 +1361,17 @@ class Internals {
                 slider.step = 0.1;
                 slider.value = 0.0;
 
-                let rightButton = newElement("button", "player_submenu_shift_right_button");
-                rightButton.textContent = ">";
+                let rightButton = newElement("button", null, "player_submenu_shift_button");
+                // rightButton.appendChild(newSvg("svg/arrow.svg#right", null, "shift_arrow"));
+
+                {
+                    let svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                    svg.setAttribute("viewBox", "0 0 24 24");
+                    let path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    path.setAttribute("d", "M9.71069 18.2929C10.1012 18.6834 10.7344 18.6834 11.1249 18.2929L16.0123 13.4006C16.7927 12.6195 16.7924 11.3537 16.0117 10.5729L11.1213 5.68254C10.7308 5.29202 10.0976 5.29202 9.70708 5.68254C9.31655 6.07307 9.31655 6.70623 9.70708 7.09676L13.8927 11.2824C14.2833 11.6729 14.2833 12.3061 13.8927 12.6966L9.71069 16.8787C9.32016 17.2692 9.32016 17.9023 9.71069 18.2929Z");
+                    svg.append(path);
+                    rightButton.appendChild(svg);
+                }
 
                 let setValueSpan = (value) => {
                     let max = Number(slider.max);
@@ -1367,7 +1385,7 @@ class Internals {
                     }
 
                     // Set precision to a single digit of the fractional part;
-                    value = Math.ceil(value * 10.0) / 10.0;
+                    value = Math.round(value * 10.0) / 10.0;
 
                     let valueString = "";
                     if (value >= 0) {
@@ -1402,6 +1420,7 @@ class Internals {
                     slider.value = newValue;
                 }
 
+
                 top.appendChild(textSpan);
                 top.appendChild(valueSpan);
 
@@ -1411,6 +1430,9 @@ class Internals {
 
                 root.appendChild(top);
                 root.appendChild(bottom);
+
+                // let separator = newElement("hr", null, "player_submenu_separator");
+                // root.appendChild(separator);
 
                 options.appendChild(root);
             }
@@ -1549,6 +1571,20 @@ function newDiv(id) {
     }
     return div;
 }
+
+
+function newSvg(path, id, className) {
+    let svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+
+    if (id) svg.id = id;
+    if (className) svg.classList.add(className);
+
+    let use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+    svg.appendChild(use);
+    use.setAttribute("href", path);
+    return svg;
+}
+
 
 function newElement(type, id, className) {
     let element = document.createElement(type);
