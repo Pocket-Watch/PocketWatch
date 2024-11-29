@@ -1,5 +1,4 @@
 <svg width="100px" height="100px" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
     <rect x="5%" y="5%" width="90%" height="90%" rx="20" ry="20" fill="none" stroke="black" stroke-width="20"/>
-
     <text x="50%" y="50%" font-size="70" text-anchor="middle" fill="black" font-family="Arial" dy=".3em" font-weight="bold">SVG</text>
 </svg>

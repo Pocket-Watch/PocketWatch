@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-    <html lang="en">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,35 +7,64 @@
 </head>
 <body>
 
-<div id="svg-container">
-    <svg>
-        <use id="svg-use" href="svg/icons.svg#pause"></use>
-    </svg>
-</div>
-
-<div id="svg-container2">
-    <svg width="100px" height="100px">
-        <use href="svg/icons.svg#play"></use>
-    </svg>
-</div>
-
-<!--this doesnt work for some reason, seems like <use href= can only reference a symbol within svg?-->
-<div id="svg-container3">
-    <svg id="svg_wrapper3" width="100" height="100">
-        <use id="svg-use3" href="svg/placeholder.svg"></use>
-    </svg>
-</div>
-
 <script>
-        fetch("svg/loop.svg")
-        let wrapper = document.getElementById("svg-container");
-        wrapper.style.fill = "yellow"
 
-        let wrapper2 = document.getElementById("svg-container2");
-        wrapper2.style.fill = "red"
+    function randomRGB() {
+        const r = Math.floor(Math.random() * 256);
+        const g = Math.floor(Math.random() * 256);
+        const b = Math.floor(Math.random() * 256);
+        return `rgb(${r}, ${g}, ${b})`;
+    }
 
-        let wrapper3 = document.getElementById("svg-container3");
-        wrapper3.style.fill = "yellow"
+    function newDiv(id) {
+        let div = document.createElement("div")
+        div.id = id;
+        return div;
+    }
+
+    // If this svg namespace is not provided it will not render, despite the structure of html being identical
+    const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+    // SVG styles are inferred from the parent if the child doesn't overwrite it
+    // so it's best to hold a reference to <use> as opposed to <svg> so the 'href' attribute can be modified directly
+    function newSvgUse(href) {
+        let svg = document.createElementNS(SVG_NAMESPACE, "svg")
+        let use = document.createElementNS(SVG_NAMESPACE, "use")
+        svg.appendChild(use)
+        use.style.fill = randomRGB();
+        // href must be set through setAttribute otherwise it won't work
+        use.setAttribute("href", href);
+        return {svg, use};
+    }
+
+    function newUIElement(id, href) {
+        let div = newDiv(id)
+        let {svg, use} = newSvgUse(href)
+        div.appendChild(svg)
+        document.body.appendChild(div)
+        return div;
+    }
+
+    let st = performance.now();
+    let play =             newUIElement("play", "svg/icons.svg#play")
+    let pause =            newUIElement("pause", "svg/icons.svg#pause")
+    let next =             newUIElement("next", "svg/icons.svg#next")
+    let loop =             newUIElement("loop", "svg/icons.svg#loop")
+    let volume_full =      newUIElement("volume_full", "svg/icons.svg#volume_full")
+    let volume_medium =    newUIElement("volume_medium", "svg/icons.svg#volume_medium")
+    let volume_low =       newUIElement("volume_low", "svg/icons.svg#volume_low")
+    let volume_muted =     newUIElement("volume_muted", "svg/icons.svg#volume_muted")
+    let download =         newUIElement("download", "svg/icons.svg#download")
+    let autoplay =         newUIElement("autoplay", "svg/icons.svg#autoplay")
+    let subs =             newUIElement("subs", "svg/icons.svg#subs")
+    let settings =         newUIElement("settings", "svg/icons.svg#settings")
+    let fullscreen_enter = newUIElement("fullscreen_enter", "svg/icons.svg#fullscreen_enter")
+    let fullscreen_exit =  newUIElement("fullscreen_exit", "svg/icons.svg#fullscreen_exit")
+    let arrow_left =       newUIElement("arrow_left", "svg/icons.svg#arrow_left")
+    let arrow_right =      newUIElement("arrow_right", "svg/icons.svg#arrow_right")
+    let placeholder =      newUIElement("placeholder", "svg/icons.svg#placeholder")
+
+    let en = performance.now();
+    console.log("SVG creation took", en-st, "ms")
 </script>
 </body>
 </html>
