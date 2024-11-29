@@ -235,24 +235,24 @@ class Internals {
         };
 
         // use.setAttribute(href, icons.pause)
-        let fill = options.applyRandomFill ? randomRGB() : "white";
+        // let fill = options.applyRandomFill ? randomRGB() : "white";
         this.uses = {
-            playToggle: newSvgUse(this.icons.play, fill),
-            next: newSvgUse(this.icons.next, fill),
-            loop: newSvgUse(this.icons.loop, fill),
-            volume: newSvgUse(this.icons.volume_full, fill),
-            download: newSvgUse(this.icons.download, fill),
-            autoplay: newSvgUse(this.icons.autoplay, fill),
-            subs: newSvgUse(this.icons.subs, fill),
-            settings: newSvgUse(this.icons.settings, fill),
-            fullscreen: newSvgUse(this.icons.fullscreen_enter, fill),
+            playToggle: newSvgUse(this.icons.play),
+            next: newSvgUse(this.icons.next),
+            loop: newSvgUse(this.icons.loop),
+            volume: newSvgUse(this.icons.volume_full),
+            download: newSvgUse(this.icons.download),
+            autoplay: newSvgUse(this.icons.autoplay),
+            subs: newSvgUse(this.icons.subs),
+            settings: newSvgUse(this.icons.settings),
+            fullscreen: newSvgUse(this.icons.fullscreen_enter),
 
-            seekForward: newSvgUse(this.icons.seek, fill, 70, 70),
-            seekBackward: newSvgUse(this.icons.seek, fill, 70, 70),
+            seekForward: newSvgUse(this.icons.seek, 70, 70),
+            seekBackward: newSvgUse(this.icons.seek, 70, 70),
             playTogglePopup: newSvgUse(this.icons.play_popup, "none", 70, 70),
 
-            arrowLeft: newSvgUse(this.icons.arrow_left, fill, 20, 20),
-            arrowRight: newSvgUse(this.icons.arrow_right, fill, 20, 20),
+            arrowLeft: newSvgUse(this.icons.arrow_left, 20, 20),
+            arrowRight: newSvgUse(this.icons.arrow_right, 20, 20),
 
             buffering: newSvgUse(this.icons.buffering, "none", 70, 70),
         };
@@ -1531,10 +1531,9 @@ function randomRGB() {
 }
 
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
-function newSvgUse(initialHref, fill=randomRGB(), width=20, height=20) {
+function newSvgUse(initialHref, width=20, height=20) {
     let svg = document.createElementNS(SVG_NAMESPACE, "svg")
     let use = document.createElementNS(SVG_NAMESPACE, "use")
-    use.style.fill = fill;
     use.setAttribute("href", initialHref);
 
     svg.setAttribute("width", width);
