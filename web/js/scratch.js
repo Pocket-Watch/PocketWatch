@@ -12,6 +12,7 @@ function main() {
 
     let video0 = document.getElementById("video0");
     let options = new Options();
+    options.applyRandomFill = true;
     // options.hideNextButton = true;
     // options.hideSubtitlesButton = true;
     // options.hideDownloadButton = true;

@@ -44,24 +44,32 @@
         return div;
     }
 
+    function hideElement(element) {
+        element.style.display = "none";
+    }
+
     let st = performance.now();
-    let play =             newUIElement("play", "svg/icons.svg#play")
-    let pause =            newUIElement("pause", "svg/icons.svg#pause")
-    let next =             newUIElement("next", "svg/icons.svg#next")
-    let loop =             newUIElement("loop", "svg/icons.svg#loop")
-    let volume_full =      newUIElement("volume_full", "svg/icons.svg#volume_full")
-    let volume_medium =    newUIElement("volume_medium", "svg/icons.svg#volume_medium")
-    let volume_low =       newUIElement("volume_low", "svg/icons.svg#volume_low")
-    let volume_muted =     newUIElement("volume_muted", "svg/icons.svg#volume_muted")
-    let download =         newUIElement("download", "svg/icons.svg#download")
-    let autoplay =         newUIElement("autoplay", "svg/icons.svg#autoplay")
-    let subs =             newUIElement("subs", "svg/icons.svg#subs")
-    let settings =         newUIElement("settings", "svg/icons.svg#settings")
+    let play =             newUIElement("play",             "svg/icons.svg#play")
+    let pause =            newUIElement("pause",            "svg/icons.svg#pause")
+    let next =             newUIElement("next",             "svg/icons.svg#next")
+    let loop =             newUIElement("loop",             "svg/icons.svg#loop")
+    let volume_full =      newUIElement("volume_full",      "svg/icons.svg#volume_full")
+    let volume_medium =    newUIElement("volume_medium",    "svg/icons.svg#volume_medium")
+    let volume_low =       newUIElement("volume_low",       "svg/icons.svg#volume_low")
+    let volume_muted =     newUIElement("volume_muted",     "svg/icons.svg#volume_muted")
+    let download =         newUIElement("download",         "svg/icons.svg#download")
+    let autoplay =         newUIElement("autoplay",         "svg/icons.svg#autoplay")
+    let subs =             newUIElement("subs",             "svg/icons.svg#subs")
+    let settings =         newUIElement("settings",         "svg/icons.svg#settings")
     let fullscreen_enter = newUIElement("fullscreen_enter", "svg/icons.svg#fullscreen_enter")
-    let fullscreen_exit =  newUIElement("fullscreen_exit", "svg/icons.svg#fullscreen_exit")
-    let arrow_left =       newUIElement("arrow_left", "svg/icons.svg#arrow_left")
-    let arrow_right =      newUIElement("arrow_right", "svg/icons.svg#arrow_right")
-    let placeholder =      newUIElement("placeholder", "svg/icons.svg#placeholder")
+    let fullscreen_exit =  newUIElement("fullscreen_exit",  "svg/icons.svg#fullscreen_exit")
+    let arrow_left =       newUIElement("arrow_left",       "svg/icons.svg#arrow_left")
+    let arrow_right =      newUIElement("arrow_right",      "svg/icons.svg#arrow_right")
+    let placeholder =      newUIElement("placeholder",      "svg/icons.svg#placeholder")
+    let pause_popup =      newUIElement("pause_popup",      "svg/icons.svg#pause_popup")
+    let seek =             newUIElement("seek",             "svg/icons.svg#seek")
+    let buffering =        newUIElement("buffering",        "svg/icons.svg#buffering")
+
 
     let en = performance.now();
     console.log("SVG creation took", en-st, "ms")
