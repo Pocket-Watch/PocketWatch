@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+    <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,76 +7,35 @@
 </head>
 <body>
 
-<button id="previous"></button>
-<div id="seek"></div>
-<div id="play"></div>
-<button id="fullscreen"></button>
-<button id="volume_full"></button>
+<div id="svg-container">
+    <svg>
+        <use id="svg-use" href="svg/icons.svg#pause"></use>
+    </svg>
+</div>
+
+<div id="svg-container2">
+    <svg width="100px" height="100px">
+        <use href="svg/icons.svg#play"></use>
+    </svg>
+</div>
+
+<!--this doesnt work for some reason, seems like <use href= can only reference a symbol within svg?-->
+<div id="svg-container3">
+    <svg id="svg_wrapper3" width="100" height="100">
+        <use id="svg-use3" href="svg/placeholder.svg"></use>
+    </svg>
+</div>
 
 <script>
-    // this will execute asynchronously and return the reference to the svg element
-    // this function could also accept id as an argument for CSS styling
-    async function fetchSvg(svgUrl, container) {
-        return fetch(svgUrl)
-            .then(response => response.text())
-            .then(svgText => {
-                // it's possible to inject something in a quirky way
-                // so we shouldn't load foreign resources using innerHTML
-                container.innerHTML = svgText;
-                return container.firstElementChild;
-            });
-    }
+        fetch("svg/loop.svg")
+        let wrapper = document.getElementById("svg-container");
+        wrapper.style.fill = "yellow"
 
+        let wrapper2 = document.getElementById("svg-container2");
+        wrapper2.style.fill = "red"
 
-    async function loadSVGs() {
-        // since we want a handle to these resources but want to fetch them asynchronously
-        // we can stack them into one promise and return when every promise is fulfilled
-        let svgArray = await Promise.all([
-            fetchSvg("svg/previous.svg", document.getElementById("previous")),
-            fetchSvg("svg/seek10.svg", document.getElementById("seek")),
-            fetchSvg("svg/play.svg", document.getElementById("play")),
-            fetchSvg("svg/fullscreen.svg", document.getElementById("fullscreen")),
-            fetchSvg("svg/volume_full.svg", document.getElementById("volume_full"))
-        ]);
-        console.log(svgArray)
-
-        let previousSvg = svgArray[0];
-        let seekSvg = svgArray[1];
-        let playSvg = svgArray[2];
-        let fullscreenSvg = svgArray[3];
-        let volume_fullSvg = svgArray[4];
-
-
-        // These could be attached to the container just as well
-        previousSvg.addEventListener('click', function () {
-            previousSvg.style.fill = "blue";
-        });
-
-        seekSvg.addEventListener('click', function () {
-            seekSvg.style.fill = "blue";
-        });
-
-        playSvg.addEventListener('click', function () {
-            playSvg.style.fill = "blue";
-        });
-
-        fullscreenSvg.addEventListener('click', function () {
-            // for this particular svg.style.fill won't change anything because each path overrides the global fill
-            // we should modify svgs to allow this sort of customizations
-            fullscreenSvg.style.fill = "blue";
-        });
-
-        volume_fullSvg.addEventListener('click', function () {
-            // same issue
-            volume_fullSvg.style.backgroundColor = "green";
-        });
-    }
-
-    let st = performance.now();
-    loadSVGs()
-    let end = performance.now();
-
-    console.log("SVG load took ", (end-st), "ms")
+        let wrapper3 = document.getElementById("svg-container3");
+        wrapper3.style.fill = "yellow"
 </script>
 </body>
 </html>
