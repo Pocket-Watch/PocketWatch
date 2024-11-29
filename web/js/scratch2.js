@@ -43,23 +43,75 @@ class Room {
 
         /// List of all users
         this.allUsers = [];
+    }
 
-        document.getElementById("cp_input").oninput = (e) => {
-            let t = e.target;
+    sliderTesting() {
+        let calculateProgress = (event, element) => {
+            let rect = element.getBoundingClientRect();
+            let offsetX;
 
-            let w = document.getElementById("cp_bar").clientWidth;
-            let p = Number(t.value);
+            if (event.touches) {
+                offsetX = event.touches[0].clientX - rect.left;
+            } else {
+                offsetX = event.clientX - rect.left;
+            }
 
-            // let s = document.getElementById("cp_thumb").clientWidth / 2.0;
-            // let ml = ((p * (w - s)) / w) * 100;
+            // Ensure the touch doesn't exceed slider bounds
+            if (offsetX < 0) offsetX = 0;
+            if (offsetX > rect.width) offsetX = rect.width;
 
-            console.log(p);
+            let progress = offsetX / rect.width;
+            if (isNaN(progress)) {
+                progress = 0;
+            }
 
-            document.getElementById("cp_progress").style.width = p * w + "px"; 
-            // document.getElementById("cp_thumb").style.marginLeft = ml + "%";
-
-            console.log(t.value);
+            return progress;
         }
+
+        let sliderMove = (e) => {
+            let bar = document.getElementById("cp_bar");
+            let progress = calculateProgress(e, bar);
+            console.log(progress);
+
+            document.getElementById("cp_progress").style.width = progress * 100 + "%"; 
+
+            let width = bar.clientWidth;
+
+            let thumb = document.getElementById("cp_thumb");
+            let thumb_width = thumb.clientWidth / 2.0;
+            let thumb_left = width * progress - thumb_width;
+
+            thumb.style.marginLeft = thumb_left + "px";
+        }
+
+        let removeSliderEvents = () => {
+            document.removeEventListener("mousemove", sliderMove);
+            document.removeEventListener("mouseup", removeSliderEvents);
+        }
+
+        document.getElementById("cp_slider").onmousedown = (e) => {
+            document.addEventListener("mousemove", sliderMove);
+            document.addEventListener("mouseup", removeSliderEvents);
+            sliderMove(e);
+        };
+
+        // document.getElementById("cp_input").oninput = (e) => {
+        //     let t = e.target;
+        //     // console.log(e.clientX);
+        //
+        //     let w = document.getElementById("cp_bar").clientWidth;
+        //     let p = Number(t.value);
+        //
+        //     let s = document.getElementById("cp_thumb").clientWidth / 2.0;
+        //     let ml = ((p * (w - s)) / w) * 100;
+        //
+        //     console.log(p);
+        //
+        //     document.getElementById("cp_progress").style.width = p * w + "px"; 
+        //     document.getElementById("cp_thumb").style.marginLeft = ml + "%";
+        //
+        //     console.log(t.value);
+        // }
     }
 
     attachPlayerEvents() {
