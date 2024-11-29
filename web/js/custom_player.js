@@ -239,6 +239,13 @@ class Internals {
             loopButton:       newDiv("player_loop"),
             volume:           newDiv("player_volume"),
             volumeSlider:     newElement("input", "player_volume_slider"),
+
+            newVolumeSlider: {
+                input:    newElement("input", "player_volume_slider_input"),
+                progress: newDiv("player_volume_slider_progress"),
+                thumb:    newDiv("player_volume_slider_thumb"),
+            },
+
             timestamp:        newElement("span", "player_timestamp"),
             download:         newDiv("player_download"),
             autoplay:         newDiv("player_autoplay"),

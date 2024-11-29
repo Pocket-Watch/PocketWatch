@@ -43,6 +43,23 @@ class Room {
 
         /// List of all users
         this.allUsers = [];
+
+        document.getElementById("cp_input").oninput = (e) => {
+            let t = e.target;
+
+            let w = document.getElementById("cp_bar").clientWidth;
+            let p = Number(t.value);
+
+            // let s = document.getElementById("cp_thumb").clientWidth / 2.0;
+            // let ml = ((p * (w - s)) / w) * 100;
+
+            console.log(p);
+
+            document.getElementById("cp_progress").style.width = p * w + "px"; 
+            // document.getElementById("cp_thumb").style.marginLeft = ml + "%";
+
+            console.log(t.value);
+        }
     }
 
     attachPlayerEvents() {
