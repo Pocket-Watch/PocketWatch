@@ -104,7 +104,7 @@
     transition: opacity 150ms ease-out;
 }
 
-#player_playtoggle_popup {
+#player_playback_popup {
     width: 150px;
     height: 150px;
     pointer-events: none;
@@ -117,7 +117,7 @@
     margin: auto;
 }
 
-#player_playtoggle_popup.animate {
+#player_playback_popup.animate {
     opacity: 1;
     transition: opacity 200ms ease-out;
 }
@@ -257,6 +257,7 @@
 .player_controls_button {
     width: 40px;
     height: 40px;
+    border-radius: 3px;
     display: flex;
     justify-content: center;
     align-items: center;

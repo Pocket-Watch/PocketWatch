@@ -247,7 +247,7 @@ class Internals {
 
             seekForward:     newSvgUse(this.icons.seek, 70, 70),
             seekBackward:    newSvgUse(this.icons.seek, 70, 70),
-            playTogglePopup: newSvgUse(this.icons.play_popup, 70, 70),
+            playbackPopup: newSvgUse(this.icons.play_popup, 70, 70),
 
             arrowLeft:  newSvgUse(this.icons.arrow_left, 20, 20),
             arrowRight: newSvgUse(this.icons.arrow_right, 20, 20),
@@ -260,9 +260,9 @@ class Internals {
         hideElement(this.bufferingSvg);
         this.htmlPlayerRoot.appendChild(this.bufferingSvg);
 
-        this.playTogglePopupSvg = this.uses.playTogglePopup.parentElement;
-        this.playTogglePopupSvg.id = "player_playtoggle_popup";
-        this.htmlPlayerRoot.appendChild(this.playTogglePopupSvg);
+        this.playbackPopupSvg = this.uses.playbackPopup.parentElement;
+        this.playbackPopupSvg.id = "player_playback_popup";
+        this.htmlPlayerRoot.appendChild(this.playbackPopupSvg);
 
         this.htmlControls = {
             root: newDiv("player_controls"),
@@ -301,7 +301,7 @@ class Internals {
                     track:  null,
                 },
 
-                top: {
+                tabs: {
                     selectButton:  newDiv("player_submenu_select_button"),
                     searchButton:  newDiv("player_submenu_search_button"),
                     optionsButton: newDiv("player_submenu_options_button"),
@@ -362,8 +362,8 @@ class Internals {
             return;
         }
 
-        this.uses.playTogglePopup.setAttribute("href", this.icons.play_popup);
-        this.playTogglePopupSvg.classList.add("animate");
+        this.uses.playbackPopup.setAttribute("href", this.icons.play_popup);
+        this.playbackPopupSvg.classList.add("animate");
         this.uses.playback.setAttribute("href", this.icons.pause);
         this.htmlVideo.play().catch(e => {
             this.firePlaybackError(e);
@@ -375,8 +375,8 @@ class Internals {
             return;
         }
 
-        this.uses.playTogglePopup.setAttribute("href", this.icons.pause_popup);
-        this.playTogglePopupSvg.classList.add("animate");
+        this.uses.playbackPopup.setAttribute("href", this.icons.pause_popup);
+        this.playbackPopupSvg.classList.add("animate");
         this.uses.playback.setAttribute("href", this.icons.play);
         this.htmlVideo.pause();
     }
@@ -958,8 +958,8 @@ class Internals {
             this.htmlSeekForward.classList.remove("animate");
         });
 
-        this.playTogglePopupSvg.addEventListener("transitionend", () => {
-            this.playTogglePopupSvg.classList.remove("animate");
+        this.playbackPopupSvg.addEventListener("transitionend", () => {
+            this.playbackPopupSvg.classList.remove("animate");
         });
     }
 
@@ -986,7 +986,7 @@ class Internals {
         let playback = this.htmlControls.buttons.playbackButton;
         playback.title = "Play/Pause";
         playback.appendChild(uses.playback.parentElement);
-        if (this.options.hidePlayToggleButton) hideElement(playback);
+        if (this.options.hidePlaybackButton) hideElement(playback);
         buttons.appendChild(playback);
 
         let next = this.htmlControls.buttons.nextButton;
@@ -1147,7 +1147,7 @@ class Internals {
             let top = newDiv("player_submenu_top");
             root.appendChild(top);
 
-            let select = menu.top.selectButton;
+            let select = menu.tabs.selectButton;
             select.innerHTML = "Select"
             select.classList.add("player_submenu_top_button")
             select.classList.add("unselectable")
@@ -1155,14 +1155,14 @@ class Internals {
 
             top.appendChild(select);
 
-            let search = menu.top.searchButton
+            let search = menu.tabs.searchButton
             search.innerHTML = "Search"
             search.classList.add("player_submenu_top_button")
             search.classList.add("unselectable")
             search.style.display = ""
             top.appendChild(search);
 
-            let options = menu.top.optionsButton;
+            let options = menu.tabs.optionsButton;
             options.innerHTML = "Options"
             options.classList.add("player_submenu_top_button")
             options.classList.add("unselectable")
@@ -1183,9 +1183,9 @@ class Internals {
                 };
             }
 
-            attachSelectionClick(menu.top.selectButton, menu.bottom.selectRoot);
-            attachSelectionClick(menu.top.searchButton, menu.bottom.searchRoot);
-            attachSelectionClick(menu.top.optionsButton, menu.bottom.optionsRoot);
+            attachSelectionClick(menu.tabs.selectButton, menu.bottom.selectRoot);
+            attachSelectionClick(menu.tabs.searchButton, menu.bottom.searchRoot);
+            attachSelectionClick(menu.tabs.optionsButton, menu.bottom.optionsRoot);
         }
 
         // Separator between top and bottom menu.
@@ -1344,7 +1344,7 @@ class Internals {
             bottom.appendChild(options);
         }
 
-        menu.selected.button = menu.top.selectButton;
+        menu.selected.button = menu.tabs.selectButton;
         menu.selected.bottom = menu.bottom.selectRoot;
 
         menu.selected.button.classList.add("player_submenu_selected");
@@ -1547,7 +1547,7 @@ function isMobileAgent() {
 // This is a separate class for more clarity
 class Options {
     constructor() {
-        this.hidePlayToggleButton = false;
+        this.hidePlaybackButton = false;
         this.hideNextButton = false;
         this.hideLoopingButton = false;
         this.hideVolumeButton = false;
@@ -1586,7 +1586,7 @@ class Options {
         }
         if (
             !this.areAllBooleans(
-                this.hidePlayToggleButton,
+                this.hidePlaybackButton,
                 this.hideNextButton,
                 this.hideLoopingButton,
                 this.hideVolumeButton,
