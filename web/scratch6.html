@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flexbox Button Example</title>
+    <style>
+        #container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%; /* Adjust width as needed */
+        }
+
+        .left-group, .right-group {
+            display: flex;
+            gap: 32px; /* Adjust gap as needed */
+        }
+
+        .left-group {
+            margin-right: auto; /* Pushes left group to the left */
+        }
+
+        .right-group {
+            margin-left: auto; /* Pushes right group to the right */
+        }
+    </style>
+</head>
+<body>
+<div id="container">
+    <div class="left-group">
+        <div id="div1">Div 1</div>
+        <div id="div2">Div 2</div>
+        <button id="button">Button</button>
+    </div>
+    <div class="right-group">
+        <div id="div3">Div 3</div>
+        <div id="div4">Div 4</div>
+    </div>
+
+</div>
+<script>
+    function hideElement(element) {
+        element.style.display = "none";
+    }
+
+    function showElement(element) {
+        element.style.display = "";
+    }
+
+    let div = document.getElementById("div4");
+    let button = document.getElementById("button");
+    button.onclick = e => {
+        let hidden = div.style.display == "none";
+        if (hidden) {
+            showElement(div);
+        } else {
+            hideElement(div);
+        }
+    }
+
+
+
+</script>
+</body>
+</html>
