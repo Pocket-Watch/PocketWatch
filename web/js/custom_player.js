@@ -280,15 +280,15 @@ class Internals {
 
             buttons: {
                 root:             newDiv("player_control_buttons"),
-                playToggleButton: newDiv("player_play_toggle", "player_controls_button"),
-                nextButton:       newDiv("player_next",        "player_controls_button"),
-                loopButton:       newDiv("player_loop",        "player_controls_button"),
-                volumeButton:     newDiv("player_volume",      "player_controls_button"),
-                downloadButton:   newDiv("player_download",    "player_controls_button"),
-                autoplayButton:   newDiv("player_autoplay",    "player_controls_button"),
-                subsButton:       newDiv("player_subs",        "player_controls_button"),
-                settingsButton:   newDiv("player_settings",    "player_controls_button"),
-                fullscreenButton: newDiv( "player_fullscreen", "player_controls_button"),
+                playbackButton:   newDiv(null, "player_controls_button"),
+                nextButton:       newDiv(null, "player_controls_button"),
+                loopButton:       newDiv(null, "player_controls_button"),
+                volumeButton:     newDiv(null, "player_controls_button"),
+                downloadButton:   newDiv(null, "player_controls_button"),
+                autoplayButton:   newDiv(null, "player_controls_button"),
+                subsButton:       newDiv(null, "player_controls_button"),
+                settingsButton:   newDiv(null, "player_controls_button"),
+                fullscreenButton: newDiv(null, "player_controls_button"),
 
                 volumeSlider: newElement("input", "player_volume_slider"),
                 timestamp:    newElement("span",  "player_timestamp"),
@@ -781,7 +781,7 @@ class Internals {
             this.hidePlayerUI();
         });
 
-        this.htmlControls.buttons.playToggleButton.addEventListener("click", () => {
+        this.htmlControls.buttons.playbackButton.addEventListener("click", () => {
             this.togglePlay();
         });
 
@@ -1005,11 +1005,11 @@ class Internals {
 
         let uses = this.uses;
 
-        let playToggle = this.htmlControls.buttons.playToggleButton;
-        playToggle.title = "Play/Pause";
-        playToggle.appendChild(uses.playToggle.parentElement);
-        if (this.options.hidePlayToggleButton) hideElement(playToggle);
-        buttons.appendChild(playToggle);
+        let playback = this.htmlControls.buttons.playbackButton;
+        playback.title = "Play/Pause";
+        playback.appendChild(uses.playToggle.parentElement);
+        if (this.options.hidePlayToggleButton) hideElement(playback);
+        buttons.appendChild(playback);
 
         let next = this.htmlControls.buttons.nextButton;
         next.title = "Next";
