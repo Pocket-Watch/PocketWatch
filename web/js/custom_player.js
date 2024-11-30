@@ -270,32 +270,29 @@ class Internals {
             root: newDiv("player_controls"),
             progress: {
                 root:      newDiv("player_progress_root"),
-                current:   newDiv("player_progress_current"),
-                buffered:  newElement("canvas", "player_progress_buffered"),
-                total:     newDiv("player_progress_total"),
+                current:   newDiv("player_progress_current", "player_progress_bar"),
+                buffered:  newElement("canvas", "player_progress_buffered", "player_progress_bar"),
+                total:     newDiv("player_progress_total", "player_progress_bar"),
                 thumb:     newDiv("player_progress_thumb"),
                 popupRoot: newDiv("player_progress_popup_root"),
                 popupText: newDiv("player_progress_popup_text"),
             },
 
-            playToggleButton: newDiv("player_play_toggle"),
-            nextButton:       newDiv("player_next"),
-            loopButton:       newDiv("player_loop"),
-            volume:           newDiv("player_volume"),
-            volumeSlider:     newElement("input", "player_volume_slider"),
+            buttons: {
+                root:             newDiv("player_control_buttons"),
+                playToggleButton: newDiv("player_play_toggle", "player_controls_button"),
+                nextButton:       newDiv("player_next",        "player_controls_button"),
+                loopButton:       newDiv("player_loop",        "player_controls_button"),
+                volumeButton:     newDiv("player_volume",      "player_controls_button"),
+                downloadButton:   newDiv("player_download",    "player_controls_button"),
+                autoplayButton:   newDiv("player_autoplay",    "player_controls_button"),
+                subsButton:       newDiv("player_subs",        "player_controls_button"),
+                settingsButton:   newDiv("player_settings",    "player_controls_button"),
+                fullscreenButton: newDiv( "player_fullscreen", "player_controls_button"),
 
-            newVolumeSlider: {
-                input:    newElement("input", "player_volume_slider_input"),
-                progress: newDiv("player_volume_slider_progress"),
-                thumb:    newDiv("player_volume_slider_thumb"),
+                volumeSlider: newElement("input", "player_volume_slider"),
+                timestamp:    newElement("span",  "player_timestamp"),
             },
-
-            timestamp:        newElement("span", "player_timestamp"),
-            download:         newDiv("player_download"),
-            autoplay:         newDiv("player_autoplay"),
-            subs:             newDiv("player_subs"),
-            settings:         newDiv("player_settings"),
-            fullscreen:       newDiv( "player_fullscreen"),
 
             subMenu: {
                 root: newDiv("player_submenu_root"),
@@ -337,11 +334,10 @@ class Internals {
         this.htmlSeekBackward.appendChild(this.uses.seekBackward.parentElement);
         this.htmlPlayerRoot.appendChild(this.htmlSeekBackward);
 
-        this.createHtmlControls();
-        this.createSubtitleMenu();
 
+        this.createHtmlControls();
         this.attachHtmlEvents();
-        this.setProgressMargin(5);
+
         setInterval(() => this.redrawBufferedBars(), this.options.bufferingRedrawInterval);
         let end = performance.now();
         console.log("Internals constructor finished in", end-initStart, "ms")
@@ -358,7 +354,6 @@ class Internals {
     firePlaybackError(_event) {}
     firePlaybackEnd() {}
     fireSubtitleTrackLoad(_event) {}
-
 
     isVideoPlaying() {
         return !this.htmlVideo.paused && !this.htmlVideo.ended;
@@ -404,28 +399,6 @@ class Internals {
         this.htmlControls.progress.thumb.style.left = thumb_left + "px";
     }
 
-    setProgressMargin(marginSize) {
-        let margin = marginSize + "px";
-
-        let totalStyle = this.htmlControls.progress.total.style;
-        let currentStyle = this.htmlControls.progress.current.style;
-        let bufferedStyle = this.htmlControls.progress.buffered.style;
-
-        totalStyle.marginTop = margin;
-        currentStyle.marginTop = margin;
-        bufferedStyle.marginTop = margin;
-
-        totalStyle.marginBottom = margin;
-        currentStyle.marginBottom = margin;
-        bufferedStyle.marginBottom = margin;
-
-        let rootHeight = this.htmlControls.progress.root.clientHeight;
-        let height = (rootHeight - marginSize * 2.0) + "px";
-        totalStyle.height = height;
-        currentStyle.height = height;
-        bufferedStyle.height = height;
-    }
-
     updateTimestamps(timestamp) {
         let duration = 0.0;
         let position = 0.0;
@@ -440,10 +413,27 @@ class Internals {
         }
 
         let current_string = createTimestampString(this.htmlVideo.currentTime);
-        // NOTE(kihau): This duration string does not need to be updated every time since the duration does not change?
         let duration_string = createTimestampString(duration);
 
-        this.htmlControls.timestamp.textContent = current_string + " / " + duration_string;
+        this.htmlControls.buttons.timestamp.textContent = current_string + " / " + duration_string;
+    }
+
+    updateProgressPopup(progress) {
+        const timestamp = this.htmlVideo.duration * progress;
+        const popup = this.htmlControls.progress.popupRoot;
+        const popupWidth = popup.clientWidth;
+        const rootWidth = this.htmlControls.progress.root.clientWidth;
+
+        let position = rootWidth * progress - popupWidth / 2.0;
+
+        if (position < 0) {
+            position = 0;
+        } else if (position + popupWidth > rootWidth) {
+            position = rootWidth - popupWidth;
+        }
+
+        this.htmlControls.progress.popupRoot.style.left = position + "px";
+        this.htmlControls.progress.popupText.textContent = createTimestampString(timestamp);
     }
 
     updateHtmlVolume(volume) {
@@ -465,7 +455,7 @@ class Internals {
             this.uses.volume.setAttribute("href", this.icons.volume_full);
         }
 
-        this.htmlControls.volumeSlider.value = volume;
+        this.htmlControls.buttons.volumeSlider.value = volume;
     }
 
     getNewTime(timeOffset) {
@@ -517,22 +507,20 @@ class Internals {
     setLoop(enabled) {
         this.loopEnabled = enabled;
 
-        // NOTE(kihau): Temporary goofyness for testing
         if (this.loopEnabled) {
-            this.uses.loop.style.filter = "invert(19%) sepia(80%) saturate(4866%) hue-rotate(354deg) brightness(106%) contrast(127%)";
+            this.uses.loop.style.fill = "red";
         } else {
-            this.uses.loop.style.filter = "invert(100%) sepia(63%) saturate(0%) hue-rotate(137deg) brightness(112%) contrast(101%)";
+            this.uses.loop.style.fill = "#CCCCCC";
         }
     }
 
     setAutoplay(enabled) {
         this.autoplayEnabled = enabled;
 
-        // NOTE(kihau): Temporary goofyness for testing
         if (this.autoplayEnabled) {
-            this.uses.autoplay.style.filter = "invert(19%) sepia(80%) saturate(4866%) hue-rotate(354deg) brightness(106%) contrast(127%)";
+            this.uses.autoplay.fill = "red";
         } else {
-            this.uses.autoplay.style.filter = "invert(100%) sepia(63%) saturate(0%) hue-rotate(137deg) brightness(112%) contrast(101%)";
+            this.uses.autoplay.fill = "#CCCCCC";
         }
     }
 
@@ -793,50 +781,49 @@ class Internals {
             this.hidePlayerUI();
         });
 
-        this.htmlControls.playToggleButton.addEventListener("click", () => {
+        this.htmlControls.buttons.playToggleButton.addEventListener("click", () => {
             this.togglePlay();
         });
 
-        this.htmlControls.nextButton.addEventListener("click", () => {
+        this.htmlControls.buttons.nextButton.addEventListener("click", () => {
             this.fireControlsNext();
         });
 
-        this.htmlControls.loopButton.addEventListener("click", () => {
+        this.htmlControls.buttons.loopButton.addEventListener("click", () => {
             this.loopEnabled = !this.loopEnabled;
             this.fireControlsLoop(this.loopEnabled);
 
-            // NOTE(kihau): Temporary goofyness for testing
             if (this.loopEnabled) {
-                this.uses.loop.style.filter = "invert(19%) sepia(80%) saturate(4866%) hue-rotate(354deg) brightness(106%) contrast(127%)";
+                this.uses.loop.style.fill = "red";
             } else {
-                this.uses.loop.style.filter = "invert(100%) sepia(63%) saturate(0%) hue-rotate(137deg) brightness(112%) contrast(101%)";
+                this.uses.loop.style.fill = "#CCCCCC";
             }
         });
 
-        this.htmlControls.autoplay.addEventListener("click", () => {
+        this.htmlControls.buttons.autoplayButton.addEventListener("click", () => {
             this.autoplayEnabled = !this.autoplayEnabled;
             this.fireControlsAutoplay(this.autoplayEnabled);
 
-            // NOTE(kihau): Temporary goofyness for testing
             if (this.autoplayEnabled) {
-                this.uses.autoplay.style.filter = "invert(19%) sepia(80%) saturate(4866%) hue-rotate(354deg) brightness(106%) contrast(127%)";
+                this.uses.autoplay.fill = "red";
             } else {
-                this.uses.autoplay.style.filter = "invert(100%) sepia(63%) saturate(0%) hue-rotate(137deg) brightness(112%) contrast(101%)";
+                this.uses.autoplay.fill = "#CCCCCC";
             }
         });
 
-        this.htmlControls.volume.addEventListener("click", () => {
-            if (this.htmlControls.volumeSlider.value == 0) {
+        this.htmlControls.buttons.volumeButton.addEventListener("click", () => {
+            let slider = this.htmlControls.volumeSlider;
+            if (slider.value == 0) {
                 this.fireControlsVolumeSet(this.volumeBeforeMute);
                 this.setVolume(this.volumeBeforeMute);
             } else {
-                this.volumeBeforeMute = this.htmlControls.volumeSlider.value;
+                this.volumeBeforeMute = slider.value;
                 this.fireControlsVolumeSet(0);
                 this.setVolume(0);
             }
         });
 
-        this.htmlControls.subs.addEventListener("click", () => {
+        this.htmlControls.buttons.subsButton.addEventListener("click", () => {
             let menuRootElement = this.htmlControls.subMenu.root;
             let visible = menuRootElement.style.display !== "none";
             if (visible) {
@@ -906,7 +893,7 @@ class Internals {
             this.firePlaybackEnd();
         });
 
-        this.htmlControls.fullscreen.addEventListener("click", () => {
+        this.htmlControls.buttons.fullscreenButton.addEventListener("click", () => {
             if (document.fullscreenElement) {
                 document.exitFullscreen();
                 this.uses.fullscreen.setAttribute("href", this.icons.fullscreen_enter);
@@ -922,8 +909,8 @@ class Internals {
             this.uses.fullscreen.setAttribute("href", href);
         });
 
-        this.htmlControls.volumeSlider.addEventListener("input", _event => {
-            let volume = this.htmlControls.volumeSlider.value;
+        this.htmlControls.buttons.volumeSlider.addEventListener("input", _event => {
+            let volume = this.htmlControls.buttons.volumeSlider.value;
             this.fireControlsVolumeSet(volume);
             this.setVolume(volume);
         });
@@ -955,6 +942,7 @@ class Internals {
                 const progressRoot = this.htmlControls.progress.root;
                 const progress = calculateProgress(event, progressRoot);
                 this.updateProgressBar(progress);
+                this.updateProgressPopup(progress);
             }
 
             const onProgressBarMouseUp = event => {
@@ -976,25 +964,12 @@ class Internals {
         });
 
         this.htmlControls.progress.root.addEventListener("mouseenter", _event => {
-            this.htmlControls.progress.thumb.style.display = "";
-            this.htmlControls.progress.popupRoot.style.display = "";
-            this.setProgressMargin(4);
             this.updateTimestamps(this.htmlVideo.currentTime);
         });
 
         this.htmlControls.progress.root.addEventListener("mousemove", event => {
-            const value = calculateProgress(event, this.htmlControls.progress.root);
-            const timestamp = this.htmlVideo.duration * value;
-
-            this.htmlControls.progress.popupRoot.style.left = value * 100 + "%";
-            this.htmlControls.progress.popupRoot.style.display = "";
-            this.htmlControls.progress.popupText.textContent = createTimestampString(timestamp);
-        });
-
-        this.htmlControls.progress.root.addEventListener("mouseleave", _event => {
-            hideElement(this.htmlControls.progress.thumb);
-            hideElement(this.htmlControls.progress.popupRoot);
-            this.setProgressMargin(5);
+            const progress = calculateProgress(event, this.htmlControls.progress.root);
+            this.updateProgressPopup(progress);
         });
 
         this.htmlSeekBackward.addEventListener("transitionend", () => {
@@ -1022,8 +997,110 @@ class Internals {
 
         progress.popupText.textContent = "00:00";
         progress.popupRoot.appendChild(progress.popupText);
+    }
 
-        hideElement(progress.popupRoot);
+    assembleControlButtons() {
+        let buttons = this.htmlControls.buttons.root;
+        this.htmlControls.root.appendChild(buttons);
+
+        let uses = this.uses;
+
+        let playToggle = this.htmlControls.buttons.playToggleButton;
+        playToggle.title = "Play/Pause";
+        playToggle.appendChild(uses.playToggle.parentElement);
+        if (this.options.hidePlayToggleButton) hideElement(playToggle);
+        buttons.appendChild(playToggle);
+
+        let next = this.htmlControls.buttons.nextButton;
+        next.title = "Next";
+        next.appendChild(uses.next.parentElement);
+        if (this.options.hideNextButton) hideElement(next);
+        buttons.appendChild(next);
+
+        let loop = this.htmlControls.buttons.loopButton;
+        loop.title = "Loop";
+        loop.appendChild(uses.loop.parentElement);
+        if (this.options.hideLoopingButton) hideElement(loop);
+        buttons.appendChild(loop);
+
+        let volume = this.htmlControls.buttons.volumeButton;
+        volume.classList.add("responsive");
+        volume.title = "Mute/Unmute";
+        volume.appendChild(uses.volume.parentElement);
+        if (this.options.hideVolumeButton) hideElement(volume);
+        buttons.appendChild(volume);
+
+        let volumeSlider = this.htmlControls.buttons.volumeSlider;
+        volumeSlider.type = "range";
+        volumeSlider.min = "0";
+        volumeSlider.max = "1";
+        volumeSlider.value = "1";
+        volumeSlider.step = "any";
+        if (this.options.hideVolumeSlider) hideElement(volumeSlider)
+        buttons.appendChild(volumeSlider);
+
+        let timestamp = this.htmlControls.buttons.timestamp;
+        timestamp.textContent = "00:00 / 00:00";
+        if (this.options.hideTimestamps) hideElement(timestamp);
+        buttons.appendChild(timestamp);
+
+
+        let firstAutoMargin = true;
+
+        let download = this.htmlControls.buttons.downloadButton;
+        download.title = "Download";
+        download.appendChild(uses.download.parentElement);
+        if (this.options.hideDownloadButton) {
+            hideElement(download);
+        } else {
+            download.style.marginLeft = firstAutoMargin ? "auto" : "0";
+            firstAutoMargin = false;
+        }
+        buttons.appendChild(download);
+
+        let autoplay = this.htmlControls.buttons.autoplayButton;
+        autoplay.title = "Autoplay";
+        autoplay.appendChild(uses.autoplay.parentElement);
+        if (this.options.hideAutoplayButton) {
+            hideElement(autoplay);
+        } else {
+            autoplay.style.marginLeft = firstAutoMargin ? "auto" : "0";
+            firstAutoMargin = false;
+        }
+        buttons.appendChild(autoplay);
+
+        let subs = this.htmlControls.buttons.subsButton;
+        subs.title = "Subtitles";
+        subs.appendChild(uses.subs.parentElement);
+        if (this.options.hideSubtitlesButton) {
+            hideElement(subs);
+        } else {
+            subs.style.marginLeft = firstAutoMargin ? "auto" : "0";
+            firstAutoMargin = false;
+        }
+        buttons.appendChild(subs);
+
+        let settings = this.htmlControls.buttons.settingsButton;
+        settings.title = "Settings";
+        settings.appendChild(uses.settings.parentElement);
+        if (this.options.hideSettingsButton) {
+            hideElement(settings);
+        } else {
+            settings.style.marginLeft = firstAutoMargin ? "auto" : "0";
+            firstAutoMargin = false;
+        }
+        buttons.appendChild(settings);
+
+        let fullscreen = this.htmlControls.buttons.fullscreenButton;
+        fullscreen.classList.add("responsive");
+        fullscreen.title = "Fullscreen";
+        fullscreen.appendChild(uses.fullscreen.parentElement);
+        if (this.options.hideFullscreenButton) {
+            hideElement(fullscreen);
+        } else {
+            fullscreen.style.marginLeft = firstAutoMargin ? "auto" : "0";
+        }
+        buttons.appendChild(fullscreen);
     }
 
     createHtmlControls() {
@@ -1034,113 +1111,11 @@ class Internals {
             this.htmlPlayerRoot.focus();
         });
 
-        this.assembleProgressBar();
-        let uses = this.uses;
-
-        let playToggle = this.htmlControls.playToggleButton;
-        playToggle.classList.add("responsive");
-        playToggle.title = "Play/Pause";
-        playToggle.appendChild(uses.playToggle.parentElement);
-        playToggle.style.display = this.options.hidePlayToggleButton ? "none" : "";
-        playerControls.appendChild(playToggle);
-
-        let next = this.htmlControls.nextButton;
-        next.classList.add("responsive");
-        next.title = "Next";
-        next.appendChild(uses.next.parentElement);
-        next.style.display = this.options.hideNextButton ? "none" : "";
-        playerControls.appendChild(next);
-
-        let loop = this.htmlControls.loopButton;
-        loop.classList.add("responsive");
-        loop.title = "Loop";
-        loop.appendChild(uses.loop.parentElement);
-        loop.style.display = this.options.hideLoopingButton ? "none" : "";
-        playerControls.appendChild(loop);
-
-        let volume = this.htmlControls.volume;
-        volume.classList.add("responsive");
-        volume.title = "Mute/Unmute";
-        volume.appendChild(uses.volume.parentElement);
-        volume.style.display = this.options.hideVolumeButton ? "none" : "";
-        playerControls.appendChild(volume);
-
-        let volumeSlider = this.htmlControls.volumeSlider;
-        volumeSlider.type = "range";
-        volumeSlider.min = "0";
-        volumeSlider.max = "1";
-        volumeSlider.value = "1";
-        volumeSlider.step = "any";
-        volumeSlider.style.display = this.options.hideVolumeSlider ? "none" : "";
-        playerControls.appendChild(volumeSlider);
-
-        let timestamp = this.htmlControls.timestamp;
-        timestamp.textContent = "00:00 / 00:00";
-        timestamp.style.display = this.options.hideTimestamps ? "none" : "";
-        playerControls.appendChild(timestamp);
-
-        let firstAutoMargin = true;
-
-        let download = this.htmlControls.download;
-        download.classList.add("responsive");
-        download.title = "Download";
-        download.appendChild(uses.download.parentElement);
-        if (this.options.hideDownloadButton) {
-            hideElement(download);
-        } else {
-            download.style.marginLeft = firstAutoMargin ? "auto" : "0";
-            firstAutoMargin = false;
-        }
-        playerControls.appendChild(download);
-
-        let autoplay = this.htmlControls.autoplay;
-        autoplay.classList.add("responsive");
-        autoplay.title = "Autoplay";
-        autoplay.appendChild(uses.autoplay.parentElement);
-        if (this.options.hideAutoplayButton) {
-            hideElement(autoplay);
-        } else {
-            autoplay.style.marginLeft = firstAutoMargin ? "auto" : "0";
-            firstAutoMargin = false;
-        }
-
-        playerControls.appendChild(autoplay);
-
-        let subs = this.htmlControls.subs;
-        subs.classList.add("responsive");
-        subs.title = "Subtitles";
-        subs.appendChild(uses.subs.parentElement);
-        if (this.options.hideSubtitlesButton) {
-            hideElement(subs);
-        } else {
-            subs.style.marginLeft = firstAutoMargin ? "auto" : "0";
-            firstAutoMargin = false;
-        }
-        playerControls.appendChild(subs);
-
-        let settings = this.htmlControls.settings;
-        settings.classList.add("responsive");
-        settings.title = "Settings";
-        settings.appendChild(uses.settings.parentElement);
-        if (this.options.hideSettingsButton) {
-            hideElement(settings);
-        } else {
-            settings.style.marginLeft = firstAutoMargin ? "auto" : "0";
-            firstAutoMargin = false;
-        }
-        playerControls.appendChild(settings);
-
-        let fullscreen = this.htmlControls.fullscreen;
-        fullscreen.classList.add("responsive");
-        fullscreen.title = "Fullscreen";
-        fullscreen.appendChild(uses.fullscreen.parentElement);
-        if (this.options.hideFullscreenButton) {
-            hideElement(fullscreen);
-        } else {
-            fullscreen.style.marginLeft = firstAutoMargin ? "auto" : "0";
-        }
-        playerControls.appendChild(fullscreen);
         this.htmlPlayerRoot.appendChild(playerControls);
+
+        this.assembleProgressBar();
+        this.assembleControlButtons();
+        this.createSubtitleMenu();
     }
 
     createSubtitleTrackElement(title) {
@@ -1187,7 +1162,7 @@ class Internals {
 
         let root = menu.root;
         root.onclick = consumeEvent;
-        // hideElement(root);
+        hideElement(root);
         this.htmlPlayerRoot.appendChild(root);
 
         { // player_submenu_top
@@ -1513,21 +1488,19 @@ function createTimestampString(timestamp) {
     return timestamp_string;
 }
 
-function newDiv(id) {
+function newDiv(id, className) {
     let div = document.createElement("div")
     // tabIndex makes divs focusable so that they can receive and bubble key events
     div.tabIndex = -1
     if (id) {
         div.id = id
     }
-    return div;
-}
 
-function randomRGB() {
-    const r = Math.floor(Math.random() * 256);
-    const g = Math.floor(Math.random() * 256);
-    const b = Math.floor(Math.random() * 256);
-    return `rgb(${r}, ${g}, ${b})`;
+    if (className) {
+        div.className = className;
+    }
+
+    return div;
 }
 
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
@@ -1554,14 +1527,6 @@ function newElement(tag, id, className) {
     }
 
     return element;
-}
-
-function newImg(id) {
-    let img = document.createElement("img")
-    if (id) {
-        img.id = id
-    }
-    return img;
 }
 
 function consumeEvent(event) {
