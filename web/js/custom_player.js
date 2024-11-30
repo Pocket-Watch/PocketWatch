@@ -518,9 +518,9 @@ class Internals {
         this.autoplayEnabled = enabled;
 
         if (this.autoplayEnabled) {
-            this.uses.autoplay.fill = "red";
+            this.uses.autoplay.style.fill = "red";
         } else {
-            this.uses.autoplay.fill = "#CCCCCC";
+            this.uses.autoplay.style.fill = "#CCCCCC";
         }
     }
 
@@ -805,14 +805,14 @@ class Internals {
             this.fireControlsAutoplay(this.autoplayEnabled);
 
             if (this.autoplayEnabled) {
-                this.uses.autoplay.fill = "red";
+                this.uses.autoplay.style.fill = "red";
             } else {
-                this.uses.autoplay.fill = "#CCCCCC";
+                this.uses.autoplay.style.fill = "#CCCCCC";
             }
         });
 
         this.htmlControls.buttons.volumeButton.addEventListener("click", () => {
-            let slider = this.htmlControls.volumeSlider;
+            let slider = this.htmlControls.buttons.volumeSlider;
             if (slider.value == 0) {
                 this.fireControlsVolumeSet(this.volumeBeforeMute);
                 this.setVolume(this.volumeBeforeMute);
