@@ -242,6 +242,18 @@
     font-size: 16px;
 }
 
+.player_controls_button_selected svg {
+    fill: #DD0000 !important;
+}
+
+.player_controls_button_selected:hover svg {
+    fill: #EE0000 !important;
+}
+
+.player_controls_button_selected:active svg {
+    fill: #FF0000 !important;
+}
+
 .player_controls_button {
     width: 40px;
     height: 40px;

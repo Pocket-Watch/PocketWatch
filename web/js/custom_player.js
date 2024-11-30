@@ -212,49 +212,47 @@ class Internals {
         this.htmlToastContainer.appendChild(this.htmlToast);
 
         this.icons = {
-            play: "svg/icons.svg#play",
-            play_popup: "svg/icons.svg#play_popup",
-            pause: "svg/icons.svg#pause",
-            pause_popup: "svg/icons.svg#pause_popup",
-            next: "svg/icons.svg#next",
-            loop: "svg/icons.svg#loop",
-            volume_full: "svg/icons.svg#volume_full",
-            volume_medium: "svg/icons.svg#volume_medium",
-            volume_low: "svg/icons.svg#volume_low",
-            volume_muted: "svg/icons.svg#volume_muted",
-            download: "svg/icons.svg#download",
-            autoplay: "svg/icons.svg#autoplay",
-            subs: "svg/icons.svg#subs",
-            settings: "svg/icons.svg#settings",
+            play:             "svg/icons.svg#play",
+            play_popup:       "svg/icons.svg#play_popup",
+            pause:            "svg/icons.svg#pause",
+            pause_popup:      "svg/icons.svg#pause_popup",
+            next:             "svg/icons.svg#next",
+            loop:             "svg/icons.svg#loop",
+            volume_full:      "svg/icons.svg#volume_full",
+            volume_medium:    "svg/icons.svg#volume_medium",
+            volume_low:       "svg/icons.svg#volume_low",
+            volume_muted:     "svg/icons.svg#volume_muted",
+            download:         "svg/icons.svg#download",
+            autoplay:         "svg/icons.svg#autoplay",
+            subs:             "svg/icons.svg#subs",
+            settings:         "svg/icons.svg#settings",
             fullscreen_enter: "svg/icons.svg#fullscreen_enter",
-            fullscreen_exit: "svg/icons.svg#fullscreen_exit",
-            arrow_left: "svg/icons.svg#arrow_left",
-            arrow_right: "svg/icons.svg#arrow_right",
-            seek: "svg/icons.svg#seek",
-            buffering: "svg/icons.svg#buffering",
+            fullscreen_exit:  "svg/icons.svg#fullscreen_exit",
+            arrow_left:       "svg/icons.svg#arrow_left",
+            arrow_right:      "svg/icons.svg#arrow_right",
+            seek:             "svg/icons.svg#seek",
+            buffering:        "svg/icons.svg#buffering",
         };
 
-        // use.setAttribute(href, icons.pause)
-        // let fill = options.applyRandomFill ? randomRGB() : "white";
         this.uses = {
-            playToggle: newSvgUse(this.icons.play),
-            next: newSvgUse(this.icons.next),
-            loop: newSvgUse(this.icons.loop),
-            volume: newSvgUse(this.icons.volume_full),
-            download: newSvgUse(this.icons.download),
-            autoplay: newSvgUse(this.icons.autoplay),
-            subs: newSvgUse(this.icons.subs),
-            settings: newSvgUse(this.icons.settings),
+            playback:   newSvgUse(this.icons.play),
+            next:       newSvgUse(this.icons.next),
+            loop:       newSvgUse(this.icons.loop),
+            volume:     newSvgUse(this.icons.volume_full),
+            download:   newSvgUse(this.icons.download),
+            autoplay:   newSvgUse(this.icons.autoplay),
+            subs:       newSvgUse(this.icons.subs),
+            settings:   newSvgUse(this.icons.settings),
             fullscreen: newSvgUse(this.icons.fullscreen_enter),
 
-            seekForward: newSvgUse(this.icons.seek, 70, 70),
-            seekBackward: newSvgUse(this.icons.seek, 70, 70),
-            playTogglePopup: newSvgUse(this.icons.play_popup, "none", 70, 70),
+            seekForward:     newSvgUse(this.icons.seek, 70, 70),
+            seekBackward:    newSvgUse(this.icons.seek, 70, 70),
+            playTogglePopup: newSvgUse(this.icons.play_popup, 70, 70),
 
-            arrowLeft: newSvgUse(this.icons.arrow_left, 20, 20),
+            arrowLeft:  newSvgUse(this.icons.arrow_left, 20, 20),
             arrowRight: newSvgUse(this.icons.arrow_right, 20, 20),
 
-            buffering: newSvgUse(this.icons.buffering, "none", 70, 70),
+            buffering: newSvgUse(this.icons.buffering, 70, 70),
         };
 
         this.bufferingSvg = this.uses.buffering.parentElement;
@@ -366,7 +364,7 @@ class Internals {
 
         this.uses.playTogglePopup.setAttribute("href", this.icons.play_popup);
         this.playTogglePopupSvg.classList.add("animate");
-        this.uses.playToggle.setAttribute("href", this.icons.pause);
+        this.uses.playback.setAttribute("href", this.icons.pause);
         this.htmlVideo.play().catch(e => {
             this.firePlaybackError(e);
         });
@@ -379,7 +377,7 @@ class Internals {
 
         this.uses.playTogglePopup.setAttribute("href", this.icons.pause_popup);
         this.playTogglePopupSvg.classList.add("animate");
-        this.uses.playToggle.setAttribute("href", this.icons.play);
+        this.uses.playback.setAttribute("href", this.icons.play);
         this.htmlVideo.pause();
     }
 
@@ -506,22 +504,12 @@ class Internals {
 
     setLoop(enabled) {
         this.loopEnabled = enabled;
-
-        if (this.loopEnabled) {
-            this.uses.loop.style.fill = "red";
-        } else {
-            this.uses.loop.style.fill = "#CCCCCC";
-        }
+        this.htmlControls.buttons.loopButton.classList.toggle("player_controls_button_selected");
     }
 
     setAutoplay(enabled) {
         this.autoplayEnabled = enabled;
-
-        if (this.autoplayEnabled) {
-            this.uses.autoplay.style.fill = "red";
-        } else {
-            this.uses.autoplay.style.fill = "#CCCCCC";
-        }
+        this.htmlControls.buttons.autoplayButton.classList.toggle("player_controls_button_selected");
     }
 
     togglePlay() {
@@ -792,23 +780,13 @@ class Internals {
         this.htmlControls.buttons.loopButton.addEventListener("click", () => {
             this.loopEnabled = !this.loopEnabled;
             this.fireControlsLoop(this.loopEnabled);
-
-            if (this.loopEnabled) {
-                this.uses.loop.style.fill = "red";
-            } else {
-                this.uses.loop.style.fill = "#CCCCCC";
-            }
+            this.htmlControls.buttons.loopButton.classList.toggle("player_controls_button_selected");
         });
 
         this.htmlControls.buttons.autoplayButton.addEventListener("click", () => {
             this.autoplayEnabled = !this.autoplayEnabled;
             this.fireControlsAutoplay(this.autoplayEnabled);
-
-            if (this.autoplayEnabled) {
-                this.uses.autoplay.style.fill = "red";
-            } else {
-                this.uses.autoplay.style.fill = "#CCCCCC";
-            }
+            this.htmlControls.buttons.autoplayButton.classList.toggle("player_controls_button_selected");
         });
 
         this.htmlControls.buttons.volumeButton.addEventListener("click", () => {
@@ -1007,7 +985,7 @@ class Internals {
 
         let playback = this.htmlControls.buttons.playbackButton;
         playback.title = "Play/Pause";
-        playback.appendChild(uses.playToggle.parentElement);
+        playback.appendChild(uses.playback.parentElement);
         if (this.options.hidePlayToggleButton) hideElement(playback);
         buttons.appendChild(playback);
 
