@@ -339,6 +339,8 @@ class Internals {
         setInterval(() => this.redrawBufferedBars(), this.options.bufferingRedrawInterval);
         let end = performance.now();
         console.log("Internals constructor finished in", end-initStart, "ms")
+
+        this.setVolume(1.0);
     }
 
     fireControlsPlay() {}
@@ -512,12 +514,22 @@ class Internals {
 
     setLoop(enabled) {
         this.loopEnabled = enabled;
-        this.htmlControls.buttons.loopButton.classList.toggle("player_controls_button_selected");
+        let loop = this.htmlControls.buttons.loopButton;
+        if (enabled) {
+            loop.classList.add("player_controls_button_selected");
+        } else {
+            loop.classList.remove("player_controls_button_selected");
+        }
     }
 
     setAutoplay(enabled) {
         this.autoplayEnabled = enabled;
-        this.htmlControls.buttons.autoplayButton.classList.toggle("player_controls_button_selected");
+        let autoplay = this.htmlControls.buttons.autoplayButton;
+        if (enabled) {
+            autoplay.classList.add("player_controls_button_selected");
+        } else {
+            autoplay.classList.remove("player_controls_button_selected");
+        }
     }
 
     togglePlay() {

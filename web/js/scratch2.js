@@ -259,9 +259,14 @@ class Room {
                 var input = document.createElement('input');
                 input.type = "file";
 
-                input.onchange = e => { 
-                    var file = e.target.files[0]; 
+                input.onchange = event => { 
+                    var file = event.target.files[0]; 
                     console.log("Picked file:", file);
+                    api.userUpdateAvatar(file).then(newAvatar => {
+                        if (newAvatar) {
+                            userAvatar.src = newAvatar;
+                        }
+                    });
                 }
 
                 input.click();

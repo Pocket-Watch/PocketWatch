@@ -6,4 +6,5 @@ secret/**
 
 *.exe
 web/proxy/*
+web/users/*
 scratch/*

@@ -327,6 +327,7 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/watch/api/user/getall", apiUserGetAll)
 	http.HandleFunc("/watch/api/user/verify", apiUserVerify)
 	http.HandleFunc("/watch/api/user/updatename", apiUserUpdateName)
+	http.HandleFunc("/watch/api/user/updateavatar", apiUserUpdateAvatar)
 
 	// API calls that change state of the player.
 	http.HandleFunc("/watch/api/player/get", apiPlayerGet)
@@ -494,6 +495,55 @@ func apiUserUpdateName(w http.ResponseWriter, r *http.Request) {
 
 	io.WriteString(w, "Username updated")
 	writeEventToAllConnections(w, "usernameupdate", user)
+}
+
+func apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	LogInfo("Connection requested %s user avatar change.", r.RemoteAddr)
+
+	users.mutex.Lock()
+	userIndex := getAuthorizedIndex(w, r)
+	if userIndex == -1 {
+		users.mutex.Unlock()
+		return
+	}
+	user := users.slice[userIndex]
+	users.mutex.Unlock()
+
+	formfile, _, err := r.FormFile("file")
+	if err != nil {
+		LogError("File to read from data from user avatar change request: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	os.Mkdir("web/users/", os.ModePerm)
+	avatarUrl := fmt.Sprintf("web/users/avatar%v", user.Id)
+
+	os.Remove(avatarUrl)
+	file, err := os.Create(avatarUrl)
+	if err != nil {
+		LogError("Failed to create avatar file: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	defer file.Close()
+	io.Copy(file, formfile)
+
+	avatarUrl = fmt.Sprintf("users/avatar%v", user.Id)
+
+	users.mutex.Lock()
+	users.slice[userIndex].Avatar = avatarUrl
+	users.mutex.Unlock()
+
+	jsonData, _ := json.Marshal(avatarUrl)
+
+	io.WriteString(w, string(jsonData))
+	// writeEventToAllConnections(w, "usernameupdate", user)
 }
 
 func apiPlayerGet(w http.ResponseWriter, r *http.Request) {

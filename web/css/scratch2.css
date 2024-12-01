@@ -322,7 +322,7 @@ html {
     height: 24px;
     border: none;
     border-radius: 4px;
-    display: none;
+    /* display: none; */
     position: absolute;
     top: 0;
     right: 0;
@@ -330,12 +330,27 @@ html {
     margin-top: 4px;
     align-items: center;
     justify-content: center;
+    opacity: 0.0;
+    /* background-color: #fbf1c7; */
+    background-color: #504945;
+    transition: opacity 0.2s ease-out;
+}
+
+.user_box_change_avatar:hover {
+    /* background-color: #ebdbb2; */
+    background-color: #665c54;
+}
+
+.user_box_change_avatar:active {
+    /* background-color: #d5c4a1; */
+    background-color: #7c6f64;
 }
 
 .user_box:hover .user_box_change_avatar {
-    display: flex;
+    /* display: flex; */
+    opacity: 0.6;
+    transition: opacity 0.2s ease-out;
 }
-
 
 .user_box_bottom {
     width: 100%;
