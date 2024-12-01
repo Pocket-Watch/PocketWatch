@@ -19,11 +19,17 @@ import (
 	"time"
 )
 
-const BODY_LIMIT = 1024
+const KB = 1024
+const MB = 1024 * KB
+const GB = 1024 * MB
+
 const RETRY = 5000 // Retry time in milliseconds
 const TOKEN_LENGTH = 32
 const BROADCAST_INTERVAL = 2 * time.Second
-const MAX_SUBTITLE_SIZE = 512 * 1024
+
+const SUBTITLE_SIZE_LIMIT = 512 * KB
+const PROXY_FILE_SIZE_LIMIT = 4 * GB
+const BODY_LIMIT = 4 * KB
 
 var SUBTITLE_EXTENSIONS = [...]string{".vtt", ".srt"}
 
@@ -64,9 +70,22 @@ type ServerState struct {
 	playlist []Entry
 	history  []Entry
 
+	proxy Proxy
+}
+
+type Proxy struct {
+	// HLS proxy
 	chunkLocks     []sync.Mutex
 	fetchedChunks  []bool
 	originalChunks []string
+
+	isHls atomic.Bool
+
+	// Generic proxy
+	contentLength    int64
+	extensionWithDot string
+	file             *os.File
+	contentRanges    []Range
 }
 
 type Connection struct {
@@ -603,12 +622,23 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 	state.entry.Title = constructTitleWhenMissing(&state.entry)
 
 	lastSegment := lastUrlSegment(state.entry.Url)
-	if state.entry.UseProxy && strings.HasSuffix(lastSegment, ".m3u8") {
-		setup := setupProxy(state.entry.Url, state.entry.RefererUrl)
-		if setup {
-			LogDebug("Proxy setup SUCCEEDED")
+	if state.entry.UseProxy {
+		if strings.HasSuffix(lastSegment, ".m3u8") {
+			setup := setupHlsProxy(state.entry.Url, state.entry.RefererUrl)
+			if setup {
+				state.entry.SourceUrl = PROXY_ROUTE + PROXY_M3U8
+				LogInfo("HLS proxy setup was successful.")
+			} else {
+				LogWarn("HLS proxy setup failed!")
+			}
 		} else {
-			LogWarn("Proxy setup FAILED")
+			setup := setupGenericFileProxy(state.entry.Url, state.entry.RefererUrl)
+			if setup {
+				state.entry.SourceUrl = PROXY_ROUTE + "proxy" + state.proxy.extensionWithDot
+				LogInfo("Generic file proxy setup was successful.")
+			} else {
+				LogWarn("Generic file proxy setup failed!")
+			}
 		}
 	}
 	state.mutex.Unlock()
@@ -686,7 +716,7 @@ func apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 
 	lastSegment := lastUrlSegment(newEntry.Url)
 	if newEntry.UseProxy && strings.HasSuffix(lastSegment, ".m3u8") {
-		setupProxy(newEntry.Url, newEntry.RefererUrl)
+		setupHlsProxy(newEntry.Url, newEntry.RefererUrl)
 	}
 
 	state.player.Playing = state.player.Autoplay
@@ -1226,7 +1256,7 @@ func getSubtitles() []string {
 			if err != nil {
 				continue
 			}
-			if strings.HasSuffix(filename, ext) && info.Size() < MAX_SUBTITLE_SIZE {
+			if strings.HasSuffix(filename, ext) && info.Size() < SUBTITLE_SIZE_LIMIT {
 				subtitles = append(subtitles, "media/"+filename)
 			}
 		}
@@ -1235,7 +1265,39 @@ func getSubtitles() []string {
 	return subtitles
 }
 
-func setupProxy(url string, referer string) bool {
+func setupGenericFileProxy(url string, referer string) bool {
+	_ = os.Mkdir(WEB_PROXY, os.ModePerm)
+	parsedUrl, err := net_url.Parse(url)
+	if err != nil {
+		LogError("The provided URL is invalid: %v", err)
+		return false
+	}
+
+	size, err := getContentRange(url, referer)
+	if err != nil {
+		LogError("Couldn't read resource metadata: %v", err)
+		return false
+	}
+	if size > PROXY_FILE_SIZE_LIMIT {
+		LogError("The file exceeds the specified limit of 4 GBs.")
+		return false
+	}
+	proxy := &state.proxy
+	proxy.isHls.Store(false)
+	proxy.contentLength = size
+	proxy.extensionWithDot = path.Ext(parsedUrl.Path)
+	proxyFilename := WEB_PROXY + "proxy" + proxy.extensionWithDot
+	proxyFile, err := os.OpenFile(proxyFilename, os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		LogError("Failed to open proxy file for writing: %v", err)
+		return false
+	}
+	proxy.file = proxyFile
+	proxy.contentRanges = make([]Range, 0)
+	return false
+}
+
+func setupHlsProxy(url string, referer string) bool {
 	_ = os.Mkdir(WEB_PROXY, os.ModePerm)
 	m3u, err := downloadM3U(url, WEB_PROXY+ORIGINAL_M3U8, referer)
 	if err != nil {
@@ -1304,19 +1366,21 @@ func setupProxy(url string, referer string) bool {
 	m3u.prefixRelativeSegments(prefix)
 
 	routedM3U := m3u.copy()
+	proxy := &state.proxy
 	// lock on proxy setup here! also discard the previous proxy state somehow?
-	state.chunkLocks = make([]sync.Mutex, 0, len(m3u.segments))
-	state.originalChunks = make([]string, 0, len(m3u.segments))
-	state.fetchedChunks = make([]bool, 0, len(m3u.segments))
+	proxy.isHls.Store(true)
+	proxy.chunkLocks = make([]sync.Mutex, 0, len(m3u.segments))
+	proxy.originalChunks = make([]string, 0, len(m3u.segments))
+	proxy.fetchedChunks = make([]bool, 0, len(m3u.segments))
 	for i := 0; i < len(routedM3U.segments); i++ {
-		state.chunkLocks = append(state.chunkLocks, sync.Mutex{})
-		state.originalChunks = append(state.originalChunks, m3u.segments[i].url)
-		state.fetchedChunks = append(state.fetchedChunks, false)
+		proxy.chunkLocks = append(proxy.chunkLocks, sync.Mutex{})
+		proxy.originalChunks = append(proxy.originalChunks, m3u.segments[i].url)
+		proxy.fetchedChunks = append(proxy.fetchedChunks, false)
 		routedM3U.segments[i].url = "ch-" + toString(i)
 	}
 
 	routedM3U.serialize(WEB_PROXY + PROXY_M3U8)
-	LogInfo("Prepared proxy file %v", PROXY_M3U8)
+	LogDebug("Prepared proxy file %v", PROXY_M3U8)
 
 	// state.entry.Url = PROXY_ROUTE + "proxy.m3u8"
 	return true
@@ -1417,6 +1481,14 @@ func watchProxy(writer http.ResponseWriter, request *http.Request) {
 	urlPath := request.URL.Path
 	chunk := path.Base(urlPath)
 
+	if state.proxy.isHls.Load() {
+		serveHls(writer, request, chunk)
+	} else {
+		serveGenericFile(writer, request, chunk)
+	}
+}
+
+func serveHls(writer http.ResponseWriter, request *http.Request, chunk string) {
 	if chunk == PROXY_M3U8 {
 		LogDebug("Serving %v", PROXY_M3U8)
 		http.ServeFile(writer, request, WEB_PROXY+PROXY_M3U8)
@@ -1434,34 +1506,60 @@ func watchProxy(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	if chunk_id < 0 || chunk_id >= len(state.fetchedChunks) {
+	proxy := &state.proxy
+	if chunk_id < 0 || chunk_id >= len(proxy.fetchedChunks) {
 		http.Error(writer, "Chunk ID not in range", 404)
 		return
 	}
 
-	if state.fetchedChunks[chunk_id] {
+	if proxy.fetchedChunks[chunk_id] {
 		http.ServeFile(writer, request, WEB_PROXY+chunk)
 		return
 	}
 
-	mutex := &state.chunkLocks[chunk_id]
+	mutex := &proxy.chunkLocks[chunk_id]
 	mutex.Lock()
-	if state.fetchedChunks[chunk_id] {
+	if proxy.fetchedChunks[chunk_id] {
 		mutex.Unlock()
 		http.ServeFile(writer, request, WEB_PROXY+chunk)
 		return
 	}
-	fetchErr := downloadFile(state.originalChunks[chunk_id], WEB_PROXY+chunk, state.entry.RefererUrl)
+	fetchErr := downloadFile(proxy.originalChunks[chunk_id], WEB_PROXY+chunk, state.entry.RefererUrl)
 	if fetchErr != nil {
 		mutex.Unlock()
 		LogError("FAILED TO FETCH CHUNK %v", fetchErr)
 		http.Error(writer, "Failed to fetch chunk", 500)
 		return
 	}
-	state.fetchedChunks[chunk_id] = true
+	proxy.fetchedChunks[chunk_id] = true
 	mutex.Unlock()
 
 	http.ServeFile(writer, request, WEB_PROXY+chunk)
+}
+
+func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFile string) {
+	proxy := &state.proxy
+	if path.Ext(pathFile) != proxy.extensionWithDot {
+		http.Error(writer, "Failed to fetch chunk", 404)
+		return
+	}
+	rangeHeader := request.Header.Get("Range")
+	if rangeHeader == "" {
+		http.Error(writer, "Expected 'Range' header. No range was specified.", 400)
+		return
+	}
+	equal := strings.Index(rangeHeader, "equal")
+	if equal == -1 {
+		http.Error(writer, "No '=' sign inside 'Range' header.", 400)
+		return
+	}
+	rangeHeader = rangeHeader[equal+1:]
+	dash := strings.Index(rangeHeader, "-")
+	if len(rangeHeader) < 3 || dash == -1 {
+		http.Error(writer, "'Range' header is invalid.", 400)
+		return
+	}
+
 }
 
 // this will prevent LAZY broadcasts when users make frequent updates
