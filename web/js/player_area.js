@@ -50,10 +50,6 @@ class PlayerArea {
         this.htmlCurrentUrl.value = entry.url;
 
         let url = entry.url
-        if (entry.use_proxy) {
-            url = "/watch/proxy/proxy.m3u8";
-        }
-
         if (entry.source_url) {
             url = entry.source_url;
         }

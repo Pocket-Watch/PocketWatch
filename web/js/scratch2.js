@@ -442,7 +442,13 @@ class Room {
             console.info("INFO: Received player set event: ", response);
 
             let entry = response.new_entry;
-            this.player.setVideoTrack(entry.url);
+
+            let url = entry.url
+            if (entry.source_url) {
+                url = entry.source_url;
+            }
+
+            this.player.setVideoTrack(url);
             this.player.setTitle(entry.title);
         });
 
