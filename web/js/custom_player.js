@@ -453,7 +453,15 @@ class Internals {
             this.uses.volume.setAttribute("href", this.icons.volume_full);
         }
 
-        this.htmlControls.buttons.volumeSlider.value = volume;
+        let slider = this.htmlControls.buttons.volumeSlider;
+        slider.value = volume;
+        let progress = volume * 100.0;
+
+        // NOTE(kihau): 
+        //      This is a hack around the horrible web standards and awful lack of basic browser 
+        //      CSS styling compatibility for input ranges.
+        slider.style.background = "linear-gradient(to right, #ff0000aa " + progress + "%, #ffffff66 " + progress + "%)";
+
     }
 
     getNewTime(timeOffset) {

@@ -243,76 +243,91 @@ class Room {
         let userBox = document.createElement("div");
         userBox.className = "user_box";
 
-        { // user_box_top
-            let userBoxTop = document.createElement("div");
-            userBoxTop.className = "user_box_top";
+        // user_box_top
+        let userBoxTop = document.createElement("div");
+        userBoxTop.className = "user_box_top";
 
-            { // user_box_top img
-                let userAvatar = document.createElement("img");
-                userAvatar.src = user.avatar ? user.avatar : "img/default_avatar.png"; 
-                userBoxTop.append(userAvatar);
-            }
+        { // user_box_top img
+            let userAvatar = document.createElement("img");
+            userAvatar.src = user.avatar ? user.avatar : "img/default_avatar.png"; 
+            userBoxTop.append(userAvatar);
 
-            userBox.append(userBoxTop);
+            let changeAvatarButton = document.createElement("button");
+            changeAvatarButton.className = "user_box_change_avatar";
+            changeAvatarButton.textContent = "E";
+            changeAvatarButton.onclick = () => {
+                var input = document.createElement('input');
+                input.type = "file";
+
+                input.onchange = e => { 
+                    var file = e.target.files[0]; 
+                    console.log("Picked file:", file);
+                }
+
+                input.click();
+            };
+
+            userBoxTop.append(changeAvatarButton);
         }
 
-        { // user_box_bottom
-            let userBoxBottom = document.createElement("div");
-            userBoxBottom.className = "user_box_bottom";
+        userBox.append(userBoxTop);
 
-            { // user_box_bottom input + user_box_edit_name_button
-                let usernameInput = document.createElement("input");
-                usernameInput.readOnly = true;
-                usernameInput.value = user.username;
+        // user_box_bottom
+        let userBoxBottom = document.createElement("div");
+        userBoxBottom.className = "user_box_bottom";
 
-                userBoxBottom.append(usernameInput);
+        { // user_box_bottom input + user_box_edit_name_button
+            let usernameInput = document.createElement("input");
+            usernameInput.readOnly = true;
+            usernameInput.value = user.username;
 
-                if (user.id == this.currentUser.id) {
-                    usernameInput.addEventListener("focusout", () => {
+            userBoxBottom.append(usernameInput);
+
+            if (user.id == this.currentUser.id) {
+                usernameInput.addEventListener("focusout", () => {
+                    usernameInput.readOnly = true;
+                    api.userUpdateName(usernameInput.value);
+                });
+
+                usernameInput.addEventListener("keypress", (event) => {
+                    if (event.key === "Enter") {
                         usernameInput.readOnly = true;
                         api.userUpdateName(usernameInput.value);
-                    });
-
-                    usernameInput.addEventListener("keypress", (event) => {
-                        if (event.key === "Enter") {
-                            usernameInput.readOnly = true;
-                            api.userUpdateName(usernameInput.value);
-                        }
-                    });
-
-                    // usernameInput.addEventListener("dblclick", (event) => {
-                    //     usernameInput.readOnly = false;
-                    //     usernameInput.focus();
-                    // });
-
-                    let editNameButton = document.createElement("button");
-                    editNameButton.className = "user_box_edit_name_button";
-                    editNameButton.onclick = () => {
-                        usernameInput.readOnly = false;
-                        usernameInput.focus();
-                    };
-
-                    { // user_box_edit_name_button svg
-                        let editSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-                        editSvg.setAttribute("viewBox", "0 0 16 16");
-
-                        let path1 = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                        path1.setAttribute("d", "M8.29289 3.70711L1 11V15H5L12.2929 7.70711L8.29289 3.70711Z");
-                        editSvg.append(path1);
-
-                        let path2 = document.createElementNS("http://www.w3.org/2000/svg","path");
-                        path2.setAttribute("d", "M9.70711 2.29289L13.7071 6.29289L15.1716 4.82843C15.702 4.29799 16 3.57857 16 2.82843C16 1.26633 14.7337 0 13.1716 0C12.4214 0 11.702 0.297995 11.1716 0.828428L9.70711 2.29289Z");
-                        editSvg.append(path2);
-
-                        editNameButton.append(editSvg);
                     }
+                });
 
-                    userBoxBottom.append(editNameButton);
+                // usernameInput.addEventListener("dblclick", (event) => {
+                //     usernameInput.readOnly = false;
+                //     usernameInput.focus();
+                // });
+
+                let editNameButton = document.createElement("button");
+                editNameButton.className = "user_box_edit_name_button";
+                editNameButton.onclick = () => {
+                    usernameInput.readOnly = false;
+                    usernameInput.focus();
+                };
+
+                { // user_box_edit_name_button svg
+                    let editSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                    editSvg.setAttribute("viewBox", "0 0 16 16");
+
+                    let path1 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    path1.setAttribute("d", "M8.29289 3.70711L1 11V15H5L12.2929 7.70711L8.29289 3.70711Z");
+                    editSvg.append(path1);
+
+                    let path2 = document.createElementNS("http://www.w3.org/2000/svg","path");
+                    path2.setAttribute("d", "M9.70711 2.29289L13.7071 6.29289L15.1716 4.82843C15.702 4.29799 16 3.57857 16 2.82843C16 1.26633 14.7337 0 13.1716 0C12.4214 0 11.702 0.297995 11.1716 0.828428L9.70711 2.29289Z");
+                    editSvg.append(path2);
+
+                    editNameButton.append(editSvg);
                 }
-            }
 
-            userBox.append(userBoxBottom);
+                userBoxBottom.append(editNameButton);
+            }
         }
+
+        userBox.append(userBoxBottom);
 
         return userBox;
     }
