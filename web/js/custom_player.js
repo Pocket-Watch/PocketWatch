@@ -288,8 +288,9 @@ class Internals {
                 settingsButton:   newDiv(null, "player_controls_button"),
                 fullscreenButton: newDiv(null, "player_controls_button"),
 
-                volumeSlider: newElement("input", "player_volume_slider"),
-                timestamp:    newElement("span",  "player_timestamp"),
+                volumeProgress: newDiv("player_volume_progress"),
+                volumeInput:    newElement("input", "player_volume_input"),
+                timestamp:      newElement("span",  "player_timestamp"),
             },
 
             subMenu: {
@@ -456,15 +457,11 @@ class Internals {
             this.uses.volume.setAttribute("href", this.icons.volume_full);
         }
 
-        let slider = this.htmlControls.buttons.volumeSlider;
-        slider.value = volume;
-        let progress = volume * 100.0;
+        let input = this.htmlControls.buttons.volumeInput;
+        input.value = volume;
 
-        // NOTE(kihau): 
-        //      This is a hack around the horrible web standards and awful lack of basic browser 
-        //      CSS styling compatibility for input ranges.
-        slider.style.background = "linear-gradient(to right, #ff0000aa " + progress + "%, #ffffff66 " + progress + "%)";
-
+        let progress = this.htmlControls.buttons.volumeProgress;
+        progress.style.width = volume * 100.0 + "%";
     }
 
     getNewTime(timeOffset) {
@@ -839,7 +836,7 @@ class Internals {
         });
 
         this.htmlControls.buttons.volumeButton.addEventListener("click", () => {
-            let slider = this.htmlControls.buttons.volumeSlider;
+            let slider = this.htmlControls.buttons.volumeInput;
             if (slider.value == 0) {
                 this.fireControlsVolumeSet(this.volumeBeforeMute);
                 this.setVolume(this.volumeBeforeMute);
@@ -936,8 +933,8 @@ class Internals {
             this.uses.fullscreen.setAttribute("href", href);
         });
 
-        this.htmlControls.buttons.volumeSlider.addEventListener("input", _event => {
-            let volume = this.htmlControls.buttons.volumeSlider.value;
+        this.htmlControls.buttons.volumeInput.addEventListener("input", _event => {
+            let volume = this.htmlControls.buttons.volumeInput.value;
             this.fireControlsVolumeSet(volume);
             this.setVolume(volume);
         });
@@ -1057,14 +1054,23 @@ class Internals {
         if (this.options.hideVolumeButton) hideElement(volume);
         buttons.appendChild(volume);
 
-        let volumeSlider = this.htmlControls.buttons.volumeSlider;
+        let volumeRoot = newDiv("player_volume_root");
+        let volumeSlider = this.htmlControls.buttons.volumeInput;
         volumeSlider.type = "range";
         volumeSlider.min = "0";
         volumeSlider.max = "1";
         volumeSlider.value = "1";
         volumeSlider.step = "any";
-        if (this.options.hideVolumeSlider) hideElement(volumeSlider)
-        buttons.appendChild(volumeSlider);
+
+        let volumeBar = newDiv("player_volume_bar");
+        let volumeProgress = this.htmlControls.buttons.volumeProgress;
+
+        volumeRoot.appendChild(volumeBar);
+        volumeRoot.appendChild(volumeProgress);
+        volumeRoot.appendChild(volumeSlider);
+
+        if (this.options.hideVolumeSlider) hideElement(volumeRoot)
+        buttons.appendChild(volumeRoot);
 
         let timestamp = this.htmlControls.buttons.timestamp;
         timestamp.textContent = "00:00 / 00:00";
