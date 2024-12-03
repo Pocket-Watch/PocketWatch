@@ -1373,6 +1373,8 @@ class Internals {
                     let value = Number(slider.value) + offset;
 
                     let delta = value - lastSliderValue;
+                    delta = Math.round(delta * 1000.0) / 1000.0;
+
                     // console.log("Last slider value:", lastSliderValue);
                     console.log("Slider value delta:", delta);
 
