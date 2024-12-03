@@ -682,14 +682,25 @@ class Internals {
         }
 
         let track = textTracks[index];
+
         let shifted = 0;
         let cues = track.cues;
-        for (let i = 0; i < cues.length; i++) {
-            // Cannot assign cue[i] to a variable or an arbitrary number of cues may be shifted
-            cues[i].startTime += seconds;
-            cues[i].endTime += seconds;
-            shifted++;
+        // Whenever cues timings are changed they're reordered by the runtime so they're always sorted increasingly
+        // This happens during iteration, as a result the same cue may be shifted twice and some cues are skipped entirely
+        if (seconds > 0) {
+            for (let i = cues.length - 1; i >= 0; i--) {
+                cues[i].endTime += seconds;
+                cues[i].startTime += seconds;
+                shifted++;
+            }
+        } else if (seconds < 0) {
+            for (let i = 0; i < cues.length; i++) {
+                cues[i].startTime += seconds;
+                cues[i].endTime += seconds;
+                shifted++;
+            }
         }
+
         return shifted;
     }
 
