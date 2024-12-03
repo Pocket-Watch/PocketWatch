@@ -491,55 +491,50 @@
     background-color: rgba(160, 160, 160, 0.4);
 }
 
-.toggle {
-    cursor: pointer;
-    display: inline-block;
+.player_toggle_root {
+    width: calc(100% - 16px);
+    height: 36px;
+    display: flex;
+    align-items: center;
+    padding-right: 8px;
+    padding-left: 8px;
 }
 
-.toggle-switch {
-    width: 58px;
-    height: 32px;
-    border-radius: 16px;
-    display: inline-block;
+.player_toggle_text {
+    color: white;
+}
+
+.player_toggle_switch {
+    width: 60px;
+    height: 30px;
+    border-radius: 100px;
+    display: flex;
     position: relative;
-    background: #ccc;
-    vertical-align: middle;
-    transition: background 0.25s;
+    background-color: rgba(160, 160, 160, 0.4);
+    margin-left: auto;
+    align-items: center;
 }
 
-.toggle-switch:before, .toggle-switch:after {
-    content: "";
+.player_toggle_on .player_toggle_switch {
+    background-color: green;
 }
 
-.toggle-switch:before {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
-    top: 4px;
-    left: 4px;
+.player_toggle_on .player_toggle_circle {
+    left: calc(100% - 12px);
+    transform: translateX(-100%);
+    transition: 150ms ease-out;
+}
+
+.player_toggle_circle {
+    height: calc(100% - 8px);
+    aspect-ratio: 1.0;
+    border-radius: 100px;
+    left: 0;
     position: absolute;
-    display: block;
-    transition: left 0.25s;
-    background: linear-gradient(to bottom, #fff 0%, #eee 100%);
-}
-
-.toggle:hover .toggle-switch:before {
-    background: linear-gradient(to bottom, #fff 0%, #fff 100%);
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
-}
-
-.toggle-checkbox:checked + .toggle-switch {
-    background: #56c080;
-}
-
-.toggle-checkbox:checked + .toggle-switch:before {
-    left: 30px;
-}
-
-.toggle-checkbox {
-    position: absolute;
-    visibility: hidden;
+    transform: translateX(0);
+    background-color: white;
+    transition: 150ms ease-out;
+    margin-left: 6px;
 }
 
 #player_submenu_bottom_options {
@@ -570,12 +565,6 @@
 #player_submenu_shift_bottom {
     display: flex;
 }
-
-/* .shift_arrow { */
-/*     height: 100%; */
-/*     width: 100%; */
-/*     fill: rgba(220, 220, 220, 1.0); */
-/* } */
 
 .player_submenu_shift_button {
     width: 36px;
