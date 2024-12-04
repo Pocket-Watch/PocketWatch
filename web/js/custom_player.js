@@ -436,10 +436,6 @@ class Internals {
             position = rootWidth - popupWidth;
         }
 
-        if (!timestamp) {
-            timestamp = 0.0;
-        }
-
         this.htmlControls.progress.popupRoot.style.left = position + "px";
     }
 
@@ -1429,6 +1425,10 @@ class Internals {
 }
 
 function createTimestampString(timestamp) {
+    if (!timestamp) {
+        timestamp = 0.0;
+    }
+
     let seconds = Math.floor(timestamp % 60.0);
     timestamp = timestamp / 60.0;
     let minutes = Math.floor(timestamp % 60.0);
