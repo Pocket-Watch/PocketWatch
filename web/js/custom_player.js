@@ -245,8 +245,8 @@ class Internals {
             settings:   newSvgUse(this.icons.settings),
             fullscreen: newSvgUse(this.icons.fullscreen_enter),
 
-            seekForward:     newSvgUse(this.icons.seek, 70, 70),
-            seekBackward:    newSvgUse(this.icons.seek, 70, 70),
+            seekForward:   newSvgUse(this.icons.seek, 70, 70),
+            seekBackward:  newSvgUse(this.icons.seek, 70, 70),
             playbackPopup: newSvgUse(this.icons.play_popup, 70, 70),
 
             arrowLeft:  newSvgUse(this.icons.arrow_left, 20, 20),
@@ -421,7 +421,9 @@ class Internals {
     }
 
     updateProgressPopup(progress) {
-        const timestamp = this.htmlVideo.duration * progress;
+        let timestamp = this.htmlVideo.duration * progress;
+        this.htmlControls.progress.popupText.textContent = createTimestampString(timestamp);
+
         const popup = this.htmlControls.progress.popupRoot;
         const popupWidth = popup.clientWidth;
         const rootWidth = this.htmlControls.progress.root.clientWidth;
@@ -434,8 +436,11 @@ class Internals {
             position = rootWidth - popupWidth;
         }
 
+        if (!timestamp) {
+            timestamp = 0.0;
+        }
+
         this.htmlControls.progress.popupRoot.style.left = position + "px";
-        this.htmlControls.progress.popupText.textContent = createTimestampString(timestamp);
     }
 
     updateHtmlVolume(volume) {
@@ -1425,9 +1430,21 @@ class Internals {
 
 function createTimestampString(timestamp) {
     let seconds = Math.floor(timestamp % 60.0);
-    let minutes = Math.floor(timestamp / 60.0);
+    timestamp = timestamp / 60.0;
+    let minutes = Math.floor(timestamp % 60.0);
+    timestamp = timestamp / 60.0;
+    let hours = Math.floor(timestamp % 60.0);
 
     let timestamp_string = "";
+    if (hours > 0.0) {
+        if (hours < 10) {
+            timestamp_string += "0";
+        }
+
+        timestamp_string += hours;
+        timestamp_string += ":";
+    }
+
     if (minutes < 10) {
         timestamp_string += "0";
     }
