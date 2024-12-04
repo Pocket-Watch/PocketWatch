@@ -12,6 +12,7 @@ import (
 	net_url "net/url"
 	"os"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -84,8 +85,12 @@ type Proxy struct {
 	// Generic proxy
 	contentLength    int64
 	extensionWithDot string
+	fileUrl          string
 	file             *os.File
-	contentRanges    []Range
+	contentRanges    []Range // must remain sorted
+	rangesMutex      sync.Mutex
+	flights          []*Flight
+	flightMutex      sync.Mutex
 }
 
 type Connection struct {
@@ -1284,6 +1289,7 @@ func setupGenericFileProxy(url string, referer string) bool {
 	}
 	proxy := &state.proxy
 	proxy.isHls.Store(false)
+	proxy.fileUrl = url
 	proxy.contentLength = size
 	proxy.extensionWithDot = path.Ext(parsedUrl.Path)
 	proxyFilename := WEB_PROXY + "proxy" + proxy.extensionWithDot
@@ -1294,7 +1300,8 @@ func setupGenericFileProxy(url string, referer string) bool {
 	}
 	proxy.file = proxyFile
 	proxy.contentRanges = make([]Range, 0)
-	return false
+	proxy.flights = make([]*Flight, 0)
+	return true
 }
 
 func setupHlsProxy(url string, referer string) bool {
@@ -1537,6 +1544,8 @@ func serveHls(writer http.ResponseWriter, request *http.Request, chunk string) {
 	http.ServeFile(writer, request, WEB_PROXY+chunk)
 }
 
+const GENERIC_CHUNK_SIZE = 4 * MB
+
 func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFile string) {
 	proxy := &state.proxy
 	if path.Ext(pathFile) != proxy.extensionWithDot {
@@ -1548,18 +1557,193 @@ func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFil
 		http.Error(writer, "Expected 'Range' header. No range was specified.", 400)
 		return
 	}
-	equal := strings.Index(rangeHeader, "equal")
-	if equal == -1 {
-		http.Error(writer, "No '=' sign inside 'Range' header.", 400)
+	byteRange, err := parseRangeHeader(rangeHeader, proxy.contentLength)
+	if err != nil {
+		LogError("400 after parsing header")
+		http.Error(writer, err.Error(), 400)
 		return
 	}
-	rangeHeader = rangeHeader[equal+1:]
-	dash := strings.Index(rangeHeader, "-")
-	if len(rangeHeader) < 3 || dash == -1 {
-		http.Error(writer, "'Range' header is invalid.", 400)
+	if byteRange == nil {
+		http.Error(writer, "Bad range", 400)
 		return
 	}
 
+	if byteRange.length() > GENERIC_CHUNK_SIZE {
+		// Most browsers requests the entire video anyway so this is a way to balance the load
+		byteRange.end = byteRange.start + GENERIC_CHUNK_SIZE
+	}
+
+	// At this point there can be requests that are currently in flight. It's safe to say they can finish faster
+	// than the one we're about to make provided that the chunk is the same size
+	shouldMakeRequest := true
+	i := 0
+	for {
+		proxy.flightMutex.Lock()
+		if i >= len(proxy.flights) {
+			proxy.flightMutex.Unlock()
+			break
+		}
+		flight := proxy.flights[i]
+		proxy.flightMutex.Unlock()
+		i++
+
+		if flight.r.start == byteRange.start {
+			shouldMakeRequest = false
+			LogInfo("Your range is already in flight for %v, we'll wait for it to finish", flight.r)
+
+			flight.barrier.wait()
+			success := flight.barrier.result
+			if !success {
+				shouldMakeRequest = true
+			}
+			break
+		}
+	}
+
+	i = 0
+	for {
+		proxy.rangesMutex.Lock()
+		if i >= len(proxy.contentRanges) {
+			proxy.rangesMutex.Unlock()
+			break
+		}
+		contentRange := &proxy.contentRanges[i]
+		proxy.rangesMutex.Unlock()
+		i++
+
+		if contentRange.encompasses(byteRange) {
+			payload := make([]byte, byteRange.length())
+			_, err := proxy.file.ReadAt(payload, byteRange.start)
+			if err != nil {
+				LogError("An error occurred while reading file from memory, %v", err)
+				return
+			}
+			writer.Header().Set("Content-Type", "video/quicktime")
+			writer.Header().Set("Content-Length", strconv.FormatInt(byteRange.length(), 10))
+			writer.Header().Set(
+				"Content-Range",
+				fmt.Sprintf("bytes=%v-%v/%v", byteRange.start, byteRange.end, proxy.contentLength))
+			writer.WriteHeader(http.StatusPartialContent)
+			_, err = writer.Write(payload)
+			if err != nil {
+				LogError("An error occurred while writing payload to user %v", err)
+				return
+			}
+			LogInfo("Successfully wrote payload to user from memory")
+			return
+		}
+	}
+
+	if shouldMakeRequest {
+		ourFlight := newFlight(*byteRange)
+		ourFlight.barrier.block()
+		addFlight(ourFlight)
+
+		bytes, err := downloadFileChunk(proxy.fileUrl, byteRange, state.entry.RefererUrl)
+
+		// Some chunk fetch error
+		if err != nil {
+			var downloadError *DownloadError
+			if errors.As(err, &downloadError) {
+				completeAndRemoveFlightById(false, ourFlight.uniqueId)
+				http.Error(writer, downloadError.Message, downloadError.Code)
+				return
+			}
+			completeAndRemoveFlightById(false, ourFlight.uniqueId)
+			http.Error(writer, err.Error(), 500)
+			return
+		}
+
+		_, err = proxy.file.WriteAt(bytes, byteRange.start)
+		if err != nil {
+			LogError("Error writing to file: %v", err)
+			return
+		}
+
+		// If the download is successful the chunk bytes should be written to memory
+		mergeContentRanges()
+		insertContentRangeSequentially(byteRange)
+		mergeContentRanges()
+
+		// Now the chunk can be made available to waiting connections
+		completeAndRemoveFlightById(true, ourFlight.uniqueId)
+
+		writer.Header().Set("Content-Type", "video/quicktime")
+		writer.Header().Set("Content-Length", strconv.FormatInt(byteRange.length(), 10))
+		writer.Header().Set(
+			"Content-Range",
+			fmt.Sprintf("bytes=%v-%v/%v", byteRange.start, byteRange.end, proxy.contentLength))
+		writer.WriteHeader(http.StatusPartialContent)
+		_, err = writer.Write(bytes)
+		if err != nil {
+			LogError("An error occurred while writing payload to user %v", err)
+			return
+		}
+		LogInfo("Successfully wrote payload to user that had to be downloaded")
+	}
+
+}
+
+type Flight struct {
+	r        Range
+	barrier  Barrier
+	uniqueId uint64
+}
+
+func newFlight(r Range) *Flight {
+	return &Flight{r, Barrier{}, generateUniqueId()}
+}
+
+func insertContentRangeSequentially(newRange *Range) {
+	proxy := &state.proxy
+	proxy.rangesMutex.Lock()
+	for i := 0; i < len(proxy.contentRanges); i++ {
+		r := &proxy.contentRanges[i]
+		if newRange.start <= r.start {
+			proxy.contentRanges = slices.Insert(proxy.contentRanges, i, *newRange)
+			return
+		}
+	}
+
+	proxy.rangesMutex.Unlock()
+}
+
+func addFlight(newFlight *Flight) {
+	proxy := &state.proxy
+	proxy.flightMutex.Lock()
+	proxy.flights = append(proxy.flights, newFlight)
+	proxy.flightMutex.Unlock()
+}
+
+func completeAndRemoveFlightById(success bool, id uint64) {
+	proxy := &state.proxy
+	proxy.flightMutex.Lock()
+	flights := proxy.flights
+	for i := 0; i < len(flights); i++ {
+		flight := flights[i]
+		if id == flight.uniqueId {
+			flight.barrier.releaseWithResult(success)
+			proxy.flights = append(flights[:i], flights[i+1:]...)
+			break
+		}
+	}
+	proxy.flightMutex.Unlock()
+}
+
+func mergeContentRanges() {
+	proxy := &state.proxy
+	proxy.rangesMutex.Lock()
+	for i := 0; i < len(proxy.contentRanges)-1; i++ {
+		leftRange := &proxy.contentRanges[i]
+		rightRange := &proxy.contentRanges[i+1]
+		if !leftRange.overlaps(rightRange) {
+			continue
+		}
+		merge := leftRange.mergeWith(rightRange)
+		// This removes the leftRange and rightRange and inserts merged range
+		proxy.contentRanges = slices.Replace(proxy.contentRanges, i, i+2, merge)
+	}
+	proxy.rangesMutex.Unlock()
 }
 
 // this will prevent LAZY broadcasts when users make frequent updates

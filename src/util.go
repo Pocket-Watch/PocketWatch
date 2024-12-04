@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	net_url "net/url"
 	"os"
@@ -11,6 +12,9 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
 )
 
 var client = http.Client{}
@@ -89,10 +93,10 @@ func downloadFileChunk(url string, r *Range, referer string) ([]byte, error) {
 
 	contentLength := response.Header.Get("Content-Length")
 	contentRange := response.Header.Get("Content-Range")
-	LogDebug("Status code: %v", response.StatusCode)
-	LogDebug("Content-Length: %v", contentLength)
-	LogDebug("Content-Range: %v", contentRange)
-
+	LogDebug("Host server status code: %v", response.StatusCode)
+	LogDebug("Host server Content-Length: %v", contentLength)
+	LogDebug("Host server Content-Range: %v", contentRange)
+	LogDebug("Host server/Our length: %v / %v", contentLength, r.length())
 	// Read response.Body into a byte array of length equal to range length or less in case of EOF
 	buffer := make([]byte, r.length())
 	bytesRead, err := io.ReadFull(response.Body, buffer)
@@ -155,6 +159,65 @@ func getContentRange(url string, referer string) (int64, error) {
 	return strconv.ParseInt(contentRange, 10, 64)
 }
 
+// This will parse only the first range, given header and max (content-length) of the whole resource
+func parseRangeHeader(headerValue string, max int64) (*Range, error) {
+	bytes := strings.Index(headerValue, "bytes=")
+	if bytes == -1 {
+		return nil, errors.New("expected 'bytes=' inside the header")
+	}
+	headerValue = headerValue[bytes+6:]
+	if len(headerValue) < 2 {
+		return nil, errors.New("the header is too short")
+	}
+	dash := strings.Index(headerValue, "-")
+	if dash == -1 {
+		return nil, errors.New("expected '-' inside the header")
+	}
+	end := strings.Index(headerValue, ",")
+	if end != -1 {
+		headerValue = headerValue[:end]
+	}
+
+	leftSide := headerValue[:dash]
+	rightSide := headerValue[dash+1:]
+	if leftSide == "" && rightSide == "" {
+		return nil, errors.New("expected at least one number around '-'")
+	}
+
+	if leftSide == "" {
+		// this is actually <suffix-length> and it follows different rules
+		suffixLength, err := strconv.ParseUint(rightSide, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		return newRange(max-int64(suffixLength), max-1), nil
+	}
+
+	if rightSide == "" {
+		rangeSt, err := strconv.ParseUint(leftSide, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		return newRange(int64(rangeSt), max-1), nil
+	}
+
+	rangeSt, err := strconv.ParseUint(leftSide, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	rangeEnd, err := strconv.ParseUint(rightSide, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	return newRange(int64(rangeSt), int64(rangeEnd)), nil
+}
+
+func generateUniqueId() uint64 {
+	src := rand.NewSource(time.Now().UnixNano())
+	entropy := rand.New(src).Uint64() // Generate a random number between 0 and 99
+	return entropy
+}
+
 type DownloadError struct {
 	Code    int
 	Message string
@@ -165,6 +228,7 @@ func (e *DownloadError) Error() string {
 	return fmt.Sprintf("NetworkError: Code=%d, Message=%s", e.Code, e.Message)
 }
 
+// Range - both start and end are inclusive
 type Range struct {
 	start int64
 	end   int64
@@ -188,6 +252,36 @@ func (r *Range) overlaps(other *Range) bool {
 	return r.start <= other.end && other.start <= r.end
 }
 
+func (r *Range) encompasses(other *Range) bool {
+	return r.start <= other.start && other.end <= r.end
+}
+
+func (r *Range) includes(value int64) bool {
+	return r.start <= value && value <= r.end
+}
+
 func (r *Range) length() int64 {
-	return r.end - r.start
+	return r.end - r.start + 1
+}
+
+type Barrier struct {
+	blocked atomic.Bool
+	wg      sync.WaitGroup
+	result  bool
+}
+
+func (barrier *Barrier) block() {
+	if !barrier.blocked.Swap(true) {
+		barrier.wg.Add(1)
+	}
+}
+
+func (barrier *Barrier) wait() {
+	barrier.wg.Wait()
+}
+
+// Might throw  "sync: negative WaitGroup counter" ?
+func (barrier *Barrier) releaseWithResult(result bool) {
+	barrier.result = result
+	barrier.wg.Done()
 }
