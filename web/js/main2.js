@@ -1,5 +1,5 @@
 import { Player } from "./custom_player.js"
-import * as api from "./scratch2_api.js";
+import * as api from "./api2.js";
 
 const SERVER_ID = 0;
 
