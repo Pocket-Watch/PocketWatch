@@ -76,14 +76,14 @@
     - [x] Display last action (ex. seek, play, pause) in the center of the player
     - [x] Display custom popup messages (ex. User 'frisk' clicked play) as a toast attached to the top right side
     - [x] Tool tips on button hover
-    - [ ] Auto-hide player UI
+    - [x] Auto-hide player UI
         - [x] Show/Hide elements when mouse enters/leaves the player area
-        - [ ] Add support for touchscreen devices
-        - [ ] Do not hide player elements when playback is paused?
-        - [ ] Do not hide elements when mouse cursor is hovering over player controls?
+        - [x] Add support for touchscreen devices
+        - [x] Do not hide player elements when playback is paused?
+        - [x] ~Do not hide elements when mouse cursor is hovering over player controls?~
     - [ ] Seek arrow and double click indicator:
         - [x] Display seek +10/-10 on keyboard arrow click
-        - [ ] Perform seeks screen double tap
+        - [x] Perform seeks screen double tap
         - [ ] Display variable seek indicator number on arrow press or screen double tap
         - [ ] Seek indicator value stacking
     - [ ] Custom options that include:

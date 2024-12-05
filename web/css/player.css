@@ -52,10 +52,19 @@
     right: 0;
     position: absolute;
     display: flex;
+    visibility: visible;
     align-items: center;
     margin-top: 10px;
     margin-right: 10px;
     background-color: rgba(40, 40, 40, 0.3);
+    opacity: 1;
+    transition: visibility 0.3s, opacity 0.3s;
+}
+
+#player_toast_container.player_ui_hide {
+    visibility: hidden;
+    opacity: 0;
+    transition: visibility 0.6s, opacity 0.6s;
 }
 
 #player_toast_text {

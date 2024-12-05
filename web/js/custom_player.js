@@ -502,12 +502,12 @@ class Internals {
 
     setToast(toast) {
         this.htmlToast.textContent = toast;
-        this.htmlToastContainer.classList.remove("player_fade_out");
+        this.htmlToastContainer.classList.remove("player_ui_hide");
         this.htmlToastContainer.style.display = "flex";
 
         clearTimeout(this.playerHideToastTimeoutId);
         this.playerHideToastTimeoutId = setTimeout(() => {
-            this.htmlToastContainer.classList.add("player_fade_out");
+            this.htmlToastContainer.classList.add("player_ui_hide");
         }, 3000);
     }
 
@@ -786,6 +786,11 @@ class Internals {
         // Prevents selecting the video element along with the rest of the page
         this.htmlVideo.classList.add("unselectable");
 
+        this.htmlPlayerRoot.addEventListener("touchmove", () => {
+            this.showPlayerUI();
+            this.resetPlayerUIHideTimeout();
+        });
+
         this.htmlPlayerRoot.addEventListener("mousemove", () => {
             this.showPlayerUI();
             this.resetPlayerUIHideTimeout();
@@ -963,7 +968,6 @@ class Internals {
 
         this.htmlControls.progress.root.addEventListener("touchstart", _event => {
             const onProgressBarTouchMove = event => {
-                this.resetPlayerUIHideTimeout();
                 const progressRoot = this.htmlControls.progress.root;
                 const progress = calculateProgress(event, progressRoot);
                 this.updateProgressBar(progress);
@@ -991,7 +995,6 @@ class Internals {
 
         this.htmlControls.progress.root.addEventListener("mousedown", _event => {
             const onProgressBarMouseMove = event => {
-                this.resetPlayerUIHideTimeout();
                 const progressRoot = this.htmlControls.progress.root;
                 const progress = calculateProgress(event, progressRoot);
                 this.updateProgressBar(progress);
@@ -1042,7 +1045,7 @@ class Internals {
             //     This is a really weird and confusing way of setting the isUIVisible flag.
             //     Probably should be changed and done the proper way at some point.
             if (e.propertyName === "opacity") {
-                this.isUIVisible = !this.isUIVisible
+                this.isUIVisible = !e.target.classList.contains("player_ui_hide");
             }
         });
     }
