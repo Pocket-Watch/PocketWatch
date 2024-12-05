@@ -320,7 +320,7 @@ class Internals {
         };
 
         this.isDraggingProgressBar = false;
-        this.isHoveringProgressBar = false;
+        this.isUIVisible = true;
         this.volumeBeforeMute = 0.0;
         this.selectedSubtitleIndex = -1;
 
@@ -531,7 +531,7 @@ class Internals {
         }
     }
 
-    togglePlay() {
+    togglePlayback() {
         if (this.htmlVideo.paused) {
             this.fireControlsPlay();
             this.play();
@@ -717,12 +717,9 @@ class Internals {
     }
 
     showPlayerUI() {
-        this.htmlVideo.style.cursor = "auto";
-        this.htmlControls.root.classList.remove("player_fade_out");
-        this.htmlControls.root.classList.add("player_fade_in");
-
-        this.htmlTitleContainer.classList.remove("player_fade_out");
-        this.htmlTitleContainer.classList.add("player_fade_in");
+        this.htmlPlayerRoot.style.cursor = "auto";
+        this.htmlControls.root.classList.remove("player_ui_hide");
+        this.htmlTitleContainer.classList.remove("player_ui_hide");
     }
 
     hidePlayerUI() {
@@ -730,12 +727,9 @@ class Internals {
             return;
         }
 
-        this.htmlVideo.style.cursor = "none";
-        this.htmlControls.root.classList.remove("player_fade_in");
-        this.htmlControls.root.classList.add("player_fade_out");
-
-        this.htmlTitleContainer.classList.remove("player_fade_in");
-        this.htmlTitleContainer.classList.add("player_fade_out");
+        this.htmlPlayerRoot.style.cursor = "none";
+        this.htmlControls.root.classList.add("player_ui_hide");
+        this.htmlTitleContainer.classList.add("player_ui_hide");
     }
 
     resetPlayerUIHideTimeout() {
@@ -817,7 +811,7 @@ class Internals {
         });
 
         this.htmlControls.buttons.playbackButton.addEventListener("click", () => {
-            this.togglePlay();
+            this.togglePlayback();
         });
 
         this.htmlControls.buttons.nextButton.addEventListener("click", () => {
@@ -860,7 +854,7 @@ class Internals {
 
         this.htmlPlayerRoot.addEventListener("keydown", (event) => {
             if (event.key == " " || event.code == "Space" || event.keyCode == 32) {
-                this.togglePlay();
+                this.togglePlayback();
                 consumeEvent(event);
             }
 
@@ -894,8 +888,12 @@ class Internals {
             }
         });
 
-        this.htmlPlayerRoot.addEventListener("click", (_event) => {
-            this.togglePlay();
+        this.htmlPlayerRoot.addEventListener("click", event => {
+            if (event.pointerType === "touch" && this.isUIVisible) {
+                this.togglePlayback();
+            } else if (event.pointerType === "mouse") {
+                this.togglePlayback();
+            }
         });
 
         this.htmlVideo.addEventListener("waiting", () => {
@@ -1037,6 +1035,15 @@ class Internals {
 
         this.playbackPopupSvg.addEventListener("transitionend", () => {
             this.playbackPopupSvg.classList.remove("animate");
+        });
+
+        this.htmlControls.root.addEventListener("transitionend", (e) => {
+            // NOTE(kihau): 
+            //     This is a really weird and confusing way of setting the isUIVisible flag.
+            //     Probably should be changed and done the proper way at some point.
+            if (e.propertyName === "opacity") {
+                this.isUIVisible = !this.isUIVisible
+            }
         });
     }
 

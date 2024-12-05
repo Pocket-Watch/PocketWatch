@@ -1,21 +1,3 @@
-.player_fade_out {
-    visibility: hidden;
-    opacity: 0;
-    transition: visibility 0.6s, opacity 0.6s;
-}
-
-.player_fade_in {
-    visibility: visible;
-    opacity: 1;
-    transition: visibility 0.3s, opacity 0.3s;
-}
-
-/* @keyframes outline_flash { */
-/*     50% { */
-/*         opacity: 0; */
-/*     } */
-/* } */
-
 #player_container {
     width: 100%;
     height: 100%;
@@ -44,6 +26,14 @@
     margin-top: 10px;
     margin-left: 10px;
     background-color: rgba(40, 40, 40, 0.3);
+    opacity: 1;
+    transition: visibility 0.3s, opacity 0.3s;
+}
+
+#player_title_container.player_ui_hide {
+    visibility: hidden;
+    opacity: 0;
+    transition: visibility 0.6s, opacity 0.6s;
 }
 
 #player_title_text {
@@ -131,9 +121,18 @@
     bottom: 0;
     display: flex;
     box-sizing: border-box;
+    visibility: visible;
     flex-direction: column;
     background-color: rgba(40, 40, 40, 0.3);
     color: white;
+    opacity: 1;
+    transition: visibility 0.3s, opacity 0.3s;
+}
+
+#player_controls.player_ui_hide {
+    visibility: hidden;
+    opacity: 0;
+    transition: visibility 0.6s, opacity 0.6s;
 }
 
 #player_progress_root {
