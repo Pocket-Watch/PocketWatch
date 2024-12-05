@@ -945,7 +945,8 @@ class Internals {
             let offsetX;
 
             if (event.touches) {
-                offsetX = event.touches[0].clientX - rect.left;
+                let touches = event.touches.length !== 0 ? event.touches : event.changedTouches;
+                offsetX = touches[0].clientX - rect.left;
             } else {
                 offsetX = event.clientX - rect.left;
             }
@@ -962,8 +963,37 @@ class Internals {
             return progress;
         }
 
+        this.htmlControls.progress.root.addEventListener("touchstart", _event => {
+            const onProgressBarTouchMove = event => {
+                this.resetPlayerUIHideTimeout();
+                const progressRoot = this.htmlControls.progress.root;
+                const progress = calculateProgress(event, progressRoot);
+                this.updateProgressBar(progress);
+                this.updateProgressPopup(progress);
+            }
+
+            const onProgressBarTouchStop = event => {
+                this.setToast("Touch end fire");
+                this.isDraggingProgressBar = false;
+                document.removeEventListener('touchmove', onProgressBarTouchMove);
+                document.removeEventListener('touchend', onProgressBarTouchStop);
+
+                const progressRoot = this.htmlControls.progress.root;
+                const progress = calculateProgress(event, progressRoot);
+                const timestamp = this.htmlVideo.duration * progress;
+
+                this.fireControlsSeeked(timestamp);
+                this.seek(timestamp);
+            }
+
+            this.isDraggingProgressBar = true;
+            document.addEventListener('touchmove', onProgressBarTouchMove);
+            document.addEventListener('touchend', onProgressBarTouchStop);
+        });
+
         this.htmlControls.progress.root.addEventListener("mousedown", _event => {
             const onProgressBarMouseMove = event => {
+                this.resetPlayerUIHideTimeout();
                 const progressRoot = this.htmlControls.progress.root;
                 const progress = calculateProgress(event, progressRoot);
                 this.updateProgressBar(progress);
@@ -1437,10 +1467,6 @@ function createTimestampString(timestamp) {
 
     let timestamp_string = "";
     if (hours > 0.0) {
-        if (hours < 10) {
-            timestamp_string += "0";
-        }
-
         timestamp_string += hours;
         timestamp_string += ":";
     }

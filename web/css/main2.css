@@ -11,11 +11,12 @@ html {
 
 #left_panel {
     /* width: 70%; */
-    height: 100%;
+    /* height: 100%; */
     border-radius: 12px;
+    min-width: 700px;
     /* border: 1px solid red; */
     position: relative;
-    flex: 2 1;
+    flex: 2.3 1;
     background-color: #282828;
     margin: 0px 6px 6px 0px;
 }
@@ -505,8 +506,8 @@ html {
 #right_panel {
     /* width: 30%; */
     height: 100%;
-    min-width: 450px;
     border-radius: 12px;
+    min-width: 500px;
     /* border: 1px solid green; */
     position: relative;
     /* height: 100%; */
@@ -514,71 +515,3 @@ html {
     background-color: #282828;
     margin: 0px 6px 6px 0px;
 }
-
-#cp_volume {
-    width: 800px;
-    height: 40px;
-    border: 1px solid green;
-    display: flex;
-}
-
-#cp_button {
-    height: 100%;
-    aspect-ratio: 1.0;
-    background-color: gray;
-}
-
-#cp_slider {
-    width: 100%;
-    height: 100%;
-    display: grid;
-    padding-right: 8px;
-    padding-left: 8px;
-    align-items: center;
-    /* flex: 1; */
-}
-
-#cp_slider * {
-    grid-column: 1;
-    grid-row: 1;
-}
-
-#cp_bar {
-    width: 100%;
-    height: 20%;
-    border-radius: 4px;
-    z-index: 1;
-    opacity: 0.5;
-    background-color: gray;
-}
-
-#cp_progress {
-    width: 50%;
-    height: 20%;
-    border-radius: 4px;
-    z-index: 2;
-    opacity: 0.5;
-    background-color: red;
-}
-
-#cp_thumb {
-    height: 16px;
-    width: 16px;
-    border-radius: 10px;
-    position: absolute;
-    z-index: 3;
-    margin-left: calc(50% - 8px);
-    background-color: white;
-    opacity: 1.0;
-}
-
-#cp_slider input {
-    /* width: calc(100% + 12px + 6px); */
-    width: 100%;
-    height: 100%;
-    z-index: 4;
-    /* margin-right: -6px; */
-    /* margin-left: -6px; */
-    opacity: 1.3;
-}
-

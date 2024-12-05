@@ -2,7 +2,8 @@
 
 set -xe
 
-ip="localhost"
+# ip="localhost"
+ip="192.168.1.2"
 port="1234"
 browser="firefox"
 
