@@ -83,14 +83,15 @@ type Proxy struct {
 	isHls atomic.Bool
 
 	// Generic proxy
-	contentLength    int64
-	extensionWithDot string
-	fileUrl          string
-	file             *os.File
-	contentRanges    []Range // must remain sorted
-	rangesMutex      sync.Mutex
-	flights          []*Flight
-	flightMutex      sync.Mutex
+	contentLength       int64
+	extensionWithDot    string
+	fileUrl             string
+	file                *os.File
+	contentRanges       []Range // must remain sorted
+	rangesMutex         sync.Mutex
+	download            *http.Response
+	downloadBeginOffset int64
+	downloadInProgress  atomic.Bool
 }
 
 type Connection struct {
@@ -1300,7 +1301,6 @@ func setupGenericFileProxy(url string, referer string) bool {
 	}
 	proxy.file = proxyFile
 	proxy.contentRanges = make([]Range, 0)
-	proxy.flights = make([]*Flight, 0)
 	return true
 }
 
@@ -1534,7 +1534,7 @@ func serveHls(writer http.ResponseWriter, request *http.Request, chunk string) {
 	fetchErr := downloadFile(proxy.originalChunks[chunk_id], WEB_PROXY+chunk, state.entry.RefererUrl)
 	if fetchErr != nil {
 		mutex.Unlock()
-		LogError("FAILED TO FETCH CHUNK %v", fetchErr)
+		LogError("Failed to fetch chunk %v", fetchErr)
 		http.Error(writer, "Failed to fetch chunk", 500)
 		return
 	}
@@ -1563,44 +1563,24 @@ func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFil
 		http.Error(writer, err.Error(), 400)
 		return
 	}
-	if byteRange == nil {
+	if byteRange == nil || byteRange.start < 0 || byteRange.end < 0 {
 		http.Error(writer, "Bad range", 400)
 		return
 	}
 
-	if byteRange.length() > GENERIC_CHUNK_SIZE {
-		// Most browsers requests the entire video anyway so this is a way to balance the load
-		byteRange.end = byteRange.start + GENERIC_CHUNK_SIZE
+	// Someone has to initiate the pulling
+	if !proxy.downloadInProgress.Swap(true) {
+		proxy.downloadBeginOffset = byteRange.start
+		response, err := openFileDownload(proxy.fileUrl, byteRange.start, state.entry.RefererUrl)
+		if err != nil {
+			http.Error(writer, "Unable to open file download", 500)
+			return
+		}
+		proxy.download = response
 	}
 
-	// At this point there can be requests that are currently in flight. It's safe to say they can finish faster
-	// than the one we're about to make provided that the chunk is the same size
-	shouldMakeRequest := true
+	offset := byteRange.start
 	i := 0
-	for {
-		proxy.flightMutex.Lock()
-		if i >= len(proxy.flights) {
-			proxy.flightMutex.Unlock()
-			break
-		}
-		flight := proxy.flights[i]
-		proxy.flightMutex.Unlock()
-		i++
-
-		if flight.r.start == byteRange.start {
-			shouldMakeRequest = false
-			LogInfo("Your range is already in flight for %v, we'll wait for it to finish", flight.r)
-
-			flight.barrier.wait()
-			success := flight.barrier.result
-			if !success {
-				shouldMakeRequest = true
-			}
-			break
-		}
-	}
-
-	i = 0
 	for {
 		proxy.rangesMutex.Lock()
 		if i >= len(proxy.contentRanges) {
@@ -1611,7 +1591,7 @@ func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFil
 		proxy.rangesMutex.Unlock()
 		i++
 
-		if contentRange.encompasses(byteRange) {
+		if contentRange.includes(offset) {
 			payload := make([]byte, byteRange.length())
 			_, err := proxy.file.ReadAt(payload, byteRange.start)
 			if err != nil {
@@ -1634,26 +1614,7 @@ func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFil
 		}
 	}
 
-	if shouldMakeRequest {
-		ourFlight := newFlight(*byteRange)
-		ourFlight.barrier.block()
-		addFlight(ourFlight)
-
-		bytes, err := downloadFileChunk(proxy.fileUrl, byteRange, state.entry.RefererUrl)
-
-		// Some chunk fetch error
-		if err != nil {
-			var downloadError *DownloadError
-			if errors.As(err, &downloadError) {
-				completeAndRemoveFlightById(false, ourFlight.uniqueId)
-				http.Error(writer, downloadError.Message, downloadError.Code)
-				return
-			}
-			completeAndRemoveFlightById(false, ourFlight.uniqueId)
-			http.Error(writer, err.Error(), 500)
-			return
-		}
-
+	if true {
 		_, err = proxy.file.WriteAt(bytes, byteRange.start)
 		if err != nil {
 			LogError("Error writing to file: %v", err)
@@ -1664,9 +1625,6 @@ func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFil
 		mergeContentRanges()
 		insertContentRangeSequentially(byteRange)
 		mergeContentRanges()
-
-		// Now the chunk can be made available to waiting connections
-		completeAndRemoveFlightById(true, ourFlight.uniqueId)
 
 		writer.Header().Set("Content-Type", "video/quicktime")
 		writer.Header().Set("Content-Length", strconv.FormatInt(byteRange.length(), 10))
@@ -1684,14 +1642,18 @@ func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFil
 
 }
 
-type Flight struct {
-	r        Range
-	barrier  Barrier
-	uniqueId uint64
-}
+// Meant for a goroutine
+func pullFromSourceRepeatedly(id int64) {
+	proxy := &state.proxy
+	for {
+		bytes, err := pullBytesFromResponse(proxy.download, GENERIC_CHUNK_SIZE)
+		// we need to know where to break
+		if err != nil {
+			return
+		}
+		
+	}
 
-func newFlight(r Range) *Flight {
-	return &Flight{r, Barrier{}, generateUniqueId()}
 }
 
 func insertContentRangeSequentially(newRange *Range) {
@@ -1706,28 +1668,6 @@ func insertContentRangeSequentially(newRange *Range) {
 	}
 
 	proxy.rangesMutex.Unlock()
-}
-
-func addFlight(newFlight *Flight) {
-	proxy := &state.proxy
-	proxy.flightMutex.Lock()
-	proxy.flights = append(proxy.flights, newFlight)
-	proxy.flightMutex.Unlock()
-}
-
-func completeAndRemoveFlightById(success bool, id uint64) {
-	proxy := &state.proxy
-	proxy.flightMutex.Lock()
-	flights := proxy.flights
-	for i := 0; i < len(flights); i++ {
-		flight := flights[i]
-		if id == flight.uniqueId {
-			flight.barrier.releaseWithResult(success)
-			proxy.flights = append(flights[:i], flights[i+1:]...)
-			break
-		}
-	}
-	proxy.flightMutex.Unlock()
 }
 
 func mergeContentRanges() {

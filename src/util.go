@@ -91,14 +91,39 @@ func downloadFileChunk(url string, r *Range, referer string) ([]byte, error) {
 	}
 	defer response.Body.Close()
 
-	contentLength := response.Header.Get("Content-Length")
-	contentRange := response.Header.Get("Content-Range")
-	LogDebug("Host server status code: %v", response.StatusCode)
-	LogDebug("Host server Content-Length: %v", contentLength)
-	LogDebug("Host server Content-Range: %v", contentRange)
-	LogDebug("Host server/Our length: %v / %v", contentLength, r.length())
-	// Read response.Body into a byte array of length equal to range length or less in case of EOF
 	buffer := make([]byte, r.length())
+	bytesRead, err := io.ReadFull(response.Body, buffer)
+	if err == io.EOF || errors.Is(err, io.ErrUnexpectedEOF) {
+		return buffer[:bytesRead], nil
+	}
+	if err != nil {
+		return nil, &DownloadError{Code: response.StatusCode, Message: "Failed to read response body."}
+	}
+	return buffer, nil
+}
+
+// This will download a chunk of a file within the specified range
+func openFileDownload(url string, from int64, referer string) (*http.Response, error) {
+	request, _ := http.NewRequest("GET", url, nil)
+	if referer != "" {
+		request.Header.Set("Referer", referer)
+		request.Header.Set("Origin", inferOrigin(referer))
+	}
+
+	request.Header.Set("Range", fmt.Sprintf("bytes=%v-", from))
+
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	if response.StatusCode != 200 && response.StatusCode != 206 {
+		return nil, &DownloadError{Code: response.StatusCode, Message: "Failed to open file download."}
+	}
+	return response, nil
+}
+
+func pullBytesFromResponse(response *http.Response, byteCount int) ([]byte, error) {
+	buffer := make([]byte, byteCount)
 	bytesRead, err := io.ReadFull(response.Body, buffer)
 	if err == io.EOF || errors.Is(err, io.ErrUnexpectedEOF) {
 		return buffer[:bytesRead], nil
