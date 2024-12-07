@@ -2,6 +2,22 @@ html {
     background-color: #1d2021
 }
 
+@font-face {
+    font-family: 'Rubik';
+    font-weight: normal;
+    src: url('../fonts/Rubik-Regular.ttf');
+}
+
+@font-face {
+    font-family: 'Rubik';
+    font-weight: bold;
+    src: url('../fonts/Rubik-Bold.ttf');
+}
+
+html * {
+   font-family: Rubik;
+}
+
 #root_panel {
     height: 1200px;
     display: flex;
