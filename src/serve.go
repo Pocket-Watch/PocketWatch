@@ -90,8 +90,8 @@ type Proxy struct {
 	contentRanges       []Range // must remain sorted
 	rangesMutex         sync.Mutex
 	download            *http.Response
+	downloadMutex       sync.Mutex
 	downloadBeginOffset int64
-	downloadInProgress  atomic.Bool
 }
 
 type Connection struct {
@@ -1300,6 +1300,7 @@ func setupGenericFileProxy(url string, referer string) bool {
 		return false
 	}
 	proxy.file = proxyFile
+	proxy.downloadBeginOffset = -1
 	proxy.contentRanges = make([]Range, 0)
 	return true
 }
@@ -1568,8 +1569,15 @@ func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFil
 		return
 	}
 
-	// Someone has to initiate the pulling
-	if !proxy.downloadInProgress.Swap(true) {
+	if byteRange.start >= proxy.contentLength || byteRange.end >= proxy.contentLength {
+		http.Error(writer, "Range out of bounds", 400)
+		return
+	}
+
+	// If download offset is different from requested it's likely due to a seek and since everyone
+	// should be in sync anyway we can terminate the existing download and create a new one.
+	proxy.downloadMutex.Lock()
+	if proxy.downloadBeginOffset != byteRange.start {
 		proxy.downloadBeginOffset = byteRange.start
 		response, err := openFileDownload(proxy.fileUrl, byteRange.start, state.entry.RefererUrl)
 		if err != nil {
@@ -1577,10 +1585,13 @@ func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFil
 			return
 		}
 		proxy.download = response
+		go downloadProxyFilePeriodically()
 	}
+	proxy.downloadMutex.Unlock()
 
 	offset := byteRange.start
 	i := 0
+
 	for {
 		proxy.rangesMutex.Lock()
 		if i >= len(proxy.contentRanges) {
@@ -1591,8 +1602,8 @@ func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFil
 		proxy.rangesMutex.Unlock()
 		i++
 
-		if contentRange.includes(offset) {
-			payload := make([]byte, byteRange.length())
+		if contentRange.includes(offset) && contentRange.length() >= GENERIC_CHUNK_SIZE {
+			payload := make([]byte, GENERIC_CHUNK_SIZE)
 			_, err := proxy.file.ReadAt(payload, byteRange.start)
 			if err != nil {
 				LogError("An error occurred while reading file from memory, %v", err)
@@ -1610,55 +1621,53 @@ func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFil
 				return
 			}
 			LogInfo("Successfully wrote payload to user from memory")
-			return
+
+			offset += GENERIC_CHUNK_SIZE
 		}
 	}
 
-	if true {
-		_, err = proxy.file.WriteAt(bytes, byteRange.start)
+}
+
+func downloadProxyFilePeriodically() {
+	proxy := &state.proxy
+	download := proxy.download
+	offset := proxy.downloadBeginOffset
+	id := generateUniqueId()
+	LogInfo("Starting download (id: %v)", id)
+	for {
+		// Download periodically until the download is replaced pointing to a different object
+		if proxy.download != download {
+			LogInfo("Terminating download (id: %v)", id)
+			return
+		}
+
+		bytes, err := pullBytesFromResponse(download, GENERIC_CHUNK_SIZE)
+		if err != nil {
+			LogError("An error occurred while pulling from source: %v", err)
+			return
+		}
+
+		_, err = proxy.file.WriteAt(bytes, offset)
 		if err != nil {
 			LogError("Error writing to file: %v", err)
 			return
 		}
 
-		// If the download is successful the chunk bytes should be written to memory
+		// The ranges should be checked before the download to avoid re-downloading
+		// Probably open a new download so the entire coroutine should be controlling opening and closing
+		proxy.rangesMutex.Lock()
+		insertContentRangeSequentially(newRange(offset, offset+GENERIC_CHUNK_SIZE-1))
 		mergeContentRanges()
-		insertContentRangeSequentially(byteRange)
-		mergeContentRanges()
+		proxy.rangesMutex.Unlock()
 
-		writer.Header().Set("Content-Type", "video/quicktime")
-		writer.Header().Set("Content-Length", strconv.FormatInt(byteRange.length(), 10))
-		writer.Header().Set(
-			"Content-Range",
-			fmt.Sprintf("bytes=%v-%v/%v", byteRange.start, byteRange.end, proxy.contentLength))
-		writer.WriteHeader(http.StatusPartialContent)
-		_, err = writer.Write(bytes)
-		if err != nil {
-			LogError("An error occurred while writing payload to user %v", err)
-			return
-		}
-		LogInfo("Successfully wrote payload to user that had to be downloaded")
+		offset += GENERIC_CHUNK_SIZE
+
+		time.Sleep(1 * time.Second)
 	}
-
-}
-
-// Meant for a goroutine
-func pullFromSourceRepeatedly(id int64) {
-	proxy := &state.proxy
-	for {
-		bytes, err := pullBytesFromResponse(proxy.download, GENERIC_CHUNK_SIZE)
-		// we need to know where to break
-		if err != nil {
-			return
-		}
-		
-	}
-
 }
 
 func insertContentRangeSequentially(newRange *Range) {
 	proxy := &state.proxy
-	proxy.rangesMutex.Lock()
 	for i := 0; i < len(proxy.contentRanges); i++ {
 		r := &proxy.contentRanges[i]
 		if newRange.start <= r.start {
@@ -1666,13 +1675,10 @@ func insertContentRangeSequentially(newRange *Range) {
 			return
 		}
 	}
-
-	proxy.rangesMutex.Unlock()
 }
 
 func mergeContentRanges() {
 	proxy := &state.proxy
-	proxy.rangesMutex.Lock()
 	for i := 0; i < len(proxy.contentRanges)-1; i++ {
 		leftRange := &proxy.contentRanges[i]
 		rightRange := &proxy.contentRanges[i+1]
@@ -1683,7 +1689,6 @@ func mergeContentRanges() {
 		// This removes the leftRange and rightRange and inserts merged range
 		proxy.contentRanges = slices.Replace(proxy.contentRanges, i, i+2, merge)
 	}
-	proxy.rangesMutex.Unlock()
 }
 
 // this will prevent LAZY broadcasts when users make frequent updates
