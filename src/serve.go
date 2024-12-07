@@ -1548,6 +1548,7 @@ func serveHls(writer http.ResponseWriter, request *http.Request, chunk string) {
 const GENERIC_CHUNK_SIZE = 4 * MB
 
 func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFile string) {
+	LogInfo("serveGenericFile CALLED()!!!!!!!!!!!!!!!")
 	proxy := &state.proxy
 	if path.Ext(pathFile) != proxy.extensionWithDot {
 		http.Error(writer, "Failed to fetch chunk", 404)
@@ -1574,6 +1575,7 @@ func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFil
 		return
 	}
 
+	LogInfo("NEW GENERIC SERVE REQUESTED: %v", byteRange.start)
 	// If download offset is different from requested it's likely due to a seek and since everyone
 	// should be in sync anyway we can terminate the existing download and create a new one.
 	proxy.downloadMutex.Lock()
@@ -1596,7 +1598,10 @@ func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFil
 		proxy.rangesMutex.Lock()
 		if i >= len(proxy.contentRanges) {
 			proxy.rangesMutex.Unlock()
-			break
+			LogInfo("Sleeping until offset=%v becomes available", offset)
+			i = 0
+			time.Sleep(1 * time.Second)
+			continue
 		}
 		contentRange := &proxy.contentRanges[i]
 		proxy.rangesMutex.Unlock()
@@ -1604,23 +1609,24 @@ func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFil
 
 		if contentRange.includes(offset) && contentRange.length() >= GENERIC_CHUNK_SIZE {
 			payload := make([]byte, GENERIC_CHUNK_SIZE)
-			_, err := proxy.file.ReadAt(payload, byteRange.start)
+			_, err := proxy.file.ReadAt(payload, offset)
 			if err != nil {
 				LogError("An error occurred while reading file from memory, %v", err)
 				return
 			}
-			writer.Header().Set("Content-Type", "video/quicktime")
-			writer.Header().Set("Content-Length", strconv.FormatInt(byteRange.length(), 10))
+			currentContentLength := proxy.contentLength - offset
+			writer.Header().Set("Accept-Ranges", "bytes")
+			writer.Header().Set("Content-Length", strconv.FormatInt(currentContentLength, 10))
 			writer.Header().Set(
 				"Content-Range",
-				fmt.Sprintf("bytes=%v-%v/%v", byteRange.start, byteRange.end, proxy.contentLength))
+				fmt.Sprintf("bytes=%v-%v/%v", offset, proxy.contentLength-1, proxy.contentLength))
 			writer.WriteHeader(http.StatusPartialContent)
 			_, err = writer.Write(payload)
 			if err != nil {
 				LogError("An error occurred while writing payload to user %v", err)
 				return
 			}
-			LogInfo("Successfully wrote payload to user from memory")
+			LogInfo("Successfully wrote payload to user from memory: %v - %v", offset, offset+GENERIC_CHUNK_SIZE)
 
 			offset += GENERIC_CHUNK_SIZE
 		}
@@ -1637,6 +1643,7 @@ func downloadProxyFilePeriodically() {
 	for {
 		// Download periodically until the download is replaced pointing to a different object
 		if proxy.download != download {
+			_ = download.Body.Close()
 			LogInfo("Terminating download (id: %v)", id)
 			return
 		}
@@ -1658,23 +1665,31 @@ func downloadProxyFilePeriodically() {
 		proxy.rangesMutex.Lock()
 		insertContentRangeSequentially(newRange(offset, offset+GENERIC_CHUNK_SIZE-1))
 		mergeContentRanges()
+		LogInfo("RANGES %v:", len(proxy.contentRanges))
+		for i := 0; i < len(proxy.contentRanges); i++ {
+			rang := &proxy.contentRanges[i]
+			LogInfo("[%v] %v - %v", i, rang.start, rang.end)
+		}
 		proxy.rangesMutex.Unlock()
 
 		offset += GENERIC_CHUNK_SIZE
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 }
 
+// Could make it insert with merge
 func insertContentRangeSequentially(newRange *Range) {
 	proxy := &state.proxy
+	spot := 0
 	for i := 0; i < len(proxy.contentRanges); i++ {
 		r := &proxy.contentRanges[i]
 		if newRange.start <= r.start {
-			proxy.contentRanges = slices.Insert(proxy.contentRanges, i, *newRange)
-			return
+			break
 		}
+		spot++
 	}
+	proxy.contentRanges = slices.Insert(proxy.contentRanges, spot, *newRange)
 }
 
 func mergeContentRanges() {
@@ -1682,7 +1697,8 @@ func mergeContentRanges() {
 	for i := 0; i < len(proxy.contentRanges)-1; i++ {
 		leftRange := &proxy.contentRanges[i]
 		rightRange := &proxy.contentRanges[i+1]
-		if !leftRange.overlaps(rightRange) {
+		exclusiveRange := newRange(0, leftRange.end+1)
+		if !exclusiveRange.overlaps(rightRange) {
 			continue
 		}
 		merge := leftRange.mergeWith(rightRange)
