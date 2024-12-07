@@ -83,14 +83,15 @@ type Proxy struct {
 	isHls atomic.Bool
 
 	// Generic proxy
-	contentLength    int64
-	extensionWithDot string
-	fileUrl          string
-	file             *os.File
-	contentRanges    []Range // must remain sorted
-	rangesMutex      sync.Mutex
-	flights          []*Flight
-	flightMutex      sync.Mutex
+	contentLength       int64
+	extensionWithDot    string
+	fileUrl             string
+	file                *os.File
+	contentRanges       []Range // must remain sorted
+	rangesMutex         sync.Mutex
+	download            *http.Response
+	downloadMutex       sync.Mutex
+	downloadBeginOffset int64
 }
 
 type Connection struct {
@@ -1299,8 +1300,8 @@ func setupGenericFileProxy(url string, referer string) bool {
 		return false
 	}
 	proxy.file = proxyFile
+	proxy.downloadBeginOffset = -1
 	proxy.contentRanges = make([]Range, 0)
-	proxy.flights = make([]*Flight, 0)
 	return true
 }
 
@@ -1534,7 +1535,7 @@ func serveHls(writer http.ResponseWriter, request *http.Request, chunk string) {
 	fetchErr := downloadFile(proxy.originalChunks[chunk_id], WEB_PROXY+chunk, state.entry.RefererUrl)
 	if fetchErr != nil {
 		mutex.Unlock()
-		LogError("FAILED TO FETCH CHUNK %v", fetchErr)
+		LogError("Failed to fetch chunk %v", fetchErr)
 		http.Error(writer, "Failed to fetch chunk", 500)
 		return
 	}
@@ -1547,6 +1548,7 @@ func serveHls(writer http.ResponseWriter, request *http.Request, chunk string) {
 const GENERIC_CHUNK_SIZE = 4 * MB
 
 func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFile string) {
+	LogInfo("serveGenericFile CALLED()!!!!!!!!!!!!!!!")
 	proxy := &state.proxy
 	if path.Ext(pathFile) != proxy.extensionWithDot {
 		http.Error(writer, "Failed to fetch chunk", 404)
@@ -1563,187 +1565,146 @@ func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFil
 		http.Error(writer, err.Error(), 400)
 		return
 	}
-	if byteRange == nil {
+	if byteRange == nil || byteRange.start < 0 || byteRange.end < 0 {
 		http.Error(writer, "Bad range", 400)
 		return
 	}
 
-	if byteRange.length() > GENERIC_CHUNK_SIZE {
-		// Most browsers requests the entire video anyway so this is a way to balance the load
-		byteRange.end = byteRange.start + GENERIC_CHUNK_SIZE
+	if byteRange.start >= proxy.contentLength || byteRange.end >= proxy.contentLength {
+		http.Error(writer, "Range out of bounds", 400)
+		return
 	}
 
-	// At this point there can be requests that are currently in flight. It's safe to say they can finish faster
-	// than the one we're about to make provided that the chunk is the same size
-	shouldMakeRequest := true
+	LogInfo("NEW GENERIC SERVE REQUESTED: %v", byteRange.start)
+	// If download offset is different from requested it's likely due to a seek and since everyone
+	// should be in sync anyway we can terminate the existing download and create a new one.
+	proxy.downloadMutex.Lock()
+	if proxy.downloadBeginOffset != byteRange.start {
+		proxy.downloadBeginOffset = byteRange.start
+		response, err := openFileDownload(proxy.fileUrl, byteRange.start, state.entry.RefererUrl)
+		if err != nil {
+			http.Error(writer, "Unable to open file download", 500)
+			return
+		}
+		proxy.download = response
+		go downloadProxyFilePeriodically()
+	}
+	proxy.downloadMutex.Unlock()
+
+	offset := byteRange.start
 	i := 0
-	for {
-		proxy.flightMutex.Lock()
-		if i >= len(proxy.flights) {
-			proxy.flightMutex.Unlock()
-			break
-		}
-		flight := proxy.flights[i]
-		proxy.flightMutex.Unlock()
-		i++
 
-		if flight.r.start == byteRange.start {
-			shouldMakeRequest = false
-			LogInfo("Your range is already in flight for %v, we'll wait for it to finish", flight.r)
-
-			flight.barrier.wait()
-			success := flight.barrier.result
-			if !success {
-				shouldMakeRequest = true
-			}
-			break
-		}
-	}
-
-	i = 0
 	for {
 		proxy.rangesMutex.Lock()
 		if i >= len(proxy.contentRanges) {
 			proxy.rangesMutex.Unlock()
-			break
+			LogInfo("Sleeping until offset=%v becomes available", offset)
+			i = 0
+			time.Sleep(1 * time.Second)
+			continue
 		}
 		contentRange := &proxy.contentRanges[i]
 		proxy.rangesMutex.Unlock()
 		i++
 
-		if contentRange.encompasses(byteRange) {
-			payload := make([]byte, byteRange.length())
-			_, err := proxy.file.ReadAt(payload, byteRange.start)
+		if contentRange.includes(offset) && contentRange.length() >= GENERIC_CHUNK_SIZE {
+			payload := make([]byte, GENERIC_CHUNK_SIZE)
+			_, err := proxy.file.ReadAt(payload, offset)
 			if err != nil {
 				LogError("An error occurred while reading file from memory, %v", err)
 				return
 			}
-			writer.Header().Set("Content-Type", "video/quicktime")
-			writer.Header().Set("Content-Length", strconv.FormatInt(byteRange.length(), 10))
+			currentContentLength := proxy.contentLength - offset
+			writer.Header().Set("Accept-Ranges", "bytes")
+			writer.Header().Set("Content-Length", strconv.FormatInt(currentContentLength, 10))
 			writer.Header().Set(
 				"Content-Range",
-				fmt.Sprintf("bytes=%v-%v/%v", byteRange.start, byteRange.end, proxy.contentLength))
+				fmt.Sprintf("bytes=%v-%v/%v", offset, proxy.contentLength-1, proxy.contentLength))
 			writer.WriteHeader(http.StatusPartialContent)
 			_, err = writer.Write(payload)
 			if err != nil {
 				LogError("An error occurred while writing payload to user %v", err)
 				return
 			}
-			LogInfo("Successfully wrote payload to user from memory")
-			return
+			LogInfo("Successfully wrote payload to user from memory: %v - %v", offset, offset+GENERIC_CHUNK_SIZE)
+
+			offset += GENERIC_CHUNK_SIZE
 		}
 	}
 
-	if shouldMakeRequest {
-		ourFlight := newFlight(*byteRange)
-		ourFlight.barrier.block()
-		addFlight(ourFlight)
+}
 
-		bytes, err := downloadFileChunk(proxy.fileUrl, byteRange, state.entry.RefererUrl)
-
-		// Some chunk fetch error
-		if err != nil {
-			var downloadError *DownloadError
-			if errors.As(err, &downloadError) {
-				completeAndRemoveFlightById(false, ourFlight.uniqueId)
-				http.Error(writer, downloadError.Message, downloadError.Code)
-				return
-			}
-			completeAndRemoveFlightById(false, ourFlight.uniqueId)
-			http.Error(writer, err.Error(), 500)
+func downloadProxyFilePeriodically() {
+	proxy := &state.proxy
+	download := proxy.download
+	offset := proxy.downloadBeginOffset
+	id := generateUniqueId()
+	LogInfo("Starting download (id: %v)", id)
+	for {
+		// Download periodically until the download is replaced pointing to a different object
+		if proxy.download != download {
+			_ = download.Body.Close()
+			LogInfo("Terminating download (id: %v)", id)
 			return
 		}
 
-		_, err = proxy.file.WriteAt(bytes, byteRange.start)
+		bytes, err := pullBytesFromResponse(download, GENERIC_CHUNK_SIZE)
+		if err != nil {
+			LogError("An error occurred while pulling from source: %v", err)
+			return
+		}
+
+		_, err = proxy.file.WriteAt(bytes, offset)
 		if err != nil {
 			LogError("Error writing to file: %v", err)
 			return
 		}
 
-		// If the download is successful the chunk bytes should be written to memory
+		// The ranges should be checked before the download to avoid re-downloading
+		// Probably open a new download so the entire coroutine should be controlling opening and closing
+		proxy.rangesMutex.Lock()
+		insertContentRangeSequentially(newRange(offset, offset+GENERIC_CHUNK_SIZE-1))
 		mergeContentRanges()
-		insertContentRangeSequentially(byteRange)
-		mergeContentRanges()
-
-		// Now the chunk can be made available to waiting connections
-		completeAndRemoveFlightById(true, ourFlight.uniqueId)
-
-		writer.Header().Set("Content-Type", "video/quicktime")
-		writer.Header().Set("Content-Length", strconv.FormatInt(byteRange.length(), 10))
-		writer.Header().Set(
-			"Content-Range",
-			fmt.Sprintf("bytes=%v-%v/%v", byteRange.start, byteRange.end, proxy.contentLength))
-		writer.WriteHeader(http.StatusPartialContent)
-		_, err = writer.Write(bytes)
-		if err != nil {
-			LogError("An error occurred while writing payload to user %v", err)
-			return
+		LogInfo("RANGES %v:", len(proxy.contentRanges))
+		for i := 0; i < len(proxy.contentRanges); i++ {
+			rang := &proxy.contentRanges[i]
+			LogInfo("[%v] %v - %v", i, rang.start, rang.end)
 		}
-		LogInfo("Successfully wrote payload to user that had to be downloaded")
+		proxy.rangesMutex.Unlock()
+
+		offset += GENERIC_CHUNK_SIZE
+
+		time.Sleep(5 * time.Second)
 	}
-
 }
 
-type Flight struct {
-	r        Range
-	barrier  Barrier
-	uniqueId uint64
-}
-
-func newFlight(r Range) *Flight {
-	return &Flight{r, Barrier{}, generateUniqueId()}
-}
-
+// Could make it insert with merge
 func insertContentRangeSequentially(newRange *Range) {
 	proxy := &state.proxy
-	proxy.rangesMutex.Lock()
+	spot := 0
 	for i := 0; i < len(proxy.contentRanges); i++ {
 		r := &proxy.contentRanges[i]
 		if newRange.start <= r.start {
-			proxy.contentRanges = slices.Insert(proxy.contentRanges, i, *newRange)
-			return
-		}
-	}
-
-	proxy.rangesMutex.Unlock()
-}
-
-func addFlight(newFlight *Flight) {
-	proxy := &state.proxy
-	proxy.flightMutex.Lock()
-	proxy.flights = append(proxy.flights, newFlight)
-	proxy.flightMutex.Unlock()
-}
-
-func completeAndRemoveFlightById(success bool, id uint64) {
-	proxy := &state.proxy
-	proxy.flightMutex.Lock()
-	flights := proxy.flights
-	for i := 0; i < len(flights); i++ {
-		flight := flights[i]
-		if id == flight.uniqueId {
-			flight.barrier.releaseWithResult(success)
-			proxy.flights = append(flights[:i], flights[i+1:]...)
 			break
 		}
+		spot++
 	}
-	proxy.flightMutex.Unlock()
+	proxy.contentRanges = slices.Insert(proxy.contentRanges, spot, *newRange)
 }
 
 func mergeContentRanges() {
 	proxy := &state.proxy
-	proxy.rangesMutex.Lock()
 	for i := 0; i < len(proxy.contentRanges)-1; i++ {
 		leftRange := &proxy.contentRanges[i]
 		rightRange := &proxy.contentRanges[i+1]
-		if !leftRange.overlaps(rightRange) {
+		exclusiveRange := newRange(0, leftRange.end+1)
+		if !exclusiveRange.overlaps(rightRange) {
 			continue
 		}
 		merge := leftRange.mergeWith(rightRange)
 		// This removes the leftRange and rightRange and inserts merged range
 		proxy.contentRanges = slices.Replace(proxy.contentRanges, i, i+2, merge)
 	}
-	proxy.rangesMutex.Unlock()
 }
 
 // this will prevent LAZY broadcasts when users make frequent updates
