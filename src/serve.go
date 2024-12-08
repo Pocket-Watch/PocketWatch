@@ -1548,12 +1548,12 @@ func serveHls(writer http.ResponseWriter, request *http.Request, chunk string) {
 const GENERIC_CHUNK_SIZE = 4 * MB
 
 func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFile string) {
-	LogInfo("serveGenericFile CALLED()!!!!!!!!!!!!!!!")
 	proxy := &state.proxy
 	if path.Ext(pathFile) != proxy.extensionWithDot {
 		http.Error(writer, "Failed to fetch chunk", 404)
 		return
 	}
+
 	rangeHeader := request.Header.Get("Range")
 	if rangeHeader == "" {
 		http.Error(writer, "Expected 'Range' header. No range was specified.", 400)
@@ -1575,7 +1575,7 @@ func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFil
 		return
 	}
 
-	LogInfo("NEW GENERIC SERVE REQUESTED: %v", byteRange.start)
+	LogDebug("serveGenericFile() called at offset: %v", byteRange.start)
 	// If download offset is different from requested it's likely due to a seek and since everyone
 	// should be in sync anyway we can terminate the existing download and create a new one.
 	proxy.downloadMutex.Lock()
@@ -1591,6 +1591,7 @@ func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFil
 	}
 	proxy.downloadMutex.Unlock()
 
+	wroteHeaders := false
 	offset := byteRange.start
 	i := 0
 
@@ -1598,7 +1599,7 @@ func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFil
 		proxy.rangesMutex.Lock()
 		if i >= len(proxy.contentRanges) {
 			proxy.rangesMutex.Unlock()
-			LogInfo("Sleeping until offset=%v becomes available", offset)
+			// Sleeps until offset becomes available
 			i = 0
 			time.Sleep(1 * time.Second)
 			continue
@@ -1614,19 +1615,24 @@ func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFil
 				LogError("An error occurred while reading file from memory, %v", err)
 				return
 			}
-			currentContentLength := proxy.contentLength - offset
-			writer.Header().Set("Accept-Ranges", "bytes")
-			writer.Header().Set("Content-Length", strconv.FormatInt(currentContentLength, 10))
-			writer.Header().Set(
-				"Content-Range",
-				fmt.Sprintf("bytes=%v-%v/%v", offset, proxy.contentLength-1, proxy.contentLength))
-			writer.WriteHeader(http.StatusPartialContent)
+
+			if !wroteHeaders {
+				currentContentLength := proxy.contentLength - offset
+				writer.Header().Set("Accept-Ranges", "bytes")
+				writer.Header().Set("Content-Length", strconv.FormatInt(currentContentLength, 10))
+				writer.Header().Set(
+					"Content-Range",
+					fmt.Sprintf("bytes=%v-%v/%v", offset, proxy.contentLength-1, proxy.contentLength))
+				writer.WriteHeader(http.StatusPartialContent)
+				wroteHeaders = true
+			}
+
 			_, err = writer.Write(payload)
 			if err != nil {
 				LogError("An error occurred while writing payload to user %v", err)
 				return
 			}
-			LogInfo("Successfully wrote payload to user from memory: %v - %v", offset, offset+GENERIC_CHUNK_SIZE)
+			LogInfo("Successfully wrote payload, range: %v - %v", offset, offset+GENERIC_CHUNK_SIZE)
 
 			offset += GENERIC_CHUNK_SIZE
 		}
