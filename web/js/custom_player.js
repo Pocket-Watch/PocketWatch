@@ -234,33 +234,33 @@ class Internals {
             buffering:        "svg/icons.svg#buffering",
         };
 
-        this.uses = {
-            playback:   newSvgUse(this.icons.play),
-            next:       newSvgUse(this.icons.next),
-            loop:       newSvgUse(this.icons.loop),
-            volume:     newSvgUse(this.icons.volume_full),
-            download:   newSvgUse(this.icons.download),
-            autoplay:   newSvgUse(this.icons.autoplay),
-            subs:       newSvgUse(this.icons.subs),
-            settings:   newSvgUse(this.icons.settings),
-            fullscreen: newSvgUse(this.icons.fullscreen_enter),
+        this.svgs = {
+            playback:   Svg.new(this.icons.play),
+            next:       Svg.new(this.icons.next),
+            loop:       Svg.new(this.icons.loop),
+            volume:     Svg.new(this.icons.volume_full),
+            download:   Svg.new(this.icons.download),
+            autoplay:   Svg.new(this.icons.autoplay),
+            subs:       Svg.new(this.icons.subs),
+            settings:   Svg.new(this.icons.settings),
+            fullscreen: Svg.new(this.icons.fullscreen_enter),
 
-            seekForward:   newSvgUse(this.icons.seek, 70, 70),
-            seekBackward:  newSvgUse(this.icons.seek, 70, 70),
-            playbackPopup: newSvgUse(this.icons.play_popup, 70, 70),
+            seekForward:   Svg.new(this.icons.seek, 70, 70),
+            seekBackward:  Svg.new(this.icons.seek, 70, 70),
+            playbackPopup: Svg.new(this.icons.play_popup, 70, 70),
 
-            arrowLeft:  newSvgUse(this.icons.arrow_left, 20, 20),
-            arrowRight: newSvgUse(this.icons.arrow_right, 20, 20),
+            arrowLeft:  Svg.new(this.icons.arrow_left, 20, 20),
+            arrowRight: Svg.new(this.icons.arrow_right, 20, 20),
 
-            buffering: newSvgUse(this.icons.buffering, 70, 70),
+            buffering: Svg.new(this.icons.buffering, 70, 70),
         };
 
-        this.bufferingSvg = this.uses.buffering.parentElement;
+        this.bufferingSvg = this.svgs.buffering.svg;
         this.bufferingSvg.id = "player_buffering";
         hideElement(this.bufferingSvg);
         this.htmlPlayerRoot.appendChild(this.bufferingSvg);
 
-        this.playbackPopupSvg = this.uses.playbackPopup.parentElement;
+        this.playbackPopupSvg = this.svgs.playbackPopup.svg;
         this.playbackPopupSvg.id = "player_playback_popup";
         this.htmlPlayerRoot.appendChild(this.playbackPopupSvg);
 
@@ -327,11 +327,11 @@ class Internals {
         this.subtitlesEnabled = false;
 
         this.htmlSeekForward = newDiv("player_forward_container");
-        this.htmlSeekForward.appendChild(this.uses.seekForward.parentElement);
+        this.htmlSeekForward.appendChild(this.svgs.seekForward.svg);
         this.htmlPlayerRoot.appendChild(this.htmlSeekForward);
 
         this.htmlSeekBackward = newDiv("player_backward_container");
-        this.htmlSeekBackward.appendChild(this.uses.seekBackward.parentElement);
+        this.htmlSeekBackward.appendChild(this.svgs.seekBackward.svg);
         this.htmlPlayerRoot.appendChild(this.htmlSeekBackward);
 
 
@@ -366,9 +366,9 @@ class Internals {
             return;
         }
 
-        this.uses.playbackPopup.setAttribute("href", this.icons.play_popup);
+        this.svgs.playbackPopup.setHref(this.icons.play_popup);
         this.playbackPopupSvg.classList.add("animate");
-        this.uses.playback.setAttribute("href", this.icons.pause);
+        this.svgs.playback.setHref(this.icons.pause);
         this.htmlVideo.play().catch(e => {
             this.firePlaybackError(e);
         });
@@ -379,9 +379,9 @@ class Internals {
             return;
         }
 
-        this.uses.playbackPopup.setAttribute("href", this.icons.pause_popup);
+        this.svgs.playbackPopup.setHref(this.icons.pause_popup);
         this.playbackPopupSvg.classList.add("animate");
-        this.uses.playback.setAttribute("href", this.icons.play);
+        this.svgs.playback.setHref(this.icons.play);
         this.htmlVideo.pause();
     }
 
@@ -449,13 +449,13 @@ class Internals {
         }
 
         if (volume == 0.0) {
-            this.uses.volume.setAttribute("href", this.icons.volume_muted);
+            this.svgs.volume.setHref(this.icons.volume_muted);
         } else if (volume < 0.3) {
-            this.uses.volume.setAttribute("href", this.icons.volume_low);
+            this.svgs.volume.setHref(this.icons.volume_low);
         } else if (volume < 0.6) {
-            this.uses.volume.setAttribute("href", this.icons.volume_medium);
+            this.svgs.volume.setHref(this.icons.volume_medium);
         } else {
-            this.uses.volume.setAttribute("href", this.icons.volume_full);
+            this.svgs.volume.setHref(this.icons.volume_full);
         }
 
         let input = this.htmlControls.buttons.volumeInput;
@@ -924,17 +924,17 @@ class Internals {
         this.htmlControls.buttons.fullscreenButton.addEventListener("click", () => {
             if (document.fullscreenElement) {
                 document.exitFullscreen();
-                this.uses.fullscreen.setAttribute("href", this.icons.fullscreen_enter);
+                this.svgs.fullscreen.setHref(this.icons.fullscreen_enter);
             } else {
                 this.htmlPlayerRoot.requestFullscreen();
-                this.uses.fullscreen.setAttribute("href", this.icons.fullscreen_exit);
+                this.svgs.fullscreen.setHref(this.icons.fullscreen_exit);
             }
         });
 
         document.addEventListener("fullscreenchange", () => {
             // This is after the fact when a user exited without using the icon
             let href = document.fullscreenElement ? this.icons.fullscreen_exit : this.icons.fullscreen_enter;
-            this.uses.fullscreen.setAttribute("href", href);
+            this.svgs.fullscreen.setHref(href);
         });
 
         this.htmlControls.buttons.volumeInput.addEventListener("input", _event => {
@@ -1068,30 +1068,30 @@ class Internals {
         let buttons = this.htmlControls.buttons.root;
         this.htmlControls.root.appendChild(buttons);
 
-        let uses = this.uses;
+        let svgs = this.svgs;
 
         let playback = this.htmlControls.buttons.playbackButton;
         playback.title = "Play/Pause";
-        playback.appendChild(uses.playback.parentElement);
+        playback.appendChild(svgs.playback.svg);
         if (this.options.hidePlaybackButton) hideElement(playback);
         buttons.appendChild(playback);
 
         let next = this.htmlControls.buttons.nextButton;
         next.title = "Next";
-        next.appendChild(uses.next.parentElement);
+        next.appendChild(svgs.next.svg);
         if (this.options.hideNextButton) hideElement(next);
         buttons.appendChild(next);
 
         let loop = this.htmlControls.buttons.loopButton;
         loop.title = "Loop";
-        loop.appendChild(uses.loop.parentElement);
+        loop.appendChild(svgs.loop.svg);
         if (this.options.hideLoopingButton) hideElement(loop);
         buttons.appendChild(loop);
 
         let volume = this.htmlControls.buttons.volumeButton;
         volume.classList.add("responsive");
         volume.title = "Mute/Unmute";
-        volume.appendChild(uses.volume.parentElement);
+        volume.appendChild(svgs.volume.svg);
         if (this.options.hideVolumeButton) hideElement(volume);
         buttons.appendChild(volume);
 
@@ -1123,7 +1123,7 @@ class Internals {
 
         let download = this.htmlControls.buttons.downloadButton;
         download.title = "Download";
-        download.appendChild(uses.download.parentElement);
+        download.appendChild(svgs.download.svg);
         if (this.options.hideDownloadButton) {
             hideElement(download);
         } else {
@@ -1134,7 +1134,7 @@ class Internals {
 
         let autoplay = this.htmlControls.buttons.autoplayButton;
         autoplay.title = "Autoplay";
-        autoplay.appendChild(uses.autoplay.parentElement);
+        autoplay.appendChild(svgs.autoplay.svg);
         if (this.options.hideAutoplayButton) {
             hideElement(autoplay);
         } else {
@@ -1145,7 +1145,7 @@ class Internals {
 
         let subs = this.htmlControls.buttons.subsButton;
         subs.title = "Subtitles";
-        subs.appendChild(uses.subs.parentElement);
+        subs.appendChild(svgs.subs.svg);
         if (this.options.hideSubtitlesButton) {
             hideElement(subs);
         } else {
@@ -1156,7 +1156,7 @@ class Internals {
 
         let settings = this.htmlControls.buttons.settingsButton;
         settings.title = "Settings";
-        settings.appendChild(uses.settings.parentElement);
+        settings.appendChild(svgs.settings.svg);
         if (this.options.hideSettingsButton) {
             hideElement(settings);
         } else {
@@ -1168,7 +1168,7 @@ class Internals {
         let fullscreen = this.htmlControls.buttons.fullscreenButton;
         fullscreen.classList.add("responsive");
         fullscreen.title = "Fullscreen";
-        fullscreen.appendChild(uses.fullscreen.parentElement);
+        fullscreen.appendChild(svgs.fullscreen.svg);
         if (this.options.hideFullscreenButton) {
             hideElement(fullscreen);
         } else {
@@ -1373,7 +1373,7 @@ class Internals {
                 let bottom = newDiv("player_submenu_shift_bottom");
 
                 let leftButton = newElement("button", null, "player_submenu_shift_button");
-                leftButton.appendChild(this.uses.arrowLeft.parentElement);
+                leftButton.appendChild(this.svgs.arrowLeft.svg);
 
                 let slider = newElement("input", "player_submenu_shift_slider");
                 slider.type = "range";
@@ -1383,7 +1383,7 @@ class Internals {
                 slider.value = 0.0;
 
                 let rightButton = newElement("button", null, "player_submenu_shift_button");
-                rightButton.appendChild(this.uses.arrowRight.parentElement);
+                rightButton.appendChild(this.svgs.arrowRight.svg);
 
                 let setValueSpan = (value) => {
                     let max = Number(slider.max);
@@ -1512,16 +1512,27 @@ function newDiv(id, className) {
     return div;
 }
 
-const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
-function newSvgUse(initialHref, width=20, height=20) {
-    let svg = document.createElementNS(SVG_NAMESPACE, "svg")
-    let use = document.createElementNS(SVG_NAMESPACE, "use")
-    use.setAttribute("href", initialHref);
+class Svg {
+    static NAMESPACE = "http://www.w3.org/2000/svg";
+    constructor(svg, use) {
+        this.svg = svg;
+        this.use = use;
+    }
 
-    svg.setAttribute("width", width);
-    svg.setAttribute("height", height);
-    svg.appendChild(use)
-    return use;
+    setHref(href) {
+        this.use.setAttribute("href", href)
+    }
+
+    static new(initialHref, width=20, height=20) {
+        let svg = document.createElementNS(Svg.NAMESPACE, "svg");
+        let use = document.createElementNS(Svg.NAMESPACE, "use");
+        use.setAttribute("href", initialHref);
+
+        svg.setAttribute("width", width);
+        svg.setAttribute("height", height);
+        svg.appendChild(use);
+        return new Svg(svg, use);
+    }
 }
 
 function newElement(tag, id, className) {
@@ -1604,7 +1615,6 @@ class Options {
 
         this.bufferingRedrawInterval = 1000;
 
-        this.applyRandomFill = false;
     }
 
     // Ensure values are the intended type and within some reasonable range
