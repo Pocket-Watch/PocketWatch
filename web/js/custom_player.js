@@ -856,6 +856,8 @@ class Internals {
         });
 
         this.htmlControls.buttons.subsButton.addEventListener("click", () => {
+            hideElement(this.htmlControls.settings.root);
+
             let menuRootElement = this.htmlControls.subMenu.root;
             let visible = menuRootElement.style.display !== "none";
             if (visible) {
@@ -866,6 +868,8 @@ class Internals {
         });
 
         this.htmlControls.buttons.settingsButton.addEventListener("click", () => {
+            hideElement(this.htmlControls.subMenu.root);
+
             let root = this.htmlControls.settings.root;
             let visible = root.style.display !== "none";
             if (visible) {
