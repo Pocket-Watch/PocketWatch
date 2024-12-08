@@ -316,6 +316,10 @@ class Internals {
 
                 /// Part of the bottom selection panel, html track elements are appended here.
                 trackList: newDiv("subtitle_track_list"),
+            },
+
+            settings: {
+                root: newDiv("player_settings_root"),
             }
         };
 
@@ -723,7 +727,11 @@ class Internals {
     }
 
     hidePlayerUI() {
-        if (this.options.disableControlsAutoHide || !this.isVideoPlaying()) {
+        if (this.options.disableControlsAutoHide) {
+            return;
+        }
+
+        if (!this.isVideoPlaying() && this.options.showControlsOnPause) {
             return;
         }
 
@@ -854,6 +862,16 @@ class Internals {
                 hideElement(menuRootElement);
             } else {
                 menuRootElement.style.display = "";
+            }
+        });
+
+        this.htmlControls.buttons.settingsButton.addEventListener("click", () => {
+            let root = this.htmlControls.settings.root;
+            let visible = root.style.display !== "none";
+            if (visible) {
+                hideElement(root);
+            } else {
+                root.style.display = "";
             }
         });
 
@@ -1190,6 +1208,7 @@ class Internals {
         this.assembleProgressBar();
         this.assembleControlButtons();
         this.createSubtitleMenu();
+        this.createSettingsMenu();
     }
 
     createSubtitleTrackElement(title, index) {
@@ -1232,14 +1251,22 @@ class Internals {
         return track;
     }
 
-    createToggleSwitch(text, onclick) {
+    createToggleSwitch(text, onclick, state) {
         let toggleRoot = newDiv(null, "player_toggle_root");
         let toggleText = newDiv(null, "player_toggle_text");
         toggleText.textContent = text;
         let toggleSwitch = newDiv(null, "player_toggle_switch");
+
+        let enabled = false;
+        if (state) {
+            toggleRoot.classList.add("player_toggle_on");
+            enabled = state;
+        }
+
         toggleSwitch.onclick = () => {
+            enabled = !enabled;
             toggleRoot.classList.toggle("player_toggle_on");
-            onclick();
+            onclick(enabled);
         }
 
         let toggleCircle = newDiv(null, "player_toggle_circle");
@@ -1463,6 +1490,26 @@ class Internals {
         menu.selected.button.classList.add("player_submenu_selected");
         menu.selected.bottom.style.display = "";
     }
+
+    createSettingsMenu() {
+        let menu = this.htmlControls.settings;
+
+        let root = menu.root;
+        root.onclick = consumeEvent;
+        hideElement(root);
+
+        let autohide = this.createToggleSwitch("Auto-hide controls", state => {
+            this.options.disableControlsAutoHide = !state;
+        }, !this.options.disableControlsAutoHide);
+        root.appendChild(autohide);
+
+        let showOnPause = this.createToggleSwitch("Show controls on pause", state => {
+            this.options.showControlsOnPause = state;
+        }, this.options.showControlsOnPause);
+        root.appendChild(showOnPause);
+
+        this.htmlPlayerRoot.appendChild(root);
+    }
 }
 
 function createTimestampString(timestamp) {
@@ -1612,6 +1659,7 @@ class Options {
 
         // Disable the auto hide for player controls.
         this.disableControlsAutoHide = false;
+        this.showControlsOnPause = true;
 
         this.bufferingRedrawInterval = 1000;
 

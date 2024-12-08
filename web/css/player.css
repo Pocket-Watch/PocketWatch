@@ -671,6 +671,23 @@
     border: 5px solid rgba(220, 220, 220, 1.0);
 }
 
+#player_settings_root {
+    width: 30%;
+    height: 45%;
+    border-radius: 8px;
+    /* backdrop-filter: blur(12px); */
+    right: 30px;
+    bottom: 75px;
+    position: absolute;
+    display: flex;
+    flex-flow: column;
+    padding: 8px;
+    font-size: 20px;
+    background: rgba(40, 40, 40, 0.9);
+    /* flex-direction: column; */
+    /* overflow: hidden; */
+}
+
 #player_buffering {
     width: 150px;
     height: 150px;
