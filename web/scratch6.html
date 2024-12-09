@@ -3,42 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flexbox Button Example</title>
+    <title>Flexbox Alignment Example</title>
     <style>
         #container {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%; /* Adjust width as needed */
+            width: 100%;
+            gap: 12px; /* Adjust gap as needed */
         }
 
-        .left-group, .right-group {
-            display: flex;
-            gap: 32px; /* Adjust gap as needed */
-        }
-
-        .left-group {
-            margin-right: auto; /* Pushes left group to the left */
-        }
-
-        .right-group {
-            margin-left: auto; /* Pushes right group to the right */
+        #spacer {
+            flex-grow: 1; /* Fills the space between the left and right elements */
         }
     </style>
 </head>
 <body>
 <div id="container">
-    <div class="left-group">
-        <div id="div1">Div 1</div>
-        <div id="div2">Div 2</div>
-        <button id="button">Button</button>
-    </div>
-    <div class="right-group">
-        <div id="div3">Div 3</div>
-        <div id="div4">Div 4</div>
-    </div>
+    <div id="div1">Div 1</div>
+    <div id="div2">Div 2</div>
+    <div id="div3">Div 3</div>
 
+    <div id="spacer"></div> <!-- Spacer div to displace elements pushing them left and right -->
+
+    <div id="div4">Div 4</div>
+    <div id="div5">Div 5</div>
 </div>
+<button id="button">Test</button>
 <script>
     function hideElement(element) {
         element.style.display = "none";
@@ -48,19 +37,19 @@
         element.style.display = "";
     }
 
-    let div = document.getElementById("div4");
+    let div2 = document.getElementById("div2");
+    let div5 = document.getElementById("div5");
     let button = document.getElementById("button");
     button.onclick = e => {
-        let hidden = div.style.display == "none";
+        let hidden = div5.style.display == "none";
         if (hidden) {
-            showElement(div);
+            showElement(div5);
+            showElement(div2);
         } else {
-            hideElement(div);
+            hideElement(div5);
+            hideElement(div2);
         }
     }
-
-
-
 </script>
 </body>
 </html>
