@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 )
@@ -266,4 +267,70 @@ func (timecode *Timecode) shiftForwardBy(ms int) {
 	timecode.Hours += additionalHours
 
 	// cannot mod hours because it cannot be carried over to a higher unit
+}
+
+type Movie struct {
+	Title string `json:"title"`
+	Lang  string `json:"lang"`
+	Year  string `json:"year"`
+}
+
+type Series struct {
+	Title   string `json:"title"`
+	Lang    string `json:"lang"`
+	Year    string `json:"year"`
+	Season  string `json:"season"`
+	Episode string `json:"episode"`
+}
+
+func downloadMovieSubtitle(executable string, movie *Movie) (string, error) {
+	command := exec.Command(executable, movie.Title, "--skip-select", "--to", "vtt")
+	if movie.Lang != "" {
+		command.Args = append(command.Args, "--lang", movie.Lang)
+	}
+	if movie.Year != "" {
+		command.Args = append(command.Args, "-y", movie.Year)
+	}
+	return executeSubtitleDownload(command)
+}
+
+func downloadSeriesSubtitle(executable string, series *Series) (string, error) {
+	command := exec.Command(executable, series.Title, "--skip-select", "--to", "vtt")
+	if series.Lang != "" {
+		command.Args = append(command.Args, "--lang", series.Lang)
+	}
+	if series.Year != "" {
+		command.Args = append(command.Args, "-y", series.Year)
+	}
+	if series.Season != "" && series.Episode != "" {
+		command.Args = append(command.Args, "-s", series.Season, "-e", series.Episode)
+	}
+	return executeSubtitleDownload(command)
+}
+
+func executeSubtitleDownload(command *exec.Cmd) (string, error) {
+	stdout, err := command.Output()
+	output := string(stdout)
+	if err != nil {
+		if output != "" {
+			output = strings.Trim(output, "\n")
+			return "", errors.Join(errors.New(output), err)
+		}
+		return "", errors.Join(err)
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(output))
+	// Scan through the output line by line picking out the modified filename
+	firstLine := ""
+	for scanner.Scan() {
+		line := scanner.Text()
+		if firstLine == "" {
+			// This is needed to log the first error
+			firstLine = line
+		}
+		if strings.HasPrefix(line, "New name:") {
+			return line[len("New name:")+1:], nil
+		}
+	}
+	return "", errors.New(firstLine)
 }
