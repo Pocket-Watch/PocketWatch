@@ -212,12 +212,12 @@
 }
 
 #player_progress_current {
-    width: 0%;
+    width: 0;
     background: rgba(255, 0, 0, 0.5);
 }
 
 #player_progress_thumb {
-    height: 0px;
+    height: 0;
     width: 6px;
     border-radius: 6px;
     position: absolute;
@@ -245,7 +245,7 @@
     width: calc(100% - 48px);
     column-gap: 8px;
     display: flex;
-    flex: 1;
+    flex: 0;
     padding-right:  24px;
     padding-left:   24px;
     padding-bottom: 8px;
@@ -261,6 +261,10 @@
     align-items: center;
     transition: transform 0.1s ease-in-out;
     background-color: rgba(255, 255, 255, 0.2);
+}
+
+#player_spacer {
+    flex-grow: 1;
 }
 
 .player_controls_button svg {
@@ -330,7 +334,7 @@
     outline: none;
     position: absolute;
     background: transparent;
-    margin: 0px;
+    margin: 0;
 }
 
 #player_volume_input::-webkit-slider-thumb {
@@ -511,7 +515,7 @@
 .subtitle_track_edit_button {
     height: 80%;
     width: 80%;
-    border: 0px;
+    border: 0;
     border-radius: 4px;
     margin-right: 3px;
     /* margin: 2px; */
@@ -521,7 +525,7 @@
 .subtitle_track_remove_button {
     height: 80%;
     width: 80%;
-    border: 0px;
+    border: 0;
     border-radius: 4px;
     /* margin: 2px; */
     background-color: rgba(160, 160, 160, 0.4);

@@ -1140,17 +1140,13 @@ class Internals {
         if (this.options.hideTimestamps) hideElement(timestamp);
         buttons.appendChild(timestamp);
 
-
-        let firstAutoMargin = true;
+        buttons.appendChild(newDiv("player_spacer"))
 
         let download = this.htmlControls.buttons.downloadButton;
         download.title = "Download";
         download.appendChild(svgs.download.svg);
         if (this.options.hideDownloadButton) {
             hideElement(download);
-        } else {
-            download.style.marginLeft = firstAutoMargin ? "auto" : "0";
-            firstAutoMargin = false;
         }
         buttons.appendChild(download);
 
@@ -1159,9 +1155,6 @@ class Internals {
         autoplay.appendChild(svgs.autoplay.svg);
         if (this.options.hideAutoplayButton) {
             hideElement(autoplay);
-        } else {
-            autoplay.style.marginLeft = firstAutoMargin ? "auto" : "0";
-            firstAutoMargin = false;
         }
         buttons.appendChild(autoplay);
 
@@ -1170,9 +1163,6 @@ class Internals {
         subs.appendChild(svgs.subs.svg);
         if (this.options.hideSubtitlesButton) {
             hideElement(subs);
-        } else {
-            subs.style.marginLeft = firstAutoMargin ? "auto" : "0";
-            firstAutoMargin = false;
         }
         buttons.appendChild(subs);
 
@@ -1181,9 +1171,6 @@ class Internals {
         settings.appendChild(svgs.settings.svg);
         if (this.options.hideSettingsButton) {
             hideElement(settings);
-        } else {
-            settings.style.marginLeft = firstAutoMargin ? "auto" : "0";
-            firstAutoMargin = false;
         }
         buttons.appendChild(settings);
 
@@ -1193,8 +1180,6 @@ class Internals {
         fullscreen.appendChild(svgs.fullscreen.svg);
         if (this.options.hideFullscreenButton) {
             hideElement(fullscreen);
-        } else {
-            fullscreen.style.marginLeft = firstAutoMargin ? "auto" : "0";
         }
         buttons.appendChild(fullscreen);
     }
