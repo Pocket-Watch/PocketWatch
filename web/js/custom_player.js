@@ -1111,7 +1111,6 @@ class Internals {
         buttons.appendChild(loop);
 
         let volume = this.htmlControls.buttons.volumeButton;
-        volume.classList.add("responsive");
         volume.title = "Mute/Unmute";
         volume.appendChild(svgs.volume.svg);
         if (this.options.hideVolumeButton) hideElement(volume);
@@ -1175,7 +1174,6 @@ class Internals {
         buttons.appendChild(settings);
 
         let fullscreen = this.htmlControls.buttons.fullscreenButton;
-        fullscreen.classList.add("responsive");
         fullscreen.title = "Fullscreen";
         fullscreen.appendChild(svgs.fullscreen.svg);
         if (this.options.hideFullscreenButton) {
