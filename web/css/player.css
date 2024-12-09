@@ -408,6 +408,7 @@
     font-size: 16px;
     align-items: center;
     justify-content: center;
+    cursor: pointer;
     /* background-color: rgba(40, 40, 40, 0.7); */
     color: rgba(200, 200, 200, 1.0);
 }
@@ -485,6 +486,7 @@
 }
 
 .subtitle_track_text {
+    cursor: pointer;
     height: 100%;
     min-width: 0;
     border: none;
@@ -542,6 +544,7 @@
 
 .player_toggle_text {
     color: white;
+    user-select: none;
 }
 
 .player_toggle_switch {
@@ -553,6 +556,7 @@
     background-color: rgba(160, 160, 160, 0.4);
     margin-left: auto;
     align-items: center;
+    cursor: pointer;
 }
 
 .player_toggle_on .player_toggle_switch {
