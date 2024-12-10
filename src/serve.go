@@ -107,15 +107,15 @@ type Connections struct {
 }
 
 type User struct {
-	Id            uint64 `json:"id"`
-	Username      string `json:"username"`
-	Avatar        string `json:"avatar"`
-	Connections   uint64 `json:"connections"`
-	token         string
-	created       time.Time
-	lastUpdate    time.Time
-	connIdCounter uint64
-	connections   []Connection
+	Id          uint64 `json:"id"`
+	Username    string `json:"username"`
+	Avatar      string `json:"avatar"`
+	Online      bool   `json:"online"`
+	Placeholder uint64 `json:"connections"`
+	connections uint64
+	token       string
+	created     time.Time
+	lastUpdate  time.Time
 }
 
 type Users struct {
@@ -148,14 +148,12 @@ func (users *Users) create() User {
 	users.idCounter += 1
 
 	new_user := User{
-		Id:            id,
-		Username:      fmt.Sprintf("User %v", id),
-		Avatar:        "",
-		token:         generateToken(),
-		created:       time.Now(),
-		lastUpdate:    time.Now(),
-		connIdCounter: 1,
-		connections:   make([]Connection, 0),
+		Id:         id,
+		Username:   fmt.Sprintf("User %v", id),
+		Avatar:     "",
+		token:      generateToken(),
+		created:    time.Now(),
+		lastUpdate: time.Now(),
 	}
 
 	users.slice = append(users.slice, new_user)
@@ -559,16 +557,19 @@ func apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 	io.Copy(file, formfile)
 
-	avatarUrl = fmt.Sprintf("users/avatar%v", user.Id)
+    now := time.Now()
+	avatarUrl = fmt.Sprintf("users/avatar%v?%v", user.Id, now)
 
 	users.mutex.Lock()
 	users.slice[userIndex].Avatar = avatarUrl
+	users.slice[userIndex].lastUpdate = time.Now()
+    user = users.slice[userIndex]
 	users.mutex.Unlock()
 
 	jsonData, _ := json.Marshal(avatarUrl)
 
 	io.WriteString(w, string(jsonData))
-	// writeEventToAllConnections(w, "usernameupdate", user)
+	writeEventToAllConnections(w, "useravatarupdate", user)
 }
 
 func apiPlayerGet(w http.ResponseWriter, r *http.Request) {
@@ -1414,7 +1415,9 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	users.slice[userIndex].Connections += 1
+	users.slice[userIndex].connections += 1
+	connected := users.slice[userIndex].connections == 1
+	users.slice[userIndex].Online = connected
 	user := users.slice[userIndex]
 	users.mutex.Unlock()
 
@@ -1429,12 +1432,14 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	welcomeErr := writeEvent(w, "welcome", connectionId)
+	welcomeErr := writeEvent(w, "userwelcome", connectionId)
 	if welcomeErr != nil {
 		return
 	}
 
-	writeEventToAllConnectionsExceptSelf(w, "connectionadd", user.Id, user.Id, connectionId)
+	if connected {
+		writeEventToAllConnectionsExceptSelf(w, "userconnected", user.Id, user.Id, connectionId)
+	}
 
 	for {
 		var event SyncEventData
@@ -1456,14 +1461,19 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 			connectionCount = len(conns.slice)
 			conns.mutex.Unlock()
 
-			writeEventToAllConnectionsExceptSelf(w, "connectiondrop", user.Id, user.Id, connectionId)
-
 			users.mutex.Lock()
 			userIndex := users.findIndex(token)
+			disconnected := false
 			if userIndex != -1 {
-				users.slice[userIndex].Connections -= 1
+				users.slice[userIndex].connections -= 1
+				disconnected = users.slice[userIndex].connections == 0
+				users.slice[userIndex].Online = !disconnected
 			}
 			users.mutex.Unlock()
+
+			if disconnected {
+				writeEventToAllConnectionsExceptSelf(w, "userdisconnected", user.Id, user.Id, connectionId)
+			}
 
 			LogInfo("Connection with %s dropped. Current connection count: %d", r.RemoteAddr, connectionCount)
 			LogDebug("Drop error message: %v", connectionErr)

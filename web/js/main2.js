@@ -31,7 +31,7 @@ class Room {
 
         this.rightPanel = {
             tabs: {
-                info:     document.getElementById("tab_info"),
+                room:     document.getElementById("tab_room"),
                 playlist: document.getElementById("tab_playlist"),
                 chat:     document.getElementById("tab_chat"),
                 history:  document.getElementById("tab_history"),
@@ -39,22 +39,22 @@ class Room {
 
             content: {
                 root:     document.getElementById("right_panel_content"),
-                info:     document.getElementById("content_info"),
+                room:     document.getElementById("content_room"),
                 playlist: document.getElementById("content_playlist"),
                 chat:     document.getElementById("content_chat"),
                 history:  document.getElementById("content_history"),
             },
         };
 
-        let content = this.rightPanel.content;
-        content.playlist.style.visibility = "visible";
+        let content = this.rightPanel.content.room;
+        content.style.visibility = "visible";
 
-        let tabs = this.rightPanel.tabs;
-        tabs.playlist.classList.add("right_panel_tab_selected");
+        let tab = this.rightPanel.tabs.room;
+        tab.classList.add("right_panel_tab_selected");
 
         this.rightPanel.selected = {
-            tab:     tabs.playlist,
-            content: content.playlist,
+            tab:     tab,
+            content: content,
         }
 
         this.proxyEnabled = false;
@@ -63,83 +63,20 @@ class Room {
         /// Current connection id.
         this.connectionId = 0;
 
-        /// Server User structure.
+        /// Currently connected user. Server User structure.
         this.currentUser = null;
 
         /// User token string.
         this.token = "";
 
-        /// List of all users
+        /// List of all users in current room.
         this.allUsers = [];
-    }
 
-    sliderTesting() {
-        let calculateProgress = (event, element) => {
-            let rect = element.getBoundingClientRect();
-            let offsetX;
+        /// List of all html user elements displayed inside of users_list element.
+        this.allUserBoxes = [];
 
-            if (event.touches) {
-                offsetX = event.touches[0].clientX - rect.left;
-            } else {
-                offsetX = event.clientX - rect.left;
-            }
-
-            // Ensure the touch doesn't exceed slider bounds
-            if (offsetX < 0) offsetX = 0;
-            if (offsetX > rect.width) offsetX = rect.width;
-
-            let progress = offsetX / rect.width;
-            if (isNaN(progress)) {
-                progress = 0;
-            }
-
-            return progress;
-        }
-
-        let sliderMove = (e) => {
-            let bar = document.getElementById("cp_bar");
-            let progress = calculateProgress(e, bar);
-            console.log(progress);
-
-            document.getElementById("cp_progress").style.width = progress * 100 + "%"; 
-
-            let width = bar.clientWidth;
-
-            let thumb = document.getElementById("cp_thumb");
-            let thumb_width = thumb.clientWidth / 2.0;
-            let thumb_left = width * progress - thumb_width;
-
-            thumb.style.marginLeft = thumb_left + "px";
-        }
-
-        let removeSliderEvents = () => {
-            document.removeEventListener("mousemove", sliderMove);
-            document.removeEventListener("mouseup", removeSliderEvents);
-        }
-
-        document.getElementById("cp_slider").onmousedown = (e) => {
-            document.addEventListener("mousemove", sliderMove);
-            document.addEventListener("mouseup", removeSliderEvents);
-            sliderMove(e);
-        };
-
-        // document.getElementById("cp_input").oninput = (e) => {
-        //     let t = e.target;
-        //     // console.log(e.clientX);
-        //
-        //     let w = document.getElementById("cp_bar").clientWidth;
-        //     let p = Number(t.value);
-        //
-        //     let s = document.getElementById("cp_thumb").clientWidth / 2.0;
-        //     let ml = ((p * (w - s)) / w) * 100;
-        //
-        //     console.log(p);
-        //
-        //     document.getElementById("cp_progress").style.width = p * w + "px"; 
-        //     document.getElementById("cp_thumb").style.marginLeft = ml + "%";
-        //
-        //     console.log(t.value);
-        // }
+        /// Number of user online.
+        this.onlineCount = 0;
     }
 
     attachPlayerEvents() {
@@ -203,7 +140,7 @@ class Room {
         let tabs = this.rightPanel.tabs;
         let content = this.rightPanel.content;
 
-        tabs.info.onclick     = () => select(tabs.info, content.info);
+        tabs.room.onclick     = () => select(tabs.room, content.room);
         tabs.playlist.onclick = () => select(tabs.playlist, content.playlist);
         tabs.chat.onclick     = () => select(tabs.chat, content.chat);
         tabs.history.onclick  = () => select(tabs.history, content.history);
@@ -280,14 +217,47 @@ class Room {
 
     async loadUsersData() {
         this.allUsers = await api.userGetAll();
+        console.log(this.allUsers);
+
+        let onlineBoxes = [];
+        let offlineBoxes = [];
+        let selfBox = null;
 
         for (var i = 0; i < this.allUsers.length; i++) {
-            if (this.allUsers[i].id == this.currentUser.id) {
-                this.allUsers[i].connections += 1;
-                break;
+            let user = this.allUsers[i];
+            let userBox = this.createUserBox(user);
+
+            if (user.id == this.currentUser.id) {
+                user.online = true;
+                this.onlineCount += 1;
+                userBox.classList.add("user_box_online");
+                selfBox = userBox;
+            } else if (user.online) {
+                userBox.classList.add("user_box_online");
+                onlineBoxes.push(userBox);
+            } else {
+                userBox.classList.add("user_box_offline");
+                offlineBoxes.push(userBox);
             }
+
+            this.allUserBoxes.push(userBox);
         }
-        this.updateUsersArea();
+
+        let userList = this.usersArea.userList;
+        userList.append(selfBox);
+
+        for (let i = 0; i < onlineBoxes.length; i++) {
+            let box = onlineBoxes[i];
+            userList.append(box);
+        }
+
+        for (let i = 0; i < offlineBoxes.length; i++) {
+            let box = offlineBoxes[i];
+            userList.append(box);
+        }
+
+        this.usersArea.onlineCount.textContent = this.onlineCount;
+        this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
     }
 
     createUserBox(user) {
@@ -303,27 +273,29 @@ class Room {
             userAvatar.src = user.avatar ? user.avatar : "img/default_avatar.png"; 
             userBoxTop.append(userAvatar);
 
-            let changeAvatarButton = document.createElement("button");
-            changeAvatarButton.className = "user_box_change_avatar";
-            changeAvatarButton.textContent = "E";
-            changeAvatarButton.onclick = () => {
-                var input = document.createElement('input');
-                input.type = "file";
+            if (user.id == this.currentUser.id) {
+                let changeAvatarButton = document.createElement("button");
+                changeAvatarButton.className = "user_box_change_avatar";
+                changeAvatarButton.textContent = "E";
+                changeAvatarButton.onclick = () => {
+                    var input = document.createElement('input');
+                    input.type = "file";
 
-                input.onchange = event => { 
-                    var file = event.target.files[0]; 
-                    console.log("Picked file:", file);
-                    api.userUpdateAvatar(file).then(newAvatar => {
-                        if (newAvatar) {
-                            userAvatar.src = newAvatar;
-                        }
-                    });
-                }
+                    input.onchange = event => { 
+                        var file = event.target.files[0]; 
+                        console.log("Picked file:", file);
+                        api.userUpdateAvatar(file).then(newAvatar => {
+                            if (newAvatar) {
+                                userAvatar.src = newAvatar;
+                            }
+                        });
+                    }
 
-                input.click();
-            };
+                    input.click();
+                };
 
-            userBoxTop.append(changeAvatarButton);
+                userBoxTop.append(changeAvatarButton);
+            }
         }
 
         userBox.append(userBoxTop);
@@ -388,43 +360,6 @@ class Room {
         return userBox;
     }
 
-    updateUsersArea() {
-        let onlineUsers = [];
-        let offlineUsers = [];
-
-        for (var i = 0; i < this.allUsers.length; i++) {
-            let newUserBox = this.createUserBox(this.allUsers[i]);
-
-            if (this.allUsers[i].connections > 0) {
-                newUserBox.classList.add("user_box_online");
-                onlineUsers.push(newUserBox);
-            } else {
-                newUserBox.classList.add("user_box_offline");
-                offlineUsers.push(newUserBox);
-            }
-        }
-
-        this.usersArea.onlineCount.textContent = onlineUsers.length;
-        this.usersArea.offlineCount.textContent = offlineUsers.length;
-
-        // NOTE(kihau): 
-        //     Those should not be removed every time, but rather modified according to the action that 
-        //     occurred (user connected, user name change, etc.). This will prevent all kinds of weird issues
-        //     such as username change input getting canceled when someone joins the room.
-        let userList = this.usersArea.userList;
-        while (userList.lastChild) {
-            userList.removeChild(userList.lastChild);
-        }
-
-        for (let i = 0; i < onlineUsers.length; i++) {
-            userList.append(onlineUsers[i]);
-        }
-
-        for (let i = 0; i < offlineUsers.length; i++) {
-            userList.append(offlineUsers[i]);
-        }
-    }
-
     resyncPlayer(timestamp, userId) {
         const MAX_DESYNC = 1.5;
         let desync = timestamp - this.player.getCurrentTime();
@@ -445,7 +380,7 @@ class Room {
     subscribeToServerEvents() {
         let events = new EventSource("/watch/api/events?token=" + this.token);
 
-        events.addEventListener("welcome", (event) => {
+        events.addEventListener("userwelcome", event => {
             let connectionId = JSON.parse(event.data);
             console.info("INFO: Received a welcome request with connection id: ", connectionId);
             this.connectionId = connectionId;
@@ -453,42 +388,70 @@ class Room {
             api.setConnectionId(this.connectionId);
         });
 
-        events.addEventListener("usercreate", (event) => {
-            let newUser = JSON.parse(event.data)
-            this.allUsers.push(newUser)
-            console.info("INFO: New user has beed created: ", newUser)
-            this.updateUsersArea();
+        events.addEventListener("usercreate", event => {
+            let user = JSON.parse(event.data)
+            this.allUsers.push(user)
+            console.info("INFO: New user has beed created: ", user)
+
+            let userBox = this.createUserBox(user);
+            userBox.classList.add("user_box_offline");
+            this.allUserBoxes.push(userBox);
+            this.usersArea.userList.appendChild(userBox);
+
+            this.usersArea.onlineCount.textContent = this.onlineCount;
+            this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
         });
 
-        events.addEventListener("connectionadd", (event) => {
+        events.addEventListener("userconnected", event => {
             let userId = JSON.parse(event.data);
-            console.info("INFO: New connection added for user id: ", userId)
+            console.info("INFO: User connected, ID: ", userId)
 
-            for (var i = 0; i < this.allUsers.length; i++) {
-                if (this.allUsers[i].id == userId) {
-                    this.allUsers[i].connections += 1;
-                    break;
-                }
-            }
+            let i = this.allUsers.findIndex(user => user.id == userId);
+            this.allUsers[i].online = true;
+            this.allUserBoxes[i].classList.remove("user_box_offline");
+            this.allUserBoxes[i].classList.add("user_box_online");
 
-            this.updateUsersArea();
+            this.onlineCount += 1;
+
+            this.usersArea.onlineCount.textContent = this.onlineCount;
+            this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
         });
 
-        events.addEventListener("connectiondrop", (event) => {
+        events.addEventListener("userdisconnected", event => {
             let userId = JSON.parse(event.data);
-            console.info("INFO: Connection dropped for user id: ", userId)
+            console.info("INFO: User disconnected, ID: ", userId)
 
-            for (var i = 0; i < this.allUsers.length; i++) {
-                if (this.allUsers[i].id == userId) {
-                    this.allUsers[i].connections -= 1;
-                    break;
-                }
-            }
+            let i = this.allUsers.findIndex(user => user.id == userId);
+            this.allUsers[i].online = false;
+            this.allUserBoxes[i].classList.remove("user_box_online");
+            this.allUserBoxes[i].classList.add("user_box_offline");
 
-            this.updateUsersArea();
+            this.onlineCount -= 1;
+
+            this.usersArea.onlineCount.textContent = this.onlineCount;
+            this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
         });
 
-        events.addEventListener("playerset", (event) => {
+        events.addEventListener("usernameupdate", event => {
+            let user = JSON.parse(event.data);
+            console.info("INFO: Update user name event for: ", user)
+
+            let i = this.allUsers.findIndex(x => x.id == user.id);
+            let input = this.allUserBoxes[i].querySelectorAll('input')[0];
+            input.value = user.username;
+        });
+
+        events.addEventListener("useravatarupdate", event => {
+            let user = JSON.parse(event.data);
+            console.info("INFO: Update user avatar event for: ", user)
+
+            let i = this.allUsers.findIndex(x => x.id == user.id);
+            let img = document.createElement("img");
+            img.src = user.avatar;
+            this.allUserBoxes[i].querySelectorAll('img')[0].replaceWith(img);
+        });
+
+        events.addEventListener("playerset", event => {
             let response = JSON.parse(event.data);
             console.info("INFO: Received player set event: ", response);
 
