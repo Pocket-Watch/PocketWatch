@@ -916,11 +916,12 @@ class Internals {
         });
 
         this.htmlPlayerRoot.addEventListener("click", event => {
-            if (event.pointerType === "touch" && this.isUIVisible) {
-                this.togglePlayback();
-            } else if (event.pointerType === "mouse") {
-                this.togglePlayback();
+            if (event.pointerType === "touch" || event.pointerType === "pen") {
+                if (!this.isUIVisible) {
+                    return;
+                }
             }
+            this.togglePlayback();
         });
 
         this.htmlVideo.addEventListener("waiting", () => {
@@ -1063,7 +1064,7 @@ class Internals {
         });
 
         this.htmlControls.root.addEventListener("transitionend", (e) => {
-            // NOTE(kihau): 
+            // NOTE(kihau):
             //     This is a really weird and confusing way of setting the isUIVisible flag.
             //     Probably should be changed and done the proper way at some point.
             if (e.propertyName === "opacity") {
@@ -1337,11 +1338,11 @@ class Internals {
             let select = menu.bottom.selectRoot;
             select.style.display = "none";
 
-            let enableSubsToggle = this.createToggleSwitch("Enable subtitles", () => { 
+            let enableSubsToggle = this.createToggleSwitch("Enable subtitles", () => {
                 this.subtitlesEnabled = !this.subtitlesEnabled;
                 this.setCurrentTrackVisibility(this.subtitlesEnabled);
             });
-            select.appendChild(enableSubsToggle); 
+            select.appendChild(enableSubsToggle);
 
             let separator = newElement("hr", null, "player_submenu_separator");
             select.appendChild(separator);
