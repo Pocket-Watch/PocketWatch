@@ -46,6 +46,17 @@ class Room {
             },
         };
 
+        let content = this.rightPanel.content;
+        content.playlist.style.visibility = "visible";
+
+        let tabs = this.rightPanel.tabs;
+        tabs.playlist.classList.add("right_panel_tab_selected");
+
+        this.rightPanel.selected = {
+            tab:     tabs.playlist,
+            content: content.playlist,
+        }
+
         this.proxyEnabled = false;
         this.dropdownIsDown = false;
 
@@ -178,48 +189,24 @@ class Room {
     }
 
     attachRightPanelEvents() {
+        let select = (tab, content) => {
+            this.rightPanel.selected.tab.classList.remove("right_panel_tab_selected");
+            this.rightPanel.selected.content.style.visibility = "hidden";
+
+            tab.classList.add("right_panel_tab_selected");
+            content.style.visibility = "visible";
+
+            this.rightPanel.selected.tab = tab;
+            this.rightPanel.selected.content = content;
+        }
+
         let tabs = this.rightPanel.tabs;
         let content = this.rightPanel.content;
 
-        let reset = () => {
-            this.rightPanel.content.root.classList.remove("remove_round_left")
-            this.rightPanel.content.root.classList.remove("remove_round_right")
-            tabs.info.classList.remove("right_panel_tab_selected");
-            tabs.playlist.classList.remove("right_panel_tab_selected");
-            tabs.chat.classList.remove("right_panel_tab_selected");
-            tabs.history.classList.remove("right_panel_tab_selected");
-
-            content.info.style.visibility = "hidden";
-            content.playlist.style.visibility = "hidden";
-            content.chat.style.visibility = "hidden";
-            content.history.style.visibility = "hidden";
-        }
-
-        tabs.info.onclick = () => {
-            reset();
-            this.rightPanel.content.root.classList.add("remove_round_left")
-            tabs.info.classList.add("right_panel_tab_selected");
-            content.info.style.visibility = "visible";
-        }
-
-        tabs.playlist.onclick = () => {
-            reset();
-            tabs.playlist.classList.add("right_panel_tab_selected");
-            content.playlist.style.visibility = "visible";
-        }
-
-        tabs.chat.onclick = () => {
-            reset();
-            tabs.chat.classList.add("right_panel_tab_selected");
-            content.chat.style.visibility = "visible";
-        }
-
-        tabs.history.onclick = e => {
-            reset();
-            this.rightPanel.content.root.classList.add("remove_round_right")
-            tabs.history.classList.add("right_panel_tab_selected");
-            content.history.style.visibility = "visible";
-        }
+        tabs.info.onclick     = () => select(tabs.info, content.info);
+        tabs.playlist.onclick = () => select(tabs.playlist, content.playlist);
+        tabs.chat.onclick     = () => select(tabs.chat, content.chat);
+        tabs.history.onclick  = () => select(tabs.history, content.history);
     }
 
     attachHtmlEvents() {
