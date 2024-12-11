@@ -46,6 +46,9 @@ class Room {
             },
         };
 
+        this.nowPlaying = document.getElementById("room_now_playing_input");
+        this.usingProxy = document.getElementById("room_using_proxy");
+
         let content = this.rightPanel.content.room;
         content.style.visibility = "visible";
 
@@ -211,6 +214,9 @@ class Room {
         this.player.setLoop(state.player.looping);
 
         let entry = state.entry;
+        this.nowPlaying.value = entry.url;
+        this.usingProxy.checked = entry.user_proxy;
+
         this.player.setVideoTrack(entry.url);
         this.player.setTitle(entry.title);
     }
@@ -233,6 +239,7 @@ class Room {
                 userBox.classList.add("user_box_online");
                 selfBox = userBox;
             } else if (user.online) {
+                this.onlineCount += 1;
                 userBox.classList.add("user_box_online");
                 onlineBoxes.push(userBox);
             } else {
@@ -456,6 +463,8 @@ class Room {
             console.info("INFO: Received player set event: ", response);
 
             let entry = response.new_entry;
+            this.nowPlaying.value = entry.url;
+            this.usingProxy.checked = entry.user_proxy;
 
             let url = entry.url
             if (entry.source_url) {
@@ -464,6 +473,7 @@ class Room {
 
             this.player.setVideoTrack(url);
             this.player.setTitle(entry.title);
+
         });
 
         events.addEventListener("sync", (event) => {

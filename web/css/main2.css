@@ -594,3 +594,45 @@ html * {
     position: absolute;
     padding: 16px;
 }
+
+#room_now_playing {
+    height: 30px;
+}
+
+#room_entry_title {
+    height: 30px;
+}
+
+#room_upload_file {
+    color: #d5c4a1;
+}
+
+.placeholder {
+    color: #d5c4a1;
+}
+
+@keyframes sway {
+    0% {
+        transform: rotate(8deg);
+    }
+
+    50% {
+        transform: rotate(-8deg);
+    }
+
+    100% {
+        transform: rotate(8deg);
+    }
+}
+
+.construction_anim {
+    width: 300px;
+    position: absolute;
+    bottom: 40px;
+    right: 40px;
+    animation: sway 2.4s infinite;
+    animation-timing-function: ease-in-out;
+    -webkit-transform-origin: top;
+    -moz-transform-origin: top;
+    transform-origin: top;
+}

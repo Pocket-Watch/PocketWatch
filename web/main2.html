@@ -121,7 +121,36 @@
             </div>
 
             <div id="right_panel_content">
-                <div id="content_room" class="content_view">ROOM</div>
+                <div id="content_room" class="content_view">
+                    <div class="input_area" id="room_now_playing"> 
+                        <span>Now playing:</span>
+                        <input readonly id="room_now_playing_input" placeholder="Nothing is playing... (TODO: change layout, add copy button?)"></input>
+                    </div>
+
+                    </br>
+
+                    <label class="placeholder">
+                        Using proxy:
+                        <input readonly type="checkbox" id="room_using_proxy">
+                    </label>
+
+                    </br>
+                    </br>
+
+                    <span class="placeholder">Add more info items here...</span>
+                    </br>
+                    </br>
+
+                    <h2 id="room_upload_file">Upload file</h2>
+                    <input type="file" id="file_input">
+                    <button onclick="uploadFile()">Upload</button>
+                    <progress id="progressBar" value="0" max="100"></progress>
+
+                    </br>
+                    <style>
+                    </style>
+                    <img class="construction_anim" src="img/under_construction.png">
+                </div>
                 <div id="content_playlist" class="content_view">PLAYLIST</div>
                 <div id="content_chat" class="content_view">CHAT</div>
                 <div id="content_history" class="content_view">HISTORY</div>
