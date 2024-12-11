@@ -62,12 +62,16 @@ class Player {
 
     // Adds a new subtitle track in the 'showing' mode, hiding the previous track. Returns the index of the new track.
     setSubtitleTrack(subtitleUrl) {
-        this.internals.addSubtitleTrack(subtitleUrl, true);
+        this.internals.addVttTrack(subtitleUrl, true);
     }
 
     // Adds a new subtitle track in the 'hidden' mode. Returns the index of the new track.
-    addSubtitleTrack(subtitleUrl) {
-        return this.internals.addSubtitleTrack(subtitleUrl, false);
+    addVttTrack(subtitleUrl) {
+        return this.internals.addVttTrack(subtitleUrl, false);
+    }
+
+    addSrtTrack(subtitleUrl) {
+        return this.internals.addSrtTrack(subtitleUrl);
     }
 
     // Disables and removes the track at the specified index.
@@ -586,10 +590,43 @@ class Internals {
         }
     }
 
-    addSubtitleTrack(url, show) {
+    addSrtTrack(url) {
         let filename = url.substring(url.lastIndexOf("/") + 1);
         let extension = filename.substring(filename.lastIndexOf(".") + 1).toLowerCase();
-        if (extension != "vtt" && extension != "srt") {
+        if (extension !== "srt") {
+            return;
+        }
+        fetch(url)
+            .then(response => response.text())
+            .then(srtText => parseSrt(srtText))
+            .then(cues => {
+                if (cues.length === 0) {
+                    return
+                }
+                console.info("Parsed SRT track, cue count:", cues.length)
+                let track = document.createElement("track")
+                track.label = filename
+                track.kind = "subtitles"
+
+                this.htmlVideo.appendChild(track)
+                let textTracks = this.htmlVideo.textTracks;
+                let newIndex = textTracks.length - 1;
+                let newTrack = textTracks[newIndex];
+                for (let i = 0; i < cues.length; i++) {
+                    newTrack.addCue(cues[i])
+                }
+                this.fireSubtitleTrackLoad(newTrack);
+
+                let trackList = this.htmlControls.subMenu.trackList;
+                let htmlTrack = this.createSubtitleTrackElement(filename, newIndex);
+                trackList.appendChild(htmlTrack);
+            });
+    }
+
+    addVttTrack(url, show) {
+        let filename = url.substring(url.lastIndexOf("/") + 1);
+        let extension = filename.substring(filename.lastIndexOf(".") + 1).toLowerCase();
+        if (extension !== "vtt") {
             console.debug("Unsupported subtitle extension:", extension)
             return
         }
@@ -633,9 +670,9 @@ class Internals {
 
     enableSubtitleTrack(index) {
         let textTracks = this.htmlVideo.textTracks;
-        let current = this.selectedSubtitleIndex;
-        if (0 <= current && current < textTracks.length) {
-            textTracks[current].mode = "hidden";
+        let previous = this.selectedSubtitleIndex;
+        if (0 <= previous && previous < textTracks.length) {
+            textTracks[previous].mode = "hidden";
         }
         if (0 <= index && index < textTracks.length) {
             textTracks[index].mode = "showing";
@@ -1530,6 +1567,61 @@ function createTimestampString(timestamp) {
 
     timestamp_string += seconds;
     return timestamp_string;
+}
+
+function parseSrt(srtText) {
+    let lines = srtText.split('\n');
+    let vttCues = []
+    for (let i = 0; i < lines.length-2; i++) {
+        // counter at lines[i]
+        let timestamps = lines[++i];
+        let [start, end, ok] = parseSrtTimestamps(timestamps)
+        if (!ok) {
+            return vttCues;
+        }
+        let content = ""
+        while (++i < lines.length) {
+            let text = lines[i];
+            if (text.length === 0 || (text.length === 1 && (text[0] === '\r' || text[0] === '\n'))) {
+                break;
+            }
+            content += text;
+            content += '\n';
+        }
+        if (content !== "") {
+            let newCue = new VTTCue(start, end, content)
+            vttCues.push(newCue);
+        }
+    }
+    return vttCues;
+}
+
+// Returns [seconds start, seconds end, success]
+function parseSrtTimestamps(timestamps) {
+    if (timestamps.length < 23) {
+        return [null, null, false];
+    }
+    let splitter = timestamps.indexOf(" --> ", 8);
+    if (splitter === -1) {
+        return [null, null, false];
+    }
+    let startStamp = parseSrtStamp(timestamps.substring(0, splitter));
+    let endStamp = parseSrtStamp(timestamps.substring(splitter+5));
+    return [startStamp, endStamp, startStamp != null && endStamp != null];
+}
+
+// Returns a timestamp expressed in seconds or null on failure
+function parseSrtStamp(stamp) {
+    let twoSplit = stamp.split(',');
+    if (twoSplit.length !== 2) {
+        return null;
+    }
+    let hms = twoSplit[0].split(':');
+    if (hms.length !== 3) {
+        return null;
+    }
+
+    return hms[0] * 3600 + hms[1] * 60 + Number(hms[2]) + twoSplit[1] / 1000;
 }
 
 function newDiv(id, className) {

@@ -12,9 +12,9 @@ function main() {
 
     let video0 = document.getElementById("video0");
     let options = new Options();
-    // options.hideNextButton = true;
-    // options.hideSubtitlesButton = true;
-    // options.hideDownloadButton = true;
+    options.hideNextButton = true;
+    options.hideDownloadButton = true;
+    options.hideAutoplayButton = true;
     player = new Player(video0, options);
 
     //let track = "https://ftp.halifax.rwth-aachen.de/blender/demo/movies/ToS/ToS-4k-1920.mov";
@@ -24,8 +24,9 @@ function main() {
     let subtitle2 = "media/Tears.of.Steel.2012.vtt";
     player.setVideoTrack(track);
     player.setTitle("Tears of Steel");
-    player.addSubtitleTrack(subtitle1)
-    player.addSubtitleTrack(subtitle2)
+    player.addVttTrack(subtitle1)
+    player.addVttTrack(subtitle2)
+    player.addSrtTrack("media/Tears.srt")
     player.setVolume(0.01)
     player.onControlsPlay(() => {
         player.setToast("User clicked play.");
