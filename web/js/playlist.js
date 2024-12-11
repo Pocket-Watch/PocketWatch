@@ -1,5 +1,5 @@
-import { findUserById, playerArea } from "./main.js"
-import * as api from "./api.js";
+import { findUserById, playerArea } from "./main_old.js"
+import * as api from "./api_old.js";
 
 export { Playlist }
 

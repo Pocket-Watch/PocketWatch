@@ -1,35 +1,4 @@
-var token = null;
-var connectionId = null;
-
-async function httpPostFile(endpoint, file) {
-    const headers = new Headers();
-    headers.set("Authorization", token);
-
-    var formdata = new FormData();
-    formdata.append("file", file);
-
-    const options = {
-        method: "POST",
-        body: formdata,
-        headers: headers,
-    };
-
-    try {
-        const response = await fetch(endpoint, options);
-        if (!response.ok) {
-            console.error("ERROR: POST request for endpoint: " + endpoint + " failed: " + response.status);
-            return null;
-        }
-
-        // TODO(kihau): 
-        //     Throws exception when response is not a valid json.
-        //     This should be handled this in a nicer way.
-        return await response.json();
-    } catch (error) {
-        // console.error("ERROR: POST request for endpoint: " + endpoint + " failed: " + error);
-        return null;
-    }
-}
+import { token, connectionId } from "./main_old.js"
 
 async function httpPost(endpoint, data) {
     const headers = new Headers();
@@ -85,14 +54,6 @@ async function httpGet(endpoint) {
     return null;
 }
 
-export function setToken(t) {
-    token = t;
-}
-
-export function setConnectionId(id) {
-    connectionId = id;
-}
-
 export async function userCreate() {
     let data = await httpGet("/watch/api/user/create");
     console.info("INFO: Received data from createuser request to the server: ", data);
@@ -114,12 +75,6 @@ export async function userVerify() {
 export async function userUpdateName(username) {
     console.info("INFO: Sending update username request.");
     httpPost("/watch/api/user/updatename", username);
-}
-
-export async function userUpdateAvatar(file) {
-    console.info("INFO: Uploading avatar file to the server.");
-    let avatarUrl = await httpPostFile("/watch/api/user/updateavatar", file);
-    return avatarUrl;
 }
 
 export async function playerGet() {

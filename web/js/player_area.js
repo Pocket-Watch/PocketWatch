@@ -1,7 +1,7 @@
 import * as api from "./api.js";
 
 import { Player, Options } from "./custom_player.js";
-import { userSelf } from "./main.js"
+import { userSelf } from "./main_old.js"
 
 export { PlayerArea as PlayerArea }
 

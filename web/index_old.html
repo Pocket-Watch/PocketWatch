@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en-US">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="referrer" content="no-referrer">
+    <title>Watch Locally</title>
+    <link rel="stylesheet" href="css/player.css">
+</head>
+
+<body>
+    <div id="page">
+        <video id="video0"></video>
+    </div>
+
+    <br>
+    <br>
+
+    <label>Input the media URL here:</label><br />
+    <input type="url" id="input_url" name="input_url" onkeypress="inputUrlOnKeypress(event)" size="100" />
+
+    <br>
+
+    <button name="player_set_button" onclick="playerSetOnClick()">Set</button>
+    <button name="playlist_add_top_button" onclick="playlistAddTopOnClick()">Add to playlist</button>
+
+    &nbsp;
+
+    <label>Create proxy:
+        <input type="checkbox" id="proxy" name="Proxy">
+    </label>
+
+    <br>
+
+    <label>Title
+        <input id="input_title" name="title" maxlength="1024" />
+    </label>
+
+    &nbsp;
+    &nbsp;
+
+    <label>Referer
+        <input id="referer" name="referer" maxlength="1024" />
+    </label>
+
+    <br>
+
+    <label>Currently set URL:</label><br />
+    <input readonly="true" type="text" id="current_url" size="100" />
+
+    <br>
+    <br>
+
+    <link href="css/playlist.css" rel="stylesheet" />
+    <table>
+        <thead>
+            <tr>
+                <th scope="row" colspan="100%">
+                    <label>Connected users:</label>
+                </th>
+            </tr>
+        </thead>
+
+        <tbody>
+            <tr id="connected_users">
+                <!-- <td>Kihau</td> -->
+                <!-- <td>Frisk</td> -->
+            </tr>
+        </tbody>
+    </table>
+
+
+
+    <h2>Upload media</h2>
+    <input type="file" id="file_input">
+    <button onclick="uploadFile()">Upload</button>
+    <progress id="progressBar" value="0" max="100"></progress>
+
+    <br>
+    <br>
+
+    <label>Update your username:</label><br />
+    <input id="input_username" name="input_username" maxlength="120" />
+    <button name="button_update_username" onclick="updateUsernameOnClick()">Update</button>
+
+    <br>
+    <br>
+
+    <label>Clear your session:</label>
+    <button name="button_clear_session" onclick="clearSessionOnClick()">Clear token</button>
+
+    <br>
+    <br>
+
+    <link href="css/playlist.css" rel="stylesheet" />
+    <table id="playlist_root">
+        <caption>
+            Playlist
+        </caption>
+        <thead>
+            <tr>
+                <th scope="row" colspan="4">
+                    <label>Add URL to the playlist:</label><br />
+                    <input type="url" id="playlist_url_input" onkeypress="inputPlaylistOnKeypress(event)" size="100" />
+                    <button onclick="playlistAddOnClick()">Add</button>
+                    <button onclick="playlistShuffleOnClick()">Shuffle</button>
+                </th>
+            </tr>
+        </thead>
+        <thead>
+            <tr>
+                <th scope="col">Position</th>
+                <th scope="col">Requested by</th>
+                <th scope="col">Url</th>
+                <th scope="col">
+                    <button onclick="playlistClearOnClick()">Clear playlist</button>
+                </th>
+            </tr>
+        </thead>
+        <tbody id="playlist_entries">
+            <!-- Dummy testing list: -->
+            <!-- <tr> -->
+            <!--     <th scope="row">1.</th> -->
+            <!--     <td>Kihau</td> -->
+            <!--     <td>https://example.com/example1.mp4</td> -->
+            <!--     <td><button>Remove</button></td> -->
+            <!-- </tr> -->
+            <!---->
+            <!-- <tr> -->
+            <!--     <th scope="row">2.</th> -->
+            <!--     <td>Frisk</td> -->
+            <!--     <td>https://example.com/example2.mp4</td> -->
+            <!--     <td><button>Remove</button></td> -->
+            <!-- </tr> -->
+            <!---->
+            <!-- <tr> -->
+            <!--     <th scope="row">3.</th> -->
+            <!--     <td>Kihau</td> -->
+            <!--     <td>https://example.com/example3.mp4</td> -->
+            <!--     <td><button>Remove</button></td> -->
+            <!-- </tr> -->
+        </tbody>
+        <tfoot>
+            <tr>
+                <th scope="row" colspan="3">Total entries:</th>
+                <td id="playlist_entry_count">0</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <br>
+
+    <link href="css/playlist.css" rel="stylesheet" />
+    <table>
+        <thead>
+            <tr>
+                <th scope="row">
+                    <button onclick="historyClearOnClick()">Clear</button>
+                    <label>History</label>
+                </th>
+            </tr>
+        </thead>
+
+        <thead>
+            <tr>
+                <th scope="col">url</th>
+            </tr>
+        </thead>
+        <tbody id="history_entries">
+        </tbody>
+    </table>
+
+    <br>
+
+    <form action="/login" method="post">
+        <div class="imgcontainer">
+            <!-- <img src="avatar.png" alt="Avatar" class="avatar"> -->
+        </div>
+
+        <div class="container">
+            <label>
+                <b>Username</b>
+                <input type="text" placeholder="Enter Username" required>
+            </label>
+        </div>
+        <label>
+            <b>Password</b>
+            <input type="password" placeholder="Enter Password" name="psw" required>
+        </label>
+
+        <div>
+            <button type="submit">Login</button>
+            <label>
+                <input type="checkbox" checked="checked" name="remember"> Remember me
+            </label>
+        </div>
+
+    </form>
+
+    <br>
+
+    <style>
+        @keyframes sway {
+            0% {
+                transform: rotate(8deg);
+            }
+
+            50% {
+                transform: rotate(-8deg);
+            }
+
+            100% {
+                transform: rotate(8deg);
+            }
+        }
+
+        img.construction_anim {
+            animation: sway 2.4s infinite;
+            animation-timing-function: ease-in-out;
+            -webkit-transform-origin: top;
+            -moz-transform-origin: top;
+            transform-origin: top;
+        }
+    </style>
+    <img id="construction" class="construction_anim" src="img/under_construction.png" alt="This page is under construction">
+
+    <br>
+    <br>
+    <br>
+
+    <script type="module" src="js/main_old.js"></script>
+</body>
+
+</html>

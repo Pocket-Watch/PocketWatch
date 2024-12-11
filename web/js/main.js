@@ -1,329 +1,536 @@
-import { PlayerArea } from "./player_area.js"
-import { Playlist } from "./playlist.js"
+import { Player } from "./custom_player.js"
 import * as api from "./api.js";
 
-export { findUserById }
+const SERVER_ID = 0;
 
-// User and connection data.
-export var token = "";
-export var connectionId = 0;
-export var allUsers = [];
-export var userSelf = {
-    id: 0,
-    username: "",
-    avatar: "",
-};
-var input_username = document.getElementById("input_username");
+class Room {
+    constructor() {
+        let video0 = document.getElementById("video0");
+        this.player = new Player(video0);
 
-// Player
-export var playerArea = new PlayerArea();
+        this.urlArea = {
+            urlInput:     document.getElementById("url_input_box"),
+            titleInput:   document.getElementById("url_title_input"),
+            refererInput: document.getElementById("url_dropdown_referer_input"),
 
-// Playlist and history.
-var playlist = new Playlist();
-var historyEntries = document.getElementById("history_entries");
+            dropdownButton:    document.getElementById("url_dropdown_button"),
+            resetButton:       document.getElementById("url_reset_button"),
+            setButton:         document.getElementById("url_set_button"),
+            addPlaylistButton: document.getElementById("url_add_playlist_button"),
 
-/// --------------- HELPER FUNCTIONS: ---------------
+            dropdownContainer: document.getElementById("url_dropdown_container"),
+            proxyToggle:       document.getElementById("proxy_toggle"),
+        };
 
-function findUserById(userId) {
-    for (let i = 0; i < allUsers.length; i++) {
-        const user = allUsers[i];
-        if (user.id == userId) {
-            return user;
-        }
-    }
+        this.usersArea = {
+            userList: document.getElementById("users_list"),
 
-    const user = {
-        id: 0,
-        username: "",
-        avatar: "",
-    };
+            onlineCount:  document.getElementById("users_online_count"),
+            offlineCount: document.getElementById("users_offline_count"),
+        };
 
-    return user;
-}
+        this.rightPanel = {
+            tabs: {
+                room:     document.getElementById("tab_room"),
+                playlist: document.getElementById("tab_playlist"),
+                chat:     document.getElementById("tab_chat"),
+                history:  document.getElementById("tab_history"),
+            },
 
-/// --------------- HTML ELEMENT CALLBACKS: ---------------
+            content: {
+                root:     document.getElementById("right_panel_content"),
+                room:     document.getElementById("content_room"),
+                playlist: document.getElementById("content_playlist"),
+                chat:     document.getElementById("content_chat"),
+                history:  document.getElementById("content_history"),
+            },
+        };
 
-const fileInput = document.getElementById("file_input");
-const progressBar = document.getElementById("progressBar");
-function uploadFile() {
-    const file = fileInput.files[0];
-    const formData = new FormData();
-    formData.append("file", file);
+        this.nowPlaying = document.getElementById("room_now_playing_input");
+        this.usingProxy = document.getElementById("room_using_proxy");
 
-    const request = new XMLHttpRequest();
+        let content = this.rightPanel.content.room;
+        content.style.visibility = "visible";
 
-    request.upload.addEventListener("progress", (event) => {
-        if (event.lengthComputable) {
-            progressBar.value = (event.loaded / event.total) * 100;
-        }
-    });
+        let tab = this.rightPanel.tabs.room;
+        tab.classList.add("right_panel_tab_selected");
 
-    request.open("POST", "/watch/api/upload", true);
-    request.send(formData);
-}
-
-function historyClearOnClick() {
-    api.historyClear();
-}
-
-function updateUsernameOnClick() {
-    api.userUpdateName(input_username.value);
-}
-
-function clearSessionOnClick() {
-    localStorage.removeItem("token");
-    window.location.reload();
-}
-
-function attachHtmlHandlers() {
-    window.uploadFile = uploadFile;
-    window.clearSessionOnClick = clearSessionOnClick;
-    window.updateUsernameOnClick = updateUsernameOnClick;
-    window.historyClearOnClick = historyClearOnClick;
-
-    playlist.attachHtmlEventHandlers();
-    playerArea.attachHtmlEventHandlers();
-}
-
-/// --------------- HISTORY: ---------------
-
-function addHistoryElement(entry) {
-    if (entry.url === "") {
-        return;
-    }
-
-    let tr = document.createElement("tr");
-    historyEntries.appendChild(tr);
-
-    let th = document.createElement("th");
-    th.textContent = entry.url;
-    th.scope = "row";
-    tr.appendChild(th);
-}
-
-function getHistory() {
-    api.historyGet().then((history) => {
-        if (!history) {
-            return;
+        this.rightPanel.selected = {
+            tab:     tab,
+            content: content,
         }
 
-        for (var i = 0; i < history.length; i++) {
-            addHistoryElement(history[i]);
-        }
-    });
-}
+        this.proxyEnabled = false;
+        this.dropdownIsDown = false;
 
-function removeAllHistoryElements() {
-    let container = historyEntries;
-    while (container.firstChild) {
-        container.removeChild(container.lastChild);
-    }
-}
+        /// Current connection id.
+        this.connectionId = 0;
 
-/// --------------- CONNECTED USERS: ---------------
+        /// Currently connected user. Server User structure.
+        this.currentUser = null;
 
-function updateConnectedUsers() {
-    let connected_tr = document.getElementById("connected_users");
-    while (connected_tr.firstChild) {
-        connected_tr.removeChild(connected_tr.firstChild);
-    }
+        /// User token string.
+        this.token = "";
 
-    for (var i = 0; i < allUsers.length; i++) {
-        if (allUsers[i].connections > 0) {
-            let cell = connected_tr.insertCell(-1);
-            cell.textContent = allUsers[i].username;
-        }
-    }
-}
+        /// List of all users in current room.
+        this.allUsers = [];
 
-async function getOrCreateUserInAnExtremelyUglyWay() {
-    let user = null
+        /// List of all html user elements displayed inside of users_list element.
+        this.allUserBoxes = [];
 
-    token = localStorage.getItem("token");
-    if (!token) {
-        token = await api.userCreate();
-        localStorage.setItem("token", token)
-        user = await api.userVerify(token);
-    } else {
-        user = await api.userVerify(token);
-        if (!user) {
-            token = await api.userCreate();
-            localStorage.setItem("token", token)
-            user = await api.userVerify(token);
-        }
+        /// Number of user online.
+        this.onlineCount = 0;
     }
 
-    return user;
-}
-
-/// --------------- SERVER EVENTS: ---------------
-
-function subscribeToServerEvents() {
-    let eventSource = new EventSource("/watch/api/events?token=" + token);
-
-    eventSource.addEventListener("welcome", function(event) {
-        connectionId = JSON.parse(event.data);
-        console.info("INFO: Received a welcome request with connection id: ", connectionId);
-
-        api.userGetAll().then((users) => {
-            allUsers = users;
-            updateConnectedUsers();
-
-            api.playlistGet().then(entries => {
-                playlist.loadNew(entries);
-            });
-
-            getHistory();
+    attachPlayerEvents() {
+        this.player.onControlsPlay(() => {
+            api.playerPlay(this.player.getCurrentTime());
         })
-    });
 
-    eventSource.addEventListener("connectionadd", function(event) {
-        let userId = JSON.parse(event.data);
-        console.info("INFO: New connection added for user id: ", userId)
+        this.player.onControlsPause(() => {
+            api.playerPause(this.player.getCurrentTime());
+        })
 
-        for (var i = 0; i < allUsers.length; i++) {
-            if (allUsers[i].id == userId) {
-                allUsers[i].connections += 1;
-                break;
+        this.player.onControlsSeeked((timestamp) => {
+            api.playerSeek(timestamp);
+        })
+
+        this.player.onControlsSeeking((timestamp) => {
+            console.log("User seeking to", timestamp);
+        })
+
+        this.player.onPlaybackError((event) => {
+            this.player.setToast("ERROR: Something went wrong, press F12 to see what happened");
+            console.error(event.name + ":", event.message);
+        })
+    }
+
+    resetUrlAreaElements() {
+        this.urlArea.urlInput.value = "";
+        this.urlArea.titleInput.value = "";
+        this.urlArea.refererInput.value = "";
+
+        this.proxyEnabled = false;
+        this.urlArea.proxyToggle.classList.remove("proxy_active");
+    }
+
+    sendNewEntry() {
+        const entry = {
+            id:          0,
+            url:         this.urlArea.urlInput.value,
+            title:       this.urlArea.titleInput.value,
+            user_id:     0,
+            use_proxy:   this.proxyEnabled,
+            referer_url: this.urlArea.refererInput.value,
+            created:     new Date,
+        };
+
+        api.playerSet(entry);
+    }
+
+    attachRightPanelEvents() {
+        let select = (tab, content) => {
+            this.rightPanel.selected.tab.classList.remove("right_panel_tab_selected");
+            this.rightPanel.selected.content.style.visibility = "hidden";
+
+            tab.classList.add("right_panel_tab_selected");
+            content.style.visibility = "visible";
+
+            this.rightPanel.selected.tab = tab;
+            this.rightPanel.selected.content = content;
+        }
+
+        let tabs = this.rightPanel.tabs;
+        let content = this.rightPanel.content;
+
+        tabs.room.onclick     = () => select(tabs.room, content.room);
+        tabs.playlist.onclick = () => select(tabs.playlist, content.playlist);
+        tabs.chat.onclick     = () => select(tabs.chat, content.chat);
+        tabs.history.onclick  = () => select(tabs.history, content.history);
+    }
+
+    attachHtmlEvents() {
+        this.attachRightPanelEvents();
+
+        this.urlArea.dropdownButton.onclick = () => {
+            let button = this.urlArea.dropdownButton;
+            let div = this.urlArea.dropdownContainer;
+
+            if (this.dropdownIsDown) {
+                button.textContent = "▼";
+            } else {
+                button.textContent = "▲";
+            }
+
+            div.classList.toggle("url_dropdown_collapsed");
+            div.classList.toggle("url_dropdown_expanded");
+
+            this.dropdownIsDown = !this.dropdownIsDown;
+        }
+
+        this.urlArea.resetButton.onclick = () => {
+            this.resetUrlAreaElements();
+        }
+
+        this.urlArea.setButton.onclick = () => {
+            this.sendNewEntry();
+            this.resetUrlAreaElements();
+        }
+
+        this.urlArea.urlInput.onkeypress = (event) => {
+            if (event.key == "Enter") {
+                this.sendNewEntry();
+                this.resetUrlAreaElements();
             }
         }
 
-        updateConnectedUsers();
-    });
+        this.urlArea.proxyToggle.onclick = () => {
+            this.urlArea.proxyToggle.classList.toggle("proxy_active");
+            this.proxyEnabled = !this.proxyEnabled;
+        }
+    }
 
-    eventSource.addEventListener("connectiondrop", function(event) {
-        let userId = JSON.parse(event.data);
-        console.info("INFO: Connection dropped for user id: ", userId)
+    async createNewAccount() {
+        this.token = await api.userCreate();
+        api.setToken(this.token);
+        localStorage.setItem("token", this.token);
 
-        for (var i = 0; i < allUsers.length; i++) {
-            if (allUsers[i].id == userId) {
-                allUsers[i].connections -= 1;
-                break;
+        this.currentUser = await api.userVerify();
+    }
+
+    async authenticateAccount() {
+        this.token = localStorage.getItem("token");
+        api.setToken(this.token);
+
+        this.currentUser = await api.userVerify();
+        if (!this.currentUser) {
+            await this.createNewAccount();
+        }
+    }
+
+    async loadPlayerData() {
+        let state = await api.playerGet();
+        this.player.setAutoplay(state.player.autoplay);
+        this.player.setLoop(state.player.looping);
+
+        let entry = state.entry;
+        this.nowPlaying.value = entry.url;
+        this.usingProxy.checked = entry.user_proxy;
+
+        this.player.setVideoTrack(entry.url);
+        this.player.setTitle(entry.title);
+    }
+
+    async loadUsersData() {
+        this.allUsers = await api.userGetAll();
+        console.log(this.allUsers);
+
+        let onlineBoxes = [];
+        let offlineBoxes = [];
+        let selfBox = null;
+
+        for (var i = 0; i < this.allUsers.length; i++) {
+            let user = this.allUsers[i];
+            let userBox = this.createUserBox(user);
+
+            if (user.id == this.currentUser.id) {
+                user.online = true;
+                this.onlineCount += 1;
+                userBox.classList.add("user_box_online");
+                selfBox = userBox;
+            } else if (user.online) {
+                this.onlineCount += 1;
+                userBox.classList.add("user_box_online");
+                onlineBoxes.push(userBox);
+            } else {
+                userBox.classList.add("user_box_offline");
+                offlineBoxes.push(userBox);
+            }
+
+            this.allUserBoxes.push(userBox);
+        }
+
+        let userList = this.usersArea.userList;
+        userList.append(selfBox);
+
+        for (let i = 0; i < onlineBoxes.length; i++) {
+            let box = onlineBoxes[i];
+            userList.append(box);
+        }
+
+        for (let i = 0; i < offlineBoxes.length; i++) {
+            let box = offlineBoxes[i];
+            userList.append(box);
+        }
+
+        this.usersArea.onlineCount.textContent = this.onlineCount;
+        this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
+    }
+
+    createUserBox(user) {
+        let userBox = document.createElement("div");
+        userBox.className = "user_box";
+
+        // user_box_top
+        let userBoxTop = document.createElement("div");
+        userBoxTop.className = "user_box_top";
+
+        { // user_box_top img
+            let userAvatar = document.createElement("img");
+            userAvatar.src = user.avatar ? user.avatar : "img/default_avatar.png"; 
+            userBoxTop.append(userAvatar);
+
+            if (user.id == this.currentUser.id) {
+                let changeAvatarButton = document.createElement("button");
+                changeAvatarButton.className = "user_box_change_avatar";
+                changeAvatarButton.textContent = "E";
+                changeAvatarButton.onclick = () => {
+                    var input = document.createElement('input');
+                    input.type = "file";
+
+                    input.onchange = event => { 
+                        var file = event.target.files[0]; 
+                        console.log("Picked file:", file);
+                        api.userUpdateAvatar(file).then(newAvatar => {
+                            if (newAvatar) {
+                                userAvatar.src = newAvatar;
+                            }
+                        });
+                    }
+
+                    input.click();
+                };
+
+                userBoxTop.append(changeAvatarButton);
             }
         }
 
-        updateConnectedUsers();
-    });
+        userBox.append(userBoxTop);
 
-    eventSource.addEventListener("usercreate", function(event) {
-        let newUser = JSON.parse(event.data)
-        allUsers.push(newUser)
-        console.info("INFO: New user has beed created: ", newUser)
-        updateConnectedUsers();
-    });
+        // user_box_bottom
+        let userBoxBottom = document.createElement("div");
+        userBoxBottom.className = "user_box_bottom";
 
-    eventSource.addEventListener("usernameupdate", function(event) {
-        let updatedUser = JSON.parse(event.data);
-        console.info("INFO: User updated its name: ", updatedUser)
+        { // user_box_bottom input + user_box_edit_name_button
+            let usernameInput = document.createElement("input");
+            usernameInput.readOnly = true;
+            usernameInput.value = user.username;
 
-        if (updatedUser.id == userSelf.id) {
-            userSelf = updatedUser
-            input_username.value = userSelf.username;
-        }
+            userBoxBottom.append(usernameInput);
 
-        for (var i = 0; i < allUsers.length; i++) {
-            if (allUsers[i].id == updatedUser.id) {
-                allUsers[i] = updatedUser;
-                break;
+            if (user.id == this.currentUser.id) {
+                usernameInput.addEventListener("focusout", () => {
+                    usernameInput.readOnly = true;
+                    api.userUpdateName(usernameInput.value);
+                });
+
+                usernameInput.addEventListener("keypress", (event) => {
+                    if (event.key === "Enter") {
+                        usernameInput.readOnly = true;
+                        api.userUpdateName(usernameInput.value);
+                    }
+                });
+
+                // usernameInput.addEventListener("dblclick", (event) => {
+                //     usernameInput.readOnly = false;
+                //     usernameInput.focus();
+                // });
+
+                let editNameButton = document.createElement("button");
+                editNameButton.className = "user_box_edit_name_button";
+                editNameButton.onclick = () => {
+                    usernameInput.readOnly = false;
+                    usernameInput.focus();
+                };
+
+                { // user_box_edit_name_button svg
+                    let editSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                    editSvg.setAttribute("viewBox", "0 0 16 16");
+
+                    let path1 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    path1.setAttribute("d", "M8.29289 3.70711L1 11V15H5L12.2929 7.70711L8.29289 3.70711Z");
+                    editSvg.append(path1);
+
+                    let path2 = document.createElementNS("http://www.w3.org/2000/svg","path");
+                    path2.setAttribute("d", "M9.70711 2.29289L13.7071 6.29289L15.1716 4.82843C15.702 4.29799 16 3.57857 16 2.82843C16 1.26633 14.7337 0 13.1716 0C12.4214 0 11.702 0.297995 11.1716 0.828428L9.70711 2.29289Z");
+                    editSvg.append(path2);
+
+                    editNameButton.append(editSvg);
+                }
+
+                userBoxBottom.append(editNameButton);
             }
         }
 
-        updateConnectedUsers();
-        playlist.updateUsernames(updatedUser);
-    });
+        userBox.append(userBoxBottom);
 
-    eventSource.addEventListener("playerset", function(event) {
-        let response = JSON.parse(event.data);
-        console.info("INFO: Received player set event: ", response);
+        return userBox;
+    }
 
-        addHistoryElement(response.prev_entry)
-        playerArea.setEntry(response.new_entry);
-    });
+    resyncPlayer(timestamp, userId) {
+        const MAX_DESYNC = 1.5;
+        let desync = timestamp - this.player.getCurrentTime();
 
-    eventSource.addEventListener("playernext", function(event) {
-        let response = JSON.parse(event.data);
-        console.info("INFO: Received player next event: ", response);
-
-        addHistoryElement(response.prev_entry)
-
-        if (playerArea.loopingEnabled()) {
-            playlist.add(response.prev_entry);
+        if (userId == 0) {
+            console.info("INFO: Received resync event from SERVER at", timestamp, "with desync:", desync);
+        } else {
+            console.info("INFO: Received resync event from USER id", userId, "at", timestamp, "with desync:", desync);
         }
 
-        playlist.removeFirst();
-        playerArea.setEntry(response.new_entry);
-    });
-
-    eventSource.addEventListener("sync", function(event) {
-        let data = JSON.parse(event.data);
-        if (!data) {
-            console.error("ERROR: Failed to parse event data")
-            return;
+        if (Math.abs(desync) > MAX_DESYNC) {
+            let diff = Math.abs(desync) - MAX_DESYNC
+            console.warn("You are desynced! MAX_DESYNC(" + MAX_DESYNC + ") exceeded by:", diff, "Trying to resync now!");
+            this.player.seek(timestamp);
         }
+    }
 
-        let timestamp = data.timestamp;
-        let userId = data.user_id;
+    subscribeToServerEvents() {
+        let events = new EventSource("/watch/api/events?token=" + this.token);
 
-        switch (data.action) {
-            case "play": {
-                playerArea.resync(timestamp, userId);
-                playerArea.play();
-            } break;
+        events.addEventListener("userwelcome", event => {
+            let connectionId = JSON.parse(event.data);
+            console.info("INFO: Received a welcome request with connection id: ", connectionId);
+            this.connectionId = connectionId;
 
-            case "pause": {
-                playerArea.resync(timestamp, userId);
-                playerArea.pause();
-            } break;
+            api.setConnectionId(this.connectionId);
+        });
 
-            case "seek": {
-                playerArea.seek(timestamp);
-            } break;
+        events.addEventListener("usercreate", event => {
+            let user = JSON.parse(event.data)
+            this.allUsers.push(user)
+            console.info("INFO: New user has beed created: ", user)
 
-            default: {
-                console.error("ERROR: Unknown sync action found", data.action)
-            } break;
-        }
-    });
+            let userBox = this.createUserBox(user);
+            userBox.classList.add("user_box_offline");
+            this.allUserBoxes.push(userBox);
+            this.usersArea.userList.appendChild(userBox);
 
-    eventSource.addEventListener("playerautoplay", function(event) {
-        let autoplay_enabled = JSON.parse(event.data);
-        console.info("INFO: Received player autoplay event: ", autoplay_enabled);
-        playerArea.setAutoplay(autoplay_enabled);
-    });
+            this.usersArea.onlineCount.textContent = this.onlineCount;
+            this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
+        });
 
-    eventSource.addEventListener("playerlooping", function(event) {
-        let looping_enabled = JSON.parse(event.data);
-        console.info("INFO: Received player looping event: ", looping_enabled);
-        playerArea.setLooping(looping_enabled);
-    });
+        events.addEventListener("userconnected", event => {
+            let userId = JSON.parse(event.data);
+            console.info("INFO: User connected, ID: ", userId)
 
-    eventSource.addEventListener("playlist", function(event) {
-        let response = JSON.parse(event.data);
-        console.info("INFO: Received playlist event for:", response.action, "with:", response.data);
-        playlist.handleServerEvent(response.action, response.data);
-    });
+            let i = this.allUsers.findIndex(user => user.id == userId);
+            this.allUsers[i].online = true;
+            this.allUserBoxes[i].classList.remove("user_box_offline");
+            this.allUserBoxes[i].classList.add("user_box_online");
 
-    eventSource.addEventListener("historyclear", function(_event) {
-        console.info("INFO: Received history clear event");
-        removeAllHistoryElements();
-    });
+            this.onlineCount += 1;
+
+            this.usersArea.onlineCount.textContent = this.onlineCount;
+            this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
+        });
+
+        events.addEventListener("userdisconnected", event => {
+            let userId = JSON.parse(event.data);
+            console.info("INFO: User disconnected, ID: ", userId)
+
+            let i = this.allUsers.findIndex(user => user.id == userId);
+            this.allUsers[i].online = false;
+            this.allUserBoxes[i].classList.remove("user_box_online");
+            this.allUserBoxes[i].classList.add("user_box_offline");
+
+            this.onlineCount -= 1;
+
+            this.usersArea.onlineCount.textContent = this.onlineCount;
+            this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
+        });
+
+        events.addEventListener("usernameupdate", event => {
+            let user = JSON.parse(event.data);
+            console.info("INFO: Update user name event for: ", user)
+
+            let i = this.allUsers.findIndex(x => x.id == user.id);
+            let input = this.allUserBoxes[i].querySelectorAll('input')[0];
+            input.value = user.username;
+        });
+
+        events.addEventListener("useravatarupdate", event => {
+            let user = JSON.parse(event.data);
+            console.info("INFO: Update user avatar event for: ", user)
+
+            let i = this.allUsers.findIndex(x => x.id == user.id);
+            let img = document.createElement("img");
+            img.src = user.avatar;
+            this.allUserBoxes[i].querySelectorAll('img')[0].replaceWith(img);
+        });
+
+        events.addEventListener("playerset", event => {
+            let response = JSON.parse(event.data);
+            console.info("INFO: Received player set event: ", response);
+
+            let entry = response.new_entry;
+            this.nowPlaying.value = entry.url;
+            this.usingProxy.checked = entry.user_proxy;
+
+            let url = entry.url
+            if (entry.source_url) {
+                url = entry.source_url;
+            }
+
+            this.player.setVideoTrack(url);
+            this.player.setTitle(entry.title);
+
+        });
+
+        events.addEventListener("sync", (event) => {
+            let data = JSON.parse(event.data);
+            if (!data) {
+                console.error("ERROR: Failed to parse event data")
+                return;
+            }
+
+            let timestamp = data.timestamp;
+            let userId = data.user_id;
+
+            switch (data.action) {
+                case "play": {
+                    if (userId != SERVER_ID) {
+                        this.player.setToast("User clicked play.");
+                    }
+                    this.resyncPlayer(timestamp, userId);
+                    this.player.play();
+                } break;
+
+                case "pause": {
+                    if (userId != SERVER_ID) {
+                        this.player.setToast("User clicked pause.");
+                    }
+                    this.resyncPlayer(timestamp, userId);
+                    this.player.pause();
+                } break;
+
+                case "seek": {
+                    if (userId != SERVER_ID) {
+                        this.player.setToast("User seeked.");
+                    }
+                    this.player.seek(timestamp);
+                } break;
+
+                default: {
+                    console.error("ERROR: Unknown sync action found", data.action)
+                } break;
+            }
+        });
+    }
+
+    async connectToServer() {
+        await this.authenticateAccount();
+        await this.loadPlayerData();
+        await this.loadUsersData();
+        // await this.loadPlaylistData();
+        this.subscribeToServerEvents();
+    }
 }
 
 async function main() {
-    attachHtmlHandlers();
-
-    userSelf = await getOrCreateUserInAnExtremelyUglyWay();
-    input_username.value = userSelf.username;
-
-    let state = await api.playerGet();
-    playerArea.setAutoplay(state.player.autoplay);
-    playerArea.setLooping(state.player.looping);
-
-    playerArea.currentEntryId = state.entry.id;
-    playerArea.subtitles = state.subtitles;
-
-    playerArea.setEntry(state.entry);
-    subscribeToServerEvents();
+    let room = new Room()
+    room.attachPlayerEvents();
+    room.attachHtmlEvents();
+    await room.connectToServer();
 }
 
 main();
