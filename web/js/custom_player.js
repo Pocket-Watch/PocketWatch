@@ -60,18 +60,22 @@ class Player {
         return this.internals.htmlVideo.currentTime;
     }
 
-    // Adds a new subtitle track in the 'showing' mode, hiding the previous track. Returns the index of the new track.
-    setSubtitleTrack(subtitleUrl) {
+    // Adds a new subtitle track in the 'showing' mode, hiding the previous track.
+    setVttTrack(subtitleUrl) {
         this.internals.addVttTrack(subtitleUrl, true);
     }
 
-    // Adds a new subtitle track in the 'hidden' mode. Returns the index of the new track.
+    // Adds a new subtitle track in the 'hidden' mode.
     addVttTrack(subtitleUrl) {
         return this.internals.addVttTrack(subtitleUrl, false);
     }
 
+    setSrtTrack(subtitleUrl) {
+        return this.internals.addSrtTrack(subtitleUrl, true);
+    }
+
     addSrtTrack(subtitleUrl) {
-        return this.internals.addSrtTrack(subtitleUrl);
+        return this.internals.addSrtTrack(subtitleUrl, false);
     }
 
     // Disables and removes the track at the specified index.
@@ -80,8 +84,8 @@ class Player {
     }
 
     // Hides the previously selected track. Shows the track at the specified index.
-    enableSubtitleTrack(index) {
-        this.internals.enableSubtitleTrack(index);
+    enableSubtitleTrackAt(index) {
+        this.internals.enableSubtitleTrackAt(index);
     }
 
     // The seconds argument is a double, negative shifts back, positive shifts forward
@@ -333,7 +337,7 @@ class Internals {
         this.volumeBeforeMute = 0.0;
         this.selectedSubtitleIndex = -1;
 
-        this.subtitlesEnabled = false;
+        this.subsSwitcher = null;
 
         this.htmlSeekForward = newDiv("player_forward_container");
         this.htmlSeekForward.appendChild(this.svgs.seekForward.svg);
@@ -591,7 +595,7 @@ class Internals {
         }
     }
 
-    addSrtTrack(url) {
+    addSrtTrack(url, show) {
         let filename = url.substring(url.lastIndexOf("/") + 1);
         let extension = filename.substring(filename.lastIndexOf(".") + 1).toLowerCase();
         if (extension !== "srt") {
@@ -615,6 +619,9 @@ class Internals {
                 let newTrack = textTracks[newIndex];
                 for (let i = 0; i < cues.length; i++) {
                     newTrack.addCue(cues[i])
+                }
+                if (show) {
+                    this.enableSubtitleTrackAt(newIndex);
                 }
                 this.fireSubtitleTrackLoad(newTrack);
 
@@ -643,17 +650,10 @@ class Internals {
         let textTracks = this.htmlVideo.textTracks;
         let newIndex = textTracks.length - 1;
         let newTrack = textTracks[newIndex];
-
+        // By default, every track is appended in the 'disabled' mode which prevents any initialization
+        newTrack.mode = "hidden";
         if (show) {
-            let previous = this.selectedSubtitleIndex;
-            if (0 <= previous && previous < textTracks.length) {
-                textTracks[previous].mode = "hidden";
-            }
-            this.selectedSubtitleIndex = newIndex;
-            newTrack.mode = "showing";
-        } else {
-            // By default, every track is appended in the 'disabled' mode which prevents any initialization
-            newTrack.mode = "hidden";
+            this.enableSubtitleTrackAt(newIndex);
         }
 
         // Although we cannot access cues immediately here (not loaded yet)
@@ -666,50 +666,36 @@ class Internals {
             let htmlTrack = this.createSubtitleTrackElement(filename, newIndex);
             trackList.appendChild(htmlTrack);
         });
-        return newIndex
     }
 
-    enableSubtitleTrack(index) {
+    enableSubtitleTrackAt(index) {
         let textTracks = this.htmlVideo.textTracks;
         let previous = this.selectedSubtitleIndex;
-        if (0 <= previous && previous < textTracks.length) {
+        if (previous !== index && 0 <= previous && previous < textTracks.length) {
             textTracks[previous].mode = "hidden";
         }
         if (0 <= index && index < textTracks.length) {
             textTracks[index].mode = "showing";
             this.selectedSubtitleIndex = index;
+            this.subsSwitcher.setState(true)
         }
     }
 
-    selectSubtitleTrack(index) {
+    // INTERNAL ONLY: Switch subtitle track and respect the current visibility setting
+    switchSubtitleTrack(index) {
         let textTracks = this.htmlVideo.textTracks;
         let current = this.selectedSubtitleIndex;
 
         if (0 <= current && current < textTracks.length) {
             textTracks[current].mode = "hidden";
         }
-
-        if (0 <= index && index < textTracks.length) {
-            this.selectedSubtitleIndex = index;
-        }
-
-        if (this.subtitlesEnabled) {
-            textTracks[index].mode = "showing";
-        }
-    }
-
-    setCurrentTrackVisibility(enabled) {
-        let textTracks = this.htmlVideo.textTracks;
-        let index = this.selectedSubtitleIndex;
-
-        if (index < 0 || index >= textTracks.length) {
+        if (index < 0 || textTracks.length <= index) {
             return;
         }
 
-        if (enabled) {
+        this.selectedSubtitleIndex = index;
+        if (this.subsSwitcher.enabled) {
             textTracks[index].mode = "showing";
-        } else {
-            textTracks[index].mode = "hidden";
         }
     }
 
@@ -1250,7 +1236,7 @@ class Internals {
             track.classList.add("player_submenu_selected");
             menu.selected.track = track;
 
-            this.selectSubtitleTrack(index);
+            this.switchSubtitleTrack(index);
         }
 
         let trackTitle = newElement("input", null, "subtitle_track_text");
@@ -1275,41 +1261,6 @@ class Internals {
         track.appendChild(trackButtons);
 
         return track;
-    }
-
-    createToggleSwitch(text, onclick, state) {
-        let toggleRoot = newDiv(null, "player_toggle_root");
-        let toggleText = newDiv(null, "player_toggle_text");
-        toggleText.textContent = text;
-        let toggleSwitch = newDiv(null, "player_toggle_switch");
-
-        let enabled = false;
-        if (state) {
-            toggleRoot.classList.add("player_toggle_on");
-            enabled = state;
-        }
-
-        toggleSwitch.onclick = () => {
-            enabled = !enabled;
-            toggleRoot.classList.toggle("player_toggle_on");
-            onclick(enabled);
-        }
-
-        let toggleCircle = newDiv(null, "player_toggle_circle");
-
-        toggleRoot.appendChild(toggleText);
-        toggleSwitch.appendChild(toggleCircle);
-        toggleRoot.appendChild(toggleSwitch);
-
-        return toggleRoot;
-    }
-
-    setToggleSwitchState(toggle, enabled) {
-        if (enabled) {
-            toggle.classList.add("player_toggle_on");
-        } else {
-            toggle.classList.remove("player_toggle_on");
-        }
     }
 
     createSubtitleMenu() {
@@ -1350,7 +1301,7 @@ class Internals {
                 button.onclick = () => {
                     let selected = this.htmlControls.subMenu.selected;
                     selected.button.classList.remove("player_submenu_selected");
-                    selected.bottom.style.display = "none";
+                    hideElement(selected.bottom)
 
                     selected.button = button
                     selected.bottom = bottom;
@@ -1374,13 +1325,17 @@ class Internals {
             root.appendChild(bottom);
 
             let select = menu.bottom.selectRoot;
-            select.style.display = "none";
+            hideElement(select);
 
-            let enableSubsToggle = this.createToggleSwitch("Enable subtitles", () => {
-                this.subtitlesEnabled = !this.subtitlesEnabled;
-                this.setCurrentTrackVisibility(this.subtitlesEnabled);
+            this.subsSwitcher = Switcher.new("Enable subtitles", state => {
+                let textTracks = this.htmlVideo.textTracks;
+                let index = this.selectedSubtitleIndex;
+
+                if (0 <= index && index < textTracks.length) {
+                    textTracks[index].mode = state ? "showing" : "hidden";
+                }
             });
-            select.appendChild(enableSubsToggle);
+            select.appendChild(this.subsSwitcher.toggleRoot);
 
             let separator = newElement("hr", null, "player_submenu_separator");
             select.appendChild(separator);
@@ -1388,7 +1343,7 @@ class Internals {
             bottom.appendChild(select);
 
             // // NOTE(kihau): Dummy code for testing:
-            menu.trackList.appendChild(this.createSubtitleTrackElement("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"));
+            /*menu.trackList.appendChild(this.createSubtitleTrackElement("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"));
             menu.trackList.appendChild(this.createSubtitleTrackElement("This is a long subtitle name.vtt"));
             menu.trackList.appendChild(this.createSubtitleTrackElement("Foo Bar"));
             menu.trackList.appendChild(this.createSubtitleTrackElement("AAAAAA"));
@@ -1399,17 +1354,17 @@ class Internals {
             menu.trackList.appendChild(this.createSubtitleTrackElement("FFFFFF"));
             menu.trackList.appendChild(this.createSubtitleTrackElement("GGGGGG"));
             menu.trackList.appendChild(this.createSubtitleTrackElement("HHHHHH"));
-            menu.trackList.appendChild(this.createSubtitleTrackElement("IIIIII"));
+            menu.trackList.appendChild(this.createSubtitleTrackElement("IIIIII"));*/
             // // -----------------------------------
 
             let search = menu.bottom.searchRoot;
             // search.textContent = "SEARCH";
-            search.style.display = "none";
+            hideElement(search)
             bottom.appendChild(search);
 
             let options = menu.bottom.optionsRoot;
             // options.textContent = "OPTIONS";
-            options.style.display = "none";
+            hideElement(options)
 
             { // player_submenu_shift_root
                 let root = newDiv("player_submenu_shift_root");
@@ -1524,17 +1479,61 @@ class Internals {
         root.onclick = consumeEvent;
         hideElement(root);
 
-        let autohide = this.createToggleSwitch("Auto-hide controls", state => {
+        let autohide = Switcher.new("Auto-hide controls", state => {
             this.options.disableControlsAutoHide = !state;
         }, !this.options.disableControlsAutoHide);
-        root.appendChild(autohide);
 
-        let showOnPause = this.createToggleSwitch("Show controls on pause", state => {
+        root.appendChild(autohide.toggleRoot);
+
+        let showOnPause = Switcher.new("Show controls on pause", state => {
             this.options.showControlsOnPause = state;
         }, this.options.showControlsOnPause);
-        root.appendChild(showOnPause);
+        root.appendChild(showOnPause.toggleRoot);
 
         this.htmlPlayerRoot.appendChild(root);
+    }
+}
+
+class Switcher {
+    constructor(toggleRoot, toggleSwitch, initialState) {
+        this.toggleRoot = toggleRoot;
+        this.toggleSwitch = toggleSwitch;
+        this.setState(initialState)
+    }
+    // Changes both the real state and the UI state, for programmatic use to stay in sync with UI
+    setState(state) {
+        if (state) {
+            this.enabled = true;
+            this.toggleRoot.classList.add("player_toggle_on");
+
+        } else {
+            this.enabled = false;
+            this.toggleRoot.classList.remove("player_toggle_on");
+        }
+    }
+
+    addAction(func) {
+        this.toggleSwitch.addEventListener("click", () => {
+            this.setState(!this.enabled)
+            func(this.enabled);
+        });
+    }
+
+    static new(text, onclick, initialState) {
+        let toggleRoot   = newDiv(null, "player_toggle_root");
+        let toggleText   = newDiv(null, "player_toggle_text");
+        toggleText.textContent = text;
+        let toggleSwitch = newDiv(null, "player_toggle_switch");
+        let toggleCircle = newDiv(null, "player_toggle_circle");
+
+        toggleRoot.appendChild(toggleText);
+        toggleSwitch.appendChild(toggleCircle);
+        toggleRoot.appendChild(toggleSwitch);
+
+        let switcher = new Switcher(toggleRoot, toggleSwitch);
+        switcher.setState(initialState);
+        switcher.addAction(onclick);
+        return switcher;
     }
 }
 
