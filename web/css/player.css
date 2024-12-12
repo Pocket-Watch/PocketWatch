@@ -434,10 +434,10 @@
 
 .player_submenu_box {
     font-size: 1.2em;
-    color: #333;
+    color: rgb(200, 195, 188);
     padding: 6px;
-    background-color: #f0f0f0;
-    border: 1px solid #ccc;
+    background-color: rgb(24, 26, 27);
+    border: 1px solid rgb(62, 68, 70);
     border-radius: 5px;
 }
 
@@ -552,7 +552,7 @@
     border-radius: 100px;
     display: flex;
     position: relative;
-    background-color: rgba(160, 160, 160, 0.4);
+    background-color: rgba(78, 84, 87, 0.4);
     margin-left: auto;
     align-items: center;
     cursor: pointer;
