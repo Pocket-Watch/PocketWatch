@@ -23,7 +23,6 @@
 
                     <div class="input_area" id="url_input_container">
                         <span>Media URL:</span>
-                        <!-- TODO(?): Use placeholder do display currently playing video? -->
                         <input type="url" id="url_input_box" placeholder="Enter video or audio URL here. Could be a YouTube link or any other media URL."/>
                     </div>
 
@@ -134,6 +133,16 @@
                         <input readonly type="checkbox" id="room_using_proxy">
                     </label>
 
+                    <!-- 
+                        - Display when it was added.
+                        - Display referer.
+                        - Display who added something:
+                            --------
+                            |avatar| username
+                            -------- 
+                        - Separate sections with hr's
+                    -->
+
                     </br>
                     </br>
 
@@ -147,11 +156,52 @@
                     <progress id="progressBar" value="0" max="100"></progress>
 
                     </br>
-                    <style>
-                    </style>
                     <img class="construction_anim" src="img/under_construction.png">
                 </div>
-                <div id="content_playlist" class="content_view">PLAYLIST</div>
+                <div id="content_playlist" class="content_view">
+                    <div id="playlist_controls">
+                        Placeholder for playlist controls
+                    </div>
+                    <div id="playlist_entry_list">
+                        <div class="playlist_entry">
+                            <div class="playlist_drag_area">☰</div>
+
+
+                            <div class="playlist_entry_thumbnail">
+                                <img src="img/thumbnail_placeholder.png"/>
+                                <!-- <img src="img/click_to_connect.png"/> -->
+                            </div>
+
+                            <div class="playlist_entry_info">
+                                <div class="playlist_entry_title">
+                                    Big Buck Bunny
+                                </div>
+
+                                <div class="playlist_entry_url">
+                                    https://example.com/big-buck-bunny.mp4
+                                </div>
+
+                            </div>
+                            <div class="playlist_entry_buttons">
+                                <div class="playlist_entry_play_now_button"></div>
+                                <div class="playlist_entry_play_next_button"></div>
+                                <div class="playlist_entry_edit_button"></div>
+                                <div class="playlist_entry_delete_button"></div>
+                            </div>
+
+                            <div class="playlist_dropdown_button">▼</div>
+                        </div>
+                        <div class="playlist_entry">
+                            <div class="playlist_drag_area">☰</div>
+                        </div>
+                        <div class="playlist_entry">
+                            <div class="playlist_drag_area">☰</div>
+                        </div>
+                        <div class="playlist_entry">
+                            <div class="playlist_drag_area">☰</div>
+                        </div>
+                    </div>
+                </div>
                 <div id="content_chat" class="content_view">CHAT</div>
                 <div id="content_history" class="content_view">HISTORY</div>
             </div>

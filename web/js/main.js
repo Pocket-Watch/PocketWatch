@@ -49,10 +49,10 @@ class Room {
         this.nowPlaying = document.getElementById("room_now_playing_input");
         this.usingProxy = document.getElementById("room_using_proxy");
 
-        let content = this.rightPanel.content.room;
+        let content = this.rightPanel.content.playlist;
         content.style.visibility = "visible";
 
-        let tab = this.rightPanel.tabs.room;
+        let tab = this.rightPanel.tabs.playlist;
         tab.classList.add("right_panel_tab_selected");
 
         this.rightPanel.selected = {
