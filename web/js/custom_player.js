@@ -1226,8 +1226,7 @@ class Internals {
     createSubtitleTrackElement(title, index) {
         let menu = this.htmlControls.subMenu;
 
-        let track = newDiv();
-        track.className = "subtitle_track";
+        let track = newDiv(null, "subtitle_track");
         track.onclick = _event => {
             if (menu.selected.track) {
                 menu.selected.track.classList.remove("player_submenu_selected");
@@ -1244,14 +1243,11 @@ class Internals {
         trackTitle.value = title;
         trackTitle.readOnly = true;
 
-        let trackButtons = newDiv();
-        trackButtons.className = "subtitle_track_buttons";
+        let trackButtons = newDiv(null, "subtitle_track_buttons");
 
-        let trackEdit = document.createElement("button");
-        trackEdit.className = "subtitle_track_edit_button";
+        let trackEdit = newElement("button", null, "subtitle_track_edit_button")
         trackEdit.textContent = "⚙️";
-        let trackRemove = document.createElement("button");
-        trackRemove.className = "subtitle_track_remove_button";
+        let trackRemove = newElement("button", null, "subtitle_track_remove_button")
         trackRemove.textContent = "🗑";
 
         trackButtons.appendChild(trackEdit);
@@ -1277,23 +1273,19 @@ class Internals {
 
             let select = menu.tabs.selectButton;
             select.innerHTML = "Select"
-            select.classList.add("player_submenu_top_button")
-            select.classList.add("unselectable")
+            select.classList.add("player_submenu_top_button", "unselectable")
             select.style.display = ""
-
             top.appendChild(select);
 
             let search = menu.tabs.searchButton
             search.innerHTML = "Search"
-            search.classList.add("player_submenu_top_button")
-            search.classList.add("unselectable")
+            search.classList.add("player_submenu_top_button", "unselectable")
             search.style.display = ""
             top.appendChild(search);
 
             let options = menu.tabs.optionsButton;
             options.innerHTML = "Options"
-            options.classList.add("player_submenu_top_button")
-            options.classList.add("unselectable")
+            options.classList.add("player_submenu_top_button", "unselectable")
             options.style.display = ""
             top.appendChild(options);
 
@@ -1316,10 +1308,6 @@ class Internals {
             attachSelectionClick(menu.tabs.optionsButton, menu.bottom.optionsRoot);
         }
 
-        // Separator between top and bottom menu.
-        let separator = newElement("hr", null, "player_submenu_separator");
-        root.appendChild(separator);
-
         { // player_submenu_bottom
             let bottom = newDiv("player_submenu_bottom");
             root.appendChild(bottom);
@@ -1335,10 +1323,10 @@ class Internals {
                     textTracks[index].mode = state ? "showing" : "hidden";
                 }
             });
-            select.appendChild(this.subsSwitcher.toggleRoot);
+            let toggleBox = newElement("div", null, "player_submenu_box");
+            toggleBox.appendChild(this.subsSwitcher.toggleRoot);
 
-            let separator = newElement("hr", null, "player_submenu_separator");
-            select.appendChild(separator);
+            select.appendChild(toggleBox);
             select.appendChild(menu.trackList);
             bottom.appendChild(select);
 
@@ -1358,12 +1346,10 @@ class Internals {
             // // -----------------------------------
 
             let search = menu.bottom.searchRoot;
-            // search.textContent = "SEARCH";
             hideElement(search)
             bottom.appendChild(search);
 
             let options = menu.bottom.optionsRoot;
-            // options.textContent = "OPTIONS";
             hideElement(options)
 
             { // player_submenu_shift_root
@@ -1505,7 +1491,6 @@ class Switcher {
         if (state) {
             this.enabled = true;
             this.toggleRoot.classList.add("player_toggle_on");
-
         } else {
             this.enabled = false;
             this.toggleRoot.classList.remove("player_toggle_on");
