@@ -234,7 +234,8 @@ class Internals {
             fullscreen_exit:  "svg/icons.svg#fullscreen_exit",
             arrow_left:       "svg/icons.svg#arrow_left",
             arrow_right:      "svg/icons.svg#arrow_right",
-            seek:             "svg/icons.svg#seek",
+            seek_forward:     "svg/icons.svg#seek_forward",
+            seek_backward:    "svg/icons.svg#seek_backward",
             buffering:        "svg/icons.svg#buffering",
         };
 
@@ -249,8 +250,8 @@ class Internals {
             settings:   Svg.new(this.icons.settings),
             fullscreen: Svg.new(this.icons.fullscreen_enter),
 
-            seekForward:   Svg.new(this.icons.seek, 70, 70),
-            seekBackward:  Svg.new(this.icons.seek, 70, 70),
+            seekForward:   Svg.new(this.icons.seek_forward, 100, 100),
+            seekBackward:  Svg.new(this.icons.seek_backward, 100, 100),
             playbackPopup: Svg.new(this.icons.play_popup, 70, 70),
 
             arrowLeft:  Svg.new(this.icons.arrow_left, 20, 20),
