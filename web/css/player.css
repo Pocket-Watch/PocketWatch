@@ -678,6 +678,15 @@
     border: 5px solid rgba(220, 220, 220, 1.0);
 }
 
+input[id="player_submenu_import"] {
+    color: white;
+    background-color: #171414;
+    border: 2px solid #554949;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
 #player_settings_root {
     width: 30%;
     height: 45%;

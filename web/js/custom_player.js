@@ -595,11 +595,9 @@ class Internals {
         }
     }
 
-    addSrtTrack(url, show) {
-        let filename = url.substring(url.lastIndexOf("/") + 1);
-        let extension = filename.substring(filename.lastIndexOf(".") + 1).toLowerCase();
-        if (extension !== "srt") {
-            return;
+    addSrtTrack(url, show, trackInfo) {
+        if (!trackInfo) {
+            trackInfo = TrackInfo.fromUrl(url)
         }
         fetch(url)
             .then(response => response.text())
@@ -610,7 +608,7 @@ class Internals {
                 }
                 console.info("Parsed SRT track, cue count:", cues.length)
                 let track = document.createElement("track")
-                track.label = filename
+                track.label = trackInfo.filename
                 track.kind = "subtitles"
 
                 this.htmlVideo.appendChild(track)
@@ -623,24 +621,26 @@ class Internals {
                 if (show) {
                     this.enableSubtitleTrackAt(newIndex);
                 }
+                //URL.revokeObjectURL(url)
                 this.fireSubtitleTrackLoad(newTrack);
 
                 let trackList = this.htmlControls.subMenu.trackList;
-                let htmlTrack = this.createSubtitleTrackElement(filename, newIndex);
+                let htmlTrack = this.createSubtitleTrackElement(trackInfo.filename, newIndex);
                 trackList.appendChild(htmlTrack);
             });
     }
 
-    addVttTrack(url, show) {
-        let filename = url.substring(url.lastIndexOf("/") + 1);
-        let extension = filename.substring(filename.lastIndexOf(".") + 1).toLowerCase();
-        if (extension !== "vtt") {
-            console.debug("Unsupported subtitle extension:", extension)
+    addVttTrack(url, show, info) {
+        if (!info) {
+            info = TrackInfo.fromUrl(url)
+        }
+        if (info.extension !== "vtt") {
+            console.debug("Unsupported subtitle extension:", info.extension)
             return
         }
 
         let track = document.createElement("track")
-        track.label = filename
+        track.label = info.filename
         track.kind = "subtitles"
         track.src = url
 
@@ -659,11 +659,12 @@ class Internals {
         // Although we cannot access cues immediately here (not loaded yet)
         // we do have access to the textTrack so it's possible to change its mode
         track.addEventListener("load", (event) => {
+            // URL.revokeObjectURL(url)
             this.fireSubtitleTrackLoad(event);
             console.info("Text track loaded successfully", event.target)
 
             let trackList = this.htmlControls.subMenu.trackList;
-            let htmlTrack = this.createSubtitleTrackElement(filename, newIndex);
+            let htmlTrack = this.createSubtitleTrackElement(info.filename, newIndex);
             trackList.appendChild(htmlTrack);
         });
     }
@@ -1108,6 +1109,7 @@ class Internals {
         progress.root.appendChild(progress.popupRoot);
 
         progress.popupText.textContent = "00:00";
+        progress.popupText.classList.add("unselectable");
         progress.popupRoot.appendChild(progress.popupText);
     }
 
@@ -1346,6 +1348,29 @@ class Internals {
             // // -----------------------------------
 
             let search = menu.bottom.searchRoot;
+            let subtitleImport = newElement("input", "player_submenu_import");
+            subtitleImport.textContent = "Import subtitle";
+            subtitleImport.type = "file";
+            subtitleImport.accept = ".vtt,.srt";
+            subtitleImport.addEventListener("change", event => {
+                console.log(event.target.files)
+                if (event.target.files.length === 0) {
+                    return;
+                }
+                const file = event.target.files[0];
+                // This object is a blob and will be released with URL.revokeObjectURL on load
+                const objectUrl = URL.createObjectURL(file);
+                let trackInfo = TrackInfo.fromUrl(file.name);
+                let ext = trackInfo.extension;
+                if (ext === "vtt") {
+                    console.log("Adding vtt track")
+                    this.addVttTrack(objectUrl, true, trackInfo)
+                } else if (ext === "srt") {
+                    console.log("Adding srt track")
+                    this.addSrtTrack(objectUrl, true, trackInfo)
+                }
+            });
+            search.appendChild(subtitleImport)
             hideElement(search)
             bottom.appendChild(search);
 
@@ -1442,9 +1467,6 @@ class Internals {
                 root.appendChild(top);
                 root.appendChild(bottom);
 
-                // let separator = newElement("hr", null, "player_submenu_separator");
-                // root.appendChild(separator);
-
                 options.appendChild(root);
             }
 
@@ -1477,6 +1499,18 @@ class Internals {
         root.appendChild(showOnPause.toggleRoot);
 
         this.htmlPlayerRoot.appendChild(root);
+    }
+}
+
+class TrackInfo {
+    constructor(filename, extension) {
+        this.filename = filename;
+        this.extension = extension;
+    }
+    static fromUrl(url) {
+        let filename = url.substring(url.lastIndexOf("/") + 1);
+        let extension = filename.substring(filename.lastIndexOf(".") + 1).toLowerCase();
+        return new TrackInfo(filename, extension);
     }
 }
 
@@ -1663,7 +1697,7 @@ function newElement(tag, id, className) {
 
 function consumeEvent(event) {
     event.stopPropagation();
-    event.preventDefault();
+    // event.preventDefault();
 }
 
 function isFunction(func) {
