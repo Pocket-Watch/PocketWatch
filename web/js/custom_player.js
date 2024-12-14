@@ -607,17 +607,14 @@ class Internals {
                     return
                 }
                 console.info("Parsed SRT track, cue count:", cues.length)
-                let track = document.createElement("track")
-                track.label = trackInfo.filename
-                track.kind = "subtitles"
+                // addTextTrack must be used or otherwise track.cues.length will stay 0 on Chromium-based browsers
+                let newTrack = this.htmlVideo.addTextTrack("subtitles", trackInfo.filename);
+                let newIndex = this.htmlVideo.textTracks.length - 1;
+                newTrack.mode = "hidden";
+                cues.forEach(cue => {
+                    newTrack.addCue(cue);
+                });
 
-                this.htmlVideo.appendChild(track)
-                let textTracks = this.htmlVideo.textTracks;
-                let newIndex = textTracks.length - 1;
-                let newTrack = textTracks[newIndex];
-                for (let i = 0; i < cues.length; i++) {
-                    newTrack.addCue(cues[i])
-                }
                 if (show) {
                     this.enableSubtitleTrackAt(newIndex);
                 }
