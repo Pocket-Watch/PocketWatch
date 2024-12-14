@@ -1380,9 +1380,11 @@ class Internals {
                 // Top container:
                 let top = newDiv("player_submenu_shift_top");
                 let textSpan = newElement("span", "player_submenu_shift_text");
-                textSpan.textContent = "Subtitle delay";
+                textSpan.classList.add("unselectable");
+                textSpan.textContent = "Subtitle shift";
 
                 let valueSpan = newElement("span", "player_submenu_shift_value");
+                valueSpan.classList.add("unselectable");
                 valueSpan.textContent = "+0.0s";
 
                 // Bottom container:
