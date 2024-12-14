@@ -618,7 +618,7 @@ class Internals {
                 if (show) {
                     this.enableSubtitleTrackAt(newIndex);
                 }
-                //URL.revokeObjectURL(url)
+                URL.revokeObjectURL(url)
                 this.fireSubtitleTrackLoad(newTrack);
 
                 let trackList = this.htmlControls.subMenu.trackList;
@@ -656,7 +656,7 @@ class Internals {
         // Although we cannot access cues immediately here (not loaded yet)
         // we do have access to the textTrack so it's possible to change its mode
         track.addEventListener("load", (event) => {
-            // URL.revokeObjectURL(url)
+            URL.revokeObjectURL(url)
             this.fireSubtitleTrackLoad(event);
             console.info("Text track loaded successfully", event.target)
 
@@ -798,7 +798,7 @@ class Internals {
             let timestamp = this.getNewTime(-this.options.seekBy);
             this.fireControlsSeeked(timestamp);
             this.seek(timestamp);
-            consumeEvent(e);
+            consumeClick(e);
         });
 
         this.htmlSeekForward.addEventListener("dblclick", (e) => {
@@ -810,7 +810,7 @@ class Internals {
             let timestamp = this.getNewTime(this.options.seekBy);
             this.fireControlsSeeked(timestamp);
             this.seek(timestamp);
-            consumeEvent(e);
+            consumeClick(e);
         });
 
         // Prevents selecting the video element along with the rest of the page
@@ -1208,7 +1208,7 @@ class Internals {
 
     createHtmlControls() {
         let playerControls = this.htmlControls.root;
-        playerControls.addEventListener("click", consumeEvent);
+        playerControls.addEventListener("click", consumeClick);
         playerControls.addEventListener("focusout", () => {
             // otherwise document.body will receive focus
             this.htmlPlayerRoot.focus();
@@ -1262,7 +1262,7 @@ class Internals {
         let menu = this.htmlControls.subMenu;
 
         let root = menu.root;
-        root.onclick = consumeEvent;
+        root.onclick = consumeClick;
         hideElement(root);
         this.htmlPlayerRoot.appendChild(root);
 
@@ -1481,7 +1481,7 @@ class Internals {
         let menu = this.htmlControls.settings;
 
         let root = menu.root;
-        root.onclick = consumeEvent;
+        root.onclick = consumeClick;
         hideElement(root);
 
         let autohide = Switcher.new("Auto-hide controls", state => {
@@ -1694,7 +1694,11 @@ function newElement(tag, id, className) {
 
 function consumeEvent(event) {
     event.stopPropagation();
-    // event.preventDefault();
+    event.preventDefault();
+}
+
+function consumeClick(event) {
+    event.stopPropagation();
 }
 
 function isFunction(func) {
