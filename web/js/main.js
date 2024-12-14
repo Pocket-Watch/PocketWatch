@@ -1,4 +1,5 @@
 import { Player } from "./custom_player.js"
+import { Playlist } from "./playlist.js"
 import * as api from "./api.js";
 
 const SERVER_ID = 0;
@@ -7,6 +8,7 @@ class Room {
     constructor() {
         let video0 = document.getElementById("video0");
         this.player = new Player(video0);
+        this.playlist = new Playlist();
 
         this.urlArea = {
             urlInput:     document.getElementById("url_input_box"),
@@ -50,7 +52,7 @@ class Room {
         this.usingProxy = document.getElementById("room_using_proxy");
 
         let content = this.rightPanel.content.playlist;
-        content.style.visibility = "visible";
+        content.classList.add("content_view_selected");
 
         let tab = this.rightPanel.tabs.playlist;
         tab.classList.add("right_panel_tab_selected");
@@ -114,7 +116,7 @@ class Room {
         this.urlArea.proxyToggle.classList.remove("proxy_active");
     }
 
-    sendNewEntry() {
+    createNewEntry() {
         const entry = {
             id:          0,
             url:         this.urlArea.urlInput.value,
@@ -125,16 +127,16 @@ class Room {
             created:     new Date,
         };
 
-        api.playerSet(entry);
+        return entry;
     }
 
     attachRightPanelEvents() {
         let select = (tab, content) => {
             this.rightPanel.selected.tab.classList.remove("right_panel_tab_selected");
-            this.rightPanel.selected.content.style.visibility = "hidden";
+            this.rightPanel.selected.content.classList.remove("content_view_selected");
 
             tab.classList.add("right_panel_tab_selected");
-            content.style.visibility = "visible";
+            content.classList.add("content_view_selected");
 
             this.rightPanel.selected.tab = tab;
             this.rightPanel.selected.content = content;
@@ -173,13 +175,21 @@ class Room {
         }
 
         this.urlArea.setButton.onclick = () => {
-            this.sendNewEntry();
+            let entry = this.createNewEntry();
+            api.playerSet(entry);
+            this.resetUrlAreaElements();
+        }
+
+        this.urlArea.addPlaylistButton.onclick = () => {
+            let entry = this.createNewEntry();
+            api.playlistAdd(entry);
             this.resetUrlAreaElements();
         }
 
         this.urlArea.urlInput.onkeypress = (event) => {
             if (event.key == "Enter") {
-                this.sendNewEntry();
+                let entry = this.createNewEntry();
+                api.playerSet(entry);
                 this.resetUrlAreaElements();
             }
         }
@@ -367,6 +377,12 @@ class Room {
         return userBox;
     }
 
+
+    async loadPlaylistData() {
+        let playlist = await api.playlistGet();
+        console.log(playlist);
+    }
+
     resyncPlayer(timestamp, userId) {
         const MAX_DESYNC = 1.5;
         let desync = timestamp - this.player.getCurrentTime();
@@ -521,7 +537,7 @@ class Room {
         await this.authenticateAccount();
         await this.loadPlayerData();
         await this.loadUsersData();
-        // await this.loadPlaylistData();
+        await this.loadPlaylistData();
         this.subscribeToServerEvents();
     }
 }

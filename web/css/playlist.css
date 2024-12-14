@@ -1,38 +1,300 @@
-table {
-    border-collapse: collapse;
-    border: 2px solid rgb(140 140 140);
-    font-family: sans-serif;
-    font-size: 0.8rem;
-    letter-spacing: 1px;
+#content_playlist {
+    row-gap: 8px;
+    display: flex;
+    box-sizing: border-box;
+    flex-direction: column;
 }
 
-caption {
-    caption-side: top;
-    padding: 10px;
+#playlist_controls {
+    height: 120px;
+    width: 100%;
+    border: 1px solid red;
+}
+
+#playlist_entry_list {
+    width: 100%;
+    height: 100%;
+    border: 2px solid #665c54;
+    border-radius: 6px;
+    row-gap: 4px;
+    display: flex;
+    box-sizing: border-box;
+    flex-direction: column;
+    padding: 6px;
+}
+
+.playlist_entry {
+    width: calc(100% - 4px);
+    height: auto;
+    border-radius: 6px;
+    box-shadow: 0px 0px 3px 0px #282828;
+    border: 2px solid #7c6f64;
+    display: flex;
+    display: inline-block;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: #32302f;
+}
+
+.playlist_entry_top {
+    width: 100%;
+    height: 64px;
+    border-radius: 4px;
+    display: flex;
+    box-sizing: border-box;
+    background-color: #504945;
+    align-items: center;
+    overflow: hidden;
+}
+
+.playlist_drag_area {
+    width: 16px;
+    height: 100%;
+    border-radius: 4px;
+    display: flex;
+    user-select: none;
+    background-color: #665c54;
+    align-items: center;
+    justify-content: center;
+    color: #d5c4a1;
+}
+
+.playlist_drag_area:hover {
+    color: #ebdbb2;
+    background-color: #665c54;
+}
+
+.playlist_drag_area:active {
+    color: #fbf1c7;
+    background-color: #7c6f64;
+}
+
+.playlist_entry_body {
+    width: 100%;
+    height: 100%;
+}
+
+.playlist_entry_thumbnail {
+    /* height: calc(100% - 12px); */
+    height: calc(100% - 12px);
+    width: 64px;
+    border: 2px solid #928374;
+    border-radius: 6px;
+    box-sizing: border-box;
+    margin-top: 4px;
+    margin-bottom: 4px;
+    margin-left: 6px;
+    background-color: #665c54;
+    overflow: hidden;
+}
+
+.playlist_entry_thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.playlist_entry_info {
+    /* width: 100%; */
+    height: 100%;
+    /* border: 1px solid yellow; */
+    box-sizing: border-box;
+    flex: 1;
+    padding-left: 8px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    overflow: hidden;
+}
+
+.playlist_entry_title {
+    height: 50%;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    font-weight: bold;
+    color: #ebdbb2;
+    white-space: nowrap;
+}
+
+.playlist_entry_url {
+    height: 50%;
+    /* width: 100%; */
+    display: flex;
+    flex: 1;
+    align-items: center;
+    color: #bdae93;
+    white-space: nowrap;
+}
+
+.playlist_entry_buttons {
+    width: 36px;
+    height: 100%;
+    /* border: 1px solid red; */
+    row-gap: 4px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    padding: 4px;
+}
+
+.playlist_entry_edit_button {
+    width: 100%;
+    height: 50%;
+    /* border: 1px solid red; */
+    border: none;
+    border-radius: 6px;
+    outline: none;
+    background-color: transparent;
+}
+
+.playlist_entry_edit_button:hover {
+    background-color: #665c54;
+}
+
+.playlist_entry_edit_button:active {
+    background-color: #7c6f64;
+}
+
+.playlist_entry_edit_button svg {
+    height: 90%;
+    width: 90%;
+    fill: #d5c4a1;
+}
+
+.playlist_entry_edit_button:hover svg {
+    fill: #ebdbb2;
+}
+.playlist_entry_edit_button:active svg {
+    /* fill: #b8bb26; */
+    fill: #8ec07c;
+}
+
+.playlist_entry_delete_button {
+    width: 100%;
+    height: 50%;
+    border: none;
+    border-radius: 6px;
+    outline: none;
+    background-color: transparent;
+}
+
+.playlist_entry_delete_button:hover {
+    background-color: #665c54;
+}
+
+.playlist_entry_delete_button:active {
+    background-color: #7c6f64;
+}
+
+.playlist_entry_delete_button svg {
+    height: 90%;
+    width: 90%;
+    fill: #d5c4a1;
+}
+
+.playlist_entry_delete_button:hover svg {
+    fill: #ebdbb2;
+}
+
+.playlist_entry_delete_button:active svg {
+    fill: #fb4934;
+}
+
+.playlist_dropdown_button {
+    width: 18px;
+    height: 100%;
+    border-left: 2px solid #665c54;
+    display: flex;
+    user-select: none;
+    /* background-color: #3c3836; */
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    background-color: #504945;
+    color: #d5c4a1;
+}
+
+.playlist_dropdown_button:hover {
+    background-color: #5a534f;
+    color: #ebdbb2;
+}
+
+.playlist_dropdown_button:active {
+    background-color: #665c54;
+    color: #fbf1c7;
+}
+
+.playlist_entry_dropdown {
+    width: 100%;
+    height: 0;
+    visibility: hidden;
+    box-sizing: border-box;
+}
+
+.entry_dropdown_expand .playlist_entry_dropdown {
+    height: 80px;
+    visibility: inherit;
+}
+
+.playlist_dropdown_info_top {
+    width: 100%;
+    height: 40%;
+    display: flex;
+    box-sizing: border-box;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.playlist_dropdown_added_by {
+    height: 100%;
+    display: flex;
+    color: #d5c4a1;
+    font-size: 18px;
+    justify-content: center;
+    align-items: center;
+}
+
+.playlist_dropdown_info_bottom {
+    width: 100%;
+    height: 60%;
+    display: flex;
+    box-sizing: border-box;
+    justify-content: center;
+    align-items: center;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.playlist_dropdown_added_at {
+    height: 100%;
+    display: flex;
+    margin-left: auto;
+    color: #d5c4a1;
+    font-size: 18px;
+    align-items: center;
+}
+
+.playlist_dropdown_user_avatar {
+    height: 90%;
+    aspect-ratio: 1.0;
+    border: 2px solid #665c54;
+    border-radius: 4px;
+}
+
+.playlist_dropdown_user_avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.playlist_dropdown_user_name {
+    margin-left: 6px;
+    color: #fbf1c7;
     font-weight: bold;
 }
 
-thead, tfoot {
-    background-color: rgb(228 240 245);
-}
-
-th, td {
-    border: 1px solid rgb(160 160 160);
-    padding: 8px 10px;
-}
-
-td:last-of-type {
-    text-align: center;
-}
-
-tbody > tr:nth-of-type(even) {
-    background-color: rgb(237 238 242);
-}
-
-tfoot th {
-    text-align: right;
-}
-
-tfoot td {
+.playlist_dropdown_added_date {
+    color: #fbf1c7;
+    margin-left: auto;
     font-weight: bold;
 }

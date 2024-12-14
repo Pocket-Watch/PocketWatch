@@ -1,6 +1,6 @@
 import { PlayerArea } from "./player_area.js"
 import { Playlist } from "./playlist_old.js"
-import * as api from "./api.js";
+import * as api from "./api_old.js";
 
 export { findUserById }
 
