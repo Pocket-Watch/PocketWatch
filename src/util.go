@@ -24,7 +24,12 @@ func constructTitleWhenMissing(entry *Entry) string {
 		return entry.Title
 	}
 
-	base := path.Base(entry.Url)
+	parsed, err := net_url.Parse(entry.Url)
+	if err != nil {
+		return "Unknown Media"
+	}
+
+	base := path.Base(parsed.Path)
 	title := strings.TrimSuffix(base, filepath.Ext(base))
 	return title
 }
