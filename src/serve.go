@@ -429,7 +429,7 @@ func apiUpload(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	jsonData, _ := json.Marshal(filepath)
+	jsonData, _ := json.Marshal("media/" + header.Filename)
 	io.WriteString(writer, string(jsonData))
 }
 
