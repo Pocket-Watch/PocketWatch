@@ -228,6 +228,7 @@ class Internals {
             play_popup:       "svg/icons.svg#play_popup",
             pause:            "svg/icons.svg#pause",
             pause_popup:      "svg/icons.svg#pause_popup",
+            replay:           "svg/icons.svg#replay",
             next:             "svg/icons.svg#next",
             loop:             "svg/icons.svg#loop",
             volume_full:      "svg/icons.svg#volume_full",
@@ -967,6 +968,7 @@ class Internals {
         });
 
         this.htmlVideo.addEventListener("ended", (_event) => {
+            this.svgs.playback.setHref(this.icons.replay)
             this.firePlaybackEnd();
         });
 
