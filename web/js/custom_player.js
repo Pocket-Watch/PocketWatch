@@ -60,6 +60,10 @@ class Player {
         return this.internals.htmlVideo.currentTime;
     }
 
+    getDuration() {
+        return this.internals.htmlVideo.duration;
+    }
+
     // Adds a new subtitle track in the 'showing' mode, hiding the previous track.
     setVttTrack(subtitleUrl) {
         this.internals.addVttTrack(subtitleUrl, true);

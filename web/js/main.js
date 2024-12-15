@@ -105,6 +105,15 @@ class Room {
             this.player.setToast("ERROR: Something went wrong, press F12 to see what happened");
             console.error(event.name + ":", event.message);
         })
+
+        this.player.onPlaybackEnd(() => {
+            console.info("Playback ended! Informing the server");
+            let endTime = this.player.getDuration();
+            if (isNaN(endTime)) {
+                endTime = 0;
+            }
+            api.playerPause(endTime)
+        });
     }
 
     resetUrlAreaElements() {
