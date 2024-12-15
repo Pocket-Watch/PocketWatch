@@ -407,6 +407,11 @@ class Internals {
         if (isNaN(timestamp)) {
             return
         }
+        if (this.isVideoPlaying()) {
+            this.svgs.playback.setHref(this.icons.pause);
+        } else {
+            this.svgs.playback.setHref(this.icons.play);
+        }
         this.htmlVideo.currentTime = timestamp;
     }
 
