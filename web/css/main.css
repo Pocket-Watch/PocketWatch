@@ -209,10 +209,36 @@ html * {
 #url_dropdown_top {
     height: calc(50% - 6px);
     width: calc(100% - 18px);
+    column-gap: 6px;
+    display: flex;
     margin-right: 6px;
     margin-left: 6px;
     margin-bottom: 6px;
-    /* display: flex; */
+}
+
+#url_upload_subtitle  {
+    height: 100%;
+    aspect-ratio: 1.0;
+    border: none;
+    border-radius: 6px;
+    display: flex;
+    box-sizing: border-box;
+    justify-content: center;
+    align-items: center;
+    background-color: #b8bb26;
+}
+
+#url_upload_subtitle:hover {
+    background-color: #98971a;
+}
+
+#url_upload_subtitle:active {
+    background-color: #79740e;
+}
+
+#url_upload_subtitle svg {
+    height: 70%;
+    width: 70%;
 }
 
 #url_dropdown_bottom {

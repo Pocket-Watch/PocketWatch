@@ -48,14 +48,15 @@ type PlayerState struct {
 }
 
 type Entry struct {
-	Id         uint64    `json:"id"`
-	Url        string    `json:"url"`
-	Title      string    `json:"title"`
-	UserId     uint64    `json:"user_id"`
-	UseProxy   bool      `json:"use_proxy"`
-	RefererUrl string    `json:"referer_url"`
-	SourceUrl  string    `json:"source_url"`
-	Created    time.Time `json:"created"`
+	Id          uint64    `json:"id"`
+	Url         string    `json:"url"`
+	Title       string    `json:"title"`
+	UserId      uint64    `json:"user_id"`
+	UseProxy    bool      `json:"use_proxy"`
+	RefererUrl  string    `json:"referer_url"`
+	SourceUrl   string    `json:"source_url"`
+	SubtitleUrl string    `json:"source_url"`
+	Created     time.Time `json:"created"`
 }
 
 type ServerState struct {
@@ -557,13 +558,13 @@ func apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 	io.Copy(file, formfile)
 
-    now := time.Now()
+	now := time.Now()
 	avatarUrl = fmt.Sprintf("users/avatar%v?%v", user.Id, now)
 
 	users.mutex.Lock()
 	users.slice[userIndex].Avatar = avatarUrl
 	users.slice[userIndex].lastUpdate = time.Now()
-    user = users.slice[userIndex]
+	user = users.slice[userIndex]
 	users.mutex.Unlock()
 
 	jsonData, _ := json.Marshal(avatarUrl)

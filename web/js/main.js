@@ -388,8 +388,14 @@ class Room {
 
 
     async loadPlaylistData() {
-        let playlist = await api.playlistGet();
-        console.log(playlist);
+        let entries = await api.playlistGet();
+        console.log(entries);
+
+        if (!entries) {
+            return;
+        }
+
+        this.playlist.loadEntries(entries);
     }
 
     resyncPlayer(timestamp, userId) {
