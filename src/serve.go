@@ -55,7 +55,7 @@ type Entry struct {
 	UseProxy    bool      `json:"use_proxy"`
 	RefererUrl  string    `json:"referer_url"`
 	SourceUrl   string    `json:"source_url"`
-	SubtitleUrl string    `json:"source_url"`
+	SubtitleUrl string    `json:"subtitle_url"`
 	Created     time.Time `json:"created"`
 }
 
@@ -415,7 +415,8 @@ func apiUpload(writer http.ResponseWriter, request *http.Request) {
 
 	LogInfo("User is uploading file: %s, size: %v", header.Filename, header.Size)
 
-	out, err := os.Create(WEB_MEDIA + header.Filename)
+    filepath := WEB_MEDIA + header.Filename
+	out, err := os.Create(filepath)
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 		return
@@ -428,7 +429,8 @@ func apiUpload(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(writer, "File uploaded successfully: %s", header.Filename)
+	jsonData, _ := json.Marshal(filepath)
+	io.WriteString(writer, string(jsonData))
 }
 
 func apiUserCreate(w http.ResponseWriter, r *http.Request) {

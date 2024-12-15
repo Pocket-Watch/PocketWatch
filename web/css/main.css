@@ -122,6 +122,7 @@ html * {
     width: 100%;
     height: 100%;
     display: flex;
+    z-index: 2;
 }
 
 .input_area span {
@@ -216,7 +217,7 @@ html * {
     margin-bottom: 6px;
 }
 
-#url_upload_subtitle  {
+#url_select_subtitle_button  {
     height: 100%;
     aspect-ratio: 1.0;
     border: none;
@@ -228,15 +229,15 @@ html * {
     background-color: #b8bb26;
 }
 
-#url_upload_subtitle:hover {
+#url_select_subtitle_button:hover {
     background-color: #98971a;
 }
 
-#url_upload_subtitle:active {
+#url_select_subtitle_button:active {
     background-color: #79740e;
 }
 
-#url_upload_subtitle svg {
+#url_select_subtitle_button svg {
     height: 70%;
     width: 70%;
 }
@@ -253,6 +254,7 @@ html * {
     width: 200px;
     height: 100%;
     border-radius: 4px;
+    z-index: 1;
     display: flex;
     justify-content: center;
     align-items: center;

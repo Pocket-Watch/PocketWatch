@@ -11,14 +11,16 @@ class Room {
         this.playlist = new Playlist();
 
         this.urlArea = {
-            urlInput:     document.getElementById("url_input_box"),
-            titleInput:   document.getElementById("url_title_input"),
-            refererInput: document.getElementById("url_dropdown_referer_input"),
+            urlInput:      document.getElementById("url_input_box"),
+            titleInput:    document.getElementById("url_title_input"),
+            refererInput:  document.getElementById("url_dropdown_referer_input"),
+            subtitleInput: document.getElementById("url_subtitle_name_input"),
 
-            dropdownButton:    document.getElementById("url_dropdown_button"),
-            resetButton:       document.getElementById("url_reset_button"),
-            setButton:         document.getElementById("url_set_button"),
-            addPlaylistButton: document.getElementById("url_add_playlist_button"),
+            dropdownButton:       document.getElementById("url_dropdown_button"),
+            resetButton:          document.getElementById("url_reset_button"),
+            setButton:            document.getElementById("url_set_button"),
+            addPlaylistButton:    document.getElementById("url_add_playlist_button"),
+            selectSubtitleButton: document.getElementById("url_select_subtitle_button"),
 
             dropdownContainer: document.getElementById("url_dropdown_container"),
             proxyToggle:       document.getElementById("proxy_toggle"),
@@ -82,6 +84,9 @@ class Room {
 
         /// Number of user online.
         this.onlineCount = 0;
+
+        /// Subtitle file to be attached to the entry.
+        this.subtitleFile = null;
     }
 
     attachPlayerEvents() {
@@ -120,20 +125,28 @@ class Room {
         this.urlArea.urlInput.value = "";
         this.urlArea.titleInput.value = "";
         this.urlArea.refererInput.value = "";
+        this.urlArea.subtitleInput.value = "";
+
+        this.subtitleFile = null;
 
         this.proxyEnabled = false;
         this.urlArea.proxyToggle.classList.remove("proxy_active");
     }
 
-    createNewEntry() {
+    createNewEntry(subtitle) {
+        if (!subtitle) {
+            subtitle = "";
+        }
+
         const entry = {
-            id:          0,
-            url:         this.urlArea.urlInput.value,
-            title:       this.urlArea.titleInput.value,
-            user_id:     0,
-            use_proxy:   this.proxyEnabled,
-            referer_url: this.urlArea.refererInput.value,
-            created:     new Date,
+            id:           0,
+            url:          this.urlArea.urlInput.value,
+            title:        this.urlArea.titleInput.value,
+            user_id:      0,
+            use_proxy:    this.proxyEnabled,
+            referer_url:  this.urlArea.refererInput.value,
+            subtitle_url: subtitle,
+            created:      new Date,
         };
 
         return entry;
@@ -160,9 +173,7 @@ class Room {
         tabs.history.onclick  = () => select(tabs.history, content.history);
     }
 
-    attachHtmlEvents() {
-        this.attachRightPanelEvents();
-
+    attachUrlAreaEvents() {
         this.urlArea.dropdownButton.onclick = () => {
             let button = this.urlArea.dropdownButton;
             let div = this.urlArea.dropdownContainer;
@@ -183,8 +194,16 @@ class Room {
             this.resetUrlAreaElements();
         }
 
-        this.urlArea.setButton.onclick = () => {
-            let entry = this.createNewEntry();
+        this.urlArea.setButton.onclick = async () => {
+            let subtitlePath = "";
+            if (this.subtitleFile) {
+                let filename = this.urlArea.subtitleInput.value;
+                subtitlePath = await api.uploadFile(this.subtitleFile, filename);
+            }
+
+            console.log(subtitlePath);
+
+            let entry = this.createNewEntry(subtitlePath);
             api.playerSet(entry);
             this.resetUrlAreaElements();
         }
@@ -203,10 +222,33 @@ class Room {
             }
         }
 
+        this.urlArea.selectSubtitleButton.onclick = () => {
+            let input = document.createElement('input');
+            input.type = "file";
+            input.accept = ".srt,.vtt";
+            input.onchange = event => {
+                let files = event.target.files;
+
+                if (files.length == 0) {
+                    return;
+                }
+
+                console.log("File selected: ", files[0]);
+                this.subtitleFile = files[0];
+                this.urlArea.subtitleInput.value = this.subtitleFile.name;
+            }
+            input.click();
+        }
+
         this.urlArea.proxyToggle.onclick = () => {
             this.urlArea.proxyToggle.classList.toggle("proxy_active");
             this.proxyEnabled = !this.proxyEnabled;
         }
+    }
+
+    attachHtmlEvents() {
+        this.attachUrlAreaEvents();
+        this.attachRightPanelEvents();
     }
 
     async createNewAccount() {
@@ -505,6 +547,9 @@ class Room {
             this.player.setVideoTrack(url);
             this.player.setTitle(entry.title);
 
+            if (entry.subtitle_url) {
+                this.player.addSubtitleTrack(entry.subtitle_url);
+            }
         });
 
         events.addEventListener("sync", (event) => {

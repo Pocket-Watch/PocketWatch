@@ -1,12 +1,16 @@
 var token = null;
 var connectionId = null;
 
-async function httpPostFile(endpoint, file) {
+async function httpPostFile(endpoint, file, filename) {
     const headers = new Headers();
     headers.set("Authorization", token);
 
     var formdata = new FormData();
-    formdata.append("file", file);
+    if (filename) {
+        formdata.append("file", file, filename);
+    } else {
+        formdata.append("file", file);
+    }
 
     const options = {
         method: "POST",
@@ -91,6 +95,12 @@ export function setToken(t) {
 
 export function setConnectionId(id) {
     connectionId = id;
+}
+
+export async function uploadFile(file, filename) {
+    console.info("INFO: Uploading a file to the server.");
+    let filePath = await httpPostFile("/watch/api/upload", file, filename);
+    return filePath;
 }
 
 export async function userCreate() {

@@ -64,6 +64,14 @@ class Player {
         return this.internals.htmlVideo.duration;
     }
 
+    addSubtitleTrack(subtitleUrl) {
+        if (subtitleUrl.endsWith(".srt")) {
+            return this.internals.addSrtTrack(subtitleUrl, false);
+        } else if (subtitleUrl.endsWith(".vtt")) {
+            return this.internals.addVttTrack(subtitleUrl, false);
+        }
+    }
+
     // Adds a new subtitle track in the 'showing' mode, hiding the previous track.
     setVttTrack(subtitleUrl) {
         this.internals.addVttTrack(subtitleUrl, true);
