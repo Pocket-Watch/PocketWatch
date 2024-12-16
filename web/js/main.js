@@ -91,6 +91,10 @@ class Room {
 
     attachPlayerEvents() {
         this.player.onControlsPlay(() => {
+            if (this.ended) {
+                api.playerPlay(0);
+                return;
+            }
             api.playerPlay(this.player.getCurrentTime());
         })
 
@@ -117,6 +121,7 @@ class Room {
             if (isNaN(endTime)) {
                 endTime = 0;
             }
+            this.ended = true;
             api.playerPause(endTime)
         });
     }
