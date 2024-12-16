@@ -21,6 +21,7 @@
     box-sizing: border-box;
     flex-direction: column;
     padding: 6px;
+    overflow-y: scroll;
 }
 
 .playlist_entry {
@@ -29,8 +30,8 @@
     border-radius: 6px;
     box-shadow: 0px 0px 3px 0px #282828;
     border: 2px solid #7c6f64;
-    display: flex;
     display: inline-block;
+    flex-shrink: 0;
     flex-direction: column;
     overflow: hidden;
     background-color: #32302f;
@@ -229,11 +230,13 @@
     height: 0;
     visibility: hidden;
     box-sizing: border-box;
+    transition: height 100ms ease;
 }
 
 .entry_dropdown_expand .playlist_entry_dropdown {
     height: 80px;
     visibility: inherit;
+    transition: height 100ms ease;
 }
 
 .playlist_dropdown_info_top {
@@ -263,9 +266,10 @@
     align-items: center;
     padding-left: 8px;
     padding-right: 8px;
+    padding-bottom: 4px;
 }
 
-.playlist_dropdown_added_at {
+.playlist_dropdown_created_at {
     height: 100%;
     display: flex;
     margin-left: auto;
@@ -275,7 +279,7 @@
 }
 
 .playlist_dropdown_user_avatar {
-    height: 90%;
+    height: 80%;
     aspect-ratio: 1.0;
     border: 2px solid #665c54;
     border-radius: 4px;
@@ -293,7 +297,7 @@
     font-weight: bold;
 }
 
-.playlist_dropdown_added_date {
+.playlist_dropdown_creation_date {
     color: #fbf1c7;
     margin-left: auto;
     font-weight: bold;

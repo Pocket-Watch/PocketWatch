@@ -1,57 +1,58 @@
 import { Player } from "./custom_player.js"
 import { Playlist } from "./playlist.js"
 import * as api from "./api.js";
+import { getById, div, a, span, img, svg, button } from "./util.js";
 
 const SERVER_ID = 0;
 
 class Room {
     constructor() {
-        let video0 = document.getElementById("video0");
+        let video0 = getById("video0");
         this.player = new Player(video0);
         this.playlist = new Playlist();
 
         this.urlArea = {
-            urlInput:      document.getElementById("url_input_box"),
-            titleInput:    document.getElementById("url_title_input"),
-            refererInput:  document.getElementById("url_dropdown_referer_input"),
-            subtitleInput: document.getElementById("url_subtitle_name_input"),
+            urlInput:      getById("url_input_box"),
+            titleInput:    getById("url_title_input"),
+            refererInput:  getById("url_dropdown_referer_input"),
+            subtitleInput: getById("url_subtitle_name_input"),
 
-            dropdownButton:       document.getElementById("url_dropdown_button"),
-            resetButton:          document.getElementById("url_reset_button"),
-            setButton:            document.getElementById("url_set_button"),
-            addPlaylistButton:    document.getElementById("url_add_playlist_button"),
-            selectSubtitleButton: document.getElementById("url_select_subtitle_button"),
+            dropdownButton:       getById("url_dropdown_button"),
+            resetButton:          getById("url_reset_button"),
+            setButton:            getById("url_set_button"),
+            addPlaylistButton:    getById("url_add_playlist_button"),
+            selectSubtitleButton: getById("url_select_subtitle_button"),
 
-            dropdownContainer: document.getElementById("url_dropdown_container"),
-            proxyToggle:       document.getElementById("proxy_toggle"),
+            dropdownContainer: getById("url_dropdown_container"),
+            proxyToggle:       getById("proxy_toggle"),
         };
 
         this.usersArea = {
-            userList: document.getElementById("users_list"),
+            userList: getById("users_list"),
 
-            onlineCount:  document.getElementById("users_online_count"),
-            offlineCount: document.getElementById("users_offline_count"),
+            onlineCount:  getById("users_online_count"),
+            offlineCount: getById("users_offline_count"),
         };
 
         this.rightPanel = {
             tabs: {
-                room:     document.getElementById("tab_room"),
-                playlist: document.getElementById("tab_playlist"),
-                chat:     document.getElementById("tab_chat"),
-                history:  document.getElementById("tab_history"),
+                room:     getById("tab_room"),
+                playlist: getById("tab_playlist"),
+                chat:     getById("tab_chat"),
+                history:  getById("tab_history"),
             },
 
             content: {
-                root:     document.getElementById("right_panel_content"),
-                room:     document.getElementById("content_room"),
-                playlist: document.getElementById("content_playlist"),
-                chat:     document.getElementById("content_chat"),
-                history:  document.getElementById("content_history"),
+                root:     getById("right_panel_content"),
+                room:     getById("content_room"),
+                playlist: getById("content_playlist"),
+                chat:     getById("content_chat"),
+                history:  getById("content_history"),
             },
         };
 
-        this.nowPlaying = document.getElementById("room_now_playing_input");
-        this.usingProxy = document.getElementById("room_using_proxy");
+        this.nowPlaying = getById("room_now_playing_input");
+        this.usingProxy = getById("room_using_proxy");
 
         let content = this.rightPanel.content.playlist;
         content.classList.add("content_view_selected");
@@ -334,101 +335,84 @@ class Room {
     }
 
     createUserBox(user) {
-        let userBox = document.createElement("div");
-        userBox.className = "user_box";
+        let userBox       = div("user_box");
+        let userBoxTop    = div("user_box_top");
+        let avatarSrc     = user.avatar ? user.avatar : "img/default_avatar.png"; 
+        let userAvatar    = img(avatarSrc);
+        let userBoxBottom = div("user_box_bottom");
+        let usernameInput = document.createElement("input");
 
-        // user_box_top
-        let userBoxTop = document.createElement("div");
-        userBoxTop.className = "user_box_top";
+        //
+        // Configuring parameters for html elements.
+        //
+        usernameInput.readOnly = true;
+        usernameInput.value = user.username;
 
-        { // user_box_top img
-            let userAvatar = document.createElement("img");
-            userAvatar.src = user.avatar ? user.avatar : "img/default_avatar.png"; 
+        //
+        // Constructing html element structure.
+        //
+        userBox.append(userBoxTop); {
             userBoxTop.append(userAvatar);
-
-            if (user.id == this.currentUser.id) {
-                let changeAvatarButton = document.createElement("button");
-                changeAvatarButton.className = "user_box_change_avatar";
-                changeAvatarButton.textContent = "E";
-                changeAvatarButton.onclick = () => {
-                    var input = document.createElement('input');
-                    input.type = "file";
-
-                    input.onchange = event => { 
-                        var file = event.target.files[0]; 
-                        console.log("Picked file:", file);
-                        api.userUpdateAvatar(file).then(newAvatar => {
-                            if (newAvatar) {
-                                userAvatar.src = newAvatar;
-                            }
-                        });
-                    }
-
-                    input.click();
-                };
-
-                userBoxTop.append(changeAvatarButton);
-            }
+        }
+        userBox.append(userBoxBottom); {
+            userBoxBottom.append(usernameInput);
         }
 
-        userBox.append(userBoxTop);
+        if (user.id == this.currentUser.id) {
+            let changeAvatarButton = button("user_box_change_avatar", "Update your avatar");
+            let editNameButton = button("user_box_edit_name_button", "Change your username");
+            let editSvg = svg("svg/main_icons.svg#edit2");
 
-        // user_box_bottom
-        let userBoxBottom = document.createElement("div");
-        userBoxBottom.className = "user_box_bottom";
+            //
+            // Configuring parameters for html elements.
+            //
+            changeAvatarButton.textContent = "E";
 
-        { // user_box_bottom input + user_box_edit_name_button
-            let usernameInput = document.createElement("input");
-            usernameInput.readOnly = true;
-            usernameInput.value = user.username;
+            //
+            // Attaching events to html elements
+            //
+            changeAvatarButton.onclick = () => {
+                var input = document.createElement('input');
+                input.type = "file";
 
-            userBoxBottom.append(usernameInput);
-
-            if (user.id == this.currentUser.id) {
-                usernameInput.addEventListener("focusout", () => {
-                    usernameInput.readOnly = true;
-                    api.userUpdateName(usernameInput.value);
-                });
-
-                usernameInput.addEventListener("keypress", (event) => {
-                    if (event.key === "Enter") {
-                        usernameInput.readOnly = true;
-                        api.userUpdateName(usernameInput.value);
-                    }
-                });
-
-                // usernameInput.addEventListener("dblclick", (event) => {
-                //     usernameInput.readOnly = false;
-                //     usernameInput.focus();
-                // });
-
-                let editNameButton = document.createElement("button");
-                editNameButton.className = "user_box_edit_name_button";
-                editNameButton.onclick = () => {
-                    usernameInput.readOnly = false;
-                    usernameInput.focus();
-                };
-
-                { // user_box_edit_name_button svg
-                    let editSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-                    editSvg.setAttribute("viewBox", "0 0 16 16");
-
-                    let path1 = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                    path1.setAttribute("d", "M8.29289 3.70711L1 11V15H5L12.2929 7.70711L8.29289 3.70711Z");
-                    editSvg.append(path1);
-
-                    let path2 = document.createElementNS("http://www.w3.org/2000/svg","path");
-                    path2.setAttribute("d", "M9.70711 2.29289L13.7071 6.29289L15.1716 4.82843C15.702 4.29799 16 3.57857 16 2.82843C16 1.26633 14.7337 0 13.1716 0C12.4214 0 11.702 0.297995 11.1716 0.828428L9.70711 2.29289Z");
-                    editSvg.append(path2);
-
-                    editNameButton.append(editSvg);
+                input.onchange = event => { 
+                    var file = event.target.files[0]; 
+                    console.log("Picked file:", file);
+                    api.userUpdateAvatar(file).then(newAvatar => {
+                        if (newAvatar) {
+                            userAvatar.src = newAvatar;
+                        }
+                    });
                 }
 
-                userBoxBottom.append(editNameButton);
+                input.click();
+            };
+
+            usernameInput.addEventListener("focusout", () => {
+                usernameInput.readOnly = true;
+                api.userUpdateName(usernameInput.value);
+            });
+
+            usernameInput.addEventListener("keypress", event => {
+                if (event.key === "Enter") {
+                    usernameInput.readOnly = true;
+                    api.userUpdateName(usernameInput.value);
+                }
+            });
+
+            editNameButton.onclick = () => {
+                usernameInput.readOnly = false;
+                usernameInput.focus();
+            };
+
+            //
+            // Constructing html element structure
+            //
+            userBoxTop.append(changeAvatarButton);
+            userBoxBottom.append(editNameButton); {
+                editNameButton.append(editSvg);
             }
         }
-
-        userBox.append(userBoxBottom);
 
         return userBox;
     }
@@ -442,6 +426,7 @@ class Room {
             return;
         }
 
+        // TOOD(kihau): Performance problem when number of entries is large. Needs to be fixed at some point.
         this.playlist.loadEntries(entries);
     }
 
@@ -557,7 +542,7 @@ class Room {
             }
         });
 
-        events.addEventListener("sync", (event) => {
+        events.addEventListener("sync", event => {
             let data = JSON.parse(event.data);
             if (!data) {
                 console.error("ERROR: Failed to parse event data")
@@ -595,6 +580,12 @@ class Room {
                     console.error("ERROR: Unknown sync action found", data.action)
                 } break;
             }
+        });
+
+        events.addEventListener("playlist", event => {
+            let response = JSON.parse(event.data);
+            console.info("INFO: Received playlist event for:", response.action, "with:", response.data);
+            this.playlist.handleServerEvent(response.action, response.data);
         });
     }
 
