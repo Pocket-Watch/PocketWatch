@@ -30,6 +30,13 @@ function svg(href) {
     return svg;
 }
 
+function button(className, title) {
+    let element = document.createElement("button");
+    element.className = className;
+    element.title = title;
+    return element;
+}
+
 class Playlist {
     constructor() {
         this.htmlEntryList = document.getElementById("playlist_entry_list");
@@ -70,12 +77,24 @@ class Playlist {
         let entryTitle     = div("playlist_entry_title");
         let entryUrl       = a("playlist_entry_url", entry.url, entry.url);
         let entryButtons   = div("playlist_entry_buttons");
+        let editButton     = button("playlist_entry_edit_button", "Edit playlist entry")
+        let editSvg        = svg("svg/main_icons.svg#edit");
+        let deleteButton   = button("playlist_entry_delete_button", "Delete playlist entry")
+        let deleteSvg      = svg("svg/main_icons.svg#delete");
         let dropdownButton = div("playlist_dropdown_button");
         let entryDropdown  = div("playlist_entry_dropdown"); 
 
         entryDragArea.textContent = "☰";
         entryTitle.textContent = entry.title;
         dropdownButton.textContent = "▼";
+
+        editButton.onclick = () => {
+            console.log("edit button clicked");
+        };
+
+        deleteButton.onclick = () => {
+            console.log("delete button clicked");
+        };
 
         dropdownButton.onclick = () => {
             entryDiv.classList.toggle("entry_dropdown_expand");
@@ -91,8 +110,16 @@ class Playlist {
                 entryInfo.append(entryUrl);
             }
             entryTop.append(entryButtons); {
+                entryButtons.append(editButton); {
+                    editButton.append(editSvg);
+                }
+                entryButtons.append(deleteButton); {
+                    deleteButton.append(deleteSvg);
+                }
             }
-            entryTop.append(dropdownButton);
+            entryTop.append(dropdownButton); {
+
+            }
         }
         entryDiv.append(entryDropdown);
 
