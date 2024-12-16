@@ -46,7 +46,7 @@ html * {
     justify-content: center;
 }
 
-#player_container {
+.player_container {
     border-radius: 6px;
 }
 

@@ -194,6 +194,7 @@ function hideElement(element) {
 }
 
 class Internals {
+    static playerSeed = 1;
     constructor(videoElement, options) {
         let initStart = performance.now();
         this.isMobile = isMobileAgent();
@@ -209,14 +210,19 @@ class Internals {
         this.htmlVideo.disablePictureInPicture = true;
         this.htmlVideo.controls = false;
 
+        let seed = Internals.playerSeed++;
         // Div container where either the player or the placeholder resides.
-        this.htmlPlayerRoot = newDiv("player_container");
+        this.htmlPlayerRoot = newDiv(seed, "player_container");
 
         // We actually need to append the <div> to document.body (or <video>'s parent)
         // otherwise the <video> tag will disappear entirely!
         let videoParent = this.htmlVideo.parentNode;
         videoParent.appendChild(this.htmlPlayerRoot);
         this.htmlPlayerRoot.appendChild(this.htmlVideo);
+
+        // TODO: Find a way to apply the styling for cues only from this player instance
+        this.subtitleSheet = this.createSubtitleStyleSheet(seed);
+        this.cueRule = this.subtitleSheet.cssRules[0];
 
         this.htmlTitleContainer = newDiv("player_title_container");
         hideElement(this.htmlTitleContainer);
@@ -758,6 +764,27 @@ class Internals {
         if (index < this.selectedSubtitleIndex) {
             this.selectedSubtitleIndex--;
         }
+    }
+
+    createSubtitleStyleSheet(id) {
+        let style = document.createElement("style");
+        document.head.appendChild(style);
+        let subtitleSheet =  document.styleSheets[document.styleSheets.length - 1];
+        let rule = "div[id=\"" + id + "\"][class=\"player_container\"] ::cue {}";
+        subtitleSheet.insertRule(rule)
+        return subtitleSheet;
+    }
+
+    setSubtitleFontSize(px) {
+        this.cueRule.style.fontSize = px + "px";
+    }
+
+    setSubtitleForeground(color) {
+        this.cueRule.style.color = color;
+    }
+
+    setSubtitleBackground(color) {
+        this.cueRule.style.backgroundColor = color;
     }
 
     showPlayerUI() {
