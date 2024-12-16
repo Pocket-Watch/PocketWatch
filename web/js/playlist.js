@@ -2,6 +2,34 @@ import * as api from "./api.js";
 
 export { Playlist }
 
+function div(className) {
+    let element = document.createElement("div");
+    element.className = className;
+    return element;
+}
+
+function a(className, textContent, href) {
+    let element = document.createElement("a");
+    element.className = className;
+    element.textContent = textContent;
+    element.href = href;
+    return element;
+}
+
+function img(src) {
+    let element = document.createElement("img");
+    element.src = src;
+    return element;
+}
+
+function svg(href) {
+    let svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    let use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+    use.setAttribute("href", href);
+    svg.appendChild(use);
+    return svg;
+}
+
 class Playlist {
     constructor() {
         this.htmlEntryList = document.getElementById("playlist_entry_list");
@@ -25,10 +53,49 @@ class Playlist {
             const entry = this.entries[i];
             const htmlEntry = this.createHtmlEntry(entry);
             this.htmlEntries.push(htmlEntry);
+            this.htmlEntryList.appendChild(htmlEntry);
         }
     }
 
     createHtmlEntry(entry) {
+        let entryDiv       = div("playlist_entry");
+        let entryTop       = div("playlist_entry_top"); 
+        let entryDragArea  = div("playlist_drag_area"); 
+        let entryThumbnail = div("playlist_entry_thumbnail");
+        // NOTE(kihau): 
+        //     This will be an actual thumbnail image. 
+        //     The placeholder will be set when the entry thumbnail image is an empty string.
+        let thumbnailImg   = img("img/thumbnail_placeholder.png");
+        let entryInfo      = div("playlist_entry_info");
+        let entryTitle     = div("playlist_entry_title");
+        let entryUrl       = a("playlist_entry_url", entry.url, entry.url);
+        let entryButtons   = div("playlist_entry_buttons");
+        let dropdownButton = div("playlist_dropdown_button");
+        let entryDropdown  = div("playlist_entry_dropdown"); 
 
+        entryDragArea.textContent = "☰";
+        entryTitle.textContent = entry.title;
+        dropdownButton.textContent = "▼";
+
+        dropdownButton.onclick = () => {
+            entryDiv.classList.toggle("entry_dropdown_expand");
+        };
+
+        entryDiv.append(entryTop); {
+            entryTop.append(entryDragArea);
+            entryTop.append(entryThumbnail); {
+                entryThumbnail.append(thumbnailImg);
+            }
+            entryTop.append(entryInfo); {
+                entryInfo.append(entryTitle);
+                entryInfo.append(entryUrl);
+            }
+            entryTop.append(entryButtons); {
+            }
+            entryTop.append(dropdownButton);
+        }
+        entryDiv.append(entryDropdown);
+
+        return entryDiv;
     }
 }

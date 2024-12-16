@@ -415,7 +415,7 @@ func apiUpload(writer http.ResponseWriter, request *http.Request) {
 
 	LogInfo("User is uploading file: %s, size: %v", header.Filename, header.Size)
 
-    filepath := WEB_MEDIA + header.Filename
+	filepath := WEB_MEDIA + header.Filename
 	out, err := os.Create(filepath)
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
