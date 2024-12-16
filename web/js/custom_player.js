@@ -1421,7 +1421,7 @@ class Internals {
             hideElement(options)
 
             { // player_submenu_shift_root
-                let root = newDiv("player_submenu_shift_root");
+                let shiftRoot = newDiv("player_submenu_shift_root");
 
                 // Top container:
                 let top = newDiv("player_submenu_shift_top");
@@ -1509,14 +1509,34 @@ class Internals {
                 bottom.appendChild(slider);
                 bottom.appendChild(rightButton);
 
-                root.appendChild(top);
-                root.appendChild(bottom);
+                shiftRoot.appendChild(top);
+                shiftRoot.appendChild(bottom);
 
-                options.appendChild(root);
+                options.appendChild(shiftRoot);
+
+                // TODO: These classes don't exist.. should be created in player.css
+                let fontRoot = newDiv("player_submenu_font_root");
+                let fontSlider = newElement("input", "player_submenu_font_slider");
+                fontSlider.type = "range";
+                fontSlider.min = 20;
+                fontSlider.max = 100;
+                fontSlider.step = 1;
+                fontSlider.value = 40;
+                fontSlider.style.width = "70%";
+                fontSlider.oninput = () => {
+                    let value = fontSlider.value;
+                    this.setSubtitleFontSize(value)
+                    console.log("New font size:", value, "px")
+                }
+                fontRoot.appendChild(fontSlider);
+
+                options.appendChild(fontRoot);
             }
 
             bottom.appendChild(options);
         }
+
+
 
         menu.selected.button = menu.tabs.selectButton;
         menu.selected.bottom = menu.bottom.selectRoot;

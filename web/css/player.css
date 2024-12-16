@@ -371,7 +371,7 @@
 
 #player_submenu_root {
     width: 320px;
-    height: 400px;
+    height: 50%;
     border-radius: 8px;
     /* backdrop-filter: blur(12px); */
     right: 30px;
