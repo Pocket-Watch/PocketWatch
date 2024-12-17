@@ -197,7 +197,6 @@ class Internals {
     static playerSeed = 1;
     constructor(videoElement, options) {
         let initStart = performance.now();
-        this.isMobile = isMobileAgent();
         this.options = options;
 
         this.hls = null;
@@ -777,6 +776,19 @@ class Internals {
         this.cueRule.style.backgroundColor = color;
     }
 
+    setSubtitleVerticalPosition(percentage) {
+        let track = this.htmlVideo.textTracks[this.selectedSubtitleIndex];
+        if (!track) {
+            return;
+        }
+        let cues = track.cues;
+        for (let i = 0; i < cues.length; i++) {
+            let cue = cues[i];
+            cue.snapToLines = false;
+            cue.line = percentage;
+        }
+    }
+
     showPlayerUI() {
         this.htmlPlayerRoot.style.cursor = "auto";
         this.htmlControls.root.classList.remove("player_ui_hide");
@@ -1056,7 +1068,7 @@ class Internals {
             }
 
             const onProgressBarTouchStop = event => {
-                this.setToast("Touch end fire");
+                // this.setToast("Touch end fire");
                 this.isDraggingProgressBar = false;
                 document.removeEventListener('touchmove', onProgressBarTouchMove);
                 document.removeEventListener('touchend', onProgressBarTouchStop);
@@ -1296,6 +1308,8 @@ class Internals {
     }
 
     createSubtitleMenu() {
+        let isFirefox = navigator.userAgent.includes("Firefox");
+
         let playerRoot     = this.htmlPlayerRoot;
         let menu           = this.htmlControls.subMenu;
         let menuRoot       = menu.root;
@@ -1310,8 +1324,10 @@ class Internals {
         let searchView     = newDiv("player_submenu_bottom_search");
         let subtitleImport = newElement("input", "player_submenu_import");
         let optionsView    = newDiv("player_submenu_bottom_options");
-        let subsShift      = new Shifter("Subtitle shift", -10, 10, 0.1, 0, "s");
-        let subsSize       = new Shifter("Subtitle size",  10, 100, 1.0, 20, "px");
+        let subsShift      = new Slider("Subtitle shift", -10, 10, 0.1, 0, "s", true);
+        let subsSize       = new Slider("Subtitle size",  10, 100, 1.0, 20, "px");
+        let subsVerticalPosition   = new Slider("Vertical position",  0, isFirefox ? 90 : 100, 1, 90, "%");
+        let subsForegroundPicker = newElement("input");
 
         hideElement(menuRoot);
         hideElement(selectView);
@@ -1325,6 +1341,9 @@ class Internals {
         subtitleImport.textContent = "Import subtitle";
         subtitleImport.type = "file";
         subtitleImport.accept = ".vtt,.srt";
+
+        subsForegroundPicker.type = "color";
+        subsForegroundPicker.value = "white";
 
         menu.selected.button = selectTab;
         menu.selected.bottom = selectView;
@@ -1351,7 +1370,6 @@ class Internals {
         optionsTab.onclick = () => select(optionsTab, optionsView);
 
         subtitleImport.onchange = event => {
-            console.log(event.target.files)
             if (event.target.files.length === 0) {
                 return;
             }
@@ -1388,6 +1406,10 @@ class Internals {
         };
 
         subsSize.onInput = value => this.setSubtitleFontSize(value);
+        subsVerticalPosition.onInput = value => this.setSubtitleVerticalPosition(value);
+        subsForegroundPicker.onchange = () => {
+            this.setSubtitleForeground(subsForegroundPicker.value)
+        }
 
         playerRoot.append(menuRoot); {
             menuRoot.append(menuTop); {
@@ -1408,6 +1430,8 @@ class Internals {
                 menuBottom.append(optionsView); {
                     optionsView.append(subsShift.root);
                     optionsView.append(subsSize.root);
+                    optionsView.append(subsVerticalPosition.root);
+                    optionsView.append(subsForegroundPicker);
                 }
             }
         }
@@ -1451,8 +1475,8 @@ class TrackInfo {
     }
 }
 
-class Shifter {
-    constructor(textContent, min, max, step, initialValue, valueSuffix = "") {
+class Slider {
+    constructor(textContent, min, max, step, initialValue, valueSuffix = "", includeSign = false) {
         let root        = newDiv(null, "player_shifter_root");
         let top         = newDiv(null, "player_shifter_top");
         let text        = newElement("span", null, "player_shifter_text");
@@ -1491,9 +1515,10 @@ class Shifter {
 
         this.valueSuffix = valueSuffix;
 
-        this.root      = root;
-        this.slider    = slider;
-        this.valueText = valueText;
+        this.root        = root;
+        this.slider      = slider;
+        this.valueText   = valueText;
+        this.includeSign = includeSign;
         this.setValue(initialValue);
     }
 
@@ -1512,7 +1537,7 @@ class Shifter {
         value = Math.round(value * 10.0) / 10.0;
 
         let valueString = "";
-        if (value >= 0) {
+        if (this.includeSign && value > 0) {
             valueString = "+";
         }
 
@@ -1750,7 +1775,6 @@ function isMobileAgent() {
     }
 
     let systemInfo = userAgent.substring(bracketOpen + 1, bracketClose).trim();
-    console.log(systemInfo);
     for (let i = 0; i < systemInfo.length; i++) {
         if (systemInfo.includes(MOBILE_AGENTS[i])) {
             return true;
