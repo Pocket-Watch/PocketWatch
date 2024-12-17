@@ -330,18 +330,6 @@ class Internals {
                     track:  null,
                 },
 
-                tabs: {
-                    selectButton:  newDiv(null, "player_submenu_top_button"),
-                    searchButton:  newDiv(null, "player_submenu_top_button"),
-                    optionsButton: newDiv(null, "player_submenu_top_button"),
-                },
-
-                bottom: {
-                    selectRoot:  newDiv("player_submenu_bottom_select"),
-                    searchRoot:  newDiv("player_submenu_bottom_search"),
-                    optionsRoot: newDiv("player_submenu_bottom_options"),
-                },
-
                 /// Part of the bottom selection panel, html track elements are appended here.
                 trackList: newDiv("subtitle_track_list"),
             },
@@ -623,6 +611,7 @@ class Internals {
         if (!trackInfo) {
             trackInfo = TrackInfo.fromUrl(url)
         }
+
         fetch(url)
             .then(response => response.text())
             .then(srtText => parseSrt(srtText))
@@ -655,6 +644,7 @@ class Internals {
         if (!info) {
             info = TrackInfo.fromUrl(url)
         }
+
         if (info.extension !== "vtt") {
             console.debug("Unsupported subtitle extension:", info.extension)
             return
@@ -1157,106 +1147,108 @@ class Internals {
     }
 
     assembleControlButtons() {
-        let buttons = this.htmlControls.buttons.root;
-        this.htmlControls.root.appendChild(buttons);
+        let svgs             = this.svgs;
+        let buttonsRoot      = this.htmlControls.buttons.root;
+        let playbackButton   = this.htmlControls.buttons.playbackButton;
+        let nextButton       = this.htmlControls.buttons.nextButton;
+        let loopButton       = this.htmlControls.buttons.loopButton;
+        let volumeButton     = this.htmlControls.buttons.volumeButton;
+        let volumeRoot       = newDiv("player_volume_root");
+        let volumeSlider     = this.htmlControls.buttons.volumeInput;
+        let volumeBar        = newDiv("player_volume_bar");
+        let volumeProgress   = this.htmlControls.buttons.volumeProgress;
+        let timestamp        = this.htmlControls.buttons.timestamp;
+        let spacer           = newDiv("player_spacer");
+        let downloadButton   = this.htmlControls.buttons.downloadButton;
+        let autoplayButton   = this.htmlControls.buttons.autoplayButton;
+        let subsButton       = this.htmlControls.buttons.subsButton;
+        let settingsButton   = this.htmlControls.buttons.settingsButton;
+        let fullscreenButton = this.htmlControls.buttons.fullscreenButton;
 
-        let svgs = this.svgs;
+        playbackButton.title = "Play/Pause";
+        nextButton.title     = "Next";
+        loopButton.title     = "Loop";
+        volumeButton.title   = "Mute/Unmute";
 
-        let playback = this.htmlControls.buttons.playbackButton;
-        playback.title = "Play/Pause";
-        playback.appendChild(svgs.playback.svg);
-        if (this.options.hidePlaybackButton) hideElement(playback);
-        buttons.appendChild(playback);
-
-        let next = this.htmlControls.buttons.nextButton;
-        next.title = "Next";
-        next.appendChild(svgs.next.svg);
-        if (this.options.hideNextButton) hideElement(next);
-        buttons.appendChild(next);
-
-        let loop = this.htmlControls.buttons.loopButton;
-        loop.title = "Loop";
-        loop.appendChild(svgs.loop.svg);
-        if (this.options.hideLoopingButton) hideElement(loop);
-        buttons.appendChild(loop);
-
-        let volume = this.htmlControls.buttons.volumeButton;
-        volume.title = "Mute/Unmute";
-        volume.appendChild(svgs.volume.svg);
-        if (this.options.hideVolumeButton) hideElement(volume);
-        buttons.appendChild(volume);
-
-        let volumeRoot = newDiv("player_volume_root");
-        let volumeSlider = this.htmlControls.buttons.volumeInput;
-        volumeSlider.type = "range";
-        volumeSlider.min = "0";
-        volumeSlider.max = "1";
+        volumeSlider.type  = "range";
+        volumeSlider.min   = "0";
+        volumeSlider.max   = "1";
         volumeSlider.value = "1";
-        volumeSlider.step = "any";
+        volumeSlider.step  = "any";
 
-        let volumeBar = newDiv("player_volume_bar");
-        let volumeProgress = this.htmlControls.buttons.volumeProgress;
-
-        volumeRoot.appendChild(volumeBar);
-        volumeRoot.appendChild(volumeProgress);
-        volumeRoot.appendChild(volumeSlider);
-
-        if (this.options.hideVolumeSlider) hideElement(volumeRoot)
-        buttons.appendChild(volumeRoot);
-
-        let timestamp = this.htmlControls.buttons.timestamp;
         timestamp.textContent = "00:00 / 00:00";
-        if (this.options.hideTimestamps) hideElement(timestamp);
-        buttons.appendChild(timestamp);
 
-        buttons.appendChild(newDiv("player_spacer"))
+        downloadButton.title   = "Download";
+        autoplayButton.title   = "Autoplay";
+        subsButton.title       = "Subtitles";
+        settingsButton.title   = "Settings";
+        fullscreenButton.title = "Fullscreen";
 
-        let download = this.htmlControls.buttons.downloadButton;
-        download.title = "Download";
-        download.appendChild(svgs.download.svg);
-        if (this.options.hideDownloadButton) {
-            hideElement(download);
+        if (this.options.hidePlaybackButton)   hideElement(playbackButton);
+        if (this.options.hideNextButton)       hideElement(nextButton);
+        if (this.options.hideLoopingButton)    hideElement(loopButton);
+        if (this.options.hideVolumeButton)     hideElement(volumeButton);
+        if (this.options.hideVolumeSlider)     hideElement(volumeRoot)
+        if (this.options.hideTimestamps)       hideElement(timestamp);
+        if (this.options.hideDownloadButton)   hideElement(downloadButton);
+        if (this.options.hideAutoplayButton)   hideElement(autoplayButton);
+        if (this.options.hideSubtitlesButton)  hideElement(subsButton);
+        if (this.options.hideSettingsButton)   hideElement(settingsButton);
+        if (this.options.hideFullscreenButton) hideElement(fullscreenButton);
+
+        this.htmlControls.root.append(buttonsRoot); {
+            buttonsRoot.append(playbackButton); {
+                playbackButton.append(svgs.playback.svg);
+            }
+
+            buttonsRoot.append(nextButton); {
+                nextButton.append(svgs.next.svg);
+            }
+
+            buttonsRoot.append(loopButton); {
+                loopButton.append(svgs.loop.svg);
+            }
+
+            buttonsRoot.append(volumeButton); {
+                volumeButton.appendChild(svgs.volume.svg);
+            }
+
+            buttonsRoot.append(volumeRoot); {
+                volumeRoot.append(volumeBar);
+                volumeRoot.append(volumeProgress);
+                volumeRoot.append(volumeSlider);
+            }
+
+            buttonsRoot.append(timestamp);
+            buttonsRoot.append(spacer)
+
+            buttonsRoot.append(downloadButton); {
+                downloadButton.appendChild(svgs.download.svg);
+            }
+
+            buttonsRoot.append(autoplayButton); {
+                autoplayButton.appendChild(svgs.autoplay.svg);
+            }
+
+            buttonsRoot.append(subsButton); {
+                subsButton.appendChild(svgs.subs.svg);
+            }
+
+            buttonsRoot.append(settingsButton); {
+                settingsButton.appendChild(svgs.settings.svg);
+            }
+
+            buttonsRoot.append(fullscreenButton); {
+                fullscreenButton.appendChild(svgs.fullscreen.svg);
+            }
         }
-        buttons.appendChild(download);
-
-        let autoplay = this.htmlControls.buttons.autoplayButton;
-        autoplay.title = "Autoplay";
-        autoplay.appendChild(svgs.autoplay.svg);
-        if (this.options.hideAutoplayButton) {
-            hideElement(autoplay);
-        }
-        buttons.appendChild(autoplay);
-
-        let subs = this.htmlControls.buttons.subsButton;
-        subs.title = "Subtitles";
-        subs.appendChild(svgs.subs.svg);
-        if (this.options.hideSubtitlesButton) {
-            hideElement(subs);
-        }
-        buttons.appendChild(subs);
-
-        let settings = this.htmlControls.buttons.settingsButton;
-        settings.title = "Settings";
-        settings.appendChild(svgs.settings.svg);
-        if (this.options.hideSettingsButton) {
-            hideElement(settings);
-        }
-        buttons.appendChild(settings);
-
-        let fullscreen = this.htmlControls.buttons.fullscreenButton;
-        fullscreen.title = "Fullscreen";
-        fullscreen.appendChild(svgs.fullscreen.svg);
-        if (this.options.hideFullscreenButton) {
-            hideElement(fullscreen);
-        }
-        buttons.appendChild(fullscreen);
     }
 
     createHtmlControls() {
         let playerControls = this.htmlControls.root;
         playerControls.addEventListener("click", consumeClick);
         playerControls.addEventListener("focusout", () => {
-            // otherwise document.body will receive focus
+            // )therwise document.body will receive focus
             this.htmlPlayerRoot.focus();
         });
 
@@ -1269,9 +1261,20 @@ class Internals {
     }
 
     createSubtitleTrackElement(title, index) {
-        let menu = this.htmlControls.subMenu;
+        let menu         = this.htmlControls.subMenu;
+        let track        = newDiv(null, "subtitle_track");
+        let trackTitle   = newElement("input", null, "subtitle_track_text");
+        let trackButtons = newDiv(null, "subtitle_track_buttons");
+        let trackEdit    = newElement("button", null, "subtitle_track_edit_button")
+        let trackRemove  = newElement("button", null, "subtitle_track_remove_button")
 
-        let track = newDiv(null, "subtitle_track");
+        trackTitle.type = "text";
+        trackTitle.value = title;
+        trackTitle.readOnly = true;
+
+        trackEdit.textContent = "⚙️";
+        trackRemove.textContent = "🗑";
+
         track.onclick = _event => {
             if (menu.selected.track) {
                 menu.selected.track.classList.remove("player_submenu_selected");
@@ -1283,23 +1286,11 @@ class Internals {
             this.switchSubtitleTrack(index);
         }
 
-        let trackTitle = newElement("input", null, "subtitle_track_text");
-        trackTitle.type = "text";
-        trackTitle.value = title;
-        trackTitle.readOnly = true;
-
-        let trackButtons = newDiv(null, "subtitle_track_buttons");
-
-        let trackEdit = newElement("button", null, "subtitle_track_edit_button")
-        trackEdit.textContent = "⚙️";
-        let trackRemove = newElement("button", null, "subtitle_track_remove_button")
-        trackRemove.textContent = "🗑";
-
-        trackButtons.appendChild(trackEdit);
-        trackButtons.appendChild(trackRemove);
-
         track.appendChild(trackTitle);
-        track.appendChild(trackButtons);
+        track.appendChild(trackButtons); {
+            trackButtons.appendChild(trackEdit);
+            trackButtons.appendChild(trackRemove);
+        }
 
         return track;
     }
@@ -1310,15 +1301,15 @@ class Internals {
         let menuRoot       = menu.root;
         let menuTop        = newDiv("player_submenu_top");
         let menuBottom     = newDiv("player_submenu_bottom");
-        let selectTab      = menu.tabs.selectButton;
-        let searchTab      = menu.tabs.searchButton
-        let optionsTab     = menu.tabs.optionsButton;
-        let selectView     = menu.bottom.selectRoot;
+        let selectTab      = newDiv(null, "player_submenu_top_button");
+        let searchTab      = newDiv(null, "player_submenu_top_button");
+        let optionsTab     = newDiv(null, "player_submenu_top_button");
+        let selectView     = newDiv("player_submenu_bottom_select");
         let toggleBox      = newDiv(null, "player_submenu_box");
         let subsSwitch     = this.subsSwitcher
-        let searchView     = menu.bottom.searchRoot;
+        let searchView     = newDiv("player_submenu_bottom_search");
         let subtitleImport = newElement("input", "player_submenu_import");
-        let optionsView    = menu.bottom.optionsRoot;
+        let optionsView    = newDiv("player_submenu_bottom_options");
         let subsShift      = new Shifter("Subtitle shift", -10, 10, 0.1, 0, "s");
         let subsSize       = new Shifter("Subtitle size",  10, 100, 1.0, 20, "px");
 
@@ -1335,8 +1326,8 @@ class Internals {
         subtitleImport.type = "file";
         subtitleImport.accept = ".vtt,.srt";
 
-        menu.selected.button = menu.tabs.selectButton;
-        menu.selected.bottom = menu.bottom.selectRoot;
+        menu.selected.button = selectTab;
+        menu.selected.bottom = selectView;
 
         menu.selected.button.classList.add("player_submenu_selected");
         menu.selected.bottom.style.display = "";
@@ -1415,8 +1406,8 @@ class Internals {
                     searchView.append(subtitleImport)
                 }
                 menuBottom.append(optionsView); {
-                    optionsView.appendChild(subsShift.root);
-                    optionsView.appendChild(subsSize.root);
+                    optionsView.append(subsShift.root);
+                    optionsView.append(subsSize.root);
                 }
             }
         }
@@ -1461,7 +1452,7 @@ class TrackInfo {
 }
 
 class Shifter {
-    constructor(textContent, min, max, step, initialValue, textSuffix = "") {
+    constructor(textContent, min, max, step, initialValue, valueSuffix = "") {
         let root        = newDiv(null, "player_shifter_root");
         let top         = newDiv(null, "player_shifter_top");
         let text        = newElement("span", null, "player_shifter_text");
@@ -1498,7 +1489,8 @@ class Shifter {
             }
         }
 
-        this.textSuffix = textSuffix;
+        this.valueSuffix = valueSuffix;
+
         this.root      = root;
         this.slider    = slider;
         this.valueText = valueText;
@@ -1516,7 +1508,7 @@ class Shifter {
             value = min;
         }
 
-        // Set precision to a single digit of the fractional part;
+        // Set precision to a single digit of the fractional part.
         value = Math.round(value * 10.0) / 10.0;
 
         let valueString = "";
@@ -1531,7 +1523,7 @@ class Shifter {
             valueString += ".0";
         }
 
-        valueString += this.textSuffix;
+        valueString += this.valueSuffix;
         return valueString;
     }
 
@@ -1585,24 +1577,6 @@ class Switcher {
             func(this.enabled);
         });
     }
-
-    // static new(text, initialState) {
-    //     let toggleRoot   = newDiv(null, "player_toggle_root");
-    //     let toggleText   = newDiv(null, "player_toggle_text");
-    //     let toggleSwitch = newDiv(null, "player_toggle_switch");
-    //     let toggleCircle = newDiv(null, "player_toggle_circle");
-    //
-    //     toggleText.textContent = text;
-    //
-    //     toggleRoot.appendChild(toggleText);
-    //     toggleRoot.appendChild(toggleSwitch); {
-    //         toggleSwitch.appendChild(toggleCircle);
-    //     }
-    //
-    //     let switcher = new Switcher(toggleRoot, toggleSwitch);
-    //     switcher.setState(initialState);
-    //     return switcher;
-    // }
 }
 
 function createTimestampString(timestamp) {
