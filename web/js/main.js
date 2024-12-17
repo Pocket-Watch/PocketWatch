@@ -12,6 +12,7 @@ class Room {
         this.playlist = new Playlist();
 
         this.urlArea = {
+            root:          getById("url_area"),
             urlInput:      getById("url_input_box"),
             titleInput:    getById("url_title_input"),
             refererInput:  getById("url_dropdown_referer_input"),
@@ -66,7 +67,6 @@ class Room {
         }
 
         this.proxyEnabled = false;
-        this.dropdownIsDown = false;
 
         /// Current connection id.
         this.connectionId = 0;
@@ -181,19 +181,7 @@ class Room {
 
     attachUrlAreaEvents() {
         this.urlArea.dropdownButton.onclick = () => {
-            let button = this.urlArea.dropdownButton;
-            let div = this.urlArea.dropdownContainer;
-
-            if (this.dropdownIsDown) {
-                button.textContent = "▼";
-            } else {
-                button.textContent = "▲";
-            }
-
-            div.classList.toggle("url_dropdown_collapsed");
-            div.classList.toggle("url_dropdown_expanded");
-
-            this.dropdownIsDown = !this.dropdownIsDown;
+            this.urlArea.root.classList.toggle("url_area_expand");
         }
 
         this.urlArea.resetButton.onclick = () => {
@@ -286,6 +274,10 @@ class Room {
 
         this.player.setVideoTrack(entry.url);
         this.player.setTitle(entry.title);
+
+        if (entry.subtitle_url) {
+            this.player.addSubtitleTrack(entry.subtitle_url);
+        }
     }
 
     async loadUsersData() {

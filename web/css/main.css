@@ -72,7 +72,9 @@ html * {
     height: 100%;
     border: none;
     border-radius: 6px;
-    box-sizing: border-box;
+    box-sizing: flex;
+    justify-content: center;
+    align-items: center;
     /* margin-left: 6px; */
     /* background-color: #fb4934; */
     background-color: #665c54;
@@ -84,6 +86,18 @@ html * {
 
 #url_dropdown_button:active {
     background-color: #928374;
+}
+
+#url_dropdown_button svg {
+    height: 86%;
+    width: 86%;
+    fill: #1d2021;
+    transform: rotate(180deg);
+    transition: transform 100ms;
+}
+
+.url_area_expand #url_dropdown_button svg {
+    transform: rotate(0deg);
 }
 
 #url_reset_button {
@@ -194,17 +208,14 @@ html * {
 
 #url_dropdown_container {
     width: 100%;
+    height: 0;
     padding-left: 4px;
     overflow: hidden;
     transition: height 0.2s ease-out;
 }
 
-.url_dropdown_expanded {
+.url_area_expand #url_dropdown_container {
     height: 100px;
-}
-
-.url_dropdown_collapsed {
-    height: 0px;
 }
 
 #url_dropdown_top {

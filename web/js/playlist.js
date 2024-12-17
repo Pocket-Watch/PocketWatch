@@ -53,6 +53,7 @@ class Playlist {
         let deleteButton   = button("playlist_entry_delete_button", "Delete playlist entry")
         let deleteSvg      = svg("svg/main_icons.svg#delete");
         let dropdownButton = div("playlist_dropdown_button");
+        let dropdownSvg    = svg("svg/main_icons.svg#dropdown");
         let entryDropdown  = div("playlist_entry_dropdown"); 
         let dropdownTop    = div("playlist_dropdown_info_top"); 
         let addedByText    = span("playlist_dropdown_added_by", "Added by"); 
@@ -68,7 +69,6 @@ class Playlist {
         // Setting html elements content.
         //
         entryDragArea.textContent = "☰";
-        dropdownButton.textContent = "▼";
 
         //
         // Attaching events to html elements.
@@ -111,7 +111,9 @@ class Playlist {
                     deleteButton.append(deleteSvg);
                 }
             }
-            entryTop.append(dropdownButton);
+            entryTop.append(dropdownButton); {
+                dropdownButton.append(dropdownSvg);
+            }
         }
         entryDiv.append(entryDropdown); {
             entryDropdown.append(dropdownTop); {
