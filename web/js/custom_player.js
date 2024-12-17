@@ -331,9 +331,9 @@ class Internals {
                 },
 
                 tabs: {
-                    selectButton:  newDiv("player_submenu_select_button"),
-                    searchButton:  newDiv("player_submenu_search_button"),
-                    optionsButton: newDiv("player_submenu_options_button"),
+                    selectButton:  newDiv(null, "player_submenu_top_button"),
+                    searchButton:  newDiv(null, "player_submenu_top_button"),
+                    optionsButton: newDiv(null, "player_submenu_top_button"),
                 },
 
                 bottom: {
@@ -356,7 +356,7 @@ class Internals {
         this.volumeBeforeMute = 0.0;
         this.selectedSubtitleIndex = -1;
 
-        this.subsSwitcher = null;
+        this.subsSwitcher = new Switcher("Enable subtitles");
 
         this.htmlSeekForward = newDiv("player_forward_container");
         this.htmlSeekForward.appendChild(this.svgs.seekForward.svg);
@@ -1305,265 +1305,146 @@ class Internals {
     }
 
     createSubtitleMenu() {
-        let menu = this.htmlControls.subMenu;
+        let playerRoot     = this.htmlPlayerRoot;
+        let menu           = this.htmlControls.subMenu;
+        let menuRoot       = menu.root;
+        let menuTop        = newDiv("player_submenu_top");
+        let menuBottom     = newDiv("player_submenu_bottom");
+        let selectTab      = menu.tabs.selectButton;
+        let searchTab      = menu.tabs.searchButton
+        let optionsTab     = menu.tabs.optionsButton;
+        let selectView     = menu.bottom.selectRoot;
+        let toggleBox      = newDiv(null, "player_submenu_box");
+        let subsSwitch     = this.subsSwitcher
+        let searchView     = menu.bottom.searchRoot;
+        let subtitleImport = newElement("input", "player_submenu_import");
+        let optionsView    = menu.bottom.optionsRoot;
+        let subsShift      = new Shifter("Subtitle shift", -10, 10, 0.1, 0, "s");
+        let subsSize       = new Shifter("Subtitle size",  10, 100, 1.0, 20, "px");
 
-        let root = menu.root;
-        root.onclick = consumeClick;
-        hideElement(root);
-        this.htmlPlayerRoot.appendChild(root);
+        hideElement(menuRoot);
+        hideElement(selectView);
+        hideElement(searchView)
+        hideElement(optionsView)
 
-        { // player_submenu_top
-            let top = newDiv("player_submenu_top");
-            root.appendChild(top);
+        selectTab.textContent  = "Select"
+        searchTab.textContent  = "Search"
+        optionsTab.textContent = "Options"
 
-            let select = menu.tabs.selectButton;
-            select.innerHTML = "Select"
-            select.classList.add("player_submenu_top_button", "unselectable")
-            select.style.display = ""
-            top.appendChild(select);
-
-            let search = menu.tabs.searchButton
-            search.innerHTML = "Search"
-            search.classList.add("player_submenu_top_button", "unselectable")
-            search.style.display = ""
-            top.appendChild(search);
-
-            let options = menu.tabs.optionsButton;
-            options.innerHTML = "Options"
-            options.classList.add("player_submenu_top_button", "unselectable")
-            options.style.display = ""
-            top.appendChild(options);
-
-            let attachSelectionClick = (button, bottom) => {
-                button.onclick = () => {
-                    let selected = this.htmlControls.subMenu.selected;
-                    selected.button.classList.remove("player_submenu_selected");
-                    hideElement(selected.bottom)
-
-                    selected.button = button
-                    selected.bottom = bottom;
-
-                    selected.button.classList.add("player_submenu_selected");
-                    selected.bottom.style.display = "";
-                };
-            }
-
-            attachSelectionClick(menu.tabs.selectButton, menu.bottom.selectRoot);
-            attachSelectionClick(menu.tabs.searchButton, menu.bottom.searchRoot);
-            attachSelectionClick(menu.tabs.optionsButton, menu.bottom.optionsRoot);
-        }
-
-        { // player_submenu_bottom
-            let bottom = newDiv("player_submenu_bottom");
-            root.appendChild(bottom);
-
-            let select = menu.bottom.selectRoot;
-            hideElement(select);
-
-            this.subsSwitcher = Switcher.new("Enable subtitles", state => {
-                let textTracks = this.htmlVideo.textTracks;
-                let index = this.selectedSubtitleIndex;
-
-                if (0 <= index && index < textTracks.length) {
-                    textTracks[index].mode = state ? "showing" : "hidden";
-                }
-            });
-            let toggleBox = newElement("div", null, "player_submenu_box");
-            toggleBox.appendChild(this.subsSwitcher.toggleRoot);
-
-            select.appendChild(toggleBox);
-            select.appendChild(menu.trackList);
-            bottom.appendChild(select);
-
-            // // NOTE(kihau): Dummy code for testing:
-            /*menu.trackList.appendChild(this.createSubtitleTrackElement("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"));
-            menu.trackList.appendChild(this.createSubtitleTrackElement("This is a long subtitle name.vtt"));
-            menu.trackList.appendChild(this.createSubtitleTrackElement("Foo Bar"));
-            menu.trackList.appendChild(this.createSubtitleTrackElement("AAAAAA"));
-            menu.trackList.appendChild(this.createSubtitleTrackElement("BBBBBB"));
-            menu.trackList.appendChild(this.createSubtitleTrackElement("CCCCCC"));
-            menu.trackList.appendChild(this.createSubtitleTrackElement("DDDDDD"));
-            menu.trackList.appendChild(this.createSubtitleTrackElement("EEEEEE"));
-            menu.trackList.appendChild(this.createSubtitleTrackElement("FFFFFF"));
-            menu.trackList.appendChild(this.createSubtitleTrackElement("GGGGGG"));
-            menu.trackList.appendChild(this.createSubtitleTrackElement("HHHHHH"));
-            menu.trackList.appendChild(this.createSubtitleTrackElement("IIIIII"));*/
-            // // -----------------------------------
-
-            let search = menu.bottom.searchRoot;
-            let subtitleImport = newElement("input", "player_submenu_import");
-            subtitleImport.textContent = "Import subtitle";
-            subtitleImport.type = "file";
-            subtitleImport.accept = ".vtt,.srt";
-            subtitleImport.addEventListener("change", event => {
-                console.log(event.target.files)
-                if (event.target.files.length === 0) {
-                    return;
-                }
-                const file = event.target.files[0];
-                // This object is a blob and will be released with URL.revokeObjectURL on load
-                const objectUrl = URL.createObjectURL(file);
-                let trackInfo = TrackInfo.fromUrl(file.name);
-                let ext = trackInfo.extension;
-                if (ext === "vtt") {
-                    console.log("Adding vtt track")
-                    this.addVttTrack(objectUrl, true, trackInfo)
-                } else if (ext === "srt") {
-                    console.log("Adding srt track")
-                    this.addSrtTrack(objectUrl, true, trackInfo)
-                }
-            });
-            search.appendChild(subtitleImport)
-            hideElement(search)
-            bottom.appendChild(search);
-
-            let options = menu.bottom.optionsRoot;
-            hideElement(options)
-
-            { // player_submenu_shift_root
-                let shiftRoot = newDiv("player_submenu_shift_root");
-
-                // Top container:
-                let top = newDiv("player_submenu_shift_top");
-                let textSpan = newElement("span", "player_submenu_shift_text");
-                textSpan.classList.add("unselectable");
-                textSpan.textContent = "Subtitle shift";
-
-                let valueSpan = newElement("span", "player_submenu_shift_value");
-                valueSpan.classList.add("unselectable");
-                valueSpan.textContent = "+0.0s";
-
-                // Bottom container:
-                let bottom = newDiv("player_submenu_shift_bottom");
-
-                let leftButton = newElement("button", null, "player_submenu_shift_button");
-                leftButton.appendChild(this.svgs.arrowLeft.svg);
-
-                let slider = newElement("input", "player_submenu_shift_slider");
-                slider.type = "range";
-                slider.min = -10.0;
-                slider.max = 10.0;
-                slider.step = 0.1;
-                slider.value = 0.0;
-
-                let rightButton = newElement("button", null, "player_submenu_shift_button");
-                rightButton.appendChild(this.svgs.arrowRight.svg);
-
-                let setValueSpan = (value) => {
-                    let max = Number(slider.max);
-                    if (value > max) {
-                        value = max;
-                    }
-
-                    let min = Number(slider.min);
-                    if (value < min) {
-                        value = min;
-                    }
-
-                    // Set precision to a single digit of the fractional part;
-                    value = Math.round(value * 10.0) / 10.0;
-
-                    let valueString = "";
-                    if (value >= 0) {
-                        valueString = "+";
-                    }
-
-                    valueString += value;
-
-                    // Append ".0" when the value has no fractional part.
-                    if ((value * 10) % 10 === 0.0) {
-                        valueString += ".0";
-                    }
-
-                    valueString += "s";
-                    valueSpan.textContent = valueString;
-                }
-
-                let lastSliderValue = 0.0;
-
-                let shift = (offset) => {
-                    let value = Number(slider.value) + offset;
-
-                    let delta = value - lastSliderValue;
-                    delta = Math.round(delta * 1000.0) / 1000.0;
-
-                    // console.log("Last slider value:", lastSliderValue);
-                    console.log("Slider value delta:", delta);
-
-                    lastSliderValue = value;
-                    setValueSpan(value);
-                    slider.value = value;
-
-                    let res = this.shiftCurrentSubtitleTrackBy(delta);
-                    console.log("The result is:", res);
-                }
-
-                rightButton.onclick = () => shift(0.3);
-                slider.oninput = () => shift(0.0);
-                leftButton.onclick = () => shift(-0.3);
-
-                top.appendChild(textSpan);
-                top.appendChild(valueSpan);
-
-                bottom.appendChild(leftButton);
-                bottom.appendChild(slider);
-                bottom.appendChild(rightButton);
-
-                shiftRoot.appendChild(top);
-                shiftRoot.appendChild(bottom);
-
-                options.appendChild(shiftRoot);
-
-                // TODO: These classes don't exist.. should be created in player.css
-                let fontRoot = newDiv("player_submenu_font_root");
-                let fontSlider = newElement("input", "player_submenu_font_slider");
-                fontSlider.type = "range";
-                fontSlider.min = 20;
-                fontSlider.max = 100;
-                fontSlider.step = 1;
-                fontSlider.value = 40;
-                fontSlider.style.width = "70%";
-                fontSlider.oninput = () => {
-                    let value = fontSlider.value;
-                    this.setSubtitleFontSize(value)
-                    console.log("New font size:", value, "px")
-                }
-                fontRoot.appendChild(fontSlider);
-
-                options.appendChild(fontRoot);
-            }
-
-            bottom.appendChild(options);
-        }
-
-
+        subtitleImport.textContent = "Import subtitle";
+        subtitleImport.type = "file";
+        subtitleImport.accept = ".vtt,.srt";
 
         menu.selected.button = menu.tabs.selectButton;
         menu.selected.bottom = menu.bottom.selectRoot;
 
         menu.selected.button.classList.add("player_submenu_selected");
         menu.selected.bottom.style.display = "";
+
+        menuRoot.onclick = consumeClick;
+
+        let select = (tab, view) => {
+            let selected = this.htmlControls.subMenu.selected;
+            selected.button.classList.remove("player_submenu_selected");
+            hideElement(selected.bottom)
+
+            selected.button = tab
+            selected.bottom = view;
+
+            selected.button.classList.add("player_submenu_selected");
+            selected.bottom.style.display = "";
+        }
+
+        selectTab.onclick  = () => select(selectTab, selectView);
+        searchTab.onclick  = () => select(searchTab, searchView);
+        optionsTab.onclick = () => select(optionsTab, optionsView);
+
+        subtitleImport.onchange = event => {
+            console.log(event.target.files)
+            if (event.target.files.length === 0) {
+                return;
+            }
+            const file = event.target.files[0];
+            // This object is a blob and will be released with URL.revokeObjectURL on load
+            const objectUrl = URL.createObjectURL(file);
+            let trackInfo = TrackInfo.fromUrl(file.name);
+            let ext = trackInfo.extension;
+            if (ext === "vtt") {
+                console.log("Adding vtt track")
+                this.addVttTrack(objectUrl, true, trackInfo)
+            } else if (ext === "srt") {
+                console.log("Adding srt track")
+                this.addSrtTrack(objectUrl, true, trackInfo)
+            }
+        };
+
+        subsSwitch.addAction(state => {
+            let textTracks = this.htmlVideo.textTracks;
+            let index = this.selectedSubtitleIndex;
+
+            if (0 <= index && index < textTracks.length) {
+                textTracks[index].mode = state ? "showing" : "hidden";
+            }
+        });
+
+        let previousValue = 0.0;
+        subsShift.onInput = value => {
+            let delta = value - previousValue;
+            delta = Math.round(delta * 1000.0) / 1000.0;
+
+            previousValue = value;
+            this.shiftCurrentSubtitleTrackBy(delta);
+        };
+
+        subsSize.onInput = value => this.setSubtitleFontSize(value);
+
+        playerRoot.append(menuRoot); {
+            menuRoot.append(menuTop); {
+                menuTop.append(selectTab);
+                menuTop.append(searchTab);
+                menuTop.append(optionsTab);
+            }
+            menuRoot.append(menuBottom); {
+                menuBottom.append(selectView); {
+                    selectView.append(toggleBox); {
+                        toggleBox.append(subsSwitch.toggleRoot);
+                    }
+                    selectView.append(menu.trackList);
+                }
+                menuBottom.append(searchView); {
+                    searchView.append(subtitleImport)
+                }
+                menuBottom.append(optionsView); {
+                    optionsView.appendChild(subsShift.root);
+                    optionsView.appendChild(subsSize.root);
+                }
+            }
+        }
     }
 
     createSettingsMenu() {
         let menu = this.htmlControls.settings;
-
         let root = menu.root;
+        let autohide = new Switcher("Auto-hide controls");
+        let showOnPause = new Switcher("Show controls on pause", );
+
         root.onclick = consumeClick;
         hideElement(root);
+        autohide.setState(!this.options.disableControlsAutoHide);
+        showOnPause.setState(this.options.showControlsOnPause);
 
-        let autohide = Switcher.new("Auto-hide controls", state => {
+        autohide.addAction(state => {
             this.options.disableControlsAutoHide = !state;
-        }, !this.options.disableControlsAutoHide);
+        });
 
-        root.appendChild(autohide.toggleRoot);
-
-        let showOnPause = Switcher.new("Show controls on pause", state => {
+        showOnPause.addAction(state => {
             this.options.showControlsOnPause = state;
-        }, this.options.showControlsOnPause);
-        root.appendChild(showOnPause.toggleRoot);
+        }); 
 
-        this.htmlPlayerRoot.appendChild(root);
+        this.htmlPlayerRoot.appendChild(root); {
+            root.appendChild(autohide.toggleRoot);
+            root.appendChild(showOnPause.toggleRoot);
+        }
     }
 }
 
@@ -1579,12 +1460,114 @@ class TrackInfo {
     }
 }
 
-class Switcher {
-    constructor(toggleRoot, toggleSwitch, initialState) {
-        this.toggleRoot = toggleRoot;
-        this.toggleSwitch = toggleSwitch;
-        this.setState(initialState)
+class Shifter {
+    constructor(textContent, min, max, step, initialValue, textSuffix = "") {
+        let root        = newDiv(null, "player_shifter_root");
+        let top         = newDiv(null, "player_shifter_top");
+        let text        = newElement("span", null, "player_shifter_text");
+        let valueText   = newElement("span", null, "player_shifter_value");
+        let bottom      = newDiv(null, "player_shifter_bottom");
+        let leftButton  = newElement("button", null, "player_shifter_button");
+        let arrowLeft   = Svg.new("svg/player_icons.svg#arrow_left", 20, 20);
+        let slider      = newElement("input",  null, "player_shifter_slider");
+        let rightButton = newElement("button", null, "player_shifter_button");
+        let arrowRight  = Svg.new("svg/player_icons.svg#arrow_right", 20, 20);
+
+        text.textContent = textContent;
+
+        slider.type = "range";
+        slider.min = min;
+        slider.max = max
+        slider.step = step
+
+        rightButton.onclick = () => this.shift(step);
+        slider.oninput      = () => this.shift(0.0);
+        leftButton.onclick  = () => this.shift(-step);
+
+        root.append(top); {
+            top.append(text);
+            top.append(valueText);
+        }
+        root.append(bottom); {
+            bottom.append(leftButton); {
+                leftButton.append(arrowLeft.svg);
+            }
+            bottom.append(slider);
+            bottom.append(rightButton); {
+                rightButton.append(arrowRight.svg);
+            }
+        }
+
+        this.textSuffix = textSuffix;
+        this.root      = root;
+        this.slider    = slider;
+        this.valueText = valueText;
+        this.setValue(initialValue);
     }
+
+    createValueString(value) {
+        let max = Number(this.slider.max);
+        if (value > max) {
+            value = max;
+        }
+
+        let min = Number(this.slider.min);
+        if (value < min) {
+            value = min;
+        }
+
+        // Set precision to a single digit of the fractional part;
+        value = Math.round(value * 10.0) / 10.0;
+
+        let valueString = "";
+        if (value >= 0) {
+            valueString = "+";
+        }
+
+        valueString += value;
+
+        // Append ".0" when the value has no fractional part.
+        if ((value * 10) % 10 === 0.0) {
+            valueString += ".0";
+        }
+
+        valueString += this.textSuffix;
+        return valueString;
+    }
+
+    onInput(value) {}
+
+    shift(step) {
+        let value = Number(this.slider.value) + step;
+        this.setValue(value)
+        this.onInput(value);
+    }
+
+    setValue(value) {
+        this.slider.value = value;
+        this.valueText.textContent = this.createValueString(value);
+    }
+}
+
+class Switcher {
+    constructor(text, initialState) {
+        let toggleRoot   = newDiv(null, "player_toggle_root");
+        let toggleText   = newDiv(null, "player_toggle_text");
+        let toggleSwitch = newDiv(null, "player_toggle_switch");
+        let toggleCircle = newDiv(null, "player_toggle_circle");
+
+        toggleText.textContent = text;
+
+        toggleRoot.appendChild(toggleText);
+        toggleRoot.appendChild(toggleSwitch); {
+            toggleSwitch.appendChild(toggleCircle);
+        }
+
+        this.toggleRoot   = toggleRoot;
+        this.toggleSwitch = toggleSwitch;
+        this.setState(initialState);
+    }
+
     // Changes both the real state and the UI state, for programmatic use to stay in sync with UI
     setState(state) {
         if (state) {
@@ -1603,22 +1586,23 @@ class Switcher {
         });
     }
 
-    static new(text, onclick, initialState) {
-        let toggleRoot   = newDiv(null, "player_toggle_root");
-        let toggleText   = newDiv(null, "player_toggle_text");
-        toggleText.textContent = text;
-        let toggleSwitch = newDiv(null, "player_toggle_switch");
-        let toggleCircle = newDiv(null, "player_toggle_circle");
-
-        toggleRoot.appendChild(toggleText);
-        toggleSwitch.appendChild(toggleCircle);
-        toggleRoot.appendChild(toggleSwitch);
-
-        let switcher = new Switcher(toggleRoot, toggleSwitch);
-        switcher.setState(initialState);
-        switcher.addAction(onclick);
-        return switcher;
-    }
+    // static new(text, initialState) {
+    //     let toggleRoot   = newDiv(null, "player_toggle_root");
+    //     let toggleText   = newDiv(null, "player_toggle_text");
+    //     let toggleSwitch = newDiv(null, "player_toggle_switch");
+    //     let toggleCircle = newDiv(null, "player_toggle_circle");
+    //
+    //     toggleText.textContent = text;
+    //
+    //     toggleRoot.appendChild(toggleText);
+    //     toggleRoot.appendChild(toggleSwitch); {
+    //         toggleSwitch.appendChild(toggleCircle);
+    //     }
+    //
+    //     let switcher = new Switcher(toggleRoot, toggleSwitch);
+    //     switcher.setState(initialState);
+    //     return switcher;
+    // }
 }
 
 function createTimestampString(timestamp) {
