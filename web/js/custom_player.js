@@ -1014,8 +1014,12 @@ class Internals {
             this.firePlaybackEnd();
         });
 
+        let isSafari = navigator.userAgent.includes("Safari");
+        if (isSafari) {
+            this.rebindFullscreenAPIFromWebkit();
+        }
         this.htmlControls.buttons.fullscreenButton.addEventListener("click", () => {
-            if (document.fullscreenElement) {
+            if (document.fullscreenElement || document.webkitFullscreenElement) {
                 document.exitFullscreen();
                 this.svgs.fullscreen.setHref(this.icons.fullscreen_enter);
             } else {
@@ -1141,6 +1145,21 @@ class Internals {
                 this.isUIVisible = !e.target.classList.contains("player_ui_hide");
             }
         });
+    }
+
+    rebindFullscreenAPIFromWebkit() {
+        console.log("Rebinding webkit fullscreen API")
+        if (!HTMLElement.prototype.requestFullscreen) {
+            HTMLElement.prototype.requestFullscreen = function() {
+                return HTMLElement.prototype.webkitRequestFullscreen.call(this);
+            }
+        }
+
+        Object.defineProperty(Document.prototype, 'fullscreenElement', {
+            get: () => document.webkitFullscreenElement
+        });
+
+        document.exitFullscreen = document.webkitExitFullscreen;
     }
 
     assembleProgressBar() {
