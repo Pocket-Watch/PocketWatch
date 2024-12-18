@@ -13,6 +13,8 @@ class Playlist {
 
         /// Corresponds to html elements created from the playlist entries.
         this.htmlEntries = [];
+
+        this.isDraggingEntry = false;
     }
 
     addEntry(entry) {
@@ -21,6 +23,28 @@ class Playlist {
         const htmlEntry = this.createHtmlEntry(entry);
         this.htmlEntries.push(htmlEntry);
         this.htmlEntryList.appendChild(htmlEntry);
+    }
+
+    removeAt(index) {
+        if (typeof index !== "number") {
+            console.error("ERROR: Playlist::removeAt failed. The input index:", index, "is invalid:");
+            return null;
+        }
+
+        if (index < 0 || index >= this.entries.length) {
+            console.error("ERROR: Playlist::removeAt failed. Index:", index, "is out of bounds for array:", this.entries);
+            return null;
+        }
+
+        let entry = this.entries[index];
+        this.entries.splice(index, 1);
+
+        let htmlEntry = this.htmlEntries[index];
+        this.htmlEntries.splice(index, 1);
+
+        this.htmlEntryList.removeChild(htmlEntry);
+
+        return entry;
     }
 
     loadEntries(entries) {
@@ -39,7 +63,7 @@ class Playlist {
     }
 
     createHtmlEntry(entry) {
-        let entryDiv       = div("playlist_entry");
+        let entryRoot      = div("playlist_entry");
         let entryTop       = div("playlist_entry_top"); 
         let entryDragArea  = div("playlist_drag_area"); 
         let entryThumbnail = div("playlist_entry_thumbnail");
@@ -69,13 +93,29 @@ class Playlist {
         // Setting html elements content.
         //
         entryDragArea.textContent = "☰";
+        entryDragArea.draggable = true;
 
         //
         // Attaching events to html elements.
         //
-        entryDragArea.onclick = () => {
-            console.log("dragged area was clicked");
+        entryRoot.ondragover = event => { 
+            if (!this.isDraggingEntry) {
+                return;
+            }
+
+            console.log("Drag over event", event, "with", event.target, "but the root is", entryRoot);
         };
+
+        entryDragArea.ondragstart = event => {
+            console.log("Drag start", event.target)
+            this.isDraggingEntry = true;
+
+        };
+
+        entryDragArea.ondragend = () => { 
+            this.isDraggingEntry = false;
+        };
+
 
         editButton.onclick = () => {
             console.log("edit button clicked");
@@ -84,17 +124,29 @@ class Playlist {
         };
 
         deleteButton.onclick = () => {
-            console.log("delete button clicked");
+            let index = this.htmlEntries.findIndex(item => item === entryRoot);
+            if (index === -1) {
+                console.error("ERROR: Failed to find entry:", entryRoot, "Playlist is out of sync");
+                return;
+            }
+
+            if (index < 0 || index >= this.entries.length) {
+                console.error("ERROR: Delete button click failed for html playlist entry:", entryRoot, "Index:", index, "is out of bounds for array:", this.entries);
+                return null;
+            }
+
+            let entry = this.entries[index];
+            api.playlistRemove(entry.id, index);
         };
 
         dropdownButton.onclick = () => {
-            entryDiv.classList.toggle("entry_dropdown_expand");
+            entryRoot.classList.toggle("entry_dropdown_expand");
         };
 
         //
         // Constructing html element structure.
         //
-        entryDiv.append(entryTop); {
+        entryRoot.append(entryTop); {
             entryTop.append(entryDragArea);
             entryTop.append(entryThumbnail); {
                 entryThumbnail.append(thumbnailImg);
@@ -115,7 +167,7 @@ class Playlist {
                 dropdownButton.append(dropdownSvg);
             }
         }
-        entryDiv.append(entryDropdown); {
+        entryRoot.append(entryDropdown); {
             entryDropdown.append(dropdownTop); {
                 dropdownTop.append(addedByText);
                 dropdownTop.append(createdAtText);
@@ -129,7 +181,7 @@ class Playlist {
             }
         }
 
-        return entryDiv;
+        return entryRoot;
     }
 
     handleServerEvent(action, data) {
@@ -143,7 +195,7 @@ class Playlist {
             } break;
 
             case "remove": {
-                // this.removeAt(data)
+                this.removeAt(data)
             } break;
 
             case "shuffle": {

@@ -270,15 +270,7 @@ class Room {
         this.player.setLoop(state.player.looping);
 
         let entry = state.entry;
-        this.nowPlaying.value = entry.url;
-        this.usingProxy.checked = entry.user_proxy;
-
-        this.player.setVideoTrack(entry.url);
-        this.player.setTitle(entry.title);
-
-        if (entry.subtitle_url) {
-            this.player.addSubtitleTrack(entry.subtitle_url);
-        }
+        this.setEntry(entry);
     }
 
     async loadUsersData() {
@@ -423,6 +415,23 @@ class Room {
         this.playlist.loadEntries(entries);
     }
 
+    setEntry(entry) {
+        this.nowPlaying.value = entry.url;
+        this.usingProxy.checked = entry.user_proxy;
+
+        let url = entry.url
+        if (entry.source_url) {
+            url = entry.source_url;
+        }
+
+        this.player.setVideoTrack(url);
+        this.player.setTitle(entry.title);
+
+        if (entry.subtitle_url) {
+            this.player.addSubtitleTrack(entry.subtitle_url);
+        }
+    }
+
     resyncPlayer(timestamp, userId) {
         const MAX_DESYNC = 1.5;
         let desync = timestamp - this.player.getCurrentTime();
@@ -519,20 +528,7 @@ class Room {
             console.info("INFO: Received player set event: ", response);
 
             let entry = response.new_entry;
-            this.nowPlaying.value = entry.url;
-            this.usingProxy.checked = entry.user_proxy;
-
-            let url = entry.url
-            if (entry.source_url) {
-                url = entry.source_url;
-            }
-
-            this.player.setVideoTrack(url);
-            this.player.setTitle(entry.title);
-
-            if (entry.subtitle_url) {
-                this.player.addSubtitleTrack(entry.subtitle_url);
-            }
+            this.setEntry(entry);
         });
 
         events.addEventListener("sync", event => {
