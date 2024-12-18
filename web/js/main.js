@@ -224,7 +224,7 @@ class Room {
             input.onchange = event => {
                 let files = event.target.files;
 
-                if (files.length == 0) {
+                if (files.length === 0) {
                     return;
                 }
 
@@ -244,6 +244,14 @@ class Room {
     attachHtmlEvents() {
         this.attachUrlAreaEvents();
         this.attachRightPanelEvents();
+    }
+
+    getUsernameByUserId(userId) {
+        if (userId === SERVER_ID) {
+            return "Server";
+        }
+        let index = this.allUsers.findIndex(user => user.id === userId);
+        return index === -1 ? userId : this.allUsers[index].username;
     }
 
     async createNewAccount() {
@@ -474,11 +482,13 @@ class Room {
             this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
         });
 
+        // All user-related update events can be multiplexed into one "user-update" event to simplify logic
+        // The server will always serve the up-to-date snapshot of User which should never exceed 1 kB in practice
         events.addEventListener("userconnected", event => {
             let userId = JSON.parse(event.data);
             console.info("INFO: User connected, ID: ", userId)
 
-            let i = this.allUsers.findIndex(user => user.id == userId);
+            let i = this.allUsers.findIndex(user => user.id === userId);
             this.allUsers[i].online = true;
             this.allUserBoxes[i].classList.remove("user_box_offline");
             this.allUserBoxes[i].classList.add("user_box_online");
@@ -493,7 +503,8 @@ class Room {
             let userId = JSON.parse(event.data);
             console.info("INFO: User disconnected, ID: ", userId)
 
-            let i = this.allUsers.findIndex(user => user.id == userId);
+            let i = this.allUsers.findIndex(user => user.id === userId);
+
             this.allUsers[i].online = false;
             this.allUserBoxes[i].classList.remove("user_box_online");
             this.allUserBoxes[i].classList.add("user_box_offline");
@@ -509,6 +520,7 @@ class Room {
             console.info("INFO: Update user name event for: ", user)
 
             let i = this.allUsers.findIndex(x => x.id == user.id);
+            this.allUsers[i] = user; // emplace the user
             let input = this.allUserBoxes[i].querySelectorAll('input')[0];
             input.value = user.username;
         });
@@ -540,11 +552,12 @@ class Room {
 
             let timestamp = data.timestamp;
             let userId = data.user_id;
+            let username = this.getUsernameByUserId(userId);
 
             switch (data.action) {
                 case "play": {
                     if (userId != SERVER_ID) {
-                        this.player.setToast("User clicked play.");
+                        this.player.setToast(username + " clicked play.");
                     }
                     this.resyncPlayer(timestamp, userId);
                     this.player.play();
@@ -552,7 +565,7 @@ class Room {
 
                 case "pause": {
                     if (userId != SERVER_ID) {
-                        this.player.setToast("User clicked pause.");
+                        this.player.setToast(username + " clicked pause.");
                     }
                     this.resyncPlayer(timestamp, userId);
                     this.player.pause();
@@ -560,7 +573,8 @@ class Room {
 
                 case "seek": {
                     if (userId != SERVER_ID) {
-                        this.player.setToast("User seeked.");
+                        let shortStamp = timestamp.toFixed(2);
+                        this.player.setToast(username + " seeked to " + shortStamp);
                     }
                     this.player.seek(timestamp);
                 } break;
