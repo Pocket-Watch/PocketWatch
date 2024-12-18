@@ -114,6 +114,7 @@ class Room {
         this.player.onPlaybackError((event) => {
             this.player.setToast("ERROR: Something went wrong, press F12 to see what happened");
             console.error(event.name + ":", event.message);
+            api.playerPause(this.player.getCurrentTime())
         })
 
         this.player.onPlaybackEnd(() => {
