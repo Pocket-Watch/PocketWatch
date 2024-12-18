@@ -104,6 +104,7 @@ class Room {
         })
 
         this.player.onControlsSeeked((timestamp) => {
+            this.ended = false;
             api.playerSeek(timestamp);
         })
 
