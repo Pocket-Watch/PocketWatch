@@ -1019,7 +1019,7 @@ class Internals {
             this.rebindFullscreenAPIFromWebkit();
         }
         this.htmlControls.buttons.fullscreenButton.addEventListener("click", () => {
-            if (document.fullscreenElement || document.webkitFullscreenElement) {
+            if (document.fullscreenElement) {
                 document.exitFullscreen();
                 this.svgs.fullscreen.setHref(this.icons.fullscreen_enter);
             } else {
