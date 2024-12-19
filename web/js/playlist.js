@@ -15,6 +15,8 @@ class Playlist {
         this.htmlEntries = [];
 
         this.isDraggingEntry = false;
+        this.dragEntryStart  = null;
+        this.dragEntryEnd  = null;
     }
 
     addEntry(entry) {
@@ -27,13 +29,13 @@ class Playlist {
 
     removeAt(index) {
         if (typeof index !== "number") {
-            console.error("ERROR: Playlist::removeAt failed. The input index:", index, "is invalid:");
-            return null;
+            console.error("ERROR: Playlist::removeAt failed. The input index:", index, "is invalid.");
+            return;
         }
 
         if (index < 0 || index >= this.entries.length) {
             console.error("ERROR: Playlist::removeAt failed. Index:", index, "is out of bounds for array:", this.entries);
-            return null;
+            return;
         }
 
         let entry = this.entries[index];
@@ -43,8 +45,31 @@ class Playlist {
         this.htmlEntries.splice(index, 1);
 
         this.htmlEntryList.removeChild(htmlEntry);
+    }
 
-        return entry;
+    // insertAt(entry, index) {
+    //     if (typeof index !== "number") {
+    //         console.error("ERROR: Playlist::insertAt failed. The input index:", index, "is invalid.");
+    //         return;
+    //     }
+    //
+    //     if (index < 0 || index >= this.entries.length) {
+    //         console.error("ERROR: Playlist::insertAt failed. Index:", index, "is out of bounds for array:", this.entries);
+    //         return;
+    //     }
+    // }
+
+    move(sourceIndex, destIndex) {
+        let sourceHtmlEntry = this.htmlEntries[sourceIndex];
+        let sourceEntry     = this.entries[sourceIndex];
+
+        let destHtmlEntry = this.htmlEntries[destIndex];
+
+        this.removeAt(sourceIndex);
+
+        this.entries.splice(destIndex, 0, sourceEntry);
+        this.htmlEntries.splice(destIndex, 0, sourceHtmlEntry);
+        this.htmlEntryList.insertBefore(sourceHtmlEntry, destHtmlEntry)
     }
 
     loadEntries(entries) {
@@ -103,17 +128,31 @@ class Playlist {
                 return;
             }
 
-            console.log("Drag over event", event, "with", event.target, "but the root is", entryRoot);
+            this.dragEntryEnd = entryRoot;
+            // console.log("Drag over event", event, "with", event.target, "but the root is", entryRoot);
         };
 
         entryDragArea.ondragstart = event => {
-            console.log("Drag start", event.target)
+            // console.log("Drag start", event.target)
             this.isDraggingEntry = true;
-
+            this.dragEntryStart = entryRoot;
+            this.dragEntryEnd   = entryRoot;
         };
 
         entryDragArea.ondragend = () => { 
+            if (!this.isDraggingEntry) {
+                return;
+            }
+
             this.isDraggingEntry = false;
+
+            if (this.dragEntryStart === this.dragEntryEnd) {
+                return;
+            }
+
+            let startIndex = this.htmlEntries.findIndex(item => item === this.dragEntryStart);
+            let endIndex   = this.htmlEntries.findIndex(item => item === this.dragEntryEnd);
+            api.playlistMove(this.entries[startIndex].id, startIndex, endIndex);
         };
 
 
@@ -203,7 +242,7 @@ class Playlist {
             } break;
 
             case "move": {
-                // this.move(data.source_index, data.dest_index);
+                this.move(data.source_index, data.dest_index);
             } break;
 
             case "update": {

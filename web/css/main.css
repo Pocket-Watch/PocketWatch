@@ -105,7 +105,9 @@ html * {
     height: 100%;
     border: none;
     border-radius: 6px;
-    box-sizing: border-box;
+    box-sizing: flex;
+    justify-content: center;
+    align-items: center;
     margin-left: 6px;
     background-color: #fb4934;
 }
@@ -116,6 +118,12 @@ html * {
 
 #url_reset_button:active {
     background-color: #9d0006;
+}
+
+#url_reset_button svg {
+    height: 56%;
+    width: 56%;
+    fill: #1d2021;
 }
 
 .fit_to_div {

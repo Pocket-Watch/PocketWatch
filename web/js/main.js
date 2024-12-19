@@ -439,7 +439,10 @@ class Room {
         }
 
         this.player.setVideoTrack(url);
-        this.player.setTitle(entry.title);
+
+        if (entry.title) {
+            this.player.setTitle(entry.title);
+        }
 
         if (entry.subtitle_url) {
             this.player.addSubtitleTrack(entry.subtitle_url);
