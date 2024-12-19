@@ -60,3 +60,28 @@ On Windows it can be found at `Git/usr/bin/openssl.exe` where `Git` is git's roo
 
 Additionally, to have your domain verified you can use a free certificate authority like: https://letsencrypt.org
 
+## Problems with the standard subtitle API
+>It is terrible
+
+* **Inconsistent styling across browsers**
+    * bouncy `VTTCue.line` setting on Firefox (does bound checks, ensuring cue stays within view)
+    * changing `style.fontSize` in CSS rule may easily cause subtitles to go out of view on Firefox
+<br><br>
+
+* **Confusing and poorly designed API**
+    * no ability to set a track, instead you control `TextTrack.mode` for each track separately
+    * a CSS stylesheet must be used for styling `::cue` (not ideal for dynamic use cases)
+    * dysfunctional or misnamed properties like:
+        * `VTTCue.vertical` - represents the cue's writing direction, (could be `writingDirection`?)
+        * `VTTCue.line` - in reality represents the vertical position of a cue
+        * `VTTCue.snapToLines` - where `false` causes `VTTCue.line` to be interpreted as a % of the video size.
+        * `VTTCue.size` - size as a % of the video size (yet it does not change the font size)
+    * `video.addTextTrack` method must be used in Chromium otherwise, manually adding cues will have no effect
+    * no canonical method for adding `TextTrack` from url
+<br><br>
+
+* **No standardized approach to shifting causing inefficient solutions**
+    * every cue must be shifted in a shift-dependent order otherwise, the cues are instantly reordered
+    * some subtitle languages (with 1000+ cues) cause dramatic performance drops during shifting
+    * cues on Firefox often stack (pile on top of each other) after shifting and stay on screen after end time
+
