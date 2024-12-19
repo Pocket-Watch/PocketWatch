@@ -37,6 +37,7 @@ var SUBTITLE_EXTENSIONS = [...]string{".vtt", ".srt"}
 const PROXY_ROUTE = "/watch/proxy/"
 const WEB_PROXY = "web/proxy/"
 const WEB_MEDIA = "web/media/"
+const MEDIA = "media/"
 const ORIGINAL_M3U8 = "original.m3u8"
 const PROXY_M3U8 = "proxy.m3u8"
 
@@ -297,6 +298,9 @@ var state = ServerState{}
 var users = makeUsers()
 var conns = makeConnections()
 
+// assignable only once!
+var serverRootAddress = ""
+
 func StartServer(options *Options) {
 	state.lastUpdate = time.Now()
 	registerEndpoints(options)
@@ -320,8 +324,10 @@ func StartServer(options *Options) {
 	if !options.Ssl || missing_ssl_keys {
 		LogWarn("Server is running in unencrypted http mode.")
 		server_start_error = http.ListenAndServe(address, nil)
+		serverRootAddress = "http://" + address
 	} else {
 		server_start_error = http.ListenAndServeTLS(address, CERT, PRIV_KEY, nil)
+		serverRootAddress = "https://" + address
 	}
 
 	if server_start_error != nil {
@@ -429,7 +435,7 @@ func apiUpload(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	jsonData, _ := json.Marshal("media/" + header.Filename)
+	jsonData, _ := json.Marshal(MEDIA + header.Filename)
 	io.WriteString(writer, string(jsonData))
 }
 
@@ -1156,6 +1162,11 @@ func readJsonDataFromRequest(w http.ResponseWriter, r *http.Request, data any) b
 		return false
 	}
 
+	if len(body) > BODY_LIMIT {
+		http.Error(w, "Request body too large", http.StatusRequestEntityTooLarge)
+		return false
+	}
+
 	err = json.Unmarshal(body, &data)
 	if err != nil {
 		LogError("Request handler failed to read json payload: %v", err)
@@ -1267,7 +1278,7 @@ func getSubtitles() []string {
 				continue
 			}
 			if strings.HasSuffix(filename, ext) && info.Size() < SUBTITLE_SIZE_LIMIT {
-				subtitles = append(subtitles, "media/"+filename)
+				subtitles = append(subtitles, MEDIA+filename)
 			}
 		}
 	}
@@ -1310,20 +1321,27 @@ func setupGenericFileProxy(url string, referer string) bool {
 }
 
 func setupHlsProxy(url string, referer string) bool {
-	_ = os.Mkdir(WEB_PROXY, os.ModePerm)
-	m3u, err := downloadM3U(url, WEB_PROXY+ORIGINAL_M3U8, referer)
-	if err != nil {
-		LogError("Failed to fetch m3u8: %v", err)
-		return false
-	}
-
 	parsedUrl, err := net_url.Parse(url)
 	if err != nil {
 		LogError("The provided URL is invalid: %v", err)
 		return false
 	}
-	prefix := stripLastSegment(parsedUrl)
 
+	_ = os.Mkdir(WEB_PROXY, os.ModePerm)
+	var m3u *M3U
+	if !hasScheme(url) || strings.HasPrefix(url, serverRootAddress) {
+		lastSegment := lastUrlSegment(url)
+		m3u, err = parseM3U(WEB_MEDIA + lastSegment)
+	} else {
+		m3u, err = downloadM3U(url, WEB_PROXY+ORIGINAL_M3U8, referer)
+	}
+
+	if err != nil {
+		LogError("Failed to fetch m3u8: %v", err)
+		return false
+	}
+
+	prefix := stripLastSegment(parsedUrl)
 	if m3u.isMasterPlaylist {
 		if len(m3u.tracks) == 0 {
 			LogError("Master playlist contains 0 tracks!")

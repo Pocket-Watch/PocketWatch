@@ -53,6 +53,9 @@ func inferOrigin(referer string) string {
 
 func stripLastSegment(url *net_url.URL) string {
 	lastSlash := strings.LastIndex(url.Path, "/")
+	if url.Scheme == "" && url.Host == "" {
+		return url.Path[:lastSlash+1]
+	}
 	stripped := url.Scheme + "://" + url.Host + url.Path[:lastSlash+1]
 	return stripped
 }
@@ -68,6 +71,10 @@ func lastUrlSegment(url string) string {
 		return url
 	}
 	return url[:questionMark]
+}
+
+func hasScheme(url string) bool {
+	return strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://")
 }
 
 func getRootDomain(url *net_url.URL) string {
