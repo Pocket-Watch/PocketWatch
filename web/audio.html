@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Separate Audio and Video Tracks</title>
+    <style> video {
+        background-color: black; /* Ensure the video element has a black background */
+        mso-foreground: black; /* Ensure the video element has a black background */
+    } </style>
+</head>
+<body>
+<video id="video" controls>
+    <source src="https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_640x360.m4v" type="video/mp4">
+</video>
+<audio id="audio">
+    <source src="media/Polozhenie.mp3" type="audio/mp3">
+</audio>
+<script>
+    const video = document.getElementById("video");
+    const audio = document.getElementById("audio");
+    video.addEventListener("play", () => {
+        audio.play();
+    });
+    video.addEventListener("pause", () => {
+        audio.pause();
+    });
+    video.addEventListener("seeked", () => {
+        audio.currentTime = video.currentTime;
+    });
+
+    // Create an audio context that works across different browsers
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioContext = new AudioContext();
+
+    const track = audioContext.createMediaElementSource(audio);
+
+    // Create a gain node
+    const gainNode = audioContext.createGain();
+
+    // Connect the audio element to the gain node
+    track.connect(gainNode);
+
+    // Connect the gain node to the audio context's destination (speakers)
+    gainNode.connect(audioContext.destination);
+
+    // Set the gain (volume)
+    gainNode.gain.value = 0.1;
+
+</script>
+</body>
+</html>
