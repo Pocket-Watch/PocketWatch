@@ -193,7 +193,11 @@ class Player {
     }
 
     getCurrentUrl() {
-        return this.internals.htmlVideo.url;
+        return this.internals.htmlVideo.src;
+    }
+
+    discardPlayback() {
+        return this.internals.discardPlayback();
     }
 }
 
@@ -617,6 +621,17 @@ class Internals {
             this.htmlVideo.src = url;
             this.htmlVideo.load();
         }
+    }
+
+    discardPlayback() {
+        this.pause();
+        if (this.playingHls) {
+            this.hls.detachMedia();
+            this.playingHls = false;
+        }
+        // There's no reliable way to discard src value once it's set
+        this.htmlVideo.src = "";
+        this.htmlVideo.currentTime = 0;
     }
 
     addSrtTrack(url, show, trackInfo) {

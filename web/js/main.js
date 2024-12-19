@@ -91,11 +91,8 @@ class Room {
     }
 
     attachPlayerEvents() {
+        // We have to know if anything is currently playing or whether something is set
         this.player.onControlsPlay(() => {
-            if (!this.isUrlSet()) {
-                this.player.pause();
-                return;
-            }
             if (this.ended) {
                 api.playerPlay(0);
                 return;
@@ -104,9 +101,6 @@ class Room {
         })
 
         this.player.onControlsPause(() => {
-            if (!this.isUrlSet()) {
-                return;
-            }
             api.playerPause(this.player.getCurrentTime());
         })
 
@@ -119,6 +113,16 @@ class Room {
             console.log("User seeking to", timestamp);
         })
 
+        this.player.onPlaybackEnd(() => {
+            console.info("Playback ended! Informing the server");
+            let endTime = this.player.getDuration();
+            if (isNaN(endTime)) {
+                endTime = 0;
+            }
+            this.ended = true;
+            api.playerPause(endTime)
+        });
+
         this.player.onPlaybackError((event) => {
             if (event.name === "NotAllowedError") {
                 // The majority of Chromium-based browsers allow autoplay anyway
@@ -129,29 +133,14 @@ class Room {
                 this.player.setToast("Probably nothing is set! " + event.message);
                 return;
             }
+            if (event.name === "NotSupportedError") {
+                this.player.setToast("Unsupported src: '" + this.player.getCurrentUrl() + "' " + event.message);
+                return;
+            }
             this.player.setToast("ERROR: Something went wrong, press F12 to see what happened");
             console.error(event.name + ":", event.message);
             api.playerPause(this.player.getCurrentTime())
         })
-
-        this.player.onPlaybackEnd(() => {
-            console.info("Playback ended! Informing the server");
-            let endTime = this.player.getDuration();
-            if (isNaN(endTime)) {
-                endTime = 0;
-            }
-            this.ended = true;
-            api.playerPause(endTime)
-        });
-    }
-
-    // We should probably internally store state regarding the current entry
-    isUrlSet() {
-        let url = this.player.getCurrentUrl();
-        if (!url || url === "") {
-            return false;
-        }
-        return true;
     }
 
     resetUrlAreaElements() {
@@ -455,8 +444,7 @@ class Room {
 
         let url = entry.url
         if (!url) {
-            this.player.setToast("Nothing is playing at the moment!");
-            this.player.setPoster("img/nothing_is_playing.png");
+            this.setNothing();
             return;
         }
 
@@ -473,6 +461,12 @@ class Room {
         if (entry.subtitle_url) {
             this.player.addSubtitleTrack(entry.subtitle_url);
         }
+    }
+
+    setNothing() {
+        this.player.discardPlayback();
+        this.player.setToast("Nothing is playing at the moment!");
+        this.player.setPoster("img/nothing_is_playing.png");
     }
 
     resyncPlayer(timestamp, userId) {
