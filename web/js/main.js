@@ -113,6 +113,11 @@ class Room {
         })
 
         this.player.onPlaybackError((event) => {
+            if (event.name === "NotAllowedError") {
+                // The majority of Chromium-based browsers allow autoplay anyway
+                this.player.setToast("Playback is not allowed by the browser!" + event.message);
+                return;
+            }
             this.player.setToast("ERROR: Something went wrong, press F12 to see what happened");
             console.error(event.name + ":", event.message);
             api.playerPause(this.player.getCurrentTime())
