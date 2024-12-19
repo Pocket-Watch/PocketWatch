@@ -36,6 +36,10 @@ class Player {
         this.internals.setTitle(title);
     }
 
+    setPoster(url) {
+        this.internals.setPoster(url);
+    }
+
     setToast(toast) {
         this.internals.setToast(toast);
     }
@@ -186,6 +190,10 @@ class Player {
 
     setVideoTrack(url) {
         this.internals.setVideoTrack(url);
+    }
+
+    getCurrentUrl() {
+        return this.internals.htmlVideo.url;
     }
 }
 
@@ -522,6 +530,11 @@ class Internals {
             this.htmlTitleContainer.style.display = "";
             this.htmlTitle.textContent = title;
         }
+    }
+
+    setPoster(url) {
+        // could check the extension: jpg, png, gif, webp
+        this.htmlVideo.poster = url;
     }
 
     setToast(toast) {
