@@ -322,12 +322,13 @@ func StartServer(options *Options) {
 
 	var server_start_error error
 	if !options.Ssl || missing_ssl_keys {
+		serverRootAddress = "http://" + address
 		LogWarn("Server is running in unencrypted http mode.")
 		server_start_error = http.ListenAndServe(address, nil)
-		serverRootAddress = "http://" + address
 	} else {
-		server_start_error = http.ListenAndServeTLS(address, CERT, PRIV_KEY, nil)
 		serverRootAddress = "https://" + address
+		LogInfo("Server is running with TLS on.")
+		server_start_error = http.ListenAndServeTLS(address, CERT, PRIV_KEY, nil)
 	}
 
 	if server_start_error != nil {
@@ -1329,7 +1330,7 @@ func setupHlsProxy(url string, referer string) bool {
 
 	_ = os.Mkdir(WEB_PROXY, os.ModePerm)
 	var m3u *M3U
-	if !hasScheme(url) || strings.HasPrefix(url, serverRootAddress) {
+	if strings.HasPrefix(url, MEDIA) || strings.HasPrefix(url, serverRootAddress) {
 		lastSegment := lastUrlSegment(url)
 		m3u, err = parseM3U(WEB_MEDIA + lastSegment)
 	} else {
