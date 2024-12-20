@@ -1139,7 +1139,7 @@ func getAuthorized(w http.ResponseWriter, r *http.Request) *User {
 func getAuthorizedIndex(w http.ResponseWriter, r *http.Request) int {
 	token := r.Header.Get("Authorization")
 	if token == "" {
-		LogError("Inavlid token")
+		LogError("Invalid token")
 		http.Error(w, "Invalid token", http.StatusUnauthorized)
 		return -1
 	}

@@ -1,6 +1,42 @@
 var token = null;
 var connectionId = null;
 
+export class JsonResponse {
+    constructor(status, method, endpoint) {
+        this.ok = status >= 200 && status < 300;
+        this.status = status;
+        this.method = method;
+        this.endpoint = endpoint;
+        this.json = null;
+        this.errorMessage = null;
+    }
+
+    static fromPost(status, jsonObj, endpoint) {
+        let response = new JsonResponse(status, "POST", endpoint);
+        response.json = jsonObj;
+        return response;
+    }
+
+    static fromPostError(status, error, endpoint) {
+        let response = new JsonResponse(status, "POST", endpoint);
+        response.errorMessage = error;
+        return response;
+    }
+
+    checkAndLogError() {
+        if (this.ok) {
+            return false;
+        }
+        this.logError();
+        return true;
+    }
+
+    logError() {
+        console.error(this.errorMessage, "[from", this.method, "to", this.endpoint + "]");
+    }
+}
+
+
 async function httpPostFile(endpoint, file, filename) {
     const headers = new Headers();
     headers.set("Authorization", token);
@@ -35,31 +71,33 @@ async function httpPostFile(endpoint, file, filename) {
     }
 }
 
-async function httpPost(endpoint, data) {
+// It sends a JSON body and receives a JSON body, on error receives error as text (http.Error in go)
+// Unfortunately there does not seem to be an option to disable the ugly response status console log
+async function httpPost(endpoint, jsonObj) {
     const headers = new Headers();
     headers.set("Content-Type", "application/json");
     headers.set("Authorization", token);
 
     const options = {
         method: "POST",
-        body: JSON.stringify(data),
+        body: JSON.stringify(jsonObj),
         headers: headers,
     };
 
     try {
         const response = await fetch(endpoint, options);
         if (!response.ok) {
-            console.error("ERROR: POST request for endpoint: " + endpoint + " failed: " + response.status);
-            return null;
+            let errorText = await response.text();
+            return JsonResponse.fromPostError(response.status, errorText, endpoint);
         }
-
-        // TODO(kihau): 
-        //     Throws exception when response is not a valid json.
-        //     This should be handled this in a nicer way.
-        return await response.json();
+        let json = await response.json();
+        return JsonResponse.fromPost(response.status, json, endpoint);
     } catch (error) {
-        // console.error("ERROR: POST request for endpoint: " + endpoint + " failed: " + error);
-        return null;
+        if (error.name === "SyntaxError") {
+            // Server probably didn't send json? Just return empty JSON server-side {}
+            return JsonResponse.fromPostError(500, "SyntaxError: " + error.message, endpoint);
+        }
+        throw new Error("ERROR: POST request to endpoint: " + endpoint + " failed " + error);
     }
 }
 
@@ -77,13 +115,13 @@ async function httpGet(endpoint) {
     try {
         const response = await fetch(endpoint, options);
         if (!response.ok) {
-            console.error("ERROR: POST request for endpoint: " + endpoint + " failed: " + response.status);
+            console.error("ERROR: GET request for endpoint: " + endpoint + " returned status: " + response.status);
             return null;
         }
 
         return await response.json();
     } catch (error) {
-        console.error("ERROR: POST request for endpoint: " + endpoint + " failed: " + error);
+        console.error("ERROR: GET request for endpoint: " + endpoint + " failed: " + error);
     }
 
     return null;
@@ -116,9 +154,8 @@ export async function userGetAll() {
 }
 
 export async function userVerify() {
-    let data = await httpPost("/watch/api/user/verify");
-    console.info("INFO: Received data from user verify request to the server: ", data);
-    return data;
+    let postVerify = httpPost("/watch/api/user/verify");
+    return await postVerify;
 }
 
 export async function userUpdateName(username) {
@@ -145,7 +182,7 @@ export async function playerSet(entry) {
     };
 
     console.info("INFO: Sending player set request for a entry");
-    httpPost("/watch/api/player/set", payload);
+    return httpPost("/watch/api/player/set", payload);
 }
 
 export async function playerNext(currentEntryId) {

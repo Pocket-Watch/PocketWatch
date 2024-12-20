@@ -214,8 +214,13 @@ class Room {
             console.log(subtitlePath);
 
             let entry = this.createNewEntry(subtitlePath);
-            api.playerSet(entry);
-            this.resetUrlAreaElements();
+            api.playerSet(entry).then(result => {
+                if (result == null) {
+                    return;
+                }
+                // Only reset if request was successful
+                this.resetUrlAreaElements();
+            });
         }
 
         this.urlArea.addPlaylistButton.onclick = () => {
@@ -225,10 +230,14 @@ class Room {
         }
 
         this.urlArea.urlInput.onkeypress = (event) => {
-            if (event.key == "Enter") {
+            if (event.key === "Enter") {
                 let entry = this.createNewEntry();
-                api.playerSet(entry);
-                this.resetUrlAreaElements();
+                api.playerSet(entry).then(jsonResponse => {
+                    if (jsonResponse.checkAndLogError()) {
+                        return;
+                    }
+                    this.resetUrlAreaElements();
+                });
             }
         }
 
@@ -273,18 +282,21 @@ class Room {
         this.token = await api.userCreate();
         api.setToken(this.token);
         localStorage.setItem("token", this.token);
-
-        this.currentUser = await api.userVerify();
     }
 
-    async authenticateAccount() {
+    async authenticateAccount(firstTry) {
         this.token = localStorage.getItem("token");
         api.setToken(this.token);
 
-        this.currentUser = await api.userVerify();
-        if (!this.currentUser) {
-            await this.createNewAccount();
+        let verification = await api.userVerify();
+        if (firstTry && !verification.ok) {
+            return false;
         }
+        if (verification.checkAndLogError()) {
+            return false;
+        }
+        this.currentUser = verification.json;
+        return true;
     }
 
     async loadPlayerData() {
@@ -293,7 +305,7 @@ class Room {
         this.player.setLoop(state.player.looping);
 
         let entry = state.entry;
-        this.setEntry(entry);
+        this.setEntryEvent(entry);
     }
 
     async loadUsersData() {
@@ -428,17 +440,17 @@ class Room {
 
     async loadPlaylistData() {
         let entries = await api.playlistGet();
-        console.log(entries);
-
         if (!entries) {
             return;
         }
+
+        console.log(entries);
 
         // TOOD(kihau): Performance problem when number of entries is large. Needs to be fixed at some point.
         this.playlist.loadEntries(entries);
     }
 
-    setEntry(entry) {
+    setEntryEvent(entry) {
         this.nowPlaying.value = entry.url;
         this.usingProxy.checked = entry.user_proxy;
 
@@ -569,7 +581,7 @@ class Room {
             console.info("INFO: Received player set event: ", response);
 
             let entry = response.new_entry;
-            this.setEntry(entry);
+            this.setEntryEvent(entry);
         });
 
         events.addEventListener("sync", event => {
@@ -622,7 +634,14 @@ class Room {
     }
 
     async connectToServer() {
-        await this.authenticateAccount();
+        // Temporary workaround for lack of persistent server-side account storage
+        if (!await this.authenticateAccount(true)) {
+            console.log("INITIALLY NOT AUTH", performance.now())
+            await this.createNewAccount();
+            console.log("MADE NEW ACCOUNT", performance.now())
+            await this.authenticateAccount();
+            console.log("FETCHED USER", performance.now())
+        }
         await this.loadPlayerData();
         await this.loadUsersData();
         await this.loadPlaylistData();
