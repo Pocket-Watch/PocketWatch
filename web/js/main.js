@@ -214,8 +214,8 @@ class Room {
             console.log(subtitlePath);
 
             let entry = this.createNewEntry(subtitlePath);
-            api.playerSet(entry).then(result => {
-                if (result == null) {
+            api.playerSet(entry).then(jsonResponse => {
+                if (jsonResponse.checkAndLogError()) {
                     return;
                 }
                 // Only reset if request was successful
@@ -636,11 +636,8 @@ class Room {
     async connectToServer() {
         // Temporary workaround for lack of persistent server-side account storage
         if (!await this.authenticateAccount(true)) {
-            console.log("INITIALLY NOT AUTH", performance.now())
             await this.createNewAccount();
-            console.log("MADE NEW ACCOUNT", performance.now())
             await this.authenticateAccount();
-            console.log("FETCHED USER", performance.now())
         }
         await this.loadPlayerData();
         await this.loadUsersData();
