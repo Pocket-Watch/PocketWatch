@@ -601,6 +601,49 @@ func apiPlayerGet(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(jsonData))
 }
 
+func setNewEntry(newEntry Entry) Entry {
+	prevEntry := state.entry
+
+	if prevEntry.Url != "" {
+		state.history = append(state.history, prevEntry)
+
+		if state.player.Looping {
+			state.playlist = append(state.playlist, prevEntry)
+		}
+	}
+
+	// TODO(kihau): Proper proxy setup for youtube entries.
+
+	lastSegment := lastUrlSegment(newEntry.Url)
+	if newEntry.UseProxy {
+		if strings.HasSuffix(lastSegment, ".m3u8") {
+			setup := setupHlsProxy(newEntry.Url, newEntry.RefererUrl)
+			if setup {
+				newEntry.SourceUrl = PROXY_ROUTE + PROXY_M3U8
+				LogInfo("HLS proxy setup was successful.")
+			} else {
+				LogWarn("HLS proxy setup failed!")
+			}
+		} else {
+			setup := setupGenericFileProxy(newEntry.Url, newEntry.RefererUrl)
+			if setup {
+				newEntry.SourceUrl = PROXY_ROUTE + "proxy" + state.proxy.extensionWithDot
+				LogInfo("Generic file proxy setup was successful.")
+			} else {
+				LogWarn("Generic file proxy setup failed!")
+			}
+		}
+	}
+
+	state.entry = newEntry
+
+	state.player.Timestamp = 0
+	state.lastUpdate = time.Now()
+	state.player.Playing = state.player.Autoplay
+
+	return prevEntry
+}
+
 func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
@@ -620,43 +663,15 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 	loadYoutubeEntry(&data.Entry)
 
 	state.mutex.Lock()
-	if state.entry.Url != "" {
-		state.history = append(state.history, state.entry)
-	}
-
 	state.entryId += 1
 
-	state.player.Timestamp = 0
-	state.lastUpdate = time.Now()
-	state.player.Playing = state.player.Autoplay
+	newEntry := data.Entry
+	newEntry.Created = time.Now()
+	newEntry.Id = state.entryId
+	newEntry.Title = constructTitleWhenMissing(&newEntry)
 
-	prevEntry := state.entry
+	prevEntry := setNewEntry(newEntry)
 
-	state.entry = data.Entry
-	state.entry.Created = time.Now()
-	state.entry.Id = state.entryId
-	state.entry.Title = constructTitleWhenMissing(&state.entry)
-
-	lastSegment := lastUrlSegment(state.entry.Url)
-	if state.entry.UseProxy {
-		if strings.HasSuffix(lastSegment, ".m3u8") {
-			setup := setupHlsProxy(state.entry.Url, state.entry.RefererUrl)
-			if setup {
-				state.entry.SourceUrl = PROXY_ROUTE + PROXY_M3U8
-				LogInfo("HLS proxy setup was successful.")
-			} else {
-				LogWarn("HLS proxy setup failed!")
-			}
-		} else {
-			setup := setupGenericFileProxy(state.entry.Url, state.entry.RefererUrl)
-			if setup {
-				state.entry.SourceUrl = PROXY_ROUTE + "proxy" + state.proxy.extensionWithDot
-				LogInfo("Generic file proxy setup was successful.")
-			} else {
-				LogWarn("Generic file proxy setup failed!")
-			}
-		}
-	}
 	state.mutex.Unlock()
 
 	LogInfo("New url is now: '%s'.", state.entry.Url)
@@ -666,6 +681,7 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 		NewEntry:  state.entry,
 	}
 	writeEventToAllConnections(w, "playerset", setEvent)
+	io.WriteString(w, "{}")
 }
 
 func apiPlayerEnd(w http.ResponseWriter, r *http.Request) {
@@ -713,35 +729,15 @@ func apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 	}
 
 	state.mutex.Lock()
-	prevEntry := state.entry
-
-	if prevEntry.Url != "" {
-		state.history = append(state.history, prevEntry)
-	}
-
-	if state.player.Looping && prevEntry.Url != "" {
-		state.playlist = append(state.playlist, prevEntry)
-	}
-
 	newEntry := Entry{}
-
 	if len(state.playlist) != 0 {
 		newEntry = state.playlist[0]
 		state.playlist = state.playlist[1:]
 	}
 
-	lastSegment := lastUrlSegment(newEntry.Url)
-	if newEntry.UseProxy && strings.HasSuffix(lastSegment, ".m3u8") {
-		setupHlsProxy(newEntry.Url, newEntry.RefererUrl)
-	}
-
-	state.player.Playing = state.player.Autoplay
-	state.player.Timestamp = 0
-	state.lastUpdate = time.Now()
-
 	loadYoutubeEntry(&newEntry)
+	prevEntry := setNewEntry(newEntry)
 
-	state.entry = newEntry
 	state.mutex.Unlock()
 
 	nextEvent := PlayerNextEventData{
@@ -749,6 +745,7 @@ func apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 		NewEntry:  newEntry,
 	}
 	writeEventToAllConnections(w, "playernext", nextEvent)
+	io.WriteString(w, "{}")
 }
 
 func apiPlayerPlay(w http.ResponseWriter, r *http.Request) {
