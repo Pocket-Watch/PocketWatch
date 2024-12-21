@@ -40,6 +40,10 @@ class Player {
         this.internals.setPoster(url);
     }
 
+    setSpeed(speed) {
+        this.internals.setSpeed(speed);
+    }
+
     setToast(toast) {
         this.internals.setToast(toast);
     }
@@ -539,6 +543,13 @@ class Internals {
         }
     }
 
+    setSpeed(speed) {
+        if (isNaN(speed)) {
+            speed = 1;
+        }
+        this.htmlVideo.playbackRate = speed;
+    }
+
     setPoster(url) {
         // could check the extension: jpg, png, gif, webp
         this.htmlVideo.poster = url;
@@ -962,8 +973,8 @@ class Internals {
             if (newSpeed > 2.5) {
                 newSpeed = 1;
             }
-            this.htmlVideo.playbackRate = newSpeed;
-            this.setToast("Speed: " + newSpeed)
+            this.setSpeed(newSpeed);
+            this.setToast("Speed: " + this.htmlVideo.playbackRate)
         });
 
         this.htmlControls.buttons.subsButton.addEventListener("click", () => {
