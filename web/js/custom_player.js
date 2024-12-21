@@ -343,17 +343,26 @@ class Internals {
                 root: newDiv(null, "player_menu_root"),
 
                 selected: {
-                    tab: null,
-                    view: null,
+                    tab:    null,
+                    view:   null,
                     track:  null,
                 },
 
-                /// Part of the bottom selection panel, html track elements are appended here.
+                /// Part of the select view. Switch widget indicating whether subtitles are enabled or not.
+                subsSwitcher: new Switcher("Enable subtitles"),
+
+                /// Part of the select view, html track elements are appended here.
                 trackList: newDiv("subtitle_track_list"),
             },
 
             settings: {
                 root: newDiv(null, "player_menu_root"),
+
+                selected: {
+                    tab:    null,
+                    view:   null,
+                    track:  null,
+                },
             }
         };
 
@@ -361,8 +370,6 @@ class Internals {
         this.isUIVisible = true;
         this.volumeBeforeMute = 0.0;
         this.selectedSubtitleIndex = -1;
-
-        this.subsSwitcher = new Switcher("Enable subtitles");
 
         this.htmlSeekForward = newDiv("player_forward_container");
         this.htmlSeekForward.appendChild(this.svgs.seekForward.svg);
@@ -730,7 +737,7 @@ class Internals {
         if (0 <= index && index < textTracks.length) {
             textTracks[index].mode = "showing";
             this.selectedSubtitleIndex = index;
-            this.subsSwitcher.setState(true)
+            this.htmlControls.subMenu.subsSwitcher.setState(true)
         }
     }
 
@@ -747,7 +754,9 @@ class Internals {
         }
 
         this.selectedSubtitleIndex = index;
-        if (this.subsSwitcher.enabled) {
+
+        let switcher = this.htmlControls.subMenu.subsSwitcher;
+        if (switcher.enabled) {
             textTracks[index].mode = "showing";
         }
     }
@@ -1399,7 +1408,7 @@ class Internals {
         let optionsTab     = newDiv(null, "player_menu_tab");
         let selectView     = newDiv("player_submenu_select_view");
         let toggleBox      = newDiv(null, "player_submenu_box");
-        let subsSwitch     = this.subsSwitcher
+        let subsSwitch     = menu.subsSwitcher;
         let searchView     = newDiv("player_submenu_search_view");
         let subtitleImport = newElement("input", "player_submenu_import");
         let optionsView    = newDiv("player_submenu_bottom_options");
@@ -1424,7 +1433,7 @@ class Internals {
         subsForegroundPicker.type = "color";
         subsForegroundPicker.value = "white";
 
-        menu.selected.tab = selectTab;
+        menu.selected.tab  = selectTab;
         menu.selected.view = selectView;
 
         menu.selected.tab.classList.add("player_menu_tab_selected");
@@ -1433,7 +1442,7 @@ class Internals {
         menuRoot.onclick = consumeClick;
 
         let select = (tab, view) => {
-            let selected = this.htmlControls.subMenu.selected;
+            let selected = menu.selected;
             selected.tab.classList.remove("player_menu_tab_selected");
             hideElement(selected.view)
 
@@ -1517,15 +1526,49 @@ class Internals {
     }
 
     createSettingsMenu() {
-        let menu = this.htmlControls.settings;
-        let root = menu.root;
-        let autohide = new Switcher("Auto-hide controls");
-        let showOnPause = new Switcher("Show controls on pause", );
+        let playerRoot     = this.htmlPlayerRoot;
+        let menu           = this.htmlControls.settings;
+        let menuRoot       = menu.root;
+        let menuTabs       = newDiv(null, "player_menu_tabs");
+        let generalTab     = newDiv(null, "player_menu_tab");
+        let appearanceTab  = newDiv(null, "player_menu_tab");
+        let menuViews      = newDiv(null, "player_menu_views");
+        let generalView    = newDiv("player_submenu_select_view");
+        let appearanceView = newDiv("player_submenu_select_view");
+        let autohide       = new Switcher("Auto-hide controls");
+        let showOnPause    = new Switcher("Show controls on pause", );
 
-        root.onclick = consumeClick;
-        hideElement(root);
+        hideElement(menuRoot);
         autohide.setState(!this.options.disableControlsAutoHide);
         showOnPause.setState(this.options.showControlsOnPause);
+
+        generalTab.textContent    = "General";
+        appearanceTab.textContent = "Appearance";
+
+        menu.selected.tab  = generalTab;
+        menu.selected.view = generalView;
+
+        menu.selected.tab.classList.add("player_menu_tab_selected");
+        menu.selected.view.style.display = "";
+
+        menuRoot.onclick = consumeClick;
+
+        let select = (tab, view) => {
+            let selected = menu.selected;
+            selected.tab.classList.remove("player_menu_tab_selected");
+            hideElement(selected.view)
+
+            selected.tab = tab
+            selected.view = view;
+
+            selected.tab.classList.add("player_menu_tab_selected");
+            selected.view.style.display = "";
+        }
+
+        generalTab.onclick     = () => select(generalTab, generalView);
+        appearanceTab.onclick  = () => select(appearanceTab, appearanceView);
+
+        menuRoot.onclick = consumeClick;
 
         autohide.addAction(state => {
             this.options.disableControlsAutoHide = !state;
@@ -1535,9 +1578,18 @@ class Internals {
             this.options.showControlsOnPause = state;
         }); 
 
-        this.htmlPlayerRoot.appendChild(root); {
-            root.appendChild(autohide.toggleRoot);
-            root.appendChild(showOnPause.toggleRoot);
+        playerRoot.append(menuRoot); {
+            menuRoot.append(menuTabs); {
+                menuTabs.append(generalTab);
+                menuTabs.append(appearanceTab);
+            }
+            menuRoot.append(menuViews); {
+                menuViews.append(generalView); {
+                    generalView.append(autohide.toggleRoot);
+                    generalView.append(showOnPause.toggleRoot);
+                }
+                menuViews.append(appearanceView);
+            }
         }
     }
 }

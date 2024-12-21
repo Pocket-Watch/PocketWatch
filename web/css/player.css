@@ -441,6 +441,7 @@
 
 .player_menu_views {
     flex: 1 1 auto;
+    overflow-y: scroll;
 }
 
 #player_submenu_select_view {
