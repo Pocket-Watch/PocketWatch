@@ -521,9 +521,12 @@ class Room {
         }
     }
 
-    subscribeToServerEvents() {
+    listenToServerEvents() {
         let events = new EventSource("/watch/api/events?token=" + this.token);
+        this.subscribeToServerEvents(events);
+    }
 
+    subscribeToServerEvents(events) {
         events.addEventListener("userwelcome", event => {
             let connectionId = JSON.parse(event.data);
             console.info("INFO: Received a welcome request with connection id: ", connectionId);
@@ -535,7 +538,7 @@ class Room {
         events.addEventListener("usercreate", event => {
             let user = JSON.parse(event.data)
             this.allUsers.push(user)
-            console.info("INFO: New user has beed created: ", user)
+            console.info("INFO: New user has been created: ", user)
 
             let userBox = this.createUserBox(user);
             userBox.classList.add("user_box_offline");
@@ -626,12 +629,12 @@ class Room {
             this.playlist.removeAt(0);
         });
 
-        events.addEventListener("playerlooping", event => { 
+        events.addEventListener("playerlooping", event => {
             let looping = JSON.parse(event.data);
             this.player.setLooping(looping)
         });
 
-        events.addEventListener("playerautoplay", event => { 
+        events.addEventListener("playerautoplay", event => {
             let autoplay = JSON.parse(event.data);
             this.player.setAutoplay(autoplay)
         });
@@ -683,6 +686,21 @@ class Room {
             console.info("INFO: Received playlist event for:", response.action, "with:", response.data);
             this.playlist.handleServerEvent(response.action, response.data);
         });
+
+        events.onopen = () => {
+            console.info("Connection to events opened!");
+        }
+
+        events.onerror = (event) => {
+            console.error("EVENTS ERROR: ", event);
+            console.info("Closing current EventSource, current readyState =", events.readyState)
+            events.close();
+            let retryAfter = 5000;
+            console.info("Attempting reconnect in", retryAfter, "ms.")
+            setTimeout(() => {
+                this.listenToServerEvents()
+            }, retryAfter)
+        }
     }
 
     async connectToServer() {
@@ -694,7 +712,7 @@ class Room {
         await this.loadPlayerData();
         await this.loadUsersData();
         await this.loadPlaylistData();
-        this.subscribeToServerEvents();
+        this.listenToServerEvents();
     }
 }
 
