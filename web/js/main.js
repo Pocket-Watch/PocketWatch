@@ -88,6 +88,9 @@ class Room {
 
         /// Subtitle file to be attached to the entry.
         this.subtitleFile = null;
+
+        /// Id of the currently set entry.
+        this.currentEntryId = 0;
     }
 
     attachPlayerEvents() {
@@ -113,14 +116,30 @@ class Room {
             console.log("User seeking to", timestamp);
         })
 
+        this.player.onControlsNext(() => {
+            api.playerNext(this.currentEntryId);
+        });
+
+        this.player.onControlsLooping(enabled => {
+            api.playerLooping(enabled);
+        });
+
+        this.player.onControlsAutoplay(enabled => {
+            api.playerAutoplay(enabled);
+        });
+
         this.player.onPlaybackEnd(() => {
-            console.info("Playback ended! Informing the server");
-            let endTime = this.player.getDuration();
-            if (isNaN(endTime)) {
-                endTime = 0;
+            if (this.player.getAutoplay()) {
+                api.playerNext(this.currentEntryId);
+            } else {
+                console.info("Playback ended! Informing the server");
+                let endTime = this.player.getDuration();
+                if (isNaN(endTime)) {
+                    endTime = 0;
+                }
+                this.ended = true;
+                api.playerPause(endTime)
             }
-            this.ended = true;
-            api.playerPause(endTime)
         });
 
         this.player.onPlaybackError((event) => {
@@ -302,7 +321,7 @@ class Room {
     async loadPlayerData() {
         let state = await api.playerGet();
         this.player.setAutoplay(state.player.autoplay);
-        this.player.setLoop(state.player.looping);
+        this.player.setLooping(state.player.looping);
 
         let entry = state.entry;
         this.setEntryEvent(entry);
@@ -454,6 +473,8 @@ class Room {
         this.nowPlaying.value = entry.url;
         this.usingProxy.checked = entry.user_proxy;
 
+        this.currentEntryId = entry.id;
+
         let url = entry.url
         if (!url) {
             this.setNothing();
@@ -580,8 +601,37 @@ class Room {
             let response = JSON.parse(event.data);
             console.info("INFO: Received player set event: ", response);
 
-            let entry = response.new_entry;
-            this.setEntryEvent(entry);
+            let newEntry = response.new_entry;
+            this.setEntryEvent(newEntry);
+
+            let prevEntry = response.prev_entry;
+            if (this.player.isLooping()) {
+                this.playlist.addEntry(prevEntry);
+            }
+        });
+
+        events.addEventListener("playernext", event => {
+            let response = JSON.parse(event.data);
+            let prevEntry = response.prev_entry;
+
+            let newEntry = response.new_entry;
+            this.setEntryEvent(newEntry);
+
+            if (this.player.isLooping()) {
+                this.playlist.addEntry(prevEntry);
+            }
+
+            this.playlist.removeAt(0);
+        });
+
+        events.addEventListener("playerlooping", event => { 
+            let looping = JSON.parse(event.data);
+            this.player.setLooping(looping)
+        });
+
+        events.addEventListener("playerautoplay", event => { 
+            let autoplay = JSON.parse(event.data);
+            this.player.setAutoplay(autoplay)
         });
 
         events.addEventListener("sync", event => {

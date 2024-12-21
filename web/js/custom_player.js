@@ -44,12 +44,12 @@ class Player {
         this.internals.setToast(toast);
     }
 
-    getLoop() {
+    isLooping() {
         return this.internals.loopEnabled;
     }
 
-    setLoop(enabled) {
-        this.internals.setLoop(enabled);
+    setLooping(enabled) {
+        this.internals.setLooping(enabled);
     }
 
     setAutoplay(enabled) {
@@ -132,11 +132,11 @@ class Player {
         this.internals.fireControlsNext = func;
     }
 
-    onControlsLoop(func) {
+    onControlsLooping(func) {
         if (!isFunction(func)) {
             return;
         }
-        this.internals.fireControlsLoop = func;
+        this.internals.fireControlsLooping = func;
     }
 
     onControlsAutoplay(func) {
@@ -379,7 +379,7 @@ class Internals {
     fireControlsPlay() {}
     fireControlsPause() {}
     fireControlsNext() {}
-    fireControlsLoop(_enabled) {}
+    fireControlsLooping(_enabled) {}
     fireControlsAutoplay(_enabled) {}
     fireControlsSeeking(_timestamp) {}
     fireControlsSeeked(_timestamp) {}
@@ -552,7 +552,7 @@ class Internals {
         }, 3000);
     }
 
-    setLoop(enabled) {
+    setLooping(enabled) {
         this.loopEnabled = enabled;
         let loop = this.htmlControls.buttons.loopButton;
         if (enabled) {
@@ -930,7 +930,7 @@ class Internals {
 
         this.htmlControls.buttons.loopButton.addEventListener("click", () => {
             this.loopEnabled = !this.loopEnabled;
-            this.fireControlsLoop(this.loopEnabled);
+            this.fireControlsLooping(this.loopEnabled);
             this.htmlControls.buttons.loopButton.classList.toggle("player_controls_button_selected");
         });
 
