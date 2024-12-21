@@ -333,11 +333,11 @@ class Internals {
             },
 
             subMenu: {
-                root: newDiv("player_submenu_root"),
+                root: newDiv(null, "player_menu_root"),
 
                 selected: {
-                    button: null,
-                    bottom: null,
+                    tab: null,
+                    view: null,
                     track:  null,
                 },
 
@@ -346,7 +346,7 @@ class Internals {
             },
 
             settings: {
-                root: newDiv("player_settings_root"),
+                root: newDiv(null, "player_menu_root"),
             }
         };
 
@@ -1336,10 +1336,10 @@ class Internals {
 
         track.onclick = _event => {
             if (menu.selected.track) {
-                menu.selected.track.classList.remove("player_submenu_selected");
+                menu.selected.track.classList.remove("subtitle_track_selected");
             }
 
-            track.classList.add("player_submenu_selected");
+            track.classList.add("subtitle_track_selected");
             menu.selected.track = track;
 
             this.switchSubtitleTrack(index);
@@ -1360,15 +1360,15 @@ class Internals {
         let playerRoot     = this.htmlPlayerRoot;
         let menu           = this.htmlControls.subMenu;
         let menuRoot       = menu.root;
-        let menuTop        = newDiv("player_submenu_top");
-        let menuBottom     = newDiv("player_submenu_bottom");
-        let selectTab      = newDiv(null, "player_submenu_top_button");
-        let searchTab      = newDiv(null, "player_submenu_top_button");
-        let optionsTab     = newDiv(null, "player_submenu_top_button");
-        let selectView     = newDiv("player_submenu_bottom_select");
+        let menuTabs       = newDiv(null, "player_menu_tabs");
+        let menuViews      = newDiv(null, "player_menu_views");
+        let selectTab      = newDiv(null, "player_menu_tab");
+        let searchTab      = newDiv(null, "player_menu_tab");
+        let optionsTab     = newDiv(null, "player_menu_tab");
+        let selectView     = newDiv("player_submenu_select_view");
         let toggleBox      = newDiv(null, "player_submenu_box");
         let subsSwitch     = this.subsSwitcher
-        let searchView     = newDiv("player_submenu_bottom_search");
+        let searchView     = newDiv("player_submenu_search_view");
         let subtitleImport = newElement("input", "player_submenu_import");
         let optionsView    = newDiv("player_submenu_bottom_options");
         let subsShift      = new Slider("Subtitle shift", -10, 10, 0.1, 0, "s", true);
@@ -1392,24 +1392,24 @@ class Internals {
         subsForegroundPicker.type = "color";
         subsForegroundPicker.value = "white";
 
-        menu.selected.button = selectTab;
-        menu.selected.bottom = selectView;
+        menu.selected.tab = selectTab;
+        menu.selected.view = selectView;
 
-        menu.selected.button.classList.add("player_submenu_selected");
-        menu.selected.bottom.style.display = "";
+        menu.selected.tab.classList.add("player_menu_tab_selected");
+        menu.selected.view.style.display = "";
 
         menuRoot.onclick = consumeClick;
 
         let select = (tab, view) => {
             let selected = this.htmlControls.subMenu.selected;
-            selected.button.classList.remove("player_submenu_selected");
-            hideElement(selected.bottom)
+            selected.tab.classList.remove("player_menu_tab_selected");
+            hideElement(selected.view)
 
-            selected.button = tab
-            selected.bottom = view;
+            selected.tab = tab
+            selected.view = view;
 
-            selected.button.classList.add("player_submenu_selected");
-            selected.bottom.style.display = "";
+            selected.tab.classList.add("player_menu_tab_selected");
+            selected.view.style.display = "";
         }
 
         selectTab.onclick  = () => select(selectTab, selectView);
@@ -1459,22 +1459,22 @@ class Internals {
         }
 
         playerRoot.append(menuRoot); {
-            menuRoot.append(menuTop); {
-                menuTop.append(selectTab);
-                menuTop.append(searchTab);
-                menuTop.append(optionsTab);
+            menuRoot.append(menuTabs); {
+                menuTabs.append(selectTab);
+                menuTabs.append(searchTab);
+                menuTabs.append(optionsTab);
             }
-            menuRoot.append(menuBottom); {
-                menuBottom.append(selectView); {
+            menuRoot.append(menuViews); {
+                menuViews.append(selectView); {
                     selectView.append(toggleBox); {
                         toggleBox.append(subsSwitch.toggleRoot);
                     }
                     selectView.append(menu.trackList);
                 }
-                menuBottom.append(searchView); {
+                menuViews.append(searchView); {
                     searchView.append(subtitleImport)
                 }
-                menuBottom.append(optionsView); {
+                menuViews.append(optionsView); {
                     optionsView.append(subsShift.root);
                     optionsView.append(subsSize.root);
                     optionsView.append(subsVerticalPosition.root);
