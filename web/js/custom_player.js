@@ -1537,6 +1537,7 @@ class Internals {
         let appearanceView = newDiv("player_submenu_select_view");
         let autohide       = new Switcher("Auto-hide controls");
         let showOnPause    = new Switcher("Show controls on pause", );
+        let playbackSpeed  = new Slider("Playback speed", 0.25, 5.0, 0.25, 1.0, "x");
 
         hideElement(menuRoot);
         autohide.setState(!this.options.disableControlsAutoHide);
@@ -1587,6 +1588,7 @@ class Internals {
                 menuViews.append(generalView); {
                     generalView.append(autohide.toggleRoot);
                     generalView.append(showOnPause.toggleRoot);
+                    generalView.append(playbackSpeed.root);
                 }
                 menuViews.append(appearanceView);
             }
