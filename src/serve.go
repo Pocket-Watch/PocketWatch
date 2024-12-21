@@ -113,7 +113,6 @@ type User struct {
 	Username    string `json:"username"`
 	Avatar      string `json:"avatar"`
 	Online      bool   `json:"online"`
-	Placeholder uint64 `json:"connections"`
 	connections uint64
 	token       string
 	created     time.Time
