@@ -261,6 +261,7 @@ class Internals {
             volume_low:       "svg/player_icons.svg#volume_low",
             volume_muted:     "svg/player_icons.svg#volume_muted",
             download:         "svg/player_icons.svg#download",
+            speed:            "svg/player_icons.svg#speed",
             autoplay:         "svg/player_icons.svg#autoplay",
             subs:             "svg/player_icons.svg#subs",
             settings:         "svg/player_icons.svg#settings",
@@ -279,6 +280,7 @@ class Internals {
             loop:       Svg.new(this.icons.loop),
             volume:     Svg.new(this.icons.volume_full),
             download:   Svg.new(this.icons.download),
+            speed:      Svg.new(this.icons.speed),
             autoplay:   Svg.new(this.icons.autoplay),
             subs:       Svg.new(this.icons.subs),
             settings:   Svg.new(this.icons.settings),
@@ -322,6 +324,7 @@ class Internals {
                 loopButton:       newDiv(null, "player_controls_button"),
                 volumeButton:     newDiv(null, "player_controls_button"),
                 downloadButton:   newDiv(null, "player_controls_button"),
+                speedButton:      newDiv(null, "player_controls_button"),
                 autoplayButton:   newDiv(null, "player_controls_button"),
                 subsButton:       newDiv(null, "player_controls_button"),
                 settingsButton:   newDiv(null, "player_controls_button"),
@@ -952,6 +955,17 @@ class Internals {
             }
         });
 
+        this.htmlControls.buttons.speedButton.addEventListener("click", () => {
+            // https://developer.mozilla.org/en-US/docs/Web/Media/Audio_and_video_delivery/WebAudio_playbackRate_explained
+            // The recommended range is [0.5 - 4.0]
+            let newSpeed = this.htmlVideo.playbackRate + 0.25;
+            if (newSpeed > 2.5) {
+                newSpeed = 1;
+            }
+            this.htmlVideo.playbackRate = newSpeed;
+            this.setToast("Speed: " + newSpeed)
+        });
+
         this.htmlControls.buttons.subsButton.addEventListener("click", () => {
             hideElement(this.htmlControls.settings.root);
 
@@ -1219,6 +1233,7 @@ class Internals {
         let timestamp        = this.htmlControls.buttons.timestamp;
         let spacer           = newDiv("player_spacer");
         let downloadButton   = this.htmlControls.buttons.downloadButton;
+        let speedButton                     = this.htmlControls.buttons.speedButton;
         let autoplayButton   = this.htmlControls.buttons.autoplayButton;
         let subsButton       = this.htmlControls.buttons.subsButton;
         let settingsButton   = this.htmlControls.buttons.settingsButton;
@@ -1238,6 +1253,7 @@ class Internals {
         timestamp.textContent = "00:00 / 00:00";
 
         downloadButton.title   = "Download";
+        speedButton.title      = "Playback speed";
         autoplayButton.title   = "Autoplay";
         subsButton.title       = "Subtitles";
         settingsButton.title   = "Settings";
@@ -1250,6 +1266,7 @@ class Internals {
         if (this.options.hideVolumeSlider)     hideElement(volumeRoot)
         if (this.options.hideTimestamps)       hideElement(timestamp);
         if (this.options.hideDownloadButton)   hideElement(downloadButton);
+        if (this.options.hideSpeedButton)      hideElement(speedButton);
         if (this.options.hideAutoplayButton)   hideElement(autoplayButton);
         if (this.options.hideSubtitlesButton)  hideElement(subsButton);
         if (this.options.hideSettingsButton)   hideElement(settingsButton);
@@ -1283,6 +1300,10 @@ class Internals {
 
             buttonsRoot.append(downloadButton); {
                 downloadButton.appendChild(svgs.download.svg);
+            }
+
+            buttonsRoot.append(speedButton); {
+                speedButton.appendChild(svgs.speed.svg);
             }
 
             buttonsRoot.append(autoplayButton); {
@@ -1833,16 +1854,17 @@ function isMobileAgent() {
 // This is a separate class for more clarity
 class Options {
     constructor() {
-        this.hidePlaybackButton = false;
-        this.hideNextButton = false;
-        this.hideLoopingButton = false;
-        this.hideVolumeButton = false;
-        this.hideVolumeSlider = false;
-        this.hideTimestamps = false;
-        this.hideDownloadButton = false;
-        this.hideAutoplayButton = false;
-        this.hideSubtitlesButton = false;
-        this.hideSettingsButton = false;
+        this.hidePlaybackButton   = false;
+        this.hideNextButton       = false;
+        this.hideLoopingButton    = false;
+        this.hideVolumeButton     = false;
+        this.hideVolumeSlider     = false;
+        this.hideTimestamps       = false;
+        this.hideDownloadButton   = false;
+        this.hideSpeedButton      = false;
+        this.hideAutoplayButton   = false;
+        this.hideSubtitlesButton  = false;
+        this.hideSettingsButton   = false;
         this.hideFullscreenButton = false;
 
         this.doubleTapThresholdMs = 300;
@@ -1859,7 +1881,6 @@ class Options {
         this.showControlsOnPause = true;
 
         this.bufferingRedrawInterval = 1000;
-
     }
 
     // Ensure values are the intended type and within some reasonable range
@@ -1868,6 +1889,9 @@ class Options {
             return false;
         }
         if (typeof this.inactivityTime !== "number" || this.inactivityTime < 0) {
+            return false;
+        }
+        if (typeof this.bufferingRedrawInterval !== "number") {
             return false;
         }
         if (
@@ -1879,6 +1903,7 @@ class Options {
                 this.hideVolumeSlider,
                 this.hideTimestamps,
                 this.hideDownloadButton,
+                this.hideSpeedButton,
                 this.hideSubtitlesButton,
                 this.hideSettingsButton,
                 this.hideFullscreenButton,

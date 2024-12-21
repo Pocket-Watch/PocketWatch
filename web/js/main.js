@@ -1,4 +1,4 @@
-import { Player } from "./custom_player.js"
+import {Options, Player} from "./custom_player.js"
 import { Playlist } from "./playlist.js"
 import * as api from "./api.js";
 import { getById, div, a, span, img, svg, button } from "./util.js";
@@ -8,7 +8,9 @@ const SERVER_ID = 0;
 class Room {
     constructor() {
         let video0 = getById("video0");
-        this.player = new Player(video0);
+        let options = new Options();
+        options.hideSpeedButton = true;
+        this.player = new Player(video0, options);
         this.playlist = new Playlist();
 
         this.urlArea = {
