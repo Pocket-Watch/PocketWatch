@@ -63,7 +63,7 @@ Additionally, to have your domain verified you can use a free certificate author
 ## Problems with the standard subtitle API
 >It is terrible
 
-* **The performance of hiding or showing a track is astonishingly horrible**
+* **The performance of hiding or showing a track is astonishingly horrible in Firefox**
     * hiding a track with `3000 cues` on a modern CPU takes about `3000 ms` causing UI to be unresponsive
     * when a track is shown it takes roughly the same amount of time it took to hide it
 <br><br>
