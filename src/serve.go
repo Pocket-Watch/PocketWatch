@@ -208,7 +208,7 @@ func (conns *Connections) remove(id uint64) {
 type PlayerGetResponseData struct {
 	Player    PlayerState `json:"player"`
 	Entry     Entry       `json:"entry"`
-	Subtitles []string    `json:"subtitles"`
+	// Subtitles []string    `json:"subtitles"`
 }
 
 type SyncRequestData struct {
@@ -588,7 +588,7 @@ func apiPlayerGet(w http.ResponseWriter, r *http.Request) {
 	getEvent := PlayerGetResponseData{
 		Player:    state.player,
 		Entry:     state.entry,
-		Subtitles: getSubtitles(),
+		// Subtitles: getSubtitles(),
 	}
 	state.mutex.RUnlock()
 
