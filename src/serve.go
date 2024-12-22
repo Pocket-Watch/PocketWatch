@@ -206,8 +206,8 @@ func (conns *Connections) remove(id uint64) {
 }
 
 type PlayerGetResponseData struct {
-	Player    PlayerState `json:"player"`
-	Entry     Entry       `json:"entry"`
+	Player PlayerState `json:"player"`
+	Entry  Entry       `json:"entry"`
 	// Subtitles []string    `json:"subtitles"`
 }
 
@@ -586,8 +586,8 @@ func apiPlayerGet(w http.ResponseWriter, r *http.Request) {
 
 	state.mutex.RLock()
 	getEvent := PlayerGetResponseData{
-		Player:    state.player,
-		Entry:     state.entry,
+		Player: state.player,
+		Entry:  state.entry,
 		// Subtitles: getSubtitles(),
 	}
 	state.mutex.RUnlock()
@@ -1349,21 +1349,21 @@ func setupHlsProxy(url string, referer string) bool {
 		originalMasterPlaylist := m3u.copy()
 		m3u.prefixRelativeTracks(prefix)
 		LogInfo("User provided a master playlist. The best track will be chosen based on quality.")
-		track := m3u.getBestTrack()
-		if track == nil {
-			track = &m3u.tracks[0]
+		bestTrack := m3u.getBestTrack()
+		if bestTrack == nil {
+			bestTrack = &m3u.tracks[0]
 		}
-		m3u, err = downloadM3U(track.url, WEB_PROXY+ORIGINAL_M3U8, referer)
+		m3u, err = downloadM3U(bestTrack.url, WEB_PROXY+ORIGINAL_M3U8, referer)
 		var downloadErr *DownloadError
 		if errors.As(err, &downloadErr) && downloadErr.Code == 404 {
 			// Hacky trick for relative non-compliant m3u8's 💩
 			domain := getRootDomain(parsedUrl)
 			originalMasterPlaylist.prefixRelativeTracks(domain)
-			track = originalMasterPlaylist.getBestTrack()
-			if track == nil {
-				track = &originalMasterPlaylist.tracks[0]
+			bestTrack = originalMasterPlaylist.getBestTrack()
+			if bestTrack == nil {
+				bestTrack = &originalMasterPlaylist.tracks[0]
 			}
-			m3u, err = downloadM3U(track.url, WEB_PROXY+ORIGINAL_M3U8, referer)
+			m3u, err = downloadM3U(bestTrack.url, WEB_PROXY+ORIGINAL_M3U8, referer)
 			if err != nil {
 				LogError("Fallback failed :( %v", err.Error())
 				return false
@@ -1372,6 +1372,13 @@ func setupHlsProxy(url string, referer string) bool {
 			LogError("Failed to fetch track from master playlist: %v", err.Error())
 			return false
 		}
+		// Refreshing the prefix in case the newly assembled track consists of 2 or more components
+		parsedUrl, err := net_url.Parse(bestTrack.url)
+		if err != nil {
+			LogError("Failed to parse URL from the best track, likely the segment is invalid: %v", err.Error())
+			return false
+		}
+		prefix = stripLastSegment(parsedUrl)
 	}
 	// At this point it either succeeded or it already returned
 
