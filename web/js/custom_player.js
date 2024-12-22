@@ -236,8 +236,8 @@ class Internals {
         this.htmlPlayerRoot.appendChild(this.htmlVideo);
 
         // TODO: Find a way to apply the styling for cues only from this player instance
-        this.subtitleSheet = this.createSubtitleStyleSheet(seed);
-        this.cueRule = this.subtitleSheet.cssRules[0];
+        /*this.subtitleSheet = this.createSubtitleStyleSheet(seed);
+        this.cueRule = this.subtitleSheet.cssRules[0];*/
 
         this.htmlTitleContainer = newDiv("player_title_container");
         hideElement(this.htmlTitleContainer);
@@ -747,7 +747,9 @@ class Internals {
         let current = this.selectedSubtitleIndex;
 
         if (0 <= current && current < textTracks.length) {
+            let hideBegin = performance.now();
             textTracks[current].mode = "hidden";
+            console.debug("Hiding", textTracks[current].label, "took", performance.now()-hideBegin, "ms")
         }
         if (index < 0 || textTracks.length <= index) {
             return;
@@ -757,7 +759,9 @@ class Internals {
 
         let switcher = this.htmlControls.subMenu.subsSwitcher;
         if (switcher.enabled) {
+            let showBegin = performance.now();
             textTracks[index].mode = "showing";
+            console.debug("Showing", textTracks[index].label, "took", performance.now()-showBegin, "ms")
         }
     }
 

@@ -63,6 +63,11 @@ Additionally, to have your domain verified you can use a free certificate author
 ## Problems with the standard subtitle API
 >It is terrible
 
+* **The performance of hiding or showing a track is astonishingly horrible**
+    * hiding a track with `3000 cues` on a modern CPU takes about `3000 ms` causing UI to be unresponsive
+    * when a track is shown it takes roughly the same amount of time it took to hide it
+<br><br>
+
 * **Inconsistent styling across browsers**
     * bouncy `VTTCue.line` setting on Firefox (does bound checks, ensuring cue stays within view)
     * changing `style.fontSize` in CSS rule may easily cause subtitles to go out of view on Firefox
@@ -84,4 +89,3 @@ Additionally, to have your domain verified you can use a free certificate author
     * every cue must be shifted in a shift-dependent order otherwise, the cues are instantly reordered
     * some subtitle languages (with 1000+ cues) cause dramatic performance drops during shifting
     * cues on Firefox often stack (pile on top of each other) after shifting and stay on screen after end time
-
