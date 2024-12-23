@@ -1,5 +1,6 @@
 html {
-    background-color: #1d2021
+    background-color: #1d2021;
+    padding: 8px;
 }
 
 @font-face {
