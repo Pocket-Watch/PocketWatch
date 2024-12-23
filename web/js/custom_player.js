@@ -851,7 +851,7 @@ class Internals {
     }
 
     hidePlayerUI() {
-        if (this.options.disableControlsAutoHide) {
+        if (!this.options.autohideControls) {
             return;
         }
 
@@ -1544,7 +1544,7 @@ class Internals {
         let playbackSpeed  = new Slider("Playback speed", 0.25, 5.0, 0.25, 1.0, "x");
 
         hideElement(menuRoot);
-        autohide.setState(!this.options.disableControlsAutoHide);
+        autohide.setState(this.options.autohideControls);
         showOnPause.setState(this.options.showControlsOnPause);
 
         generalTab.textContent    = "General";
@@ -1576,7 +1576,7 @@ class Internals {
         menuRoot.onclick = consumeClick;
 
         autohide.addAction(state => {
-            this.options.disableControlsAutoHide = !state;
+            this.options.autohideControls = state;
         });
 
         showOnPause.addAction(state => {
@@ -1946,7 +1946,7 @@ class Options {
         this.inactivityTime = 2500;
 
         // Disable the auto hide for player controls.
-        this.disableControlsAutoHide = false;
+        this.autohideControls = true;
         this.showControlsOnPause = true;
 
         this.bufferingRedrawInterval = 1000;
