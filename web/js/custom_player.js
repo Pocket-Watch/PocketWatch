@@ -371,11 +371,11 @@ class Internals {
         this.volumeBeforeMute = 0.0;
         this.selectedSubtitleIndex = -1;
 
-        this.htmlSeekForward = newDiv("player_forward_container");
+        this.htmlSeekForward = newDiv("player_forward_container", "unselectable");
         this.htmlSeekForward.appendChild(this.svgs.seekForward.svg);
         this.htmlPlayerRoot.appendChild(this.htmlSeekForward);
 
-        this.htmlSeekBackward = newDiv("player_backward_container");
+        this.htmlSeekBackward = newDiv("player_backward_container", "unselectable");
         this.htmlSeekBackward.appendChild(this.svgs.seekBackward.svg);
         this.htmlPlayerRoot.appendChild(this.htmlSeekBackward);
 

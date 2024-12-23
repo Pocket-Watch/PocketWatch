@@ -93,6 +93,15 @@ class Room {
 
         /// Id of the currently set entry.
         this.currentEntryId = 0;
+
+        this.applyUserPreferences();
+    }
+
+    applyUserPreferences() {
+        let volume = localStorage.getItem("volume");
+        if (volume != null) {
+            this.player.setVolume(volume);
+        }
     }
 
     attachPlayerEvents() {
@@ -129,6 +138,11 @@ class Room {
         this.player.onControlsAutoplay(enabled => {
             api.playerAutoplay(enabled);
         });
+
+        this.player.onControlsVolumeSet(volume => {
+            // Maybe browsers optimize calls to localStorage and don't write to disk 30 times a second?
+            localStorage.setItem("volume", volume)
+        })
 
         this.player.onPlaybackEnd(() => {
             if (this.player.getAutoplay()) {
