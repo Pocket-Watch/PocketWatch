@@ -82,7 +82,8 @@ Additionally, to have your domain verified you can use a free certificate author
         * `VTTCue.snapToLines` - where `false` causes `VTTCue.line` to be interpreted as a % of the video size.
         * `VTTCue.size` - size as a % of the video size (yet it does not change the font size)
     * `video.addTextTrack` method must be used in Chromium otherwise, manually adding cues will have no effect
-    * no canonical method for adding `TextTrack` from url
+    * no canonical method for adding `TextTrack` from url, `<track>` element must be created and appended to `<video>`
+    * `textTracks` don't maintain order if a track is appended internally (index corresponds to its position as a `<track>`)
 <br><br>
 
 * **No standardized approach to shifting causing inefficient solutions**
