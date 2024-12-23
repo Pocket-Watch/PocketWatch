@@ -47,10 +47,16 @@ table {
     border-spacing: 0;
 }
 
-button, input {
+
+input {
     border: 0;
     border-radius: 0;
     min-width: 0;
+}
+
+button {
+    border: 0;
+    border-radius: 0;
 }
 
 *:focus {
