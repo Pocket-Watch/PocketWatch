@@ -1741,20 +1741,43 @@ class Switcher {
     }
 }
 
+class Cue {
+    constructor(start, end, text) {
+        this.startTime = start;
+        this.startTime = end;
+        this.text = text;
+        this.sanitized = false;
+    }
+    // if (!cue.sanitized) { cue.text = sanitizeHTMLForDisplay(cue.text); cue.sanitized = true; }
+}
+
+// It's possible to attach inlined events to styling tags
+function removeInlinedEvents(tag) {
+    let attributes = tag.attributes;
+    for (let i = 0; i < attributes.length; i++) {
+        let attrib = attributes[i];
+        if (attrib.name.indexOf("on") === 0) {
+            tag.removeAttribute(attrib.name);
+            console.warn("Removed", attrib.name, "during events sanitization.")
+        }
+    }
+}
+
 const ALLOWED_STYLE_TAGS = ["i", "b", "u", "ruby", "rt", "c", "v", "lang"]
 export function sanitizeHTMLForDisplay(html) {
     let sandbox = document.createElement("div");
     sandbox.innerHTML = html;
-    sanitizeTag(sandbox);
+    sanitizeChildren(sandbox);
     return sandbox.innerHTML;
 }
 
-function sanitizeTag(tag) {
+function sanitizeChildren(tag) {
     for (let i = 0; i < tag.children.length; i++) {
         let child = tag.children[i];
         let name = child.tagName.toLowerCase();
         if (ALLOWED_STYLE_TAGS.includes(name)) {
-            sanitizeTag(child);
+            removeInlinedEvents(child);
+            sanitizeChildren(child);
             continue;
         }
         console.warn("Removed", name, "during sanitization.")
