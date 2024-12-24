@@ -1772,12 +1772,14 @@ export function sanitizeHTMLForDisplay(html) {
     return sandbox.innerHTML;
 }
 
+// CSS injections through style attribute: <b style="background: url(https://example.com)">Bold url</b>
 function sanitizeChildren(tag) {
     for (let i = 0; i < tag.children.length; i++) {
         let child = tag.children[i];
         let name = child.tagName.toLowerCase();
         if (ALLOWED_STYLE_TAGS.includes(name)) {
             removeInlinedEvents(child);
+            child.removeAttribute("style");
             sanitizeChildren(child);
             continue;
         }
@@ -1984,6 +1986,7 @@ class Options {
 
         this.doubleTapThresholdMs = 300;
         this.enableDoubleTapSeek = isMobileAgent();
+        this.sanitizeSubtitles = true;
 
         // [Arrow keys/Double tap] seeking offset provided in seconds.
         this.seekBy = 5;
