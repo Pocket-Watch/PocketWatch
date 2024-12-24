@@ -1600,7 +1600,7 @@ class Internals {
     }
 }
 
-class TrackInfo {
+export class TrackInfo {
     constructor(filename, extension) {
         this.filename = filename;
         this.extension = extension;
@@ -1764,9 +1764,10 @@ function removeInlinedEvents(tag) {
 }
 
 const ALLOWED_STYLE_TAGS = ["i", "b", "u", "ruby", "rt", "c", "v", "lang"]
+const PARSER = new DOMParser();
 export function sanitizeHTMLForDisplay(html) {
-    let sandbox = document.createElement("div");
-    sandbox.innerHTML = html;
+    // Using a temporary element or document fragment preloads <img> tags causing onload to fire
+    let sandbox = PARSER.parseFromString(html, "text/html").body;
     sanitizeChildren(sandbox);
     return sandbox.innerHTML;
 }
