@@ -1741,43 +1741,26 @@ class Switcher {
     }
 }
 
-function eraseRange(str, start, end) {
-    return str.substring(0, start) + str.substring(end);
+const ALLOWED_STYLE_TAGS = ["i", "b", "u", "ruby", "rt", "c", "v", "lang"]
+export function sanitizeHTMLForDisplay(html) {
+    let sandbox = document.createElement("div");
+    sandbox.innerHTML = html;
+    sanitizeTag(sandbox);
+    return sandbox.innerHTML;
 }
 
-// HTML tag names must consist only of alphanumeric ASCII characters
-const alphanumericAsciiRegex = /^[A-Za-z0-9]*$/
-
-// Let's not support <c> <v> <lang> for now because they're problematic and rarely used
-const ALLOWED_STYLE_TAGS = ["i", "b", "u", "ruby", "rt"]
-export function sanitizeHTMLForDisplay(html) {
-    let len = html.length;
-    for (let i = 0; i < len - 1; i++) {
-        if (html[i] !== "<") {
-            continue;
-        }
-        let tagNameSt = i+1;
-        let closed = html.indexOf(">", tagNameSt);
-        if (closed === -1) {
-            return html;
-        }
-        if (html[tagNameSt] === "/") {
-            tagNameSt++;
-        }
-        let name = html.substring(tagNameSt, closed).trim();
-        if (!alphanumericAsciiRegex.test(name)) {
-            console.warn("Invalid tag found", name)
-            continue;
-        }
-        // By one mistakes are expected here (TODO)
+function sanitizeTag(tag) {
+    for (let i = 0; i < tag.children.length; i++) {
+        let child = tag.children[i];
+        let name = child.tagName.toLowerCase();
         if (ALLOWED_STYLE_TAGS.includes(name)) {
-            i = closed;
-        } else {
-            html = eraseRange(html, i, closed + 1);
-            i--;
+            sanitizeTag(child);
+            continue;
         }
+        console.warn("Removed", name, "during sanitization.")
+        tag.removeChild(child);
+        i--;
     }
-    return html;
 }
 
 function createTimestampString(timestamp) {
