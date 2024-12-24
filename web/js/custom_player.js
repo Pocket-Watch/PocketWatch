@@ -1741,6 +1741,45 @@ class Switcher {
     }
 }
 
+function eraseRange(str, start, end) {
+    return str.substring(0, start) + str.substring(end);
+}
+
+// HTML tag names must consist only of alphanumeric ASCII characters
+const alphanumericAsciiRegex = /^[A-Za-z0-9]*$/
+
+// Let's not support <c> <v> <lang> for now because they're problematic and rarely used
+const ALLOWED_STYLE_TAGS = ["i", "b", "u", "ruby", "rt"]
+export function sanitizeHTMLForDisplay(html) {
+    let len = html.length;
+    for (let i = 0; i < len - 1; i++) {
+        if (html[i] !== "<") {
+            continue;
+        }
+        let tagNameSt = i+1;
+        let closed = html.indexOf(">", tagNameSt);
+        if (closed === -1) {
+            return html;
+        }
+        if (html[tagNameSt] === "/") {
+            tagNameSt++;
+        }
+        let name = html.substring(tagNameSt, closed).trim();
+        if (!alphanumericAsciiRegex.test(name)) {
+            console.warn("Invalid tag found", name)
+            continue;
+        }
+        // By one mistakes are expected here (TODO)
+        if (ALLOWED_STYLE_TAGS.includes(name)) {
+            i = closed;
+        } else {
+            html = eraseRange(html, i, closed + 1);
+            i--;
+        }
+    }
+    return html;
+}
+
 function createTimestampString(timestamp) {
     if (!timestamp) {
         timestamp = 0.0;
