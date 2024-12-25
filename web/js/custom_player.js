@@ -236,8 +236,8 @@ class Internals {
         this.htmlPlayerRoot.appendChild(this.htmlVideo);
 
         // TODO: Find a way to apply the styling for cues only from this player instance
-        /*this.subtitleSheet = this.createSubtitleStyleSheet(seed);
-        this.cueRule = this.subtitleSheet.cssRules[0];*/
+        this.subtitleSheet = this.createSubtitleStyleSheet(seed);
+        this.cueRule = this.subtitleSheet.cssRules[0];
 
         this.htmlTitleContainer = newDiv("player_title_container");
         hideElement(this.htmlTitleContainer);
@@ -1744,11 +1744,26 @@ class Switcher {
 class Cue {
     constructor(start, end, text) {
         this.startTime = start;
-        this.startTime = end;
+        this.endTime = end;
         this.text = text;
         this.sanitized = false;
     }
     // if (!cue.sanitized) { cue.text = sanitizeHTMLForDisplay(cue.text); cue.sanitized = true; }
+}
+// TODO Return the index of the cue whereabouts
+function binarySearchForCue(time, cues) {
+    let left = 0, right = cues.length - 1;
+    while (left <= right) {
+        let mid = (left + right) / 2;
+        if (cues[mid].startTime < time) {
+            left = mid + 1;
+        } else if(cues[mid].startTime > time) {
+            right = mid - 1;
+        } else {
+            return mid;
+        }
+    }
+    return (left + right) / 2;
 }
 
 // It's possible to attach inlined events to styling tags
