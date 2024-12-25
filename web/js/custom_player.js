@@ -1750,11 +1750,12 @@ class Cue {
     }
     // if (!cue.sanitized) { cue.text = sanitizeHTMLForDisplay(cue.text); cue.sanitized = true; }
 }
-// TODO Return the index of the cue whereabouts
+
+// Return the cue that should be shown based on startTime only
 function binarySearchForCue(time, cues) {
     let left = 0, right = cues.length - 1;
     while (left <= right) {
-        let mid = (left + right) / 2;
+        let mid = ((left + right) / 2) | 0;
         if (cues[mid].startTime < time) {
             left = mid + 1;
         } else if(cues[mid].startTime > time) {
@@ -1763,7 +1764,18 @@ function binarySearchForCue(time, cues) {
             return mid;
         }
     }
-    return (left + right) / 2;
+    return ((left + right) / 2) | 0
+}
+
+// Return the cue that should be shown based on startTime only
+function linearCueSearch(time, cues) {
+    let len = cues.length;
+    for (let i = 0; i < len; i++) {
+        if (cues[i].startTime < time) {
+            continue;
+        }
+        return i-1;
+    }
 }
 
 // It's possible to attach inlined events to styling tags
