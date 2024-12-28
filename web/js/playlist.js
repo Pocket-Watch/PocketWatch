@@ -118,42 +118,59 @@ class Playlist {
         // Setting html elements content.
         //
         entryDragArea.textContent = "☰";
-        entryDragArea.draggable = true;
+        // entryDragArea.draggable = true;
 
         //
         // Attaching events to html elements.
         //
-        entryRoot.ondragover = event => { 
-            if (!this.isDraggingEntry) {
-                return;
-            }
 
-            this.dragEntryEnd = entryRoot;
-            // console.log("Drag over event", event, "with", event.target, "but the root is", entryRoot);
+        entryRoot.ontouchstart = _ => {};
+        entryDragArea.onmousedown = _ => {
+            let onDragging = _ => {
+                console.log("Is dragging or something like that");
+            };
+
+            let onDraggingStop = _ => {
+                document.removeEventListener("mousemove", onDragging);
+                document.removeEventListener("mouseup",   onDraggingStop);
+            };
+
+            document.addEventListener("mousemove", onDragging);
+            document.addEventListener("mouseup",   onDraggingStop);
         };
 
-        entryDragArea.ondragstart = event => {
-            // console.log("Drag start", event.target)
-            this.isDraggingEntry = true;
-            this.dragEntryStart = entryRoot;
-            this.dragEntryEnd   = entryRoot;
-        };
-
-        entryDragArea.ondragend = () => { 
-            if (!this.isDraggingEntry) {
-                return;
-            }
-
-            this.isDraggingEntry = false;
-
-            if (this.dragEntryStart === this.dragEntryEnd) {
-                return;
-            }
-
-            let startIndex = this.htmlEntries.findIndex(item => item === this.dragEntryStart);
-            let endIndex   = this.htmlEntries.findIndex(item => item === this.dragEntryEnd);
-            api.playlistMove(this.entries[startIndex].id, startIndex, endIndex);
-        };
+        // Old dragging code something.
+        // entryRoot.ondragover = event => { 
+        //     if (!this.isDraggingEntry) {
+        //         return;
+        //     }
+        //
+        //     this.dragEntryEnd = entryRoot;
+        //     // console.log("Drag over event", event, "with", event.target, "but the root is", entryRoot);
+        // };
+        //
+        // entryDragArea.ondragstart = event => {
+        //     // console.log("Drag start", event.target)
+        //     this.isDraggingEntry = true;
+        //     this.dragEntryStart = entryRoot;
+        //     this.dragEntryEnd   = entryRoot;
+        // };
+        //
+        // entryDragArea.ondragend = () => { 
+        //     if (!this.isDraggingEntry) {
+        //         return;
+        //     }
+        //
+        //     this.isDraggingEntry = false;
+        //
+        //     if (this.dragEntryStart === this.dragEntryEnd) {
+        //         return;
+        //     }
+        //
+        //     let startIndex = this.htmlEntries.findIndex(item => item === this.dragEntryStart);
+        //     let endIndex   = this.htmlEntries.findIndex(item => item === this.dragEntryEnd);
+        //     api.playlistMove(this.entries[startIndex].id, startIndex, endIndex);
+        // };
 
 
         editButton.onclick = () => {

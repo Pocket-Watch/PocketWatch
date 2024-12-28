@@ -330,7 +330,7 @@ html * {
 
 #users_area {
     width: calc(100% - 60px);
-    height: 150px;
+    height: 168px;
     /* border: 2px solid #a89984; */
     border-radius: 8px;
     box-shadow: 2px 2px 4px 0px #1d2021;
@@ -359,17 +359,17 @@ html * {
     overflow-x: hidden;
 }
 
-
 .user_box {
     /* height: calc(100% - 4px); */
-    height: calc(100% - 4px);
+    height: calc(86% - 4px);
     aspect-ratio: 1.0;
     border-radius: 8px;
     border: 2px solid #a89984;
     /* tabindex: -1; */
     /* margin-top: 1em; */
-    background-color: #504945;
+    /* background-color: #504945; */
     overflow: hidden;
+    z-index: 0;
 }
 
 .user_box_top {
@@ -551,7 +551,7 @@ html * {
     border-radius: 6px;
     display: flex;
     margin-left: auto;
-    margin-top: 36px;
+    margin-top: 50px;
     align-items: center;
     justify-content: center;
     background-color: #3c3836;

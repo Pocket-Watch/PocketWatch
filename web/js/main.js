@@ -414,6 +414,18 @@ class Room {
         }
 
         if (user.id == this.currentUser.id) {
+            // NOTE(kihau): Temporary. The user box CSS styling and code logic will be slightly refactored.
+            // userBox.style.borderColor    = "#ebdbb2";
+            // userBoxTop.style.borderColor = "#ebdbb2";
+
+            // userBox.style.borderColor    = "#b8bb26";
+            // userBoxTop.style.borderColor = "#b8bb26";
+
+            userBox.style.borderColor    = "#d5c4a1";
+            userBoxTop.style.borderColor = "#d5c4a1";
+            userBox.style.boxShadow      = "0px 0px 4px #fbf1cf inset"
+
+
             let changeAvatarButton = button("user_box_change_avatar", "Update your avatar");
             let editNameButton = button("user_box_edit_name_button", "Change your username");
             let editSvg = svg("svg/main_icons.svg#edit2");
