@@ -511,7 +511,7 @@ class Internals {
         if (freshCues.length === 0) {
             if (this.activeCues.length > 0) {
                 this.activeCues.length = 0;
-                // hideSubs()
+                // hideElement(subtitleContainer)
             }
             return;
         }
@@ -519,8 +519,17 @@ class Internals {
             return;
         }
 
+        let captionText = "";
+        if (this.options.allowCueOverlap) {
+            for (let i = 0; i < freshCues.length; i++) {
+                captionText += freshCues[i].text;
+            }
+        } else {
+            captionText = freshCues[freshCues.length - 1];
+        }
+
         this.activeCues = freshCues;
-        // renderCues();
+        // subtitleContainer.innerHTML = captionText;
         let timeTaken = performance.now() - perfStart;
         console.log("Time taken", timeTaken)
     }
