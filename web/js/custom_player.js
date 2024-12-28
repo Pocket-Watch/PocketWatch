@@ -210,7 +210,6 @@ function hideElement(element) {
 }
 
 class Internals {
-    static playerSeed = 1;
     constructor(videoElement, options) {
         let initStart = performance.now();
         this.options = options;
@@ -225,19 +224,14 @@ class Internals {
         this.htmlVideo.disablePictureInPicture = true;
         this.htmlVideo.controls = false;
 
-        let seed = Internals.playerSeed++;
         // Div container where either the player or the placeholder resides.
-        this.htmlPlayerRoot = newDiv(seed, "player_container");
+        this.htmlPlayerRoot = newDiv("player_container");
 
         // We actually need to append the <div> to document.body (or <video>'s parent)
         // otherwise the <video> tag will disappear entirely!
         let videoParent = this.htmlVideo.parentNode;
         videoParent.appendChild(this.htmlPlayerRoot);
         this.htmlPlayerRoot.appendChild(this.htmlVideo);
-
-        // TODO: Find a way to apply the styling for cues only from this player instance
-        this.subtitleSheet = this.createSubtitleStyleSheet(seed);
-        this.cueRule = this.subtitleSheet.cssRules[0];
 
         this.htmlTitleContainer = newDiv("player_title_container");
         hideElement(this.htmlTitleContainer);
@@ -374,6 +368,7 @@ class Internals {
         this.subtitles = [];
         this.selectedSubtitle = null;
         this.activeCues = [];
+
         this.subtitleOffset = 0.0;
 
         this.htmlSeekForward = newDiv("player_forward_container", "unselectable");
@@ -385,7 +380,7 @@ class Internals {
         this.htmlPlayerRoot.appendChild(this.htmlSeekBackward);
 
         this.subtitleContainer = newDiv("player_subtitle_container");
-        // this.subtitleContainer.style.visibility = "visible";"
+        // this.subtitleContainer.style.visibility = "visible";
         // this.subtitleContainer.innerHTML = "Lorem ipsum dolor sit amet, consectetur adipiscing elit.";
         this.htmlPlayerRoot.appendChild(this.subtitleContainer);
 
@@ -734,24 +729,25 @@ class Internals {
                 if (cues.length === 0) {
                     return
                 }
-                console.info("Parsed SRT track, cue count:", cues.length)
-                // addTextTrack must be used or otherwise track.cues.length will stay 0 on Chromium-based browsers
-                let newTrack = this.htmlVideo.addTextTrack("subtitles", trackInfo.filename);
-                let newIndex = this.htmlVideo.textTracks.length - 1;
-                newTrack.mode = "hidden";
-                cues.forEach(cue => {
-                    newTrack.addCue(cue);
-                });
 
+                console.info("Parsed SRT track, cue count:", cues.length)
+
+                // TODO(kihau): 
+                //     Replace the new index with the actual index or rework 
+                //     the createSubtitleTrackElement function itself.
+                let newIndex = -1;
                 if (show) {
                     this.enableSubtitleTrackAt(newIndex);
                 }
+
                 URL.revokeObjectURL(url)
-                this.fireSubtitleTrackLoad(newTrack);
+                this.fireSubtitleTrackLoad(null);
+
+                let htmlTrack = this.createSubtitleTrackElement(trackInfo.filename, newIndex);
 
                 let trackList = this.htmlControls.subMenu.trackList;
-                let htmlTrack = this.createSubtitleTrackElement(trackInfo.filename, newIndex);
                 trackList.appendChild(htmlTrack);
+
             });
     }
 
@@ -765,156 +761,45 @@ class Internals {
             return
         }
 
-        let track = document.createElement("track")
-        track.label = info.filename
-        track.kind = "subtitles"
-        track.src = url
-
-        // This will cause a new text track to appear in video.textTracks even if it's invalid
-        this.htmlVideo.appendChild(track)
-
-        let textTracks = this.htmlVideo.textTracks;
-        let newIndex = textTracks.length - 1;
-        let newTrack = textTracks[newIndex];
-        // By default, every track is appended in the 'disabled' mode which prevents any initialization
-        newTrack.mode = "hidden";
-        if (show) {
-            this.enableSubtitleTrackAt(newIndex);
-        }
-
-        // Although we cannot access cues immediately here (not loaded yet)
-        // we do have access to the textTrack so it's possible to change its mode
-        track.addEventListener("load", (event) => {
-            URL.revokeObjectURL(url)
-            this.fireSubtitleTrackLoad(event);
-            console.info("Text track loaded successfully", event.target)
-
-            let trackList = this.htmlControls.subMenu.trackList;
-            let htmlTrack = this.createSubtitleTrackElement(info.filename, newIndex);
-            trackList.appendChild(htmlTrack);
-        });
+        // TOOD(kihau): Load and parse VTT subtitle.
+        let newIndex = -1;
+        let htmlTrack = this.createSubtitleTrackElement(info.filename, newIndex);
+        let trackList = this.htmlControls.subMenu.trackList;
+        trackList.appendChild(htmlTrack);
     }
 
-    enableSubtitleTrackAt(index) {
-        let textTracks = this.htmlVideo.textTracks;
-        let previous = this.selectedSubtitleIndex;
-        if (previous !== index && 0 <= previous && previous < textTracks.length) {
-            textTracks[previous].mode = "hidden";
-        }
-        if (0 <= index && index < textTracks.length) {
-            textTracks[index].mode = "showing";
-            this.selectedSubtitleIndex = index;
-            this.htmlControls.subMenu.subsSwitcher.setState(true)
-        }
+    enableSubtitleTrackAt(placeholder) {
+        // TODO(kihau): Select current subtitle.
+        this.htmlControls.subMenu.subsSwitcher.setState(true)
     }
 
-    // INTERNAL ONLY: Switch subtitle track and respect the current visibility setting
-    switchSubtitleTrack(index) {
-        let textTracks = this.htmlVideo.textTracks;
-        let current = this.selectedSubtitleIndex;
-
-        if (0 <= current && current < textTracks.length) {
-            let hideBegin = performance.now();
-            textTracks[current].mode = "hidden";
-            console.debug("Hiding", textTracks[current].label, "took", performance.now()-hideBegin, "ms")
-        }
-        if (index < 0 || textTracks.length <= index) {
-            return;
-        }
-
-        this.selectedSubtitleIndex = index;
-
-        let switcher = this.htmlControls.subMenu.subsSwitcher;
-        if (switcher.enabled) {
-            let showBegin = performance.now();
-            textTracks[index].mode = "showing";
-            console.debug("Showing", textTracks[index].label, "took", performance.now()-showBegin, "ms")
-        }
+    switchSubtitleTrack(placeholder) {
+        // TODO(kihau): Switch subtitle thing.
     }
 
-    // Returns the number of cues shifted, it's possible to call this method when the cues are not yet loaded returning 0
     shiftCurrentSubtitleTrackBy(seconds) {
-        let index = this.selectedSubtitleIndex;
-        let textTracks = this.htmlVideo.textTracks;
-        if (index < 0 || index >= textTracks.length) {
-            return 0;
-        }
-
-        let track = textTracks[index];
-
-        let shifted = 0;
-        let cues = track.cues;
-        // Whenever cues timings are changed they're reordered by the runtime so they're always sorted increasingly
-        // This happens during iteration, as a result the same cue may be shifted twice and some cues are skipped entirely
-        if (seconds > 0) {
-            for (let i = cues.length - 1; i >= 0; i--) {
-                cues[i].endTime += seconds;
-                cues[i].startTime += seconds;
-                shifted++;
-            }
-        } else if (seconds < 0) {
-            for (let i = 0; i < cues.length; i++) {
-                cues[i].startTime += seconds;
-                cues[i].endTime += seconds;
-                shifted++;
-            }
-        }
-
-        return shifted;
+        // NOTE(kihau): This will shift currently selected subtitle instead of doing this globally for all of them.
+        this.subtitleOffset += seconds;
     }
 
     removeSubtitleTrackAt(index) {
-        let textTracks = this.htmlVideo.textTracks;
-        if (index < 0 || index >= textTracks.length) {
-            return;
-        }
-        textTracks[index].mode = "disabled";
-        let tracks = this.htmlVideo.getElementsByTagName("track");
-        this.htmlVideo.removeChild(tracks[index]);
-        // Index-tracking mechanism
-        if (index < this.selectedSubtitleIndex) {
-            this.selectedSubtitleIndex--;
-        }
-    }
-
-    createSubtitleStyleSheet(id) {
-        let style = document.createElement("style");
-        document.head.appendChild(style);
-        let subtitleSheet =  document.styleSheets[document.styleSheets.length - 1];
-        let rule = "div[id=\"" + id + "\"][class=\"player_container\"] ::cue {}";
-        subtitleSheet.insertRule(rule)
-        return subtitleSheet;
+        // TODO(kihau): Implement (with splice?).
     }
 
     setSubtitleFontSize(fontSize) {
         this.subtitleContainer.style.fontSize = fontSize + "px";
-        this.cueRule.style.fontSize = fontSize + "px";
     }
 
     setSubtitleForeground(color) {
         this.subtitleContainer.style.color = color;
-        this.cueRule.style.color = color;
     }
 
     setSubtitleBackground(color) {
         this.subtitleContainer.style.backgroundColor = color;
-        this.cueRule.style.backgroundColor = color;
     }
 
     setSubtitleVerticalPosition(percentage) {
         this.subtitleContainer.style.marginBottom = percentage + "%";
-
-        let track = this.htmlVideo.textTracks[this.selectedSubtitleIndex];
-        if (!track) {
-            return;
-        }
-
-        let cues = track.cues;
-        for (let i = 0; i < cues.length; i++) {
-            let cue = cues[i];
-            cue.snapToLines = false;
-            cue.line = percentage;
-        }
     }
 
     showPlayerUI() {
@@ -1552,15 +1437,6 @@ class Internals {
                 this.addSrtTrack(objectUrl, true, trackInfo)
             }
         };
-
-        subsSwitch.addAction(state => {
-            let textTracks = this.htmlVideo.textTracks;
-            let index = this.selectedSubtitleIndex;
-
-            if (0 <= index && index < textTracks.length) {
-                textTracks[index].mode = state ? "showing" : "hidden";
-            }
-        });
 
         let previousValue = 0.0;
         subsShift.onInput = value => {
