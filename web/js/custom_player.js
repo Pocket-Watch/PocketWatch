@@ -722,6 +722,7 @@ class Internals {
             trackInfo = TrackInfo.fromUrl(url)
         }
 
+        let perfStart = performance.now();
         fetch(url)
             .then(response => response.text())
             .then(srtText => parseSrt(srtText))
@@ -730,8 +731,8 @@ class Internals {
                     return
                 }
 
-                console.info("Parsed SRT track, cue count:", cues.length)
-
+                console.info("Parsed SRT track, cue count:", cues.length, "in", performance.now() - perfStart, "ms")
+                console.info(cues)
                 // TODO(kihau): 
                 //     Replace the new index with the actual index or rework 
                 //     the createSubtitleTrackElement function itself.
@@ -760,6 +761,37 @@ class Internals {
             console.debug("Unsupported subtitle extension:", info.extension)
             return
         }
+
+        let perfStart = performance.now();
+        // START VTT
+        fetch(url)
+            .then(response => response.text())
+            .then(vttText => parseVtt(vttText))
+            .then(cues => {
+                if (cues.length === 0) {
+                    return
+                }
+
+                console.info("Parsed VTT track, cue count:", cues.length, "in", performance.now() - perfStart, "ms")
+
+                // TODO(kihau):
+                //     Replace the new index with the actual index or rework
+                //     the createSubtitleTrackElement function itself.
+                let newIndex = -1;
+                if (show) {
+                    this.enableSubtitleTrackAt(newIndex);
+                }
+
+                URL.revokeObjectURL(url)
+                this.fireSubtitleTrackLoad(null);
+
+                let htmlTrack = this.createSubtitleTrackElement(info.filename, newIndex);
+
+                let trackList = this.htmlControls.subMenu.trackList;
+                trackList.appendChild(htmlTrack);
+
+            });
+        //END VTT
 
         // TOOD(kihau): Load and parse VTT subtitle.
         let newIndex = -1;
@@ -1809,15 +1841,19 @@ function createTimestampString(timestamp) {
     return timestamp_string;
 }
 
-function parseSrt(srtText) {
-    let lines = srtText.split('\n');
-    let vttCues = []
-    for (let i = 0; i < lines.length-2; i++) {
-        // counter at lines[i]
-        let timestamps = lines[++i];
-        let [start, end, ok] = parseSrtTimestamps(timestamps)
+// Receives [subtitle file text, decimal separator ('.' = VTT ',' = SRT), skipCounter is true for SRT
+function parseSubtitles(subtitleText, decimalMark, skipCounter, skipHeader) {
+    let lines = subtitleText.split('\n');
+    let cues = []
+    let i = 0;
+    if (skipHeader) i = 2;
+    for (; i < lines.length-2; i++) {
+        if (skipCounter) ++i;
+
+        let timestamps = lines[i];
+        let [start, end, ok] = parseTimestamps(timestamps, decimalMark)
         if (!ok) {
-            return vttCues;
+            return cues;
         }
         let content = ""
         while (++i < lines.length) {
@@ -1829,15 +1865,23 @@ function parseSrt(srtText) {
             content += '\n';
         }
         if (content !== "") {
-            let newCue = new VTTCue(start, end, content)
-            vttCues.push(newCue);
+            let newCue = new Cue(start, end, content);
+            cues.push(newCue);
         }
     }
-    return vttCues;
+    return cues;
+}
+
+function parseSrt(srtText) {
+    return parseSubtitles(srtText, ',', true, false);
+}
+
+function parseVtt(vttText) {
+    return parseSubtitles(vttText, '.', false, true);
 }
 
 // Returns [seconds start, seconds end, success]
-function parseSrtTimestamps(timestamps) {
+function parseTimestamps(timestamps, decimalMark) {
     if (timestamps.length < 23) {
         return [null, null, false];
     }
@@ -1845,23 +1889,26 @@ function parseSrtTimestamps(timestamps) {
     if (splitter === -1) {
         return [null, null, false];
     }
-    let startStamp = parseSrtStamp(timestamps.substring(0, splitter));
-    let endStamp = parseSrtStamp(timestamps.substring(splitter+5));
+    let startStamp = parseStamp(timestamps.substring(0, splitter), decimalMark);
+    let endStamp = parseStamp(timestamps.substring(splitter+5), decimalMark);
     return [startStamp, endStamp, startStamp != null && endStamp != null];
 }
 
 // Returns a timestamp expressed in seconds or null on failure
-function parseSrtStamp(stamp) {
-    let twoSplit = stamp.split(',');
+function parseStamp(stamp, decimalMark) {
+    let twoSplit = stamp.split(decimalMark);
     if (twoSplit.length !== 2) {
         return null;
     }
     let hms = twoSplit[0].split(':');
-    if (hms.length !== 3) {
-        return null;
+    switch (hms.length) {
+        case 3:
+            return hms[0] * 3600 + hms[1] * 60 + Number(hms[2]) + twoSplit[1] / 1000;
+        case 2:
+            return hms[0] * 60 + Number(hms[1]) + twoSplit[1] / 1000;
+        default:
+            return null;
     }
-
-    return hms[0] * 3600 + hms[1] * 60 + Number(hms[2]) + twoSplit[1] / 1000;
 }
 
 function newDiv(id, className) {
