@@ -385,6 +385,7 @@ class Internals {
         this.htmlPlayerRoot.appendChild(this.htmlSeekBackward);
 
         this.subtitleContainer = newDiv("player_subtitle_container");
+        // this.subtitleContainer.innerHTML = "Lorem ipsum dolor sit amet, consectetur adipiscing elit.";
         this.htmlPlayerRoot.appendChild(this.subtitleContainer);
 
         this.createHtmlControls();
@@ -530,7 +531,6 @@ class Internals {
         }
 
         this.activeCues = freshCues;
-        console.log("Setting:", captionText);
         this.subtitleContainer.innerHTML = captionText;
         let timeTaken = performance.now() - perfStart;
         console.log("Time taken", timeTaken)
@@ -885,23 +885,29 @@ class Internals {
         return subtitleSheet;
     }
 
-    setSubtitleFontSize(px) {
-        this.cueRule.style.fontSize = px + "px";
+    setSubtitleFontSize(fontSize) {
+        this.subtitleContainer.style.fontSize = fontSize + "px";
+        this.cueRule.style.fontSize = fontSize + "px";
     }
 
     setSubtitleForeground(color) {
+        this.subtitleContainer.style.color = color;
         this.cueRule.style.color = color;
     }
 
     setSubtitleBackground(color) {
+        this.subtitleContainer.style.backgroundColor = color;
         this.cueRule.style.backgroundColor = color;
     }
 
     setSubtitleVerticalPosition(percentage) {
+        this.subtitleContainer.style.marginBottom = percentage + "%";
+
         let track = this.htmlVideo.textTracks[this.selectedSubtitleIndex];
         if (!track) {
             return;
         }
+
         let cues = track.cues;
         for (let i = 0; i < cues.length; i++) {
             let cue = cues[i];
