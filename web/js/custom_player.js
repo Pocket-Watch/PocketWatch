@@ -370,6 +370,11 @@ class Internals {
         this.isUIVisible = true;
         this.volumeBeforeMute = 0.0;
         this.selectedSubtitleIndex = -1;
+        // New subtitle design
+        this.subtitles = [];
+        this.selectedSubtitle = null;
+        this.activeCues = [];
+        this.subtitleOffset = 0.0;
 
         this.htmlSeekForward = newDiv("player_forward_container", "unselectable");
         this.htmlSeekForward.appendChild(this.svgs.seekForward.svg);
@@ -468,6 +473,56 @@ class Internals {
         let duration_string = createTimestampString(duration);
 
         this.htmlControls.buttons.timestamp.textContent = current_string + " / " + duration_string;
+    }
+
+    // Proof of concept:
+    // - sanitize cues on load (below 100ms)
+    // - how to handle unsorted subtitles
+    // - heuristic performance offset?
+    _updateSubtitles(time) {
+        // Hide with hideElement() and show with style.display = "" inside switcher action
+        if (!this.htmlControls.subMenu.subsSwitcher.enabled || this.selectedSubtitle == null) {
+            // No logic should be done if subtitles are disabled or no track is selected
+            return;
+        }
+        let perfStart = performance.now();
+        time += this.subtitleOffset;
+        // TODO: check if TextTrack.cues are a live list
+        let cues = this.selectedSubtitle.cues;
+        let whereabouts = binarySearchForCue(time, cues);
+        let freshCues = [];
+        for (let r = whereabouts + 1; r < cues.length; r++) {
+            let cue = cues[r];
+            if (cue.startTime <= time && time <= cue.endTime) {
+                freshCues.push(cue)
+                continue;
+            }
+            break;
+        }
+        for (let l = whereabouts - 1; l > - 1; l--) {
+            // If cue time is not less than endTime then there is no time to display it anyway
+            let cue = cues[l];
+            if (cue.startTime <= time && time < cue.endTime) {
+                freshCues.push(cue)
+                continue;
+            }
+            break;
+        }
+        if (freshCues.length === 0) {
+            if (this.activeCues.length > 0) {
+                this.activeCues.length = 0;
+                // hideSubs()
+            }
+            return;
+        }
+        if (areArraysEqual(freshCues, this.activeCues)) {
+            return;
+        }
+
+        this.activeCues = freshCues;
+        // renderCues();
+        let timeTaken = performance.now() - perfStart;
+        console.log("Time taken", timeTaken)
     }
 
     updateProgressPopup(progress) {
@@ -1072,6 +1127,7 @@ class Internals {
 
         this.htmlVideo.addEventListener("timeupdate", (_event) => {
             let timestamp = this.htmlVideo.currentTime;
+            this._updateSubtitles(timestamp)
             this.updateTimestamps(timestamp);
         });
 
@@ -1751,7 +1807,18 @@ class Cue {
     // if (!cue.sanitized) { cue.text = sanitizeHTMLForDisplay(cue.text); cue.sanitized = true; }
 }
 
-// Return the cue that should be shown based on startTime only
+function areArraysEqual(arr1, arr2) {
+    if (arr1.length !== arr2.length) return false;
+
+    for (let i = 0; i < arr1.length; i++) {
+        if (arr1[i] !== arr2[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Use binary search to find the index of the cue that should be shown based on startTime only
 function binarySearchForCue(time, cues) {
     let left = 0, right = cues.length - 1;
     while (left <= right) {
@@ -1767,7 +1834,7 @@ function binarySearchForCue(time, cues) {
     return ((left + right) / 2) | 0
 }
 
-// Return the cue that should be shown based on startTime only
+// Use linear search to find the index of the cue that should be shown based on startTime only
 function linearCueSearch(time, cues) {
     let len = cues.length;
     for (let i = 0; i < len; i++) {
@@ -2014,6 +2081,7 @@ class Options {
         this.doubleTapThresholdMs = 300;
         this.enableDoubleTapSeek = isMobileAgent();
         this.sanitizeSubtitles = true;
+        this.allowCueOverlap = true;
 
         // [Arrow keys/Double tap] seeking offset provided in seconds.
         this.seekBy = 5;
