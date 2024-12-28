@@ -384,6 +384,8 @@ class Internals {
         this.htmlSeekBackward.appendChild(this.svgs.seekBackward.svg);
         this.htmlPlayerRoot.appendChild(this.htmlSeekBackward);
 
+        this.subtitleContainer = newDiv("player_subtitle_container");
+        this.htmlPlayerRoot.appendChild(this.subtitleContainer);
 
         this.createHtmlControls();
         this.attachHtmlEvents();
@@ -482,7 +484,6 @@ class Internals {
     _updateSubtitles(time) {
         // Hide with hideElement() and show with style.display = "" inside switcher action
         if (!this.htmlControls.subMenu.subsSwitcher.enabled || this.selectedSubtitle == null) {
-            // No logic should be done if subtitles are disabled or no track is selected
             return;
         }
         let perfStart = performance.now();
@@ -511,7 +512,7 @@ class Internals {
         if (freshCues.length === 0) {
             if (this.activeCues.length > 0) {
                 this.activeCues.length = 0;
-                // hideElement(subtitleContainer)
+                hideElement(this.subtitleContainer)
             }
             return;
         }
@@ -529,7 +530,8 @@ class Internals {
         }
 
         this.activeCues = freshCues;
-        // subtitleContainer.innerHTML = captionText;
+        console.log("Setting:", captionText);
+        this.subtitleContainer.innerHTML = captionText;
         let timeTaken = performance.now() - perfStart;
         console.log("Time taken", timeTaken)
     }

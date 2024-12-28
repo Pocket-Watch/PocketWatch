@@ -121,6 +121,13 @@
     transition: opacity 200ms ease-out;
 }
 
+#player_subtitle_container {
+    width: 100%;
+    height: 80px;
+    bottom: 70px;
+    position: absolute;
+}
+
 #player_controls {
     width: 100%;
     height: 70px;
