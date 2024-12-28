@@ -730,9 +730,14 @@ class Internals {
                 if (cues.length === 0) {
                     return
                 }
-
-                console.info("Parsed SRT track, cue count:", cues.length, "in", performance.now() - perfStart, "ms")
-                console.info(cues)
+                let parseEnd = performance.now();
+                console.info("Parsed SRT track, cue count:", cues.length, "in", parseEnd - perfStart, "ms")
+                if (this.options.sanitizeSubtitles) {
+                    for (let i = 0; i < cues.length; i++) {
+                        cues[i].text = sanitizeHTMLForDisplay(cues[i].text);
+                    }
+                }
+                console.info("Sanitized in", performance.now() - parseEnd, "ms")
                 // TODO(kihau): 
                 //     Replace the new index with the actual index or rework 
                 //     the createSubtitleTrackElement function itself.
@@ -771,9 +776,14 @@ class Internals {
                 if (cues.length === 0) {
                     return
                 }
-
-                console.info("Parsed VTT track, cue count:", cues.length, "in", performance.now() - perfStart, "ms")
-
+                let parseEnd = performance.now();
+                console.info("Parsed VTT track, cue count:", cues.length, "in", parseEnd - perfStart, "ms")
+                if (this.options.sanitizeSubtitles) {
+                    for (let i = 0; i < cues.length; i++) {
+                        cues[i].text = sanitizeHTMLForDisplay(cues[i].text);
+                    }
+                }
+                console.info("Sanitized in", performance.now() - parseEnd, "ms")
                 // TODO(kihau):
                 //     Replace the new index with the actual index or rework
                 //     the createSubtitleTrackElement function itself.
@@ -1783,7 +1793,7 @@ function removeInlinedEvents(tag) {
     }
 }
 
-const ALLOWED_STYLE_TAGS = ["i", "b", "u", "ruby", "rt", "c", "v", "lang"]
+const ALLOWED_STYLE_TAGS = ["i", "b", "u", "ruby", "rt", "c", "v", "lang", "font"]
 const PARSER = new DOMParser();
 export function sanitizeHTMLForDisplay(html) {
     // Using a temporary element or document fragment preloads <img> tags causing onload to fire
