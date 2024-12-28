@@ -520,7 +520,7 @@ class Room {
         }
 
         if (entry.subtitle_url) {
-            this.player.addSubtitleTrack(entry.subtitle_url);
+            this.player.addSubtitle(entry.subtitle_url);
         }
     }
 

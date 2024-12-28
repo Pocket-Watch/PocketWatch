@@ -72,30 +72,12 @@ class Player {
         return this.internals.htmlVideo.duration;
     }
 
-    addSubtitleTrack(subtitleUrl) {
-        if (subtitleUrl.endsWith(".srt")) {
-            return this.internals.addSrtTrack(subtitleUrl, false);
-        } else if (subtitleUrl.endsWith(".vtt")) {
-            return this.internals.addVttTrack(subtitleUrl, false);
-        }
+    setSubtitle(subtitleUrl) {
+        this.internals.addSubtitle(subtitleUrl, true);
     }
 
-    // Adds a new subtitle track in the 'showing' mode, hiding the previous track.
-    setVttTrack(subtitleUrl) {
-        this.internals.addVttTrack(subtitleUrl, true);
-    }
-
-    // Adds a new subtitle track in the 'hidden' mode.
-    addVttTrack(subtitleUrl) {
-        return this.internals.addVttTrack(subtitleUrl, false);
-    }
-
-    setSrtTrack(subtitleUrl) {
-        return this.internals.addSrtTrack(subtitleUrl, true);
-    }
-
-    addSrtTrack(subtitleUrl) {
-        return this.internals.addSrtTrack(subtitleUrl, false);
+    addSubtitle(subtitleUrl) {
+        return this.internals.addSubtitle(subtitleUrl, false);
     }
 
     // Disables and removes the track at the specified index.
@@ -389,7 +371,7 @@ class Internals {
 
         setInterval(() => this.redrawBufferedBars(), this.options.bufferingRedrawInterval);
         let end = performance.now();
-        console.log("Internals constructor finished in", end-initStart, "ms")
+        console.debug("Internals constructor finished in", end-initStart, "ms")
 
         this.setVolume(1.0);
     }
@@ -717,73 +699,34 @@ class Internals {
         this.htmlVideo.currentTime = 0;
     }
 
-    addSrtTrack(url, show, trackInfo) {
-        if (!trackInfo) {
-            trackInfo = TrackInfo.fromUrl(url)
-        }
-
-        let perfStart = performance.now();
-        fetch(url)
-            .then(response => response.text())
-            .then(srtText => parseSrt(srtText))
-            .then(cues => {
-                if (cues.length === 0) {
-                    return
-                }
-                let parseEnd = performance.now();
-                console.info("Parsed SRT track, cue count:", cues.length, "in", parseEnd - perfStart, "ms")
-                if (this.options.sanitizeSubtitles) {
-                    for (let i = 0; i < cues.length; i++) {
-                        cues[i].text = sanitizeHTMLForDisplay(cues[i].text);
-                    }
-                }
-                console.info("Sanitized in", performance.now() - parseEnd, "ms")
-                // TODO(kihau): 
-                //     Replace the new index with the actual index or rework 
-                //     the createSubtitleTrackElement function itself.
-                let newIndex = -1;
-                if (show) {
-                    this.enableSubtitleTrackAt(newIndex);
-                }
-
-                URL.revokeObjectURL(url)
-                this.fireSubtitleTrackLoad(null);
-
-                let htmlTrack = this.createSubtitleTrackElement(trackInfo.filename, newIndex);
-
-                let trackList = this.htmlControls.subMenu.trackList;
-                trackList.appendChild(htmlTrack);
-
-            });
-    }
-
-    addVttTrack(url, show, info) {
+    addSubtitle(url, show, info) {
         if (!info) {
             info = TrackInfo.fromUrl(url)
         }
 
-        if (info.extension !== "vtt") {
-            console.debug("Unsupported subtitle extension:", info.extension)
+        let ext = info.extension;
+        if (ext !== "vtt" && ext !== "srt") {
+            console.debug("Unsupported subtitle extension:", ext)
             return
         }
 
         let perfStart = performance.now();
-        // START VTT
+        let isVtt = ext === "vtt";
         fetch(url)
             .then(response => response.text())
-            .then(vttText => parseVtt(vttText))
+            .then(fileText => isVtt ? parseVtt(fileText) : parseSrt(fileText))
             .then(cues => {
                 if (cues.length === 0) {
                     return
                 }
-                let parseEnd = performance.now();
-                console.info("Parsed VTT track, cue count:", cues.length, "in", parseEnd - perfStart, "ms")
+                let parseEnd     = performance.now();
+                console.debug("Parsed", ext, "track, cue count:", cues.length, "in", parseEnd - perfStart, "ms")
                 if (this.options.sanitizeSubtitles) {
                     for (let i = 0; i < cues.length; i++) {
                         cues[i].text = sanitizeHTMLForDisplay(cues[i].text);
                     }
                 }
-                console.info("Sanitized in", performance.now() - parseEnd, "ms")
+                console.debug("Sanitized in", performance.now() - parseEnd, "ms")
                 // TODO(kihau):
                 //     Replace the new index with the actual index or rework
                 //     the createSubtitleTrackElement function itself.
@@ -793,21 +736,14 @@ class Internals {
                 }
 
                 URL.revokeObjectURL(url)
+                // Could fire with a ref to subtitle class instance
                 this.fireSubtitleTrackLoad(null);
 
                 let htmlTrack = this.createSubtitleTrackElement(info.filename, newIndex);
 
                 let trackList = this.htmlControls.subMenu.trackList;
                 trackList.appendChild(htmlTrack);
-
             });
-        //END VTT
-
-        // TOOD(kihau): Load and parse VTT subtitle.
-        let newIndex = -1;
-        let htmlTrack = this.createSubtitleTrackElement(info.filename, newIndex);
-        let trackList = this.htmlControls.subMenu.trackList;
-        trackList.appendChild(htmlTrack);
     }
 
     enableSubtitleTrackAt(placeholder) {
@@ -1466,18 +1402,13 @@ class Internals {
             if (event.target.files.length === 0) {
                 return;
             }
+            // Allow selection of multiple at some point
             const file = event.target.files[0];
             // This object is a blob and will be released with URL.revokeObjectURL on load
             const objectUrl = URL.createObjectURL(file);
             let trackInfo = TrackInfo.fromUrl(file.name);
-            let ext = trackInfo.extension;
-            if (ext === "vtt") {
-                console.log("Adding vtt track")
-                this.addVttTrack(objectUrl, true, trackInfo)
-            } else if (ext === "srt") {
-                console.log("Adding srt track")
-                this.addSrtTrack(objectUrl, true, trackInfo)
-            }
+            console.debug("Adding", trackInfo.extension, "subtitle from disk");
+            this.addSubtitle(objectUrl, true, trackInfo)
         };
 
         let previousValue = 0.0;
@@ -1741,6 +1672,16 @@ class Cue {
         this.sanitized = false;
     }
     // if (!cue.sanitized) { cue.text = sanitizeHTMLForDisplay(cue.text); cue.sanitized = true; }
+}
+
+// Internal representation for a subtitle, a replacement for the TextTrack and <track>
+class Subtitle {
+    constructor(name, cues, format) {
+        this.name = name;
+        this.cues = cues;
+        this.format = format;
+        this.offset = 0.0;
+    }
 }
 
 function areArraysEqual(arr1, arr2) {
