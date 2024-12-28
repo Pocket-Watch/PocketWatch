@@ -385,6 +385,7 @@ class Internals {
         this.htmlPlayerRoot.appendChild(this.htmlSeekBackward);
 
         this.subtitleContainer = newDiv("player_subtitle_container");
+        // this.subtitleContainer.style.visibility = "visible";"
         // this.subtitleContainer.innerHTML = "Lorem ipsum dolor sit amet, consectetur adipiscing elit.";
         this.htmlPlayerRoot.appendChild(this.subtitleContainer);
 
