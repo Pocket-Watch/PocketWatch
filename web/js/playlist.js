@@ -14,9 +14,10 @@ class Playlist {
         /// Corresponds to html elements created from the playlist entries.
         this.htmlEntries = [];
 
-        this.isDraggingEntry = false;
-        this.dragEntryStart  = null;
-        this.dragEntryEnd  = null;
+        // this.isDraggingEntry = false;
+        // this.dragEntryStart  = null;
+        // this.dragEntryEnd  = null;
+        this.isDragging = null;
     }
 
     addEntry(entry) {
@@ -125,16 +126,37 @@ class Playlist {
         //
 
         entryRoot.ontouchstart = _ => {};
+
         entryDragArea.onmousedown = _ => {
-            let onDragging = _ => {
-                console.log("Is dragging or something like that");
+            let onDragging = event => {
+                let entryNext = entryRoot.nextElementSibling;
+                let entryPrev = entryRoot.previousElementSibling;
+
+                if (entryNext) {
+                    let rect = entryNext.getBoundingClientRect();
+                    if (event.y > rect.y) {
+                        this.htmlEntryList.insertBefore(entryNext, entryRoot);
+                    }
+                } 
+
+                if (entryPrev) {
+                    let rect = entryPrev.getBoundingClientRect();
+                    if (event.y < rect.y + rect.height) {
+                        this.htmlEntryList.insertBefore(entryPrev, entryNext);
+                    }
+                }
+
+                // console.log("Next", next, "Prev", prev, "Event", event);
+                // console.log("Now", entryRoot.getBoundingClientRect(), "Event", event);
             };
 
             let onDraggingStop = _ => {
+                this.isDragging = false;
                 document.removeEventListener("mousemove", onDragging);
                 document.removeEventListener("mouseup",   onDraggingStop);
             };
 
+            this.isDragging = true;
             document.addEventListener("mousemove", onDragging);
             document.addEventListener("mouseup",   onDraggingStop);
         };

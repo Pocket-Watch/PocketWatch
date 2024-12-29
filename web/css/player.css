@@ -175,6 +175,7 @@
 #player_progress_root * {
     grid-column: 1;
     grid-row: 1;
+    user-select: none;
 }
 
 .player_progress_bar {
