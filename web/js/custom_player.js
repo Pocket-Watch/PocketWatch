@@ -87,7 +87,7 @@ class Player {
 
     // Hides the previously selected track. Shows the track at the specified index.
     enableSubtitleTrackAt(index) {
-        this.internals.enableSubtitleTrackAt(index);
+        this.internals.enableSubtitleTrack(index);
     }
 
     // The seconds argument is a double, negative shifts back, positive shifts forward
@@ -345,8 +345,7 @@ class Internals {
         this.isDraggingProgressBar = false;
         this.isUIVisible = true;
         this.volumeBeforeMute = 0.0;
-        this.selectedSubtitleIndex = -1;
-        // New subtitle design
+
         this.subtitles = [];
         this.selectedSubtitle = null;
         this.activeCues = [];
@@ -461,18 +460,21 @@ class Internals {
     // - how to handle unsorted subtitles
     // - heuristic performance offset?
     updateSubtitles(time) {
+
         // Hide with hideElement() and show with style.display = "" inside switcher action
         if (!this.htmlControls.subMenu.subsSwitcher.enabled || this.selectedSubtitle == null) {
             return;
         }
+
         let perfStart = performance.now();
-        // Here use subtitle.offset
+
         time += this.subtitleOffset;
+
         // TODO: check if TextTrack.cues are a live list
         let cues = this.selectedSubtitle.cues;
         let whereabouts = binarySearchForCue(time, cues);
         let freshCues = [];
-        for (let r = whereabouts + 1; r < cues.length; r++) {
+        for (let r = whereabouts; r < cues.length; r++) {
             let cue = cues[r];
             if (cue.startTime <= time && time <= cue.endTime) {
                 freshCues.push(cue)
@@ -480,22 +482,26 @@ class Internals {
             }
             break;
         }
+
         for (let l = whereabouts - 1; l > - 1; l--) {
             // If cue time is not less than endTime then there is no time to display it anyway
             let cue = cues[l];
-            if (cue.startTime <= time && time < cue.endTime) {
-                freshCues.push(cue)
-                continue;
+            if (time < cue.startTime || cue.endTime <= time) {
+                break;
             }
-            break;
+
+            freshCues.push(cue)
         }
+
         if (freshCues.length === 0) {
             if (this.activeCues.length > 0) {
                 this.activeCues.length = 0;
-                hideElement(this.subtitleContainer)
+                this.subtitleContainer.style.visibility = "hidden";
             }
+
             return;
         }
+
         if (areArraysEqual(freshCues, this.activeCues)) {
             return;
         }
@@ -510,7 +516,9 @@ class Internals {
         }
 
         this.activeCues = freshCues;
+        this.subtitleContainer.style.visibility = "visible";
         this.subtitleContainer.innerHTML = captionText;
+
         let timeTaken = performance.now() - perfStart;
         console.log("Time taken", timeTaken)
     }
@@ -727,42 +735,45 @@ class Internals {
                         cues[i].text = sanitizeHTMLForDisplay(cues[i].text);
                     }
                 }
+
                 console.debug("Sanitized in", performance.now() - parseEnd, "ms")
+
+
                 let subtitle = new Subtitle(cues, info.filename, info.extension);
-                this.subtitles.push(subtitle);
-                // TODO(kihau):
-                //     Replace the new index with the actual index or rework
-                //     the createSubtitleTrackElement function itself.
-                // Use either newIndex or subtitle
-                // Player method can take an index, Internals method can receive a subtitle
-                let newIndex = this.subtitles.length - 1;
+                subtitle.htmlTrack.onclick = _ => this.switchSubtitleTrack(subtitle);
+
                 if (show) {
-                    this.enableSubtitleTrackAt(newIndex);
+                    this.enableSubtitleTrack(subtitle);
                 }
 
                 URL.revokeObjectURL(url)
                 // Could fire with a ref to subtitle class instance
                 this.fireSubtitleTrackLoad(null);
 
-                let htmlTrack = this.createSubtitleTrackElement(info.filename, newIndex);
-
                 let trackList = this.htmlControls.subMenu.trackList;
-                trackList.appendChild(htmlTrack);
+                trackList.appendChild(subtitle.htmlTrack);
+
+                this.subtitles.push(subtitle);
             });
     }
 
-    enableSubtitleTrackAt(placeholder) {
-        // TODO(kihau): Select current subtitle.
-        this.htmlControls.subMenu.subsSwitcher.setState(true)
+    enableSubtitleTrack(subtitle) {
+        this.selectedSubtitle = subtitle;
+        this.htmlControls.subMenu.subsSwitcher.setState(true);
+        this.markSubtitleSelected(subtitle);
+        this.updateSubtitles(this.htmlVideo.currentTime);
     }
 
-    switchSubtitleTrack(placeholder) {
-        // TODO(kihau): Switch subtitle thing.
+    switchSubtitleTrack(subtitle) {
+        this.selectedSubtitle = subtitle;
+        this.markSubtitleSelected(subtitle);
+        this.updateSubtitles(this.htmlVideo.currentTime);
     }
 
     shiftCurrentSubtitleTrackBy(seconds) {
         // NOTE(kihau): This will shift currently selected subtitle instead of doing this globally for all of them.
         this.subtitleOffset += seconds;
+        this.updateSubtitles(this.htmlVideo.currentTime);
     }
 
     removeSubtitleTrackAt(index) {
@@ -1011,13 +1022,13 @@ class Internals {
             hideElement(this.bufferingSvg);
         });
 
-        this.htmlVideo.addEventListener("timeupdate", (_event) => {
+        this.htmlVideo.addEventListener("timeupdate", _ => {
             let timestamp = this.htmlVideo.currentTime;
-            this.updateSubtitles(timestamp)
+            this.updateSubtitles(timestamp);
             this.updateTimestamps(timestamp);
         });
 
-        this.htmlVideo.addEventListener("ended", (_event) => {
+        this.htmlVideo.addEventListener("ended", _ => {
             this.svgs.playback.setHref(this.icons.replay)
             this.firePlaybackEnd();
         });
@@ -1306,40 +1317,43 @@ class Internals {
         this.createSettingsMenu();
     }
 
-    createSubtitleTrackElement(title, index) {
-        let menu         = this.htmlControls.subMenu;
-        let track        = newDiv(null, "subtitle_track");
-        let trackTitle   = newElement("input", null, "subtitle_track_text");
-        let trackButtons = newDiv(null, "subtitle_track_buttons");
-        let trackEdit    = newElement("button", null, "subtitle_track_edit_button")
-        let trackRemove  = newElement("button", null, "subtitle_track_remove_button")
+    markSubtitleSelected(subtitle) {
+        let menu = this.htmlControls.subMenu;
+        let track = subtitle.htmlTrack;
 
-        trackTitle.type = "text";
-        trackTitle.value = title;
-        trackTitle.readOnly = true;
-
-        trackEdit.textContent = "⚙️";
-        trackRemove.textContent = "🗑";
-
-        track.onclick = _event => {
-            if (menu.selected.track) {
-                menu.selected.track.classList.remove("subtitle_track_selected");
-            }
-
-            track.classList.add("subtitle_track_selected");
-            menu.selected.track = track;
-
-            this.switchSubtitleTrack(index);
+        if (menu.selected.track) {
+            menu.selected.track.classList.remove("subtitle_track_selected");
         }
 
-        track.appendChild(trackTitle);
-        track.appendChild(trackButtons); {
-            trackButtons.appendChild(trackEdit);
-            trackButtons.appendChild(trackRemove);
-        }
-
-        return track;
+        track.classList.add("subtitle_track_selected");
+        menu.selected.track = track;
     }
+
+    // createSubtitleTrackElement(title, subtitle) {
+    //     let menu         = this.htmlControls.subMenu;
+    //     let track        = newDiv(null, "subtitle_track");
+    //     let trackTitle   = newElement("input", null, "subtitle_track_text");
+    //     let trackButtons = newDiv(null, "subtitle_track_buttons");
+    //     let trackEdit    = newElement("button", null, "subtitle_track_edit_button")
+    //     let trackRemove  = newElement("button", null, "subtitle_track_remove_button")
+    //
+    //     trackTitle.type = "text";
+    //     trackTitle.value = title;
+    //     trackTitle.readOnly = true;
+    //
+    //     trackEdit.textContent = "⚙️";
+    //     trackRemove.textContent = "🗑";
+    //
+    //     track.onclick = _ => this.switchSubtitleTrack(subtitle);
+    //
+    //     track.appendChild(trackTitle);
+    //     track.appendChild(trackButtons); {
+    //         trackButtons.appendChild(trackEdit);
+    //         trackButtons.appendChild(trackRemove);
+    //     }
+    //
+    //     return track;
+    // }
 
     createSubtitleMenu() {
         let isFirefox = navigator.userAgent.includes("Firefox");
@@ -1399,9 +1413,17 @@ class Internals {
             selected.view.style.display = "";
         }
 
-        selectTab.onclick  = () => select(selectTab, selectView);
-        searchTab.onclick  = () => select(searchTab, searchView);
-        optionsTab.onclick = () => select(optionsTab, optionsView);
+        selectTab.onclick  = _ => select(selectTab,  selectView);
+        searchTab.onclick  = _ => select(searchTab,  searchView);
+        optionsTab.onclick = _ => select(optionsTab, optionsView);
+
+        subsSwitch.onAction = enabled => {
+            if (this.activeCues.length === 0 || !enabled) {
+                this.subtitleContainer.style.visibility = "hidden";
+            } else {
+                this.subtitleContainer.style.visibility = "visible";
+            }
+        };
 
         subtitleImport.onchange = event => {
             if (event.target.files.length === 0) {
@@ -1503,13 +1525,13 @@ class Internals {
 
         menuRoot.onclick = consumeClick;
 
-        autohide.addAction(state => {
+        autohide.onAction = state => {
             this.options.autohideControls = state;
-        });
+        };
 
-        showOnPause.addAction(state => {
+        showOnPause.onAction = state => {
             this.options.showControlsOnPause = state;
-        }); 
+        }; 
 
         playerRoot.append(menuRoot); {
             menuRoot.append(menuTabs); {
@@ -1640,6 +1662,11 @@ class Switcher {
 
         toggleText.textContent = text;
 
+        toggleSwitch.addEventListener("click", _ => {
+            this.setState(!this.enabled);
+            this.onAction(this.enabled);
+        });
+
         toggleRoot.appendChild(toggleText);
         toggleRoot.appendChild(toggleSwitch); {
             toggleSwitch.appendChild(toggleCircle);
@@ -1661,12 +1688,7 @@ class Switcher {
         }
     }
 
-    addAction(func) {
-        this.toggleSwitch.addEventListener("click", () => {
-            this.setState(!this.enabled)
-            func(this.enabled);
-        });
-    }
+    onAction(state) {}
 }
 
 class Cue {
@@ -1686,6 +1708,30 @@ class Subtitle {
         this.name = name;
         this.format = format;
         this.offset = 0.0;
+        this.htmlTrack = this.createSubtitleTrackElement(name);
+    }
+
+    createSubtitleTrackElement(title) {
+        let track        = newDiv(null, "subtitle_track");
+        let trackTitle   = newElement("input", null, "subtitle_track_text");
+        let trackButtons = newDiv(null, "subtitle_track_buttons");
+        let trackEdit    = newElement("button", null, "subtitle_track_edit_button")
+        let trackRemove  = newElement("button", null, "subtitle_track_remove_button")
+
+        trackTitle.type = "text";
+        trackTitle.value = title;
+        trackTitle.readOnly = true;
+
+        trackEdit.textContent = "⚙️";
+        trackRemove.textContent = "🗑";
+
+        track.appendChild(trackTitle);
+        track.appendChild(trackButtons); {
+            trackButtons.appendChild(trackEdit);
+            trackButtons.appendChild(trackRemove);
+        }
+
+        return track;
     }
 }
 
