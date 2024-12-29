@@ -24,8 +24,6 @@ suffers from the same recurring issues, such as:
 - no JS frameworks
 - avoiding needlessly complicated or bloated code (let's keep it sane)
 - fighting around browser-specific quirks (lack of standardized slider customization, cues stacking)
-- creating a custom player which can distinguish between _user-initiated_ and _programmatic_ playback amongst other things
-
 
 ## Prerequisites
 - Go version `1.21` (released 2023-08-08) or newer (supporting `slices`)
@@ -60,12 +58,84 @@ On Windows it can be found at `Git/usr/bin/openssl.exe` where `Git` is git's roo
 
 Additionally, to have your domain verified you can use a free certificate authority like: https://letsencrypt.org
 
+## Custom player
+For a watch party to work smoothly it's crucial for the player to be able to distinguish
+between **user-initiated** and **programmatic** playback. Unfortunately the `<video>` element
+does not provide a mechanism to accomplish that and player libraries usually don't provide a callback.
+The most common approach is to try and control the state between events, such as `onclick` and `onplay`. Due to 
+synchronization issues between clients and the single-threaded nature of JS it eventually leads to
+a disorganized codebase. Furthermore, most video players dispatch events by firing events asynchronously, causing
+them to be out of order. <br>
+Proper subtitle support is scarce:
+- no dynamic loading (only static)
+- no customization menus
+- no support for SRT (in-built)
+- no support for shifting
+
+The default web subtitle API doesn't shine either.
+See [WEBVTT API problems](#problems-with-the-standard-subtitle-api).
+<br>
+
+### Prerequisites
+Include player stylesheet - [player.css](web/css/player.css)
+```html
+<link rel="stylesheet" href="web/css/player.css">
+```
+Optionally preload player script - [custom_player.js](web/js/custom_player.js)
+```html
+<body>
+    // Webpage elements
+    <script type="module" src="web/js/custom_player.js"></script>
+</body>
+```
+Import the symbols in Javascript to use them directly
+```js
+import {Player, Options} from "./js/custom_player.js";
+```
+### API usage examples
+Initialize and attach the player to any video element
+```js
+let videoElement = document.getElementById("cats-video");
+let options = new Options();
+// Hide the buttons you don't need
+options.hideNextButton = true;
+options.hideDownloadButton = true;
+// Change seeking to 10s
+options.seekBy = 10;
+// Passing options is optional
+let player = new Player(videoElement, options);
+```
+
+Set title, video track and subtitle
+```js
+player.setTitle("Agent327");
+player.setVideoTrack("https://video.blender.org/static/web-videos/264ff760-803e-430e-8d81-15648e904183-720.mp4")
+player.setSubtitle("subtitles/Agent327.vtt")
+```
+Instant callbacks:
+```js
+// They're dispatched synchronously
+player.onControlsPlay(() => {
+    player.setToast("You clicked play.");
+})
+
+player.onControlsPause(() => {
+    player.setToast("You clicked pause.");
+})
+
+player.onControlsSeeked((timestamp) => {
+    player.setToast("You seeked to " + timestamp.toFixed(3));
+})
+// Toasts appear in the top right corner as text, also in fullscreen
+```
+
 ## Problems with the standard subtitle API
 >It is terrible
 
 * **The performance of hiding or showing a track is astonishingly horrible in Firefox**
     * hiding a track with `3000 cues` on a modern CPU takes about `3000 ms` causing UI to be unresponsive
     * when a track is shown it takes roughly the same amount of time it took to hide it
+    * adding more tracks only worsens the performance, which also progressively slows down VTT load times
 <br><br>
 
 * **Inconsistent styling across browsers**
@@ -90,3 +160,4 @@ Additionally, to have your domain verified you can use a free certificate author
     * every cue must be shifted in a shift-dependent order otherwise, the cues are instantly reordered
     * some subtitle languages (with 1000+ cues) cause dramatic performance drops during shifting
     * cues on Firefox often stack (pile on top of each other) after shifting and stay on screen after end time
+
