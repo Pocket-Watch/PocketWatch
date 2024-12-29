@@ -641,6 +641,16 @@ class Internals {
         }
     }
 
+    toggleFullscreen() {
+        if (document.fullscreenElement) {
+            document.exitFullscreen();
+            this.svgs.fullscreen.setHref(this.icons.fullscreen_enter);
+        } else {
+            this.htmlPlayerRoot.requestFullscreen();
+            this.svgs.fullscreen.setHref(this.icons.fullscreen_exit);
+        }
+    }
+
     togglePlayback() {
         if (this.htmlVideo.paused) {
             this.fireControlsPlay();
@@ -962,21 +972,23 @@ class Internals {
         });
 
         this.htmlPlayerRoot.addEventListener("keydown", (event) => {
-            if (event.key == " " || event.code == "Space" || event.keyCode == 32) {
+            if (event.key === " " || event.code === "Space" || event.keyCode === 32) {
                 this.togglePlayback();
                 consumeEvent(event);
+                return;
             }
 
-            if (event.key == "ArrowLeft" || event.keyCode == 37) {
+            if (event.key === "ArrowLeft" || event.keyCode === 37) {
                 this.htmlSeekBackward.classList.add("animate");
 
                 let timestamp = this.getNewTime(-this.options.seekBy);
                 this.fireControlsSeeked(timestamp);
                 this.seek(timestamp);
                 consumeEvent(event);
+                return;
             }
 
-            if (event.key == "ArrowRight" || event.keyCode == 39) {
+            if (event.key === "ArrowRight" || event.keyCode === 39) {
                 this.htmlSeekForward.classList.add("animate");
 
                 // We should use options here
@@ -984,16 +996,23 @@ class Internals {
                 this.fireControlsSeeked(timestamp);
                 this.seek(timestamp);
                 consumeEvent(event);
+                return;
             }
 
-            if (event.key == "ArrowUp" || event.keyCode == 38) {
+            if (event.key === "ArrowUp" || event.keyCode === 38) {
                 this.setVolumeRelative(0.1);
                 consumeEvent(event);
+                return;
             }
 
-            if (event.key == "ArrowDown" || event.keyCode == 40) {
+            if (event.key === "ArrowDown" || event.keyCode === 40) {
                 this.setVolumeRelative(-0.1);
                 consumeEvent(event);
+                return;
+            }
+
+            if (event.key === this.options.fullscreenKeyLetter) {
+                this.toggleFullscreen();
             }
         });
 
@@ -1035,13 +1054,7 @@ class Internals {
             this.rebindFullscreenAPIFromWebkit();
         }
         this.htmlControls.buttons.fullscreenButton.addEventListener("click", () => {
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
-                this.svgs.fullscreen.setHref(this.icons.fullscreen_enter);
-            } else {
-                this.htmlPlayerRoot.requestFullscreen();
-                this.svgs.fullscreen.setHref(this.icons.fullscreen_exit);
-            }
+            this.toggleFullscreen();
         });
 
         document.addEventListener("fullscreenchange", () => {
@@ -2022,6 +2035,7 @@ class Options {
         this.enableDoubleTapSeek = isMobileAgent();
         this.sanitizeSubtitles = true;
         this.allowCueOverlap = true;
+        this.fullscreenKeyLetter = 'f';
 
         // [Arrow keys/Double tap] seeking offset provided in seconds.
         this.seekBy = 5;
