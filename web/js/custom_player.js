@@ -349,7 +349,6 @@ class Internals {
         this.subtitles = [];
         this.selectedSubtitle = null;
         this.activeCues = [];
-
         this.subtitleOffset = 0.0;
 
         this.htmlSeekForward = newDiv("player_forward_container", "unselectable");
@@ -462,10 +461,6 @@ class Internals {
     updateSubtitles(time) {
 
         // Hide with hideElement() and show with style.display = "" inside switcher action
-        if (!this.htmlControls.subMenu.subsSwitcher.enabled || this.selectedSubtitle == null) {
-            return;
-        }
-
         let perfStart = performance.now();
 
         time += this.subtitleOffset;
@@ -498,7 +493,6 @@ class Internals {
                 this.activeCues.length = 0;
                 this.subtitleContainer.style.visibility = "hidden";
             }
-
             return;
         }
 
@@ -516,11 +510,12 @@ class Internals {
         }
 
         this.activeCues = freshCues;
-        this.subtitleContainer.style.visibility = "visible";
-        this.subtitleContainer.innerHTML = captionText;
-
-        let timeTaken = performance.now() - perfStart;
-        console.log("Time taken", timeTaken)
+        if (this.htmlControls.subMenu.subsSwitcher.enabled) {
+            this.subtitleContainer.style.visibility = "visible";
+            this.subtitleContainer.innerHTML = captionText;
+            let timeTaken = performance.now() - perfStart;
+            console.log("Shown after", timeTaken, "ms")
+        }
     }
 
     updateProgressPopup(progress) {
@@ -1024,7 +1019,9 @@ class Internals {
 
         this.htmlVideo.addEventListener("timeupdate", _ => {
             let timestamp = this.htmlVideo.currentTime;
-            this.updateSubtitles(timestamp);
+            if (this.htmlControls.subMenu.subsSwitcher.enabled && this.selectedSubtitle) {
+                this.updateSubtitles(timestamp);
+            }
             this.updateTimestamps(timestamp);
         });
 
@@ -1418,10 +1415,10 @@ class Internals {
         optionsTab.onclick = _ => select(optionsTab, optionsView);
 
         subsSwitch.onAction = enabled => {
-            if (this.activeCues.length === 0 || !enabled) {
-                this.subtitleContainer.style.visibility = "hidden";
-            } else {
+            if(enabled && this.activeCues.length > 0) {
                 this.subtitleContainer.style.visibility = "visible";
+            } else {
+                this.subtitleContainer.style.visibility = "hidden";
             }
         };
 
