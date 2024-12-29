@@ -65,7 +65,7 @@ class Player {
     }
 
     getCurrentTime() {
-        return this.internals.htmlVideo.currentTime;
+        return this.internals.getCurrentTime();
     }
 
     getDuration() {
@@ -641,6 +641,10 @@ class Internals {
         }
     }
 
+    getCurrentTime() {
+        return this.htmlVideo.currentTime;
+    }
+
     toggleFullscreen() {
         if (document.fullscreenElement) {
             document.exitFullscreen();
@@ -766,19 +770,19 @@ class Internals {
         this.selectedSubtitle = subtitle;
         this.htmlControls.subMenu.subsSwitcher.setState(true);
         this.markSubtitleSelected(subtitle);
-        this.updateSubtitles(this.htmlVideo.currentTime);
+        this.updateSubtitles(this.getCurrentTime());
     }
 
     switchSubtitleTrack(subtitle) {
         this.selectedSubtitle = subtitle;
         this.markSubtitleSelected(subtitle);
-        this.updateSubtitles(this.htmlVideo.currentTime);
+        this.updateSubtitles(this.getCurrentTime());
     }
 
     shiftCurrentSubtitleTrackBy(seconds) {
         // NOTE(kihau): This will shift currently selected subtitle instead of doing this globally for all of them.
         this.subtitleOffset += seconds;
-        this.updateSubtitles(this.htmlVideo.currentTime);
+        this.updateSubtitles(this.getCurrentTime());
     }
 
     removeSubtitleTrackAt(index) {
@@ -1383,7 +1387,7 @@ class Internals {
         let subtitleImport = newElement("input", "player_submenu_import");
         let optionsView    = newDiv("player_submenu_bottom_options");
         let subsShift      = new Slider("Subtitle shift", -10, 10, 0.1, 0, "s", true);
-        let subsSize       = new Slider("Subtitle size",  10, 100, 1.0, 20, "px");
+        let subsSize       = new Slider("Subtitle size",  10, 100, 1.0, 30, "px");
         let subsVerticalPosition   = new Slider("Vertical position",  0, isFirefox ? 90 : 100, 1, 90, "%");
         let subsForegroundPicker = newElement("input");
 
@@ -1428,6 +1432,7 @@ class Internals {
         optionsTab.onclick = _ => select(optionsTab, optionsView);
 
         subsSwitch.onAction = enabled => {
+            this.updateSubtitles(this.getCurrentTime());
             if(enabled && this.activeCues.length > 0) {
                 this.subtitleContainer.style.visibility = "visible";
             } else {
