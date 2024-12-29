@@ -460,12 +460,13 @@ class Internals {
     // - sanitize cues on load (below 100ms)
     // - how to handle unsorted subtitles
     // - heuristic performance offset?
-    _updateSubtitles(time) {
+    updateSubtitles(time) {
         // Hide with hideElement() and show with style.display = "" inside switcher action
         if (!this.htmlControls.subMenu.subsSwitcher.enabled || this.selectedSubtitle == null) {
             return;
         }
         let perfStart = performance.now();
+        // Here use subtitle.offset
         time += this.subtitleOffset;
         // TODO: check if TextTrack.cues are a live list
         let cues = this.selectedSubtitle.cues;
@@ -727,10 +728,14 @@ class Internals {
                     }
                 }
                 console.debug("Sanitized in", performance.now() - parseEnd, "ms")
+                let subtitle = new Subtitle(cues, info.filename, info.extension);
+                this.subtitles.push(subtitle);
                 // TODO(kihau):
                 //     Replace the new index with the actual index or rework
                 //     the createSubtitleTrackElement function itself.
-                let newIndex = -1;
+                // Use either newIndex or subtitle
+                // Player method can take an index, Internals method can receive a subtitle
+                let newIndex = this.subtitles.length - 1;
                 if (show) {
                     this.enableSubtitleTrackAt(newIndex);
                 }
@@ -1008,7 +1013,7 @@ class Internals {
 
         this.htmlVideo.addEventListener("timeupdate", (_event) => {
             let timestamp = this.htmlVideo.currentTime;
-            this._updateSubtitles(timestamp)
+            this.updateSubtitles(timestamp)
             this.updateTimestamps(timestamp);
         });
 
@@ -1676,9 +1681,9 @@ class Cue {
 
 // Internal representation for a subtitle, a replacement for the TextTrack and <track>
 class Subtitle {
-    constructor(name, cues, format) {
-        this.name = name;
+    constructor(cues, name, format) {
         this.cues = cues;
+        this.name = name;
         this.format = format;
         this.offset = 0.0;
     }
