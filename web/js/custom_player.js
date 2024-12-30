@@ -187,8 +187,20 @@ class Player {
     }
 }
 
-function hideElement(element) {
+function hide(element) {
     element.style.display = "none";
+}
+
+function show(element) {
+    element.style.display = "";
+}
+
+function showFlex(element) {
+    element.style.display = "flex";
+}
+
+function isHidden(element) {
+    return element.style.display === "none";
 }
 
 class Internals {
@@ -216,14 +228,14 @@ class Internals {
         this.htmlPlayerRoot.appendChild(this.htmlVideo);
 
         this.htmlTitleContainer = newDiv("player_title_container");
-        hideElement(this.htmlTitleContainer);
+        hide(this.htmlTitleContainer);
         this.htmlPlayerRoot.appendChild(this.htmlTitleContainer);
 
         this.htmlTitle = newElement("span", "player_title_text");
         this.htmlTitleContainer.appendChild(this.htmlTitle);
 
         this.htmlToastContainer = newDiv("player_toast_container");
-        hideElement(this.htmlToastContainer);
+        hide(this.htmlToastContainer);
         this.htmlPlayerRoot.appendChild(this.htmlToastContainer);
         this.htmlToast = newElement("span", "player_toast_text");
         this.htmlToastContainer.appendChild(this.htmlToast);
@@ -278,7 +290,7 @@ class Internals {
 
         this.bufferingSvg = this.svgs.buffering.svg;
         this.bufferingSvg.id = "player_buffering";
-        hideElement(this.bufferingSvg);
+        hide(this.bufferingSvg);
         this.htmlPlayerRoot.appendChild(this.bufferingSvg);
 
         this.playbackPopupSvg = this.svgs.playbackPopup.svg;
@@ -362,8 +374,6 @@ class Internals {
         this.subtitleContainer = newDiv("player_subtitle_container");
         this.subtitleText      = newDiv("player_subtitle_text");
 
-        // this.subtitleContainer.style.visibility = "visible";
-        // this.subtitleContainer.innerHTML = "Lorem ipsum dolor sit amet, consectetur adipiscing elit.";
         this.htmlPlayerRoot.appendChild(this.subtitleContainer);
         this.subtitleContainer.appendChild(this.subtitleText);
 
@@ -462,9 +472,11 @@ class Internals {
     // - how to handle unsorted subtitles
     // - heuristic performance offset?
     updateSubtitles(time) {
-
-        // Hide with hideElement() and show with style.display = "" inside switcher action
         let perfStart = performance.now();
+
+        if (!this.selectedSubtitle) {
+            return;
+        }
 
         time += this.subtitleOffset;
 
@@ -494,7 +506,7 @@ class Internals {
         if (freshCues.length === 0) {
             if (this.activeCues.length > 0) {
                 this.activeCues.length = 0;
-                this.subtitleContainer.style.visibility = "hidden";
+                hide(this.subtitleContainer);
             }
             return;
         }
@@ -514,7 +526,7 @@ class Internals {
 
         this.activeCues = freshCues;
         if (this.htmlControls.subMenu.subsSwitcher.enabled) {
-            this.subtitleContainer.style.visibility = "visible";
+            showFlex(this.subtitleContainer);
             this.subtitleText.innerHTML = captionText;
             let timeTaken = performance.now() - perfStart;
             console.log("Shown after", timeTaken, "ms")
@@ -594,9 +606,9 @@ class Internals {
 
     setTitle(title) {
         if (!title) {
-            hideElement(this.htmlTitleContainer);
+            hide(this.htmlTitleContainer);
         } else {
-            this.htmlTitleContainer.style.display = "";
+            show(this.htmlTitleContainer);
             this.htmlTitle.textContent = title;
         }
     }
@@ -616,7 +628,7 @@ class Internals {
     setToast(toast) {
         this.htmlToast.textContent = toast;
         this.htmlToastContainer.classList.remove("player_ui_hide");
-        this.htmlToastContainer.style.display = "flex";
+        showFlex(this.htmlToastContainer);
 
         clearTimeout(this.playerHideToastTimeoutId);
         this.playerHideToastTimeoutId = setTimeout(() => {
@@ -931,7 +943,7 @@ class Internals {
             this.htmlControls.buttons.autoplayButton.classList.toggle("player_controls_button_selected");
         });
 
-        this.htmlControls.buttons.volumeButton.addEventListener("click", () => {
+        this.htmlControls.buttons.volumeButton.addEventListener("click", _ => {
             let slider = this.htmlControls.buttons.volumeInput;
             if (slider.value == 0) {
                 this.fireControlsVolumeSet(this.volumeBeforeMute);
@@ -943,7 +955,7 @@ class Internals {
             }
         });
 
-        this.htmlControls.buttons.speedButton.addEventListener("click", () => {
+        this.htmlControls.buttons.speedButton.addEventListener("click", _ => {
             // https://developer.mozilla.org/en-US/docs/Web/Media/Audio_and_video_delivery/WebAudio_playbackRate_explained
             // The recommended range is [0.5 - 4.0]
             let newSpeed = this.htmlVideo.playbackRate + 0.25;
@@ -954,31 +966,29 @@ class Internals {
             this.setToast("Speed: " + this.htmlVideo.playbackRate)
         });
 
-        this.htmlControls.buttons.subsButton.addEventListener("click", () => {
-            hideElement(this.htmlControls.settings.root);
+        this.htmlControls.buttons.subsButton.addEventListener("click", _ => {
+            hide(this.htmlControls.settings.root);
 
-            let menuRootElement = this.htmlControls.subMenu.root;
-            let visible = menuRootElement.style.display !== "none";
-            if (visible) {
-                hideElement(menuRootElement);
+            let root = this.htmlControls.subMenu.root;
+            if (isHidden(root)) {
+                show(root);
             } else {
-                menuRootElement.style.display = "";
+                hide(root);
             }
         });
 
-        this.htmlControls.buttons.settingsButton.addEventListener("click", () => {
-            hideElement(this.htmlControls.subMenu.root);
+        this.htmlControls.buttons.settingsButton.addEventListener("click", _ => {
+            hide(this.htmlControls.subMenu.root);
 
             let root = this.htmlControls.settings.root;
-            let visible = root.style.display !== "none";
-            if (visible) {
-                hideElement(root);
+            if (isHidden(root)) {
+                show(root);
             } else {
-                root.style.display = "";
+                hide(root);
             }
         });
 
-        this.htmlPlayerRoot.addEventListener("keydown", (event) => {
+        this.htmlPlayerRoot.addEventListener("keydown", event => {
             if (event.key === " " || event.code === "Space" || event.keyCode === 32) {
                 this.togglePlayback();
                 consumeEvent(event);
@@ -1032,15 +1042,13 @@ class Internals {
             this.togglePlayback();
         });
 
-        this.htmlVideo.addEventListener("waiting", () => {
-            this.bufferingTimeoutId = setTimeout(() => {
-            this.bufferingSvg.style.display = "";
-            }, 200);
+        this.htmlVideo.addEventListener("waiting", _ => {
+            this.bufferingTimeoutId = setTimeout(_ => show(this.bufferingSvg), 200);
         });
 
         this.htmlVideo.addEventListener("playing", () => {
             clearTimeout(this.bufferingTimeoutId);
-            hideElement(this.bufferingSvg);
+            hide(this.bufferingSvg);
         });
 
         this.htmlVideo.addEventListener("timeupdate", _ => {
@@ -1253,18 +1261,18 @@ class Internals {
         settingsButton.title   = "Settings";
         fullscreenButton.title = "Fullscreen";
 
-        if (this.options.hidePlaybackButton)   hideElement(playbackButton);
-        if (this.options.hideNextButton)       hideElement(nextButton);
-        if (this.options.hideLoopingButton)    hideElement(loopButton);
-        if (this.options.hideVolumeButton)     hideElement(volumeButton);
-        if (this.options.hideVolumeSlider)     hideElement(volumeRoot)
-        if (this.options.hideTimestamps)       hideElement(timestamp);
-        if (this.options.hideDownloadButton)   hideElement(downloadButton);
-        if (this.options.hideSpeedButton)      hideElement(speedButton);
-        if (this.options.hideAutoplayButton)   hideElement(autoplayButton);
-        if (this.options.hideSubtitlesButton)  hideElement(subsButton);
-        if (this.options.hideSettingsButton)   hideElement(settingsButton);
-        if (this.options.hideFullscreenButton) hideElement(fullscreenButton);
+        if (this.options.hidePlaybackButton)   hide(playbackButton);
+        if (this.options.hideNextButton)       hide(nextButton);
+        if (this.options.hideLoopingButton)    hide(loopButton);
+        if (this.options.hideVolumeButton)     hide(volumeButton);
+        if (this.options.hideVolumeSlider)     hide(volumeRoot)
+        if (this.options.hideTimestamps)       hide(timestamp);
+        if (this.options.hideDownloadButton)   hide(downloadButton);
+        if (this.options.hideSpeedButton)      hide(speedButton);
+        if (this.options.hideAutoplayButton)   hide(autoplayButton);
+        if (this.options.hideSubtitlesButton)  hide(subsButton);
+        if (this.options.hideSettingsButton)   hide(settingsButton);
+        if (this.options.hideFullscreenButton) hide(fullscreenButton);
 
         this.htmlControls.root.append(buttonsRoot); {
             buttonsRoot.append(playbackButton); {
@@ -1394,10 +1402,10 @@ class Internals {
         let subsVerticalPosition   = new Slider("Vertical position",  0, isFirefox ? 90 : 100, 1, 90, "%");
         let subsForegroundPicker = newElement("input");
 
-        hideElement(menuRoot);
-        hideElement(selectView);
-        hideElement(searchView)
-        hideElement(optionsView)
+        hide(menuRoot);
+        hide(selectView);
+        hide(searchView)
+        hide(optionsView)
 
         selectTab.textContent  = "Select"
         searchTab.textContent  = "Search"
@@ -1414,20 +1422,20 @@ class Internals {
         menu.selected.view = selectView;
 
         menu.selected.tab.classList.add("player_menu_tab_selected");
-        menu.selected.view.style.display = "";
+        show(menu.selected.view);
 
         menuRoot.onclick = consumeClick;
 
         let select = (tab, view) => {
             let selected = menu.selected;
             selected.tab.classList.remove("player_menu_tab_selected");
-            hideElement(selected.view)
+            hide(selected.view)
 
             selected.tab = tab
             selected.view = view;
 
             selected.tab.classList.add("player_menu_tab_selected");
-            selected.view.style.display = "";
+            show(selected.view);
         }
 
         selectTab.onclick  = _ => select(selectTab,  selectView);
@@ -1436,10 +1444,10 @@ class Internals {
 
         subsSwitch.onAction = enabled => {
             this.updateSubtitles(this.getCurrentTime());
-            if(enabled && this.activeCues.length > 0) {
-                this.subtitleContainer.style.visibility = "visible";
+            if (enabled && this.activeCues.length > 0) {
+                showFlex(this.subtitleContainer);
             } else {
-                this.subtitleContainer.style.visibility = "hidden";
+                hide(this.subtitleContainer);
             }
         };
 
@@ -1511,7 +1519,7 @@ class Internals {
         let showOnPause    = new Switcher("Show controls on pause", );
         let playbackSpeed  = new Slider("Playback speed", 0.25, 5.0, 0.25, 1.0, "x");
 
-        hideElement(menuRoot);
+        hide(menuRoot);
         autohide.setState(this.options.autohideControls);
         showOnPause.setState(this.options.showControlsOnPause);
 
@@ -1522,20 +1530,20 @@ class Internals {
         menu.selected.view = generalView;
 
         menu.selected.tab.classList.add("player_menu_tab_selected");
-        menu.selected.view.style.display = "";
+        show(menu.selected.view);
 
         menuRoot.onclick = consumeClick;
 
         let select = (tab, view) => {
             let selected = menu.selected;
             selected.tab.classList.remove("player_menu_tab_selected");
-            hideElement(selected.view)
+            hide(selected.view)
 
             selected.tab = tab
             selected.view = view;
 
             selected.tab.classList.add("player_menu_tab_selected");
-            selected.view.style.display = "";
+            show(selected.view);
         }
 
         generalTab.onclick     = () => select(generalTab, generalView);

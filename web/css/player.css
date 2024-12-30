@@ -127,10 +127,9 @@
 
 #player_subtitle_container {
     width: 100%;
-    display: flex;
+    display: none;
     bottom: 0;
     position: absolute;
-    visibility: hidden;
     margin-bottom: 8%;
     align-items: center;
     justify-content: center;
