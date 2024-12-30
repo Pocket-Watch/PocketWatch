@@ -1883,14 +1883,14 @@ function parseSubtitles(subtitleText, decimalMark, skipCounter, skipHeader) {
         if (!ok || ++i >= lines.length) {
             return cues;
         }
-        let content = lines[i]
+        let content = lines[i].trim();
         while (++i < lines.length) {
             let text = lines[i].trim();
             if (text.length === 0) {
                 break;
             }
-            content += text;
             content += '\n';
+            content += text;
         }
         if (content !== "") {
             let newCue = new Cue(start, end, content);
