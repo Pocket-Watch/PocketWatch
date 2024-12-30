@@ -1880,13 +1880,13 @@ function parseSubtitles(subtitleText, decimalMark, skipCounter, skipHeader) {
 
         let timestamps = lines[i];
         let [start, end, ok] = parseTimestamps(timestamps, decimalMark)
-        if (!ok) {
+        if (!ok || ++i >= lines.length) {
             return cues;
         }
-        let content = ""
+        let content = lines[i]
         while (++i < lines.length) {
-            let text = lines[i];
-            if (text.length === 0 || (text.length === 1 && (text[0] === '\r' || text[0] === '\n'))) {
+            let text = lines[i].trim();
+            if (text.length === 0) {
                 break;
             }
             content += text;
