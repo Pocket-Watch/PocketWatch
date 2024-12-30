@@ -10,6 +10,7 @@
 
 #player_container * {
     user-select: none;
+    -webkit-user-select: none;
 }
 
 #player_container video {
@@ -144,7 +145,7 @@
     padding: 8px;
     color: white;
     font-size: 30px;
-    white-space: pre;
+    white-space: pre-wrap;
     align-items: center;
     justify-content: center;
     text-align: center;
