@@ -18,6 +18,8 @@ class Playlist {
         // this.dragEntryStart  = null;
         // this.dragEntryEnd  = null;
         this.isDragging = null;
+
+        this.transition = false;
     }
 
     addEntry(entry) {
@@ -129,20 +131,71 @@ class Playlist {
 
         entryDragArea.onmousedown = _ => {
             let onDragging = event => {
+                if (this.transition) {
+                    return;
+                }
+
                 let entryNext = entryRoot.nextElementSibling;
                 let entryPrev = entryRoot.previousElementSibling;
 
                 if (entryNext) {
                     let rect = entryNext.getBoundingClientRect();
                     if (event.y > rect.y) {
-                        this.htmlEntryList.insertBefore(entryNext, entryRoot);
+                        // this.htmlEntryList.insertBefore(entryNext, entryRoot);
+
+                        this.transition = true;
+
+                        let rootRect = entryRoot.getBoundingClientRect();
+                        let diff = rootRect.y - rect.y;
+
+                        console.log(diff)
+
+                        entryNext.style.transform  = `translate(0, ${diff}px)`;
+                        entryNext.style.transition = "transform 2000ms";
+
+                        entryRoot.style.transform  = `translate(0, ${-diff}px)`;
+                        entryRoot.style.transition = "transform 2000ms";
+
+                        entryNext.ontransitionend = () => {
+                            entryRoot.style.transition = "";
+                            entryRoot.style.transform  = "";
+
+                            entryNext.style.transition = "";
+                            entryNext.style.transform  = "";
+
+                            this.htmlEntryList.insertBefore(entryNext, entryRoot);
+                            this.transition = false;
+                        };
+
+                        return;
                     }
                 } 
 
                 if (entryPrev) {
                     let rect = entryPrev.getBoundingClientRect();
                     if (event.y < rect.y + rect.height) {
-                        this.htmlEntryList.insertBefore(entryPrev, entryNext);
+                        // this.htmlEntryList.insertBefore(entryPrev, entryNext);
+
+                        // this.transition = true;
+                        //
+                        // entryPrev.style.transform  = "translateY(106%)";
+                        // entryPrev.style.transition = "transform 120ms";
+                        //
+                        // entryRoot.style.transform  = "translateY(-106%)";
+                        // entryRoot.style.transition = "transform 120ms";
+                        //
+                        // entryPrev.ontransitionend = () => {
+                        //     entryRoot.style.transition = "";
+                        //     entryRoot.style.transform  = "";
+                        //
+                        //     entryPrev.style.transition = "";
+                        //     entryPrev.style.transform  = "";
+                        //
+                        //     this.htmlEntryList.insertBefore(entryPrev, entryNext);
+                        //     this.transition = false;
+                        // };
+                        //
+                        // return;
                     }
                 }
 

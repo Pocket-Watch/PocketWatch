@@ -360,9 +360,12 @@ class Internals {
         this.htmlPlayerRoot.appendChild(this.htmlSeekBackward);
 
         this.subtitleContainer = newDiv("player_subtitle_container");
+        this.subtitleText      = newDiv("player_subtitle_text");
+
         // this.subtitleContainer.style.visibility = "visible";
         // this.subtitleContainer.innerHTML = "Lorem ipsum dolor sit amet, consectetur adipiscing elit.";
         this.htmlPlayerRoot.appendChild(this.subtitleContainer);
+        this.subtitleContainer.appendChild(this.subtitleText);
 
         this.createHtmlControls();
         this.attachHtmlEvents();
@@ -512,7 +515,7 @@ class Internals {
         this.activeCues = freshCues;
         if (this.htmlControls.subMenu.subsSwitcher.enabled) {
             this.subtitleContainer.style.visibility = "visible";
-            this.subtitleContainer.innerHTML = captionText;
+            this.subtitleText.innerHTML = captionText;
             let timeTaken = performance.now() - perfStart;
             console.log("Shown after", timeTaken, "ms")
         }
@@ -790,15 +793,15 @@ class Internals {
     }
 
     setSubtitleFontSize(fontSize) {
-        this.subtitleContainer.style.fontSize = fontSize + "px";
+        this.subtitleText.style.fontSize = fontSize + "px";
     }
 
     setSubtitleForeground(color) {
-        this.subtitleContainer.style.color = color;
+        this.subtitleText.style.color = color;
     }
 
     setSubtitleBackground(color) {
-        this.subtitleContainer.style.backgroundColor = color;
+        this.subtitleText.style.backgroundColor = color;
     }
 
     setSubtitleVerticalPosition(percentage) {
