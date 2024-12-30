@@ -2,6 +2,9 @@
 
 set -xe
 
+base_dir=$(dirname "$0")
+cd "$base_dir"
+
 # ip="localhost"
 ip="192.168.1.2"
 port="1234"
