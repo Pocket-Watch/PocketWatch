@@ -525,12 +525,14 @@ class Internals {
         }
 
         this.activeCues = freshCues;
+        this.subtitleText.innerHTML = captionText;
+
         if (this.htmlControls.subMenu.subsSwitcher.enabled) {
             showFlex(this.subtitleContainer);
-            this.subtitleText.innerHTML = captionText;
-            let timeTaken = performance.now() - perfStart;
-            console.log("Shown after", timeTaken, "ms")
         }
+
+        let timeTaken = performance.now() - perfStart;
+        console.log("Shown after", timeTaken, "ms")
     }
 
     updateProgressPopup(progress) {
@@ -792,6 +794,7 @@ class Internals {
         this.selectedSubtitle = subtitle;
         this.markSubtitleSelected(subtitle);
         this.updateSubtitles(this.getCurrentTime());
+        console.log(subtitle);
     }
 
     shiftCurrentSubtitleTrackBy(seconds) {
@@ -1381,8 +1384,6 @@ class Internals {
     // }
 
     createSubtitleMenu() {
-        let isFirefox = navigator.userAgent.includes("Firefox");
-
         let playerRoot     = this.htmlPlayerRoot;
         let menu           = this.htmlControls.subMenu;
         let menuRoot       = menu.root;
@@ -1399,7 +1400,7 @@ class Internals {
         let optionsView    = newDiv("player_submenu_bottom_options");
         let subsShift      = new Slider("Subtitle shift", -10, 10, 0.1, 0, "s", true);
         let subsSize       = new Slider("Subtitle size",  10, 100, 1.0, 30, "px");
-        let subsVerticalPosition   = new Slider("Vertical position",  0, isFirefox ? 90 : 100, 1, 90, "%");
+        let subsVerticalPosition = new Slider("Vertical position",  0, 100, 1, 8, "%");
         let subsForegroundPicker = newElement("input");
 
         hide(menuRoot);

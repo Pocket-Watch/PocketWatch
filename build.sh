@@ -2,8 +2,8 @@
 
 set -xe
 
-base_dir=$(dirname "$0")
-cd "$base_dir"
+project_root=$(dirname "$0")
+cd "$project_root"
 
 # ip="localhost"
 ip="192.168.1.2"
