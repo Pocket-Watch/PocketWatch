@@ -528,7 +528,7 @@ class Room {
     setNothing() {
         this.player.discardPlayback();
         this.player.setToast("Nothing is playing at the moment!");
-        this.player.setPoster("img/nothing_is_playing.png");
+        // this.player.setPoster("img/nothing_is_playing.png");
     }
 
     resyncPlayer(timestamp, userId) {
