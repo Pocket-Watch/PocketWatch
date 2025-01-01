@@ -19,7 +19,16 @@ class Playlist {
         // this.dragEntryEnd  = null;
         this.isDragging = null;
 
-        this.transition = false;
+
+        this.controlsRoot   = getById("playlist_controls_root");
+        this.dropdownButton = getById("playlist_dropdown_button");
+    }
+
+    attachPlaylistEvents() {
+        this.dropdownButton.onclick = _ => {
+            console.log("clicked");
+            this.controlsRoot.classList.toggle("playlist_controls_root_expand");
+        };
     }
 
     addEntry(entry) {
@@ -127,11 +136,18 @@ class Playlist {
         // Attaching events to html elements.
         //
 
+        // Scrolling on screen touch.
         entryRoot.ontouchstart = _ => {};
 
+        // Dragging for touch screens.
+        entryDragArea.ontouchstart = _ => {};
+
         entryDragArea.onmousedown = _ => {
+            let isTransition = false
+            const time = "80ms"
+
             let onDragging = event => {
-                if (this.transition) {
+                if (isTransition) {
                     return;
                 }
 
@@ -140,23 +156,21 @@ class Playlist {
 
                 if (entryNext) {
                     let rect = entryNext.getBoundingClientRect();
-                    if (event.y > rect.y) {
-                        // this.htmlEntryList.insertBefore(entryNext, entryRoot);
-
-                        this.transition = true;
+                    if (event.y > rect.y + rect.height / 3.0) {
+                        isTransition = true;
 
                         let rootRect = entryRoot.getBoundingClientRect();
                         let diff = rootRect.y - rect.y;
 
-                        console.log(diff)
-
                         entryNext.style.transform  = `translate(0, ${diff}px)`;
-                        entryNext.style.transition = "transform 2000ms";
+                        entryNext.style.transition = "transform " + time;
 
                         entryRoot.style.transform  = `translate(0, ${-diff}px)`;
-                        entryRoot.style.transition = "transform 2000ms";
+                        entryRoot.style.transition = "transform " + time;
 
-                        entryNext.ontransitionend = () => {
+                        entryNext.ontransitionend = _ => {
+                            entryNext.ontransitionend = null;
+
                             entryRoot.style.transition = "";
                             entryRoot.style.transform  = "";
 
@@ -164,38 +178,37 @@ class Playlist {
                             entryNext.style.transform  = "";
 
                             this.htmlEntryList.insertBefore(entryNext, entryRoot);
-                            this.transition = false;
+                            isTransition = false;
                         };
-
-                        return;
                     }
                 } 
 
                 if (entryPrev) {
                     let rect = entryPrev.getBoundingClientRect();
-                    if (event.y < rect.y + rect.height) {
-                        // this.htmlEntryList.insertBefore(entryPrev, entryNext);
+                    if (event.y < rect.y + rect.height / 1.5) {
+                        isTransition = true;
 
-                        // this.transition = true;
-                        //
-                        // entryPrev.style.transform  = "translateY(106%)";
-                        // entryPrev.style.transition = "transform 120ms";
-                        //
-                        // entryRoot.style.transform  = "translateY(-106%)";
-                        // entryRoot.style.transition = "transform 120ms";
-                        //
-                        // entryPrev.ontransitionend = () => {
-                        //     entryRoot.style.transition = "";
-                        //     entryRoot.style.transform  = "";
-                        //
-                        //     entryPrev.style.transition = "";
-                        //     entryPrev.style.transform  = "";
-                        //
-                        //     this.htmlEntryList.insertBefore(entryPrev, entryNext);
-                        //     this.transition = false;
-                        // };
-                        //
-                        // return;
+                        let rootRect = entryRoot.getBoundingClientRect();
+                        let diff = rootRect.y - rect.y;
+
+                        entryPrev.style.transform  = `translate(0, ${diff}px)`;
+                        entryPrev.style.transition = "transform " + time;
+
+                        entryRoot.style.transform  = `translate(0, ${-diff}px)`;
+                        entryRoot.style.transition = "transform " + time;
+
+                        entryPrev.ontransitionend = _ => {
+                            entryPrev.ontransitionend = null;
+
+                            entryRoot.style.transition = "";
+                            entryRoot.style.transform  = "";
+
+                            entryPrev.style.transition = "";
+                            entryPrev.style.transform  = "";
+
+                            this.htmlEntryList.insertBefore(entryPrev, entryNext);
+                            isTransition = false;
+                        };
                     }
                 }
 
@@ -210,6 +223,9 @@ class Playlist {
             };
 
             this.isDragging = true;
+
+
+            entryRoot.classList.remove("entry_dropdown_expand");
             document.addEventListener("mousemove", onDragging);
             document.addEventListener("mouseup",   onDraggingStop);
         };

@@ -301,6 +301,7 @@ class Room {
     }
 
     attachHtmlEvents() {
+        this.playlist.attachPlaylistEvents();
         this.attachUrlAreaEvents();
         this.attachRightPanelEvents();
     }
