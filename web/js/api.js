@@ -151,7 +151,7 @@ export async function uploadFileWithProgress(file, onprogress) {
     var formdata = new FormData();
     formdata.append("file", file);
 
-    request.upload.onprogress = _ => {
+    request.upload.onprogress = event => {
         let progress = 0.0;
         if (event.lengthComputable) {
             progress = (event.loaded / event.total) * 100;
