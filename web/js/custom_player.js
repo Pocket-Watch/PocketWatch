@@ -90,7 +90,8 @@ class Player {
         if (index < 0 || index >= this.subtitles.length) {
             return;
         }
-        this.internals.enableSubtitleTrack(this.subtitles[index]);
+        let subtitle = this.internals.subtitles[index];
+        this.internals.enableSubtitleTrack(subtitle);
     }
 
     // The seconds argument is a double, negative shifts back, positive shifts forward
