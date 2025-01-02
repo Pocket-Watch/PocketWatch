@@ -358,6 +358,8 @@ class Internals {
             }
         };
 
+        this.subtitleShift = new Slider("Subtitle shift", -20, 20, 0.1, 0, "s", true);
+
         this.isDraggingProgressBar = false;
         this.isUIVisible = true;
         this.volumeBeforeMute = 0.0;
@@ -365,7 +367,6 @@ class Internals {
         this.subtitles = [];
         this.selectedSubtitle = null;
         this.activeCues = [];
-        this.subtitleOffset = 0.0;
 
         this.htmlSeekForward = newDiv("player_forward_container", "unselectable");
         this.htmlSeekForward.appendChild(this.svgs.seekForward.svg);
@@ -482,7 +483,7 @@ class Internals {
             return;
         }
 
-        time += this.subtitleOffset;
+        time += this.selectedSubtitle.offset;
 
         // TODO: check if TextTrack.cues are a live list
         let cues = this.selectedSubtitle.cues;
@@ -788,23 +789,43 @@ class Internals {
     }
 
     enableSubtitleTrack(subtitle) {
+        if (!subtitle) {
+            return;
+        }
+
         this.selectedSubtitle = subtitle;
         this.htmlControls.subMenu.subsSwitcher.setState(true);
         this.markSubtitleSelected(subtitle);
+        this.subtitleShift.setValue(this.selectedSubtitle.offset);
         this.updateSubtitles(this.getCurrentTime());
     }
 
     switchSubtitleTrack(subtitle) {
+        if (!subtitle) {
+            return;
+        }
+
         this.selectedSubtitle = subtitle;
         this.markSubtitleSelected(subtitle);
+        this.subtitleShift.setValue(this.selectedSubtitle.offset);
         this.updateSubtitles(this.getCurrentTime());
-        console.log(subtitle);
     }
 
     shiftCurrentSubtitleTrackBy(seconds) {
-        // NOTE(kihau): This will shift currently selected subtitle instead of doing this globally for all of them.
-        this.subtitleOffset += seconds;
-        this.updateSubtitles(this.getCurrentTime());
+        if (this.selectedSubtitle) {
+            this.selectedSubtitle.offset += seconds;
+            this.subtitleShift.setValue(this.selectedSubtitle.offset);
+            this.updateSubtitles(this.getCurrentTime());
+        }
+    }
+
+    // TOOD(kihau): Also public API?
+    setCurrentSubtitleShift(offset) {
+        if (this.selectedSubtitle) {
+            this.selectedSubtitle.offset = offset;
+            this.subtitleShift.setValue(this.selectedSubtitle.offset);
+            this.updateSubtitles(this.getCurrentTime());
+        }
     }
 
     removeSubtitleTrackAt(index) {
@@ -1402,8 +1423,8 @@ class Internals {
         let searchView     = newDiv("player_submenu_search_view");
         let subtitleImport = newElement("input", "player_submenu_import");
         let optionsView    = newDiv("player_submenu_bottom_options");
-        // let subsShift      = new Slider("Subtitle shift", -10, 10, 0.1, 0, "s", true);
-        let subsShift      = new Slider("Subtitle shift", -30, 30, 0.1, 0, "s", true);
+        // let subsShift      = new Slider("Subtitle shift", -20, 20, 0.1, 0, "s", true);
+        let subsShift      = this.subtitleShift;
         let subsSize       = new Slider("Subtitle size",  10, 100, 1.0, 30, "px");
         let subsVerticalPosition = new Slider("Vertical position",  0, 100, 1, 8, "%");
         let subsForegroundPicker = newElement("input");
@@ -1470,14 +1491,7 @@ class Internals {
             this.addSubtitle(objectUrl, true, trackInfo)
         };
 
-        let previousValue = 0.0;
-        subsShift.onInput = value => {
-            let delta = value - previousValue;
-            delta = Math.round(delta * 1000.0) / 1000.0;
-
-            previousValue = value;
-            this.shiftCurrentSubtitleTrackBy(delta);
-        };
+        subsShift.onInput = value => this.setCurrentSubtitleShift(value);
 
         subsSize.onInput = value => this.setSubtitleFontSize(value);
         subsVerticalPosition.onInput = value => this.setSubtitleVerticalPosition(value);

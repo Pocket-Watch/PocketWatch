@@ -285,17 +285,6 @@ class Room {
             this.resetUrlAreaElements();
         }
 
-        this.urlArea.urlInput.onkeypress = (event) => {
-            if (event.key === "Enter") {
-                let entry = this.createNewEntry();
-                api.playerSet(entry).then(jsonResponse => {
-                    if (jsonResponse.checkAndLogError()) {
-                        return;
-                    }
-                    this.resetUrlAreaElements();
-                });
-            }
-        }
 
         this.urlArea.selectSubtitleButton.onclick = () => {
             let input = document.createElement('input');
