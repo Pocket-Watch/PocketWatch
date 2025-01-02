@@ -1398,7 +1398,8 @@ class Internals {
         let searchView     = newDiv("player_submenu_search_view");
         let subtitleImport = newElement("input", "player_submenu_import");
         let optionsView    = newDiv("player_submenu_bottom_options");
-        let subsShift      = new Slider("Subtitle shift", -10, 10, 0.1, 0, "s", true);
+        // let subsShift      = new Slider("Subtitle shift", -10, 10, 0.1, 0, "s", true);
+        let subsShift      = new Slider("Subtitle shift", -30, 30, 0.1, 0, "s", true);
         let subsSize       = new Slider("Subtitle size",  10, 100, 1.0, 30, "px");
         let subsVerticalPosition = new Slider("Vertical position",  0, 100, 1, 8, "%");
         let subsForegroundPicker = newElement("input");
