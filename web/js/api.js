@@ -141,6 +141,29 @@ export async function uploadFile(file, filename) {
     return filePath;
 }
 
+export async function uploadFileWithProgress(file, onprogress) {
+    console.info("INFO: Uploading a file to the server (with progress callback).");
+
+    const request = new XMLHttpRequest();
+    request.open("POST", "/watch/api/upload", true);
+    request.setRequestHeader("Authorization", token);
+
+    var formdata = new FormData();
+    formdata.append("file", file);
+
+    request.upload.onprogress = _ => {
+        let progress = 0.0;
+        if (event.lengthComputable) {
+            progress = (event.loaded / event.total) * 100;
+        }
+
+        onprogress(progress);
+    };
+
+    // TODO(kihau): Add error handing? Do we even care?
+    request.send(formdata);
+}
+
 export async function userCreate() {
     let data = await httpGet("/watch/api/user/create");
     console.info("INFO: Received data from createuser request to the server: ", data);

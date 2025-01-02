@@ -57,6 +57,10 @@ class Room {
         this.nowPlaying = getById("room_now_playing_input");
         this.usingProxy = getById("room_using_proxy");
 
+        this.uploadButton   = getById("room_upload_button");
+        this.uploadInput    = getById("room_upload_input");
+        this.uploadProgress = getById("room_upload_progress");
+
         let content = this.rightPanel.content.playlist;
         content.classList.add("content_view_selected");
 
@@ -225,10 +229,26 @@ class Room {
         let tabs = this.rightPanel.tabs;
         let content = this.rightPanel.content;
 
-        tabs.room.onclick     = () => select(tabs.room, content.room);
-        tabs.playlist.onclick = () => select(tabs.playlist, content.playlist);
-        tabs.chat.onclick     = () => select(tabs.chat, content.chat);
-        tabs.history.onclick  = () => select(tabs.history, content.history);
+        tabs.room.onclick     = _ => select(tabs.room, content.room);
+        tabs.playlist.onclick = _ => select(tabs.playlist, content.playlist);
+        tabs.chat.onclick     = _ => select(tabs.chat, content.chat);
+        tabs.history.onclick  = _ => select(tabs.history, content.history);
+
+        this.uploadButton.onclick = _ => {
+            this.uploadInput.click();
+        };
+
+        this.uploadInput.onchange = event => {
+            let files = event.target.files;
+
+            if (files.length === 0) {
+                return;
+            }
+
+            api.uploadFileWithProgress(files[0], progress => {
+                this.uploadProgress.value = progress;
+            });
+        };
     }
 
     attachUrlAreaEvents() {
