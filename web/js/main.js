@@ -108,6 +108,7 @@ class Room {
         // We have to know if anything is currently playing or whether something is set
         this.player.onControlsPlay(() => {
             if (this.ended) {
+                this.ended = false;
                 api.playerPlay(0);
                 return;
             }
