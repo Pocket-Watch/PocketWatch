@@ -863,6 +863,10 @@ class Internals {
             return;
         }
 
+        if (this.isDraggingProgressBar) {
+            return;
+        }
+
         this.htmlPlayerRoot.style.cursor = "none";
         this.htmlControls.root.classList.add("player_ui_hide");
         this.htmlTitleContainer.classList.add("player_ui_hide");
@@ -1144,8 +1148,9 @@ class Internals {
             }
 
             const onProgressBarTouchStop = event => {
-                // this.setToast("Touch end fire");
                 this.isDraggingProgressBar = false;
+                this.resetPlayerUIHideTimeout();
+
                 document.removeEventListener('touchmove', onProgressBarTouchMove);
                 document.removeEventListener('touchend', onProgressBarTouchStop);
 
@@ -1172,6 +1177,8 @@ class Internals {
 
             const onProgressBarMouseUp = event => {
                 this.isDraggingProgressBar = false;
+                this.resetPlayerUIHideTimeout();
+
                 document.removeEventListener('mousemove', onProgressBarMouseMove);
                 document.removeEventListener('mouseup', onProgressBarMouseUp);
 
