@@ -85,9 +85,12 @@ class Player {
         this.internals.removeSubtitleTrackAt(index);
     }
 
-    // Hides the previously selected track. Shows the track at the specified index.
+    // Select and show the track at the specified index.
     enableSubtitleTrackAt(index) {
-        this.internals.enableSubtitleTrack(index);
+        if (index < 0 || index >= this.subtitles.length) {
+            return;
+        }
+        this.internals.enableSubtitleTrack(this.subtitles[index]);
     }
 
     // The seconds argument is a double, negative shifts back, positive shifts forward

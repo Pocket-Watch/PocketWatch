@@ -129,6 +129,23 @@ player.onControlsSeeked((timestamp) => {
 // Toasts appear in the top right corner as text, also in fullscreen
 ```
 
+### Custom subtitle implementation
+- support for parsing `SRT` and `VTT`
+- proper cue content sanitization with `DOMParser`
+- addressed bottlenecks related to shifting, setting and parsing
+- ability to import subtitle files from disk
+
+```js
+// Adds a subtitle and doesn't show it
+player.addSubtitle("subtitles/Subtitle0.srt");
+// Sets a subtitle (shows it)
+player.setSubtitle("subtitles/Subtitle1.vtt");
+// Shows the subtitle at the given index
+player.enableSubtitleTrackAt(0);
+// Shifts the currently selected subtitle (either backwards or forwards) by the given amount of seconds 
+player.shiftCurrentSubtitleTrackBy(-5);
+```
+
 ## Problems with the standard subtitle API
 >It is terrible
 
