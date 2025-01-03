@@ -142,79 +142,198 @@ class Playlist {
         // Dragging for touch screens.
         entryDragArea.ontouchstart = _ => {};
 
+        // let applyTransitionUp = (entry, diff) => {
+        //     const time = "2000ms";
+        //
+        //     entry.style.transform  = `translate(0, ${diff}px)`;
+        //     entry.style.transition = "transform " + time;
+        //
+        //     entry.ontransitionend = _ => {
+        //         entry.ontransitionend = null;
+        //         entry.style.transition = "";
+        //         entry.style.transform  = "";
+        //
+        //         this.htmlEntryList.insertBefore(entryNext, entryRoot);
+        //     };
+        // };
+
+        let timeout = null; 
+
         entryDragArea.onmousedown = _ => {
-            let isTransition = false
-            const time = "80ms"
+            // entryRoot.style.opacity = 0.3;
 
+            let onDragTimeout = event => {
+                let rect = entryRoot.getBoundingClientRect();
+
+                // NOTE(kihau): There must me a nicer way to calculate transition distance.
+                const rowGap = 4;
+                const distance = rect.height + rowGap;
+                const time = 600;
+
+                // NOTE(kihau): Instead of using next/previous sibling element, iterate over the htmlEntries array?
+
+                if (event.y < rect.y) {
+                    let count  = 0;
+
+                    let entry = entryRoot;
+                    while (true) {
+                        if (!entry.previousElementSibling) {
+                            break;
+                        }
+
+                        entry = entry.previousElementSibling 
+                        rect  = entry.getBoundingClientRect();
+
+                        if (event.y > rect.y + rect.height) {
+                            break;
+                        }
+
+                        count += 1;
+
+                        entry.style.transform  = `translate(0, ${distance}px)`;
+                        entry.style.transition = `transform ${time}ms`;
+                        entry.ontransitionend = event => {
+                            event.target.ontransitionend = null;
+                            event.target.style.transition = "";
+                            event.target.style.transform  = "";
+                        };
+
+                        if (event.y >= rect.y) {
+                            break;
+                        }
+                    }
+
+                    entryRoot.style.transform  = `translate(0, -${distance * count}px)`;
+                    entryRoot.style.transition = `transform ${time}ms`;
+                    entryRoot.ontransitionend = _ => {
+                        entryRoot.ontransitionend = null;
+                        entryRoot.style.transition = "";
+                        entryRoot.style.transform  = "";
+
+                        this.htmlEntryList.insertBefore(entryRoot, entry);
+                    };
+                } else if (event.y > rect.y + rect.height) {
+                    let count  = 0;
+
+                    let entry = entryRoot;
+                    while (true) {
+                        if (!entry.nextElementSibling) {
+                            break;
+                        }
+
+                        entry = entry.nextElementSibling 
+                        rect  = entry.getBoundingClientRect();
+
+                        if (event.y < rect.y) {
+                            break;
+                        }
+
+                        count += 1;
+
+                        entry.style.transform  = `translate(0, -${distance}px)`;
+                        entry.style.transition = `transform ${time}ms`;
+                        entry.ontransitionend = event => {
+                            event.target.ontransitionend = null;
+                            event.target.style.transition = "";
+                            event.target.style.transform  = "";
+                        };
+
+                        if (event.y <= rect.y + rect.height) {
+                            break;
+                        }
+                    }
+
+                    entryRoot.style.transform  = `translate(0, ${distance * count}px)`;
+                    entryRoot.style.transition = `transform ${time}ms`;
+                    entryRoot.ontransitionend = _ => {
+                        console.log(entry);
+                        entryRoot.ontransitionend = null;
+                        entryRoot.style.transition = "";
+                        entryRoot.style.transform  = "";
+
+                        this.htmlEntryList.insertBefore(entryRoot, entry.nextSibling);
+                    };
+                }
+            }
+
+            let timeout = null;
             let onDragging = event => {
-                if (isTransition) {
-                    return;
-                }
+                clearTimeout(timeout);
+                timeout = setTimeout(onDragTimeout, 100, event);
+            }
 
-                let entryNext = entryRoot.nextElementSibling;
-                let entryPrev = entryRoot.previousElementSibling;
-
-                if (entryNext) {
-                    let rect = entryNext.getBoundingClientRect();
-                    if (event.y > rect.y + rect.height / 3.0) {
-                        isTransition = true;
-
-                        let rootRect = entryRoot.getBoundingClientRect();
-                        let diff = rootRect.y - rect.y;
-
-                        entryNext.style.transform  = `translate(0, ${diff}px)`;
-                        entryNext.style.transition = "transform " + time;
-
-                        entryRoot.style.transform  = `translate(0, ${-diff}px)`;
-                        entryRoot.style.transition = "transform " + time;
-
-                        entryNext.ontransitionend = _ => {
-                            entryNext.ontransitionend = null;
-
-                            entryRoot.style.transition = "";
-                            entryRoot.style.transform  = "";
-
-                            entryNext.style.transition = "";
-                            entryNext.style.transform  = "";
-
-                            this.htmlEntryList.insertBefore(entryNext, entryRoot);
-                            isTransition = false;
-                        };
-                    }
-                } 
-
-                if (entryPrev) {
-                    let rect = entryPrev.getBoundingClientRect();
-                    if (event.y < rect.y + rect.height / 1.5) {
-                        isTransition = true;
-
-                        let rootRect = entryRoot.getBoundingClientRect();
-                        let diff = rootRect.y - rect.y;
-
-                        entryPrev.style.transform  = `translate(0, ${diff}px)`;
-                        entryPrev.style.transition = "transform " + time;
-
-                        entryRoot.style.transform  = `translate(0, ${-diff}px)`;
-                        entryRoot.style.transition = "transform " + time;
-
-                        entryPrev.ontransitionend = _ => {
-                            entryPrev.ontransitionend = null;
-
-                            entryRoot.style.transition = "";
-                            entryRoot.style.transform  = "";
-
-                            entryPrev.style.transition = "";
-                            entryPrev.style.transform  = "";
-
-                            this.htmlEntryList.insertBefore(entryPrev, entryNext);
-                            isTransition = false;
-                        };
-                    }
-                }
-
-                // console.log("Next", next, "Prev", prev, "Event", event);
-                // console.log("Now", entryRoot.getBoundingClientRect(), "Event", event);
-            };
+            // let isTransition = false
+            // const time = "80ms"
+            //
+            // let onDragging = event => {
+            //     if (isTransition) {
+            //         return;
+            //     }
+            //
+            //     let entryNext = entryRoot.nextElementSibling;
+            //     let entryPrev = entryRoot.previousElementSibling;
+            //
+            //     if (entryNext) {
+            //         let rect = entryNext.getBoundingClientRect();
+            //         if (event.y > rect.y + rect.height / 3.0) {
+            //             isTransition = true;
+            //
+            //             let rootRect = entryRoot.getBoundingClientRect();
+            //             let diff = rootRect.y - rect.y;
+            //
+            //             entryNext.style.transform  = `translate(0, ${diff}px)`;
+            //             entryNext.style.transition = "transform " + time;
+            //
+            //             entryRoot.style.transform  = `translate(0, ${-diff}px)`;
+            //             entryRoot.style.transition = "transform " + time;
+            //
+            //             entryNext.ontransitionend = _ => {
+            //                 entryNext.ontransitionend = null;
+            //
+            //                 entryRoot.style.transition = "";
+            //                 entryRoot.style.transform  = "";
+            //
+            //                 entryNext.style.transition = "";
+            //                 entryNext.style.transform  = "";
+            //
+            //                 this.htmlEntryList.insertBefore(entryNext, entryRoot);
+            //                 isTransition = false;
+            //             };
+            //         }
+            //     } 
+            //
+            //     if (entryPrev) {
+            //         let rect = entryPrev.getBoundingClientRect();
+            //         if (event.y < rect.y + rect.height / 1.5) {
+            //             isTransition = true;
+            //
+            //             let rootRect = entryRoot.getBoundingClientRect();
+            //             let diff = rootRect.y - rect.y;
+            //
+            //             entryPrev.style.transform  = `translate(0, ${diff}px)`;
+            //             entryPrev.style.transition = "transform " + time;
+            //
+            //             entryRoot.style.transform  = `translate(0, ${-diff}px)`;
+            //             entryRoot.style.transition = "transform " + time;
+            //
+            //             entryPrev.ontransitionend = _ => {
+            //                 entryPrev.ontransitionend = null;
+            //
+            //                 entryRoot.style.transition = "";
+            //                 entryRoot.style.transform  = "";
+            //
+            //                 entryPrev.style.transition = "";
+            //                 entryPrev.style.transform  = "";
+            //
+            //                 this.htmlEntryList.insertBefore(entryPrev, entryNext);
+            //                 isTransition = false;
+            //             };
+            //         }
+            //     }
+            //
+            //     // console.log("Next", next, "Prev", prev, "Event", event);
+            //     // console.log("Now", entryRoot.getBoundingClientRect(), "Event", event);
+            // };
 
             let onDraggingStop = _ => {
                 this.isDragging = false;
