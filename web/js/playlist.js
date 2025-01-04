@@ -5,6 +5,8 @@ export { Playlist }
 
 class Playlist {
     constructor() {
+        this.htmlEntryListWrap = getById("playlist_entry_list_wrap");
+
         this.htmlEntryList = getById("playlist_entry_list");
         // NOTE: Other items go here like control buttons and input boxes.
 
@@ -19,9 +21,11 @@ class Playlist {
         // this.dragEntryEnd  = null;
         this.isDragging = null;
 
-
         this.controlsRoot   = getById("playlist_controls_root");
         this.dropdownButton = getById("playlist_dropdown_button");
+
+        this.draggableVisual = getById("playlist_draggable_visual_entry");
+        this.draggableOffset = 0.0;
     }
 
     attachPlaylistEvents() {
@@ -159,8 +163,18 @@ class Playlist {
 
         let timeout = null; 
 
-        entryDragArea.onmousedown = _ => {
-            // entryRoot.style.opacity = 0.3;
+        entryDragArea.onmousedown = event => {
+            let visual = entryRoot.cloneNode(true);
+            visual.style.boxShadow = "0px 0px 8px #1d2021"
+            this.draggableVisual.appendChild(visual);
+
+            let wrapRect   = this.htmlEntryListWrap.getBoundingClientRect();
+            let visualRect = this.draggableVisual.getBoundingClientRect();
+            let height     = visualRect.height;
+            let top        = event.clientY - wrapRect.top - height / 2.0;
+            this.draggableVisual.style.top = top + "px";
+
+            entryRoot.style.opacity = 0.3;
 
             let onDragTimeout = event => {
                 let rect = entryRoot.getBoundingClientRect();
@@ -168,7 +182,7 @@ class Playlist {
                 // NOTE(kihau): There must me a nicer way to calculate transition distance.
                 const rowGap = 4;
                 const distance = rect.height + rowGap;
-                const time = 600;
+                const transitionTime = 120;
 
                 // NOTE(kihau): Instead of using next/previous sibling element, iterate over the htmlEntries array?
 
@@ -191,7 +205,7 @@ class Playlist {
                         count += 1;
 
                         entry.style.transform  = `translate(0, ${distance}px)`;
-                        entry.style.transition = `transform ${time}ms`;
+                        entry.style.transition = `transform ${transitionTime}ms`;
                         entry.ontransitionend = event => {
                             event.target.ontransitionend = null;
                             event.target.style.transition = "";
@@ -204,7 +218,7 @@ class Playlist {
                     }
 
                     entryRoot.style.transform  = `translate(0, -${distance * count}px)`;
-                    entryRoot.style.transition = `transform ${time}ms`;
+                    entryRoot.style.transition = `transform ${transitionTime}ms`;
                     entryRoot.ontransitionend = _ => {
                         entryRoot.ontransitionend = null;
                         entryRoot.style.transition = "";
@@ -231,7 +245,7 @@ class Playlist {
                         count += 1;
 
                         entry.style.transform  = `translate(0, -${distance}px)`;
-                        entry.style.transition = `transform ${time}ms`;
+                        entry.style.transition = `transform ${transitionTime}ms`;
                         entry.ontransitionend = event => {
                             event.target.ontransitionend = null;
                             event.target.style.transition = "";
@@ -244,7 +258,7 @@ class Playlist {
                     }
 
                     entryRoot.style.transform  = `translate(0, ${distance * count}px)`;
-                    entryRoot.style.transition = `transform ${time}ms`;
+                    entryRoot.style.transition = `transform ${transitionTime}ms`;
                     entryRoot.ontransitionend = _ => {
                         console.log(entry);
                         entryRoot.ontransitionend = null;
@@ -258,8 +272,14 @@ class Playlist {
 
             let timeout = null;
             let onDragging = event => {
+                let wrapRect   = this.htmlEntryListWrap.getBoundingClientRect();
+                let visualRect = this.draggableVisual.getBoundingClientRect();
+                let height     = visualRect.height;
+                let top        = event.clientY - wrapRect.top - height / 2.0;
+                this.draggableVisual.style.top = top + "px";
+
                 clearTimeout(timeout);
-                timeout = setTimeout(onDragTimeout, 100, event);
+                timeout = setTimeout(onDragTimeout, 10, event);
             }
 
             // let isTransition = false
@@ -337,12 +357,16 @@ class Playlist {
 
             let onDraggingStop = _ => {
                 this.isDragging = false;
+
+                entryRoot.style.opacity = 1.0;
+
+                this.draggableVisual.removeChild(this.draggableVisual.firstChild);
+
                 document.removeEventListener("mousemove", onDragging);
                 document.removeEventListener("mouseup",   onDraggingStop);
             };
 
             this.isDragging = true;
-
 
             entryRoot.classList.remove("entry_dropdown_expand");
             document.addEventListener("mousemove", onDragging);
