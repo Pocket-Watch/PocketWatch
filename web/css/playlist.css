@@ -297,7 +297,9 @@
     border-radius: 6px;
     display: flex;
     position: relative;
+    box-sizing: border-box;
     padding: 6px;
+    overflow: hidden;
 }
 
 #playlist_entry_list {
@@ -313,8 +315,21 @@
 #playlist_draggable_visual_entry {
     width: 100%;
     height: auto;
-    top: 300px;
+    box-sizing: border-box;
     position: absolute;
+    left: 0;
+    right: 0;
+    padding-left: inherit;
+    padding-right: inherit;
+}
+
+#playlist_draggable_visual_entry .playlist_entry  {
+    box-shadow: 0px 0px 12px #1d2021;
+}
+
+#playlist_draggable_visual_entry .playlist_drag_area {
+    color: #fbf1c7;
+    background-color: #7c6f64;
 }
 
 .playlist_entry {
@@ -324,6 +339,7 @@
     box-shadow: 0px 0px 3px 0px #282828;
     border: 2px solid #7c6f64;
     display: inline-block;
+    user-select: none;
     flex-shrink: 0;
     flex-direction: column;
     overflow: hidden;
@@ -358,10 +374,12 @@
     background-color: #665c54;
 }
 
+/*
 .playlist_drag_area:active {
     color: #fbf1c7;
     background-color: #7c6f64;
-}
+} 
+*/
 
 .playlist_entry_body {
     width: 100%;
@@ -404,6 +422,7 @@
     height: 50%;
     width: 100%;
     display: flex;
+    user-select: text;
     align-items: center;
     font-weight: bold;
     color: #ebdbb2;
@@ -414,6 +433,7 @@
     height: 50%;
     /* width: 100%; */
     display: flex;
+    user-select: text;
     flex: 1;
     align-items: center;
     color: #bdae93;

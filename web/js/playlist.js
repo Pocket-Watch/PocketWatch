@@ -6,8 +6,11 @@ export { Playlist }
 class Playlist {
     constructor() {
         this.htmlEntryListWrap = getById("playlist_entry_list_wrap");
+        this.htmlEntryList     = getById("playlist_entry_list");
+        this.controlsRoot      = getById("playlist_controls_root");
+        this.dropdownButton    = getById("playlist_dropdown_button");
+        this.draggableVisual   = getById("playlist_draggable_visual_entry");
 
-        this.htmlEntryList = getById("playlist_entry_list");
         // NOTE: Other items go here like control buttons and input boxes.
 
         /// Corresponds to the actual playlist entries on the server.
@@ -15,17 +18,6 @@ class Playlist {
 
         /// Corresponds to html elements created from the playlist entries.
         this.htmlEntries = [];
-
-        // this.isDraggingEntry = false;
-        // this.dragEntryStart  = null;
-        // this.dragEntryEnd  = null;
-        this.isDragging = null;
-
-        this.controlsRoot   = getById("playlist_controls_root");
-        this.dropdownButton = getById("playlist_dropdown_button");
-
-        this.draggableVisual = getById("playlist_draggable_visual_entry");
-        this.draggableOffset = 0.0;
     }
 
     attachPlaylistEvents() {
@@ -146,33 +138,23 @@ class Playlist {
         // Dragging for touch screens.
         entryDragArea.ontouchstart = _ => {};
 
-        // let applyTransitionUp = (entry, diff) => {
-        //     const time = "2000ms";
-        //
-        //     entry.style.transform  = `translate(0, ${diff}px)`;
-        //     entry.style.transition = "transform " + time;
-        //
-        //     entry.ontransitionend = _ => {
-        //         entry.ontransitionend = null;
-        //         entry.style.transition = "";
-        //         entry.style.transform  = "";
-        //
-        //         this.htmlEntryList.insertBefore(entryNext, entryRoot);
-        //     };
-        // };
-
-        let timeout = null; 
-
         entryDragArea.onmousedown = event => {
+            entryRoot.classList.remove("entry_dropdown_expand");
+
             let visual = entryRoot.cloneNode(true);
-            visual.style.boxShadow = "0px 0px 8px #1d2021"
             this.draggableVisual.appendChild(visual);
 
-            let wrapRect   = this.htmlEntryListWrap.getBoundingClientRect();
-            let visualRect = this.draggableVisual.getBoundingClientRect();
-            let height     = visualRect.height;
-            let top        = event.clientY - wrapRect.top - height / 2.0;
+            let wrapRect    = this.htmlEntryListWrap.getBoundingClientRect();
+            let entryRect   = entryRoot.getBoundingClientRect();
+            let mouseOffset = event.clientY - entryRect.top + 2.0;
+            let top         = event.clientY - wrapRect.top - mouseOffset;
             this.draggableVisual.style.top = top + "px";
+
+            // let wrapRect   = this.htmlEntryListWrap.getBoundingClientRect();
+            // let visualRect = this.draggableVisual.getBoundingClientRect();
+            // let height     = visualRect.height;
+            // let top        = event.clientY - wrapRect.top - height / 2.0;
+            // this.draggableVisual.style.top = top + "px";
 
             entryRoot.style.opacity = 0.3;
 
@@ -184,10 +166,12 @@ class Playlist {
                 const distance = rect.height + rowGap;
                 const transitionTime = 120;
 
-                // NOTE(kihau): Instead of using next/previous sibling element, iterate over the htmlEntries array?
+                // TODO?(kihau): Instead of using next/previous sibling element, iterate over the htmlEntries array?
+
+                // TODO(kihau): Add do not swap when mouse enter the entry but rather when its y > entry y + height / 2.0?
 
                 if (event.y < rect.y) {
-                    let count  = 0;
+                    let count = 0;
 
                     let entry = entryRoot;
                     while (true) {
@@ -217,6 +201,10 @@ class Playlist {
                         }
                     }
 
+                    if (count == 0) {
+                        return;
+                    }
+
                     entryRoot.style.transform  = `translate(0, -${distance * count}px)`;
                     entryRoot.style.transition = `transform ${transitionTime}ms`;
                     entryRoot.ontransitionend = _ => {
@@ -227,7 +215,7 @@ class Playlist {
                         this.htmlEntryList.insertBefore(entryRoot, entry);
                     };
                 } else if (event.y > rect.y + rect.height) {
-                    let count  = 0;
+                    let count = 0;
 
                     let entry = entryRoot;
                     while (true) {
@@ -257,10 +245,13 @@ class Playlist {
                         }
                     }
 
+                    if (count == 0) {
+                        return;
+                    }
+
                     entryRoot.style.transform  = `translate(0, ${distance * count}px)`;
                     entryRoot.style.transition = `transform ${transitionTime}ms`;
                     entryRoot.ontransitionend = _ => {
-                        console.log(entry);
                         entryRoot.ontransitionend = null;
                         entryRoot.style.transition = "";
                         entryRoot.style.transform  = "";
@@ -272,140 +263,41 @@ class Playlist {
 
             let timeout = null;
             let onDragging = event => {
-                let wrapRect   = this.htmlEntryListWrap.getBoundingClientRect();
-                let visualRect = this.draggableVisual.getBoundingClientRect();
-                let height     = visualRect.height;
-                let top        = event.clientY - wrapRect.top - height / 2.0;
+                let wrapRect = this.htmlEntryListWrap.getBoundingClientRect();
+                let top      = event.clientY - wrapRect.top - mouseOffset;
                 this.draggableVisual.style.top = top + "px";
 
                 clearTimeout(timeout);
-                timeout = setTimeout(onDragTimeout, 10, event);
+                timeout = setTimeout(onDragTimeout, 16, event);
             }
 
-            // let isTransition = false
-            // const time = "80ms"
-            //
-            // let onDragging = event => {
-            //     if (isTransition) {
-            //         return;
-            //     }
-            //
-            //     let entryNext = entryRoot.nextElementSibling;
-            //     let entryPrev = entryRoot.previousElementSibling;
-            //
-            //     if (entryNext) {
-            //         let rect = entryNext.getBoundingClientRect();
-            //         if (event.y > rect.y + rect.height / 3.0) {
-            //             isTransition = true;
-            //
-            //             let rootRect = entryRoot.getBoundingClientRect();
-            //             let diff = rootRect.y - rect.y;
-            //
-            //             entryNext.style.transform  = `translate(0, ${diff}px)`;
-            //             entryNext.style.transition = "transform " + time;
-            //
-            //             entryRoot.style.transform  = `translate(0, ${-diff}px)`;
-            //             entryRoot.style.transition = "transform " + time;
-            //
-            //             entryNext.ontransitionend = _ => {
-            //                 entryNext.ontransitionend = null;
-            //
-            //                 entryRoot.style.transition = "";
-            //                 entryRoot.style.transform  = "";
-            //
-            //                 entryNext.style.transition = "";
-            //                 entryNext.style.transform  = "";
-            //
-            //                 this.htmlEntryList.insertBefore(entryNext, entryRoot);
-            //                 isTransition = false;
-            //             };
-            //         }
-            //     } 
-            //
-            //     if (entryPrev) {
-            //         let rect = entryPrev.getBoundingClientRect();
-            //         if (event.y < rect.y + rect.height / 1.5) {
-            //             isTransition = true;
-            //
-            //             let rootRect = entryRoot.getBoundingClientRect();
-            //             let diff = rootRect.y - rect.y;
-            //
-            //             entryPrev.style.transform  = `translate(0, ${diff}px)`;
-            //             entryPrev.style.transition = "transform " + time;
-            //
-            //             entryRoot.style.transform  = `translate(0, ${-diff}px)`;
-            //             entryRoot.style.transition = "transform " + time;
-            //
-            //             entryPrev.ontransitionend = _ => {
-            //                 entryPrev.ontransitionend = null;
-            //
-            //                 entryRoot.style.transition = "";
-            //                 entryRoot.style.transform  = "";
-            //
-            //                 entryPrev.style.transition = "";
-            //                 entryPrev.style.transform  = "";
-            //
-            //                 this.htmlEntryList.insertBefore(entryPrev, entryNext);
-            //                 isTransition = false;
-            //             };
-            //         }
-            //     }
-            //
-            //     // console.log("Next", next, "Prev", prev, "Event", event);
-            //     // console.log("Now", entryRoot.getBoundingClientRect(), "Event", event);
-            // };
-
             let onDraggingStop = _ => {
-                this.isDragging = false;
-
-                entryRoot.style.opacity = 1.0;
-
+                entryRoot.style.opacity = null;
                 this.draggableVisual.removeChild(this.draggableVisual.firstChild);
+
+                // TOOD(kihau): Smooth transition to the correct spot instead of rapid entry jump.
+                // let entryRect = entryRoot.getBoundingClientRect();
+                // let visualRect = this.draggableVisual.getBoundingClientRect();
+                // let distance = entryRect.y - visualRect.y;
+                //
+                // this.draggableVisual.style.transform  = `translate(0, ${distance}px)`;
+                // this.draggableVisual.style.transition = `transform 120ms`;
+                // this.draggableVisual.ontransitionend = event => {
+                //     this.draggableVisual.removeChild(this.draggableVisual.firstChild);
+                //
+                //     this.draggableVisual.style.transform  = "";
+                //     this.draggableVisual.style.transition = "";
+                //
+                //     entryRoot.style.opacity = null;
+                // };
 
                 document.removeEventListener("mousemove", onDragging);
                 document.removeEventListener("mouseup",   onDraggingStop);
             };
 
-            this.isDragging = true;
-
-            entryRoot.classList.remove("entry_dropdown_expand");
             document.addEventListener("mousemove", onDragging);
             document.addEventListener("mouseup",   onDraggingStop);
         };
-
-        // Old dragging code something.
-        // entryRoot.ondragover = event => { 
-        //     if (!this.isDraggingEntry) {
-        //         return;
-        //     }
-        //
-        //     this.dragEntryEnd = entryRoot;
-        //     // console.log("Drag over event", event, "with", event.target, "but the root is", entryRoot);
-        // };
-        //
-        // entryDragArea.ondragstart = event => {
-        //     // console.log("Drag start", event.target)
-        //     this.isDraggingEntry = true;
-        //     this.dragEntryStart = entryRoot;
-        //     this.dragEntryEnd   = entryRoot;
-        // };
-        //
-        // entryDragArea.ondragend = () => { 
-        //     if (!this.isDraggingEntry) {
-        //         return;
-        //     }
-        //
-        //     this.isDraggingEntry = false;
-        //
-        //     if (this.dragEntryStart === this.dragEntryEnd) {
-        //         return;
-        //     }
-        //
-        //     let startIndex = this.htmlEntries.findIndex(item => item === this.dragEntryStart);
-        //     let endIndex   = this.htmlEntries.findIndex(item => item === this.dragEntryEnd);
-        //     api.playlistMove(this.entries[startIndex].id, startIndex, endIndex);
-        // };
-
 
         editButton.onclick = () => {
             console.log("edit button clicked");

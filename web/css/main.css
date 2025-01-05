@@ -47,7 +47,8 @@ html * {
     justify-content: center;
 }
 
-.player_container {
+#player_container {
+    /* TODO(kihau): Remove border rounding when player enter fullscreen */
     border-radius: 6px;
 }
 
