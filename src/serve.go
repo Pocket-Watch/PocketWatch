@@ -299,6 +299,7 @@ var conns = makeConnections()
 
 // assignable only once!
 var serverRootAddress = ""
+var startTime = time.Now()
 
 func StartServer(options *Options) {
 	state.lastUpdate = time.Now()
@@ -393,7 +394,9 @@ func apiVersion(w http.ResponseWriter, r *http.Request) {
 	}
 
 	LogInfo("Connection %s requested server version.", r.RemoteAddr)
-	io.WriteString(w, VERSION)
+	uptime := time.Now().Sub(startTime)
+	response := fmt.Sprintf("%v Uptime=%v", VERSION, uptime)
+	io.WriteString(w, response)
 }
 
 func apiLogin(w http.ResponseWriter, r *http.Request) {
