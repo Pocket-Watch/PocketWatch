@@ -269,8 +269,6 @@ class Internals {
             fullscreen_exit:  "svg/player_icons.svg#fullscreen_exit",
             arrow_left:       "svg/player_icons.svg#arrow_left",
             arrow_right:      "svg/player_icons.svg#arrow_right",
-            seek_forward:     "svg/player_icons.svg#seek_forward",
-            seek_backward:    "svg/player_icons.svg#seek_backward",
             buffering:        "svg/player_icons.svg#buffering",
         };
 
@@ -286,8 +284,8 @@ class Internals {
             settings:   Svg.new(this.icons.settings),
             fullscreen: Svg.new(this.icons.fullscreen_enter),
 
-            seekForward:   Svg.new(this.icons.seek_forward, 100, 100),
-            seekBackward:  Svg.new(this.icons.seek_backward, 100, 100),
+            seekForward:   SeekIcon.newForward(options.seekBy + 's', 100, 100),
+            seekBackward:  SeekIcon.newBackward(options.seekBy + 's', 100, 100),
             playbackPopup: Svg.new(this.icons.play_popup, 70, 70),
 
             arrowLeft:  Svg.new(this.icons.arrow_left, 20, 20),
@@ -1996,8 +1994,38 @@ function newDiv(id, className) {
     return div;
 }
 
+const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+
+class SeekIcon {
+    constructor(textContent, width, height) {
+        this.svg = document.createElementNS(SVG_NAMESPACE, "svg");
+        let svg = this.svg;
+        svg.setAttribute("viewBox", "0 0 48 48");
+        svg.setAttribute("width", width);
+        svg.setAttribute("height", height);
+        svg.innerHTML = `
+             <path d="M24 4C12.97 4 4 12.97 4 24C4 35.03 12.97 44 24 44C35.03 44 44 35.03 44 24C44 23.83 43.998 23.66 43.994 23.49A1.5 1.5 0 0 0 40.994 23.56C40.998 23.71 41 23.85 41 24C41 33.41 33.41 41 24 41C14.59 41 7 33.41 7 24C7 14.59 14.59 7 24 7C29.38 7 34.16 9.5 37.27 13.38L35.96 13.15A1.5 1.5 0 0 0 35.44 16.11L40.37 16.98A1.5 1.5 0 0 0 42.11 15.76L42.97 10.84A1.5 1.5 0 0 0 41.44 9.06A1.5 1.5 0 0 0 40.02 10.32L39.77 11.72C36.11 7.03 30.4 4 24 4z"/>
+             <text x="24" y="24" text-anchor="middle" font-weight="bold" font-size="17" dy=".35em">10s</text>
+        `;
+        let children = svg.children;
+        this.path = children[0];
+        this.text = children[1];
+        this.setText(textContent)
+    }
+    static newForward(textContent = "", width=100, height=100) {
+        return new SeekIcon(textContent, width, height);
+    }
+    static newBackward(textContent = "", width=100, height=100) {
+        let seekBackward = new SeekIcon(textContent, width, height);
+        seekBackward.path.setAttribute("transform", "scale(-1, 1) translate(-48, 0)")
+        return seekBackward;
+    }
+    setText(text) {
+        this.text.textContent = text;
+    }
+}
+
 class Svg {
-    static NAMESPACE = "http://www.w3.org/2000/svg";
     constructor(svg, use) {
         this.svg = svg;
         this.use = use;
@@ -2008,8 +2036,8 @@ class Svg {
     }
 
     static new(initialHref, width=20, height=20) {
-        let svg = document.createElementNS(Svg.NAMESPACE, "svg");
-        let use = document.createElementNS(Svg.NAMESPACE, "use");
+        let svg = document.createElementNS(SVG_NAMESPACE, "svg");
+        let use = document.createElementNS(SVG_NAMESPACE, "use");
         use.setAttribute("href", initialHref);
 
         svg.setAttribute("width", width);
@@ -2095,7 +2123,7 @@ class Options {
         this.allowCueOverlap = true;
         this.fullscreenKeyLetter = 'f';
 
-        // [Arrow keys/Double tap] seeking offset provided in seconds.
+        // [Arrow keys/Double tap] seeking offset provided in seconds. (Preferably [1-99])
         this.seekBy = 5;
 
         // Delay in milliseconds before controls disappear.
@@ -2118,32 +2146,6 @@ class Options {
         }
         if (typeof this.bufferingRedrawInterval !== "number") {
             return false;
-        }
-        if (
-            !this.areAllBooleans(
-                this.hidePlaybackButton,
-                this.hideNextButton,
-                this.hideLoopingButton,
-                this.hideVolumeButton,
-                this.hideVolumeSlider,
-                this.hideTimestamps,
-                this.hideDownloadButton,
-                this.hideSpeedButton,
-                this.hideSubtitlesButton,
-                this.hideSettingsButton,
-                this.hideFullscreenButton,
-            )
-        ) {
-            console.debug("Visibility flags are not all booleans!");
-            return false;
-        }
-        return true;
-    }
-    areAllBooleans(...variables) {
-        for (let i = 0; i < variables.length; i++) {
-            if (typeof variables[i] != "boolean") {
-                return false;
-            }
         }
         return true;
     }
