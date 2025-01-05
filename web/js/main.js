@@ -538,8 +538,9 @@ class Room {
 
     setNothing() {
         this.player.discardPlayback();
+        this.player.setTitle(null);
         this.player.setToast("Nothing is playing at the moment!");
-        // this.player.setPoster("img/nothing_is_playing.png");
+        this.player.clearAllSubtitleTracks();
     }
 
     resyncPlayer(timestamp, userId) {
