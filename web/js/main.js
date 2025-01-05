@@ -530,6 +530,7 @@ class Room {
             this.player.setTitle(entry.title);
         }
 
+        this.player.clearAllSubtitleTracks();
         if (entry.subtitle_url) {
             this.player.addSubtitle(entry.subtitle_url);
         }

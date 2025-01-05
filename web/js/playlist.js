@@ -150,6 +150,12 @@ class Playlist {
             let top         = event.clientY - wrapRect.top - mouseOffset;
             this.draggableVisual.style.top = top + "px";
 
+            // TODO(kihau): Calculate the post based on entry index instead of doing the html nonsense.
+            const rowGap = 4;
+            const listRect = this.htmlEntryList.getBoundingClientRect();
+            let myCalc   = listRect.y + (entryRect.height + rowGap) * 3;
+            console.log("Entry rect 3:", entryRect.y, "My calc:", myCalc);
+
             // let wrapRect   = this.htmlEntryListWrap.getBoundingClientRect();
             // let visualRect = this.draggableVisual.getBoundingClientRect();
             // let height     = visualRect.height;
@@ -157,6 +163,9 @@ class Playlist {
             // this.draggableVisual.style.top = top + "px";
 
             entryRoot.style.opacity = 0.3;
+
+            let currentY = entryRect.y;
+            let targetY  = entryRect.y;
 
             let onDragTimeout = event => {
                 let rect = entryRoot.getBoundingClientRect();
@@ -205,6 +214,8 @@ class Playlist {
                         return;
                     }
 
+                    targetY = currentY - distance * count;
+
                     entryRoot.style.transform  = `translate(0, -${distance * count}px)`;
                     entryRoot.style.transition = `transform ${transitionTime}ms`;
                     entryRoot.ontransitionend = _ => {
@@ -249,6 +260,8 @@ class Playlist {
                         return;
                     }
 
+                    targetY = currentY + distance * count;
+
                     entryRoot.style.transform  = `translate(0, ${distance * count}px)`;
                     entryRoot.style.transition = `transform ${transitionTime}ms`;
                     entryRoot.ontransitionend = _ => {
@@ -271,9 +284,12 @@ class Playlist {
                 timeout = setTimeout(onDragTimeout, 16, event);
             }
 
-            let onDraggingStop = _ => {
+            let onDraggingStop = event => {
                 entryRoot.style.opacity = null;
                 this.draggableVisual.removeChild(this.draggableVisual.firstChild);
+                
+                clearTimeout(timeout);
+                onDragTimeout(event);
 
                 // TOOD(kihau): Smooth transition to the correct spot instead of rapid entry jump.
                 // let entryRect = entryRoot.getBoundingClientRect();
@@ -289,6 +305,21 @@ class Playlist {
                 //     this.draggableVisual.style.transition = "";
                 //
                 //     entryRoot.style.opacity = null;
+                // };
+
+                // let visualRect = this.draggableVisual.getBoundingClientRect();
+                // let distance = targetY - visualRect.y;
+                //
+                // this.draggableVisual.style.transform  = `translate(0, ${distance}px)`;
+                // this.draggableVisual.style.transition = `transform 1200ms`;
+                // this.draggableVisual.ontransitionend = event => {
+                //     this.draggableVisual.removeChild(this.draggableVisual.firstChild);
+                //
+                //     this.draggableVisual.style.transform  = "";
+                //     this.draggableVisual.style.transition = "";
+                //
+                //     entryRoot.style.opacity = null;
+                //     currentY = entryRoot.getBoundingClientRect().y;
                 // };
 
                 document.removeEventListener("mousemove", onDragging);

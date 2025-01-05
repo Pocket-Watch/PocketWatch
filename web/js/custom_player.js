@@ -85,6 +85,10 @@ class Player {
         this.internals.removeSubtitleTrackAt(index);
     }
 
+    clearAllSubtitleTracks() {
+        this.internals.clearAllSubtitleTracks();
+    }
+
     // Select and show the track at the specified index.
     enableSubtitleTrackAt(index) {
         if (index < 0 || index >= this.subtitles.length) {
@@ -830,6 +834,17 @@ class Internals {
 
     removeSubtitleTrackAt(index) {
         // TODO(kihau): Implement (with splice?).
+    }
+    
+    clearAllSubtitleTracks() {
+        this.subtitles = [];
+        this.selectedSubtitle = null;
+        this.activeCues = [];
+
+        let list = this.htmlControls.subMenu.trackList;
+        while (list.lastChild) {
+            list.removeChild(list.lastChild);
+        }
     }
 
     setSubtitleFontSize(fontSize) {
