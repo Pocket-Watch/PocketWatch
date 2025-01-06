@@ -831,7 +831,18 @@ class Internals {
     }
 
     removeSubtitleTrackAt(index) {
-        // TODO(kihau): Implement (with splice?).
+        let subtitles = this.subtitles;
+        if (index < 0 || index >= this.subtitles.length) {
+            return;
+        }
+        let list = this.htmlControls.subMenu.trackList;
+        let track = list.children[index];
+        if (this.selectedSubtitle != null && track === this.selectedSubtitle.htmlTrack) {
+            this.selectedSubtitle = null;
+            this.activeCues.length = 0;
+        }
+        list.removeChild(track);
+        subtitles.splice(index, 1);
     }
     
     clearAllSubtitleTracks() {
@@ -977,6 +988,7 @@ class Internals {
         });
 
         this.htmlControls.buttons.loopButton.addEventListener("click", () => {
+            this.removeSubtitleTrackAt(1);
             this.loopEnabled = !this.loopEnabled;
             this.fireControlsLooping(this.loopEnabled);
             this.htmlControls.buttons.loopButton.classList.toggle("player_controls_button_selected");
