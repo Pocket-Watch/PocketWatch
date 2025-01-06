@@ -91,10 +91,11 @@ class Player {
 
     // Select and show the track at the specified index.
     enableSubtitleTrackAt(index) {
-        if (index < 0 || index >= this.subtitles.length) {
+        let subtitles = this.internals.subtitles;
+        if (index < 0 || index >= subtitles.length) {
             return;
         }
-        let subtitle = this.internals.subtitles[index];
+        let subtitle = subtitles[index];
         this.internals.enableSubtitleTrack(subtitle);
     }
 
@@ -761,7 +762,7 @@ class Internals {
                 if (cues.length === 0) {
                     return
                 }
-                let parseEnd     = performance.now();
+                let parseEnd = performance.now();
                 console.debug("Parsed", ext, "track, cue count:", cues.length, "in", parseEnd - perfStart, "ms")
                 if (this.options.sanitizeSubtitles) {
                     for (let i = 0; i < cues.length; i++) {
@@ -2008,7 +2009,7 @@ function newDiv(id, className) {
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
 class SeekIcon {
-    constructor(textContent, width, height) {
+    constructor(textContent, width=100, height=100) {
         this.svg = document.createElementNS(SVG_NAMESPACE, "svg");
         let svg = this.svg;
         svg.setAttribute("viewBox", "0 0 48 48");
@@ -2023,10 +2024,10 @@ class SeekIcon {
         this.text = children[1];
         this.setText(textContent)
     }
-    static newForward(textContent = "", width=100, height=100) {
+    static newForward(textContent = "", width, height) {
         return new SeekIcon(textContent, width, height);
     }
-    static newBackward(textContent = "", width=100, height=100) {
+    static newBackward(textContent = "", width, height) {
         let seekBackward = new SeekIcon(textContent, width, height);
         seekBackward.path.setAttribute("transform", "scale(-1, 1) translate(-48, 0)")
         return seekBackward;
