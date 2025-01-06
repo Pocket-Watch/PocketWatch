@@ -753,42 +753,47 @@ class Internals {
             return
         }
 
-        let perfStart = performance.now();
-        let isVtt = ext === "vtt";
-        fetch(url)
-            .then(response => response.text())
-            .then(fileText => isVtt ? parseVtt(fileText) : parseSrt(fileText))
-            .then(cues => {
-                if (cues.length === 0) {
-                    return
-                }
-                let parseEnd = performance.now();
-                console.debug("Parsed", ext, "track, cue count:", cues.length, "in", parseEnd - perfStart, "ms")
-                if (this.options.sanitizeSubtitles) {
-                    for (let i = 0; i < cues.length; i++) {
-                        cues[i].text = sanitizeHTMLForDisplay(cues[i].text);
-                    }
-                }
+        fetch(url).then(async response => {
+            let text = await response.text();
 
-                console.debug("Sanitized in", performance.now() - parseEnd, "ms")
+            let parseStart = performance.now();
+            let cues;
+            if (ext === "vtt") {
+                cues = parseVtt(text);
+            } else {
+                cues = parseSrt(text);
+            }
 
+            console.debug("Parsed", ext, "track, cue count:", cues.length, "in", performance.now() - parseStart, "ms")
 
-                let subtitle = new Subtitle(cues, info.filename, info.extension);
-                subtitle.htmlTrack.onclick = _ => this.switchSubtitleTrack(subtitle);
+            if (cues.length === 0) {
+                return
+            }
 
-                if (show) {
-                    this.enableSubtitleTrack(subtitle);
+            if (this.options.sanitizeSubtitles) {
+                let sanitizeStart = performance.now();
+                for (let i = 0; i < cues.length; i++) {
+                    cues[i].text = sanitizeHTMLForDisplay(cues[i].text);
                 }
 
-                URL.revokeObjectURL(url)
-                // Could fire with a ref to subtitle class instance
-                this.fireSubtitleTrackLoad(null);
+                console.debug("Sanitized in", performance.now() - sanitizeStart, "ms")
+            }
 
-                let trackList = this.htmlControls.subMenu.trackList;
-                trackList.appendChild(subtitle.htmlTrack);
+            let subtitle = new Subtitle(cues, info.filename, info.extension);
+            subtitle.htmlTrack.onclick = _ => this.switchSubtitleTrack(subtitle);
 
-                this.subtitles.push(subtitle);
-            });
+            if (show) {
+                this.enableSubtitleTrack(subtitle);
+            }
+
+            URL.revokeObjectURL(url)
+
+            let trackList = this.htmlControls.subMenu.trackList;
+            trackList.appendChild(subtitle.htmlTrack);
+            this.subtitles.push(subtitle);
+
+            this.fireSubtitleTrackLoad(subtitle);
+        });
     }
 
     enableSubtitleTrack(subtitle) {
