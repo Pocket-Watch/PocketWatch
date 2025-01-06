@@ -760,6 +760,9 @@ async function main() {
     room.attachPlayerEvents();
     room.attachHtmlEvents();
     await room.connectToServer();
+
+    // Expose room to browser console for debugging.
+    window.room = room;
 }
 
 main();

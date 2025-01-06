@@ -8,6 +8,7 @@ class Playlist {
         this.htmlEntryListWrap = getById("playlist_entry_list_wrap");
         this.htmlEntryList     = getById("playlist_entry_list");
         this.controlsRoot      = getById("playlist_controls_root");
+
         this.dropdownButton    = getById("playlist_dropdown_button");
         this.draggableVisual   = getById("playlist_draggable_visual_entry");
 
@@ -18,6 +19,11 @@ class Playlist {
 
         /// Corresponds to html elements created from the playlist entries.
         this.htmlEntries = [];
+
+        this.dragStartIndex   = -1;
+        this.dragCurrentIndex = -1;
+        this.draggedEntry     = null; 
+        this.dragMouseOffset  = 0.0;
     }
 
     attachPlaylistEvents() {
@@ -95,6 +101,25 @@ class Playlist {
         }
     }
 
+    findHtmlEntryIndex(htmlEntry) {
+        for (let i = 0; i < this.htmlEntries.length; i++) {
+            const entry = this.htmlEntries[i];
+
+            if (entry === htmlEntry) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    calculateEntryPos(entry, index) {
+        const rowGap = 4;
+        const listRect = this.htmlEntryList.getBoundingClientRect();
+        const entryRect = entry.getBoundingClientRect();
+        return listRect.y + (entryRect.height + rowGap) * index;
+    }
+
     createHtmlEntry(entry) {
         let entryRoot      = div("playlist_entry");
         let entryTop       = div("playlist_entry_top"); 
@@ -139,33 +164,36 @@ class Playlist {
         entryDragArea.ontouchstart = _ => {};
 
         entryDragArea.onmousedown = event => {
+            let index = this.findHtmlEntryIndex(entryRoot);
+            this.dragStartIndex   = index;
+            this.dragCurrentIndex = index;
+            this.draggedEntry     = entryRoot;
+
+            console.log(this.dragStartIndex, this.dragStartIndex)
+
             entryRoot.classList.remove("entry_dropdown_expand");
 
             let visual = entryRoot.cloneNode(true);
             this.draggableVisual.appendChild(visual);
 
+            // YUCK!
             let wrapRect    = this.htmlEntryListWrap.getBoundingClientRect();
-            let entryRect   = entryRoot.getBoundingClientRect();
+            let entryRect   = this.draggedEntry.getBoundingClientRect();
             let mouseOffset = event.clientY - entryRect.top + 2.0;
             let top         = event.clientY - wrapRect.top - mouseOffset;
             this.draggableVisual.style.top = top + "px";
-
-            // TODO(kihau): Calculate the post based on entry index instead of doing the html nonsense.
-            const rowGap = 4;
-            const listRect = this.htmlEntryList.getBoundingClientRect();
-            let myCalc   = listRect.y + (entryRect.height + rowGap) * 3;
-            console.log("Entry rect 3:", entryRect.y, "My calc:", myCalc);
-
             // let wrapRect   = this.htmlEntryListWrap.getBoundingClientRect();
             // let visualRect = this.draggableVisual.getBoundingClientRect();
             // let height     = visualRect.height;
             // let top        = event.clientY - wrapRect.top - height / 2.0;
             // this.draggableVisual.style.top = top + "px";
 
-            entryRoot.style.opacity = 0.3;
 
-            let currentY = entryRect.y;
-            let targetY  = entryRect.y;
+            // TODO(kihau): Calculate the post based on entry index instead of doing the html nonsense.
+            let pos = this.calculateEntryPos(this.draggedEntry, this.dragStartIndex);
+            console.log("Entry:", this.draggedEntry.getBoundingClientRect().y, "Calculated pos:", pos);
+
+            entryRoot.style.opacity = 0.3;
 
             let onDragTimeout = event => {
                 let rect = entryRoot.getBoundingClientRect();
@@ -214,8 +242,6 @@ class Playlist {
                         return;
                     }
 
-                    targetY = currentY - distance * count;
-
                     entryRoot.style.transform  = `translate(0, -${distance * count}px)`;
                     entryRoot.style.transition = `transform ${transitionTime}ms`;
                     entryRoot.ontransitionend = _ => {
@@ -259,8 +285,6 @@ class Playlist {
                     if (count == 0) {
                         return;
                     }
-
-                    targetY = currentY + distance * count;
 
                     entryRoot.style.transform  = `translate(0, ${distance * count}px)`;
                     entryRoot.style.transition = `transform ${transitionTime}ms`;
