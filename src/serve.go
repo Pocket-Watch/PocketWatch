@@ -1844,3 +1844,42 @@ func createSyncEvent(action string, userId uint64) SyncEventData {
 
 	return event
 }
+
+func apiChatSend(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	LogInfo("Connection %s posted a chat message.", r.RemoteAddr)
+
+	user := getAuthorized(w, r)
+	if user == nil {
+		return
+	}
+
+	var newMessage ChatMessageFromUser
+	if !readJsonDataFromRequest(w, r, &newMessage) {
+		return
+	}
+
+}
+
+const MAX_MESSAGE_CHARACTERS = 500
+
+type ChatMessage struct {
+	Message  string `json:"message"`
+	UnixTime uint64 `json:"unixTime"`
+	Id       uint64 `json:"id"`
+	AuthorId uint64 `json:"authorId"`
+	Edited   bool   `json:"edited"`
+}
+
+type ChatMessageEdit struct {
+	EditedMessage string `json:"editedMessage"`
+	Id            uint64 `json:"id"`
+}
+
+type ChatMessageFromUser struct {
+	Message string `json:"message"`
+	Edited  bool   `json:"edited"`
+}

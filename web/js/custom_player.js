@@ -988,7 +988,6 @@ class Internals {
         });
 
         this.htmlControls.buttons.loopButton.addEventListener("click", () => {
-            this.removeSubtitleTrackAt(1);
             this.loopEnabled = !this.loopEnabled;
             this.fireControlsLooping(this.loopEnabled);
             this.htmlControls.buttons.loopButton.classList.toggle("player_controls_button_selected");
