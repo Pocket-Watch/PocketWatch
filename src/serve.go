@@ -351,7 +351,8 @@ func registerEndpoints(options *Options) {
 	// Unrelated API calls.
 	http.HandleFunc("/watch/api/version", apiVersion)
 	http.HandleFunc("/watch/api/login", apiLogin)
-	http.HandleFunc("/watch/api/upload", apiUpload)
+	http.HandleFunc("/watch/api/uploadmedia", apiUploadMedia)
+	http.HandleFunc("/watch/api/uploadsubs", apiUploadSubs)
 
 	// User related API calls.
 	http.HandleFunc("/watch/api/user/create", apiUserCreate)
@@ -408,38 +409,88 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, "This is unimplemented")
 }
 
-func apiUpload(writer http.ResponseWriter, request *http.Request) {
-	if request.Method != "POST" {
-		http.Error(writer, "POST was expected", http.StatusMethodNotAllowed)
+func apiUploadMedia(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "POST was expected", http.StatusMethodNotAllowed)
 		return
 	}
 
-	file, header, err := request.FormFile("file")
-	// It's weird because a temporary file is created in Temp/multipart-
+	if !isAuthorized(w, r) {
+		return
+	}
+
+	inputFile, headers, err := r.FormFile("file")
 	if err != nil {
-		http.Error(writer, err.Error(), http.StatusInternalServerError)
-		return
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	defer file.Close()
 
-	LogInfo("User is uploading file: %s, size: %v", header.Filename, header.Size)
+	extension := path.Ext(headers.Filename)
+	directory := getMediaType(extension)
+	filename := headers.Filename
 
-	filepath := WEB_MEDIA + header.Filename
-	out, err := os.Create(filepath)
+	outputPath := path.Join("web", "media", directory, filename)
+	os.MkdirAll("web/media/"+directory, 0750)
+
+	outputFile, err := os.Create(outputPath)
 	if err != nil {
-		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer out.Close()
+	defer outputFile.Close()
 
-	_, err = io.Copy(out, file)
+	LogInfo("Saving uploaded media file to: %v.", outputPath)
+
+	// TODO(kihau): Copy the input file in smaller parts instead.
+	_, err = io.Copy(outputFile, inputFile)
 	if err != nil {
-		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	jsonData, _ := json.Marshal(MEDIA + header.Filename)
-	io.WriteString(writer, string(jsonData))
+	networkPath := path.Join("media", directory, filename)
+	jsonData, _ := json.Marshal(networkPath)
+	io.WriteString(w, string(jsonData))
+}
+
+func apiUploadSubs(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "POST was expected", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if !isAuthorized(w, r) {
+		return
+	}
+
+	// NOTE(kihau): Limit subtitle size to 500kB.
+	inputFile, headers, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	filename := headers.Filename
+
+	outputPath := path.Join("web", "subs", filename)
+	os.MkdirAll("web/subs/", 0750)
+
+	outputFile, err := os.Create(outputPath)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer outputFile.Close()
+
+	LogInfo("Saving uploaded subtitle file to: %v.", outputPath)
+
+	_, err = io.Copy(outputFile, inputFile)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	networkPath := path.Join("subs", filename)
+	jsonData, _ := json.Marshal(networkPath)
+	io.WriteString(w, string(jsonData))
 }
 
 func apiUserCreate(w http.ResponseWriter, r *http.Request) {

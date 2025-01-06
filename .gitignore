@@ -8,4 +8,5 @@ lib/**
 *.exe
 web/proxy/*
 web/users/*
+web/subs/*
 scratch/*

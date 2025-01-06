@@ -135,17 +135,23 @@ export function setConnectionId(id) {
     connectionId = id;
 }
 
-export async function uploadFile(file, filename) {
+export async function uploadMedia(file, filename) {
     console.info("INFO: Uploading a file to the server.");
-    let filePath = await httpPostFile("/watch/api/upload", file, filename);
+    let filePath = await httpPostFile("/watch/api/uploadmedia", file, filename);
     return filePath;
 }
 
-export async function uploadFileWithProgress(file, onprogress) {
+export async function uploadSubs(file, filename) {
+    console.info("INFO: Uploading a subtitle file to the server.");
+    let filePath = await httpPostFile("/watch/api/uploadsubs", file, filename);
+    return filePath;
+}
+
+export async function uploadMediaWithProgress(file, onprogress) {
     console.info("INFO: Uploading a file to the server (with progress callback).");
 
     const request = new XMLHttpRequest();
-    request.open("POST", "/watch/api/upload", true);
+    request.open("POST", "/watch/api/uploadmedia", true);
     request.setRequestHeader("Authorization", token);
 
     var formdata = new FormData();

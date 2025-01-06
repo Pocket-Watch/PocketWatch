@@ -322,3 +322,31 @@ func (barrier *Barrier) releaseWithResult(result bool) {
 	barrier.result = result
 	barrier.wg.Done()
 }
+
+func getMediaType(extension string) string {
+	mediaType := "other"
+
+	switch extension {
+	case
+		".webm", ".mkv", ".flv", ".vob", ".ogv", ".drc", ".mng", ".avi", ".mts", ".m2ts", ".ts",
+		".mov", ".qt", ".wmv", ".yuv", ".rm", ".rmvb", ".viv", ".asf", ".amv", ".mp4 ", ".m4v",
+		".mpg", ".mp2", ".mpeg", ".mpe", ".mpv", ".m2v", ".svi", ".3gp", ".3g2", ".mxf", ".roq",
+		".nsv", ".f4v", ".f4p", ".f4a", ".f4b":
+		mediaType = "video"
+
+	case
+		".aa", ".aac", ".aax", ".act", ".aiff", ".alac", ".amr", ".ape", ".au", ".awb", ".dss",
+		".dvf", ".flac", ".gsm", ".iklax", ".ivs", ".m4a", ".m4b", ".m4p", ".mmf", ".movpkg",
+		".mp3", ".mpc", ".msv", ".nmf", ".ogg", ".opus", ".ra", ".raw", ".rf64", ".sln", ".tta",
+		".voc", ".vox", ".wav", ".wma", ".wv", ".8svx", ".cda":
+		mediaType = "audio"
+
+	case ".srt", ".vtt", ".ssa", ".ass":
+		mediaType = "subs"
+
+	case ".png", ".jpg", ".jpeg", ".webp", ".svg", ".dng", ".gif":
+		mediaType = "image"
+	}
+
+	return mediaType
+}

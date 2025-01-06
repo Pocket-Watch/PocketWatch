@@ -245,7 +245,7 @@ class Room {
                 return;
             }
 
-            api.uploadFileWithProgress(files[0], progress => {
+            api.uploadMediaWithProgress(files[0], progress => {
                 this.uploadProgress.value = progress;
             });
         };
@@ -264,7 +264,7 @@ class Room {
             let subtitlePath = "";
             if (this.subtitleFile) {
                 let filename = this.urlArea.subtitleInput.value;
-                subtitlePath = await api.uploadFile(this.subtitleFile, filename);
+                subtitlePath = await api.uploadSubs(this.subtitleFile, filename);
             }
 
             console.log(subtitlePath);
