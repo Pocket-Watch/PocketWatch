@@ -140,7 +140,7 @@
     width: auto;
     height: auto;
     border-radius: 6px;
-    display: flex;
+    display: block;
     bottom: 0;
     padding: 8px;
     color: white;

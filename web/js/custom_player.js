@@ -526,7 +526,7 @@ class Internals {
         let captionText = "";
         if (this.options.allowCueOverlap) {
             for (let i = 0; i < freshCues.length; i++) {
-                captionText += freshCues[i].text;
+                captionText += freshCues[i].text + '\n';
             }
         } else {
             captionText = freshCues[freshCues.length - 1];
