@@ -1575,6 +1575,7 @@ class Internals {
         let autohide       = new Switcher("Auto-hide controls");
         let showOnPause    = new Switcher("Show controls on pause", );
         let playbackSpeed  = new Slider("Playback speed", 0.25, 5.0, 0.25, 1.0, "x");
+        let brightness  = new Slider("Brightness", 0.2, 1.5, 0.05, 1.0);
 
         hide(menuRoot);
         autohide.setState(this.options.autohideControls);
@@ -1614,7 +1615,11 @@ class Internals {
 
         showOnPause.onAction = state => {
             this.options.showControlsOnPause = state;
-        }; 
+        };
+
+        brightness.onInput = value => {
+            this.htmlVideo.style.filter = "brightness(" + value + ")";
+        };
 
         playerRoot.append(menuRoot); {
             menuRoot.append(menuTabs); {
@@ -1626,6 +1631,7 @@ class Internals {
                     generalView.append(autohide.toggleRoot);
                     generalView.append(showOnPause.toggleRoot);
                     generalView.append(playbackSpeed.root);
+                    generalView.append(brightness.root);
                 }
                 menuViews.append(appearanceView);
             }
