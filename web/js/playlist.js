@@ -3,6 +3,12 @@ import { getById, div, a, span, img, svg, button } from "./util.js";
 
 export { Playlist }
 
+const ENTRY_ROW_GAP = 4;
+const ENTRY_BORDER  = 2;
+const ENTRY_HEIGHT  = 64 + ENTRY_BORDER * 2;
+const ENTRY_DROPDOWN_HEIGHT = 80;
+const ENTRY_TRANSITION_TIME = 3200;
+
 class Playlist {
     constructor() {
         this.htmlEntryListWrap = getById("playlist_entry_list_wrap");
@@ -10,20 +16,22 @@ class Playlist {
         this.controlsRoot      = getById("playlist_controls_root");
 
         this.dropdownButton    = getById("playlist_dropdown_button");
-        this.draggableVisual   = getById("playlist_draggable_visual_entry");
+        // this.draggableVisual   = getById("playlist_draggable_visual_entry");
 
-        // NOTE: Other items go here like control buttons and input boxes.
+        this.draggableEntry = null;
+
+        /// Only one entry is allowed to be expanded at a time.
+        this.expandedEntry = null;
 
         /// Corresponds to the actual playlist entries on the server.
         this.entries = [];
 
-        /// Corresponds to html elements created from the playlist entries.
+        /// old: Corresponds to html elements created from the playlist entries. 
+        /// Represents the structure of the htmlEntryList post transition while entries are still mid transition.
         this.htmlEntries = [];
 
         this.dragStartIndex   = -1;
         this.dragCurrentIndex = -1;
-        this.draggedEntry     = null; 
-        this.dragMouseOffset  = 0.0;
     }
 
     attachPlaylistEvents() {
@@ -37,6 +45,8 @@ class Playlist {
         this.entries.push(entry);
 
         const htmlEntry = this.createHtmlEntry(entry);
+        this.setEntryPosition(htmlEntry, this.htmlEntries.length);
+
         this.htmlEntries.push(htmlEntry);
         this.htmlEntryList.appendChild(htmlEntry);
     }
@@ -59,6 +69,11 @@ class Playlist {
         this.htmlEntries.splice(index, 1);
 
         this.htmlEntryList.removeChild(htmlEntry);
+
+        for (let i = index; i < this.htmlEntries.length; i++) {
+            const entry = this.htmlEntries[i];
+            this.setEntryPosition(entry, i);
+        }
     }
 
     // insertAt(entry, index) {
@@ -95,29 +110,101 @@ class Playlist {
         this.entries = entries;
         for (let i = 0; i < this.entries.length; i++) {
             const entry = this.entries[i];
+
             const htmlEntry = this.createHtmlEntry(entry);
+            this.setEntryPosition(htmlEntry, this.htmlEntries.length);
+
             this.htmlEntries.push(htmlEntry);
             this.htmlEntryList.appendChild(htmlEntry);
         }
     }
 
-    findHtmlEntryIndex(htmlEntry) {
-        for (let i = 0; i < this.htmlEntries.length; i++) {
-            const entry = this.htmlEntries[i];
-
-            if (entry === htmlEntry) {
-                return i;
-            }
-        }
-
-        return -1;
+    findEntryIndex(entry) {
+        return this.entries.findIndex(item => item === entry);
     }
 
-    calculateEntryPos(entry, index) {
-        const rowGap = 4;
-        const listRect = this.htmlEntryList.getBoundingClientRect();
-        const entryRect = entry.getBoundingClientRect();
-        return listRect.y + (entryRect.height + rowGap) * index;
+    findHtmlIndex(htmlEntry) {
+        return this.htmlEntries.findIndex(item => item === htmlEntry);
+    }
+
+    expandEntry(entry) {
+        if (this.expandedEntry) {
+            this.expandedEntry.classList.remove("entry_dropdown_expand");
+        }
+
+        if (entry) {
+            this.expandedEntry = entry;
+            this.expandedEntry.classList.add("entry_dropdown_expand");
+        }
+    }
+
+    collapseEntry(entry) {
+        if (entry !== this.expandedEntry) {
+            return;
+        }
+
+        // NOTE(kihau): To reduce visible DOM size we could apply "display: none" after the transition.
+        if (this.expandedEntry) {
+            this.expandedEntry.classList.remove("entry_dropdown_expand");
+        }
+
+        this.expandedEntry = null;
+    }
+
+    indexToPosition(index) {
+        const rect = this.htmlEntryList.getBoundingClientRect();
+        let positionY = rect.y + (ENTRY_HEIGHT + ENTRY_ROW_GAP) * index;
+
+        // let expandedEntryIndex = this.findHtmlIndex(this.expandedEntry);
+        // if (expandedEntryIndex != -1 && expandedEntryIndex < index) {
+        //     positionY += ENTRY_DROPDOWN_HEIGHT;
+        // }
+
+        return positionY;
+    }
+
+    positionToIndex(positionY) {
+        const rect = this.htmlEntryList.getBoundingClientRect();
+        let index = Math.floor((positionY - rect.y) / (ENTRY_HEIGHT + ENTRY_ROW_GAP));
+
+        if (index < 0) {
+            index = 0;
+        }
+
+        if (index >= this.htmlEntries.length) {
+            index = this.htmlEntries.length - 1;
+        }
+
+        return index;
+    }
+
+    getTranslateY(element) {
+        let y = 0.0;
+        if (element.style.transform) {
+            let string = element.style.transform;
+
+            let start = 0;
+            let end   = string.length;
+
+            for (let i = 0; i < string.length; i++) {
+                if (string.charAt(i) === "(") {
+                    start = i + 1;
+                }
+
+                if (string.charAt(i) === "p") {
+                    end = i;
+                }
+            }
+
+            y = Number(string.substring(start, end));
+            console.warn(string, y);
+        }
+
+        return y;
+    }
+
+    setEntryPosition(entry, index) {
+        entry.style.top = index * (ENTRY_HEIGHT + ENTRY_ROW_GAP) + "px";
     }
 
     createHtmlEntry(entry) {
@@ -151,7 +238,6 @@ class Playlist {
         // Setting html elements content.
         //
         entryDragArea.textContent = "☰";
-        // entryDragArea.draggable = true;
 
         //
         // Attaching events to html elements.
@@ -164,187 +250,94 @@ class Playlist {
         entryDragArea.ontouchstart = _ => {};
 
         entryDragArea.onmousedown = event => {
-            let index = this.findHtmlEntryIndex(entryRoot);
-            this.dragStartIndex   = index;
-            this.dragCurrentIndex = index;
-            this.draggedEntry     = entryRoot;
+            this.dragStartIndex   = this.findHtmlIndex(entryRoot);
+            this.dragCurrentIndex = this.dragStartIndex;
 
-            console.log(this.dragStartIndex, this.dragStartIndex)
+            this.collapseEntry(this.expandedEntry);
 
-            entryRoot.classList.remove("entry_dropdown_expand");
+            let draggableEntry = entryRoot.cloneNode(true);
+            draggableEntry.classList.add("draggable_entry");
+            draggableEntry.classList.add("entry_disable_transition");
+            this.draggableEntry = draggableEntry;
 
-            let visual = entryRoot.cloneNode(true);
-            this.draggableVisual.appendChild(visual);
+            this.htmlEntryList.appendChild(draggableEntry);
 
-            // YUCK!
-            let wrapRect    = this.htmlEntryListWrap.getBoundingClientRect();
-            let entryRect   = this.draggedEntry.getBoundingClientRect();
-            let mouseOffset = event.clientY - entryRect.top + 2.0;
-            let top         = event.clientY - wrapRect.top - mouseOffset;
-            this.draggableVisual.style.top = top + "px";
-            // let wrapRect   = this.htmlEntryListWrap.getBoundingClientRect();
-            // let visualRect = this.draggableVisual.getBoundingClientRect();
-            // let height     = visualRect.height;
-            // let top        = event.clientY - wrapRect.top - height / 2.0;
-            // this.draggableVisual.style.top = top + "px";
+            let listRect    = this.htmlEntryList.getBoundingClientRect();
+            let entryRect   = draggableEntry.getBoundingClientRect();
+            let mouseOffset = event.clientY - entryRect.top;
+            let top         = event.clientY - listRect.top - mouseOffset;
+            this.draggableEntry.style.top = top + "px";
 
+            entryRoot.classList.add("entry_shadow");
 
-            // TODO(kihau): Calculate the post based on entry index instead of doing the html nonsense.
-            let pos = this.calculateEntryPos(this.draggedEntry, this.dragStartIndex);
-            console.log("Entry:", this.draggedEntry.getBoundingClientRect().y, "Calculated pos:", pos);
+            let onDragTimeout = event => { 
+                let dragRect = this.draggableEntry.getBoundingClientRect();
+                let dragPos  = dragRect.y + ENTRY_HEIGHT / 2.0;
 
-            entryRoot.style.opacity = 0.3;
+                let hoverIndex = this.positionToIndex(dragPos);
+                let startIndex = this.dragCurrentIndex;
+                let endIndex   = this.dragCurrentIndex;
 
-            let onDragTimeout = event => {
-                let rect = entryRoot.getBoundingClientRect();
-
-                // NOTE(kihau): There must me a nicer way to calculate transition distance.
-                const rowGap = 4;
-                const distance = rect.height + rowGap;
-                const transitionTime = 120;
-
-                // TODO?(kihau): Instead of using next/previous sibling element, iterate over the htmlEntries array?
-
-                // TODO(kihau): Add do not swap when mouse enter the entry but rather when its y > entry y + height / 2.0?
-
-                if (event.y < rect.y) {
-                    let count = 0;
-
-                    let entry = entryRoot;
-                    while (true) {
-                        if (!entry.previousElementSibling) {
+                if (hoverIndex < this.dragCurrentIndex) {
+                    for (let i = this.dragCurrentIndex - 1; i >= 0; i--) {
+                        const pos = this.indexToPosition(i);
+                        if (dragPos > pos + ENTRY_HEIGHT * 0.66666) {
                             break;
                         }
 
-                        entry = entry.previousElementSibling 
-                        rect  = entry.getBoundingClientRect();
+                        endIndex -= 1;
 
-                        if (event.y > rect.y + rect.height) {
-                            break;
-                        }
-
-                        count += 1;
-
-                        entry.style.transform  = `translate(0, ${distance}px)`;
-                        entry.style.transition = `transform ${transitionTime}ms`;
-                        entry.ontransitionend = event => {
-                            event.target.ontransitionend = null;
-                            event.target.style.transition = "";
-                            event.target.style.transform  = "";
-                        };
-
-                        if (event.y >= rect.y) {
-                            break;
-                        }
+                        const entry = this.htmlEntries[i];
+                        this.setEntryPosition(entry, i + 1);
                     }
-
-                    if (count == 0) {
-                        return;
-                    }
-
-                    entryRoot.style.transform  = `translate(0, -${distance * count}px)`;
-                    entryRoot.style.transition = `transform ${transitionTime}ms`;
-                    entryRoot.ontransitionend = _ => {
-                        entryRoot.ontransitionend = null;
-                        entryRoot.style.transition = "";
-                        entryRoot.style.transform  = "";
-
-                        this.htmlEntryList.insertBefore(entryRoot, entry);
-                    };
-                } else if (event.y > rect.y + rect.height) {
-                    let count = 0;
-
-                    let entry = entryRoot;
-                    while (true) {
-                        if (!entry.nextElementSibling) {
+                } else if (hoverIndex > this.dragCurrentIndex) {
+                    for (let i = this.dragCurrentIndex + 1; i < this.htmlEntries.length; i++) {
+                        const pos = this.indexToPosition(i);
+                        if (dragPos < pos + ENTRY_HEIGHT * 0.33333) {
                             break;
                         }
 
-                        entry = entry.nextElementSibling 
-                        rect  = entry.getBoundingClientRect();
+                        endIndex += 1;
 
-                        if (event.y < rect.y) {
-                            break;
-                        }
-
-                        count += 1;
-
-                        entry.style.transform  = `translate(0, -${distance}px)`;
-                        entry.style.transition = `transform ${transitionTime}ms`;
-                        entry.ontransitionend = event => {
-                            event.target.ontransitionend = null;
-                            event.target.style.transition = "";
-                            event.target.style.transform  = "";
-                        };
-
-                        if (event.y <= rect.y + rect.height) {
-                            break;
-                        }
+                        const entry = this.htmlEntries[i];
+                        this.setEntryPosition(entry, i - 1);
                     }
-
-                    if (count == 0) {
-                        return;
-                    }
-
-                    entryRoot.style.transform  = `translate(0, ${distance * count}px)`;
-                    entryRoot.style.transition = `transform ${transitionTime}ms`;
-                    entryRoot.ontransitionend = _ => {
-                        entryRoot.ontransitionend = null;
-                        entryRoot.style.transition = "";
-                        entryRoot.style.transform  = "";
-
-                        this.htmlEntryList.insertBefore(entryRoot, entry.nextSibling);
-                    };
                 }
+
+                if (startIndex === endIndex) {
+                    return;
+                }
+
+                let entry = this.htmlEntries[startIndex];
+
+                this.htmlEntries.splice(startIndex, 1);
+                this.htmlEntries.splice(endIndex, 0, entry);
+
+                this.setEntryPosition(entry, endIndex);
+                this.dragCurrentIndex = endIndex;
             }
 
             let timeout = null;
             let onDragging = event => {
-                let wrapRect = this.htmlEntryListWrap.getBoundingClientRect();
-                let top      = event.clientY - wrapRect.top - mouseOffset;
-                this.draggableVisual.style.top = top + "px";
+                let listRect = this.htmlEntryList.getBoundingClientRect();
+                let top      = event.clientY - listRect.top - mouseOffset;
+                this.draggableEntry.style.top = top + "px";
 
                 clearTimeout(timeout);
-                timeout = setTimeout(onDragTimeout, 16, event);
+                timeout = setTimeout(onDragTimeout, 32, event);
             }
 
             let onDraggingStop = event => {
-                entryRoot.style.opacity = null;
-                this.draggableVisual.removeChild(this.draggableVisual.firstChild);
-                
                 clearTimeout(timeout);
                 onDragTimeout(event);
 
-                // TOOD(kihau): Smooth transition to the correct spot instead of rapid entry jump.
-                // let entryRect = entryRoot.getBoundingClientRect();
-                // let visualRect = this.draggableVisual.getBoundingClientRect();
-                // let distance = entryRect.y - visualRect.y;
-                //
-                // this.draggableVisual.style.transform  = `translate(0, ${distance}px)`;
-                // this.draggableVisual.style.transition = `transform 120ms`;
-                // this.draggableVisual.ontransitionend = event => {
-                //     this.draggableVisual.removeChild(this.draggableVisual.firstChild);
-                //
-                //     this.draggableVisual.style.transform  = "";
-                //     this.draggableVisual.style.transition = "";
-                //
-                //     entryRoot.style.opacity = null;
-                // };
-
-                // let visualRect = this.draggableVisual.getBoundingClientRect();
-                // let distance = targetY - visualRect.y;
-                //
-                // this.draggableVisual.style.transform  = `translate(0, ${distance}px)`;
-                // this.draggableVisual.style.transition = `transform 1200ms`;
-                // this.draggableVisual.ontransitionend = event => {
-                //     this.draggableVisual.removeChild(this.draggableVisual.firstChild);
-                //
-                //     this.draggableVisual.style.transform  = "";
-                //     this.draggableVisual.style.transition = "";
-                //
-                //     entryRoot.style.opacity = null;
-                //     currentY = entryRoot.getBoundingClientRect().y;
-                // };
+                this.draggableEntry.classList.remove("entry_disable_transition");
+                this.setEntryPosition(this.draggableEntry, this.dragCurrentIndex);
+                this.draggableEntry.ontransitionend = event => {
+                    this.htmlEntryList.removeChild(event.target);
+                    entryRoot.classList.remove("entry_shadow");
+                };
+                this.draggableEntry = null;
 
                 document.removeEventListener("mousemove", onDragging);
                 document.removeEventListener("mouseup",   onDraggingStop);
@@ -377,7 +370,11 @@ class Playlist {
         };
 
         dropdownButton.onclick = () => {
-            entryRoot.classList.toggle("entry_dropdown_expand");
+            if (this.expandedEntry !== entryRoot) {
+                this.expandEntry(entryRoot);
+            } else {
+                this.collapseEntry(entryRoot);
+            }
         };
 
         //

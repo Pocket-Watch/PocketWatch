@@ -131,8 +131,16 @@ export function setToken(t) {
     token = t;
 }
 
+export function getToken() {
+    return token;
+}
+
 export function setConnectionId(id) {
     connectionId = id;
+}
+
+export function getConnectionId() {
+    return connectionId;
 }
 
 export async function uploadMedia(file, filename) {
