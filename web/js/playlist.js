@@ -67,7 +67,6 @@ class Playlist {
         this.htmlEntries.splice(index, 1);
 
         this.htmlEntryList.removeChild(htmlEntry);
-
         for (let i = index; i < this.htmlEntries.length; i++) {
             const entry = this.htmlEntries[i];
             this.setEntryPosition(entry, i);
@@ -76,16 +75,29 @@ class Playlist {
 
     // TODO(kihau): Proper networking handling.
     move(sourceIndex, destIndex) {
-        let sourceHtmlEntry = this.htmlEntries[sourceIndex];
-        let sourceEntry     = this.entries[sourceIndex];
+        console.log(sourceIndex, destIndex);
 
-        let destHtmlEntry = this.htmlEntries[destIndex];
+        if (sourceIndex === destIndex) {
+            return;
+        } else if (destIndex < sourceIndex) {
+            for (let i = destIndex; i < sourceIndex; i++) {
+                this.setEntryPosition(this.htmlEntries[i], i + 1);
+            }
+        } else if (destIndex > sourceIndex) {
+            for (let i = destIndex; i > sourceIndex; i--) {
+                this.setEntryPosition(this.htmlEntries[i], i - 1);
+            }
+        }
 
-        this.removeAt(sourceIndex);
+        let htmlEntry = this.htmlEntries[sourceIndex];
+        this.htmlEntries.splice(sourceIndex, 1);
+        this.htmlEntries.splice(destIndex, 0, htmlEntry);
 
-        this.entries.splice(destIndex, 0, sourceEntry);
-        this.htmlEntries.splice(destIndex, 0, sourceHtmlEntry);
-        this.htmlEntryList.insertBefore(sourceHtmlEntry, destHtmlEntry)
+        let entry = this.entries[sourceIndex];
+        this.entries.splice(sourceIndex, 1);
+        this.entries.splice(destIndex, 0, entry);
+
+        this.setEntryPosition(htmlEntry, destIndex);
     }
 
     loadEntries(entries) {
@@ -346,10 +358,13 @@ class Playlist {
                 }
                 this.draggableEntry = null;
 
+
                 // TODO(kihau): Proper networking handling.
-                // let entry = this.entries[this.dragStartIndex];
-                let entry = this.entries[this.dragCurrentIndex];
-                api.playlistMove(entry.id, this.dragStartIndex, this.dragCurrentIndex)
+                if (this.dragStartIndex !== this.dragCurrentIndex) {
+                    // let entry = this.entries[this.dragStartIndex];
+                    let entry = this.entries[this.dragCurrentIndex];
+                    api.playlistMove(entry.id, this.dragStartIndex, this.dragCurrentIndex)
+                }
 
                 document.removeEventListener("mousemove", onDragging);
                 document.removeEventListener("mouseup",   onDraggingStop);
