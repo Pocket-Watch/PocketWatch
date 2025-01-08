@@ -1073,7 +1073,8 @@ func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !isAuthorized(w, r) {
+	user := getAuthorized(w, r)
+	if user == nil {
 		return
 	}
 
@@ -1124,7 +1125,7 @@ func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 	}
 
 	event := createPlaylistEvent("move", eventData)
-	writeEventToAllConnections(w, "playlist", event)
+	writeEventToAllConnectionsExceptSelf(w, "playlist", event, user.Id, move.ConnectionId)
 }
 
 func apiHistoryGet(w http.ResponseWriter, r *http.Request) {

@@ -6,19 +6,16 @@ export { Playlist }
 const ENTRY_ROW_GAP = 4;
 const ENTRY_BORDER  = 2;
 const ENTRY_HEIGHT  = 64 + ENTRY_BORDER * 2;
-const ENTRY_DROPDOWN_HEIGHT = 80;
-const ENTRY_TRANSITION_TIME = 3200;
 
 class Playlist {
     constructor() {
         this.htmlEntryListWrap = getById("playlist_entry_list_wrap");
         this.htmlEntryList     = getById("playlist_entry_list");
         this.controlsRoot      = getById("playlist_controls_root");
-
         this.dropdownButton    = getById("playlist_dropdown_button");
-        // this.draggableVisual   = getById("playlist_draggable_visual_entry");
 
-        this.draggableEntry = null;
+        this.draggableEntry    = null;
+        this.draggableTopStart = 0.0;
 
         /// Only one entry is allowed to be expanded at a time.
         this.expandedEntry = null;
@@ -51,6 +48,7 @@ class Playlist {
         this.htmlEntryList.appendChild(htmlEntry);
     }
 
+    // TODO(kihau): Proper networking handling.
     removeAt(index) {
         if (typeof index !== "number") {
             console.error("ERROR: Playlist::removeAt failed. The input index:", index, "is invalid.");
@@ -76,18 +74,7 @@ class Playlist {
         }
     }
 
-    // insertAt(entry, index) {
-    //     if (typeof index !== "number") {
-    //         console.error("ERROR: Playlist::insertAt failed. The input index:", index, "is invalid.");
-    //         return;
-    //     }
-    //
-    //     if (index < 0 || index >= this.entries.length) {
-    //         console.error("ERROR: Playlist::insertAt failed. Index:", index, "is out of bounds for array:", this.entries);
-    //         return;
-    //     }
-    // }
-
+    // TODO(kihau): Proper networking handling.
     move(sourceIndex, destIndex) {
         let sourceHtmlEntry = this.htmlEntries[sourceIndex];
         let sourceEntry     = this.entries[sourceIndex];
@@ -117,6 +104,21 @@ class Playlist {
             this.htmlEntries.push(htmlEntry);
             this.htmlEntryList.appendChild(htmlEntry);
         }
+    }
+
+    clear() {
+        while (this.htmlEntryList.lastChild) {
+            this.htmlEntryList.removeChild(this.htmlEntryList.lastChild);
+        }
+
+        this.htmlEntries    = [];
+        this.entries       = [];
+        this.expandedEntry = null;
+
+        this.dragStartIndex    = -1;
+        this.dragCurrentIndex  = -1;
+        this.draggableEntry    = null;
+        this.draggableTopStart = 0.0;
     }
 
     findEntryIndex(entry) {
@@ -154,12 +156,6 @@ class Playlist {
     indexToPosition(index) {
         const rect = this.htmlEntryList.getBoundingClientRect();
         let positionY = rect.y + (ENTRY_HEIGHT + ENTRY_ROW_GAP) * index;
-
-        // let expandedEntryIndex = this.findHtmlIndex(this.expandedEntry);
-        // if (expandedEntryIndex != -1 && expandedEntryIndex < index) {
-        //     positionY += ENTRY_DROPDOWN_HEIGHT;
-        // }
-
         return positionY;
     }
 
@@ -265,8 +261,9 @@ class Playlist {
             let listRect    = this.htmlEntryList.getBoundingClientRect();
             let entryRect   = draggableEntry.getBoundingClientRect();
             let mouseOffset = event.clientY - entryRect.top;
-            let top         = event.clientY - listRect.top - mouseOffset;
-            this.draggableEntry.style.top = top + "px";
+            let top         = (event.clientY - listRect.top - mouseOffset) + "px";
+            this.draggableEntry.style.top = top;
+            this.draggableTopStart = top;
 
             entryRoot.classList.add("entry_shadow");
 
@@ -309,9 +306,14 @@ class Playlist {
                 }
 
                 let entry = this.htmlEntries[startIndex];
-
                 this.htmlEntries.splice(startIndex, 1);
                 this.htmlEntries.splice(endIndex, 0, entry);
+
+                { // NOTE(kihau): This will be handled differently.
+                    let entry = this.entries[startIndex];
+                    this.entries.splice(startIndex, 1);
+                    this.entries.splice(endIndex, 0, entry);
+                }
 
                 this.setEntryPosition(entry, endIndex);
                 this.dragCurrentIndex = endIndex;
@@ -320,8 +322,8 @@ class Playlist {
             let timeout = null;
             let onDragging = event => {
                 let listRect = this.htmlEntryList.getBoundingClientRect();
-                let top      = event.clientY - listRect.top - mouseOffset;
-                this.draggableEntry.style.top = top + "px";
+                let top      = (event.clientY - listRect.top - mouseOffset) + "px";
+                this.draggableEntry.style.top = top;
 
                 clearTimeout(timeout);
                 timeout = setTimeout(onDragTimeout, 32, event);
@@ -331,13 +333,23 @@ class Playlist {
                 clearTimeout(timeout);
                 onDragTimeout(event);
 
-                this.draggableEntry.classList.remove("entry_disable_transition");
-                this.setEntryPosition(this.draggableEntry, this.dragCurrentIndex);
-                this.draggableEntry.ontransitionend = event => {
-                    this.htmlEntryList.removeChild(event.target);
+                if (this.draggableTopStart === this.draggableEntry.style.top) {
+                    this.htmlEntryList.removeChild(this.draggableEntry);
                     entryRoot.classList.remove("entry_shadow");
-                };
+                } else {
+                    this.draggableEntry.classList.remove("entry_disable_transition");
+                    this.setEntryPosition(this.draggableEntry, this.dragCurrentIndex);
+                    this.draggableEntry.ontransitionend = event => {
+                        this.htmlEntryList.removeChild(event.target);
+                        entryRoot.classList.remove("entry_shadow");
+                    };
+                }
                 this.draggableEntry = null;
+
+                // TODO(kihau): Proper networking handling.
+                // let entry = this.entries[this.dragStartIndex];
+                let entry = this.entries[this.dragCurrentIndex];
+                api.playlistMove(entry.id, this.dragStartIndex, this.dragCurrentIndex)
 
                 document.removeEventListener("mousemove", onDragging);
                 document.removeEventListener("mouseup",   onDraggingStop);
@@ -365,6 +377,7 @@ class Playlist {
                 return null;
             }
 
+            // TODO(kihau): Proper networking handling.
             let entry = this.entries[index];
             api.playlistRemove(entry.id, index);
         };
@@ -425,7 +438,7 @@ class Playlist {
             } break;
 
             case "clear": {
-                // this.clear()
+                this.clear()
             } break;
 
             case "remove": {
@@ -433,7 +446,8 @@ class Playlist {
             } break;
 
             case "shuffle": {
-                // this.loadNew(data);
+                this.clear();
+                this.loadNew(data);
             } break;
 
             case "move": {
@@ -441,7 +455,7 @@ class Playlist {
             } break;
 
             case "update": {
-                // this.move(data.source_index, data.dest_index);
+                // this.update(data.index, data.new_entry);
             } break;
 
             default: {
