@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="css/player.css">
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/playlist.css">
+    <link rel="stylesheet" href="css/chat.css">
 </head>
 
 <body>
@@ -245,7 +246,14 @@
                         <div id="playlist_entry_list"></div>
                     </div>
                 </div>
-                <div id="content_chat" class="content_view">CHAT</div>
+                <div id="content_chat" class="content_view">
+                    <div class="input_area" id="chat_input_container">
+                        <span>Message:</span>
+                        <input id="chat_input_box" placeholder="Send a message."/>
+                        <button id="chat_send_button">Send</button>
+                    </div>
+                    <div id="chat_text_content">Kihau: This is a demo chat message.<div/>
+                </div>
                 <div id="content_history" class="content_view">HISTORY</div>
             </div>
         </div>

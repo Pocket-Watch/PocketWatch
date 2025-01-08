@@ -14,9 +14,6 @@ class Playlist {
         this.controlsRoot      = getById("playlist_controls_root");
         this.dropdownButton    = getById("playlist_dropdown_button");
 
-        this.draggableEntry    = null;
-        this.draggableTopStart = 0.0;
-
         /// Only one entry is allowed to be expanded at a time.
         this.expandedEntry = null;
 
@@ -27,8 +24,10 @@ class Playlist {
         /// Represents the structure of the htmlEntryList post transition while entries are still mid transition.
         this.htmlEntries = [];
 
-        this.dragStartIndex   = -1;
-        this.dragCurrentIndex = -1;
+        this.draggableEntry    = null;
+        this.draggableTopStart = null;
+        this.dragStartIndex    = -1;
+        this.dragCurrentIndex  = -1;
     }
 
     attachPlaylistEvents() {
@@ -75,8 +74,6 @@ class Playlist {
 
     // TODO(kihau): Proper networking handling.
     move(sourceIndex, destIndex) {
-        console.log(sourceIndex, destIndex);
-
         if (sourceIndex === destIndex) {
             return;
         } else if (destIndex < sourceIndex) {
@@ -127,10 +124,10 @@ class Playlist {
         this.entries       = [];
         this.expandedEntry = null;
 
+        this.draggableEntry    = null;
+        this.draggableTopStart = null;
         this.dragStartIndex    = -1;
         this.dragCurrentIndex  = -1;
-        this.draggableEntry    = null;
-        this.draggableTopStart = 0.0;
     }
 
     findEntryIndex(entry) {
@@ -356,7 +353,8 @@ class Playlist {
                         entryRoot.classList.remove("entry_shadow");
                     };
                 }
-                this.draggableEntry = null;
+                this.draggableEntry    = null;
+                this.draggableTopStart = null;
 
 
                 // TODO(kihau): Proper networking handling.
