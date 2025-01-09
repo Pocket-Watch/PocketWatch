@@ -387,6 +387,7 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/watch/api/history/clear", apiHistoryClear)
 
 	http.HandleFunc("/watch/api/chat/messagecreate", apiChatSend)
+	http.HandleFunc("/watch/api/chat/get", apiChatGet)
 
 	// Server events and proxy.
 	http.HandleFunc("/watch/api/events", apiEvents)
@@ -1850,6 +1851,27 @@ func createSyncEvent(action string, userId uint64) SyncEventData {
 	return event
 }
 
+const MAX_MESSAGE_CHARACTERS = 1000
+
+func apiChatGet(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		return
+	}
+
+	LogInfo("Connection %s requested messages.", r.RemoteAddr)
+
+	conns.mutex.RLock()
+	jsonData, err := json.Marshal(state.messages)
+	conns.mutex.RUnlock()
+
+	if err != nil {
+		LogWarn("Failed to serialize messages get event.")
+		return
+	}
+
+	io.WriteString(w, string(jsonData))
+}
+
 func apiChatSend(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
@@ -1867,7 +1889,7 @@ func apiChatSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(newMessage.Message) > MAX_MESSAGE_CHARACTERS {
-		http.Error(w, "Message exceeds 500 chars", http.StatusForbidden)
+		http.Error(w, "Message exceeds 1000 chars", http.StatusForbidden)
 		return
 	}
 
@@ -1884,8 +1906,6 @@ func apiChatSend(w http.ResponseWriter, r *http.Request) {
 	state.mutex.Unlock()
 	writeEventToAllConnections(w, "messagecreate", chatMessage)
 }
-
-const MAX_MESSAGE_CHARACTERS = 500
 
 type ChatMessage struct {
 	Message  string `json:"message"`

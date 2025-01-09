@@ -332,7 +332,7 @@ export async function historyClear() {
 
 // CHAT requests
 
-export async function apiChatSend(message) {
+export async function chatSend(message) {
     const payload = {
         message: message,
         edited: false,
@@ -340,4 +340,9 @@ export async function apiChatSend(message) {
 
     console.info("INFO: Sending new chat to the server.");
     httpPost("/watch/api/chat/messagecreate", payload);
+}
+
+export async function chatGet() {
+    console.info("INFO: Fetching the chat from server.");
+    return await httpGet("/watch/api/chat/get");
 }

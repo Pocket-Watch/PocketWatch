@@ -510,6 +510,17 @@ class Room {
         this.playlist.loadEntries(entries);
     }
 
+    async loadChatData() {
+        let messages = await api.chatGet();
+        console.log(messages);
+        if (!messages) {
+            return;
+        }
+
+        console.log(messages);
+        this.chat.loadMessages(messages, this.allUsers);
+    }
+
     setEntryEvent(entry) {
         this.nowPlaying.value = entry.url;
         this.usingProxy.checked = entry.user_proxy;
@@ -759,6 +770,7 @@ class Room {
         await this.loadPlayerData();
         await this.loadUsersData();
         await this.loadPlaylistData();
+        await this.loadChatData();
         this.listenToServerEvents();
     }
 }

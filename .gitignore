@@ -10,3 +10,10 @@ web/proxy/*
 web/users/*
 web/subs/*
 scratch/*
+
+web/js/inject.js
+web/injection.html
+web/fluid.html
+web/preview.html
+build_local.bat
+build_local.sh
