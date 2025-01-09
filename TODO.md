@@ -15,8 +15,6 @@
         - [x] MP3
         - [x] M4A
         - [x] WEBA
-        - [ ] AIFF
-        - [ ] ~~SND~~
 - [x] Rewrite '/start' '/pause' to '/update'
 - [x] Fix chained requests
     - [x] Fix chained pauses
@@ -52,7 +50,7 @@
     - [ ] Custom youtube parser and downloader
     - [ ] Add video support (might require custom player implementation)
 - [ ] Audio only option that removes player video (only client side?)
-- [ ] Display errors on the web page when they occur
+- [x] Display errors on the web page when they occur
 - [ ] Add watch history
     - [x] Implement history add
     - [x] Implement history clear
@@ -84,25 +82,25 @@
     - [ ] Seek arrow and double click indicator:
         - [x] Display seek +10/-10 on keyboard arrow click
         - [x] Perform seeks screen double tap
-        - [ ] Display variable seek indicator number on arrow press or screen double tap
+        - [x] Display variable seek indicator number on arrow press or screen double tap
         - [ ] Seek indicator value stacking
     - [ ] Custom options that include:
+        - [x] Disable control auto-hide
         - [ ] Playback speed
         - [ ] Audio source switch
         - [ ] Video source switch
         - [ ] Audio only mode
-        - [ ] Disable control auto-hide
-    - [ ] Subtitles support
+    - [x] Subtitles support
         - [x] Subtitle popup menu with selection and options
-        - [ ] Option to change subtitle size
-        - [ ] Option to change subtitle color
-        - [ ] Option to change timestamp offset
+        - [x] Option to change subtitle size
+        - [x] Option to change subtitle color
+        - [x] Option to change timestamp offset
     - [ ] Skip/Remove entries that fail to load on the client side
 - [ ] On first website load, indicate to the user that autoplay policy is disabled and manual action is required in order to play the video.
-- [ ] Detect mobile client and adjust the page appropriately
-    - [ ] Don't auto-hide player
-    - [ ] Reduce horizontal player size for mobile (portrait)
-    - [ ] Do not pause the player on a single screen tap
+- [x] Detect mobile client and adjust the page appropriately
+    - [x] Do not pause the player on a single screen tap
+    - [x] Don't auto-hide player
+    - [x] Reduce horizontal player size for mobile (portrait)
 - [ ] Server hardening and rate-limiting
 - [ ] Add server side and client side authentication and store cookies
 - [ ] Add option to upload media file to the server and stream it to all connected clients (streaming proxy)
