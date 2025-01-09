@@ -295,6 +295,12 @@ type PlaylistMoveEventData struct {
 	DestIndex   int `json:"dest_index"`
 }
 
+type PlaylistUpdateRequestData struct {
+	ConnectionId uint64 `json:"connection_id"`
+	Entry        Entry  `json:"entry"`
+	Index        int    `json:"index"`
+}
+
 var state = ServerState{}
 var users = makeUsers()
 var conns = makeConnections()
@@ -1139,16 +1145,19 @@ func apiPlaylistUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !isAuthorized(w, r) {
+	user := getAuthorized(w, r)
+	if user == nil {
 		return
 	}
 
 	LogInfo("Connection %s requested playlist update.", r.RemoteAddr)
 
-	var entry Entry
-	if !readJsonDataFromRequest(w, r, &entry) {
+	var data PlaylistUpdateRequestData
+	if !readJsonDataFromRequest(w, r, &data) {
 		return
 	}
+
+	entry := data.Entry
 
 	state.mutex.Lock()
 	updatedEntry := Entry{Id: 0}
@@ -1170,7 +1179,7 @@ func apiPlaylistUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	event := createPlaylistEvent("update", entry)
-	writeEventToAllConnections(w, "playlist", event)
+	writeEventToAllConnectionsExceptSelf(w, "playlist", event, user.Id, data.ConnectionId)
 }
 
 func apiHistoryGet(w http.ResponseWriter, r *http.Request) {

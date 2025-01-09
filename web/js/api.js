@@ -320,8 +320,14 @@ export async function playlistMove(entryId, source, dest) {
 }
 
 export async function playlistUpdate(entry) {
-    console.info("INFO: Sending playlist update request for entry:", entry);
-    httpPost("/watch/api/playlist/update", entry);
+    const payload = {
+        connection_id: connectionId,
+        entry: entry,
+        index: 0, // NOTE(kihau): The index is unused for now.
+    }
+
+    console.info("INFO: Sending playlist update request for entry id:", entry);
+    httpPost("/watch/api/playlist/update", payload);
 }
 
 export async function historyGet() {

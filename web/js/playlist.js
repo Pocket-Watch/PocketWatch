@@ -115,11 +115,16 @@ class Playlist {
                 const htmlEntry = this.createHtmlEntry(entry);
                 this.setEntryPosition(htmlEntry, i);
 
+                if (this.isEditingEntry && entry.id === this.editEntry.entry.id) {
+                    this.stopEntryEdit();
+                }
+
                 const previous = this.htmlEntries[i];
 
                 this.entries[i] = entry;
                 this.htmlEntries[i] = htmlEntry;
                 this.htmlEntryList.replaceChild(htmlEntry, previous)
+
                 break;
             }
         }
@@ -187,6 +192,38 @@ class Playlist {
         }
 
         this.expandedEntry = null;
+    }
+
+    startEntryEdit(entry, root, title, url) {
+        this.editEntry.entry = entry;
+        this.editEntry.root  = root;
+        this.editEntry.title = title;
+        this.editEntry.url   = url;
+
+        this.editEntry.root.classList.add("entry_editing");
+        this.editEntry.title.contentEditable = true;
+        this.editEntry.url.contentEditable   = true;
+
+        this.isEditingEntry = true;
+    }
+
+    stopEntryEdit() {
+        this.editEntry.root.classList.remove("entry_editing");
+        this.editEntry.title.contentEditable = false;
+        this.editEntry.url.contentEditable   = false;
+
+        let entry   = this.editEntry.entry;
+        entry.title = this.editEntry.title.textContent;
+        entry.url   = this.editEntry.url.textContent;
+
+        this.editEntry.entry = null;
+        this.editEntry.root  = null;
+        this.editEntry.title = null;
+        this.editEntry.url   = null;
+
+        this.isEditingEntry = false;
+
+        return entry;
     }
 
     indexToPosition(index) {
@@ -383,37 +420,13 @@ class Playlist {
         editButton.onclick = _ => {
             let prevId = 0;
             if (this.isEditingEntry) {
-                this.editEntry.root.classList.remove("entry_editing");
-                this.editEntry.title.contentEditable = false;
-                this.editEntry.url.contentEditable   = false;
-
-                let entry   = this.editEntry.entry;
-                entry.title = this.editEntry.title.textContent;
-                entry.url   = this.editEntry.url.textContent;
-
-                prevId = entry.id;
-
-                this.editEntry.entry = null;
-                this.editEntry.root  = null;
-                this.editEntry.title = null;
-                this.editEntry.url   = null;
-
-                this.isEditingEntry = false;
-
-                api.playlistUpdate(entry);
+                let newEntry = this.stopEntryEdit();
+                prevId = newEntry.id;
+                api.playlistUpdate(newEntry);
             } 
 
             if (prevId !== entry.id) {
-                this.editEntry.entry = entry;
-                this.editEntry.root  = entryRoot;
-                this.editEntry.title = entryTitle;
-                this.editEntry.url   = entryUrl;
-
-                this.editEntry.root.classList.add("entry_editing");
-                this.editEntry.title.contentEditable = true;
-                this.editEntry.url.contentEditable   = true;
-
-                this.isEditingEntry = true;
+                this.startEntryEdit(entry, entryRoot, entryTitle, entryUrl);
             }
         };
 
