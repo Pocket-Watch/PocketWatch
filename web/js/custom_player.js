@@ -188,7 +188,7 @@ class Player {
     }
 
     getCurrentUrl() {
-        return this.internals.htmlVideo.src;
+        return this.internals.getCurrentUrl();
     }
 
     discardPlayback() {
@@ -668,6 +668,13 @@ class Internals {
 
     getCurrentTime() {
         return this.htmlVideo.currentTime;
+    }
+
+    getCurrentUrl() {
+        if (this.playingHls) {
+            return this.hls.url;
+        }
+        return this.htmlVideo.src;
     }
 
     toggleFullscreen() {
