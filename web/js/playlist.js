@@ -14,18 +14,29 @@ class Playlist {
         this.controlsRoot      = getById("playlist_controls_root");
         this.dropdownButton    = getById("playlist_dropdown_button");
 
-        /// Only one entry is allowed to be expanded at a time.
+        /// Currently expanded entry. Only one entry is allowed to be expanded at a time.
         this.expandedEntry = null;
+
+        /// State of the entry before the editition started.
+        // this.editEntryBefore = null;
+        /// Entry that currently is being edited. Only one entry can be edited at a time.
+        // this.editEntryNow = null;
+
+        this.isEditingEntry = false;
+        this.editEntry = {
+            entry: null,
+            root:  null,
+            title: null,
+            url:   null,
+        };
 
         /// Corresponds to the actual playlist entries on the server.
         this.entries = [];
 
-        /// old: Corresponds to html elements created from the playlist entries. 
         /// Represents the structure of the htmlEntryList post transition while entries are still mid transition.
         this.htmlEntries = [];
 
         this.draggableEntry    = null;
-        this.draggableTopStart = null;
         this.dragStartIndex    = -1;
         this.dragCurrentIndex  = -1;
     }
@@ -97,6 +108,23 @@ class Playlist {
         this.setEntryPosition(htmlEntry, destIndex);
     }
 
+    update(entry) {
+        for (let i = 0; i < this.entries.length; i++) {
+            console.log(this.entries[i].id, entry.id);
+            if (this.entries[i].id === entry.id) {
+                const htmlEntry = this.createHtmlEntry(entry);
+                this.setEntryPosition(htmlEntry, i);
+
+                const previous = this.htmlEntries[i];
+
+                this.entries[i] = entry;
+                this.htmlEntries[i] = htmlEntry;
+                this.htmlEntryList.replaceChild(htmlEntry, previous)
+                break;
+            }
+        }
+    }
+
     loadEntries(entries) {
         if (!entries) {
             console.warn("WARN: Failed to load entries, function input argument is null.");
@@ -125,7 +153,6 @@ class Playlist {
         this.expandedEntry = null;
 
         this.draggableEntry    = null;
-        this.draggableTopStart = null;
         this.dragStartIndex    = -1;
         this.dragCurrentIndex  = -1;
     }
@@ -183,29 +210,8 @@ class Playlist {
         return index;
     }
 
-    getTranslateY(element) {
-        let y = 0.0;
-        if (element.style.transform) {
-            let string = element.style.transform;
-
-            let start = 0;
-            let end   = string.length;
-
-            for (let i = 0; i < string.length; i++) {
-                if (string.charAt(i) === "(") {
-                    start = i + 1;
-                }
-
-                if (string.charAt(i) === "p") {
-                    end = i;
-                }
-            }
-
-            y = Number(string.substring(start, end));
-            console.warn(string, y);
-        }
-
-        return y;
+    calculateEntryPosition(index) {
+        return index * (ENTRY_HEIGHT + ENTRY_ROW_GAP) + "px";
     }
 
     setEntryPosition(entry, index) {
@@ -272,7 +278,6 @@ class Playlist {
             let mouseOffset = event.clientY - entryRect.top;
             let top         = (event.clientY - listRect.top - mouseOffset) + "px";
             this.draggableEntry.style.top = top;
-            this.draggableTopStart = top;
 
             entryRoot.classList.add("entry_shadow");
 
@@ -342,19 +347,22 @@ class Playlist {
                 clearTimeout(timeout);
                 onDragTimeout(event);
 
-                if (this.draggableTopStart === this.draggableEntry.style.top) {
+
+                let oldPos = this.draggableEntry.style.top;
+                let newPos = this.calculateEntryPosition(this.dragCurrentIndex);
+
+                if (oldPos === newPos) {
                     this.htmlEntryList.removeChild(this.draggableEntry);
                     entryRoot.classList.remove("entry_shadow");
                 } else {
-                    this.draggableEntry.classList.remove("entry_disable_transition");
                     this.setEntryPosition(this.draggableEntry, this.dragCurrentIndex);
+                    this.draggableEntry.classList.remove("entry_disable_transition");
                     this.draggableEntry.ontransitionend = event => {
                         this.htmlEntryList.removeChild(event.target);
                         entryRoot.classList.remove("entry_shadow");
                     };
                 }
-                this.draggableEntry    = null;
-                this.draggableTopStart = null;
+                this.draggableEntry = null;
 
 
                 // TODO(kihau): Proper networking handling.
@@ -372,10 +380,41 @@ class Playlist {
             document.addEventListener("mouseup",   onDraggingStop);
         };
 
-        editButton.onclick = () => {
-            console.log("edit button clicked");
-            // Tag html elements as content editable on edit button click
-            // entryTitle.contentEditable = true;
+        editButton.onclick = _ => {
+            let prevId = 0;
+            if (this.isEditingEntry) {
+                this.editEntry.root.classList.remove("entry_editing");
+                this.editEntry.title.contentEditable = false;
+                this.editEntry.url.contentEditable   = false;
+
+                let entry   = this.editEntry.entry;
+                entry.title = this.editEntry.title.textContent;
+                entry.url   = this.editEntry.url.textContent;
+
+                prevId = entry.id;
+
+                this.editEntry.entry = null;
+                this.editEntry.root  = null;
+                this.editEntry.title = null;
+                this.editEntry.url   = null;
+
+                this.isEditingEntry = false;
+
+                api.playlistUpdate(entry);
+            } 
+
+            if (prevId !== entry.id) {
+                this.editEntry.entry = entry;
+                this.editEntry.root  = entryRoot;
+                this.editEntry.title = entryTitle;
+                this.editEntry.url   = entryUrl;
+
+                this.editEntry.root.classList.add("entry_editing");
+                this.editEntry.title.contentEditable = true;
+                this.editEntry.url.contentEditable   = true;
+
+                this.isEditingEntry = true;
+            }
         };
 
         deleteButton.onclick = () => {
@@ -468,7 +507,7 @@ class Playlist {
             } break;
 
             case "update": {
-                // this.update(data.index, data.new_entry);
+                this.update(data);
             } break;
 
             default: {

@@ -36,7 +36,6 @@ export class JsonResponse {
     }
 }
 
-
 async function httpPostFile(endpoint, file, filename) {
     const headers = new Headers();
     headers.set("Authorization", token);
@@ -318,6 +317,11 @@ export async function playlistMove(entryId, source, dest) {
 
     console.info("INFO: Sending playlist move request with: ", payload);
     httpPost("/watch/api/playlist/move", payload);
+}
+
+export async function playlistUpdate(entry) {
+    console.info("INFO: Sending playlist update request for entry:", entry);
+    httpPost("/watch/api/playlist/update", entry);
 }
 
 export async function historyGet() {

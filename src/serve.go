@@ -381,6 +381,7 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/watch/api/playlist/remove", apiPlaylistRemove)
 	http.HandleFunc("/watch/api/playlist/shuffle", apiPlaylistShuffle)
 	http.HandleFunc("/watch/api/playlist/move", apiPlaylistMove)
+	http.HandleFunc("/watch/api/playlist/update", apiPlaylistUpdate)
 
 	// API calls that change state of the history.
 	http.HandleFunc("/watch/api/history/get", apiHistoryGet)
@@ -1131,6 +1132,45 @@ func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 
 	event := createPlaylistEvent("move", eventData)
 	writeEventToAllConnectionsExceptSelf(w, "playlist", event, user.Id, move.ConnectionId)
+}
+
+func apiPlaylistUpdate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	if !isAuthorized(w, r) {
+		return
+	}
+
+	LogInfo("Connection %s requested playlist update.", r.RemoteAddr)
+
+	var entry Entry
+	if !readJsonDataFromRequest(w, r, &entry) {
+		return
+	}
+
+	state.mutex.Lock()
+	updatedEntry := Entry{Id: 0}
+
+	for i := 0; i < len(state.playlist); i++ {
+		if state.playlist[i].Id == entry.Id {
+			state.playlist[i].Title = entry.Title
+			state.playlist[i].Url = entry.Url
+			updatedEntry = state.playlist[i]
+			break
+		}
+	}
+
+	state.mutex.Unlock()
+
+	if updatedEntry.Id == 0 {
+		LogWarn("Failed to find entry to update")
+		return
+	}
+
+	event := createPlaylistEvent("update", entry)
+	writeEventToAllConnections(w, "playlist", event)
 }
 
 func apiHistoryGet(w http.ResponseWriter, r *http.Request) {

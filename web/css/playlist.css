@@ -458,6 +458,7 @@
     border-radius: 6px;
     outline: none;
     background-color: transparent;
+    transition: height 100ms;
 }
 
 .playlist_entry_edit_button:hover {
@@ -572,6 +573,28 @@
 .entry_dropdown_expand .playlist_dropdown_button svg {
     transform: rotate(0deg);
     transition: transform 100ms;
+}
+
+.entry_editing .playlist_entry_delete_button {
+    display: none;
+}
+
+.entry_editing .playlist_entry_edit_button {
+    height: 100%;
+    background-color: #665c54;
+    transition: height 100ms;
+}
+
+.entry_editing .playlist_entry_edit_button:active {
+    background-color: #7c6f64;
+}
+
+.entry_editing .playlist_entry_edit_button svg {
+    fill: #8ec07c;
+}
+
+.entry_editing .playlist_entry_edit_button:hover svg {
+    fill: #9dd389;
 }
 
 .playlist_dropdown_info_top {
