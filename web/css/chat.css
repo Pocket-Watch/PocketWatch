@@ -37,7 +37,7 @@
     height: calc(100% - 30px - 12px);
     border: 2px solid #665c54;
     border-radius: 6px;
-    display: flex;
+    display: block;
     box-sizing: border-box;
     color: #f9f5d7;
     padding: 12px;

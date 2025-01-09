@@ -70,8 +70,10 @@ type ServerState struct {
 	eventId    atomic.Uint64
 	lastUpdate time.Time
 
-	playlist []Entry
-	history  []Entry
+	playlist  []Entry
+	history   []Entry
+	messages  []ChatMessage
+	messageId uint64
 
 	proxy Proxy
 }
@@ -383,6 +385,8 @@ func registerEndpoints(options *Options) {
 	// API calls that change state of the history.
 	http.HandleFunc("/watch/api/history/get", apiHistoryGet)
 	http.HandleFunc("/watch/api/history/clear", apiHistoryClear)
+
+	http.HandleFunc("/watch/api/chat/messagecreate", apiChatSend)
 
 	// Server events and proxy.
 	http.HandleFunc("/watch/api/events", apiEvents)
@@ -1862,14 +1866,30 @@ func apiChatSend(w http.ResponseWriter, r *http.Request) {
 	if !readJsonDataFromRequest(w, r, &newMessage) {
 		return
 	}
+	if len(newMessage.Message) > MAX_MESSAGE_CHARACTERS {
+		http.Error(w, "Message exceeds 500 chars", http.StatusForbidden)
+		return
+	}
 
+	state.mutex.Lock()
+	state.messageId += 1
+	chatMessage := ChatMessage{
+		Id:       1,
+		Message:  newMessage.Message,
+		AuthorId: user.Id,
+		UnixTime: time.Now().UnixMilli(),
+		Edited:   false,
+	}
+	state.messages = append(state.messages, chatMessage)
+	state.mutex.Unlock()
+	writeEventToAllConnections(w, "messagecreate", chatMessage)
 }
 
 const MAX_MESSAGE_CHARACTERS = 500
 
 type ChatMessage struct {
 	Message  string `json:"message"`
-	UnixTime uint64 `json:"unixTime"`
+	UnixTime int64  `json:"unixTime"`
 	Id       uint64 `json:"id"`
 	AuthorId uint64 `json:"authorId"`
 	Edited   bool   `json:"edited"`

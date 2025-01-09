@@ -329,3 +329,15 @@ export async function historyClear() {
     console.info("INFO: Sending history clear request.");
     httpPost("/watch/api/history/clear", null);
 }
+
+// CHAT requests
+
+export async function apiChatSend(message) {
+    const payload = {
+        message: message,
+        edited: false,
+    };
+
+    console.info("INFO: Sending new chat to the server.");
+    httpPost("/watch/api/chat/messagecreate", payload);
+}

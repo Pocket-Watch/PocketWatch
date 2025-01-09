@@ -1,5 +1,6 @@
 import {Options, Player} from "./custom_player.js"
 import { Playlist } from "./playlist.js"
+import { Chat } from "./chat.js"
 import * as api from "./api.js";
 import { getById, div, a, span, img, svg, button } from "./util.js";
 
@@ -12,6 +13,7 @@ class Room {
         options.hideSpeedButton = true;
         this.player = new Player(video0, options);
         this.playlist = new Playlist();
+        this.chat = new Chat();
 
         this.urlArea = {
             root:          getById("url_area"),
@@ -724,6 +726,12 @@ class Room {
             let response = JSON.parse(event.data);
             console.info("INFO: Received playlist event for:", response.action, "with:", response.data);
             this.playlist.handleServerEvent(response.action, response.data);
+        });
+
+        events.addEventListener("messagecreate", event => {
+            let data = JSON.parse(event.data);
+            console.info("INFO: New message received from server");
+            this.chat.addMessage(data, this.allUsers);
         });
 
         events.onopen = () => {
