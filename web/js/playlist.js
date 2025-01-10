@@ -512,7 +512,7 @@ class Playlist {
 
             case "shuffle": {
                 this.clear();
-                this.loadNew(data);
+                this.loadEntries(data);
             } break;
 
             case "move": {
