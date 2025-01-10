@@ -7,6 +7,13 @@ const ENTRY_ROW_GAP = 4;
 const ENTRY_BORDER  = 2;
 const ENTRY_HEIGHT  = 64 + ENTRY_BORDER * 2;
 
+// TODO(kihau):
+//     - Update entires on user update
+//     - Top of the list controls
+//     - More items in entry dropdown
+//     - Attach controls to playlist input
+//     - Proper network handling
+
 class Playlist {
     constructor() {
         this.htmlEntryListWrap = getById("playlist_entry_list_wrap");
@@ -48,10 +55,27 @@ class Playlist {
         };
     }
 
-    addEntry(entry) {
+    findUser(users, id) {
+        const user = users.find(user => user.id === id);
+        if (user) {
+            return user;
+        } else {
+            const dummy = {
+                id: 0,
+                username: "<Unknown user>",
+                avatar: "img/default_avatar.png",
+                online: false,
+            }
+
+            return dummy;
+        }
+    }
+
+    addEntry(entry, users) {
         this.entries.push(entry);
 
-        const htmlEntry = this.createHtmlEntry(entry);
+        const user = this.findUser(users, entry.user_id);
+        const htmlEntry = this.createHtmlEntry(entry, user);
         this.setEntryPosition(htmlEntry, this.htmlEntries.length);
 
         this.htmlEntries.push(htmlEntry);
@@ -108,11 +132,12 @@ class Playlist {
         this.setEntryPosition(htmlEntry, destIndex);
     }
 
-    update(entry) {
+    update(entry, users) {
         for (let i = 0; i < this.entries.length; i++) {
             console.log(this.entries[i].id, entry.id);
             if (this.entries[i].id === entry.id) {
-                const htmlEntry = this.createHtmlEntry(entry);
+                const user = this.findUser(users, entry.user_id);
+                const htmlEntry = this.createHtmlEntry(entry, user);
                 this.setEntryPosition(htmlEntry, i);
 
                 if (this.isEditingEntry && entry.id === this.editEntry.entry.id) {
@@ -130,7 +155,7 @@ class Playlist {
         }
     }
 
-    loadEntries(entries) {
+    loadEntries(entries, users) {
         if (!entries) {
             console.warn("WARN: Failed to load entries, function input argument is null.");
             return;
@@ -139,8 +164,8 @@ class Playlist {
         this.entries = entries;
         for (let i = 0; i < this.entries.length; i++) {
             const entry = this.entries[i];
-
-            const htmlEntry = this.createHtmlEntry(entry);
+            const user = this.findUser(users, entry.user_id);
+            const htmlEntry = this.createHtmlEntry(entry, user);
             this.setEntryPosition(htmlEntry, this.htmlEntries.length);
 
             this.htmlEntries.push(htmlEntry);
@@ -255,7 +280,7 @@ class Playlist {
         entry.style.top = index * (ENTRY_HEIGHT + ENTRY_ROW_GAP) + "px";
     }
 
-    createHtmlEntry(entry) {
+    createHtmlEntry(entry, user) {
         let entryRoot      = div("playlist_entry");
         let entryTop       = div("playlist_entry_top"); 
         let entryDragArea  = div("playlist_drag_area"); 
@@ -277,8 +302,8 @@ class Playlist {
         let createdAtText  = span("playlist_dropdown_created_at", "Created at"); 
         let dropdownBottom = div("playlist_dropdown_info_bottom"); 
         let userAvatar     = div("playlist_dropdown_user_avatar");
-        let userAvatarImg  = img("img/default_avatar.png");
-        let userName       = span("playlist_dropdown_user_name", "Placeholder " + entry.user_id);
+        let userAvatarImg  = img(user.avatar);
+        let userName       = span("playlist_dropdown_user_name", user.username);
         let date           = new Date(entry.created);
         let creationDate   = span("playlist_dropdown_creation_date", date.toLocaleString());
 
@@ -496,10 +521,10 @@ class Playlist {
         return entryRoot;
     }
 
-    handleServerEvent(action, data) {
+    handleServerEvent(action, data, users) {
         switch (action) {
             case "add": {
-                this.addEntry(data);
+                this.addEntry(data, users);
             } break;
 
             case "clear": {
@@ -512,7 +537,7 @@ class Playlist {
 
             case "shuffle": {
                 this.clear();
-                this.loadEntries(data);
+                this.loadEntries(data, users);
             } break;
 
             case "move": {
@@ -520,7 +545,7 @@ class Playlist {
             } break;
 
             case "update": {
-                this.update(data);
+                this.update(data, users);
             } break;
 
             default: {

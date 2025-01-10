@@ -13,29 +13,11 @@ function createEntry(title, url) {
     return entry;
 }
 
-async function createExamplePlaylist() {
+async function createExamplePlaylist(count = 10) {
     let api = await import("./api.js");
 
-    for (let i = 0; i <= 10; i++) {
-        let entry = createEntry(`Example ${i}`, `https://emxaple.com/video${i}.mp4`)
-        await api.playlistAdd(entry);
-    }
-}
-
-async function createBigExamplePlaylist() {
-    let api = await import("./api.js");
-
-    for (let i = 0; i <= 200; i++) {
-        let entry = createEntry(`Example ${i}`, `https://emxaple.com/video${i}.mp4`)
-        await api.playlistAdd(entry);
-    }
-}
-
-async function createMassiveExamplePlaylist() {
-    let api = await import("./api.js");
-
-    for (let i = 0; i <= 10000; i++) {
-        let entry = createEntry(`Example ${i}`, `https://emxaple.com/video${i}.mp4`)
+    for (let i = 0; i <= count; i++) {
+        let entry = createEntry(`Example ${i}`, `https://example.com/video${i}.mp4`)
         await api.playlistAdd(entry);
     }
 }

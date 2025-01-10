@@ -153,7 +153,7 @@ func (users *Users) create() User {
 	new_user := User{
 		Id:         id,
 		Username:   fmt.Sprintf("User %v", id),
-		Avatar:     "",
+		Avatar:     "img/default_avatar.png",
 		token:      generateToken(),
 		created:    time.Now(),
 		lastUpdate: time.Now(),
@@ -556,7 +556,7 @@ func apiUserVerify(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection requested %s user verification.", r.RemoteAddr)
 
-	jsonData, err := json.Marshal(user)
+	jsonData, err := json.Marshal(user.Id)
 	if err != nil {
 		LogError("Failed to serialize json data")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -966,7 +966,8 @@ func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !isAuthorized(w, r) {
+	user := getAuthorized(w, r)
+	if user == nil {
 		return
 	}
 
@@ -986,6 +987,7 @@ func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 	entry.Id = state.entryId
 	entry.Created = time.Now()
 	entry.Title = constructTitleWhenMissing(&entry)
+	entry.UserId = user.Id
 	state.mutex.Unlock()
 
 	loadYoutubeEntry(&entry)

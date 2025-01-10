@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	neturl "net/url"
 	"os/exec"
@@ -57,16 +58,30 @@ func loadYoutube(entry *Entry) {
 	LogDebug("url is: %v", entry.Url)
 }
 
-type YtdlpEntry struct {
-	Title       string `json:"title"`
-	OriginalUrl string `json:"original_url"`
-	SourceUrl   string `json:"url"`
+type YoutubeThumbnail struct {
+	Url    string `json:"url"`
+	Height uint64 `json:"height"`
+	Width  uint64 `json:"width"`
 }
 
 type YoutubeEntry struct {
-	Title string `json:"title"`
-	Url   string `json:"url"`
+	Url        string             `json:"url"`
+	Title      string             `json:"title"`
+	Thumbnails []YoutubeThumbnail `json:"thumbnails"`
 }
+
+type YoutubeFormat struct {
+    // "ext": "mhtml",
+    // "audio_ext": "none",
+    // "video_ext": "none",
+    //
+    // "protocol": "m3u8_native",
+}
+
+// type YoutubeEntry struct {
+// 	Title string `json:"title"`
+// 	Url   string `json:"url"`
+// }
 
 type YoutubeSources struct {
 	VideoSource string `json:"video_source"`
@@ -143,20 +158,36 @@ func loadYoutubeEntry(entry *Entry) {
 		return
 	}
 
-	cmd := exec.Command("build/pocket-yt", entry.Url, "--dump-videos")
+	cmd := exec.Command("yt-dlp", "--flat-playlist", "--dump-json", entry.Url)
+	stdout, _ := cmd.StdoutPipe()
 
-	output, err := cmd.Output()
-	if err != nil {
-		LogError("Failed to get output playlist from the pocket-yt command: %v", err)
-		return
-	}
+	done := make(chan struct{})
 
-	var ytEntries []YoutubeEntry
-	err = json.Unmarshal(output, &ytEntries)
-	if err != nil {
-		LogError("Failed to deserialize array from the pocket-yt command: %v", err)
-		return
-	}
+	scanner := bufio.NewScanner(stdout)
+
+	ytEntries := make([]YoutubeEntry, 0)
+	go func() {
+		for scanner.Scan() {
+			var entry YoutubeEntry
+
+			bytes := scanner.Bytes()
+			err := json.Unmarshal(bytes, &entry)
+			if err != nil {
+				LogError("Failed to deserialize array from the yt-dlp command: %v", err)
+				break
+			}
+
+			ytEntries = append(ytEntries, entry)
+
+		}
+
+		done <- struct{}{}
+	}()
+
+	cmd.Start()
+	<-done
+
+	cmd.Wait()
 
 	if len(ytEntries) == 0 {
 		LogError("Deserialize pocket-yt array for url '%v' is empty", entry.Url)

@@ -80,7 +80,7 @@ class Room {
         this.connectionId = 0;
 
         /// Currently connected user. Server User structure.
-        this.currentUser = null;
+        this.currentUserId = -1;
 
         /// User token string.
         this.token = "";
@@ -340,10 +340,12 @@ class Room {
         if (firstTry && !verification.ok) {
             return false;
         }
+
         if (verification.checkAndLogError()) {
             return false;
         }
-        this.currentUser = verification.json;
+
+        this.currentUserId = verification.json;
         return true;
     }
 
@@ -368,7 +370,7 @@ class Room {
             let user = this.allUsers[i];
             let userBox = this.createUserBox(user);
 
-            if (user.id == this.currentUser.id) {
+            if (user.id == this.currentUserId) {
                 user.online = true;
                 this.onlineCount += 1;
                 userBox.classList.add("user_box_online");
@@ -405,7 +407,7 @@ class Room {
     createUserBox(user) {
         let userBox       = div("user_box");
         let userBoxTop    = div("user_box_top");
-        let avatarSrc     = user.avatar ? user.avatar : "img/default_avatar.png"; 
+        let avatarSrc     = user.avatar;
         let userAvatar    = img(avatarSrc);
         let userBoxBottom = div("user_box_bottom");
         let usernameInput = document.createElement("input");
@@ -426,7 +428,7 @@ class Room {
             userBoxBottom.append(usernameInput);
         }
 
-        if (user.id == this.currentUser.id) {
+        if (user.id == this.currentUserId) {
             // NOTE(kihau): Temporary. The user box CSS styling and code logic will be slightly refactored.
             // userBox.style.borderColor    = "#ebdbb2";
             // userBoxTop.style.borderColor = "#ebdbb2";
@@ -507,7 +509,7 @@ class Room {
         console.log(entries);
 
         // TOOD(kihau): Performance problem when number of entries is large. Needs to be fixed at some point.
-        this.playlist.loadEntries(entries);
+        this.playlist.loadEntries(entries, this.allUsers);
     }
 
     async loadChatData() {
@@ -736,7 +738,7 @@ class Room {
         events.addEventListener("playlist", event => {
             let response = JSON.parse(event.data);
             console.info("INFO: Received playlist event for:", response.action, "with:", response.data);
-            this.playlist.handleServerEvent(response.action, response.data);
+            this.playlist.handleServerEvent(response.action, response.data, this.allUsers);
         });
 
         events.addEventListener("messagecreate", event => {
