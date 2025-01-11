@@ -13,7 +13,6 @@ const ENTRY_HEIGHT  = 64 + ENTRY_BORDER * 2;
 //     - Attach controls to playlist input
 //     - Proper network handling
 //     - Smart scrolling - dynamic remove/add on scrolling when entry count > 300
-//     - Fit right panel to screen with scrolling only on left panel?
 
 class Playlist {
     constructor() {

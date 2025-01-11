@@ -1,6 +1,6 @@
 html {
     background-color: #1d2021;
-    padding: 8px;
+    padding: 6px;
 }
 
 @font-face {
@@ -20,28 +20,29 @@ html * {
 }
 
 #root_panel {
-    height: 1200px;
+    height: 100%;
+    column-gap: 6px;
+    row-gap: 6px;
     display: flex;
-    /* flex-direction: row; */
     flex-wrap: wrap;
 }
 
 #left_panel {
-    /* width: 70%; */
     height: 100%;
+    max-height: calc(100vh - 12px);
     border-radius: 12px;
     min-width: 700px;
-    /* border: 1px solid red; */
     position: relative;
+    scrollbar-width: none;
     flex: 2.3 1;
     background-color: #282828;
-    margin: 0px 6px 6px 0px;
+    overflow-y: scroll;
 }
 
 #player_area {
     width: calc(100% - 32px);
     /* aspect-ratio: 16.0 / 9.0; */
-    height: 64%;
+    height: 715px;
     margin: 16px;
     align-items: center;
     justify-content: center;
@@ -632,16 +633,14 @@ html * {
 }
 
 #right_panel {
-    /* width: 30%; */
-    height: 100%;
+    height: 100vh;
+    max-height: calc(100vh - 12px);
     border-radius: 12px;
     min-width: 500px;
     display: flex;
     position: relative;
-    /* height: 100%; */
     flex: 1 1;
     background-color: #282828;
-    margin: 0px 6px 6px 0px;
     flex-direction: column;
 }
 
