@@ -107,10 +107,13 @@ html * {
     height: 100%;
     border: none;
     border-radius: 6px;
+    box-shadow: 1px 3px 0px 0px #1d2021;
     box-sizing: flex;
+    display: flex;
     justify-content: center;
     align-items: center;
     margin-left: 6px;
+    transition: transform 80ms;
     background-color: #fb4934;
 }
 
@@ -119,13 +122,20 @@ html * {
 }
 
 #url_reset_button:active {
+    box-shadow: none;
+    transform: translate(1px, 2px);
+    transition: transform 80ms;
     background-color: #9d0006;
 }
 
 #url_reset_button svg {
     height: 56%;
     width: 56%;
-    fill: #1d2021;
+    fill: #3c3836;
+}
+
+#url_reset_button:active svg {
+    fill: #282828;
 }
 
 .fit_to_div {
@@ -174,21 +184,26 @@ html * {
 }
 
 #url_right_buttons_container {
-    width: 150px;
+    width: 130px;
     height: 100%;
     border-radius: 6px;
     display: flex;
-    overflow: hidden;
+    overflow: show;
 }
 
 #url_set_button {
     width: 100%;
     height: 100%;
     border: none;
-    /* border-radius: 6px; */
+    box-shadow: 1px 3px 0px 0px #1d2021;
+    border-radius: 6px 0 0 6px;
     box-sizing: border-box;
-    /* margin-right: 4px; */
+    z-index: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     background-color: #8ec07c;
+    transition: transform 80ms;
 }
 
 #url_set_button:hover {
@@ -196,16 +211,37 @@ html * {
 }
 
 #url_set_button:active {
+    box-shadow: none;
+    transform: translate(1px, 2px);
+    transition: transform 80ms;
     background-color: #427b58;
+}
+
+#url_set_button svg {
+    height: 60%;
+    width: 60%;
+    /* fill: #282828; */
+    fill: #3c3836;
+}
+
+#url_set_button:active svg {
+    /* fill: #1d2021; */
+    fill: #282828;
 }
 
 #url_add_playlist_button {
     width: 100%;
     height: 100%;
     border: none;
-    /* border-radius: 6px; */
+    box-shadow: 1px 3px 0px 0px #1d2021;
+    border-radius: 0 6px 6px 0;
     box-sizing: border-box;
+    z-index: 2;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     background-color: #83a598;
+    transition: transform 80ms;
 }
 
 #url_add_playlist_button:hover {
@@ -213,7 +249,22 @@ html * {
 }
 
 #url_add_playlist_button:active {
+    box-shadow: none;
+    transform: translate(1px, 2px);
     background-color: #076678;
+    transition: transform 80ms;
+}
+
+#url_add_playlist_button svg {
+    height: 70%;
+    width: 70%;
+    /* fill: #282828; */
+    fill: #3c3836;
+}
+
+#url_add_playlist_button:active svg {
+    /* fill: #1d2021; */
+    fill: #282828;
 }
 
 #url_dropdown_container {
@@ -243,10 +294,12 @@ html * {
     aspect-ratio: 1.0;
     border: none;
     border-radius: 6px;
-    display: flex;
+    box-shadow: 1px 3px 0px 0px #1d2021;
     box-sizing: border-box;
+    display: flex;
     justify-content: center;
     align-items: center;
+    transition: transform 80ms;
     background-color: #b8bb26;
 }
 
@@ -255,12 +308,20 @@ html * {
 }
 
 #url_select_subtitle_button:active {
+    box-shadow: none;
+    transform: translate(1px, 2px);
+    transition: transform 80ms;
     background-color: #79740e;
 }
 
 #url_select_subtitle_button svg {
     height: 70%;
     width: 70%;
+    fill: #282828;
+}
+
+#url_select_subtitle_button:active svg {
+    fill: #1d2021;
 }
 
 #url_dropdown_bottom {

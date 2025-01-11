@@ -592,7 +592,7 @@ func apiUserUpdateName(w http.ResponseWriter, r *http.Request) {
 	users.mutex.Unlock()
 
 	io.WriteString(w, "Username updated")
-	writeEventToAllConnections(w, "usernameupdate", user)
+	writeEventToAllConnections(w, "userupdate", user)
 }
 
 func apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request) {
@@ -644,7 +644,7 @@ func apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request) {
 	jsonData, _ := json.Marshal(avatarUrl)
 
 	io.WriteString(w, string(jsonData))
-	writeEventToAllConnections(w, "useravatarupdate", user)
+	writeEventToAllConnections(w, "userupdate", user)
 }
 
 func apiPlayerGet(w http.ResponseWriter, r *http.Request) {

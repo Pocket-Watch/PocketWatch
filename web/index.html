@@ -12,8 +12,6 @@
     <link rel="stylesheet" href="css/chat.css">
 </head>
 
-<!-- TODO(kihau): Buttons should have balatro-style shadow dropdown -->
-
 <body>
     <div id="root_panel">
         <div id="left_panel">
@@ -40,8 +38,16 @@
                     </div>
 
                     <div id="url_right_buttons_container">
-                        <button id="url_set_button">Set</button>
-                        <button id="url_add_playlist_button">Add to playlist</button>
+                        <button id="url_set_button" title="Play Now">
+                            <svg>
+                                <use href="svg/main_icons.svg#play"/>
+                            </svg>
+                        </button>
+                        <button id="url_add_playlist_button" title="Add to playlist">
+                            <svg>
+                                <use href="svg/main_icons.svg#playlist"/>
+                            </svg>
+                        </button>
                     </div>
                 </div>
 
@@ -82,36 +88,7 @@
 
             <div id="users_area">
                 <div id="users_list">
-                    <!--
-                    <div id="user1" class="user_box user_box_online">
-                        <div class="user_box_top">
-                            <img src="img/default_avatar.png"/>
-                        </div>
-                        <div class="user_box_bottom">
-                            <input value="User 1" readonly/>
-                            <button class="user_box_edit_name_button">
-                                <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M8.29289 3.70711L1 11V15H5L12.2929 7.70711L8.29289 3.70711Z"/>
-                                    <path d="M9.70711 2.29289L13.7071 6.29289L15.1716 4.82843C15.702 4.29799 16 3.57857 16 2.82843C16 1.26633 14.7337 0 13.1716 0C12.4214 0 11.702 0.297995 11.1716 0.828428L9.70711 2.29289Z"/>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                    <div id="user2" class="user_box user_box_offline">
-                        <div class="user_box_top">
-                            <img src="img/default_avatar.png"/>
-                        </div>
-                        <div class="user_box_bottom">
-                            <input value="User 2" readonly/>
-                            <button class="user_box_edit_name_button">
-                                <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M8.29289 3.70711L1 11V15H5L12.2929 7.70711L8.29289 3.70711Z"/>
-                                    <path d="M9.70711 2.29289L13.7071 6.29289L15.1716 4.82843C15.702 4.29799 16 3.57857 16 2.82843C16 1.26633 14.7337 0 13.1716 0C12.4214 0 11.702 0.297995 11.1716 0.828428L9.70711 2.29289Z"/>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                    -->
+                    <!-- NOTE(kihau): Content of this list is dynamically generated in JavaScript -->
                 </div>
                 <div id="users_right_panel">
                     <div id="users_online" class="users_indicator" title="Number users online.">
@@ -245,7 +222,9 @@
 
 
                     <div id="playlist_entry_list_wrap">
-                        <div id="playlist_entry_list"></div>
+                        <div id="playlist_entry_list">
+                            <!-- NOTE(kihau): Content of this list is dynamically generated in JavaScript -->
+                        </div>
                     </div>
                 </div>
                 <div id="content_chat" class="content_view">
@@ -254,7 +233,9 @@
                         <input id="chat_input_box" placeholder="Send a message."/>
                         <button id="chat_send_button">Send</button>
                     </div>
-                    <div id="chat_text_content">Kihau: This is a demo chat message.<div/>
+                    <div id="chat_text_content">
+                        <!-- NOTE(kihau): Content of this list is dynamically generated in JavaScript -->
+                    <div/>
                 </div>
                 <div id="content_history" class="content_view">HISTORY</div>
             </div>

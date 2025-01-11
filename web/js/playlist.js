@@ -8,11 +8,11 @@ const ENTRY_BORDER  = 2;
 const ENTRY_HEIGHT  = 64 + ENTRY_BORDER * 2;
 
 // TODO(kihau):
-//     - Update entires on user update
 //     - Top of the list controls
 //     - More items in entry dropdown
 //     - Attach controls to playlist input
 //     - Proper network handling
+//     - Proper scrolling
 
 class Playlist {
     constructor() {
@@ -53,6 +53,21 @@ class Playlist {
             console.log("clicked");
             this.controlsRoot.classList.toggle("playlist_controls_root_expand");
         };
+    }
+
+    handleUserUpdate(user) {
+        for (let i = 0; i < this.entries.length; i++) {
+            const entry = this.entries[i];
+
+            if (entry.user_id == user.id) {
+                const oldHtmlEntry = this.htmlEntries[i];
+
+                let newHtmlEntry = this.createHtmlEntry(entry, user);
+                this.setEntryPosition(newHtmlEntry, i);
+                this.htmlEntries[i] = newHtmlEntry;
+                this.htmlEntryList.replaceChild(newHtmlEntry, oldHtmlEntry);
+            }
+        }
     }
 
     findUser(users, id) {
@@ -525,6 +540,13 @@ class Playlist {
         switch (action) {
             case "add": {
                 this.addEntry(data, users);
+            } break;
+
+            case "addmany": {
+                const entries = data;
+                for (let i = 0; i < entries.length; i++) {
+                    this.addEntry(entries[i], users);
+                }
             } break;
 
             case "clear": {

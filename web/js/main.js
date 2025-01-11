@@ -204,11 +204,11 @@ class Room {
 
         const entry = {
             id:           0,
-            url:          this.urlArea.urlInput.value,
-            title:        this.urlArea.titleInput.value,
+            url:          this.urlArea.urlInput.value.trim(),
+            title:        this.urlArea.titleInput.value.trim(),
             user_id:      0,
             use_proxy:    this.proxyEnabled,
-            referer_url:  this.urlArea.refererInput.value,
+            referer_url:  this.urlArea.refererInput.value.trim(),
             subtitle_url: subtitle,
             created:      new Date,
         };
@@ -283,8 +283,10 @@ class Room {
 
         this.urlArea.addPlaylistButton.onclick = () => {
             let entry = this.createNewEntry();
-            api.playlistAdd(entry);
-            this.resetUrlAreaElements();
+            if (entry.url) {
+                api.playlistAdd(entry);
+                this.resetUrlAreaElements();
+            }
         }
 
 
@@ -636,24 +638,21 @@ class Room {
             this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
         });
 
-        events.addEventListener("usernameupdate", event => {
+        events.addEventListener("userupdate", event => {
             let user = JSON.parse(event.data);
             console.info("INFO: Update user name event for: ", user)
 
             let i = this.allUsers.findIndex(x => x.id == user.id);
             this.allUsers[i] = user; // emplace the user
+
             let input = this.allUserBoxes[i].querySelectorAll('input')[0];
             input.value = user.username;
-        });
 
-        events.addEventListener("useravatarupdate", event => {
-            let user = JSON.parse(event.data);
-            console.info("INFO: Update user avatar event for: ", user)
-
-            let i = this.allUsers.findIndex(x => x.id == user.id);
             let img = document.createElement("img");
             img.src = user.avatar;
             this.allUserBoxes[i].querySelectorAll('img')[0].replaceWith(img);
+
+            this.playlist.handleUserUpdate(user);
         });
 
         events.addEventListener("playerset", event => {
