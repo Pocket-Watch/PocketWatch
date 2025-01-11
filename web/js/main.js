@@ -676,7 +676,7 @@ class Room {
             this.setEntryEvent(newEntry);
 
             if (this.player.isLooping()) {
-                this.playlist.addEntry(prevEntry);
+                this.playlist.addEntry(prevEntry, this.allUsers);
             }
 
             this.playlist.removeAt(0);
