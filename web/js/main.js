@@ -664,7 +664,7 @@ class Room {
 
             let prevEntry = response.prev_entry;
             if (this.player.isLooping()) {
-                this.playlist.addEntry(prevEntry);
+                this.playlist.addEntry(prevEntry, this.allUsers);
             }
         });
 

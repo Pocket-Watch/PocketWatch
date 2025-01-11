@@ -158,6 +158,7 @@ func loadYoutubeEntry(entry *Entry) {
 		return
 	}
 
+    // TODO(kihau): Add "--dump-single-json" for simplicity and speed.
 	cmd := exec.Command("yt-dlp", "--flat-playlist", "--dump-json", "--playlist-end", "200", entry.Url)
 
 	stdout, err := cmd.StdoutPipe()

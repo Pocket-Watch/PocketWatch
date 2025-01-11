@@ -12,7 +12,8 @@ const ENTRY_HEIGHT  = 64 + ENTRY_BORDER * 2;
 //     - More items in entry dropdown
 //     - Attach controls to playlist input
 //     - Proper network handling
-//     - Proper scrolling
+//     - Smart scrolling - dynamic remove/add on scrolling when entry count > 300
+//     - Fit right panel to screen with scrolling only on left panel?
 
 class Playlist {
     constructor() {
@@ -50,7 +51,6 @@ class Playlist {
 
     attachPlaylistEvents() {
         this.dropdownButton.onclick = _ => {
-            console.log("clicked");
             this.controlsRoot.classList.toggle("playlist_controls_root_expand");
         };
     }
@@ -149,7 +149,6 @@ class Playlist {
 
     update(entry, users) {
         for (let i = 0; i < this.entries.length; i++) {
-            console.log(this.entries[i].id, entry.id);
             if (this.entries[i].id === entry.id) {
                 const user = this.findUser(users, entry.user_id);
                 const htmlEntry = this.createHtmlEntry(entry, user);
@@ -273,7 +272,7 @@ class Playlist {
     }
 
     positionToIndex(positionY) {
-        const rect = this.htmlEntryList.getBoundingClientRect();
+        const rect   = this.htmlEntryList.getBoundingClientRect();
         let index = Math.floor((positionY - rect.y) / (ENTRY_HEIGHT + ENTRY_ROW_GAP));
 
         if (index < 0) {
@@ -353,14 +352,16 @@ class Playlist {
             let listRect    = this.htmlEntryList.getBoundingClientRect();
             let entryRect   = draggableEntry.getBoundingClientRect();
             let mouseOffset = event.clientY - entryRect.top;
-            let top         = (event.clientY - listRect.top - mouseOffset) + "px";
+            let listScroll  = this.htmlEntryList.scrollTop;
+            let top         = (event.clientY - listRect.top + listScroll - mouseOffset) + "px";
             this.draggableEntry.style.top = top;
 
             entryRoot.classList.add("entry_shadow");
 
             let onDragTimeout = event => { 
+                let listScroll  = this.htmlEntryList.scrollTop;
                 let dragRect = this.draggableEntry.getBoundingClientRect();
-                let dragPos  = dragRect.y + ENTRY_HEIGHT / 2.0;
+                let dragPos  = dragRect.y + listScroll + ENTRY_HEIGHT / 2.0;
 
                 let hoverIndex = this.positionToIndex(dragPos);
                 let startIndex = this.dragCurrentIndex;
@@ -412,10 +413,21 @@ class Playlist {
 
             let timeout = null;
             let onDragging = event => {
-                let listRect = this.htmlEntryList.getBoundingClientRect();
-                let top      = (event.clientY - listRect.top - mouseOffset) + "px";
-                this.draggableEntry.style.top = top;
+                let listRect   = this.htmlEntryList.getBoundingClientRect();
+                let listScroll = this.htmlEntryList.scrollTop;
+                let top        = event.clientY - listRect.top + listScroll - mouseOffset;
+                this.draggableEntry.style.top = top + "px";
 
+                // NOTE(kihau): Scrolling down is WAY too fast...
+                if (event.clientY - listRect.top < 0) {
+                    this.htmlEntryList.scrollTo(0, top);
+                } else if (event.clientY - listRect.top > listRect.height) {
+                    let maxPos = this.indexToPosition(this.htmlEntries.length + 1);
+                    let scrollTop = Math.min(this.htmlEntryList.scrollHeight, maxPos);
+                    if (top < maxPos) {
+                        this.htmlEntryList.scrollTo(0, top);
+                    }
+                }
                 clearTimeout(timeout);
                 timeout = setTimeout(onDragTimeout, 32, event);
             }
