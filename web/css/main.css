@@ -29,21 +29,24 @@ html * {
 
 #left_panel {
     height: 100%;
-    max-height: calc(100vh - 12px);
+    max-height: calc(100vh - 44px);
     border-radius: 12px;
     min-width: 700px;
+    row-gap: 12px;
+    display: flex;
     position: relative;
     scrollbar-width: none;
     flex: 2.3 1;
     background-color: #282828;
-    overflow-y: scroll;
+    overflow-y: auto;
+    padding: 16px;
+    flex-direction: column;
 }
 
 #player_area {
-    width: calc(100% - 32px);
-    /* aspect-ratio: 16.0 / 9.0; */
+    width: 100%;
     height: 715px;
-    margin: 16px;
+    min-height: 715px;
     align-items: center;
     justify-content: center;
 }
@@ -54,11 +57,11 @@ html * {
 }
 
 #url_area {
-    width: calc(100% - 32px);
+    width: 100%;
     height: auto;
     border: 2px solid #a89984;
     border-radius: 6px;
-    margin: 16px;
+    box-sizing: border-box;
     background-color: #3c3836;
 }
 
@@ -78,7 +81,6 @@ html * {
     box-sizing: flex;
     justify-content: center;
     align-items: center;
-    /* margin-left: 6px; */
     /* background-color: #fb4934; */
     background-color: #665c54;
 }
@@ -392,15 +394,13 @@ html * {
 }
 
 #users_area {
-    width: calc(100% - 60px);
-    height: 168px;
-    /* border: 2px solid #a89984; */
+    width: 100%;
+    height: 200px;
     border-radius: 8px;
     box-shadow: 2px 2px 4px 0px #1d2021;
     display: flex;
+    box-sizing: border-box;
     padding: 16px;
-    margin: 16px;
-    /* overflow-y: scroll; */
     background-color: #3c3836;
 }
 
@@ -409,10 +409,7 @@ html * {
     height: 100%;
     column-gap: 8px;
     row-gap: 8px;
-    /* border: 2px solid #a89984; */
     display: flex;
-    /* padding: 16px; */
-    /* margin: 16px; */
     margin-right: 16px;
     overflow: scroll;
     background-color: #3c3836;
