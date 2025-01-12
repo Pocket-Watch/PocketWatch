@@ -49,10 +49,12 @@ class Player {
     }
 
     isLooping() {
+        // return this.internals.htmlVideo.loop;
         return this.internals.loopEnabled;
     }
 
     setLooping(enabled) {
+        // this.internals.htmlVideo.loop = true;
         this.internals.setLooping(enabled);
     }
 
@@ -751,7 +753,7 @@ class Internals {
 
     addSubtitle(url, show, info) {
         if (!info) {
-            info = TrackInfo.fromUrl(url)
+            info = FileInfo.fromUrl(url)
         }
 
         let ext = info.extension;
@@ -1000,6 +1002,7 @@ class Internals {
             this.fireControlsNext();
         });
 
+        // This should rely on the 'loop' property of <video> element in the future
         this.htmlControls.buttons.loopButton.addEventListener("click", () => {
             this.loopEnabled = !this.loopEnabled;
             this.fireControlsLooping(this.loopEnabled);
@@ -1022,6 +1025,20 @@ class Internals {
                 this.fireControlsVolumeSet(0);
                 this.setVolume(0);
             }
+        });
+
+        // This roughly simulates a click on an invisible anchor as there's no practical way to trigger "Save As" dialog
+        this.htmlControls.buttons.downloadButton.addEventListener("click", _ => {
+            const anchor = document.createElement('a');
+            anchor.href = this.getCurrentUrl();
+            let fileInfo = FileInfo.fromUrl(anchor.href);
+            anchor.download = fileInfo.filename;
+            console.debug("href", anchor.href)
+            console.debug("download", anchor.download)
+
+            document.body.appendChild(anchor);
+            anchor.click();
+            document.body.removeChild(anchor);
         });
 
         this.htmlControls.buttons.speedButton.addEventListener("click", _ => {
@@ -1530,7 +1547,7 @@ class Internals {
             const file = event.target.files[0];
             // This object is a blob and will be released with URL.revokeObjectURL on load
             const objectUrl = URL.createObjectURL(file);
-            let trackInfo = TrackInfo.fromUrl(file.name);
+            let trackInfo = FileInfo.fromUrl(file.name);
             console.debug("Adding", trackInfo.extension, "subtitle from disk");
             this.addSubtitle(objectUrl, true, trackInfo)
         };
@@ -1646,7 +1663,7 @@ class Internals {
     }
 }
 
-export class TrackInfo {
+export class FileInfo {
     constructor(filename, extension) {
         this.filename = filename;
         this.extension = extension;
@@ -1654,7 +1671,7 @@ export class TrackInfo {
     static fromUrl(url) {
         let filename = url.substring(url.lastIndexOf("/") + 1);
         let extension = filename.substring(filename.lastIndexOf(".") + 1).toLowerCase();
-        return new TrackInfo(filename, extension);
+        return new FileInfo(filename, extension);
     }
 }
 
