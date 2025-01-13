@@ -324,12 +324,15 @@ func (barrier *Barrier) releaseWithResult(result bool) {
 }
 
 func getMediaType(extension string) string {
+	extension = strings.TrimSpace(extension)
+	extension = strings.ToLower(extension)
+
 	mediaType := "other"
 
 	switch extension {
 	case
 		".webm", ".mkv", ".flv", ".vob", ".ogv", ".drc", ".mng", ".avi", ".mts", ".m2ts", ".ts",
-		".mov", ".qt", ".wmv", ".yuv", ".rm", ".rmvb", ".viv", ".asf", ".amv", ".mp4 ", ".m4v",
+		".mov", ".qt", ".wmv", ".yuv", ".rm", ".rmvb", ".viv", ".asf", ".amv", ".mp4", ".m4v",
 		".mpg", ".mp2", ".mpeg", ".mpe", ".mpv", ".m2v", ".svi", ".3gp", ".3g2", ".mxf", ".roq",
 		".nsv", ".f4v", ".f4p", ".f4a", ".f4b":
 		mediaType = "video"
