@@ -590,10 +590,10 @@
     border-radius: 100px;
     display: flex;
     position: relative;
+    cursor: pointer;
     background-color: rgba(78, 84, 87, 0.4);
     margin-left: auto;
     align-items: center;
-    cursor: pointer;
 }
 
 .player_toggle_on .player_toggle_switch {

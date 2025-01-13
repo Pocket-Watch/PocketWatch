@@ -1,4 +1,4 @@
-import {Options, Player} from "./custom_player.js"
+import { Options, Player } from "./custom_player.js"
 import { Playlist } from "./playlist.js"
 import { Chat } from "./chat.js"
 import * as api from "./api.js";
@@ -28,8 +28,11 @@ class Room {
             addPlaylistButton:    getById("url_add_playlist_button"),
             selectSubtitleButton: getById("url_select_subtitle_button"),
 
+            proxyToggle:           getById("proxy_toggle"),
+            youtubeSearchToggle:   getById("youtube_search_toggle"),
+            youtubePlaylistToggle: getById("youtube_playlist_toggle"),
+
             dropdownContainer: getById("url_dropdown_container"),
-            proxyToggle:       getById("proxy_toggle"),
         };
 
         this.usersArea = {
@@ -74,7 +77,9 @@ class Room {
             content: content,
         }
 
-        this.proxyEnabled = false;
+        this.proxyEnabled           = false;
+        this.youtubeSearchEnabled   = false;
+        this.youtubePlaylistEnabled = false;
 
         /// Current connection id.
         this.connectionId = 0;
@@ -194,7 +199,7 @@ class Room {
         this.subtitleFile = null;
 
         this.proxyEnabled = false;
-        this.urlArea.proxyToggle.classList.remove("proxy_active");
+        this.urlArea.proxyToggle.classList.remove("toggle_active");
     }
 
     createNewEntry(subtitle) {
@@ -309,8 +314,18 @@ class Room {
         }
 
         this.urlArea.proxyToggle.onclick = () => {
-            this.urlArea.proxyToggle.classList.toggle("proxy_active");
+            this.urlArea.proxyToggle.classList.toggle("toggle_active");
             this.proxyEnabled = !this.proxyEnabled;
+        }
+
+        this.urlArea.youtubeSearchToggle.onclick = () => {
+            this.urlArea.youtubeSearchToggle.classList.toggle("toggle_active");
+            this.youtubeSearchEnabled = !this.youtubeSearchEnabled;
+        }
+
+        this.urlArea.youtubePlaylistToggle.onclick = () => {
+            this.urlArea.youtubePlaylistToggle.classList.toggle("toggle_active");
+            this.youtubePlaylistEnabled = !this.youtubePlaylistEnabled;
         }
     }
 

@@ -62,15 +62,17 @@ html * {
     border: 2px solid #a89984;
     border-radius: 6px;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
     background-color: #3c3836;
+    padding: 6px;
 }
 
 #url_controls_container {
     width: 100%;
-    height: 54px;
+    height: 42px;
     box-sizing: border-box;
     display: flex;
-    padding: 6px;
 }
 
 #url_dropdown_button {
@@ -165,8 +167,9 @@ html * {
 .input_area span {
     border-radius: 6px 0px 0px 6px;
     display: flex;
+    box-sizing: border-box;
     white-space: nowrap;
-    padding: 16px;
+    padding:  0 16px 0 16px;
     background-color: #ebdbb2;
     align-items: center;
 }
@@ -177,8 +180,7 @@ html * {
     border: none;
     border-radius: 0px 6px 6px 0px;
     box-sizing: border-box;
-    padding: 16px;
-    /* background-color: #f9f5d7; */
+    padding:  0 16px 0 16px;
     background-color: #fbf1c7;
 }
 
@@ -273,23 +275,25 @@ html * {
 #url_dropdown_container {
     width: 100%;
     height: 0;
-    padding-left: 4px;
+    row-gap: 6px;
+    display: flex;
+    box-sizing: border-box;
+    transition: height 200ms ease-out, padding-top 200ms;
     overflow: hidden;
-    transition: height 0.2s ease-out;
+    flex-direction: column;
 }
 
 .url_area_expand #url_dropdown_container {
-    height: 100px;
+    height: 150px;
+    padding-top: 6px;
 }
 
-#url_dropdown_top {
-    height: calc(50% - 6px);
-    width: calc(100% - 18px);
+#url_dropdown_title_and_subs {
+    height: calc(33.33% - 3px); /* ??? */
+    width: 100%;
     column-gap: 6px;
     display: flex;
-    margin-right: 6px;
-    margin-left: 6px;
-    margin-bottom: 6px;
+    box-sizing: border-box;
 }
 
 #url_select_subtitle_button  {
@@ -327,70 +331,73 @@ html * {
     fill: #1d2021;
 }
 
-#url_dropdown_bottom {
-    height: calc(50% - 6px);
-    width: calc(100% - 12px);
+#url_dropdown_proxy {
+    height: calc(33.33% - 3px); /* ??? */
+    width: 100%;
     display: flex;
-    margin-bottom: 6px;
-    margin-right: 6px;
+    box-sizing: border-box;
 }
 
-#proxy_toggle_container {
-    width: 200px;
+#proxy_container {
     height: 100%;
-    border-radius: 4px;
-    z-index: 1;
+}
+
+#url_dropdown_youtube {
+    height: 33.33%;
+    display: flex;
+}
+
+#youtube_playlist_toggle_container {
+    margin-left: 24px;
+}
+
+.toggle_root {
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-right: 8px;
-    margin-left: 8px;
-    /* background-color: #ebdbb2; */
 }
 
-#proxy_toggle {
+.toggle_text {
+    width: 130px;
+    user-select: none;
+    margin-left: 8px;
+    color: #f9f5d7;
+    font-weight: 550;
+    white-space: nowrap;
+}
+
+.toggle_switch {
     width: 60px;
     height: 30px;
     border: 2px solid #ebdbb2;
     border-radius: 20px;
+    cursor: pointer;
     display: flex;
     position: relative;
-    cursor: pointer;
-    justify-content: center;
     align-items: center;
-    transition: .3s;
-}
-
-.proxy_inactive_color {
     background-color: #504945;
 }
 
-.proxy_active {
-    background-color: #98971a;
-}
-
-#proxy_toggle_text {
-    width: 130px;
-    margin-left: 8px;
-    color: #f9f5d7;
-    font-weight: 550;
-}
-
-.proxy_toggle_circle {
-    height: 92%;
+.toggle_circle {
+    height: calc(100% - 4px);
     aspect-ratio: 1.0;
-    border-radius: 20px;
+    border-radius: 100px;
     left: 0;
     position: absolute;
-    margin-left: 4%;
-    transition: .3s;
+    margin-left: 2px;
     background-color: #ebdbb2;
+    transition: 250ms ease-out;
 }
 
-.proxy_active .proxy_toggle_circle {
-    left: calc(100% - 8%);
+.toggle_active .toggle_circle {
+    left: calc(100% - 4px);
     transform: translateX(-100%);
-    transition: .3s;
+    transition: 250ms ease-out;
+}
+
+.toggle_active {
+    background-color: #98971a;
+    transition: 250ms ease-out;
 }
 
 #users_area {
