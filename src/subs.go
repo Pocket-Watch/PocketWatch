@@ -269,13 +269,8 @@ func (timecode *Timecode) shiftForwardBy(ms int) {
 	// cannot mod hours because it cannot be carried over to a higher unit
 }
 
-type Movie struct {
-	Title string `json:"title"`
-	Lang  string `json:"lang"`
-	Year  string `json:"year"`
-}
-
-type Series struct {
+type Search struct {
+	IsMovie bool   `json:"isMovie"`
 	Title   string `json:"title"`
 	Lang    string `json:"lang"`
 	Year    string `json:"year"`
@@ -283,27 +278,17 @@ type Series struct {
 	Episode string `json:"episode"`
 }
 
-func downloadMovieSubtitle(executable string, movie *Movie) (string, error) {
-	command := exec.Command(executable, movie.Title, "--skip-select", "--to", "vtt")
-	if movie.Lang != "" {
-		command.Args = append(command.Args, "--lang", movie.Lang)
+// TODO: Check if executable exists or was disabled at launch with a flag
+func downloadSubtitle(executable string, search *Search) (string, error) {
+	command := exec.Command(executable, search.Title, "--skip-select", "--to", "vtt")
+	if search.Lang != "" {
+		command.Args = append(command.Args, "--lang", search.Lang)
 	}
-	if movie.Year != "" {
-		command.Args = append(command.Args, "-y", movie.Year)
+	if search.Year != "" {
+		command.Args = append(command.Args, "-y", search.Year)
 	}
-	return executeSubtitleDownload(command)
-}
-
-func downloadSeriesSubtitle(executable string, series *Series) (string, error) {
-	command := exec.Command(executable, series.Title, "--skip-select", "--to", "vtt")
-	if series.Lang != "" {
-		command.Args = append(command.Args, "--lang", series.Lang)
-	}
-	if series.Year != "" {
-		command.Args = append(command.Args, "-y", series.Year)
-	}
-	if series.Season != "" && series.Episode != "" {
-		command.Args = append(command.Args, "-s", series.Season, "-e", series.Episode)
+	if !search.IsMovie && search.Season != "" && search.Episode != "" {
+		command.Args = append(command.Args, "-s", search.Season, "-e", search.Episode)
 	}
 	return executeSubtitleDownload(command)
 }

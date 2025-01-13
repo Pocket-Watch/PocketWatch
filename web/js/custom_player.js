@@ -185,6 +185,13 @@ class Player {
         this.internals.fireSubtitleTrackLoad = func;
     }
 
+    onSubtitleSearch(func) {
+        if (!isFunction(func)) {
+            return;
+        }
+        this.internals.fireSubtitleSearch = func;
+    }
+
     setVideoTrack(url) {
         this.internals.setVideoTrack(url);
     }
@@ -407,7 +414,8 @@ class Internals {
     fireControlsVolumeSet(_volume) {}
     firePlaybackError(_event) {}
     firePlaybackEnd() {}
-    fireSubtitleTrackLoad(_event) {}
+    fireSubtitleTrackLoad(_subtitle) {}
+    fireSubtitleSearch(_search) {}
 
     isVideoPlaying() {
         return !this.htmlVideo.paused && !this.htmlVideo.ended;
@@ -2023,6 +2031,22 @@ function parseStamp(stamp, decimalMark) {
             return hms[0] * 60 + Number(hms[1]) + twoSplit[1] / 1000;
         default:
             return null;
+    }
+}
+
+function nonNullOrEmpty(arg) {
+    return arg != null && arg.length > 0;
+}
+
+export class Search {
+    // Expecting strings for now
+    constructor(title, lang, year, season, episode) {
+        this.isMovie = nonNullOrEmpty(season) && nonNullOrEmpty(episode);
+        this.title = title;
+        this.lang = lang;
+        this.year = year;
+        this.season = season;
+        this.episode = episode;
     }
 }
 
