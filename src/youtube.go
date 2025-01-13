@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	neturl "net/url"
 	"os/exec"
@@ -13,6 +12,10 @@ import (
 var YOUTUBE_ENABLED bool = true
 
 func isYoutubeUrl(url string) bool {
+    if strings.HasPrefix(url, "ytsearch:") {
+        return true
+    }
+
 	parsedUrl, err := neturl.Parse(url)
 	if err != nil {
 		return false
@@ -52,12 +55,22 @@ func getYoutubeAudioSource(url string) string {
 	cmd := exec.Command("yt-dlp", "--get-url", "--extract-audio", "--no-playlist", url)
 	output, err := cmd.Output()
 	if err != nil {
-		LogDebug("youtube load failed: %v", err)
+		LogError("Youtube audio source load failed for url %v with: %v", url, err)
 		return ""
 	}
 
 	source := string(output)
 	return strings.TrimSpace(source)
+}
+
+type YoutubeVideo struct {
+	Url       string `json:"original_url"`
+	Title     string `json:"title"`
+	Thumbnail string `json:"thumbnail"`
+}
+
+type YoutubeContent struct {
+	Type string `json:"_type"`
 }
 
 type YoutubeThumbnail struct {
@@ -66,48 +79,15 @@ type YoutubeThumbnail struct {
 	Width  uint64 `json:"width"`
 }
 
-type YoutubeEntry struct {
-	Url        string             `json:"original_url"`
+type YoutubePlaylistVideo struct {
+	Url        string             `json:"url"`
 	Title      string             `json:"title"`
 	Thumbnails []YoutubeThumbnail `json:"thumbnails"`
 }
 
-type YoutubeFormat struct {
-	// "ext": "mhtml",
-	// "audio_ext": "none",
-	// "video_ext": "none",
-	//
-	// "protocol": "m3u8_native",
+type YoutubePlaylist struct {
+	Entries []YoutubePlaylistVideo `json:"entries"`
 }
-
-// type YoutubeEntry struct {
-// 	Title string `json:"title"`
-// 	Url   string `json:"url"`
-// }
-
-// type YoutubeSources struct {
-// 	VideoSource string `json:"video_source"`
-// 	AudioSource string `json:"audio_source"`
-// }
-//
-// func getYoutubeSources(url string) *YoutubeSources {
-// 	cmd := exec.Command("build/pocket-yt", url, "--get-sources")
-//
-// 	output, err := cmd.Output()
-// 	if err != nil {
-// 		LogError("Failed to get output sources from the pocket-yt command: %v", err)
-// 		return nil
-// 	}
-//
-// 	var ytSources YoutubeSources
-// 	err = json.Unmarshal(output, &ytSources)
-// 	if err != nil {
-// 		LogError("Failed to deserialize sources from the pocket-yt command: %v", err)
-// 		return nil
-// 	}
-//
-// 	return &ytSources
-// }
 
 func preloadYoutubeSourceOnNextEntry() {
 	state.mutex.RLock()
@@ -143,72 +123,25 @@ func preloadYoutubeSourceOnNextEntry() {
 	state.mutex.Unlock()
 }
 
-func loadYoutubeEntry(entry *Entry) {
-	if !YOUTUBE_ENABLED {
+func loadYoutubePlaylist(entry *Entry, playlist YoutubePlaylist) {
+	if len(playlist.Entries) == 0 {
+		LogError("Deserialized yt-dlp array for url '%v' is empty", entry.Url)
 		return
 	}
 
-	go preloadYoutubeSourceOnNextEntry()
-
-	if !isYoutubeUrl(entry.Url) {
-		return
-	}
-
-	if !isYoutubeSourceExpired(entry.SourceUrl) {
-		return
-	}
-
-    // TODO(kihau): Add "--dump-single-json" for simplicity and speed.
-	cmd := exec.Command("yt-dlp", "--flat-playlist", "--dump-json", "--playlist-end", "200", entry.Url)
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		LogError("Failed to get stdout pipe from the yt-dlp command: %v", err)
-		return
-	}
-
-	if err := cmd.Start(); err != nil {
-		LogError("Failed to start the yt-dlp command: %v", err)
-		return
-	}
-
-	scanner := bufio.NewScanner(stdout)
-	bufferSize := 1024 * 1024
-	scanner.Buffer(make([]byte, bufferSize), bufferSize)
-
-	ytEntries := make([]YoutubeEntry, 0)
-	for scanner.Scan() {
-		var ytEntry YoutubeEntry
-
-		bytes := scanner.Bytes()
-		err := json.Unmarshal(bytes, &ytEntry)
-		if err != nil {
-			LogError("Failed to deserialize array from the yt-dlp command: %v", err)
-			return
-		}
-
-		ytEntries = append(ytEntries, ytEntry)
-	}
-
-	if len(ytEntries) == 0 {
-		LogError("Deserialize yt-dlp array for url '%v' is empty", entry.Url)
-		return
-	}
-
-	firstYtEntry := ytEntries[0]
-	ytEntries = ytEntries[1:]
+	firstYtEntry := playlist.Entries[0]
+	playlist.Entries = playlist.Entries[1:]
 
 	entry.Url = firstYtEntry.Url
 	entry.Title = firstYtEntry.Title
-	audioSource := getYoutubeAudioSource(firstYtEntry.Url)
-	entry.SourceUrl = audioSource
+	entry.SourceUrl = getYoutubeAudioSource(firstYtEntry.Url)
 
 	userId := entry.UserId
 
 	go func() {
 		entries := make([]Entry, 0)
 
-		for _, ytEntry := range ytEntries {
+		for _, ytEntry := range playlist.Entries {
 			state.mutex.Lock()
 			state.entryId += 1
 
@@ -233,5 +166,48 @@ func loadYoutubeEntry(entry *Entry) {
 
 		event := createPlaylistEvent("addmany", entries)
 		writeEventToAllConnections(nil, "playlist", event)
+		preloadYoutubeSourceOnNextEntry()
 	}()
+}
+
+func loadYoutubeEntry(entry *Entry) {
+	if !YOUTUBE_ENABLED {
+		return
+	}
+
+	go preloadYoutubeSourceOnNextEntry()
+
+	if !isYoutubeUrl(entry.Url) {
+		return
+	}
+
+	if !isYoutubeSourceExpired(entry.SourceUrl) {
+		return
+	}
+
+	cmd := exec.Command("yt-dlp", "--flat-playlist", "--dump-single-json", "--playlist-end", "200", entry.Url)
+	output, err := cmd.Output()
+
+	if err != nil {
+		LogError("Failed to get output from the yt-dlp command: %v", err)
+		return
+	}
+
+	var ytContent YoutubeContent
+	err = json.Unmarshal(output, &ytContent)
+
+	if ytContent.Type == "video" {
+		var video YoutubeVideo
+		json.Unmarshal(output, &video)
+
+		entry.Url = video.Url
+		entry.Title = video.Title
+		entry.SourceUrl = getYoutubeAudioSource(video.Url)
+	} else if ytContent.Type == "playlist" {
+		var ytPlaylist YoutubePlaylist
+		json.Unmarshal(output, &ytPlaylist)
+		loadYoutubePlaylist(entry, ytPlaylist)
+	} else {
+		LogError("Unknown yt-dlp content type: %v", ytContent.Type)
+	}
 }

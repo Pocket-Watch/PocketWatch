@@ -1058,6 +1058,7 @@ func apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
 
 	event := createPlaylistEvent("remove", data.Index)
 	writeEventToAllConnections(w, "playlist", event)
+    go preloadYoutubeSourceOnNextEntry()
 }
 
 func apiPlaylistShuffle(w http.ResponseWriter, r *http.Request) {
@@ -1080,6 +1081,7 @@ func apiPlaylistShuffle(w http.ResponseWriter, r *http.Request) {
 
 	event := createPlaylistEvent("shuffle", state.playlist)
 	writeEventToAllConnections(w, "playlist", event)
+    go preloadYoutubeSourceOnNextEntry()
 }
 
 func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
@@ -1140,6 +1142,7 @@ func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 
 	event := createPlaylistEvent("move", eventData)
 	writeEventToAllConnectionsExceptSelf(w, "playlist", event, user.Id, move.ConnectionId)
+    go preloadYoutubeSourceOnNextEntry()
 }
 
 func apiPlaylistUpdate(w http.ResponseWriter, r *http.Request) {
