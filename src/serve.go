@@ -57,6 +57,7 @@ type Entry struct {
 	RefererUrl  string    `json:"referer_url"`
 	SourceUrl   string    `json:"source_url"`
 	SubtitleUrl string    `json:"subtitle_url"`
+	Thumbnail   string    `json:"thumbnail"`
 	Created     time.Time `json:"created"`
 }
 
@@ -263,13 +264,15 @@ func createPlaylistEvent(action string, data any) PlaylistEventData {
 }
 
 type RequestEntry struct {
-	Url         string `json:"url"`
-	Title       string `json:"title"`
-	UseProxy    bool   `json:"use_proxy"`
-	RefererUrl  string `json:"referer_url"`
-	SubtitleUrl string `json:"subtitle_url"`
-	SearchVideo bool   `json:"search_video"`
-	AsPlaylist  bool   `json:"as_playlist"`
+	Url               string `json:"url"`
+	Title             string `json:"title"`
+	UseProxy          bool   `json:"use_proxy"`
+	RefererUrl        string `json:"referer_url"`
+	SubtitleUrl       string `json:"subtitle_url"`
+	SearchVideo       bool   `json:"search_video"`
+	IsPlaylist        bool   `json:"is_playlist"`
+	PlaylistSkipCount uint   `json:"playlist_skip_count"`
+	PlaylistMaxSize   uint   `json:"playlist_max_size"`
 }
 
 type PlaylistAddRequestData struct {
@@ -756,7 +759,7 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 
 	newEntry.Title = constructTitleWhenMissing(&newEntry)
 
-	loadYoutubeEntry(&newEntry, data.RequestEntry.SearchVideo, data.RequestEntry.AsPlaylist)
+	loadYoutubeEntry(&newEntry, data.RequestEntry)
 
 	state.mutex.Lock()
 	prevEntry := setNewEntry(newEntry)
@@ -823,7 +826,7 @@ func apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 		state.playlist = state.playlist[1:]
 	}
 
-	loadYoutubeEntry(&newEntry, false, false)
+	loadYoutubeEntry(&newEntry, RequestEntry{})
 	prevEntry := setNewEntry(newEntry)
 
 	state.mutex.Unlock()
@@ -834,6 +837,7 @@ func apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 	}
 	writeEventToAllConnections(w, "playernext", nextEvent)
 	io.WriteString(w, "{}")
+	go preloadYoutubeSourceOnNextEntry()
 }
 
 func apiPlayerPlay(w http.ResponseWriter, r *http.Request) {
@@ -1021,7 +1025,7 @@ func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 
 	newEntry.Title = constructTitleWhenMissing(&newEntry)
 
-	loadYoutubeEntry(&newEntry, data.RequestEntry.SearchVideo, data.RequestEntry.AsPlaylist)
+	loadYoutubeEntry(&newEntry, data.RequestEntry)
 
 	state.mutex.Lock()
 	state.playlist = append(state.playlist, newEntry)
@@ -1572,7 +1576,7 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 	if token == "" {
 		response := "Failed to parse token from the event url."
 		http.Error(w, response, http.StatusInternalServerError)
-		LogError(response)
+		LogError("%v", response)
 		return
 	}
 

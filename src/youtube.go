@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	neturl "net/url"
 	"os/exec"
 	"strconv"
@@ -117,7 +118,7 @@ func preloadYoutubeSourceOnNextEntry() {
 	state.mutex.Unlock()
 }
 
-func loadYoutubePlaylist(query string, videoId string, userId uint64) {
+func loadYoutubePlaylist(query string, videoId string, userId uint64, size uint) {
 	url, err := neturl.Parse(query)
 	if err != nil {
 		LogError("Failed to parse youtube source url: %v", err)
@@ -132,8 +133,15 @@ func loadYoutubePlaylist(query string, videoId string, userId uint64) {
 		LogDebug("%v", url)
 	}
 
+	if size > 1000 {
+		size = 1000
+	} else if size == 0 {
+		size = 20
+	}
+
 	query = url.String()
-	command := exec.Command("yt-dlp", query, "--flat-playlist", "--playlist-items", "2:200", "--dump-single-json")
+	end := fmt.Sprintf("%d", size)
+	command := exec.Command("yt-dlp", query, "--flat-playlist", "--playlist-start", "2", "--playlist-end", end, "--dump-single-json")
 	output, err := command.Output()
 
 	if err != nil {
@@ -179,12 +187,12 @@ func loadYoutubePlaylist(query string, videoId string, userId uint64) {
 	go preloadYoutubeSourceOnNextEntry()
 }
 
-func loadYoutubeEntry(entry *Entry, searchVideo bool, asPlaylist bool) {
+func loadYoutubeEntry(entry *Entry, requested RequestEntry) {
 	if !YOUTUBE_ENABLED {
 		return
 	}
 
-	if !isYoutubeUrl(entry.Url) && !searchVideo {
+	if !isYoutubeUrl(entry.Url) && !requested.SearchVideo {
 		return
 	}
 
@@ -193,7 +201,7 @@ func loadYoutubeEntry(entry *Entry, searchVideo bool, asPlaylist bool) {
 	}
 
 	query := entry.Url
-	if searchVideo {
+	if requested.SearchVideo {
 		query = "ytsearch:" + query
 	}
 
@@ -211,12 +219,13 @@ func loadYoutubeEntry(entry *Entry, searchVideo bool, asPlaylist bool) {
 	entry.Url = video.OriginalUrl
 	entry.Title = video.Title
 	entry.SourceUrl = video.SourceUrl
+    entry.Thumbnail = video.Thumbnail
 
-	if searchVideo {
+	if requested.SearchVideo {
 		query = video.OriginalUrl
 	}
 
-	if asPlaylist {
-		go loadYoutubePlaylist(query, video.Id, entry.UserId)
+	if requested.IsPlaylist {
+		go loadYoutubePlaylist(query, video.Id, entry.UserId, requested.PlaylistMaxSize)
 	}
 }

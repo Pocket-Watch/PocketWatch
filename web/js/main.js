@@ -21,6 +21,7 @@ class Room {
             titleInput:    getById("url_title_input"),
             refererInput:  getById("url_dropdown_referer_input"),
             subtitleInput: getById("url_subtitle_name_input"),
+            ytCountInput:  getById("youtube_video_count_input"),
 
             dropdownButton:       getById("url_dropdown_button"),
             resetButton:          getById("url_reset_button"),
@@ -195,16 +196,29 @@ class Room {
         this.urlArea.titleInput.value = "";
         this.urlArea.refererInput.value = "";
         this.urlArea.subtitleInput.value = "";
+        this.urlArea.ytCountInput.value = "";
 
         this.subtitleFile = null;
 
         this.proxyEnabled = false;
         this.urlArea.proxyToggle.classList.remove("toggle_active");
+
+        this.youtubeSearchEnabled = false;
+        this.urlArea.youtubeSearchToggle.classList.remove("toggle_active");
+
+        this.youtubePlaylistEnabled = false;
+        this.urlArea.youtubePlaylistToggle.classList.remove("toggle_active");
     }
 
     createNewRequestEntry(subtitle) {
         if (!subtitle) {
             subtitle = "";
+        }
+
+        let countString = this.urlArea.ytCountInput.value.trim();
+        let count = Number(countString)
+        if (!count && count <= 0) {
+            count = 20
         }
 
         const requestEntry = {
@@ -214,7 +228,9 @@ class Room {
             referer_url:  this.urlArea.refererInput.value.trim(),
             subtitle_url: subtitle,
             search_video: this.youtubeSearchEnabled,
-            as_playlist:  this.youtubePlaylistEnabled,
+            is_playlist:  this.youtubePlaylistEnabled,
+            playlist_skip_count: 0,
+            playlist_max_size:   count,
         };
 
         return requestEntry;
@@ -565,11 +581,17 @@ class Room {
         if (entry.subtitle_url) {
             this.player.addSubtitle(entry.subtitle_url);
         }
+
+        this.player.setPoster(null)
+        if (entry.thumbnail) {
+            this.player.setPoster(entry.thumbnail)
+        }
     }
 
     setNothing() {
         this.player.discardPlayback();
         this.player.setTitle(null);
+        this.player.setPoster("")
         this.player.setToast("Nothing is playing at the moment!");
         this.player.clearAllSubtitleTracks();
     }
