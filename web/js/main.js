@@ -124,6 +124,10 @@ class Room {
                 api.playerPlay(0);
                 return;
             }
+            if (this.player.getCurrentUrl() === document.baseURI) {
+                console.warn("Nothing is set");
+                return;
+            }
             api.playerPlay(this.player.getCurrentTime());
         })
 
@@ -488,8 +492,8 @@ class Room {
                 var input = document.createElement('input');
                 input.type = "file";
 
-                input.onchange = event => { 
-                    var file = event.target.files[0]; 
+                input.onchange = event => {
+                    var file = event.target.files[0];
                     console.log("Picked file:", file);
                     api.userUpdateAvatar(file).then(newAvatar => {
                         if (newAvatar) {
@@ -545,7 +549,6 @@ class Room {
 
     async loadChatData() {
         let messages = await api.chatGet();
-        console.log(messages);
         if (!messages) {
             return;
         }
