@@ -225,8 +225,8 @@ type SyncEventData struct {
 }
 
 type PlayerSetRequestData struct {
-	ConnectionId uint64 `json:"connection_id"`
-	Entry        Entry  `json:"entry"`
+	ConnectionId uint64       `json:"connection_id"`
+	RequestEntry RequestEntry `json:"request_entry"`
 }
 
 type PlayerSetEventData struct {
@@ -262,9 +262,19 @@ func createPlaylistEvent(action string, data any) PlaylistEventData {
 	return event
 }
 
+type RequestEntry struct {
+	Url         string `json:"url"`
+	Title       string `json:"title"`
+	UseProxy    bool   `json:"use_proxy"`
+	RefererUrl  string `json:"referer_url"`
+	SubtitleUrl string `json:"subtitle_url"`
+	SearchVideo bool   `json:"search_video"`
+	AsPlaylist  bool   `json:"as_playlist"`
+}
+
 type PlaylistAddRequestData struct {
-	ConnectionId uint64 `json:"connection_id"`
-	Entry        Entry  `json:"entry"`
+	ConnectionId uint64       `json:"connection_id"`
+	RequestEntry RequestEntry `json:"request_entry"`
 }
 
 type PlaylistRemoveRequestData struct {
@@ -715,7 +725,8 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !isAuthorized(w, r) {
+	user := getAuthorized(w, r)
+	if user == nil {
 		return
 	}
 
@@ -726,18 +737,29 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	loadYoutubeEntry(&data.Entry)
-
 	state.mutex.Lock()
 	state.entryId += 1
+	id := state.entryId
+	state.mutex.Unlock()
 
-	newEntry := data.Entry
-	newEntry.Created = time.Now()
-	newEntry.Id = state.entryId
+	newEntry := Entry{
+		Id:          id,
+		Url:         data.RequestEntry.Url,
+		UserId:      user.Id,
+		Title:       data.RequestEntry.Title,
+		UseProxy:    data.RequestEntry.UseProxy,
+		RefererUrl:  data.RequestEntry.RefererUrl,
+		SourceUrl:   "",
+		SubtitleUrl: data.RequestEntry.SubtitleUrl,
+		Created:     time.Now(),
+	}
+
 	newEntry.Title = constructTitleWhenMissing(&newEntry)
 
-	prevEntry := setNewEntry(newEntry)
+	loadYoutubeEntry(&newEntry, data.RequestEntry.SearchVideo, data.RequestEntry.AsPlaylist)
 
+	state.mutex.Lock()
+	prevEntry := setNewEntry(newEntry)
 	state.mutex.Unlock()
 
 	LogInfo("New url is now: '%s'.", state.entry.Url)
@@ -801,7 +823,7 @@ func apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 		state.playlist = state.playlist[1:]
 	}
 
-	loadYoutubeEntry(&newEntry)
+	loadYoutubeEntry(&newEntry, false, false)
 	prevEntry := setNewEntry(newEntry)
 
 	state.mutex.Unlock()
@@ -978,25 +1000,34 @@ func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	LogInfo("Adding '%s' url to the playlist.", data.Entry.Url)
+	LogInfo("Adding '%s' url to the playlist.", data.RequestEntry.Url)
 
 	state.mutex.Lock()
 	state.entryId += 1
-
-	entry := data.Entry
-	entry.Id = state.entryId
-	entry.Created = time.Now()
-	entry.Title = constructTitleWhenMissing(&entry)
-	entry.UserId = user.Id
+	id := state.entryId
 	state.mutex.Unlock()
 
-	loadYoutubeEntry(&entry)
+	newEntry := Entry{
+		Id:          id,
+		Url:         data.RequestEntry.Url,
+		UserId:      user.Id,
+		Title:       data.RequestEntry.Title,
+		UseProxy:    data.RequestEntry.UseProxy,
+		RefererUrl:  data.RequestEntry.RefererUrl,
+		SourceUrl:   "",
+		SubtitleUrl: data.RequestEntry.SubtitleUrl,
+		Created:     time.Now(),
+	}
+
+	newEntry.Title = constructTitleWhenMissing(&newEntry)
+
+	loadYoutubeEntry(&newEntry, data.RequestEntry.SearchVideo, data.RequestEntry.AsPlaylist)
 
 	state.mutex.Lock()
-	state.playlist = append(state.playlist, entry)
+	state.playlist = append(state.playlist, newEntry)
 	state.mutex.Unlock()
 
-	event := createPlaylistEvent("add", entry)
+	event := createPlaylistEvent("add", newEntry)
 	writeEventToAllConnections(w, "playlist", event)
 }
 
@@ -1058,7 +1089,7 @@ func apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
 
 	event := createPlaylistEvent("remove", data.Index)
 	writeEventToAllConnections(w, "playlist", event)
-    go preloadYoutubeSourceOnNextEntry()
+	go preloadYoutubeSourceOnNextEntry()
 }
 
 func apiPlaylistShuffle(w http.ResponseWriter, r *http.Request) {
@@ -1081,7 +1112,7 @@ func apiPlaylistShuffle(w http.ResponseWriter, r *http.Request) {
 
 	event := createPlaylistEvent("shuffle", state.playlist)
 	writeEventToAllConnections(w, "playlist", event)
-    go preloadYoutubeSourceOnNextEntry()
+	go preloadYoutubeSourceOnNextEntry()
 }
 
 func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
@@ -1142,7 +1173,7 @@ func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 
 	event := createPlaylistEvent("move", eventData)
 	writeEventToAllConnectionsExceptSelf(w, "playlist", event, user.Id, move.ConnectionId)
-    go preloadYoutubeSourceOnNextEntry()
+	go preloadYoutubeSourceOnNextEntry()
 }
 
 func apiPlaylistUpdate(w http.ResponseWriter, r *http.Request) {

@@ -202,23 +202,22 @@ class Room {
         this.urlArea.proxyToggle.classList.remove("toggle_active");
     }
 
-    createNewEntry(subtitle) {
+    createNewRequestEntry(subtitle) {
         if (!subtitle) {
             subtitle = "";
         }
 
-        const entry = {
-            id:           0,
+        const requestEntry = {
             url:          this.urlArea.urlInput.value.trim(),
             title:        this.urlArea.titleInput.value.trim(),
-            user_id:      0,
             use_proxy:    this.proxyEnabled,
             referer_url:  this.urlArea.refererInput.value.trim(),
             subtitle_url: subtitle,
-            created:      new Date,
+            search_video: this.youtubeSearchEnabled,
+            as_playlist:  this.youtubePlaylistEnabled,
         };
 
-        return entry;
+        return requestEntry;
     }
 
     attachRightPanelEvents() {
@@ -276,7 +275,7 @@ class Room {
 
             console.log(subtitlePath);
 
-            let entry = this.createNewEntry(subtitlePath);
+            let entry = this.createNewRequestEntry(subtitlePath);
             api.playerSet(entry).then(jsonResponse => {
                 if (jsonResponse.checkAndLogError()) {
                     return;
@@ -287,7 +286,7 @@ class Room {
         }
 
         this.urlArea.addPlaylistButton.onclick = () => {
-            let entry = this.createNewEntry();
+            let entry = this.createNewRequestEntry();
             if (entry.url) {
                 api.playlistAdd(entry);
                 this.resetUrlAreaElements();

@@ -211,10 +211,10 @@ export async function playerGet() {
     return data;
 }
 
-export async function playerSet(entry) {
+export async function playerSet(requestEntry) {
     const payload = {
         connection_id: connectionId,
-        entry: entry,
+        request_entry: requestEntry,
     };
 
     console.info("INFO: Sending player set request for a entry");
@@ -276,10 +276,10 @@ export async function playlistGet() {
     return await httpGet("/watch/api/playlist/get");
 }
 
-export async function playlistAdd(entry) {
+export async function playlistAdd(requestEntry) {
     const payload = {
         connection_id: connectionId,
-        entry: entry,
+        request_entry: requestEntry,
     };
 
     console.info("INFO: Sending playlist add request for entry: ", payload);
