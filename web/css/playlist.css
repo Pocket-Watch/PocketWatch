@@ -309,7 +309,7 @@
 .playlist_entry_thumbnail img {
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: cover;
 }
 
 .playlist_entry_info {
@@ -550,7 +550,7 @@
 .playlist_dropdown_user_avatar img {
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: cover;
 }
 
 .playlist_dropdown_user_name {

@@ -217,7 +217,7 @@ class Room {
 
         let countString = this.urlArea.ytCountInput.value.trim();
         let count = Number(countString)
-        if (!count && count <= 0) {
+        if (!count || count <= 0) {
             count = 20
         }
 
@@ -439,8 +439,7 @@ class Room {
     createUserBox(user) {
         let userBox       = div("user_box");
         let userBoxTop    = div("user_box_top");
-        let avatarSrc     = user.avatar;
-        let userAvatar    = img(avatarSrc);
+        let userAvatar    = img(user.avatar);
         let userBoxBottom = div("user_box_bottom");
         let usernameInput = document.createElement("input");
 

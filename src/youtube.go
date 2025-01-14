@@ -118,6 +118,17 @@ func preloadYoutubeSourceOnNextEntry() {
 	state.mutex.Unlock()
 }
 
+func pickBestThumbnail(thumbnails []YoutubeThumbnail) string {
+	count := len(thumbnails)
+	if count > 0 {
+		last := thumbnails[count-1]
+		return last.Url
+	} else {
+		return ""
+	}
+
+}
+
 func loadYoutubePlaylist(query string, videoId string, userId uint64, size uint) {
 	url, err := neturl.Parse(query)
 	if err != nil {
@@ -171,7 +182,12 @@ func loadYoutubePlaylist(query string, videoId string, userId uint64, size uint)
 			UseProxy:   false,
 			RefererUrl: "",
 			SourceUrl:  "",
+			Thumbnail:  pickBestThumbnail(ytEntry.Thumbnails),
 			Created:    time.Now(),
+		}
+
+		if len(ytEntry.Thumbnails) > 0 {
+			entry.Thumbnail = ytEntry.Thumbnails[0].Url
 		}
 
 		entries = append(entries, entry)
@@ -219,7 +235,7 @@ func loadYoutubeEntry(entry *Entry, requested RequestEntry) {
 	entry.Url = video.OriginalUrl
 	entry.Title = video.Title
 	entry.SourceUrl = video.SourceUrl
-    entry.Thumbnail = video.Thumbnail
+	entry.Thumbnail = video.Thumbnail
 
 	if requested.SearchVideo {
 		query = video.OriginalUrl

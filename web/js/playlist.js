@@ -298,7 +298,8 @@ class Playlist {
         let entryTop       = div("playlist_entry_top"); 
         let entryDragArea  = div("playlist_drag_area"); 
         let entryThumbnail = div("playlist_entry_thumbnail");
-        let thumbnailImg   = img("img/thumbnail_placeholder.png");
+        let thumbnailSrc   = entry.thumbnail ? entry.thumbnail : "img/thumbnail_placeholder.png";
+        let thumbnailImg   = img(thumbnailSrc);
         let entryInfo      = div("playlist_entry_info");
         let entryTitle     = span("playlist_entry_title", entry.title);
         let entryUrl       = a("playlist_entry_url", entry.url);
