@@ -103,8 +103,20 @@ func preloadYoutubeSourceOnNextEntry() {
 	}
 
 	LogInfo("Preloading youtube source for an entry with an ID: %v", nextEntry.Id)
-	audioSource := getYoutubeAudioSource(nextEntry.Url)
-	nextEntry.SourceUrl = audioSource
+	command := exec.Command("yt-dlp", nextEntry.Url, "--playlist-items", "1", "--extract-audio", "--print", "%(.{id,title,thumbnail,original_url,url})j")
+	output, err := command.Output()
+
+	if err != nil {
+		LogError("Failed to get output from the yt-dlp command: %v", err)
+		return
+	}
+
+	var video YoutubeVideo
+	json.Unmarshal(output, &video)
+
+	// TODO?(kihau):Make this a poster instead to distinguis between tiny and thumbnails?
+	nextEntry.Thumbnail = video.Thumbnail
+	nextEntry.SourceUrl = video.SourceUrl
 
 	state.mutex.Lock()
 	if len(state.playlist) == 0 {
@@ -119,14 +131,18 @@ func preloadYoutubeSourceOnNextEntry() {
 }
 
 func pickBestThumbnail(thumbnails []YoutubeThumbnail) string {
-	count := len(thumbnails)
-	if count > 0 {
-		last := thumbnails[count-1]
-		return last.Url
-	} else {
-		return ""
+	bestThumbnail := ""
+	var smallestSize uint64 = 0
+
+	for _, thumbnail := range thumbnails {
+		thumbnailSize := thumbnail.Height * thumbnail.Width
+		if thumbnailSize < smallestSize {
+			smallestSize = thumbnailSize
+			bestThumbnail = thumbnail.Url
+		}
 	}
 
+	return bestThumbnail
 }
 
 func loadYoutubePlaylist(query string, videoId string, userId uint64, size uint) {
