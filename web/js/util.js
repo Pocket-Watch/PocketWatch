@@ -8,7 +8,7 @@ export function div(className) {
     return element;
 }
 
-export function a(className, textContent, href) {
+export function a(className, textContent, href = null) {
     let element = document.createElement("a");
     element.className = className;
     element.textContent = textContent;
@@ -45,5 +45,17 @@ export function button(className, title) {
     let element = document.createElement("button");
     element.className = className;
     element.title = title;
+    return element;
+}
+
+export function input(className, text, placeholder = null) {
+    let element = document.createElement("input");
+    element.className = className;
+    element.value = text;
+
+    if (placeholder) {
+        element.placeholder = placeholder
+    }
+
     return element;
 }

@@ -13,6 +13,7 @@ const ENTRY_HEIGHT  = 64 + ENTRY_BORDER * 2;
 //     - Attach controls to playlist input
 //     - Proper network handling
 //     - Smart scrolling - dynamic remove/add on scrolling when entry count > 300
+//     - Mouse right click / touch hold down opens context menu with extra options.
 
 class Playlist {
     constructor() {

@@ -1,16 +1,17 @@
 function createEntry(title, url) {
-    const entry = {
-        id:           0,
+    const requestEntry = {
         url:          url,
         title:        title,
-        user_id:      0,
         use_proxy:    false,
         referer_url:  "",
         subtitle_url: "",
-        created:      new Date,
+        search_video: false,
+        is_playlist:  false,
+        playlist_skip_count: 0,
+        playlist_max_size:   0,
     };
 
-    return entry;
+    return requestEntry;
 }
 
 async function createExamplePlaylist(count = 10) {
