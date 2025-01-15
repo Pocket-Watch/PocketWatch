@@ -14,122 +14,124 @@
 
 <body>
     <div id="root_panel">
-        <div id="left_panel">
-            <div id="player_area">
-                <video id="video0"></video>
-            </div>
-
-            <div id="url_area">
-                <div id="url_controls_container"> 
-                    <button id="url_dropdown_button" title="Show more options">
-                        <svg>
-                            <use href="svg/main_icons.svg#dropdown"/>
-                        </svg>
-                    </button>
-                    <button id="url_reset_button" title="Reset all fields">
-                        <svg>
-                            <use href="svg/main_icons.svg#delete"/>
-                        </svg>
-                    </button>
-
-                    <div class="input_area" id="url_input_container">
-                        <span>Media URL:</span>
-                        <input type="url" id="url_input_box" placeholder="Enter video or audio URL here. Could be a YouTube link or any other media URL."/>
-                    </div>
-
-                    <div id="url_right_buttons_container">
-                        <button id="url_set_button" title="Play Now">
-                            <svg>
-                                <use href="svg/main_icons.svg#play"/>
-                            </svg>
-                        </button>
-                        <button id="url_add_playlist_button" title="Add to playlist">
-                            <svg>
-                                <use href="svg/main_icons.svg#playlist"/>
-                            </svg>
-                        </button>
-                    </div>
+        <div id="left_panel_wrap">
+            <div id="left_panel">
+                <div id="player_area">
+                    <video id="video0"></video>
                 </div>
 
-                <div id="url_dropdown_container"> 
-                    <div id="url_dropdown_title_and_subs"> 
-                        <div class="input_area">
-                            <span>Media Title:</span>
-                            <input id="url_title_input" placeholder="Enter your custom media title."></input>
-                        </div>
-
-                        <button id="url_select_subtitle_button">
+                <div id="url_area">
+                    <div id="url_controls_container"> 
+                        <button id="url_dropdown_button" title="Show more options">
                             <svg>
-                                <use href="svg/main_icons.svg#upload"/>
+                                <use href="svg/main_icons.svg#dropdown"/>
+                            </svg>
+                        </button>
+                        <button id="url_reset_button" title="Reset all fields">
+                            <svg>
+                                <use href="svg/main_icons.svg#delete"/>
                             </svg>
                         </button>
 
-                        <div class="input_area">
-                            <span>Subtitle name:</span>
-                            <input id="url_subtitle_name_input" placeholder="Uploaded subtitle name."></input>
+                        <div class="input_area" id="url_input_container">
+                            <span>Media URL:</span>
+                            <input type="url" id="url_input_box" placeholder="Enter video or audio URL here. Could be a YouTube link or any other media URL."/>
+                        </div>
+
+                        <div id="url_right_buttons_container">
+                            <button id="url_set_button" title="Play Now">
+                                <svg>
+                                    <use href="svg/main_icons.svg#play"/>
+                                </svg>
+                            </button>
+                            <button id="url_add_playlist_button" title="Add to playlist">
+                                <svg>
+                                    <use href="svg/main_icons.svg#playlist"/>
+                                </svg>
+                            </button>
                         </div>
                     </div>
 
-                    <div id="url_dropdown_youtube"> 
-                        <div id="youtube_toggle_search_container" class="toggle_root">
-                            <div id="youtube_search_toggle" class="toggle_switch">
-                                <div class="toggle_circle"></div>
+                    <div id="url_dropdown_container"> 
+                        <div id="url_dropdown_title_and_subs"> 
+                            <div class="input_area">
+                                <span>Media Title:</span>
+                                <input id="url_title_input" placeholder="Enter your custom media title."></input>
                             </div>
-                            <span class="toggle_text">Search for Video</span>
-                        </div>
 
-                        <div id="youtube_playlist_toggle_container" class="toggle_root">
-                            <div id="youtube_playlist_toggle" class="toggle_switch">
-                                <div class="toggle_circle"></div>
+                            <button id="url_select_subtitle_button">
+                                <svg>
+                                    <use href="svg/main_icons.svg#upload"/>
+                                </svg>
+                            </button>
+
+                            <div class="input_area">
+                                <span>Subtitle name:</span>
+                                <input id="url_subtitle_name_input" placeholder="Uploaded subtitle name."></input>
                             </div>
-                            <span class="toggle_text">Add as Playlist</span>
                         </div>
 
-                        <div class="input_area" id="youtube_video_count_container">
-                            <span>Max video count:</span>
-                            <input type="text" id="youtube_video_count_input" placeholder="Maximum number of videos to add."></input>
-                        </div>
-                    </div>
-
-                    <div id="url_dropdown_proxy"> 
-                        <div id="proxy_container" class="toggle_root">
-                            <div id="proxy_toggle" class="toggle_switch">
-                                <div class="toggle_circle"></div>
+                        <div id="url_dropdown_youtube"> 
+                            <div id="youtube_toggle_search_container" class="toggle_root">
+                                <div id="youtube_search_toggle" class="toggle_switch">
+                                    <div class="toggle_circle"></div>
+                                </div>
+                                <span class="toggle_text">Search for Video</span>
                             </div>
-                            <span class="toggle_text">Create Proxy</span>
+
+                            <div id="youtube_playlist_toggle_container" class="toggle_root">
+                                <div id="youtube_playlist_toggle" class="toggle_switch">
+                                    <div class="toggle_circle"></div>
+                                </div>
+                                <span class="toggle_text">Add as Playlist</span>
+                            </div>
+
+                            <div class="input_area" id="youtube_video_count_container">
+                                <span>Max video count:</span>
+                                <input type="text" id="youtube_video_count_input" placeholder="Maximum number of videos to add."></input>
+                            </div>
                         </div>
 
-                        <div class="input_area" id="referer_container">
-                            <span>Media Referer:</span>
-                            <input type="url" id="url_dropdown_referer_input" placeholder="Enter media referer URL. This field is optional."></input>
+                        <div id="url_dropdown_proxy"> 
+                            <div id="proxy_container" class="toggle_root">
+                                <div id="proxy_toggle" class="toggle_switch">
+                                    <div class="toggle_circle"></div>
+                                </div>
+                                <span class="toggle_text">Create Proxy</span>
+                            </div>
+
+                            <div class="input_area" id="referer_container">
+                                <span>Media Referer:</span>
+                                <input type="url" id="url_dropdown_referer_input" placeholder="Enter media referer URL. This field is optional."></input>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div id="users_area">
-                <div id="users_list">
-                    <!-- NOTE(kihau): Content of this list is dynamically generated in JavaScript -->
-                </div>
-                <div id="users_right_panel">
-                    <div id="users_online" class="users_indicator" title="Number users online.">
-                        <svg>
-                            <use href="svg/main_icons.svg#user"/>
-                        </svg>
-                        <span id="users_online_count">0</span>
+                <div id="users_area">
+                    <div id="users_list">
+                        <!-- NOTE(kihau): Content of this list is dynamically generated in JavaScript -->
                     </div>
+                    <div id="users_right_panel">
+                        <div id="users_online" class="users_indicator" title="Number users online.">
+                            <svg>
+                                <use href="svg/main_icons.svg#user"/>
+                            </svg>
+                            <span id="users_online_count">0</span>
+                        </div>
 
-                    <div id="users_offline" class="users_indicator" title="Number users offline.">
-                        <svg>
-                            <use href="svg/main_icons.svg#user"/>
-                        </svg>
-                        <span id="users_offline_count">0</span>
+                        <div id="users_offline" class="users_indicator" title="Number users offline.">
+                            <svg>
+                                <use href="svg/main_icons.svg#user"/>
+                            </svg>
+                            <span id="users_offline_count">0</span>
+                        </div>
+                        <button id="users_settings_button" title="This button will open your user profile menu, but for now it does nothing.">
+                            <svg>
+                                <use href="svg/main_icons.svg#settings"/>
+                            </svg>
+                        </button>
                     </div>
-                    <button id="users_settings_button" title="This button will open your user profile menu, but for now it does nothing.">
-                        <svg>
-                            <use href="svg/main_icons.svg#settings"/>
-                        </svg>
-                    </button>
                 </div>
             </div>
         </div>
