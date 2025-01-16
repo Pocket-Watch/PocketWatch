@@ -241,6 +241,11 @@
     background-color: #7c6f64 !important;
 }
 
+.playlist_entry.show {
+    margin-left: 0;
+    transition: z-index 200ms, top 120ms ease, margin-left 240ms ease;
+}
+
 .playlist_entry {
     width: calc(100% - 4px);
     height: auto;
@@ -256,7 +261,8 @@
     flex-direction: column;
     overflow: hidden;
     background-color: #32302f;
-    transition: z-index 200ms, top 120ms ease;
+    margin-left: 100%;
+    transition: z-index 200ms, top 120ms ease, margin-left 240ms ease;
 }
 
 .playlist_entry_top {

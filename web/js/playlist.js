@@ -106,7 +106,8 @@ class Playlist {
         let htmlEntry = this.htmlEntries[index];
         this.htmlEntries.splice(index, 1);
 
-        this.htmlEntryList.removeChild(htmlEntry);
+        // this.htmlEntryList.removeChild(htmlEntry);
+        htmlEntry.classList.remove("show");
         for (let i = index; i < this.htmlEntries.length; i++) {
             const entry = this.htmlEntries[i];
             this.setEntryPosition(entry, i);
@@ -178,11 +179,17 @@ class Playlist {
     }
 
     clear() {
-        while (this.htmlEntryList.lastChild) {
-            this.htmlEntryList.removeChild(this.htmlEntryList.lastChild);
+        const children = this.htmlEntryList.children;
+        for (let i = 0; i < children.length; i++) {
+            const htmlEntry = children[i];
+            htmlEntry.classList.remove('show');
         }
 
-        this.htmlEntries    = [];
+        // while (this.htmlEntryList.lastChild) {
+        //     this.htmlEntryList.removeChild(this.htmlEntryList.lastChild);
+        // }
+
+        this.htmlEntries   = [];
         this.entries       = [];
         this.expandedEntry = null;
 
@@ -317,9 +324,17 @@ class Playlist {
         //
         entryDragArea.textContent = "☰";
 
+        setTimeout(_ => entryRoot.classList.add('show'), 10);
+
         //
         // Attaching events to html elements.
         //
+
+        entryRoot.ontransitionend = event => {
+            if (event.propertyName === "margin-left" && !entryRoot.classList.contains("show")) {
+                this.htmlEntryList.removeChild(entryRoot);
+            }
+        };
 
         // Scrolling on screen touch.
         entryRoot.ontouchstart = _ => {};
