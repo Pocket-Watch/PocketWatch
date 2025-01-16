@@ -222,26 +222,27 @@
     overflow-y: scroll;
 }
 
-.entry_disable_transition {
+.playlist_entry.disable_transition {
     transition: none !important;
 }
 
-.entry_shadow {
-    z-index: 0   !important;
-    opacity: 0.3 !important;
+.playlist_entry.shadow {
+    z-index: 0;
+    opacity: 0.3;
 }
 
-.draggable_entry {
-    box-shadow: 0px 0px 12px #1d2021 !important;
-    border-color: #928374            !important;
+.playlist_entry.draggable {
+    box-shadow: 0px 0px 12px #1d2021;
+    border-color: #928374;
 }
 
-.draggable_entry .playlist_drag_area {
-    color: #fbf1c7            !important;
-    background-color: #7c6f64 !important;
+.playlist_entry.draggable .playlist_drag_area {
+    color: #fbf1c7;
+    background-color: #7c6f64;
 }
 
 .playlist_entry.show {
+    z-index: 1;
     margin-left: 0;
     transition: z-index 200ms, top 120ms ease, margin-left 240ms ease;
 }
@@ -252,7 +253,7 @@
     border-radius: 6px;
     box-shadow: 0px 0px 3px 0px #282828;
     border: 2px solid #7c6f64;
-    z-index: 1;
+    z-index: 0;
     position: absolute;
     display: inline-block;
     user-select: none;
@@ -473,56 +474,56 @@
     transition: height 100ms ease;
 }
 
-.entry_dropdown_expand {
+.playlist_entry.expand {
     z-index: 2;
     transition: z-index 0ms;
 }
 
-.entry_dropdown_expand .playlist_entry_dropdown {
+.playlist_entry.expand .playlist_entry_dropdown {
     height: 80px;
     visibility: inherit;
     transition: height 100ms ease;
 }
 
-.entry_dropdown_expand .playlist_dropdown_button svg {
+.playlist_entry.expand .playlist_dropdown_button svg {
     transform: rotate(0deg);
     transition: transform 100ms;
 }
 
-.entry_editing .playlist_entry_delete_button {
+.playlist_entry.editing .playlist_entry_delete_button {
     display: none;
 }
 
-.entry_editing .playlist_entry_edit_button {
+.playlist_entry.editing .playlist_entry_edit_button {
     height: 100%;
     background-color: #665c54;
     transition: height 100ms;
 }
 
-.entry_editing .playlist_entry_edit_button:active {
+.playlist_entry.editing .playlist_entry_edit_button:active {
     background-color: #7c6f64;
 }
 
-.entry_editing .playlist_entry_edit_button svg {
+.playlist_entry.editing .playlist_entry_edit_button svg {
     fill: #8ec07c;
 }
 
-.entry_editing .playlist_entry_edit_button:hover svg {
+.playlist_entry.editing .playlist_entry_edit_button:hover svg {
     fill: #9dd389;
 }
 
-.entry_editing .playlist_entry_info {
+.playlist_entry.editing .playlist_entry_info {
     row-gap: 2px;
 }
 
-.entry_editing .playlist_entry_title {
+.playlist_entry.editing .playlist_entry_title {
     border-radius: 4px;
     background-color: #3c3836;
     padding-right: 4px;
     padding-left: 4px;
 }
 
-.entry_editing .playlist_entry_url {
+.playlist_entry.editing .playlist_entry_url {
     border-radius: 4px;
     background-color: #3c3836;
     padding-right: 4px;

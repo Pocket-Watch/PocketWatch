@@ -2,7 +2,7 @@ import { Options, Player } from "./custom_player.js"
 import { Playlist } from "./playlist.js"
 import { Chat } from "./chat.js"
 import * as api from "./api.js";
-import { getById, div, a, span, img, svg, button } from "./util.js";
+import { getById, div, img, svg, button } from "./util.js";
 
 const SERVER_ID = 0;
 

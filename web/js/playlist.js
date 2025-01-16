@@ -112,6 +112,8 @@ class Playlist {
             const entry = this.htmlEntries[i];
             this.setEntryPosition(entry, i);
         }
+
+        return entry;
     }
 
     move(sourceIndex, destIndex) {
@@ -208,12 +210,12 @@ class Playlist {
 
     expandEntry(entry) {
         if (this.expandedEntry) {
-            this.expandedEntry.classList.remove("entry_dropdown_expand");
+            this.expandedEntry.classList.remove("expand");
         }
 
         if (entry) {
             this.expandedEntry = entry;
-            this.expandedEntry.classList.add("entry_dropdown_expand");
+            this.expandedEntry.classList.add("expand");
         }
     }
 
@@ -224,7 +226,7 @@ class Playlist {
 
         // NOTE(kihau): To reduce visible DOM size we could apply "display: none" after the transition.
         if (this.expandedEntry) {
-            this.expandedEntry.classList.remove("entry_dropdown_expand");
+            this.expandedEntry.classList.remove("expand");
         }
 
         this.expandedEntry = null;
@@ -236,7 +238,7 @@ class Playlist {
         this.editEntry.title = title;
         this.editEntry.url   = url;
 
-        this.editEntry.root.classList.add("entry_editing");
+        this.editEntry.root.classList.add("editing");
         this.editEntry.title.contentEditable = true;
         this.editEntry.url.contentEditable   = true;
 
@@ -244,7 +246,7 @@ class Playlist {
     }
 
     stopEntryEdit() {
-        this.editEntry.root.classList.remove("entry_editing");
+        this.editEntry.root.classList.remove("editing");
         this.editEntry.title.contentEditable = false;
         this.editEntry.url.contentEditable   = false;
 
@@ -324,6 +326,7 @@ class Playlist {
         //
         entryDragArea.textContent = "☰";
 
+        // TODO(kihau): Fix the z indexes to always be below other entries.
         setTimeout(_ => entryRoot.classList.add('show'), 10);
 
         //
@@ -349,8 +352,8 @@ class Playlist {
             this.collapseEntry(this.expandedEntry);
 
             let draggableEntry = entryRoot.cloneNode(true);
-            draggableEntry.classList.add("draggable_entry");
-            draggableEntry.classList.add("entry_disable_transition");
+            draggableEntry.classList.add("draggable");
+            draggableEntry.classList.add("disable_transition");
             this.draggableEntry = draggableEntry;
 
             this.htmlEntryList.appendChild(draggableEntry);
@@ -362,9 +365,9 @@ class Playlist {
             let top         = (event.clientY - listRect.top + listScroll - mouseOffset) + "px";
             this.draggableEntry.style.top = top;
 
-            entryRoot.classList.add("entry_shadow");
+            entryRoot.classList.add("shadow");
 
-            let onDragTimeout = event => { 
+            let onDragTimeout = _ => { 
                 let listScroll  = this.htmlEntryList.scrollTop;
                 let dragRect = this.draggableEntry.getBoundingClientRect();
                 let dragPos  = dragRect.y + listScroll + ENTRY_HEIGHT / 2.0;
@@ -429,7 +432,7 @@ class Playlist {
                     this.htmlEntryList.scrollTo(0, top);
                 } else if (event.clientY - listRect.top > listRect.height) {
                     let maxPos = this.indexToPosition(this.htmlEntries.length + 1);
-                    let scrollTop = Math.min(this.htmlEntryList.scrollHeight, maxPos);
+                    // let scrollTop = Math.min(this.htmlEntryList.scrollHeight, maxPos);
                     if (top < maxPos) {
                         this.htmlEntryList.scrollTo(0, top);
                     }
@@ -448,13 +451,13 @@ class Playlist {
 
                 if (oldPos === newPos) {
                     this.htmlEntryList.removeChild(this.draggableEntry);
-                    entryRoot.classList.remove("entry_shadow");
+                    entryRoot.classList.remove("shadow");
                 } else {
                     this.setEntryPosition(this.draggableEntry, this.dragCurrentIndex);
-                    this.draggableEntry.classList.remove("entry_disable_transition");
+                    this.draggableEntry.classList.remove("disable_transition");
                     this.draggableEntry.ontransitionend = event => {
                         this.htmlEntryList.removeChild(event.target);
-                        entryRoot.classList.remove("entry_shadow");
+                        entryRoot.classList.remove("shadow");
                     };
                 }
                 this.draggableEntry = null;

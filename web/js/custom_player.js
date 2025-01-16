@@ -1777,7 +1777,7 @@ class Slider {
         return valueString;
     }
 
-    onInput(value) {}
+    onInput(_value) {}
 
     shift(step) {
         let value = Number(this.slider.value) + step;
@@ -1826,7 +1826,7 @@ class Switcher {
         }
     }
 
-    onAction(state) {}
+    onAction(_state) {}
 }
 
 class Cue {
