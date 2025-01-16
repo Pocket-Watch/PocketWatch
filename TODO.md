@@ -1,14 +1,13 @@
 - [x] Remove dead connections
 - [x] Remove startButton stopButton
 - [x] string.Builders instead of 6 calls to fmt.Fprint
-- [ ] Auto detect media file formats received by the server
+- [x] Auto detect media file formats received by the server
     - Video:
         - [x] M3U8 (does not work with cross site requests, but there is nothing we can do about it)
         - [x] MP4
         - [x] MPEG
         - [x] WEBM
         - [x] OGV
-        - [ ] MKV (supported on chromium, does not work on gecko)
     - Audio:
         - [x] WAV
         - [x] FLAC
@@ -37,14 +36,8 @@
     - [ ] Add proxy support
     - [ ] Custom youtube parser and downloader
     - [ ] Add video support (might require custom player implementation)
-- [ ] Audio only option that removes player video (only client side?)
+    - [ ] Distinguish between regular thumbnails and full size ones. Use small thumbnails for playlist and large for player poster.
 - [x] Display errors on the web page when they occur
-- [ ] Add watch history
-    - [x] Implement history add
-    - [x] Implement history clear
-    - [ ] Display more data for individual history entries
-    - [ ] Implement history limit
-    - [ ] Add history persistence (SQL database)
 - [ ] Custom player implementation
     - [x] Play toggle button and custom events
     - [x] Next button and with custom events
@@ -110,6 +103,15 @@
     - [ ] Mouse right click / touch hold down opens context menu with extra options.
     - [ ] Animate entry add and remove
     - [ ] Add support for multiple playlists
+    - [ ] Add different looping modes: none, single, playlist, shuffle...
+- [ ] Chat tab:
+    - [ ] Proper UI for chat messages
+- [ ] History tab:
+    - [x] Implement history add
+    - [x] Implement history clear
+    - [ ] Display more data for individual history entries
+    - [ ] Implement history limit
+    - [ ] Add history persistence (SQL database)
 - [x] Detect mobile client and adjust the page appropriately
     - [x] Do not pause the player on a single screen tap
     - [x] Don't auto-hide player
@@ -117,7 +119,9 @@
 - [ ] Server hardening and rate-limiting
 - [ ] Add server side and client side authentication and store cookies
 - [ ] Add option to upload media file to the server and stream it to all connected clients (streaming proxy)
-- [ ] Add support for live chat
-- [ ] Improve the UI layout and styling
 - [ ] Add rooms with individual player states
-- [ ] Create an extension to easily copy media urls and open them on the website
+- [ ] PocketPicker extension:
+    - [ ] Improve layout
+    - [ ] Add entry filtering by name and/or extenstion
+    - [ ] Add option to show subtitle file formats
+    - [ ] Add per-site url listing

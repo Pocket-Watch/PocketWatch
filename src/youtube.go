@@ -114,7 +114,6 @@ func preloadYoutubeSourceOnNextEntry() {
 	var video YoutubeVideo
 	json.Unmarshal(output, &video)
 
-	// TODO?(kihau): Make this a poster instead to distinguish between tiny and large thumbnails?
 	nextEntry.Thumbnail = video.Thumbnail
 	nextEntry.SourceUrl = video.SourceUrl
 

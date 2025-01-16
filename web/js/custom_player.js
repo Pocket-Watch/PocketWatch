@@ -619,7 +619,6 @@ class Internals {
         this.updateHtmlVolume(volume);
     }
 
-    // TODO(kihau): Non linear scaling?
     setVolumeRelative(volume) {
         this.setVolume(this.htmlVideo.volume + volume);
     }
@@ -1494,17 +1493,16 @@ class Internals {
         let menu           = this.htmlControls.subMenu;
         let menuRoot       = menu.root;
         let menuTabs       = newDiv(null, "player_menu_tabs");
+        let menuSeparator  = newDiv(null, "player_menu_separator");
         let menuViews      = newDiv(null, "player_menu_views");
         let selectTab      = newDiv(null, "player_menu_tab");
         let searchTab      = newDiv(null, "player_menu_tab");
         let optionsTab     = newDiv(null, "player_menu_tab");
         let selectView     = newDiv("player_submenu_select_view");
-        let toggleBox      = newDiv(null, "player_submenu_box");
         let subsSwitch     = menu.subsSwitcher;
         let searchView     = newDiv("player_submenu_search_view");
         let subtitleImport = newElement("input", "player_submenu_import");
         let optionsView    = newDiv("player_submenu_bottom_options");
-        // let subsShift      = new Slider("Subtitle shift", -20, 20, 0.1, 0, "s", true);
         let subsShift      = this.subtitleShift;
         let subsSize       = new Slider("Subtitle size",  10, 100, 1.0, 30, "px");
         let subsVerticalPosition = new Slider("Vertical position",  0, 100, 1, 8, "%");
@@ -1586,11 +1584,10 @@ class Internals {
                 menuTabs.append(searchTab);
                 menuTabs.append(optionsTab);
             }
+            menuRoot.append(menuSeparator);
             menuRoot.append(menuViews); {
                 menuViews.append(selectView); {
-                    selectView.append(toggleBox); {
-                        toggleBox.append(subsSwitch.toggleRoot);
-                    }
+                    selectView.append(subsSwitch.toggleRoot);
                     selectView.append(menu.trackList);
                 }
                 menuViews.append(searchView); {
@@ -1610,10 +1607,11 @@ class Internals {
         let playerRoot     = this.htmlPlayerRoot;
         let menu           = this.htmlControls.settings;
         let menuRoot       = menu.root;
+        let menuSeparator  = newDiv(null, "player_menu_separator");
         let menuTabs       = newDiv(null, "player_menu_tabs");
+        let menuViews      = newDiv(null, "player_menu_views");
         let generalTab     = newDiv(null, "player_menu_tab");
         let appearanceTab  = newDiv(null, "player_menu_tab");
-        let menuViews      = newDiv(null, "player_menu_views");
         let generalView    = newDiv("player_submenu_select_view");
         let appearanceView = newDiv("player_submenu_select_view");
         let autohide       = new Switcher("Auto-hide controls");
@@ -1670,6 +1668,7 @@ class Internals {
                 menuTabs.append(generalTab);
                 menuTabs.append(appearanceTab);
             }
+            menuRoot.append(menuSeparator);
             menuRoot.append(menuViews); {
                 menuViews.append(generalView); {
                     generalView.append(autohide.toggleRoot);

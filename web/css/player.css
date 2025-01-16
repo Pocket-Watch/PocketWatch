@@ -405,6 +405,7 @@
     height: 50%;
     max-height: 400px;
     border-radius: 8px;
+    row-gap: 6px;
     /* backdrop-filter: blur(12px); */
     right: 30px;
     bottom: 75px;
@@ -423,11 +424,6 @@
     display: flex;
     flex-direction: row;
     padding-bottom: 2px;
-}
-
-.text_color {
-    height: 100%;
-    color: rgba(200, 200, 200, 1.0);
 }
 
 .player_menu_tab {
@@ -460,29 +456,32 @@
     color: rgba(220, 220, 220, 1.0);
 }
 
-.player_submenu_box {
-    font-size: 1.2em;
-    color: rgb(200, 195, 188);
-    padding: 6px;
-    background-color: rgb(24, 26, 27);
-    border: 1px solid rgb(62, 68, 70);
-    border-radius: 5px;
+.player_menu_separator {
+    height: 2px;
+    width: 100%;
+    border-radius: 3px;
+    background: #3c3836;
+    opacity: 0.9;
 }
 
 .player_menu_views {
     flex: 1 1 auto;
     overflow-y: scroll;
+    padding: 0 4px 4px 4px;
+    flex-direction: column;
 }
 
 #player_submenu_select_view {
     height: 100%;
+    row-gap: 6px;
     display: flex;
     flex-flow: column;
 }
 
 #subtitle_track_list {
-    /* height: 100%; */
     row-gap: 4px;
+    border: 1px solid #3c3836;
+    border-radius: 6px;
     display: flex;
     flex: 1 1 0;
     flex-direction: column;
@@ -718,12 +717,10 @@
 
 #player_submenu_import {
     width: 100%;
-    /* min-width: 0; */
-    border: 2px solid #554949;
+    border: 1px solid #3c3836;
     border-radius: 5px;
     box-sizing: border-box;
     cursor: pointer;
-    background-color: #171414;
     padding: 10px;
     color: white;
 }
