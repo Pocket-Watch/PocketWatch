@@ -1140,7 +1140,17 @@ class Internals {
             this.bufferingTimeoutId = setTimeout(_ => show(this.bufferingSvg), 200);
         });
 
-        this.htmlVideo.addEventListener("playing", () => {
+        this.htmlVideo.addEventListener("canplay", _ => {
+            clearTimeout(this.bufferingTimeoutId);
+            hide(this.bufferingSvg);
+        });
+
+        this.htmlVideo.addEventListener("canplaythrough", _ => {
+            clearTimeout(this.bufferingTimeoutId);
+            hide(this.bufferingSvg);
+        });
+
+        this.htmlVideo.addEventListener("playing", _ => {
             clearTimeout(this.bufferingTimeoutId);
             hide(this.bufferingSvg);
         });
