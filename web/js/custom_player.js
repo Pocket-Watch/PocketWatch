@@ -877,6 +877,8 @@ class Internals {
         while (list.lastChild) {
             list.removeChild(list.lastChild);
         }
+
+        hide(this.subtitleContainer);
     }
 
     setSubtitleFontSize(fontSize) {

@@ -25,18 +25,6 @@
 - [x] Display current media url on the client side
 - [x] Get rid of "dummy.mp4", replace it with an indicator that nothing is playing
 - [x] Add option to upload media url, download in on the server and stream to all connected clients
-- [x] Add playlist support and auto-playing
-    - [x] Load playlist on welcome
-    - [x] Playlist add
-    - [x] Playlist clear
-    - [x] Playlist auto playing
-    - [x] Playlist skip
-    - [x] Playlist remove
-    - [x] Playlist shuffle
-    - [x] Playlist looping
-    - [x] Playlist entry reordering
-    - [x] Display playlist entries as title href to url
-    - [x] Update playlist entries when a user changes their name
 - [x] Investigate and fix seek issue where sometimes performing seek does nothing
 - [x] Subtitle support
 - [x] Display connected users
@@ -90,13 +78,38 @@
         - [ ] Audio source switch
         - [ ] Video source switch
         - [ ] Audio only mode
-    - [x] Subtitles support
+    - [ ] Subtitles support
         - [x] Subtitle popup menu with selection and options
         - [x] Option to change subtitle size
         - [x] Option to change subtitle color
         - [x] Option to change timestamp offset
+        - [ ] Instead of setting fixed subtitle size, set size based on screen scale
     - [ ] Skip/Remove entries that fail to load on the client side
 - [ ] On first website load, indicate to the user that autoplay policy is disabled and manual action is required in order to play the video.
+- [ ] Room tab:
+    - [ ] Improve layout
+    - [ ] Add option to add subtitle file to currently set entry
+    - [ ] Add copy button that copies currently set entry into the url area
+- [ ] Playlist tab:
+    - [x] Load playlist on welcome
+    - [x] Playlist add
+    - [x] Playlist clear
+    - [x] Playlist auto playing
+    - [x] Playlist skip
+    - [x] Playlist remove
+    - [x] Playlist shuffle
+    - [x] Playlist looping
+    - [x] Playlist entry reordering
+    - [x] Display playlist entries as title href to url
+    - [x] Update playlist entries when a user changes their name
+    - [ ] Top of the list controls
+    - [ ] More items in entry dropdown
+    - [ ] Attach controls to playlist input
+    - [ ] Proper network handling
+    - [ ] Smart scrolling - dynamic remove/add on scrolling when entry count > 300
+    - [ ] Mouse right click / touch hold down opens context menu with extra options.
+    - [ ] Animate entry add and remove
+    - [ ] Add support for multiple playlists
 - [x] Detect mobile client and adjust the page appropriately
     - [x] Do not pause the player on a single screen tap
     - [x] Don't auto-hide player

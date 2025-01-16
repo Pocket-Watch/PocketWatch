@@ -952,8 +952,6 @@ func apiPlayerLooping(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection %s requested playlist looping.", r.RemoteAddr)
 
-	// TODO(kihau): Add other looping modes, just like the discord bot had: none, single, playlist, shuffle
-
 	var looping bool
 	if !readJsonDataFromRequest(w, r, &looping) {
 		return

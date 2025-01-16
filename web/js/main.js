@@ -286,27 +286,32 @@ class Room {
             this.resetUrlAreaElements();
         }
 
-        this.urlArea.setButton.onclick = async () => {
+        this.urlArea.setButton.onclick = async _ => {
             let subtitlePath = "";
             if (this.subtitleFile) {
                 let filename = this.urlArea.subtitleInput.value;
                 subtitlePath = await api.uploadSubs(this.subtitleFile, filename);
             }
 
-            console.log(subtitlePath);
-
             let entry = this.createNewRequestEntry(subtitlePath);
             api.playerSet(entry).then(jsonResponse => {
                 if (jsonResponse.checkAndLogError()) {
                     return;
                 }
+
                 // Only reset if request was successful
                 this.resetUrlAreaElements();
             });
         }
 
-        this.urlArea.addPlaylistButton.onclick = () => {
-            let entry = this.createNewRequestEntry();
+        this.urlArea.addPlaylistButton.onclick = async _ => {
+            let subtitlePath = "";
+            if (this.subtitleFile) {
+                let filename = this.urlArea.subtitleInput.value;
+                subtitlePath = await api.uploadSubs(this.subtitleFile, filename);
+            }
+
+            let entry = this.createNewRequestEntry(subtitlePath);
             if (entry.url) {
                 api.playlistAdd(entry);
                 this.resetUrlAreaElements();
@@ -314,7 +319,7 @@ class Room {
         }
 
 
-        this.urlArea.selectSubtitleButton.onclick = () => {
+        this.urlArea.selectSubtitleButton.onclick = _ => {
             let input = document.createElement('input');
             input.type = "file";
             input.accept = ".srt,.vtt";
@@ -701,7 +706,7 @@ class Room {
             this.setEntryEvent(newEntry);
 
             let prevEntry = response.prev_entry;
-            if (this.player.isLooping()) {
+            if (this.player.isLooping() && prevEntry.url !== "") {
                 this.playlist.addEntry(prevEntry, this.allUsers);
             }
         });

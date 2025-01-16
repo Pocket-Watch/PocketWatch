@@ -7,15 +7,6 @@ const ENTRY_ROW_GAP = 4;
 const ENTRY_BORDER  = 2;
 const ENTRY_HEIGHT  = 64 + ENTRY_BORDER * 2;
 
-// TODO(kihau):
-//     - Top of the list controls
-//     - More items in entry dropdown
-//     - Attach controls to playlist input
-//     - Proper network handling
-//     - Smart scrolling - dynamic remove/add on scrolling when entry count > 300
-//     - Mouse right click / touch hold down opens context menu with extra options.
-//     - Animate entry add and remove
-
 class Playlist {
     constructor() {
         this.htmlEntryListWrap = getById("playlist_entry_list_wrap");
@@ -98,7 +89,6 @@ class Playlist {
         this.htmlEntryList.appendChild(htmlEntry);
     }
 
-    // TODO(kihau): Proper networking handling.
     removeAt(index) {
         if (typeof index !== "number") {
             console.error("ERROR: Playlist::removeAt failed. The input index:", index, "is invalid.");
@@ -123,7 +113,6 @@ class Playlist {
         }
     }
 
-    // TODO(kihau): Proper networking handling.
     move(sourceIndex, destIndex) {
         if (sourceIndex === destIndex) {
             return;
@@ -456,9 +445,7 @@ class Playlist {
                 this.draggableEntry = null;
 
 
-                // TODO(kihau): Proper networking handling.
                 if (this.dragStartIndex !== this.dragCurrentIndex) {
-                    // let entry = this.entries[this.dragStartIndex];
                     let entry = this.entries[this.dragCurrentIndex];
                     api.playlistMove(entry.id, this.dragStartIndex, this.dragCurrentIndex)
                 }
@@ -496,7 +483,6 @@ class Playlist {
                 return null;
             }
 
-            // TODO(kihau): Proper networking handling.
             let entry = this.entries[index];
             api.playlistRemove(entry.id, index);
         };
