@@ -20,9 +20,10 @@
 
 #player_title_container {
     width: auto;
-    height: 36px;
+    max-width: 50%;
+    height: auto;
+    max-height: 70%;
     border-radius: 3px;
-    /* object-fit: cover; */
     top: 0;
     left: 0;
     position: absolute;
@@ -49,9 +50,10 @@
 
 #player_toast_container {
     width: auto;
-    height: 36px;
+    max-width: 50%;
+    height: auto;
+    max-height: 70%;
     border-radius: 3px;
-    /* object-fit: cover; */
     top: 0;
     right: 0;
     position: absolute;
