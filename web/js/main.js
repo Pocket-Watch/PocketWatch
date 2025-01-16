@@ -176,7 +176,6 @@ class Room {
         });
 
         this.player.onPlaybackError((exception, error) => {
-            console.log(exception.name, error)
             if (exception.name === "NotAllowedError") {
                 this.player.setToast("Auto-play is disabled by your browser!\nClick anywhere on the player to start the playback.");
                 return;
