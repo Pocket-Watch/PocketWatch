@@ -175,20 +175,22 @@ class Room {
             }
         });
 
-        this.player.onPlaybackError((event) => {
+        this.player.onPlaybackError(event => {
             if (event.name === "NotAllowedError") {
-                // The majority of Chromium-based browsers allow autoplay anyway
-                this.player.setToast("Playback is not allowed by the browser! " + event.message);
+                this.player.setToast("Auto-play is disabled by your browser!\nClick anywhere on the player to start the playback.");
                 return;
             }
+
             if (event.name === "AbortError") {
                 this.player.setToast("Probably nothing is set! " + event.message);
                 return;
             }
+
             if (event.name === "NotSupportedError") {
                 this.player.setToast("Unsupported src: '" + this.player.getCurrentUrl() + "' " + event.message);
                 return;
             }
+
             this.player.setToast("ERROR: Something went wrong, press F12 to see what happened");
             console.error(event.name + ":", event.message);
             api.playerPause(this.player.getCurrentTime())
@@ -793,7 +795,7 @@ class Room {
             console.info("Connection to events opened!");
         }
 
-        events.onerror = (event) => {
+        events.onerror = event => {
             console.error("EVENTS ERROR: ", event);
             console.info("Closing current EventSource, current readyState =", events.readyState)
             events.close();

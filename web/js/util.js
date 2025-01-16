@@ -2,6 +2,18 @@ export function getById(id) {
     return document.getElementById(id);
 }
 
+export function hide(element) {
+    element.style.display = "none";
+}
+
+export function show(element) {
+    element.style.display = "";
+}
+
+export function isHidden(element) {
+    return element.style.display === "none";
+}
+
 export function div(className) {
     let element = document.createElement("div");
     element.className = className;

@@ -213,10 +213,6 @@ function show(element) {
     element.style.display = "";
 }
 
-function showFlex(element) {
-    element.style.display = "flex";
-}
-
 function isHidden(element) {
     return element.style.display === "none";
 }
@@ -546,7 +542,7 @@ class Internals {
         this.subtitleText.innerHTML = captionText;
 
         if (this.htmlControls.subMenu.subsSwitcher.enabled) {
-            showFlex(this.subtitleContainer);
+            show(this.subtitleContainer);
         }
 
         let timeTaken = performance.now() - perfStart;
@@ -647,7 +643,7 @@ class Internals {
     setToast(toast) {
         this.htmlToast.textContent = toast;
         this.htmlToastContainer.classList.remove("player_ui_hide");
-        showFlex(this.htmlToastContainer);
+        show(this.htmlToastContainer);
 
         clearTimeout(this.playerHideToastTimeoutId);
         this.playerHideToastTimeoutId = setTimeout(() => {
@@ -1151,13 +1147,20 @@ class Internals {
             hide(this.bufferingSvg);
         });
 
+        this.htmlVideo.addEventListener("durationchange", _ => {
+            if (!this.isVideoPlaying()) {
+                let timestamp = this.getCurrentTime();
+                this.updateTimestamps(timestamp);
+            }
+        });
+
         this.htmlVideo.addEventListener("playing", _ => {
             clearTimeout(this.bufferingTimeoutId);
             hide(this.bufferingSvg);
         });
 
         this.htmlVideo.addEventListener("timeupdate", _ => {
-            let timestamp = this.htmlVideo.currentTime;
+            let timestamp = this.getCurrentTime();
             if (this.htmlControls.subMenu.subsSwitcher.enabled && this.selectedSubtitle) {
                 this.updateSubtitles(timestamp);
             }
@@ -1551,7 +1554,7 @@ class Internals {
         subsSwitch.onAction = enabled => {
             this.updateSubtitles(this.getCurrentTime());
             if (enabled && this.activeCues.length > 0) {
-                showFlex(this.subtitleContainer);
+                show(this.subtitleContainer);
             } else {
                 hide(this.subtitleContainer);
             }

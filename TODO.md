@@ -76,9 +76,10 @@
         - [x] Option to change subtitle size
         - [x] Option to change subtitle color
         - [x] Option to change timestamp offset
+        - [ ] Vertical subtitle positioning does not work as intended
         - [ ] Instead of setting fixed subtitle size, set size based on screen scale
     - [ ] Skip/Remove entries that fail to load on the client side
-- [ ] On first website load, indicate to the user that autoplay policy is disabled and manual action is required in order to play the video.
+- [x] On first website load, indicate to the user that autoplay policy is disabled and manual action is required in order to play the video.
 - [ ] Room tab:
     - [ ] Improve layout
     - [ ] Add option to add subtitle file to currently set entry
