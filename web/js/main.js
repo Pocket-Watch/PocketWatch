@@ -712,7 +712,7 @@ class Room {
 
             let newEntry = response.new_entry;
             this.setEntryEvent(newEntry);
-:w
+
             if (this.player.isLooping() && prevEntry.url !== "") {
                 this.playlist.addEntry(prevEntry, this.allUsers);
             }
