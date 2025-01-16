@@ -48,6 +48,10 @@ class Player {
         this.internals.setToast(toast);
     }
 
+    isLive() {
+        return this.internals.isLive;
+    }
+
     isLooping() {
         // return this.internals.htmlVideo.loop;
         return this.internals.loopEnabled;
@@ -729,6 +733,17 @@ class Internals {
                             subtitleTrackController: null,
                             subtitleStreamController: null,
                         });
+                        let self = this;
+                        this.hls.on(module.Hls.Events.MANIFEST_PARSED, function(_, data) {
+                            if (!data.levels || data.levels.length === 0) {
+                                self.isLive = false;
+                                return;
+                            }
+                            let details = data.levels[0].details;
+                            if (details) {
+                                self.isLive = details.live;
+                            }
+                        });
                     }
 
                     this.hls.loadSource(url);
@@ -740,6 +755,7 @@ class Internals {
             if (this.playingHls) {
                 this.hls.detachMedia();
                 this.playingHls = false;
+                this.isLive = false;
             }
             this.htmlVideo.src = url;
             this.htmlVideo.load();
@@ -751,6 +767,7 @@ class Internals {
         if (this.playingHls) {
             this.hls.detachMedia();
             this.playingHls = false;
+            this.isLive = false;
         }
         // There's no reliable way to discard src value once it's set
         this.htmlVideo.src = "";

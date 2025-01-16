@@ -119,6 +119,7 @@ class Room {
     attachPlayerEvents() {
         // We have to know if anything is currently playing or whether something is set
         this.player.onControlsPlay(() => {
+            console.log("IS LIVE", this.player.isLive())
             if (this.ended) {
                 this.ended = false;
                 api.playerPlay(0);

@@ -346,6 +346,7 @@ func (m3u *M3U) copy() M3U {
 			m3uCopy.addTrack(track)
 		}
 	} else {
+		m3uCopy.isLive = m3u.isLive
 		for _, seg := range m3u.segments {
 			m3uCopy.addSegment(seg)
 		}
