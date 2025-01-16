@@ -636,8 +636,11 @@ class Internals {
     }
 
     setPoster(url) {
-        // could check the extension: jpg, png, gif, webp
-        this.htmlVideo.poster = url;
+        if (url) {
+            this.htmlVideo.poster = url;
+        } else {
+            this.htmlVideo.poster = "";
+        }
     }
 
     setToast(toast) {
