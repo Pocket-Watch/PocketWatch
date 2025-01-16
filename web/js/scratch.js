@@ -43,8 +43,13 @@ function main() {
         player.setToast("User seeking to " + timestamp.toFixed(3));
     })
 
-    player.onPlaybackError(function (event) {
-        console.log(event.name, "-", event.message);
+    player.onPlaybackError(function (exception, error) {
+        console.log(exception.name, "-", exception.message);
+        if (!error) {
+            return;
+        }
+        // https://developer.mozilla.org/en-US/docs/Web/API/MediaError
+        console.log(error.code, "-", error.message);
     })
 }
 

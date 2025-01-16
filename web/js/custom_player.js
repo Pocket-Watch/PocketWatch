@@ -408,7 +408,7 @@ class Internals {
     fireControlsSeeking(_timestamp) {}
     fireControlsSeeked(_timestamp) {}
     fireControlsVolumeSet(_volume) {}
-    firePlaybackError(_event) {}
+    firePlaybackError(_exception, _mediaError) {}
     firePlaybackEnd() {}
     fireSubtitleTrackLoad(_subtitle) {}
     fireSubtitleSearch(_search) {}
@@ -425,8 +425,8 @@ class Internals {
         this.svgs.playbackPopup.setHref(this.icons.play_popup);
         this.playbackPopupSvg.classList.add("animate");
         this.svgs.playback.setHref(this.icons.pause);
-        this.htmlVideo.play().catch(e => {
-            this.firePlaybackError(e);
+        this.htmlVideo.play().catch(exception => {
+            this.firePlaybackError(exception, this.htmlVideo.error);
         });
     }
 

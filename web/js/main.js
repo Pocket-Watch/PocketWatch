@@ -175,25 +175,54 @@ class Room {
             }
         });
 
-        this.player.onPlaybackError(event => {
-            if (event.name === "NotAllowedError") {
+        this.player.onPlaybackError((exception, error) => {
+            console.log(exception.name, error)
+            if (exception.name === "NotAllowedError") {
                 this.player.setToast("Auto-play is disabled by your browser!\nClick anywhere on the player to start the playback.");
                 return;
             }
 
-            if (event.name === "AbortError") {
-                this.player.setToast("Probably nothing is set! " + event.message);
+            if (exception.name === "AbortError") {
+                this.player.setToast("Likely an invalid URL is set, pausing playback!");
+                api.playerPause(this.player.getCurrentTime())
                 return;
             }
 
-            if (event.name === "NotSupportedError") {
-                this.player.setToast("Unsupported src: '" + this.player.getCurrentUrl() + "' " + event.message);
+            if (!error) {
+                this.player.setToast("UNKNOWN ERROR, press F12 to see what happened!");
+                console.error(exception.name + ":", exception.message);
+                api.playerPause(this.player.getCurrentTime())
                 return;
             }
 
-            this.player.setToast("ERROR: Something went wrong, press F12 to see what happened");
-            console.error(event.name + ":", event.message);
-            api.playerPause(this.player.getCurrentTime())
+            if (error.code === MediaError.MEDIA_ERR_DECODE) {
+                this.player.setToast("Unable to decode media. " + error.message);
+                return;
+            }
+
+            if (error.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+                // Distinguish between unsupported codec and 404.
+                let errMsg = error.message;
+                if (errMsg.startsWith("Failed to init decoder") || errMsg.startsWith("DEMUXER_ERROR_COULD_NOT_OPEN")) {
+                    this.player.setToast("Unsupported codec or format: '" + this.player.getCurrentUrl() + "' " + error.message);
+                    return;
+                }
+                if (errMsg.startsWith("NS_ERROR_DOM_INVALID") || errMsg.includes("Empty src")) {
+                    this.player.setToast("Nothing is set!");
+                    api.playerPause(this.player.getCurrentTime());
+                    return;
+                }
+
+                if (errMsg.startsWith("404")) {
+                    this.player.setToast("Resource not found [404]!");
+                } else {
+                    this.player.setToast("Unsupported src: '" + this.player.getCurrentUrl() + "' " + error.message);
+                }
+
+                api.playerPause(this.player.getCurrentTime())
+                return;
+            }
+
         })
     }
 
