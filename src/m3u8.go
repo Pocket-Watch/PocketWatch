@@ -42,6 +42,7 @@ func parseM3U(path string) (*M3U, error) {
 	}
 	defer file.Close()
 
+	hasEnd := false
 	scanner := bufio.NewScanner(file)
 	m3u := newM3U(1028)
 	for scanner.Scan() {
@@ -83,6 +84,7 @@ func parseM3U(path string) (*M3U, error) {
 		// Playlist tags (4.3.3)
 		if strings.HasPrefix(line, "#EXT-X") {
 			if strings.HasSuffix(line, "-ENDLIST") {
+				hasEnd = true
 				break
 			}
 			parsePlaylistTag(line, m3u)
@@ -90,6 +92,7 @@ func parseM3U(path string) (*M3U, error) {
 		}
 	}
 
+	m3u.isLive = !hasEnd && !m3u.isMasterPlaylist
 	return m3u, nil
 }
 
@@ -233,6 +236,7 @@ func (track *Track) prefixUrl(prefix string) {
 
 type M3U struct {
 	isMasterPlaylist bool
+	isLive           bool
 	tracks           []Track
 	// ^^^ tracks are exclusive to master playlists
 	segments       []Segment // #EXTINF segments with URLs appearing in an ordered sequence
@@ -367,13 +371,28 @@ func (m3u *M3U) serialize(path string) {
 	}
 	defer file.Close()
 
+	if m3u.isMasterPlaylist {
+		m3u.serializeMasterPlaylist(file)
+	} else {
+		m3u.serializePlaylist(file)
+	}
+}
+
+func (m3u *M3U) serializeMasterPlaylist(file *os.File) {
 	file.WriteString("#EXTM3U\n")
-	file.WriteString(fmt.Sprintf("#EXT-X-VERSION:%v\n", m3u.version))
-	file.WriteString(fmt.Sprintf("#EXT-X-TARGETDURATION:%v\n", m3u.targetDuration))
-	file.WriteString(fmt.Sprintf("#EXT-X-MEDIA-SEQUENCE:%v\n", m3u.mediaSequence))
-	file.WriteString(fmt.Sprintf("#EXT-X-PLAYLIST-TYPE:%v\n", m3u.playlistType))
-	for _, track := range m3u.segments {
-		_, err := file.WriteString(fmt.Sprintf("#EXTINF:%v,\n", track.length))
+
+	for _, track := range m3u.tracks {
+		infoLine := strings.Builder{}
+		infoLine.WriteString("#EXT-X-STREAM-INF:")
+		for i, param := range track.streamInfo {
+			infoLine.WriteString(fmt.Sprintf("%v=%v,", param.key, param.value))
+			if i == len(track.streamInfo)-1 {
+				break
+			}
+			infoLine.WriteString(",")
+		}
+		infoLine.WriteString("\n")
+		_, err := file.WriteString(infoLine.String())
 		if err != nil {
 			fmt.Println(err)
 			continue
@@ -384,7 +403,29 @@ func (m3u *M3U) serialize(path string) {
 			continue
 		}
 	}
-	file.WriteString(fmt.Sprintf("#EXT-X-ENDLIST\n"))
+}
+
+func (m3u *M3U) serializePlaylist(file *os.File) {
+	file.WriteString("#EXTM3U\n")
+	file.WriteString(fmt.Sprintf("#EXT-X-VERSION:%v\n", m3u.version))
+	file.WriteString(fmt.Sprintf("#EXT-X-TARGETDURATION:%v\n", m3u.targetDuration))
+	file.WriteString(fmt.Sprintf("#EXT-X-MEDIA-SEQUENCE:%v\n", m3u.mediaSequence))
+	file.WriteString(fmt.Sprintf("#EXT-X-PLAYLIST-TYPE:%v\n", m3u.playlistType))
+	for _, seg := range m3u.segments {
+		_, err := file.WriteString(fmt.Sprintf("#EXTINF:%v,\n", seg.length))
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		_, err2 := file.WriteString(seg.url + "\n")
+		if err2 != nil {
+			fmt.Println(err2)
+			continue
+		}
+	}
+	if !m3u.isLive {
+		file.WriteString(fmt.Sprintf("#EXT-X-ENDLIST\n"))
+	}
 }
 
 func downloadM3U(url string, filename string, referer string) (*M3U, error) {
