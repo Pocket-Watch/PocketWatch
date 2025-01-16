@@ -61,14 +61,11 @@ html * {
     width: 100%;
     height: 715px;
     min-height: 715px;
+    border-radius: 6px;
     flex: none;
     align-items: center;
     justify-content: center;
-}
-
-#player_container {
-    /* TODO(kihau): Remove border rounding when player enter fullscreen */
-    border-radius: 6px;
+    overflow: hidden;
 }
 
 #url_area {
