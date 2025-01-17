@@ -309,6 +309,8 @@ class Internals {
         hide(this.bufferingSvg);
         this.htmlPlayerRoot.appendChild(this.bufferingSvg);
 
+        this.bufferingTimeoutId = null;
+
         this.playbackPopupSvg = this.svgs.playbackPopup.svg;
         this.playbackPopupSvg.id = "player_playback_popup";
         this.htmlPlayerRoot.appendChild(this.playbackPopupSvg);
@@ -1119,7 +1121,6 @@ class Internals {
             if (event.key === "ArrowRight" || event.keyCode === 39) {
                 this.htmlSeekForward.classList.add("animate");
 
-                // We should use options here
                 let timestamp = this.getNewTime(this.options.seekBy);
                 this.fireControlsSeeked(timestamp);
                 this.seek(timestamp);
@@ -1154,6 +1155,7 @@ class Internals {
         });
 
         this.htmlVideo.addEventListener("waiting", _ => {
+            clearTimeout(this.bufferingTimeoutId);
             this.bufferingTimeoutId = setTimeout(_ => show(this.bufferingSvg), 200);
         });
 
@@ -1301,7 +1303,7 @@ class Internals {
             document.addEventListener('mouseup', onProgressBarMouseUp);
         });
 
-        this.htmlControls.progress.root.addEventListener("mouseenter", _event => {
+        this.htmlControls.progress.root.addEventListener("mouseenter", _ => {
             this.updateTimestamps(this.htmlVideo.currentTime);
         });
 
@@ -1310,24 +1312,24 @@ class Internals {
             this.updateProgressPopup(progress);
         });
 
-        this.htmlSeekBackward.addEventListener("transitionend", () => {
+        this.htmlSeekBackward.addEventListener("transitionend", _ => {
             this.htmlSeekBackward.classList.remove("animate");
         });
 
-        this.htmlSeekForward.addEventListener("transitionend", () => {
+        this.htmlSeekForward.addEventListener("transitionend", _ => {
             this.htmlSeekForward.classList.remove("animate");
         });
 
-        this.playbackPopupSvg.addEventListener("transitionend", () => {
+        this.playbackPopupSvg.addEventListener("transitionend", _ => {
             this.playbackPopupSvg.classList.remove("animate");
         });
 
-        this.htmlControls.root.addEventListener("transitionend", (e) => {
+        this.htmlControls.root.addEventListener("transitionend", event => {
             // NOTE(kihau):
             //     This is a really weird and confusing way of setting the isUIVisible flag.
             //     Probably should be changed and done the proper way at some point.
-            if (e.propertyName === "opacity") {
-                this.isUIVisible = !e.target.classList.contains("player_ui_hide");
+            if (event.propertyName === "opacity") {
+                this.isUIVisible = !event.target.classList.contains("player_ui_hide");
             }
         });
     }

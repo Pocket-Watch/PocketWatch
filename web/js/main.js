@@ -622,7 +622,11 @@ class Room {
 
         this.player.setPoster(null)
         if (entry.thumbnail) {
-            this.player.setPoster(entry.thumbnail)
+            this.player.setPoster(entry.thumbnail);
+        }
+
+        if (this.player.getAutoplay()) {
+            this.player.play();
         }
     }
 
