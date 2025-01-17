@@ -109,6 +109,7 @@
     opacity: 0; 
     align-items: center;
     justify-content: center;
+    transition: opacity 150ms ease-out;
 }
 
 #player_backward_container.animate, #player_forward_container.animate {
@@ -136,7 +137,7 @@
 
 #player_subtitle_container {
     width: 100%;
-    display: none;
+    display: flex;
     bottom: 0;
     position: absolute;
     margin-bottom: 8%;

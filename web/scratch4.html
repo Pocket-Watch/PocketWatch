@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -14,7 +15,6 @@
 
         #root_panel {
             height: 100vh;
-            max-height: 100vh;
             display: flex;
             box-sizing: border-box;
             flex-wrap: wrap;
@@ -30,7 +30,7 @@
             box-sizing: border-box;
             flex: 2.3 1;
             background-color: green;
-            overflow-y: scroll;
+            overflow: auto;
             flex-direction: column;
             padding: 8px;
         }
@@ -62,6 +62,12 @@
             flex: none;
             color: white;
             font-size: 40px;
+        }
+
+        @media (max-width: 1200px) {
+            #left_panel {
+                height: auto;
+            }
         }
     </style>
 </head>

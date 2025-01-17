@@ -426,8 +426,8 @@ class Internals {
             return;
         }
 
-        this.svgs.playbackPopup.setHref(this.icons.play_popup);
-        this.playbackPopupSvg.classList.add("animate");
+        // this.svgs.playbackPopup.setHref(this.icons.play_popup);
+        // this.playbackPopupSvg.classList.add("animate");
         this.svgs.playback.setHref(this.icons.pause);
         this.htmlVideo.play().catch(exception => {
             this.firePlaybackError(exception, this.htmlVideo.error);
@@ -439,8 +439,8 @@ class Internals {
             return;
         }
 
-        this.svgs.playbackPopup.setHref(this.icons.pause_popup);
-        this.playbackPopupSvg.classList.add("animate");
+        // this.svgs.playbackPopup.setHref(this.icons.pause_popup);
+        // this.playbackPopupSvg.classList.add("animate");
         this.svgs.playback.setHref(this.icons.play);
         this.htmlVideo.pause();
     }
@@ -1190,6 +1190,16 @@ class Internals {
         this.htmlVideo.addEventListener("ended", _ => {
             this.svgs.playback.setHref(this.icons.replay)
             this.firePlaybackEnd();
+        });
+
+        this.htmlVideo.addEventListener("play", _ => {
+            this.svgs.playbackPopup.setHref(this.icons.play_popup);
+            this.playbackPopupSvg.classList.add("animate");
+        });
+
+        this.htmlVideo.addEventListener("pause", _ => {
+            this.svgs.playbackPopup.setHref(this.icons.pause_popup);
+            this.playbackPopupSvg.classList.add("animate");
         });
 
         let isSafari = navigator.userAgent.includes("Safari");

@@ -1,8 +1,5 @@
 html, body {
-    /* height: 100vh; */
-    /* max-height: 100vh; */
     background-color: #1d2021;
-    /* padding: 6px; */
     padding: 0;
     margin: 0;
 }
@@ -25,7 +22,6 @@ html * {
 
 #root_panel {
     height: 100vh;
-    max-height: 100vh;
     column-gap: 6px;
     row-gap: 6px;
     display: flex;
@@ -38,12 +34,17 @@ html * {
     height: 100%;
     min-width: 700px;
     border-radius: 12px;
-    min-width: 700px;
     display: flex;
     box-sizing: border-box;
     flex: 2.3 1;
     background-color: #282828;
     padding: 16px;
+}
+
+@media (max-width: 1200px) {
+    #left_panel_wrap {
+        height: auto;
+    }
 }
 
 #left_panel {
