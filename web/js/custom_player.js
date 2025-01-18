@@ -343,6 +343,7 @@ class Internals {
 
                 volumeProgress: newDiv("player_volume_progress"),
                 volumeInput:    newElement("input", "player_volume_input"),
+                liveIndicator:  newDiv("player_live_indicator"),
                 timestamp:      newElement("span",  "player_timestamp"),
             },
 
@@ -724,6 +725,9 @@ class Internals {
 
         this.seek(0);
 
+        hide(this.htmlControls.buttons.liveIndicator);
+        this.isLive = false;
+
         if (pathname.endsWith(".m3u8") || pathname.endsWith(".ts")) {
             import("../external/hls.js").then(module => {
                 if (module.Hls.isSupported()) {
@@ -736,15 +740,19 @@ class Internals {
                             subtitleTrackController: null,
                             subtitleStreamController: null,
                         });
-                        let self = this;
-                        this.hls.on(module.Hls.Events.MANIFEST_PARSED, function(_, data) {
+
+                        this.hls.on(module.Hls.Events.MANIFEST_PARSED, (_, data) => {
                             if (!data.levels || data.levels.length === 0) {
-                                self.isLive = false;
                                 return;
                             }
+
                             let details = data.levels[0].details;
                             if (details) {
-                                self.isLive = details.live;
+                                this.isLive = details.live;
+                            }
+
+                            if (this.isLive) {
+                                show(this.htmlControls.buttons.liveIndicator);
                             }
                         });
                     }
@@ -1384,10 +1392,13 @@ class Internals {
         let volumeSlider     = this.htmlControls.buttons.volumeInput;
         let volumeBar        = newDiv("player_volume_bar");
         let volumeProgress   = this.htmlControls.buttons.volumeProgress;
+        let liveIndicator    = this.htmlControls.buttons.liveIndicator;
+        let liveDot          = newDiv("player_live_dot");
+        let liveText         = newDiv("player_live_text");
         let timestamp        = this.htmlControls.buttons.timestamp;
         let spacer           = newDiv("player_spacer");
         let downloadButton   = this.htmlControls.buttons.downloadButton;
-        let speedButton                     = this.htmlControls.buttons.speedButton;
+        let speedButton      = this.htmlControls.buttons.speedButton;
         let autoplayButton   = this.htmlControls.buttons.autoplayButton;
         let subsButton       = this.htmlControls.buttons.subsButton;
         let settingsButton   = this.htmlControls.buttons.settingsButton;
@@ -1404,6 +1415,7 @@ class Internals {
         volumeSlider.value = "1";
         volumeSlider.step  = "any";
 
+        liveText.textContent = "LIVE";
         timestamp.textContent = "00:00 / 00:00";
 
         downloadButton.title   = "Download";
@@ -1425,6 +1437,8 @@ class Internals {
         if (this.options.hideSubtitlesButton)  hide(subsButton);
         if (this.options.hideSettingsButton)   hide(settingsButton);
         if (this.options.hideFullscreenButton) hide(fullscreenButton);
+
+        hide(liveIndicator);
 
         this.htmlControls.root.append(buttonsRoot); {
             buttonsRoot.append(playbackButton); {
@@ -1449,7 +1463,13 @@ class Internals {
                 volumeRoot.append(volumeSlider);
             }
 
+            buttonsRoot.append(liveIndicator); {
+                liveIndicator.append(liveDot);
+                liveIndicator.append(liveText);
+            }
+
             buttonsRoot.append(timestamp);
+
             buttonsRoot.append(spacer)
 
             buttonsRoot.append(downloadButton); {

@@ -352,6 +352,7 @@
     display: flex;
     position: relative;
     align-items: center;
+    margin-right: 8px;
 }
 
 #player_volume_bar {
@@ -405,6 +406,30 @@
 
 #player_volume_input:active::-moz-range-thumb {
     background-color: rgba(220, 220, 200, 1.0);
+}
+
+#player_live_indicator {
+    height: 16px;
+    width: 42px;
+    border: 2px solid white;
+    border-radius: 5px;
+    column-gap: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+}
+
+#player_live_dot {
+    height: 6px;
+    width: 6px;
+    border-radius: 30px;
+    background-color: red;
+}
+
+#player_live_text {
+    font-size: 11px;
+    font-weight: 700;
 }
 
 #player_timestamp {
