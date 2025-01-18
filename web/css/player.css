@@ -145,7 +145,6 @@
     display: flex;
     bottom: 0;
     position: absolute;
-    margin-bottom: 8%;
     align-items: center;
     justify-content: center;
 }
@@ -155,7 +154,6 @@
     height: auto;
     border-radius: 6px;
     display: block;
-    bottom: 0;
     padding: 8px;
     color: white;
     font-size: 30px;
@@ -377,6 +375,7 @@
     width: 100%;
     border: none;
     -webkit-appearance: none;
+    appearance: none;
     outline: none;
     position: absolute;
     background: transparent;

@@ -912,7 +912,15 @@ class Internals {
     }
 
     setSubtitleVerticalPosition(percentage) {
-        this.subtitleContainer.style.marginBottom = percentage + "%";
+        let playerHeight = this.htmlPlayerRoot.offsetHeight;
+        let subsHeight = this.subtitleContainer.offsetHeight;
+
+        if (subsHeight > playerHeight) {
+            subsHeight = 0;
+        }
+
+        let real_percentage = percentage * (playerHeight - subsHeight) / playerHeight;
+        this.subtitleContainer.style.bottom = real_percentage + "%";
     }
 
     showPlayerUI() {
@@ -1541,13 +1549,15 @@ class Internals {
         let optionsView    = newDiv("player_submenu_bottom_options");
         let subsShift      = this.subtitleShift;
         let subsSize       = new Slider("Subtitle size",  10, 100, 1.0, 30, "px");
-        let subsVerticalPosition = new Slider("Vertical position",  0, 100, 1, 8, "%");
+        let subsVerticalPosition = new Slider("Vertical position",  0, 100, 1, 16, "%");
         let subsForegroundPicker = newElement("input");
 
         hide(menuRoot);
         hide(selectView);
         hide(searchView)
         hide(optionsView)
+
+        this.setSubtitleVerticalPosition(16);
 
         selectTab.textContent  = "Select"
         searchTab.textContent  = "Search"
@@ -1607,12 +1617,13 @@ class Internals {
         };
 
         subsShift.onInput = value => this.setCurrentSubtitleShift(value);
-
-        subsSize.onInput = value => this.setSubtitleFontSize(value);
-        subsVerticalPosition.onInput = value => this.setSubtitleVerticalPosition(value);
-        subsForegroundPicker.onchange = () => {
-            this.setSubtitleForeground(subsForegroundPicker.value)
-        }
+        subsSize.onInput  = size => {
+            this.setSubtitleFontSize(size);
+            let position = subsVerticalPosition.getValue();
+            this.setSubtitleVerticalPosition(position);
+        };
+        subsVerticalPosition.onInput  = position => this.setSubtitleVerticalPosition(position);
+        subsForegroundPicker.onchange = _        => this.setSubtitleForeground(subsForegroundPicker.value);
 
         playerRoot.append(menuRoot); {
             menuRoot.append(menuTabs); {
@@ -1818,6 +1829,10 @@ class Slider {
     setValue(value) {
         this.slider.value = value;
         this.valueText.textContent = this.createValueString(value);
+    }
+
+    getValue() {
+        return Number(this.slider.value);
     }
 }
 

@@ -99,10 +99,10 @@
     - [x] Animate entry add and remove
     - [ ] Top of the list controls
     - [ ] More items in entry dropdown
+    - [ ] Mouse right click / touch hold down opens context menu with extra options.
     - [ ] Attach controls to playlist input
     - [ ] Proper network handling
     - [ ] Smart scrolling - dynamic remove/add on scrolling when entry count > 300
-    - [ ] Mouse right click / touch hold down opens context menu with extra options.
     - [ ] Add support for multiple playlists
     - [ ] Add different looping modes: none, single, playlist, shuffle...
 - [ ] Chat tab:
