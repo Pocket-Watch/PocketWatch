@@ -97,6 +97,7 @@
     - [x] Display playlist entries as title href to url
     - [x] Update playlist entries when a user changes their name
     - [x] Animate entry add and remove
+    - [ ] Temporary playlist refresh button (or refetch) for debugging to fix playlist desync
     - [ ] Top of the list controls
     - [ ] More items in entry dropdown
     - [ ] Mouse right click / touch hold down opens context menu with extra options.

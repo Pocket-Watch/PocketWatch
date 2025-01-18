@@ -30,33 +30,27 @@ html * {
     padding: 6px;
 }
 
-#left_panel_wrap {
+#left_panel {
     height: 100%;
     min-width: 700px;
     border-radius: 12px;
+    row-gap: 12px;
     display: flex;
     box-sizing: border-box;
+    scrollbar-width: none;
     flex: 2.3 1;
+    overflow-y: auto;
+    flex-direction: column;
     background-color: #282828;
     padding: 16px;
 }
 
 @media (max-width: 1200px) {
-    #left_panel_wrap {
+    #left_panel {
         height: auto;
     }
 }
 
-#left_panel {
-    height: 100%;
-    border-radius: 6px;
-    row-gap: 12px;
-    display: flex;
-    scrollbar-width: none;
-    flex: 2.3 1;
-    overflow-y: auto;
-    flex-direction: column;
-}
 
 #player_area {
     width: 100%;
