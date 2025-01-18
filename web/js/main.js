@@ -9,11 +9,13 @@ const SERVER_ID = 0;
 class Room {
     constructor() {
         let video0 = getById("video0");
+
         let options = new Options();
         options.hideSpeedButton = true;
-        this.player = new Player(video0, options);
+
+        this.player   = new Player(video0, options);
         this.playlist = new Playlist();
-        this.chat = new Chat();
+        this.chat     = new Chat();
 
         this.urlArea = {
             root:          getById("url_area"),
@@ -29,9 +31,10 @@ class Room {
             addPlaylistButton:    getById("url_add_playlist_button"),
             selectSubtitleButton: getById("url_select_subtitle_button"),
 
-            proxyToggle:           getById("proxy_toggle"),
-            youtubeSearchToggle:   getById("youtube_search_toggle"),
-            youtubePlaylistToggle: getById("youtube_playlist_toggle"),
+            youtubeSearchToggle: getById("youtube_search_toggle"),
+            asPlaylistToggle:    getById("as_playlist_toggle"),
+            addToTopToggle:      getById("add_to_top_toggle"),
+            proxyToggle:         getById("proxy_toggle"),
 
             dropdownContainer: getById("url_dropdown_container"),
         };
@@ -78,9 +81,10 @@ class Room {
             content: content,
         }
 
-        this.proxyEnabled           = false;
-        this.youtubeSearchEnabled   = false;
-        this.youtubePlaylistEnabled = false;
+        this.youtubeSearchEnabled = false;
+        this.asPlaylistEnabled    = false;
+        this.addToTopEnabled      = false;
+        this.proxyEnabled         = false;
 
         /// Current connection id.
         this.connectionId = 0;
@@ -235,14 +239,18 @@ class Room {
 
         this.subtitleFile = null;
 
-        this.proxyEnabled = false;
-        this.urlArea.proxyToggle.classList.remove("toggle_active");
-
         this.youtubeSearchEnabled = false;
         this.urlArea.youtubeSearchToggle.classList.remove("toggle_active");
 
-        this.youtubePlaylistEnabled = false;
-        this.urlArea.youtubePlaylistToggle.classList.remove("toggle_active");
+        this.asPlaylistEnabled = false;
+        this.urlArea.asPlaylistToggle.classList.remove("toggle_active");
+
+        this.addToTopEnabled = false;
+        this.urlArea.addToTopToggle.classList.remove("toggle_active");
+
+        this.proxyEnabled = false;
+        this.urlArea.proxyToggle.classList.remove("toggle_active");
+
     }
 
     createNewRequestEntry(subtitle) {
@@ -263,7 +271,8 @@ class Room {
             referer_url:  this.urlArea.refererInput.value.trim(),
             subtitle_url: subtitle,
             search_video: this.youtubeSearchEnabled,
-            is_playlist:  this.youtubePlaylistEnabled,
+            is_playlist:  this.asPlaylistEnabled,
+            add_to_top:   this.addToTopEnabled,
             playlist_skip_count: 0,
             playlist_max_size:   count,
         };
@@ -368,19 +377,24 @@ class Room {
             input.click();
         }
 
-        this.urlArea.proxyToggle.onclick = () => {
-            this.urlArea.proxyToggle.classList.toggle("toggle_active");
-            this.proxyEnabled = !this.proxyEnabled;
-        }
-
-        this.urlArea.youtubeSearchToggle.onclick = () => {
+        this.urlArea.youtubeSearchToggle.onclick = _ => {
             this.urlArea.youtubeSearchToggle.classList.toggle("toggle_active");
             this.youtubeSearchEnabled = !this.youtubeSearchEnabled;
         }
 
-        this.urlArea.youtubePlaylistToggle.onclick = () => {
-            this.urlArea.youtubePlaylistToggle.classList.toggle("toggle_active");
-            this.youtubePlaylistEnabled = !this.youtubePlaylistEnabled;
+        this.urlArea.asPlaylistToggle.onclick = _ => {
+            this.urlArea.asPlaylistToggle.classList.toggle("toggle_active");
+            this.asPlaylistEnabled = !this.asPlaylistEnabled;
+        }
+
+        this.urlArea.addToTopToggle.onclick = _ => {
+            this.urlArea.addToTopToggle.classList.toggle("toggle_active");
+            this.addToTopEnabled = !this.addToTopEnabled;
+        }
+
+        this.urlArea.proxyToggle.onclick = _ => {
+            this.urlArea.proxyToggle.classList.toggle("toggle_active");
+            this.proxyEnabled = !this.proxyEnabled;
         }
     }
 

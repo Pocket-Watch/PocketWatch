@@ -302,7 +302,7 @@ html * {
     padding-top: 6px;
 }
 
-#url_dropdown_title_and_subs {
+#url_dropdown_top {
     height: 33.333%;
     width: 100%;
     column-gap: 6px;
@@ -344,7 +344,7 @@ html * {
     fill: #1d2021;
 }
 
-#url_dropdown_proxy {
+#url_dropdown_bottom {
     height: 33.333%;
     width: 100%;
     display: flex;
@@ -353,14 +353,15 @@ html * {
 
 #proxy_container {
     height: 100%;
+    margin-left: 24px;
 }
 
-#url_dropdown_youtube {
+#url_dropdown_middle {
     height: 33.333%;
     display: flex;
 }
 
-#youtube_playlist_toggle_container {
+#as_playlist_container {
     margin-left: 24px;
 }
 

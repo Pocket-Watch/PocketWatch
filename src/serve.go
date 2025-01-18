@@ -271,6 +271,7 @@ type RequestEntry struct {
 	SubtitleUrl       string `json:"subtitle_url"`
 	SearchVideo       bool   `json:"search_video"`
 	IsPlaylist        bool   `json:"is_playlist"`
+	AddToTop          bool   `json:"add_to_top"`
 	PlaylistSkipCount uint   `json:"playlist_skip_count"`
 	PlaylistMaxSize   uint   `json:"playlist_max_size"`
 }
