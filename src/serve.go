@@ -30,7 +30,7 @@ const BROADCAST_INTERVAL = 2 * time.Second
 
 const SUBTITLE_SIZE_LIMIT = 512 * KB
 const PROXY_FILE_SIZE_LIMIT = 4 * GB
-const BODY_LIMIT = 4 * KB
+const BODY_LIMIT = 8 * KB
 
 var SUBTITLE_EXTENSIONS = [...]string{".vtt", ".srt"}
 

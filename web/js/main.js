@@ -5,6 +5,7 @@ import * as api from "./api.js";
 import { getById, div, img, svg, button } from "./util.js";
 
 const SERVER_ID = 0;
+const MAX_TITLE_LENGTH = 200;
 
 class Room {
     constructor() {
@@ -626,6 +627,9 @@ class Room {
         this.player.setVideoTrack(url);
 
         if (entry.title) {
+            if (entry.title.length > MAX_TITLE_LENGTH) {
+                entry.title = entry.title.substring(0, MAX_TITLE_LENGTH);
+            }
             this.player.setTitle(entry.title);
         }
 
