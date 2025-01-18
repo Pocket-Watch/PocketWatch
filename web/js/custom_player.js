@@ -228,6 +228,7 @@ class Internals {
 
         this.hls = null;
         this.playingHls = false;
+        this.isLive = false;
 
         this.loopEnabled = false;
         this.autoplayEnabled = false;
@@ -242,7 +243,7 @@ class Internals {
         // We actually need to append the <div> to document.body (or <video>'s parent)
         // otherwise the <video> tag will disappear entirely!
         let videoParent = this.htmlVideo.parentNode;
-        videoParent.appendChild(this.htmlPlayerRoot);
+        videoParent.insertBefore(this.htmlPlayerRoot, this.htmlVideo);
         this.htmlPlayerRoot.appendChild(this.htmlVideo);
 
         this.htmlTitleContainer = newDiv("player_title_container");
