@@ -429,10 +429,12 @@ class Internals {
             return;
         }
 
-        // this.svgs.playbackPopup.setHref(this.icons.play_popup);
-        // this.playbackPopupSvg.classList.add("animate");
         this.svgs.playback.setHref(this.icons.pause);
+
         this.htmlVideo.play().catch(exception => {
+            clearTimeout(this.bufferingTimeoutId);
+            hide(this.bufferingSvg);
+
             this.firePlaybackError(exception, this.htmlVideo.error);
         });
     }
@@ -442,8 +444,6 @@ class Internals {
             return;
         }
 
-        // this.svgs.playbackPopup.setHref(this.icons.pause_popup);
-        // this.playbackPopupSvg.classList.add("animate");
         this.svgs.playback.setHref(this.icons.play);
         this.htmlVideo.pause();
     }
