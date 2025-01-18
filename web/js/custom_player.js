@@ -916,11 +916,11 @@ class Internals {
         let subsHeight = this.subtitleContainer.offsetHeight;
 
         if (subsHeight > playerHeight) {
-            subsHeight = 0;
+            this.subtitleContainer.style.bottom = 0;
+        } else {
+            let real_percentage = percentage * (playerHeight - subsHeight) / playerHeight;
+            this.subtitleContainer.style.bottom = real_percentage + "%";
         }
-
-        let real_percentage = percentage * (playerHeight - subsHeight) / playerHeight;
-        this.subtitleContainer.style.bottom = real_percentage + "%";
     }
 
     showPlayerUI() {
