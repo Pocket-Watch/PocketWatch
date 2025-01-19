@@ -10,14 +10,48 @@ import (
 
 // https://datatracker.ietf.org/doc/html/rfc8216
 
-const EXTM3U = "#EXTM3U"
-const EXTINF = "#EXTINF"
-const EXT_X_VERSION = "#EXT-X-VERSION"
-const EXT_X_TARGETDURATION = "#EXT-X-TARGETDURATION"
-const EXT_X_MEDIA_SEQUENCE = "#EXT-X-MEDIA-SEQUENCE"
-const EXT_X_PLAYLIST_TYPE = "#EXT-X-PLAYLIST-TYPE"
+const (
+	EXTM3U               = "EXTM3U"
+	EXT_X_VERSION        = "EXT-X-VERSION"
+	EXT_X_TARGETDURATION = "EXT-X-TARGETDURATION"
+	EXT_X_PLAYLIST_TYPE  = "EXT-X-PLAYLIST-TYPE"
+	EXT_X_MEDIA_SEQUENCE = "EXT-X-MEDIA-SEQUENCE"
+	EXT_X_MEDIA          = "EXT-X-MEDIA"
+	EXT_X_DISCONTINUITY  = "EXT-X-DISCONTINUITY"
+	EXT_X_BYTERANGE      = "EXT-X-BYTERANGE"
+	EXT_X_ALLOW_CACHE    = "EXT-X-ALLOW-CACHE"
+	EXT_X_START          = "EXT-X-START"
+	EXT_X_SESSION_DATA   = "EXT-X-SESSION-DATA"
+	EXT_X_SESSION_KEY    = "EXT-X-SESSION-KEY"
+	EXT_X_KEY            = "EXT-X-KEY"
+	EXT_X_PREFETCH       = "EXT-X-PREFETCH"
+)
 
-const EXT_X_STREAM_INF = "#EXT-X-STREAM-INF"
+var generalAttributes = [...]string{
+	EXTM3U,
+	EXT_X_VERSION,
+	EXT_X_PLAYLIST_TYPE,
+	EXT_X_TARGETDURATION,
+	EXT_X_MEDIA,
+	EXT_X_DISCONTINUITY,
+	EXT_X_BYTERANGE,
+	EXT_X_MEDIA_SEQUENCE,
+	EXT_X_ALLOW_CACHE,
+	EXT_X_START,
+	EXT_X_SESSION_DATA,
+	EXT_X_SESSION_KEY,
+	EXT_X_KEY,
+	EXT_X_PREFETCH,
+}
+
+// EXT_X_ENDLIST This tag helps determine whether the list is a live playlist
+const EXT_X_ENDLIST = "EXT-X-ENDLIST"
+
+// EXT_X_STREAM_INF Master playlist tag (4.3.4) - track only
+const EXT_X_STREAM_INF = "EXT-X-STREAM-INF"
+
+// EXTINF Media segment tag (4.3.2)
+const EXTINF = "EXTINF"
 
 func detectM3U(path string) (bool, error) {
 	file, err := os.Open(path)
@@ -33,6 +67,27 @@ func detectM3U(path string) (bool, error) {
 	return false, nil
 }
 
+type KeyValuePair struct {
+	key   string
+	value string
+}
+
+// This function assumes the pair starts with #
+func getKeyValue(line string) *KeyValuePair {
+	line = line[1:]
+	// Given it's a pair, its minimal length must be at least 8
+	if len(line) < 8 {
+		return nil
+	}
+	colon := strings.Index(line, ":")
+	if colon < 6 || colon == len(line)-1 {
+		return nil
+	}
+	key := line[:colon]
+	value := line[colon+1:]
+	return &KeyValuePair{key, value}
+}
+
 const DEBUG = true
 
 func parseM3U(path string) (*M3U, error) {
@@ -44,125 +99,73 @@ func parseM3U(path string) (*M3U, error) {
 
 	hasEnd := false
 	scanner := bufio.NewScanner(file)
-	m3u := newM3U(1028)
+	m3u := newM3U(1000)
+
 	for scanner.Scan() {
 		line := scanner.Text()
-
-		// Media segment tag (4.3.2)
-		if strings.HasPrefix(line, EXTINF) {
-			duration, err := getExtInfDuration(line)
-			if err != nil {
+		if len(line) > 0 && line[0] == '#' {
+			pair := getKeyValue(line)
+			if pair == nil {
+				// Skip the tag, invalid pair
 				continue
 			}
-			if !scanner.Scan() {
-				return m3u, fmt.Errorf("unexpected EOF, expected URL after %v", EXTINF)
-			}
-			url := scanner.Text()
-			segment := Segment{duration, url}
-			m3u.addSegment(segment)
-			continue
-		}
-
-		// Master playlist tag (4.3.4)
-		if strings.HasPrefix(line, EXT_X_STREAM_INF) {
-			m3u.isMasterPlaylist = true
-			colon, err := valueAfterColon(line)
-			if err != nil {
+			if pair.key == EXTINF {
+				duration, err := parseFirstFloat(pair.value)
+				if err != nil {
+					continue
+				}
+				if !scanner.Scan() {
+					return m3u, fmt.Errorf("unexpected EOF, expected URL after %v", EXTINF)
+				}
+				url := scanner.Text()
+				segment := Segment{nil, duration, url}
+				m3u.addSegment(segment)
 				continue
 			}
-			paramsLine := line[colon+1:]
-			params := parseParams(paramsLine)
-			if !scanner.Scan() {
-				return m3u, fmt.Errorf("unexpected EOF, expected URL after %v", EXT_X_STREAM_INF)
-			}
-			url := scanner.Text()
-			track := Track{params, url}
-			m3u.addTrack(track)
-			continue
-		}
 
-		// Playlist tags (4.3.3)
-		if strings.HasPrefix(line, "#EXT-X") {
-			if strings.HasSuffix(line, "-ENDLIST") {
+			if !strings.HasPrefix(pair.key, "EXT-X") {
+				continue
+			}
+
+			if pair.key == EXT_X_STREAM_INF {
+				m3u.isMasterPlaylist = true
+				params := parseParams(pair.value)
+				if !scanner.Scan() {
+					return m3u, fmt.Errorf("unexpected EOF, expected URL after %v", EXT_X_STREAM_INF)
+				}
+				url := scanner.Text()
+				track := Track{params, url}
+				m3u.addTrack(track)
+				continue
+			}
+			if pair.key == EXT_X_ENDLIST {
 				hasEnd = true
+				// Maybe it's wrong to assume the playlist is complete
 				break
 			}
-			parsePlaylistTag(line, m3u)
+
+			// If this is a segment attribute
+			m3u.addGeneralAttribute(*pair)
 			continue
 		}
+		// TODO: Adjust flow to parse EXT-X-PROGRAM-DATE-TIME along with segment
 	}
 
 	m3u.isLive = !hasEnd && !m3u.isMasterPlaylist
+	listType := m3u.getAttribute(EXT_X_PLAYLIST_TYPE)
+	if m3u.isLive && listType != nil && *listType == "VOD" {
+		m3u.isLive = false
+	}
 	return m3u, nil
 }
 
-func getExtInfDuration(ext_inf string) (float64, error) {
-	end := len(ext_inf)
-	if end <= 8 {
-		return 0, fmt.Errorf("invalid %v", EXTINF)
-	}
-	comma := strings.Index(ext_inf, ",")
+func parseFirstFloat(values string) (float64, error) {
+	end := len(values)
+	comma := strings.Index(values, ",")
 	if comma != -1 {
 		end = comma
 	}
-	return strconv.ParseFloat(ext_inf[8:end], 64)
-}
-
-func valueAfterColon(line string) (int, error) {
-	colon := strings.Index(line, ":")
-	if colon == -1 {
-		return -1, fmt.Errorf("error no colon in line: %v", line)
-	}
-	if colon == len(line)-1 {
-		return -1, fmt.Errorf("error no value after colon in line: %v", line)
-	}
-	return colon, nil
-}
-
-func parsePlaylistTag(line string, m3u *M3U) {
-	colon, err := valueAfterColon(line)
-	if err != nil {
-		return
-	}
-	if strings.HasPrefix(line, EXT_X_VERSION) {
-		version, err := strconv.ParseFloat(line[colon+1:], 64)
-		if err != nil {
-			if DEBUG {
-				fmt.Println("Error parsing version", line, err)
-			}
-			return
-		}
-		m3u.version = version
-		return
-	}
-	if strings.HasPrefix(line, EXT_X_TARGETDURATION) {
-		target_duration, err := strconv.ParseFloat(line[colon+1:], 64)
-		if err != nil {
-			if DEBUG {
-				fmt.Println("Error parsing target duration", line, err)
-			}
-			return
-		}
-		m3u.targetDuration = target_duration
-		return
-	}
-
-	if strings.HasPrefix(line, EXT_X_MEDIA_SEQUENCE) {
-		media_sequence, err := strconv.ParseUint(line[colon+1:], 10, 32)
-		if err != nil {
-			if DEBUG {
-				fmt.Println("Error parsing media sequence", line, err)
-			}
-			return
-		}
-		m3u.mediaSequence = uint32(media_sequence)
-		return
-	}
-	if strings.HasPrefix(line, EXT_X_PLAYLIST_TYPE) {
-		m3u.playlistType = line[colon+1:]
-		return
-	}
-
+	return strconv.ParseFloat(values[:end], 64)
 }
 
 func parseParams(line string) []Param {
@@ -239,16 +242,14 @@ type M3U struct {
 	isLive           bool
 	tracks           []Track
 	// ^^^ tracks are exclusive to master playlists
-	segments       []Segment // #EXTINF segments with URLs appearing in an ordered sequence
-	version        float64
-	targetDuration float64 // The maximum Media Segment duration in seconds
-	mediaSequence  uint32  // The Media Sequence Number of the first Media Segment appearing in the playlist file
-	playlistType   string
+	attributePairs []KeyValuePair // key:value properties which describe the playlist
+	segments       []Segment      // #EXTINF segments with URLs appearing in an ordered sequence
 }
 
 type Segment struct {
-	length float64
-	url    string
+	dateTime *string
+	length   float64
+	url      string
 }
 
 // internally modify segment
@@ -268,6 +269,21 @@ func newM3U(segmentCapacity uint32) *M3U {
 	m3u.segments = make([]Segment, 0, segmentCapacity)
 	m3u.tracks = make([]Track, 0)
 	return m3u
+}
+
+func (m3u *M3U) getAttribute(key string) *string {
+	length := len(m3u.attributePairs)
+	for i := 0; i < length; i++ {
+		pair := &m3u.attributePairs[i]
+		if pair.key == key {
+			return &pair.value
+		}
+	}
+	return nil
+}
+
+func (m3u *M3U) addGeneralAttribute(pair KeyValuePair) {
+	m3u.attributePairs = append(m3u.attributePairs, pair)
 }
 
 func (m3u *M3U) addSegment(seg Segment) {
@@ -336,10 +352,6 @@ func (m3u *M3U) copy() M3U {
 	m3uCopy := newM3U(uint32(len(m3u.segments)))
 
 	m3uCopy.isMasterPlaylist = m3u.isMasterPlaylist
-	m3uCopy.version = m3u.version
-	m3uCopy.targetDuration = m3u.targetDuration
-	m3uCopy.playlistType = m3u.playlistType
-	m3uCopy.mediaSequence = m3u.mediaSequence
 
 	if m3u.isMasterPlaylist {
 		for _, track := range m3u.tracks {
@@ -347,6 +359,9 @@ func (m3u *M3U) copy() M3U {
 		}
 	} else {
 		m3uCopy.isLive = m3u.isLive
+		for _, pair := range m3u.attributePairs {
+			m3uCopy.addGeneralAttribute(pair)
+		}
 		for _, seg := range m3u.segments {
 			m3uCopy.addSegment(seg)
 		}
@@ -408,19 +423,24 @@ func (m3u *M3U) serializeMasterPlaylist(file *os.File) {
 
 func (m3u *M3U) serializePlaylist(file *os.File) {
 	file.WriteString("#EXTM3U\n")
-	file.WriteString(fmt.Sprintf("#EXT-X-VERSION:%v\n", m3u.version))
-	file.WriteString(fmt.Sprintf("#EXT-X-TARGETDURATION:%v\n", m3u.targetDuration))
-	file.WriteString(fmt.Sprintf("#EXT-X-MEDIA-SEQUENCE:%v\n", m3u.mediaSequence))
-	file.WriteString(fmt.Sprintf("#EXT-X-PLAYLIST-TYPE:%v\n", m3u.playlistType))
+	pairBuffer := strings.Builder{}
+	for _, pair := range m3u.attributePairs {
+		pairBuffer.WriteString("#")
+		pairBuffer.WriteString(pair.key)
+		pairBuffer.WriteString(":")
+		pairBuffer.WriteString(pair.value)
+		pairBuffer.WriteString("\n")
+	}
+	_, err := file.WriteString(pairBuffer.String())
 	for _, seg := range m3u.segments {
-		_, err := file.WriteString(fmt.Sprintf("#EXTINF:%v,\n", seg.length))
+		_, err = file.WriteString(fmt.Sprintf("#EXTINF:%v,\n", seg.length))
 		if err != nil {
 			fmt.Println(err)
 			continue
 		}
-		_, err2 := file.WriteString(seg.url + "\n")
-		if err2 != nil {
-			fmt.Println(err2)
+		_, err = file.WriteString(seg.url + "\n")
+		if err != nil {
+			fmt.Println(err)
 			continue
 		}
 	}

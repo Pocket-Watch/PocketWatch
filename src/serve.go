@@ -84,6 +84,10 @@ type Proxy struct {
 	chunkLocks     []sync.Mutex
 	fetchedChunks  []bool
 	originalChunks []string
+	isLive         bool
+	// Live resources
+	liveUrl string
+	liveMap sync.Map
 
 	isHls atomic.Bool
 
@@ -1530,7 +1534,8 @@ func setupHlsProxy(url string, referer string) bool {
 	}
 	// At this point it either succeeded or it already returned
 
-	if len(m3u.segments) == 0 {
+	segmentCount := len(m3u.segments)
+	if segmentCount == 0 {
 		LogWarn("No segments found")
 		return false
 	}
@@ -1538,34 +1543,55 @@ func setupHlsProxy(url string, referer string) bool {
 	// state.entry.Url = url
 	// state.entry.RefererUrl = referer
 
-	LogDebug("%v %v", EXT_X_PLAYLIST_TYPE, m3u.playlistType)
-	LogDebug("%v %v", EXT_X_VERSION, m3u.version)
-	LogDebug("%v %v", EXT_X_TARGETDURATION, m3u.targetDuration)
-	LogDebug("segments: %v", len(m3u.segments))
+	LogDebug("Playlist type: %v", m3u.getAttribute(EXT_X_PLAYLIST_TYPE))
+	LogDebug("Max segment length: %vs", m3u.getAttribute(EXT_X_TARGETDURATION))
+	LogDebug("isLive: %v", m3u.isLive)
+	LogDebug("segments: %v", segmentCount)
 	LogDebug("total duration: %v", m3u.totalDuration())
 
 	// Sometimes m3u8 chunks are not fully qualified
 	m3u.prefixRelativeSegments(prefix)
 
-	routedM3U := m3u.copy()
-	proxy := &state.proxy
+	state.proxy.isHls.Store(true)
 	// lock on proxy setup here! also discard the previous proxy state somehow?
-	proxy.isHls.Store(true)
-	proxy.chunkLocks = make([]sync.Mutex, 0, len(m3u.segments))
-	proxy.originalChunks = make([]string, 0, len(m3u.segments))
-	proxy.fetchedChunks = make([]bool, 0, len(m3u.segments))
-	for i := 0; i < len(routedM3U.segments); i++ {
+	if m3u.isLive {
+		return setupLiveProxy(m3u)
+	} else {
+		return setupVodProxy(m3u)
+	}
+}
+
+func setupLiveProxy(m3u *M3U) bool {
+	_ = len(m3u.segments)
+	proxy := &state.proxy
+	proxy.isLive = true
+
+	return true
+}
+
+func setupVodProxy(m3u *M3U) bool {
+	segmentCount := len(m3u.segments)
+	proxy := &state.proxy
+	proxy.isLive = false
+
+	proxy.chunkLocks = make([]sync.Mutex, 0, segmentCount)
+	proxy.originalChunks = make([]string, 0, segmentCount)
+	proxy.fetchedChunks = make([]bool, 0, segmentCount)
+	for i := 0; i < segmentCount; i++ {
 		proxy.chunkLocks = append(proxy.chunkLocks, sync.Mutex{})
 		proxy.originalChunks = append(proxy.originalChunks, m3u.segments[i].url)
 		proxy.fetchedChunks = append(proxy.fetchedChunks, false)
-		routedM3U.segments[i].url = "ch-" + toString(i)
+		m3u.segments[i].url = "ch-" + toString(i)
 	}
 
-	routedM3U.serialize(WEB_PROXY + PROXY_M3U8)
+	m3u.serialize(WEB_PROXY + PROXY_M3U8)
 	LogDebug("Prepared proxy file %v", PROXY_M3U8)
-
-	// state.entry.Url = PROXY_ROUTE + "proxy.m3u8"
 	return true
+}
+
+type FetchedSegment struct {
+	realUrl string
+	mutex   sync.Mutex
 }
 
 func apiEvents(w http.ResponseWriter, r *http.Request) {
