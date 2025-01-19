@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -27,7 +28,7 @@ const (
 	EXT_X_PREFETCH       = "EXT-X-PREFETCH"
 )
 
-var generalAttributes = [...]string{
+var GENERAL_ATTRIBUTES = []string{
 	EXTM3U,
 	EXT_X_VERSION,
 	EXT_X_PLAYLIST_TYPE,
@@ -88,8 +89,6 @@ func getKeyValue(line string) *KeyValuePair {
 	return &KeyValuePair{key, value}
 }
 
-const DEBUG = true
-
 func parseM3U(path string) (*M3U, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -144,8 +143,11 @@ func parseM3U(path string) (*M3U, error) {
 				break
 			}
 
-			// If this is a segment attribute
-			m3u.addGeneralAttribute(*pair)
+			if slices.Contains(GENERAL_ATTRIBUTES, pair.key) {
+				m3u.addGeneralAttribute(*pair)
+				continue
+			}
+			LogWarn("Unrecognized pair %v:%v", pair.key, pair.value)
 			continue
 		}
 		// TODO: Adjust flow to parse EXT-X-PROGRAM-DATE-TIME along with segment
@@ -153,7 +155,7 @@ func parseM3U(path string) (*M3U, error) {
 
 	m3u.isLive = !hasEnd && !m3u.isMasterPlaylist
 	listType := m3u.getAttribute(EXT_X_PLAYLIST_TYPE)
-	if m3u.isLive && listType != nil && *listType == "VOD" {
+	if m3u.isLive && listType == "VOD" {
 		m3u.isLive = false
 	}
 	return m3u, nil
@@ -271,15 +273,16 @@ func newM3U(segmentCapacity uint32) *M3U {
 	return m3u
 }
 
-func (m3u *M3U) getAttribute(key string) *string {
+// Returns the value associated with the given key or "" if key is missing
+func (m3u *M3U) getAttribute(key string) string {
 	length := len(m3u.attributePairs)
 	for i := 0; i < length; i++ {
 		pair := &m3u.attributePairs[i]
 		if pair.key == key {
-			return &pair.value
+			return pair.value
 		}
 	}
-	return nil
+	return ""
 }
 
 func (m3u *M3U) addGeneralAttribute(pair KeyValuePair) {
