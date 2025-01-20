@@ -1573,6 +1573,8 @@ func setupLiveProxy(m3u *M3U, liveUrl string) bool {
 	proxy := &state.proxy
 	proxy.isLive = true
 	proxy.liveUrl = liveUrl
+	proxy.liveSegments.Clear()
+	proxy.randomizer.Store(0)
 	return true
 }
 
