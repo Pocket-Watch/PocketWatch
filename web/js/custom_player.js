@@ -147,6 +147,13 @@ class Player {
         this.internals.fireControlsAutoplay = func;
     }
 
+    onFullscreenChange(func) {
+        if (!isFunction(func)) {
+            return;
+        }
+        this.internals.fireFullscreenChange = func;
+    }
+
     onControlsSeeking(func) {
         if (!isFunction(func)) {
             return;
@@ -426,6 +433,7 @@ class Internals {
     fireControlsNext() {}
     fireControlsLooping(_enabled) {}
     fireControlsAutoplay(_enabled) {}
+    fireFullscreenChange(_enabled) {}
     fireControlsSeeking(_timestamp) {}
     fireControlsSeeked(_timestamp) {}
     fireControlsVolumeSet(_volume) {}
@@ -717,9 +725,11 @@ class Internals {
         if (document.fullscreenElement) {
             document.exitFullscreen();
             this.svgs.fullscreen.setHref(this.icons.fullscreen_enter);
+            this.fireFullscreenChange(false)
         } else {
             this.htmlPlayerRoot.requestFullscreen();
             this.svgs.fullscreen.setHref(this.icons.fullscreen_exit);
+            this.fireFullscreenChange(true)
         }
     }
 
@@ -1320,6 +1330,7 @@ class Internals {
             // This is after the fact when a user exited without using the icon
             let href = document.fullscreenElement ? this.icons.fullscreen_exit : this.icons.fullscreen_enter;
             this.svgs.fullscreen.setHref(href);
+            this.fireFullscreenChange(document.fullscreenElement != null)
         });
 
         this.htmlSeekBackward.addEventListener("dblclick", event => {
