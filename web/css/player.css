@@ -40,7 +40,7 @@
     padding: 16px;
 }
 
-#player_title_container.player_ui_hide {
+#player_title_container.hide {
     visibility: hidden;
     opacity: 0;
     transition: visibility 0.6s, opacity 0.6s;
@@ -74,7 +74,7 @@
     padding: 16px;
 }
 
-#player_toast_container.player_ui_hide {
+#player_toast_container.hide {
     visibility: hidden;
     opacity: 0;
     transition: visibility 0.6s, opacity 0.6s;
@@ -130,14 +130,15 @@
     right: 0;
     bottom: 0;
     position: absolute;
-    opacity: 0; 
+    visibility: visible;
+    opacity: 1; 
     margin: auto;
-    transition: opacity 400ms ease-out;
 }
 
-#player_playback_popup.animate {
-    opacity: 1;
-    transition: opacity 32ms;
+#player_playback_popup.hide {
+    visibility: hidden;
+    opacity: 0;
+    transition: visibility 500ms, opacity 500ms;
 }
 
 #player_subtitle_container {
@@ -180,7 +181,7 @@
     transition: visibility 0.3s, opacity 0.3s;
 }
 
-#player_controls.player_ui_hide {
+#player_controls.hide {
     visibility: hidden;
     opacity: 0;
     transition: visibility 0.6s, opacity 0.6s;

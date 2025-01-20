@@ -262,6 +262,8 @@ class Internals {
         this.htmlToast = newElement("span", "player_toast_text");
         this.htmlToastContainer.appendChild(this.htmlToast);
 
+        this.playerHideToastTimeoutId = null;
+
         this.icons = {
             play:             "svg/player_icons.svg#play",
             play_popup:       "svg/player_icons.svg#play_popup",
@@ -317,7 +319,10 @@ class Internals {
 
         this.playbackPopupSvg = this.svgs.playbackPopup.svg;
         this.playbackPopupSvg.id = "player_playback_popup";
+        hide(this.playbackPopupSvg);
         this.htmlPlayerRoot.appendChild(this.playbackPopupSvg);
+
+        this.playbackPopupTimeoutId = null;
 
         this.htmlControls = {
             root: newDiv("player_controls"),
@@ -402,7 +407,7 @@ class Internals {
         this.subtitleContainer.appendChild(this.subtitleText);
 
         this.createHtmlControls();
-        this.attachHtmlEvents();
+        this.attachPlayerEvents();
 
         setInterval(() => this.redrawBufferedBars(), this.options.bufferingRedrawInterval);
         let end = performance.now();
@@ -656,14 +661,24 @@ class Internals {
         }
     }
 
+    showPlaybackPopup() {
+        show(this.playbackPopupSvg);
+        this.playbackPopupSvg.classList.remove("hide");
+
+        clearTimeout(this.playbackPopupTimeoutId);
+        this.playbackPopupTimeoutId = setTimeout(_ => {
+            this.playbackPopupSvg.classList.add("hide");
+        }, 200);
+    }
+
     setToast(toast) {
         this.htmlToast.textContent = toast;
-        this.htmlToastContainer.classList.remove("player_ui_hide");
+        this.htmlToastContainer.classList.remove("hide");
         show(this.htmlToastContainer);
 
         clearTimeout(this.playerHideToastTimeoutId);
-        this.playerHideToastTimeoutId = setTimeout(() => {
-            this.htmlToastContainer.classList.add("player_ui_hide");
+        this.playerHideToastTimeoutId = setTimeout(_ => {
+            this.htmlToastContainer.classList.add("hide");
         }, 3000);
     }
 
@@ -938,8 +953,8 @@ class Internals {
 
     showPlayerUI() {
         this.htmlPlayerRoot.style.cursor = "auto";
-        this.htmlControls.root.classList.remove("player_ui_hide");
-        this.htmlTitleContainer.classList.remove("player_ui_hide");
+        this.htmlControls.root.classList.remove("hide");
+        this.htmlTitleContainer.classList.remove("hide");
     }
 
     hidePlayerUI() {
@@ -956,8 +971,8 @@ class Internals {
         }
 
         this.htmlPlayerRoot.style.cursor = "none";
-        this.htmlControls.root.classList.add("player_ui_hide");
-        this.htmlTitleContainer.classList.add("player_ui_hide");
+        this.htmlControls.root.classList.add("hide");
+        this.htmlTitleContainer.classList.add("hide");
     }
 
     resetPlayerUIHideTimeout() {
@@ -1019,30 +1034,34 @@ class Internals {
         this.htmlPlayerRoot.addEventListener("keydown", event => {
             if (event.key === " " || event.code === "Space") {
                 this.togglePlayback();
+                consumeEvent(event);
 
             } else if (event.key === "ArrowLeft") {
                 this.htmlSeekBackward.classList.add("animate");
                 let timestamp = this.getNewTime(-this.options.seekBy);
                 this.fireControlsSeeked(timestamp);
                 this.seek(timestamp);
+                consumeEvent(event);
 
             } else if (event.key === "ArrowRight") {
                 this.htmlSeekForward.classList.add("animate");
                 let timestamp = this.getNewTime(this.options.seekBy);
                 this.fireControlsSeeked(timestamp);
                 this.seek(timestamp);
+                consumeEvent(event);
 
             } else if (event.key === "ArrowUp") {
                 this.setVolumeRelative(0.1);
+                consumeEvent(event);
 
             } else if (event.key === "ArrowDown") {
                 this.setVolumeRelative(-0.1);
+                consumeEvent(event);
 
             } else if (event.key === this.options.fullscreenKeyLetter) {
                 this.toggleFullscreen();
+                consumeEvent(event);
             }
-
-            consumeEvent(event);
         });
 
         this.htmlPlayerRoot.addEventListener("click", event => {
@@ -1100,12 +1119,12 @@ class Internals {
 
         this.htmlVideo.addEventListener("play", _ => {
             this.svgs.playbackPopup.setHref(this.icons.play_popup);
-            this.playbackPopupSvg.classList.add("animate");
+            this.showPlaybackPopup();
         });
 
         this.htmlVideo.addEventListener("pause", _ => {
             this.svgs.playbackPopup.setHref(this.icons.pause_popup);
-            this.playbackPopupSvg.classList.add("animate");
+            this.showPlaybackPopup();
         });
     }
 
@@ -1291,7 +1310,7 @@ class Internals {
             //     This is a really weird and confusing way of setting the isUIVisible flag.
             //     Probably should be changed and done the proper way at some point.
             if (event.propertyName === "opacity") {
-                this.isUIVisible = !event.target.classList.contains("player_ui_hide");
+                this.isUIVisible = !event.target.classList.contains("hide");
             }
         });
     }
@@ -1334,13 +1353,9 @@ class Internals {
         this.htmlSeekForward.addEventListener("transitionend", _ => {
             this.htmlSeekForward.classList.remove("animate");
         });
-
-        this.playbackPopupSvg.addEventListener("transitionend", _ => {
-            this.playbackPopupSvg.classList.remove("animate");
-        });
     }
 
-    attachHtmlEvents() {
+    attachPlayerEvents() {
         this.attachPlayerRootEvents();
         this.attachHtmlVideoEvents();
         this.attachPlayerControlsEvents();
