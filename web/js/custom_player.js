@@ -237,6 +237,9 @@ class Internals {
         this.htmlVideo.disablePictureInPicture = true;
         this.htmlVideo.controls = false;
 
+        // Prevents selecting the video element along with the rest of the page
+        this.htmlVideo.classList.add("unselectable");
+
         // Div container where either the player or the placeholder resides.
         this.htmlPlayerRoot = newDiv("player_container");
 
@@ -406,6 +409,11 @@ class Internals {
         console.debug("Internals constructor finished in", end-initStart, "ms")
 
         this.setVolume(1.0);
+
+        let isSafari = navigator.userAgent.includes("Safari");
+        if (isSafari) {
+            this.rebindFullscreenAPIFromWebkit();
+        }
     }
 
     fireControlsPlay() {}
@@ -451,13 +459,15 @@ class Internals {
 
     seek(timestamp) {
         if (isNaN(timestamp)) {
-            return
+            return;
         }
+
         if (this.isVideoPlaying()) {
             this.svgs.playback.setHref(this.icons.pause);
         } else {
             this.svgs.playback.setHref(this.icons.play);
         }
+
         this.htmlVideo.currentTime = timestamp;
     }
 
@@ -494,8 +504,6 @@ class Internals {
     // - how to handle unsorted subtitles
     // - heuristic performance offset?
     updateSubtitles(time) {
-        let perfStart = performance.now();
-
         if (!this.selectedSubtitle) {
             return;
         }
@@ -522,7 +530,7 @@ class Internals {
                 break;
             }
 
-            freshCues.push(cue)
+            freshCues.push(cue);
         }
 
         if (freshCues.length === 0) {
@@ -552,9 +560,6 @@ class Internals {
         if (this.htmlControls.subMenu.subsSwitcher.enabled) {
             show(this.subtitleContainer);
         }
-
-        let timeTaken = performance.now() - perfStart;
-        console.log("Shown after", timeTaken, "ms")
     }
 
     updateProgressPopup(progress) {
@@ -715,9 +720,9 @@ class Internals {
 
     setVideoTrack(url) {
         if(URL.canParse && !URL.canParse(url, document.baseURI)){
-            console.debug("Failed to set a new URL. It's not parsable.")
+            console.debug("Failed to set a new URL. It's not parsable.");
             // We should probably inform the user about the error either via debug log or return false
-            return
+            return;
         }
         // This covers both relative and fully qualified URLs because we always specify the base
         // and when the base is not provided, the second argument is used to construct a valid URL
@@ -981,79 +986,146 @@ class Internals {
         }
     };
 
-    attachHtmlEvents() {
-        this.htmlSeekBackward.addEventListener("dblclick", (e) => {
-            if (!this.options.enableDoubleTapSeek) {
-                return;
-            }
-
-            this.htmlSeekBackward.classList.add("animate");
-            let timestamp = this.getNewTime(-this.options.seekBy);
-            this.fireControlsSeeked(timestamp);
-            this.seek(timestamp);
-            consumeClick(e);
-        });
-
-        this.htmlSeekForward.addEventListener("dblclick", (e) => {
-            if (!this.options.enableDoubleTapSeek) {
-                return;
-            }
-
-            this.htmlSeekForward.classList.add("animate");
-            let timestamp = this.getNewTime(this.options.seekBy);
-            this.fireControlsSeeked(timestamp);
-            this.seek(timestamp);
-            consumeClick(e);
-        });
-
-        // Prevents selecting the video element along with the rest of the page
-        this.htmlVideo.classList.add("unselectable");
-
-        this.htmlPlayerRoot.addEventListener("touchmove", () => {
+    attachPlayerRootEvents() {
+        this.htmlPlayerRoot.addEventListener("touchmove", _ => {
             this.showPlayerUI();
             this.resetPlayerUIHideTimeout();
         });
 
-        this.htmlPlayerRoot.addEventListener("mousemove", () => {
+        this.htmlPlayerRoot.addEventListener("mousemove", _ => {
             this.showPlayerUI();
             this.resetPlayerUIHideTimeout();
         });
 
-        this.htmlPlayerRoot.addEventListener("mousedown", () => {
+        this.htmlPlayerRoot.addEventListener("mousedown", _ => {
             this.showPlayerUI();
             this.resetPlayerUIHideTimeout();
         });
 
-        this.htmlPlayerRoot.addEventListener("mouseup", () => {
+        this.htmlPlayerRoot.addEventListener("mouseup", _ => {
             this.showPlayerUI();
             this.resetPlayerUIHideTimeout();
         });
 
-        this.htmlPlayerRoot.addEventListener("mouseenter", () => {
+        this.htmlPlayerRoot.addEventListener("mouseenter", _ => {
             this.showPlayerUI();
             this.resetPlayerUIHideTimeout();
         });
 
-        this.htmlPlayerRoot.addEventListener("mouseleave", () => {
+        this.htmlPlayerRoot.addEventListener("mouseleave", _ => {
             this.hidePlayerUI();
         });
 
-        this.htmlControls.buttons.playbackButton.addEventListener("click", () => {
+        this.htmlPlayerRoot.addEventListener("keydown", event => {
+            if (event.key === " " || event.code === "Space") {
+                this.togglePlayback();
+
+            } else if (event.key === "ArrowLeft") {
+                this.htmlSeekBackward.classList.add("animate");
+                let timestamp = this.getNewTime(-this.options.seekBy);
+                this.fireControlsSeeked(timestamp);
+                this.seek(timestamp);
+
+            } else if (event.key === "ArrowRight") {
+                this.htmlSeekForward.classList.add("animate");
+                let timestamp = this.getNewTime(this.options.seekBy);
+                this.fireControlsSeeked(timestamp);
+                this.seek(timestamp);
+
+            } else if (event.key === "ArrowUp") {
+                this.setVolumeRelative(0.1);
+
+            } else if (event.key === "ArrowDown") {
+                this.setVolumeRelative(-0.1);
+
+            } else if (event.key === this.options.fullscreenKeyLetter) {
+                this.toggleFullscreen();
+            }
+
+            consumeEvent(event);
+        });
+
+        this.htmlPlayerRoot.addEventListener("click", event => {
+            if (event.pointerType === "touch" || event.pointerType === "pen") {
+                if (!this.isUIVisible) {
+                    return;
+                }
+            }
+
+            this.togglePlayback();
+        });
+    }
+
+    attachHtmlVideoEvents() {
+        this.htmlVideo.addEventListener("waiting", _ => {
+            clearTimeout(this.bufferingTimeoutId);
+            this.bufferingTimeoutId = setTimeout(_ => show(this.bufferingSvg), 200);
+        });
+
+        this.htmlVideo.addEventListener("canplay", _ => {
+            clearTimeout(this.bufferingTimeoutId);
+            hide(this.bufferingSvg);
+        });
+
+        this.htmlVideo.addEventListener("canplaythrough", _ => {
+            clearTimeout(this.bufferingTimeoutId);
+            hide(this.bufferingSvg);
+        });
+
+        this.htmlVideo.addEventListener("durationchange", _ => {
+            if (!this.isVideoPlaying()) {
+                let timestamp = this.getCurrentTime();
+                this.updateTimestamps(timestamp);
+            }
+        });
+
+        this.htmlVideo.addEventListener("playing", _ => {
+            clearTimeout(this.bufferingTimeoutId);
+            hide(this.bufferingSvg);
+        });
+
+        this.htmlVideo.addEventListener("timeupdate", _ => {
+            let timestamp = this.getCurrentTime();
+            if (this.htmlControls.subMenu.subsSwitcher.enabled && this.selectedSubtitle) {
+                this.updateSubtitles(timestamp);
+            }
+
+            this.updateTimestamps(timestamp);
+        });
+
+        this.htmlVideo.addEventListener("ended", _ => {
+            this.svgs.playback.setHref(this.icons.replay)
+            this.firePlaybackEnd();
+        });
+
+        this.htmlVideo.addEventListener("play", _ => {
+            this.svgs.playbackPopup.setHref(this.icons.play_popup);
+            this.playbackPopupSvg.classList.add("animate");
+        });
+
+        this.htmlVideo.addEventListener("pause", _ => {
+            this.svgs.playbackPopup.setHref(this.icons.pause_popup);
+            this.playbackPopupSvg.classList.add("animate");
+        });
+    }
+
+    attachPlayerControlsEvents() {
+        this.htmlControls.buttons.playbackButton.addEventListener("click", _ => {
             this.togglePlayback();
         });
 
-        this.htmlControls.buttons.nextButton.addEventListener("click", () => {
+        this.htmlControls.buttons.nextButton.addEventListener("click", _ => {
             this.fireControlsNext();
         });
 
         // This should rely on the 'loop' property of <video> element in the future
-        this.htmlControls.buttons.loopButton.addEventListener("click", () => {
+        this.htmlControls.buttons.loopButton.addEventListener("click", _ => {
             this.loopEnabled = !this.loopEnabled;
             this.fireControlsLooping(this.loopEnabled);
             this.htmlControls.buttons.loopButton.classList.toggle("player_controls_button_selected");
         });
 
-        this.htmlControls.buttons.autoplayButton.addEventListener("click", () => {
+        this.htmlControls.buttons.autoplayButton.addEventListener("click", _ => {
             this.autoplayEnabled = !this.autoplayEnabled;
             this.fireControlsAutoplay(this.autoplayEnabled);
             this.htmlControls.buttons.autoplayButton.classList.toggle("player_controls_button_selected");
@@ -1077,8 +1149,6 @@ class Internals {
             anchor.href = this.getCurrentUrl();
             let fileInfo = FileInfo.fromUrl(anchor.href);
             anchor.download = fileInfo.filename;
-            console.debug("href", anchor.href)
-            console.debug("download", anchor.download)
 
             document.body.appendChild(anchor);
             anchor.click();
@@ -1118,121 +1188,8 @@ class Internals {
             }
         });
 
-        this.htmlPlayerRoot.addEventListener("keydown", event => {
-            if (event.key === " " || event.code === "Space" || event.keyCode === 32) {
-                this.togglePlayback();
-                consumeEvent(event);
-                return;
-            }
-
-            if (event.key === "ArrowLeft" || event.keyCode === 37) {
-                this.htmlSeekBackward.classList.add("animate");
-
-                let timestamp = this.getNewTime(-this.options.seekBy);
-                this.fireControlsSeeked(timestamp);
-                this.seek(timestamp);
-                consumeEvent(event);
-                return;
-            }
-
-            if (event.key === "ArrowRight" || event.keyCode === 39) {
-                this.htmlSeekForward.classList.add("animate");
-
-                let timestamp = this.getNewTime(this.options.seekBy);
-                this.fireControlsSeeked(timestamp);
-                this.seek(timestamp);
-                consumeEvent(event);
-                return;
-            }
-
-            if (event.key === "ArrowUp" || event.keyCode === 38) {
-                this.setVolumeRelative(0.1);
-                consumeEvent(event);
-                return;
-            }
-
-            if (event.key === "ArrowDown" || event.keyCode === 40) {
-                this.setVolumeRelative(-0.1);
-                consumeEvent(event);
-                return;
-            }
-
-            if (event.key === this.options.fullscreenKeyLetter) {
-                this.toggleFullscreen();
-            }
-        });
-
-        this.htmlPlayerRoot.addEventListener("click", event => {
-            if (event.pointerType === "touch" || event.pointerType === "pen") {
-                if (!this.isUIVisible) {
-                    return;
-                }
-            }
-            this.togglePlayback();
-        });
-
-        this.htmlVideo.addEventListener("waiting", _ => {
-            clearTimeout(this.bufferingTimeoutId);
-            this.bufferingTimeoutId = setTimeout(_ => show(this.bufferingSvg), 200);
-        });
-
-        this.htmlVideo.addEventListener("canplay", _ => {
-            clearTimeout(this.bufferingTimeoutId);
-            hide(this.bufferingSvg);
-        });
-
-        this.htmlVideo.addEventListener("canplaythrough", _ => {
-            clearTimeout(this.bufferingTimeoutId);
-            hide(this.bufferingSvg);
-        });
-
-        this.htmlVideo.addEventListener("durationchange", _ => {
-            if (!this.isVideoPlaying()) {
-                let timestamp = this.getCurrentTime();
-                this.updateTimestamps(timestamp);
-            }
-        });
-
-        this.htmlVideo.addEventListener("playing", _ => {
-            clearTimeout(this.bufferingTimeoutId);
-            hide(this.bufferingSvg);
-        });
-
-        this.htmlVideo.addEventListener("timeupdate", _ => {
-            let timestamp = this.getCurrentTime();
-            if (this.htmlControls.subMenu.subsSwitcher.enabled && this.selectedSubtitle) {
-                this.updateSubtitles(timestamp);
-            }
-            this.updateTimestamps(timestamp);
-        });
-
-        this.htmlVideo.addEventListener("ended", _ => {
-            this.svgs.playback.setHref(this.icons.replay)
-            this.firePlaybackEnd();
-        });
-
-        this.htmlVideo.addEventListener("play", _ => {
-            this.svgs.playbackPopup.setHref(this.icons.play_popup);
-            this.playbackPopupSvg.classList.add("animate");
-        });
-
-        this.htmlVideo.addEventListener("pause", _ => {
-            this.svgs.playbackPopup.setHref(this.icons.pause_popup);
-            this.playbackPopupSvg.classList.add("animate");
-        });
-
-        let isSafari = navigator.userAgent.includes("Safari");
-        if (isSafari) {
-            this.rebindFullscreenAPIFromWebkit();
-        }
         this.htmlControls.buttons.fullscreenButton.addEventListener("click", () => {
             this.toggleFullscreen();
-        });
-
-        document.addEventListener("fullscreenchange", () => {
-            // This is after the fact when a user exited without using the icon
-            let href = document.fullscreenElement ? this.icons.fullscreen_exit : this.icons.fullscreen_enter;
-            this.svgs.fullscreen.setHref(href);
         });
 
         this.htmlControls.buttons.volumeInput.addEventListener("input", _event => {
@@ -1264,7 +1221,7 @@ class Internals {
             return progress;
         }
 
-        this.htmlControls.progress.root.addEventListener("touchstart", _event => {
+        this.htmlControls.progress.root.addEventListener("touchstart", _ => {
             const onProgressBarTouchMove = event => {
                 const progressRoot = this.htmlControls.progress.root;
                 const progress = calculateProgress(event, progressRoot);
@@ -1329,6 +1286,47 @@ class Internals {
             this.updateProgressPopup(progress);
         });
 
+        this.htmlControls.root.addEventListener("transitionend", event => {
+            // NOTE(kihau):
+            //     This is a really weird and confusing way of setting the isUIVisible flag.
+            //     Probably should be changed and done the proper way at some point.
+            if (event.propertyName === "opacity") {
+                this.isUIVisible = !event.target.classList.contains("player_ui_hide");
+            }
+        });
+    }
+
+    attachOtherEvents() {
+        document.addEventListener("fullscreenchange", _ => {
+            // This is after the fact when a user exited without using the icon
+            let href = document.fullscreenElement ? this.icons.fullscreen_exit : this.icons.fullscreen_enter;
+            this.svgs.fullscreen.setHref(href);
+        });
+
+        this.htmlSeekBackward.addEventListener("dblclick", event => {
+            if (!this.options.enableDoubleTapSeek) {
+                return;
+            }
+
+            this.htmlSeekBackward.classList.add("animate");
+            let timestamp = this.getNewTime(-this.options.seekBy);
+            this.fireControlsSeeked(timestamp);
+            this.seek(timestamp);
+            consumeClick(event);
+        });
+
+        this.htmlSeekForward.addEventListener("dblclick", event => {
+            if (!this.options.enableDoubleTapSeek) {
+                return;
+            }
+
+            this.htmlSeekForward.classList.add("animate");
+            let timestamp = this.getNewTime(this.options.seekBy);
+            this.fireControlsSeeked(timestamp);
+            this.seek(timestamp);
+            consumeClick(event);
+        });
+
         this.htmlSeekBackward.addEventListener("transitionend", _ => {
             this.htmlSeekBackward.classList.remove("animate");
         });
@@ -1340,15 +1338,13 @@ class Internals {
         this.playbackPopupSvg.addEventListener("transitionend", _ => {
             this.playbackPopupSvg.classList.remove("animate");
         });
+    }
 
-        this.htmlControls.root.addEventListener("transitionend", event => {
-            // NOTE(kihau):
-            //     This is a really weird and confusing way of setting the isUIVisible flag.
-            //     Probably should be changed and done the proper way at some point.
-            if (event.propertyName === "opacity") {
-                this.isUIVisible = !event.target.classList.contains("player_ui_hide");
-            }
-        });
+    attachHtmlEvents() {
+        this.attachPlayerRootEvents();
+        this.attachHtmlVideoEvents();
+        this.attachPlayerControlsEvents();
+        this.attachOtherEvents();
     }
 
     rebindFullscreenAPIFromWebkit() {
@@ -1501,7 +1497,7 @@ class Internals {
     createHtmlControls() {
         let playerControls = this.htmlControls.root;
         playerControls.addEventListener("click", consumeClick);
-        playerControls.addEventListener("focusout", () => {
+        playerControls.addEventListener("focusout", _ => {
             // )therwise document.body will receive focus
             this.htmlPlayerRoot.focus();
         });
@@ -1526,32 +1522,6 @@ class Internals {
         menu.selected.track = track;
     }
 
-    // createSubtitleTrackElement(title, subtitle) {
-    //     let menu         = this.htmlControls.subMenu;
-    //     let track        = newDiv(null, "subtitle_track");
-    //     let trackTitle   = newElement("input", null, "subtitle_track_text");
-    //     let trackButtons = newDiv(null, "subtitle_track_buttons");
-    //     let trackEdit    = newElement("button", null, "subtitle_track_edit_button")
-    //     let trackRemove  = newElement("button", null, "subtitle_track_remove_button")
-    //
-    //     trackTitle.type = "text";
-    //     trackTitle.value = title;
-    //     trackTitle.readOnly = true;
-    //
-    //     trackEdit.textContent = "⚙️";
-    //     trackRemove.textContent = "🗑";
-    //
-    //     track.onclick = _ => this.switchSubtitleTrack(subtitle);
-    //
-    //     track.appendChild(trackTitle);
-    //     track.appendChild(trackButtons); {
-    //         trackButtons.appendChild(trackEdit);
-    //         trackButtons.appendChild(trackRemove);
-    //     }
-    //
-    //     return track;
-    // }
-
     createSubtitleMenu() {
         let playerRoot     = this.htmlPlayerRoot;
         let menu           = this.htmlControls.subMenu;
@@ -1574,14 +1544,14 @@ class Internals {
 
         hide(menuRoot);
         hide(selectView);
-        hide(searchView)
-        hide(optionsView)
+        hide(searchView);
+        hide(optionsView);
 
         this.setSubtitleVerticalPosition(16);
 
-        selectTab.textContent  = "Select"
-        searchTab.textContent  = "Search"
-        optionsTab.textContent = "Options"
+        selectTab.textContent  = "Select";
+        searchTab.textContent  = "Search";
+        optionsTab.textContent = "Options";
 
         subtitleImport.textContent = "Import subtitle";
         subtitleImport.type = "file";
@@ -1601,9 +1571,9 @@ class Internals {
         let select = (tab, view) => {
             let selected = menu.selected;
             selected.tab.classList.remove("player_menu_tab_selected");
-            hide(selected.view)
+            hide(selected.view);
 
-            selected.tab = tab
+            selected.tab = tab;
             selected.view = view;
 
             selected.tab.classList.add("player_menu_tab_selected");
@@ -1633,7 +1603,7 @@ class Internals {
             const objectUrl = URL.createObjectURL(file);
             let trackInfo = FileInfo.fromUrl(file.name);
             console.debug("Adding", trackInfo.extension, "subtitle from disk");
-            this.addSubtitle(objectUrl, true, trackInfo)
+            this.addSubtitle(objectUrl, true, trackInfo);
         };
 
         subsShift.onInput = value => this.setCurrentSubtitleShift(value);
@@ -1682,7 +1652,7 @@ class Internals {
         let generalView    = newDiv("player_submenu_select_view");
         let appearanceView = newDiv("player_submenu_select_view");
         let autohide       = new Switcher("Auto-hide controls");
-        let showOnPause    = new Switcher("Show controls on pause", );
+        let showOnPause    = new Switcher("Show controls on pause");
         let playbackSpeed  = new Slider("Playback speed", 0.25, 5.0, 0.25, 1.0, "x");
         let brightness  = new Slider("Brightness", 0.2, 1.5, 0.05, 1.0);
 
@@ -1704,9 +1674,9 @@ class Internals {
         let select = (tab, view) => {
             let selected = menu.selected;
             selected.tab.classList.remove("player_menu_tab_selected");
-            hide(selected.view)
+            hide(selected.view);
 
-            selected.tab = tab
+            selected.tab = tab;
             selected.view = view;
 
             selected.tab.classList.add("player_menu_tab_selected");
@@ -1778,8 +1748,8 @@ class Slider {
 
         slider.type = "range";
         slider.min = min;
-        slider.max = max
-        slider.step = step
+        slider.max = max;
+        slider.step = step;
 
         rightButton.onclick = () => this.shift(step);
         slider.oninput      = () => this.shift(0.0);
@@ -1842,7 +1812,7 @@ class Slider {
 
     shift(step) {
         let value = Number(this.slider.value) + step;
-        this.setValue(value)
+        this.setValue(value);
         this.onInput(value);
     }
 
@@ -1917,22 +1887,22 @@ class Subtitle {
     createSubtitleTrackElement(title) {
         let track        = newDiv(null, "subtitle_track");
         let trackTitle   = newElement("input", null, "subtitle_track_text");
-        let trackButtons = newDiv(null, "subtitle_track_buttons");
-        let trackEdit    = newElement("button", null, "subtitle_track_edit_button")
-        let trackRemove  = newElement("button", null, "subtitle_track_remove_button")
+        // let trackButtons = newDiv(null, "subtitle_track_buttons");
+        // let trackEdit    = newElement("button", null, "subtitle_track_edit_button")
+        // let trackRemove  = newElement("button", null, "subtitle_track_remove_button")
 
         trackTitle.type = "text";
         trackTitle.value = title;
         trackTitle.readOnly = true;
 
-        trackEdit.textContent = "⚙️";
-        trackRemove.textContent = "🗑";
+        // trackEdit.textContent = "⚙️";
+        // trackRemove.textContent = "🗑";
 
         track.appendChild(trackTitle);
-        track.appendChild(trackButtons); {
-            trackButtons.appendChild(trackEdit);
-            trackButtons.appendChild(trackRemove);
-        }
+        // track.appendChild(trackButtons); {
+        //     trackButtons.appendChild(trackEdit);
+        //     trackButtons.appendChild(trackRemove);
+        // }
 
         return track;
     }
@@ -2137,7 +2107,7 @@ function newDiv(id, className) {
     // tabIndex makes divs focusable so that they can receive and bubble key events
     div.tabIndex = -1
     if (id) {
-        div.id = id
+        div.id = id;
     }
 
     if (className) {
@@ -2170,7 +2140,7 @@ class SeekIcon {
     }
     static newBackward(textContent = "", width, height) {
         let seekBackward = new SeekIcon(textContent, width, height);
-        seekBackward.path.setAttribute("transform", "scale(-1, 1) translate(-48, 0)")
+        seekBackward.path.setAttribute("transform", "scale(-1, 1) translate(-48, 0)");
         return seekBackward;
     }
     setText(text) {
@@ -2236,10 +2206,12 @@ function isMobileAgent() {
     if (!userAgent || userAgent === "") {
         return false;
     }
+
     let bracketOpen = userAgent.indexOf("(");
     if (bracketOpen === -1) {
         return false;
     }
+
     let bracketClose = userAgent.indexOf(")", bracketOpen + 1);
     if (bracketClose === -1) {
         return false;
@@ -2251,6 +2223,7 @@ function isMobileAgent() {
             return true;
         }
     }
+
     return false;
 }
 
@@ -2294,12 +2267,15 @@ class Options {
         if (typeof this.seekBy !== "number" || this.seekBy < 0) {
             return false;
         }
+
         if (typeof this.inactivityTime !== "number" || this.inactivityTime < 0) {
             return false;
         }
+
         if (typeof this.bufferingRedrawInterval !== "number") {
             return false;
         }
+
         return true;
     }
 }
