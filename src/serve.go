@@ -1725,6 +1725,7 @@ func serveHlsLive(writer http.ResponseWriter, request *http.Request, chunk strin
 
 	now := time.Now()
 	if chunk == PROXY_M3U8 {
+		cleanupSegmentMap(segmentMap)
 		refreshedAgo := now.Sub(*lastRefresh)
 		// Optimized to refresh only every 1.5 seconds
 		if refreshedAgo.Seconds() < 1.5 {
@@ -1793,9 +1794,18 @@ func serveHlsLive(writer http.ResponseWriter, request *http.Request, chunk strin
 	fetchedChunk.obtained = true
 	mutex.Unlock()
 
+	/*if len(keysToRemove) > 0 {
+		LogDebug("Removed %v keys. Current map size: %v", len(keysToRemove), size)
+	}*/
+
+	http.ServeFile(writer, request, WEB_PROXY+chunk)
+	return
+}
+
+func cleanupSegmentMap(segmentMap *sync.Map) {
 	// Cleanup map - remove old entries to avoid memory leaks
 	var keysToRemove []string
-	now = time.Now()
+	now := time.Now()
 	size := 0
 	segmentMap.Range(func(key, value interface{}) bool {
 		fSegment := value.(*FetchedSegment)
@@ -1812,12 +1822,6 @@ func serveHlsLive(writer http.ResponseWriter, request *http.Request, chunk strin
 	for _, key := range keysToRemove {
 		segmentMap.Delete(key)
 	}
-	/*if len(keysToRemove) > 0 {
-		LogDebug("Removed %v keys. Current map size: %v", len(keysToRemove), size)
-	}*/
-
-	http.ServeFile(writer, request, WEB_PROXY+chunk)
-	return
 }
 
 func serveHlsVod(writer http.ResponseWriter, request *http.Request, chunk string) {
