@@ -1800,7 +1800,7 @@ func serveHlsLive(writer http.ResponseWriter, request *http.Request, chunk strin
 	segmentMap.Range(func(key, value interface{}) bool {
 		fSegment := value.(*FetchedSegment)
 		age := now.Sub(fSegment.created)
-		if age.Minutes() > 1 {
+		if age.Seconds() > 30 {
 			keysToRemove = append(keysToRemove, key.(string))
 		}
 		size++
@@ -1812,9 +1812,9 @@ func serveHlsLive(writer http.ResponseWriter, request *http.Request, chunk strin
 	for _, key := range keysToRemove {
 		segmentMap.Delete(key)
 	}
-	if len(keysToRemove) > 0 {
+	/*if len(keysToRemove) > 0 {
 		LogDebug("Removed %v keys. Current map size: %v", len(keysToRemove), size)
-	}
+	}*/
 
 	http.ServeFile(writer, request, WEB_PROXY+chunk)
 	return
