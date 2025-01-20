@@ -54,6 +54,8 @@ const EXT_X_STREAM_INF = "EXT-X-STREAM-INF"
 // EXTINF Media segment tag (4.3.2)
 const EXTINF = "EXTINF"
 
+const EXT_X_PROGRAM_DATE_TIME = "EXT-X-PROGRAM-DATE-TIME"
+
 func detectM3U(path string) (bool, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -126,6 +128,11 @@ func parseM3U(path string) (*M3U, error) {
 				continue
 			}
 
+			if pair.key == EXT_X_PROGRAM_DATE_TIME {
+				// TODO
+				continue
+			}
+
 			if pair.key == EXT_X_STREAM_INF {
 				m3u.isMasterPlaylist = true
 				params := parseParams(pair.value)
@@ -147,7 +154,7 @@ func parseM3U(path string) (*M3U, error) {
 				m3u.addGeneralAttribute(*pair)
 				continue
 			}
-			LogWarn("Unrecognized pair %v:%v", pair.key, pair.value)
+			// LogWarn("Unrecognized pair %v:%v", pair.key, pair.value)
 			continue
 		}
 		// TODO: Adjust flow to parse EXT-X-PROGRAM-DATE-TIME along with segment

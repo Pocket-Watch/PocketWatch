@@ -86,10 +86,13 @@ type Proxy struct {
 	originalChunks []string
 	isLive         bool
 	// Live resources
-	liveUrl string
-	liveMap sync.Map
+	liveUrl      string
+	liveSegments sync.Map
+	randomizer   atomic.Int64
+	lastRefresh  time.Time
 
-	isHls atomic.Bool
+	isHls     bool
+	setupLock sync.Mutex
 
 	// Generic proxy
 	contentLength       int64
@@ -1453,7 +1456,7 @@ func setupGenericFileProxy(url string, referer string) bool {
 		return false
 	}
 	proxy := &state.proxy
-	proxy.isHls.Store(false)
+	proxy.isHls = false
 	proxy.fileUrl = url
 	proxy.contentLength = size
 	proxy.extensionWithDot = path.Ext(parsedUrl.Path)
@@ -1504,6 +1507,7 @@ func setupHlsProxy(url string, referer string) bool {
 		bestTrack := m3u.getBestTrack()
 		if bestTrack == nil {
 			bestTrack = &m3u.tracks[0]
+			url = bestTrack.url
 		}
 		m3u, err = downloadM3U(bestTrack.url, WEB_PROXY+ORIGINAL_M3U8, referer)
 		var downloadErr *DownloadError
@@ -1552,20 +1556,23 @@ func setupHlsProxy(url string, referer string) bool {
 	// Sometimes m3u8 chunks are not fully qualified
 	m3u.prefixRelativeSegments(prefix)
 
-	state.proxy.isHls.Store(true)
-	// lock on proxy setup here! also discard the previous proxy state somehow?
+	state.proxy.setupLock.Lock()
+	state.proxy.isHls = true
+	var result bool
 	if m3u.isLive {
-		return setupLiveProxy(m3u)
+		result = setupLiveProxy(m3u, url)
+		state.proxy.setupLock.Unlock()
 	} else {
-		return setupVodProxy(m3u)
+		result = setupVodProxy(m3u)
+		state.proxy.setupLock.Unlock()
 	}
+	return result
 }
 
-func setupLiveProxy(m3u *M3U) bool {
-	_ = len(m3u.segments)
+func setupLiveProxy(m3u *M3U, liveUrl string) bool {
 	proxy := &state.proxy
 	proxy.isLive = true
-
+	proxy.liveUrl = liveUrl
 	return true
 }
 
@@ -1587,11 +1594,6 @@ func setupVodProxy(m3u *M3U) bool {
 	m3u.serialize(WEB_PROXY + PROXY_M3U8)
 	LogDebug("Prepared proxy file %v", PROXY_M3U8)
 	return true
-}
-
-type FetchedSegment struct {
-	realUrl string
-	mutex   sync.Mutex
 }
 
 func apiEvents(w http.ResponseWriter, r *http.Request) {
@@ -1698,14 +1700,127 @@ func watchProxy(writer http.ResponseWriter, request *http.Request) {
 	urlPath := request.URL.Path
 	chunk := path.Base(urlPath)
 
-	if state.proxy.isHls.Load() {
-		serveHls(writer, request, chunk)
+	if state.proxy.isHls {
+		if state.proxy.isLive {
+			serveHlsLive(writer, request, chunk)
+		} else {
+			serveHlsVod(writer, request, chunk)
+		}
 	} else {
 		serveGenericFile(writer, request, chunk)
 	}
 }
 
-func serveHls(writer http.ResponseWriter, request *http.Request, chunk string) {
+type FetchedSegment struct {
+	realUrl  string
+	obtained bool
+	mutex    sync.Mutex
+	created  time.Time
+}
+
+func serveHlsLive(writer http.ResponseWriter, request *http.Request, chunk string) {
+	proxy := &state.proxy
+	segmentMap := &proxy.liveSegments
+	lastRefresh := &proxy.lastRefresh
+
+	now := time.Now()
+	if chunk == PROXY_M3U8 {
+		refreshedAgo := now.Sub(*lastRefresh)
+		// Optimized to refresh only every 1.5 seconds
+		if refreshedAgo.Seconds() < 1.5 {
+			LogDebug("Serving unmodified %v", PROXY_M3U8)
+			http.ServeFile(writer, request, WEB_PROXY+PROXY_M3U8)
+			return
+		}
+
+		liveM3U, err := downloadM3U(proxy.liveUrl, WEB_PROXY+ORIGINAL_M3U8, state.entry.RefererUrl)
+		var downloadErr *DownloadError
+		if errors.As(err, &downloadErr) {
+			LogError("Download error of the live url [%v] %v", proxy.liveUrl, err.Error())
+			http.Error(writer, downloadErr.Message, downloadErr.Code)
+			return
+		} else if err != nil {
+			LogError("Failed to fetch live url: %v", err.Error())
+			http.Error(writer, err.Error(), 500)
+			return
+		}
+
+		segmentCount := len(liveM3U.segments)
+		for i := 0; i < segmentCount; i++ {
+			segment := &liveM3U.segments[i]
+
+			realUrl := segment.url
+			fetched := FetchedSegment{realUrl, false, sync.Mutex{}, time.Now()}
+			seed := proxy.randomizer.Add(1)
+			segName := "live-" + int64ToString(seed)
+			segmentMap.Store(segName, &fetched)
+
+			segment.url = segName
+		}
+
+		liveM3U.serialize(WEB_PROXY + PROXY_M3U8)
+		// LogDebug("Serving refreshed %v", PROXY_M3U8)
+		http.ServeFile(writer, request, WEB_PROXY+PROXY_M3U8)
+		return
+	}
+
+	if len(chunk) < 6 {
+		http.Error(writer, "Not found", 404)
+		return
+	}
+
+	maybeChunk, found := segmentMap.Load(chunk)
+	if !found {
+		http.Error(writer, "Not found", 404)
+		return
+	}
+
+	fetchedChunk := maybeChunk.(*FetchedSegment)
+	mutex := &fetchedChunk.mutex
+	mutex.Lock()
+	if fetchedChunk.obtained {
+		mutex.Unlock()
+		http.ServeFile(writer, request, WEB_PROXY+chunk)
+		return
+	}
+	fetchErr := downloadFile(fetchedChunk.realUrl, WEB_PROXY+chunk, state.entry.RefererUrl)
+	if fetchErr != nil {
+		mutex.Unlock()
+		LogError("Failed to fetch live chunk %v", fetchErr)
+		http.Error(writer, "Failed to fetch chunk", 500)
+		return
+	}
+	fetchedChunk.obtained = true
+	mutex.Unlock()
+
+	// Cleanup map - remove old entries to avoid memory leaks
+	var keysToRemove []string
+	now = time.Now()
+	size := 0
+	segmentMap.Range(func(key, value interface{}) bool {
+		fSegment := value.(*FetchedSegment)
+		age := now.Sub(fSegment.created)
+		if age.Minutes() > 1 {
+			keysToRemove = append(keysToRemove, key.(string))
+		}
+		size++
+		// true continues iteration
+		return true
+	})
+
+	// Remove the collected keys
+	for _, key := range keysToRemove {
+		segmentMap.Delete(key)
+	}
+	if len(keysToRemove) > 0 {
+		LogDebug("Removed %v keys. Current map size: %v", len(keysToRemove), size)
+	}
+
+	http.ServeFile(writer, request, WEB_PROXY+chunk)
+	return
+}
+
+func serveHlsVod(writer http.ResponseWriter, request *http.Request, chunk string) {
 	if chunk == PROXY_M3U8 {
 		LogDebug("Serving %v", PROXY_M3U8)
 		http.ServeFile(writer, request, WEB_PROXY+PROXY_M3U8)

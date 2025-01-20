@@ -64,6 +64,10 @@ func toString(num int) string {
 	return strconv.Itoa(num)
 }
 
+func int64ToString(num int64) string {
+	return strconv.FormatInt(num, 10)
+}
+
 func lastUrlSegment(url string) string {
 	url = path.Base(url)
 	questionMark := strings.Index(url, "?")
@@ -158,7 +162,11 @@ func downloadFile(url string, filename string, referer string) error {
 		return err
 	}
 	if response.StatusCode != 200 && response.StatusCode != 206 {
-		return &DownloadError{Code: response.StatusCode, Message: "Failed to download file"}
+		errBody, err := io.ReadAll(response.Body)
+		if err != nil {
+			return &DownloadError{Code: response.StatusCode, Message: "Failed to download file"}
+		}
+		return &DownloadError{Code: response.StatusCode, Message: "Failed to download file. " + string(errBody)}
 	}
 	defer response.Body.Close()
 
