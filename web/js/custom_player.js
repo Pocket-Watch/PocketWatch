@@ -956,7 +956,7 @@ class Internals {
             let real_percentage = percentage * (playerHeight - subsHeight) / playerHeight;
             this.subtitleContainer.style.bottom = real_percentage + "%";
         }
-        this.fireSettingsChange(Options.SUBTITLE_VERTICAL_POSITION, this.subtitleContainer.style.bottom);
+        this.fireSettingsChange(Options.SUBTITLE_VERTICAL_POSITION, percentage);
     }
 
     showPlayerUI() {

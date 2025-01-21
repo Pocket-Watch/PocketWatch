@@ -116,13 +116,31 @@ class Room {
     }
 
     applyUserOptions(options) {
+        let autohide = Storage.getBool(Options.AUTO_HIDE);
+        if (autohide != null) {
+            options.autohideControls = autohide;
+        }
 
+        let show = Storage.getBool(Options.SHOW_CONTROLS_ON_PAUSE);
+        if (show != null) {
+            options.showControlsOnPause = show;
+        }
     }
 
     applyUserPreferences() {
         let volume = Storage.get("volume");
         if (volume != null) {
             this.player.setVolume(volume);
+        }
+        // TODO: These are not directly synced with UI so they have no effect
+        let size = Storage.get(Options.SUBTITLE_FONT_SIZE);
+        if (size != null) {
+            // this.player.internals.setSubtitleFontSize(size);
+        }
+
+        let pos = Storage.get(Options.SUBTITLE_VERTICAL_POSITION);
+        if (pos != null) {
+            // this.player.internals.setSubtitleVerticalPosition(pos);
         }
     }
 
@@ -170,6 +188,19 @@ class Room {
         this.player.onControlsVolumeSet(volume => {
             // Maybe browsers optimize calls to localStorage and don't write to disk 30 times a second?
             Storage.set("volume", volume)
+        })
+
+        this.player.onSettingsChange((key, value) => {
+            switch (key) {
+                case Options.SHOW_CONTROLS_ON_PAUSE:
+                case Options.AUTO_HIDE:
+                    Storage.setBool(key, value);
+                    break;
+                case Options.SUBTITLE_FONT_SIZE:
+                case Options.SUBTITLE_VERTICAL_POSITION:
+                    Storage.set(key, value);
+                    break;
+            }
         })
 
         this.player.onPlaybackEnd(() => {
