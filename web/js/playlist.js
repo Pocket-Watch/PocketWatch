@@ -9,10 +9,8 @@ const ENTRY_HEIGHT  = 64 + ENTRY_BORDER * 2;
 
 class Playlist {
     constructor() {
-        this.htmlEntryListWrap = getById("playlist_entry_list_wrap");
         this.htmlEntryList     = getById("playlist_entry_list");
-        this.controlsRoot      = getById("playlist_controls_root");
-        this.dropdownButton    = getById("playlist_dropdown_button");
+        this.footerEntryCount  = getById("playlist_footer_entry_count");
 
         /// Currently expanded entry. Only one entry is allowed to be expanded at a time.
         this.expandedEntry = null;
@@ -42,9 +40,6 @@ class Playlist {
     }
 
     attachPlaylistEvents() {
-        this.dropdownButton.onclick = _ => {
-            this.controlsRoot.classList.toggle("playlist_controls_root_expand");
-        };
     }
 
     handleUserUpdate(user) {
@@ -78,6 +73,10 @@ class Playlist {
         }
     }
 
+    updateFooter() {
+        this.footerEntryCount.textContent = this.entries.length;
+    }
+
     addEntry(entry, users) {
         this.entries.push(entry);
 
@@ -87,6 +86,7 @@ class Playlist {
 
         this.htmlEntries.push(htmlEntry);
         this.htmlEntryList.appendChild(htmlEntry);
+        this.updateFooter();
     }
 
     removeAt(index) {
@@ -112,6 +112,8 @@ class Playlist {
             const entry = this.htmlEntries[i];
             this.setEntryPosition(entry, i);
         }
+
+        this.updateFooter();
 
         return entry;
     }
@@ -178,6 +180,8 @@ class Playlist {
             this.htmlEntries.push(htmlEntry);
             this.htmlEntryList.appendChild(htmlEntry);
         }
+
+        this.updateFooter();
     }
 
     clear() {
@@ -198,6 +202,8 @@ class Playlist {
         this.draggableEntry    = null;
         this.dragStartIndex    = -1;
         this.dragCurrentIndex  = -1;
+
+        this.updateFooter();
     }
 
     findEntryIndex(entry) {

@@ -190,68 +190,27 @@
                 </div>
                 <div id="content_playlist" class="content_view">
                     <div id="playlist_controls_root">
-                        <div id="playlist_controls_container"> 
-                            <button id="playlist_dropdown_button" title="Show more options">
-                                <svg>
-                                    <use href="svg/main_icons.svg#dropdown"/>
-                                </svg>
-                            </button>
-                            <button id="playlist_reset_button" title="Reset all fields">
-                                <svg>
-                                    <use href="svg/main_icons.svg#delete"/>
-                                </svg>
-                            </button>
+                        <button id="playlists_controls_next"></button>
+                        <button id="playlists_controls_autoplay"></button>
+                        <button id="playlists_controls_looping"></button>
 
-                            <div class="input_area" id="playlist_input_container">
-                                <span>Media URL:</span>
-                                <input type="url" id="playlist_input_box" placeholder="Enter video or audio URL here. Could be a YouTube link or any other media URL."/>
-                            </div>
+                        <!-- Here goes an input box for searching -->
+                        <div id="playlist_controls_spacer"></div>
 
-                            <div id="playlist_right_buttons_container">
-                                <button id="playlist_set_button">Add to End</button>
-                                <button id="playlist_add_playlist_button">Add to Start</button>
-                            </div>
-                        </div>
-                        <div id="playlist_dropdown_container"> 
-                            <div id="playlist_dropdown_top"> 
-                                <div class="input_area">
-                                    <span>Media Title:</span>
-                                    <input id="playlist_title_input" placeholder="Enter your custom media title."/>
-                                </div>
-
-                                <button id="playlist_select_subtitle_button">
-                                    <svg>
-                                        <use href="svg/main_icons.svg#upload"/>
-                                    </svg>
-                                </button>
-
-                                <div class="input_area">
-                                    <span>Subtitle name:</span>
-                                    <input id="playlist_subtitle_name_input" placeholder="Uploaded subtitle name."/>
-                                </div>
-                            </div>
-
-                            <div id="playlist_dropdown_bottom"> 
-                                <div id="proxy_toggle_container">
-                                    <div id="proxy_toggle" class="proxy_inactive_color">
-                                        <div class="proxy_toggle_circle"></div>
-                                    </div>
-                                    <span id="proxy_toggle_text">Create Proxy</span>
-                                </div>
-
-                                <div class="input_area" id="referef_container">
-                                    <span>Media Referer:</span>
-                                    <input type="url" id="playlist_dropdown_referer_input" placeholder="Enter media referer URL. This field is optional."/>
-                                </div>
-                            </div>
-                        </div>
+                        <button id="playlists_controls_clear"></button>
+                        <button id="playlists_controls_shuffle"></button>
+                        <button id="playlists_controls_settings"></button>
 
                     </div>
 
-
-                    <div id="playlist_entry_list_wrap">
+                    <div id="playlist_entry_list_root">
                         <div id="playlist_entry_list">
                             <!-- NOTE(kihau): Content of this list is dynamically generated in JavaScript -->
+                        </div>
+                        <div id="playlist_entry_list_footer">
+                            <span>Currently</span>
+                            <span id="playlist_footer_entry_count">0</span>
+                            <span>tracks in the playlist</span>
                         </div>
                     </div>
                 </div>
