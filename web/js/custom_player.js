@@ -1384,7 +1384,7 @@ class Internals {
         Object.defineProperty(Document.prototype, 'fullscreenElement', {
             get: () => {
                 console.debug("Returning document.webkitFullscreenElement", document.webkitFullscreenElement)
-                this.setToast("fullscreenElement rebound getter was called", document.webkitFullscreenElement)
+                this.setToast("fullscreenElement rebound getter was called " + document.webkitFullscreenElement)
                 return document.webkitFullscreenElement;
             }
         });

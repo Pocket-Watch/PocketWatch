@@ -372,7 +372,7 @@ class Room {
 
             let entry = this.createNewRequestEntry(subtitlePath);
             api.playerSet(entry).then(jsonResponse => {
-                if (jsonResponse.checkAndLogError()) {
+                if (jsonResponse.checkError()) {
                     return;
                 }
 
@@ -464,7 +464,7 @@ class Room {
             return false;
         }
 
-        if (verification.checkAndLogError()) {
+        if (verification.checkError()) {
             return false;
         }
 

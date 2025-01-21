@@ -23,7 +23,7 @@ export class JsonResponse {
         return response;
     }
 
-    checkAndLogError() {
+    checkError() {
         if (this.ok) {
             return false;
         }
@@ -356,3 +356,10 @@ export async function chatGet() {
     console.info("INFO: Fetching the chat from server.");
     return await httpGet("/watch/api/chat/get");
 }
+
+export async function subtitleRequest(search) {
+    console.info("INFO: Requesting server to search for a subtitle.");
+    return httpPost("/watch/api/searchsubs", search);
+}
+
+

@@ -13,16 +13,18 @@ type Options struct {
 	Port    uint16
 	Ssl     bool
 	Color   bool
+	Subs    bool
 	Help    bool
 }
 
 func (o *Options) prettyPrint() {
 	fmt.Println(" -------ARGS---------")
-	fmt.Println(" | ip    |", o.Address)
-	fmt.Println(" | port  |", o.Port)
-	fmt.Println(" | ssl   |", o.Ssl)
-	fmt.Println(" | color |", o.Color)
-	fmt.Println(" | help  |", o.Help)
+	fmt.Println(" | ip     |", o.Address)
+	fmt.Println(" | port   |", o.Port)
+	fmt.Println(" | ssl    |", o.Ssl)
+	fmt.Println(" | color  |", o.Color)
+	fmt.Println(" | subs   |", o.Subs)
+	fmt.Println(" | help   |", o.Help)
 	fmt.Println(" --------------------")
 }
 
@@ -32,6 +34,7 @@ func Defaults() Options {
 		Port:    1234,
 		Ssl:     false,
 		Color:   true,
+		Subs:    true,
 		Help:    false,
 	}
 }
@@ -61,6 +64,8 @@ func FromArgs() Options {
 		case "nc", "no-color", "no-colors":
 			settings.Color = false
 			ENABLE_COLORS = false
+		case "ns", "no-sub", "no-subs":
+			settings.Subs = false
 		case "ssl":
 			settings.Ssl = true
 		case "h", "help":
@@ -100,6 +105,7 @@ func DisplayHelp() {
 	fmt.Println("    -ip, -address [10.0.0.1]    Binds server to IP (default: localhost)")
 	fmt.Println("    -p, -port [443]             Sets port size (0-65535) (default: 1234)")
 	fmt.Println("    -nc, -no-color              Disables colored logging (default: enabled)")
+	fmt.Println("    -ns, -no-subs               Disabled support for subtitle search")
 	fmt.Println("    -ssl                        Enables SSL. Secrets are read from:")
 	fmt.Println("                                 - CERTIFICATE: ./secret/certificate.pem")
 	fmt.Println("                                 - PRIVATE KEY: ./secret/privatekey.pem")

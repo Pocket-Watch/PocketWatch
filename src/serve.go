@@ -326,12 +326,14 @@ var state = ServerState{}
 var users = makeUsers()
 var conns = makeConnections()
 
-// assignable only once!
-var serverRootAddress = ""
+// Constants - assignable only once!
+var serverRootAddress string
 var startTime = time.Now()
+var subsEnabled bool
 
 func StartServer(options *Options) {
 	state.lastUpdate = time.Now()
+	subsEnabled = options.Subs
 	registerEndpoints(options)
 
 	var address = options.Address + ":" + strconv.Itoa(int(options.Port))
@@ -382,6 +384,7 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/watch/api/login", apiLogin)
 	http.HandleFunc("/watch/api/uploadmedia", apiUploadMedia)
 	http.HandleFunc("/watch/api/uploadsubs", apiUploadSubs)
+	http.HandleFunc("/watch/api/searchsubs", apiSearchSubs)
 
 	// User related API calls.
 	http.HandleFunc("/watch/api/user/create", apiUserCreate)
@@ -523,6 +526,34 @@ func apiUploadSubs(w http.ResponseWriter, r *http.Request) {
 
 	networkPath := path.Join("subs", filename)
 	jsonData, _ := json.Marshal(networkPath)
+	io.WriteString(w, string(jsonData))
+}
+
+func apiSearchSubs(w http.ResponseWriter, r *http.Request) {
+	if !subsEnabled {
+		http.Error(w, "Feature unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if r.Method != "POST" {
+		http.Error(w, "POST was expected", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if !isAuthorized(w, r) {
+		return
+	}
+
+	var search *Search
+	if !readJsonDataFromRequest(w, r, search) {
+		return
+	}
+
+	path, err := downloadSubtitle("subs", search)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	jsonData, err := json.Marshal(path)
 	io.WriteString(w, string(jsonData))
 }
 
