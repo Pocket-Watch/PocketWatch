@@ -13,6 +13,7 @@ class Room {
 
         let options = new Options();
         options.hideSpeedButton = true;
+        this.applyUserOptions(options);
 
         this.player   = new Player(video0, options);
         this.playlist = new Playlist();
@@ -114,8 +115,12 @@ class Room {
         this.applyUserPreferences();
     }
 
+    applyUserOptions(options) {
+
+    }
+
     applyUserPreferences() {
-        let volume = localStorage.getItem("volume");
+        let volume = Storage.get("volume");
         if (volume != null) {
             this.player.setVolume(volume);
         }
@@ -164,7 +169,7 @@ class Room {
 
         this.player.onControlsVolumeSet(volume => {
             // Maybe browsers optimize calls to localStorage and don't write to disk 30 times a second?
-            localStorage.setItem("volume", volume)
+            Storage.set("volume", volume)
         })
 
         this.player.onPlaybackEnd(() => {
@@ -416,11 +421,11 @@ class Room {
     async createNewAccount() {
         this.token = await api.userCreate();
         api.setToken(this.token);
-        localStorage.setItem("token", this.token);
+        Storage.set("token", this.token);
     }
 
     async authenticateAccount(firstTry) {
-        this.token = localStorage.getItem("token");
+        this.token = Storage.get("token");
         api.setToken(this.token);
 
         let verification = await api.userVerify();
@@ -869,6 +874,37 @@ class Room {
         await this.loadPlaylistData();
         await this.loadChatData();
         this.listenToServerEvents();
+    }
+}
+
+// This is a wrapper for localStorage (which has only string <-> string mappings)
+class Storage {
+    static set(key, value) {
+        localStorage.setItem(key, value);
+    }
+    static get(key) {
+        return localStorage.getItem(key);
+    }
+    static getBool(key) {
+        let value = localStorage.getItem(key);
+        if (value == null) {
+            return null;
+        }
+        return value === "1";
+    }
+    static setBool(key, value) {
+        if (value) {
+            localStorage.setItem(key, "1");
+        } else {
+            localStorage.setItem(key, "0");
+        }
+    }
+    static getNum(key) {
+        let value = localStorage.getItem(key);
+        if (value == null) {
+            return null;
+        }
+        return Number(value);
     }
 }
 

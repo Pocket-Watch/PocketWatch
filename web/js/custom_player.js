@@ -113,94 +113,87 @@ class Player {
     destroyPlayer() {}
 
     onControlsPlay(func) {
-        if (!isFunction(func)) {
-            return;
+        if (isFunction(func)) {
+            this.internals.fireControlsPlay = func;
         }
-        this.internals.fireControlsPlay = func;
     }
 
     onControlsPause(func) {
-        if (!isFunction(func)) {
-            return;
+        if (isFunction(func)) {
+            this.internals.fireControlsPause = func;
         }
-        this.internals.fireControlsPause = func;
     }
 
     onControlsNext(func) {
-        if (!isFunction(func)) {
-            return;
+        if (isFunction(func)) {
+            this.internals.fireControlsNext = func;
         }
-        this.internals.fireControlsNext = func;
     }
 
     onControlsLooping(func) {
-        if (!isFunction(func)) {
-            return;
+        if (isFunction(func)) {
+            this.internals.fireControlsLooping = func;
         }
-        this.internals.fireControlsLooping = func;
     }
 
     onControlsAutoplay(func) {
-        if (!isFunction(func)) {
-            return;
+        if (isFunction(func)) {
+            this.internals.fireControlsAutoplay = func;;
         }
-        this.internals.fireControlsAutoplay = func;
     }
 
     onFullscreenChange(func) {
-        if (!isFunction(func)) {
-            return;
+        if (isFunction(func)) {
+            this.internals.fireFullscreenChange = func;
         }
-        this.internals.fireFullscreenChange = func;
     }
 
     onControlsSeeking(func) {
-        if (!isFunction(func)) {
-            return;
+        if (isFunction(func)) {
+            this.internals.fireControlsSeeking = func;
         }
-        this.internals.fireControlsSeeking = func;
     }
 
     onControlsSeeked(func) {
-        if (!isFunction(func)) {
-            return;
+        if (isFunction(func)) {
+            this.internals.fireControlsSeeked = func;
         }
-        this.internals.fireControlsSeeked = func;
     }
 
     onControlsVolumeSet(func) {
-        if (!isFunction(func)) {
-            return;
+        if (isFunction(func)) {
+            this.internals.fireControlsVolumeSet = func;
         }
-        this.internals.fireControlsVolumeSet = func;
+    }
+
+    onSettingsChange(func) {
+        if (isFunction(func)) {
+            this.internals.fireSettingsChange = func;
+        }
     }
 
     onPlaybackError(func) {
-        if (!isFunction(func)) {
-            return;
+        if (isFunction(func)) {
+            this.internals.firePlaybackError = func;;
         }
-        this.internals.firePlaybackError = func;
     }
 
     onPlaybackEnd(func) {
-        if (!isFunction(func)) {
-            return;
+        if (isFunction(func)) {
+            this.internals.firePlaybackEnd = func;
         }
-        this.internals.firePlaybackEnd = func;
     }
 
     onSubtitleTrackLoad(func) {
-        if (!isFunction(func)) {
-            return;
+        if (isFunction(func)) {
+            this.internals.fireSubtitleTrackLoad = func;
         }
-        this.internals.fireSubtitleTrackLoad = func;
     }
 
     onSubtitleSearch(func) {
-        if (!isFunction(func)) {
-            return;
+        if (isFunction(func)) {
+            this.internals.fireSubtitleSearch = func;
         }
-        this.internals.fireSubtitleSearch = func;
     }
 
     setVideoTrack(url) {
@@ -437,6 +430,7 @@ class Internals {
     fireControlsSeeking(_timestamp) {}
     fireControlsSeeked(_timestamp) {}
     fireControlsVolumeSet(_volume) {}
+    fireSettingsChange(_key, _value) {}
     firePlaybackError(_exception, _mediaError) {}
     firePlaybackEnd() {}
     fireSubtitleTrackLoad(_subtitle) {}
@@ -939,14 +933,17 @@ class Internals {
 
     setSubtitleFontSize(fontSize) {
         this.subtitleText.style.fontSize = fontSize + "px";
+        this.fireSettingsChange(Options.SUBTITLE_FONT_SIZE, fontSize);
     }
 
     setSubtitleForeground(color) {
         this.subtitleText.style.color = color;
+        this.fireSettingsChange(Options.SUBTITLE_FOREGROUND_COLOR, color);
     }
 
     setSubtitleBackground(color) {
         this.subtitleText.style.backgroundColor = color;
+        this.fireSettingsChange(Options.SUBTITLE_BACKGROUND_COLOR, color);
     }
 
     setSubtitleVerticalPosition(percentage) {
@@ -959,6 +956,7 @@ class Internals {
             let real_percentage = percentage * (playerHeight - subsHeight) / playerHeight;
             this.subtitleContainer.style.bottom = real_percentage + "%";
         }
+        this.fireSettingsChange(Options.SUBTITLE_VERTICAL_POSITION, this.subtitleContainer.style.bottom);
     }
 
     showPlayerUI() {
@@ -1716,14 +1714,17 @@ class Internals {
 
         autohide.onAction = state => {
             this.options.autohideControls = state;
+            this.fireSettingsChange(Options.AUTO_HIDE, state);
         };
 
         showOnPause.onAction = state => {
             this.options.showControlsOnPause = state;
+            this.fireSettingsChange(Options.SHOW_CONTROLS_ON_PAUSE, state);
         };
 
         brightness.onInput = value => {
             this.htmlVideo.style.filter = "brightness(" + value + ")";
+            this.fireSettingsChange(Options.BRIGHTNESS, value);
         };
 
         playerRoot.append(menuRoot); {
@@ -2304,4 +2305,12 @@ class Options {
 
         return true;
     }
+    // Constants
+    static AUTO_HIDE = "auto_hide";
+    static SHOW_CONTROLS_ON_PAUSE = "show_controls_on_pause";
+    static SUBTITLE_FONT_SIZE = "subtitle_font_size";
+    static SUBTITLE_VERTICAL_POSITION = "subtitle_vertical_position";
+    static BRIGHTNESS = "brightness";
+    static SUBTITLE_FOREGROUND_COLOR = "subtitle_foreground_color";
+    static SUBTITLE_BACKGROUND_COLOR = "subtitle_background_color";
 }

@@ -26,6 +26,7 @@ function main() {
     player.addSubtitle("media/Tears.of.Steel.2012.vtt")
     player.addSubtitle("media/Tears.srt")
     player.addSubtitle("media/Agent327.srt")
+    player.addSubtitle("media/oneline.srt")
     player.setVolume(0.01)
     player.onControlsPlay(() => {
         player.setToast("User clicked play.");
@@ -35,12 +36,12 @@ function main() {
         player.setToast("User clicked pause.");
     })
 
-    player.onControlsSeeked(function (timestamp) {
+    player.onControlsSeeked(timestamp => {
         player.setToast("User seeked to " + timestamp.toFixed(3));
     })
 
-    player.onControlsSeeking(function (timestamp) {
-        player.setToast("User seeking to " + timestamp.toFixed(3));
+    player.onSettingsChange((key, value) => {
+        console.log("Settings change:", key, "to", value);
     })
 
     player.onPlaybackError(function (exception, error) {
