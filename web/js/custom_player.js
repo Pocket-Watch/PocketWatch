@@ -415,7 +415,8 @@ class Internals {
 
         this.setVolume(1.0);
 
-        let isSafari = navigator.userAgent.includes("Safari");
+        let userAgent = navigator.userAgent;
+        let isSafari = userAgent.includes("Safari") && userAgent.includes("Mac OS");
         if (isSafari) {
             this.rebindFullscreenAPIFromWebkit();
         }
@@ -1372,18 +1373,21 @@ class Internals {
     }
 
     rebindFullscreenAPIFromWebkit() {
-        console.log("Rebinding webkit fullscreen API")
+        // Should remove the logs and toasts once tested successfully
+        console.debug("Rebinding webkit fullscreen API")
+        this.setToast("Rebinding webkit fullscreen API")
         if (!HTMLElement.prototype.requestFullscreen) {
-            HTMLElement.prototype.requestFullscreen = function() {
-                return HTMLElement.prototype.webkitRequestFullscreen.call(this);
-            }
+            HTMLElement.prototype.requestFullscreen = HTMLElement.prototype.webkitRequestFullscreen;
         }
+        document.exitFullscreen = document.webkitExitFullscreen;
 
         Object.defineProperty(Document.prototype, 'fullscreenElement', {
-            get: () => document.webkitFullscreenElement
+            get: () => {
+                console.debug("Returning document.webkitFullscreenElement", document.webkitFullscreenElement)
+                this.setToast("fullscreenElement rebound getter was called", document.webkitFullscreenElement)
+                return document.webkitFullscreenElement;
+            }
         });
-
-        document.exitFullscreen = document.webkitExitFullscreen;
     }
 
     assembleProgressBar() {
