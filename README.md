@@ -178,3 +178,20 @@ player.shiftCurrentSubtitleTrackBy(-5);
     * some subtitle languages (with 1000+ cues) cause dramatic performance drops during shifting
     * cues on Firefox often stack (pile on top of each other) after shifting and stay on screen after end time
 
+## iPhone's fullscreen and video controls nonsense
+- Safari on iOS is the only platform which does not fully support Fullscreen API <br>
+  (https://developer.mozilla.org/en-US/docs/Web/API/Fullscreen_API#browser_compatibility)
+
+- on iPhone when a video is played it forces you into fullscreen mode on the `<video>` element <br>
+  (https://discussions.apple.com/thread/251266057), <br>
+  fortunately since iOS 10 `playsinline` attribute is supported which makes disables that behavior
+
+- on iPhone the native player is always forced regardless of browser,<br>
+  as a result custom controls don't appear in fullscreen and action events cannot be received
+
+## `<video>` element error differences
+| CHROMIUM                          | FIREFOX                |
+|-----------------------------------|------------------------|
+| MEDIA_ELEMENT_ERROR: Format error | 404: Not found         |
+| Empty src attribute               | NS_ERROR_DOM_INVALID   |
+| DEMUXER_ERROR_COULD_NOT_OPEN      | Failed to init decoder |

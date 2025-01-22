@@ -236,6 +236,8 @@ class Internals {
         this.htmlVideo = videoElement;
         this.htmlVideo.disablePictureInPicture = true;
         this.htmlVideo.controls = false;
+        // Prevents auto-fullscreen on iPhone but perhaps this could render entering fullscreen impossible?
+        this.htmlVideo.playsinline = true;
 
         // Prevents selecting the video element along with the rest of the page
         this.htmlVideo.classList.add("unselectable");
