@@ -498,10 +498,15 @@ func apiUploadSubs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// NOTE(kihau): Limit subtitle size to 500kB.
-	inputFile, headers, err := r.FormFile("file")
+	networkFile, headers, err := r.FormFile("file")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if headers.Size > SUBTITLE_SIZE_LIMIT {
+		http.Error(w, "Subtitle file is too large", http.StatusRequestEntityTooLarge)
+		return
 	}
 
 	filename := headers.Filename
@@ -518,9 +523,18 @@ func apiUploadSubs(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Saving uploaded subtitle file to: %v.", outputPath)
 
-	_, err = io.Copy(outputFile, inputFile)
+	// Read the file content to ensure it doesn't exceed the limit
+	buf := make([]byte, headers.Size)
+	_, err = io.ReadFull(networkFile, buf)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Error reading file", http.StatusBadRequest)
+		return
+	}
+
+	_, err = outputFile.Write(buf)
+	if err != nil {
+		fmt.Println("Error: Failed to write to a subtitle file:", err)
+		http.Error(w, "Error writing file", http.StatusInternalServerError)
 		return
 	}
 
