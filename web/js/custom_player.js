@@ -1379,8 +1379,14 @@ class Internals {
         if (!HTMLElement.prototype.requestFullscreen) {
             HTMLElement.prototype.requestFullscreen = HTMLElement.prototype.webkitRequestFullscreen;
         }
-        document.exitFullscreen = document.webkitExitFullscreen;
+        if (!document.exitFullscreen) {
+            document.exitFullscreen = document.webkitExitFullscreen;
+        }
 
+        if (Object.getOwnPropertyDescriptor(Document.prototype, 'fullscreenElement')) {
+            this.setToast("getOwnPropertyDescriptor determined fullscreenElement already exists")
+            return;
+        }
         Object.defineProperty(Document.prototype, 'fullscreenElement', {
             get: () => {
                 console.debug("Returning document.webkitFullscreenElement", document.webkitFullscreenElement)
