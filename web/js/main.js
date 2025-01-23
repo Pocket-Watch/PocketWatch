@@ -807,11 +807,13 @@ class Room {
             let newEntry = response.new_entry;
             this.setEntryEvent(newEntry);
 
-            if (this.player.isLooping() && prevEntry.url !== "") {
-                this.playlist.addEntry(prevEntry, this.allUsers);
-            }
+            if (this.playlist.entries.length != 0) {
+                if (this.player.isLooping() && prevEntry.url !== "") {
+                    this.playlist.addEntry(prevEntry, this.allUsers);
+                }
 
-            this.playlist.removeAt(0);
+                this.playlist.removeAt(0);
+            }
         });
 
         events.addEventListener("playerlooping", event => {

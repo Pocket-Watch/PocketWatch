@@ -414,6 +414,7 @@ class Internals {
 
         this.subtitleContainer = newDiv("player_subtitle_container");
         this.subtitleText      = newDiv("player_subtitle_text");
+        hide(this.subtitleContainer);
 
         this.htmlPlayerRoot.appendChild(this.subtitleContainer);
         this.subtitleContainer.appendChild(this.subtitleText);

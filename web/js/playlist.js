@@ -106,8 +106,9 @@ class Playlist {
         let htmlEntry = this.htmlEntries[index];
         this.htmlEntries.splice(index, 1);
 
-        // this.htmlEntryList.removeChild(htmlEntry);
         htmlEntry.classList.remove("show");
+        setTimeout(_ => this.htmlEntryList.removeChild(htmlEntry), 240);
+
         for (let i = index; i < this.htmlEntries.length; i++) {
             const entry = this.htmlEntries[i];
             this.setEntryPosition(entry, i);
@@ -188,12 +189,12 @@ class Playlist {
         const children = this.htmlEntryList.children;
         for (let i = 0; i < children.length; i++) {
             const htmlEntry = children[i];
-            htmlEntry.classList.remove('show');
-        }
 
-        // while (this.htmlEntryList.lastChild) {
-        //     this.htmlEntryList.removeChild(this.htmlEntryList.lastChild);
-        // }
+            setTimeout(_ => {
+                htmlEntry.classList.remove('show');
+                setTimeout(_ => this.htmlEntryList.removeChild(htmlEntry), 240);
+            }, i * 100);
+        }
 
         this.htmlEntries   = [];
         this.entries       = [];
@@ -332,18 +333,11 @@ class Playlist {
         //
         entryDragArea.textContent = "☰";
 
-        // TODO(kihau): Fix the z indexes to always be below other entries.
         setTimeout(_ => entryRoot.classList.add('show'), 10);
 
         //
         // Attaching events to html elements.
         //
-
-        entryRoot.ontransitionend = event => {
-            if (event.propertyName === "margin-left" && !entryRoot.classList.contains("show")) {
-                this.htmlEntryList.removeChild(entryRoot);
-            }
-        };
 
         // Scrolling on screen touch.
         entryRoot.ontouchstart = _ => {};

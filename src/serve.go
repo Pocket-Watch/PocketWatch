@@ -750,10 +750,6 @@ func setNewEntry(newEntry Entry) Entry {
 
 	if prevEntry.Url != "" {
 		state.history = append(state.history, prevEntry)
-
-		if state.player.Looping {
-			state.playlist = append(state.playlist, prevEntry)
-		}
 	}
 
 	// TODO(kihau): Proper proxy setup for youtube entries.
@@ -827,6 +823,10 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 	loadYoutubeEntry(&newEntry, data.RequestEntry)
 
 	state.mutex.Lock()
+	if state.entry.Url != "" && state.player.Looping {
+		state.playlist = append(state.playlist, state.entry)
+	}
+
 	prevEntry := setNewEntry(newEntry)
 	state.mutex.Unlock()
 
@@ -885,6 +885,10 @@ func apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 	}
 
 	state.mutex.Lock()
+	if state.entry.Url != "" && state.player.Looping {
+		state.playlist = append(state.playlist, state.entry)
+	}
+
 	newEntry := Entry{}
 	if len(state.playlist) != 0 {
 		newEntry = state.playlist[0]
