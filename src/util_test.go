@@ -1,6 +1,9 @@
 package main
 
 import (
+	"runtime"
+	"slices"
+	"strings"
 	"testing"
 )
 
@@ -102,6 +105,42 @@ func TestNoEnd(t *testing.T) {
 		return
 	}
 	if r.start == 0 && r.end == 738876330 {
+		return
+	}
+}
+
+// Path sanitization - path.Join calls path.Clean
+func TestPathTraversal(t *testing.T) {
+	// path.Clean does not simplify \..
+	_, isSafe := safeJoin("win", "dow", "\\..")
+	if isSafe {
+		t.Errorf("Path is unsafe")
+		return
+	}
+}
+
+func TestTildeTraversal(t *testing.T) {
+	_, isSafe := safeJoin("dir1", "dir2", "~")
+	if isSafe {
+		t.Errorf("Tilde is an unsafe character in Linux!")
+		return
+	}
+}
+
+func TestSuccessfulJoin(t *testing.T) {
+	sep := "/"
+	if runtime.GOOS == "windows" {
+		sep = "\\"
+	}
+	path, isSafe := safeJoin("abc/", "/123/", "/45")
+	if !isSafe {
+		t.Errorf("Path should be safe!")
+		return
+	}
+	given := strings.Split(path, sep)
+	expected := []string{"abc", "123", "45"}
+	if !slices.Equal(given, expected) {
+		t.Errorf("Path is %v, different from expected %v", given, expected)
 		return
 	}
 }

@@ -464,7 +464,10 @@ func apiUploadMedia(w http.ResponseWriter, r *http.Request) {
 	directory := getMediaType(extension)
 	filename := headers.Filename
 
-	outputPath := path.Join("web", "media", directory, filename)
+	outputPath, isSafe := safeJoin("web", "media", directory, filename)
+	if checkTraversal(w, isSafe) {
+		return
+	}
 	os.MkdirAll("web/media/"+directory, 0750)
 
 	outputFile, err := os.Create(outputPath)
@@ -483,7 +486,10 @@ func apiUploadMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	networkPath := path.Join("media", directory, filename)
+	networkPath, isSafe := safeJoin("media", directory, filename)
+	if checkTraversal(w, isSafe) {
+		return
+	}
 	jsonData, _ := json.Marshal(networkPath)
 	io.WriteString(w, string(jsonData))
 }
@@ -511,7 +517,10 @@ func apiUploadSubs(w http.ResponseWriter, r *http.Request) {
 
 	filename := headers.Filename
 
-	outputPath := path.Join("web", "subs", filename)
+	outputPath, isSafe := safeJoin("web", "subs", filename)
+	if checkTraversal(w, isSafe) {
+		return
+	}
 	os.MkdirAll("web/subs/", 0750)
 
 	outputFile, err := os.Create(outputPath)
@@ -538,7 +547,10 @@ func apiUploadSubs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	networkPath := path.Join("subs", filename)
+	networkPath, isSafe := safeJoin("subs", filename)
+	if checkTraversal(w, isSafe) {
+		return
+	}
 	jsonData, _ := json.Marshal(networkPath)
 	io.WriteString(w, string(jsonData))
 }
@@ -1330,6 +1342,15 @@ func getAuthorized(w http.ResponseWriter, r *http.Request) *User {
 
 	user := users.slice[index]
 	return &user
+}
+
+func checkTraversal(w http.ResponseWriter, isSafe bool) bool {
+	if isSafe {
+		return false
+	}
+	LogWarn("Traversal was attempted!")
+	http.Error(w, "Invalid path", http.StatusUnprocessableEntity)
+	return true
 }
 
 func getAuthorizedIndex(w http.ResponseWriter, r *http.Request) int {

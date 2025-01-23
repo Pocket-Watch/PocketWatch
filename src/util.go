@@ -361,3 +361,14 @@ func getMediaType(extension string) string {
 
 	return mediaType
 }
+
+// Safe equivalent of path.Join which allows path traversal
+// Returns a bool - true if the path wasn't traversed, false otherwise
+func safeJoin(segments ...string) (string, bool) {
+	for _, seg := range segments {
+		if strings.Contains(seg, "..") || strings.Contains(seg, "~") {
+			return "", false
+		}
+	}
+	return filepath.Join(segments...), true
+}
