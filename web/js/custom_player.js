@@ -95,6 +95,14 @@ class Player {
         this.internals.clearAllSubtitleTracks();
     }
 
+    setSubtitleFontSize(fontSize) {
+        this.internals.setSubtitleFontSize(fontSize);
+    }
+
+    setSubtitleVerticalPosition(percentage) {
+        this.internals.setSubtitleVerticalPosition(percentage);
+    }
+
     // Select and show the track at the specified index.
     enableSubtitleTrackAt(index) {
         let subtitles = this.internals.subtitles;
@@ -385,6 +393,8 @@ class Internals {
         };
 
         this.subtitleShift = new Slider("Subtitle shift", -20, 20, 0.1, 0, "s", true);
+        this.subtitleSize  = new Slider("Subtitle size",  10, 100, 1.0, 30, "px");
+        this.subtitlePos   = new Slider("Vertical position",  0, 100, 1, 16, "%"); 
 
         this.isDraggingProgressBar = false;
         this.isUIVisible = true;
@@ -935,6 +945,10 @@ class Internals {
     }
 
     setSubtitleFontSize(fontSize) {
+        let position = this.subtitlePos.getValue();
+        this.setSubtitleVerticalPosition(position);
+
+        this.subtitleSize.setValue(fontSize);
         this.subtitleText.style.fontSize = fontSize + "px";
         this.fireSettingsChange(Options.SUBTITLE_FONT_SIZE, fontSize);
     }
@@ -959,6 +973,8 @@ class Internals {
             let real_percentage = percentage * (playerHeight - subsHeight) / playerHeight;
             this.subtitleContainer.style.bottom = real_percentage + "%";
         }
+
+        this.subtitlePos.setValue(percentage);
         this.fireSettingsChange(Options.SUBTITLE_VERTICAL_POSITION, percentage);
     }
 
@@ -1574,9 +1590,9 @@ class Internals {
         let subtitleImport = newElement("input", "player_submenu_import");
         let optionsView    = newDiv("player_submenu_bottom_options");
         let subsShift      = this.subtitleShift;
-        let subsSize       = new Slider("Subtitle size",  10, 100, 1.0, 30, "px");
-        let subsVerticalPosition = new Slider("Vertical position",  0, 100, 1, 16, "%");
-        let subsForegroundPicker = newElement("input");
+        let subsSize       = this.subtitleSize;
+        let subsPos        = this.subtitlePos;
+        let subsFgColor    = newElement("input");
 
         hide(menuRoot);
         hide(selectView);
@@ -1593,8 +1609,8 @@ class Internals {
         subtitleImport.type = "file";
         subtitleImport.accept = ".vtt,.srt";
 
-        subsForegroundPicker.type = "color";
-        subsForegroundPicker.value = "white";
+        subsFgColor.type = "color";
+        subsFgColor.value = "white";
 
         menu.selected.tab  = selectTab;
         menu.selected.view = selectView;
@@ -1643,13 +1659,9 @@ class Internals {
         };
 
         subsShift.onInput = value => this.setCurrentSubtitleShift(value);
-        subsSize.onInput  = size => {
-            this.setSubtitleFontSize(size);
-            let position = subsVerticalPosition.getValue();
-            this.setSubtitleVerticalPosition(position);
-        };
-        subsVerticalPosition.onInput  = position => this.setSubtitleVerticalPosition(position);
-        subsForegroundPicker.onchange = _        => this.setSubtitleForeground(subsForegroundPicker.value);
+        subsSize.onInput  = size  => this.setSubtitleFontSize(size);
+        subsPos.onInput      = position => this.setSubtitleVerticalPosition(position);
+        subsFgColor.onchange = _        => this.setSubtitleForeground(subsFgColor.value);
 
         playerRoot.append(menuRoot); {
             menuRoot.append(menuTabs); {
@@ -1669,8 +1681,8 @@ class Internals {
                 menuViews.append(optionsView); {
                     optionsView.append(subsShift.root);
                     optionsView.append(subsSize.root);
-                    optionsView.append(subsVerticalPosition.root);
-                    optionsView.append(subsForegroundPicker);
+                    optionsView.append(subsPos.root);
+                    optionsView.append(subsFgColor);
                 }
             }
         }

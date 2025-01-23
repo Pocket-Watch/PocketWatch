@@ -132,15 +132,15 @@ class Room {
         if (volume != null) {
             this.player.setVolume(volume);
         }
-        // TODO: These are not directly synced with UI so they have no effect
+
         let size = Storage.get(Options.SUBTITLE_FONT_SIZE);
         if (size != null) {
-            // this.player.internals.setSubtitleFontSize(size);
+            this.player.setSubtitleFontSize(size);
         }
 
-        let pos = Storage.get(Options.SUBTITLE_VERTICAL_POSITION);
-        if (pos != null) {
-            // this.player.internals.setSubtitleVerticalPosition(pos);
+        let position = Storage.get(Options.SUBTITLE_VERTICAL_POSITION);
+        if (position != null) {
+            this.player.setSubtitleVerticalPosition(position);
         }
     }
 
