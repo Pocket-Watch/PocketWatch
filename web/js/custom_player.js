@@ -818,9 +818,11 @@ class Internals {
             this.playingHls = false;
             this.isLive = false;
         }
+
         // There's no reliable way to discard src value once it's set
         this.htmlVideo.src = "";
         this.htmlVideo.currentTime = 0;
+        hide(this.htmlControls.buttons.liveIndicator);
     }
 
     addSubtitle(url, show, info) {
