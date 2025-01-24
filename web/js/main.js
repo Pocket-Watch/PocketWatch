@@ -702,7 +702,7 @@ class Room {
             console.info("INFO: Received resync event from USER id", userId, "at", timestamp, "with desync:", desync);
         }
 
-        if (Math.abs(desync) > MAX_DESYNC) {
+        if (Math.abs(desync) > MAX_DESYNC && !this.player.isLive()) {
             let diff = Math.abs(desync) - MAX_DESYNC
             console.warn("You are desynced! MAX_DESYNC(" + MAX_DESYNC + ") exceeded by:", diff, "Trying to resync now!");
             this.player.seek(timestamp);
@@ -859,7 +859,10 @@ class Room {
                         let shortStamp = timestamp.toFixed(2);
                         this.player.setToast(username + " seeked to " + shortStamp);
                     }
-                    this.player.seek(timestamp);
+
+                    if (!this.player.isLive()) {
+                        this.player.seek(timestamp);
+                    }
                 } break;
 
                 default: {

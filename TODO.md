@@ -80,6 +80,7 @@
         - [ ] Instead of setting fixed subtitle size, set size based on screen scale
     - [ ] Skip/Remove entries that fail to load on the client side
 - [x] On first website load, indicate to the user that autoplay policy is disabled and manual action is required in order to play the video.
+- [ ] fix users list synchronization issues.
 - [ ] Room tab:
     - [ ] Improve layout
     - [ ] Add option to add subtitle file to currently set entry
