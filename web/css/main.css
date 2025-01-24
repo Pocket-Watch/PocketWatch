@@ -674,6 +674,7 @@ html * {
     height: calc(100% - 6px);
     border-radius: 6px;
     box-shadow: 2px 2px 4px 0px #1d2021;
+    column-gap: 4px;
     display: flex;
     user-select: none;
     align-items: center;
@@ -699,6 +700,16 @@ html * {
     height: calc(100% + 12px);
     background-color: #3c3836;
     transition: height 100ms ease;
+}
+
+.right_panel_tab svg {
+    height: 26px;
+    width: 26px;
+    fill: #d5c4a1;
+}
+
+.right_panel_tab:hover svg {
+    fill: #ebdbb2;
 }
 
 #right_panel_content {

@@ -7,6 +7,10 @@ const ENTRY_ROW_GAP = 4;
 const ENTRY_BORDER  = 2;
 const ENTRY_HEIGHT  = 64 + ENTRY_BORDER * 2;
 
+const TRANSITION_TIME       = 240;
+const BULK_ACTION_DELAY     = 32;
+const DRAG_INACTIVITY_DELAY = 32;
+
 class Playlist {
     constructor() {
         this.htmlEntryList     = getById("playlist_entry_list");
@@ -50,6 +54,8 @@ class Playlist {
                 const oldHtmlEntry = this.htmlEntries[i];
 
                 let newHtmlEntry = this.createHtmlEntry(entry, user);
+                newHtmlEntry.classList.add('show');
+
                 this.setEntryPosition(newHtmlEntry, i);
                 this.htmlEntries[i] = newHtmlEntry;
                 this.htmlEntryList.replaceChild(newHtmlEntry, oldHtmlEntry);
@@ -86,6 +92,10 @@ class Playlist {
 
         this.htmlEntries.push(htmlEntry);
         this.htmlEntryList.appendChild(htmlEntry);
+
+        window.getComputedStyle(htmlEntry).marginLeft;
+        htmlEntry.classList.add('show');
+
         this.updateFooter();
     }
 
@@ -107,7 +117,7 @@ class Playlist {
         this.htmlEntries.splice(index, 1);
 
         htmlEntry.classList.remove("show");
-        setTimeout(_ => this.htmlEntryList.removeChild(htmlEntry), 240);
+        setTimeout(_ => this.htmlEntryList.removeChild(htmlEntry), TRANSITION_TIME);
 
         for (let i = index; i < this.htmlEntries.length; i++) {
             const entry = this.htmlEntries[i];
@@ -150,6 +160,8 @@ class Playlist {
                 const htmlEntry = this.createHtmlEntry(entry, user);
                 this.setEntryPosition(htmlEntry, i);
 
+                htmlEntry.classList.add('show');
+
                 if (this.isEditingEntry && entry.id === this.editEntry.entry.id) {
                     this.stopEntryEdit();
                 }
@@ -159,7 +171,6 @@ class Playlist {
                 this.entries[i] = entry;
                 this.htmlEntries[i] = htmlEntry;
                 this.htmlEntryList.replaceChild(htmlEntry, previous)
-
                 break;
             }
         }
@@ -171,15 +182,21 @@ class Playlist {
             return;
         }
 
-        this.entries = entries;
-        for (let i = 0; i < this.entries.length; i++) {
-            const entry = this.entries[i];
+        for (let i = 0; i < entries.length; i++) {
+            this.entries.push(entries[i]);
+
+            const entry = entries[i];
             const user = this.findUser(users, entry.user_id);
             const htmlEntry = this.createHtmlEntry(entry, user);
             this.setEntryPosition(htmlEntry, this.htmlEntries.length);
 
             this.htmlEntries.push(htmlEntry);
             this.htmlEntryList.appendChild(htmlEntry);
+
+            setTimeout(_ => {
+                window.getComputedStyle(htmlEntry).marginLeft;
+                htmlEntry.classList.add('show');
+            }, i * BULK_ACTION_DELAY);
         }
 
         this.updateFooter();
@@ -192,8 +209,8 @@ class Playlist {
 
             setTimeout(_ => {
                 htmlEntry.classList.remove('show');
-                setTimeout(_ => this.htmlEntryList.removeChild(htmlEntry), 240);
-            }, i * 100);
+                setTimeout(_ => this.htmlEntryList.removeChild(htmlEntry), TRANSITION_TIME);
+            }, i * BULK_ACTION_DELAY);
         }
 
         this.htmlEntries   = [];
@@ -333,8 +350,6 @@ class Playlist {
         //
         entryDragArea.textContent = "☰";
 
-        setTimeout(_ => entryRoot.classList.add('show'), 10);
-
         //
         // Attaching events to html elements.
         //
@@ -438,7 +453,7 @@ class Playlist {
                     }
                 }
                 clearTimeout(timeout);
-                timeout = setTimeout(onDragTimeout, 32, event);
+                timeout = setTimeout(onDragTimeout, DRAG_INACTIVITY_DELAY, event);
             }
 
             let onDraggingStop = event => {
@@ -561,10 +576,7 @@ class Playlist {
             } break;
 
             case "addmany": {
-                const entries = data;
-                for (let i = 0; i < entries.length; i++) {
-                    this.addEntry(entries[i], users);
-                }
+                this.loadEntries(data, users);
             } break;
 
             case "clear": {
