@@ -18,6 +18,10 @@
     padding: 4px;
 }
 
+#playlist_controls_spacer {
+    margin-right: auto;
+}
+
 #playlist_entry_list_root {
     width: 100%;
     height: 100%;
