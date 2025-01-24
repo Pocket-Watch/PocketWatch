@@ -147,7 +147,6 @@ class Room {
     attachPlayerEvents() {
         // We have to know if anything is currently playing or whether something is set
         this.player.onControlsPlay(() => {
-            console.log("IS LIVE", this.player.isLive())
             if (this.ended) {
                 this.ended = false;
                 api.playerPlay(0);
@@ -717,7 +716,7 @@ class Room {
     subscribeToServerEvents(events) {
         events.addEventListener("userwelcome", event => {
             let connectionId = JSON.parse(event.data);
-            console.info("INFO: Received a welcome request with connection id: ", connectionId);
+            console.info("INFO: Received a welcome request with connection id:", connectionId);
             this.connectionId = connectionId;
 
             api.setConnectionId(this.connectionId);

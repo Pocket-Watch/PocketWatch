@@ -271,8 +271,7 @@ class Internals {
         this.htmlPlayerRoot.appendChild(this.htmlToastContainer);
         this.htmlToast = newElement("span", "player_toast_text");
         this.htmlToastContainer.appendChild(this.htmlToast);
-
-        this.playerHideToastTimeoutId = null;
+        this.playerHideToastTimeout = new Timeout(_ => this.htmlToastContainer.classList.add("hide"), 3000);
 
         this.icons = {
             play:             "svg/player_icons.svg#play",
@@ -324,15 +323,13 @@ class Internals {
         this.bufferingSvg.id = "player_buffering";
         hide(this.bufferingSvg);
         this.htmlPlayerRoot.appendChild(this.bufferingSvg);
-
-        this.bufferingTimeoutId = null;
+        this.bufferingTimeout = new Timeout(_ => show(this.bufferingSvg), 200);
 
         this.playbackPopupSvg = this.svgs.playbackPopup.svg;
         this.playbackPopupSvg.id = "player_playback_popup";
         hide(this.playbackPopupSvg);
         this.htmlPlayerRoot.appendChild(this.playbackPopupSvg);
-
-        this.playbackPopupTimeoutId = null;
+        this.playbackPopupTimeout = new Timeout(_ => this.playbackPopupSvg.classList.add("hide"), 200);
 
         this.htmlControls = {
             root: newDiv("player_controls"),
@@ -462,7 +459,7 @@ class Internals {
         this.svgs.playback.setHref(this.icons.pause);
 
         this.htmlVideo.play().catch(exception => {
-            clearTimeout(this.bufferingTimeoutId);
+            this.bufferingTimeout.cancel();
             hide(this.bufferingSvg);
 
             this.firePlaybackError(exception, this.htmlVideo.error);
@@ -681,10 +678,7 @@ class Internals {
         show(this.playbackPopupSvg);
         this.playbackPopupSvg.classList.remove("hide");
 
-        clearTimeout(this.playbackPopupTimeoutId);
-        this.playbackPopupTimeoutId = setTimeout(_ => {
-            this.playbackPopupSvg.classList.add("hide");
-        }, 200);
+        this.playbackPopupTimeout.schedule();
     }
 
     setToast(toast) {
@@ -692,10 +686,7 @@ class Internals {
         this.htmlToastContainer.classList.remove("hide");
         show(this.htmlToastContainer);
 
-        clearTimeout(this.playerHideToastTimeoutId);
-        this.playerHideToastTimeoutId = setTimeout(_ => {
-            this.htmlToastContainer.classList.add("hide");
-        }, 3000);
+        this.playerHideToastTimeout.schedule();
     }
 
     setLooping(enabled) {
@@ -1005,13 +996,6 @@ class Internals {
         this.htmlTitleContainer.classList.add("hide");
     }
 
-    resetPlayerUIHideTimeout() {
-        clearTimeout(this.playerUIHideTimeoutID);
-        this.playerUIHideTimeoutID = setTimeout(() => {
-            this.hidePlayerUI();
-        }, this.options.inactivityTime);
-    }
-
     redrawBufferedBars() {
         const context = this.htmlControls.progress.buffered.getContext("2d");
         context.fillStyle = "rgb(204, 204, 204, 0.5)";
@@ -1034,27 +1018,27 @@ class Internals {
     attachPlayerRootEvents() {
         this.htmlPlayerRoot.addEventListener("touchmove", _ => {
             this.showPlayerUI();
-            this.resetPlayerUIHideTimeout();
+            this.playerUIHideTimeout.schedule();
         });
 
         this.htmlPlayerRoot.addEventListener("mousemove", _ => {
             this.showPlayerUI();
-            this.resetPlayerUIHideTimeout();
+            this.playerUIHideTimeout.schedule();
         });
 
         this.htmlPlayerRoot.addEventListener("mousedown", _ => {
             this.showPlayerUI();
-            this.resetPlayerUIHideTimeout();
+            this.playerUIHideTimeout.schedule();
         });
 
         this.htmlPlayerRoot.addEventListener("mouseup", _ => {
             this.showPlayerUI();
-            this.resetPlayerUIHideTimeout();
+            this.playerUIHideTimeout.schedule();
         });
 
         this.htmlPlayerRoot.addEventListener("mouseenter", _ => {
             this.showPlayerUI();
-            this.resetPlayerUIHideTimeout();
+            this.playerUIHideTimeout.schedule();
         });
 
         this.htmlPlayerRoot.addEventListener("mouseleave", _ => {
@@ -1107,17 +1091,16 @@ class Internals {
 
     attachHtmlVideoEvents() {
         this.htmlVideo.addEventListener("waiting", _ => {
-            clearTimeout(this.bufferingTimeoutId);
-            this.bufferingTimeoutId = setTimeout(_ => show(this.bufferingSvg), 200);
+            this.bufferingTimeout.schedule();
         });
 
         this.htmlVideo.addEventListener("canplay", _ => {
-            clearTimeout(this.bufferingTimeoutId);
+            this.bufferingTimeout.cancel();
             hide(this.bufferingSvg);
         });
 
         this.htmlVideo.addEventListener("canplaythrough", _ => {
-            clearTimeout(this.bufferingTimeoutId);
+            this.bufferingTimeout.cancel();
             hide(this.bufferingSvg);
         });
 
@@ -1129,7 +1112,7 @@ class Internals {
         });
 
         this.htmlVideo.addEventListener("playing", _ => {
-            clearTimeout(this.bufferingTimeoutId);
+            this.bufferingTimeout.cancel();
             hide(this.bufferingSvg);
         });
 
@@ -1280,7 +1263,7 @@ class Internals {
 
             const onProgressBarTouchStop = event => {
                 this.isDraggingProgressBar = false;
-                this.resetPlayerUIHideTimeout();
+                this.playerUIHideTimeout.schedule();
 
                 document.removeEventListener('touchmove', onProgressBarTouchMove);
                 document.removeEventListener('touchend', onProgressBarTouchStop);
@@ -1308,7 +1291,7 @@ class Internals {
 
             const onProgressBarMouseUp = event => {
                 this.isDraggingProgressBar = false;
-                this.resetPlayerUIHideTimeout();
+                this.playerUIHideTimeout.schedule();
 
                 document.removeEventListener('mousemove', onProgressBarMouseMove);
                 document.removeEventListener('mouseup', onProgressBarMouseUp);
@@ -1553,7 +1536,7 @@ class Internals {
         let playerControls = this.htmlControls.root;
         playerControls.addEventListener("click", consumeClick);
         playerControls.addEventListener("focusout", _ => {
-            // )therwise document.body will receive focus
+            // Otherwise document.body will receive focus
             this.htmlPlayerRoot.focus();
         });
 
@@ -1563,6 +1546,8 @@ class Internals {
         this.assembleControlButtons();
         this.createSubtitleMenu();
         this.createSettingsMenu();
+        // Assign controls hide timeout. perhaps move all timeouts into one function? this.createTimeouts()
+        this.playerUIHideTimeout = new Timeout(_ => this.hidePlayerUI, this.options.inactivityTime);
     }
 
     markSubtitleSelected(subtitle) {
@@ -2340,4 +2325,27 @@ class Options {
     static BRIGHTNESS = "brightness";
     static SUBTITLE_FOREGROUND_COLOR = "subtitle_foreground_color";
     static SUBTITLE_BACKGROUND_COLOR = "subtitle_background_color";
+}
+
+// Throttling scheduler. After the specified delay elapses, the scheduled action will be executed.
+// Although if it's scheduled again the previous timer is always cancelled and a new one is started.
+export class Timeout {
+    constructor(action, delayMs) {
+        this.setAction(action);
+        this.delay = delayMs;
+        this.timeoutId = 0;
+    }
+    schedule() {
+        this.cancel();
+        this.timeoutId = setTimeout(this.action, this.delay);
+    }
+    cancel() {
+        clearTimeout(this.timeoutId);
+    }
+    setAction(action) {
+        this.action = action;
+    }
+    setDelay(ms) {
+        this.delay = ms;
+    }
 }
