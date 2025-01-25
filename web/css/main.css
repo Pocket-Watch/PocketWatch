@@ -696,7 +696,7 @@ html * {
     /* color: #fbf1c7; */
 }
 
-.right_panel_tab_selected {
+.right_panel_tab.selected {
     height: calc(100% + 12px);
     background-color: #3c3836;
     transition: height 100ms ease;
@@ -727,13 +727,22 @@ html * {
     height: 100%;
     width: 100%;
     box-sizing: border-box;
-    visibility: hidden;
+    /* visibility: hidden; */
+    display: none !important;
     position: absolute;
     padding: 16px;
 }
 
-.content_view_selected {
+.content_view.selected {
     visibility: visible;
+    display: flex !important;
+}
+
+#content_room {
+    height: 100%;
+    row-gap: 8px;
+    display: flex;
+    flex-direction: column;
 }
 
 #room_now_playing {

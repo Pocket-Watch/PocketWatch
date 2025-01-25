@@ -14,8 +14,6 @@ class Room {
         let options = new Options();
         options.hideSpeedButton    = true;
         options.hideDownloadButton = true;
-        options.hideAutoplayButton = true;
-        options.hideLoopingButton  = true;
         this.applyUserOptions(options);
 
         this.player   = new Player(video0, options);
@@ -76,10 +74,10 @@ class Room {
         this.uploadProgress = getById("room_upload_progress");
 
         let content = this.rightPanel.content.playlist;
-        content.classList.add("content_view_selected");
+        content.classList.add("selected");
 
         let tab = this.rightPanel.tabs.playlist;
-        tab.classList.add("right_panel_tab_selected");
+        tab.classList.add("selected");
 
         this.rightPanel.selected = {
             tab:     tab,
@@ -314,11 +312,11 @@ class Room {
 
     attachRightPanelEvents() {
         let select = (tab, content) => {
-            this.rightPanel.selected.tab.classList.remove("right_panel_tab_selected");
-            this.rightPanel.selected.content.classList.remove("content_view_selected");
+            this.rightPanel.selected.tab.classList.remove("selected");
+            this.rightPanel.selected.content.classList.remove("selected");
 
-            tab.classList.add("right_panel_tab_selected");
-            content.classList.add("content_view_selected");
+            tab.classList.add("selected");
+            content.classList.add("selected");
 
             this.rightPanel.selected.tab = tab;
             this.rightPanel.selected.content = content;

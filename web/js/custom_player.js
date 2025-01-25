@@ -120,18 +120,6 @@ class Player {
         }
     }
 
-    onControlsLooping(func) {
-        if (isFunction(func)) {
-            this.internals.fireControlsLooping = func;
-        }
-    }
-
-    onControlsAutoplay(func) {
-        if (isFunction(func)) {
-            this.internals.fireControlsAutoplay = func;;
-        }
-    }
-
     onFullscreenChange(func) {
         if (isFunction(func)) {
             this.internals.fireFullscreenChange = func;
@@ -259,14 +247,12 @@ class Internals {
             pause_popup:      "svg/player_icons.svg#pause_popup",
             replay:           "svg/player_icons.svg#replay",
             next:             "svg/player_icons.svg#next",
-            loop:             "svg/player_icons.svg#loop",
             volume_full:      "svg/player_icons.svg#volume_full",
             volume_medium:    "svg/player_icons.svg#volume_medium",
             volume_low:       "svg/player_icons.svg#volume_low",
             volume_muted:     "svg/player_icons.svg#volume_muted",
             download:         "svg/player_icons.svg#download",
             speed:            "svg/player_icons.svg#speed",
-            autoplay:         "svg/player_icons.svg#autoplay",
             subs:             "svg/player_icons.svg#subs",
             settings:         "svg/player_icons.svg#settings",
             fullscreen_enter: "svg/player_icons.svg#fullscreen_enter",
@@ -279,11 +265,9 @@ class Internals {
         this.svgs = {
             playback:   Svg.new(this.icons.play),
             next:       Svg.new(this.icons.next),
-            loop:       Svg.new(this.icons.loop),
             volume:     Svg.new(this.icons.volume_full),
             download:   Svg.new(this.icons.download),
             speed:      Svg.new(this.icons.speed),
-            autoplay:   Svg.new(this.icons.autoplay),
             subs:       Svg.new(this.icons.subs),
             settings:   Svg.new(this.icons.settings),
             fullscreen: Svg.new(this.icons.fullscreen_enter),
@@ -326,11 +310,9 @@ class Internals {
                 root:             newDiv("player_control_buttons"),
                 playbackButton:   newDiv(null, "player_controls_button"),
                 nextButton:       newDiv(null, "player_controls_button"),
-                loopButton:       newDiv(null, "player_controls_button"),
                 volumeButton:     newDiv(null, "player_controls_button"),
                 downloadButton:   newDiv(null, "player_controls_button"),
                 speedButton:      newDiv(null, "player_controls_button"),
-                autoplayButton:   newDiv(null, "player_controls_button"),
                 subsButton:       newDiv(null, "player_controls_button"),
                 settingsButton:   newDiv(null, "player_controls_button"),
                 fullscreenButton: newDiv(null, "player_controls_button"),
@@ -414,8 +396,6 @@ class Internals {
     fireControlsPlay() {}
     fireControlsPause() {}
     fireControlsNext() {}
-    fireControlsLooping() {}
-    fireControlsAutoplay() {}
     fireFullscreenChange(_enabled) {}
     fireControlsSeeking(_timestamp) {}
     fireControlsSeeked(_timestamp) {}
@@ -1109,14 +1089,6 @@ class Internals {
             this.fireControlsNext();
         });
 
-        this.htmlControls.buttons.loopButton.addEventListener("click", _ => {
-            this.fireControlsLooping();
-        });
-
-        this.htmlControls.buttons.autoplayButton.addEventListener("click", _ => {
-            this.fireControlsAutoplay();
-        });
-
         this.htmlControls.buttons.volumeButton.addEventListener("click", _ => {
             let slider = this.htmlControls.buttons.volumeInput;
             if (slider.value == 0) {
@@ -1374,7 +1346,6 @@ class Internals {
         let buttonsRoot      = this.htmlControls.buttons.root;
         let playbackButton   = this.htmlControls.buttons.playbackButton;
         let nextButton       = this.htmlControls.buttons.nextButton;
-        let loopButton       = this.htmlControls.buttons.loopButton;
         let volumeButton     = this.htmlControls.buttons.volumeButton;
         let volumeRoot       = newDiv("player_volume_root");
         let volumeSlider     = this.htmlControls.buttons.volumeInput;
@@ -1387,14 +1358,12 @@ class Internals {
         let spacer           = newDiv("player_spacer");
         let downloadButton   = this.htmlControls.buttons.downloadButton;
         let speedButton      = this.htmlControls.buttons.speedButton;
-        let autoplayButton   = this.htmlControls.buttons.autoplayButton;
         let subsButton       = this.htmlControls.buttons.subsButton;
         let settingsButton   = this.htmlControls.buttons.settingsButton;
         let fullscreenButton = this.htmlControls.buttons.fullscreenButton;
 
         playbackButton.title = "Play/Pause";
         nextButton.title     = "Next";
-        loopButton.title     = "Loop";
         volumeButton.title   = "Mute/Unmute";
 
         volumeSlider.type  = "range";
@@ -1408,20 +1377,17 @@ class Internals {
 
         downloadButton.title   = "Download";
         speedButton.title      = "Playback speed";
-        autoplayButton.title   = "Autoplay";
         subsButton.title       = "Subtitles";
         settingsButton.title   = "Settings";
         fullscreenButton.title = "Fullscreen";
 
         if (this.options.hidePlaybackButton)   hide(playbackButton);
         if (this.options.hideNextButton)       hide(nextButton);
-        if (this.options.hideLoopingButton)    hide(loopButton);
         if (this.options.hideVolumeButton)     hide(volumeButton);
         if (this.options.hideVolumeSlider)     hide(volumeRoot)
         if (this.options.hideTimestamps)       hide(timestamp);
         if (this.options.hideDownloadButton)   hide(downloadButton);
         if (this.options.hideSpeedButton)      hide(speedButton);
-        if (this.options.hideAutoplayButton)   hide(autoplayButton);
         if (this.options.hideSubtitlesButton)  hide(subsButton);
         if (this.options.hideSettingsButton)   hide(settingsButton);
         if (this.options.hideFullscreenButton) hide(fullscreenButton);
@@ -1435,10 +1401,6 @@ class Internals {
 
             buttonsRoot.append(nextButton); {
                 nextButton.append(svgs.next.svg);
-            }
-
-            buttonsRoot.append(loopButton); {
-                loopButton.append(svgs.loop.svg);
             }
 
             buttonsRoot.append(volumeButton); {
@@ -1466,10 +1428,6 @@ class Internals {
 
             buttonsRoot.append(speedButton); {
                 speedButton.appendChild(svgs.speed.svg);
-            }
-
-            buttonsRoot.append(autoplayButton); {
-                autoplayButton.appendChild(svgs.autoplay.svg);
             }
 
             buttonsRoot.append(subsButton); {
@@ -2232,13 +2190,11 @@ class Options {
     constructor() {
         this.hidePlaybackButton   = false;
         this.hideNextButton       = false;
-        this.hideLoopingButton    = false;
         this.hideVolumeButton     = false;
         this.hideVolumeSlider     = false;
         this.hideTimestamps       = false;
         this.hideDownloadButton   = false;
         this.hideSpeedButton      = false;
-        this.hideAutoplayButton   = false;
         this.hideSubtitlesButton  = false;
         this.hideSettingsButton   = false;
         this.hideFullscreenButton = false;

@@ -1,5 +1,4 @@
-#chat_content {
-    row-gap: 8px;
+#content_chat {
     display: flex;
     box-sizing: border-box;
     flex-direction: column;
