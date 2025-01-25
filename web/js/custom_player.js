@@ -1029,6 +1029,32 @@ class Internals {
             }
         });
 
+        this.htmlPlayerRoot.addEventListener('dblclick', event => {
+            if (!this.options.enableDoubleTapSeek) {
+                return;
+            }
+            let rect = this.htmlPlayerRoot.getBoundingClientRect();
+            // Get the click coordinates relative to the viewport
+            const relativeClickX = event.clientX - rect.left;
+            let isBackward = relativeClickX <= (rect.width / 2);
+
+            let seek;
+            if (isBackward) {
+                seek = -this.options.seekBy;
+                this.htmlSeekBackward.classList.remove("hide");
+                this.seekBackwardTimeout.schedule();
+            } else {
+                seek = this.options.seekBy;
+                this.htmlSeekForward.classList.remove("hide");
+                this.seekForwardTimeout.schedule();
+            }
+
+            let timestamp = this.getNewTime(seek);
+            this.fireControlsSeeked(timestamp);
+            this.seek(timestamp);
+            stopPropagation(event);
+        });
+
         this.htmlPlayerRoot.addEventListener("click", event => {
             if (event.pointerType === "touch" || event.pointerType === "pen") {
                 if (!this.isUIVisible) {
@@ -1272,34 +1298,6 @@ class Internals {
             let href = document.fullscreenElement ? this.icons.fullscreen_exit : this.icons.fullscreen_enter;
             this.svgs.fullscreen.setHref(href);
             this.fireFullscreenChange(document.fullscreenElement != null)
-        });
-
-        this.htmlSeekBackward.addEventListener("dblclick", event => {
-            if (!this.options.enableDoubleTapSeek) {
-                return;
-            }
-
-            this.htmlSeekBackward.classList.remove("hide");
-            this.seekBackwardTimeout.schedule();
-
-            let timestamp = this.getNewTime(-this.options.seekBy);
-            this.fireControlsSeeked(timestamp);
-            this.seek(timestamp);
-            stopPropagation(event);
-        });
-
-        this.htmlSeekForward.addEventListener("dblclick", event => {
-            if (!this.options.enableDoubleTapSeek) {
-                return;
-            }
-
-            this.htmlSeekForward.classList.remove("hide");
-            this.seekForwardTimeout.schedule();
-
-            let timestamp = this.getNewTime(this.options.seekBy);
-            this.fireControlsSeeked(timestamp);
-            this.seek(timestamp);
-            stopPropagation(event);
         });
     }
 
@@ -2222,7 +2220,7 @@ class Options {
         this.hideSettingsButton   = false;
         this.hideFullscreenButton = false;
 
-        this.doubleTapThresholdMs = 300;
+        this.doubleTapThresholdMs = 350;
         this.enableDoubleTapSeek = isMobileAgent();
         this.sanitizeSubtitles = true;
         this.allowCueOverlap = true;
