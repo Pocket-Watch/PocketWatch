@@ -1285,7 +1285,7 @@ class Internals {
             let timestamp = this.getNewTime(-this.options.seekBy);
             this.fireControlsSeeked(timestamp);
             this.seek(timestamp);
-            consumeClick(event);
+            stopPropagation(event);
         });
 
         this.htmlSeekForward.addEventListener("dblclick", event => {
@@ -1299,7 +1299,7 @@ class Internals {
             let timestamp = this.getNewTime(this.options.seekBy);
             this.fireControlsSeeked(timestamp);
             this.seek(timestamp);
-            consumeClick(event);
+            stopPropagation(event);
         });
     }
 
@@ -1454,7 +1454,7 @@ class Internals {
 
     createHtmlControls() {
         let playerControls = this.htmlControls.root;
-        playerControls.addEventListener("click", consumeClick);
+        playerControls.addEventListener("click", stopPropagation);
         playerControls.addEventListener("focusout", _ => {
             // Otherwise document.body will receive focus
             this.htmlPlayerRoot.focus();
@@ -1535,7 +1535,7 @@ class Internals {
         menu.selected.tab.classList.add("player_menu_tab_selected");
         show(menu.selected.view);
 
-        menuRoot.onclick = consumeClick;
+        menuRoot.onclick = stopPropagation;
 
         let select = (tab, view) => {
             let selected = menu.selected;
@@ -1575,10 +1575,9 @@ class Internals {
             this.addSubtitle(objectUrl, true, trackInfo);
         };
 
-        // Maybe this is not even needed if the layering is setup correctly
-        subtitleName.oninput = consumeEvent;
-        subtitleLanguage.oninput = consumeEvent;
-        subtitleYear.oninput = consumeEvent;
+        subtitleName.addEventListener("keydown", stopPropagation);
+        subtitleLanguage.addEventListener("keydown", stopPropagation);
+        subtitleYear.addEventListener("keydown", stopPropagation);
 
         searchSubtitle.addEventListener("click", async _ => {
             let title = subtitleName.value;
@@ -1652,7 +1651,7 @@ class Internals {
         menu.selected.tab.classList.add("player_menu_tab_selected");
         show(menu.selected.view);
 
-        menuRoot.onclick = consumeClick;
+        menuRoot.onclick = stopPropagation;
 
         let select = (tab, view) => {
             let selected = menu.selected;
@@ -1669,7 +1668,7 @@ class Internals {
         generalTab.onclick     = () => select(generalTab, generalView);
         appearanceTab.onclick  = () => select(appearanceTab, appearanceView);
 
-        menuRoot.onclick = consumeClick;
+        menuRoot.onclick = stopPropagation;
 
         alwaysShow.onAction = state => {
             this.options.alwaysShowControls = state;
@@ -2171,7 +2170,7 @@ function consumeEvent(event) {
     event.preventDefault();
 }
 
-function consumeClick(event) {
+function stopPropagation(event) {
     event.stopPropagation();
 }
 
