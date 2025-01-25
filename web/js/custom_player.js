@@ -434,6 +434,10 @@ class Internals {
             return;
         }
 
+        if (this.options.showControlsOnPause) {
+            this.showPlayerUI();
+        }
+
         this.svgs.playback.setHref(this.icons.play);
         this.htmlVideo.pause();
     }
