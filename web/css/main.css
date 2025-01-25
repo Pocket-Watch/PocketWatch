@@ -17,7 +17,7 @@ html, body {
 }
 
 html * {
-    font-family: Rubik;
+    font-family: Rubik, sans-serif;
 }
 
 #root_panel {
@@ -88,7 +88,6 @@ html * {
     height: 100%;
     border: none;
     border-radius: 6px;
-    box-sizing: flex;
     justify-content: center;
     align-items: center;
     /* background-color: #fb4934; */
@@ -121,7 +120,6 @@ html * {
     border: none;
     border-radius: 6px;
     box-shadow: 1px 3px 0px 0px #1d2021;
-    box-sizing: flex;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -201,7 +199,7 @@ html * {
     height: 100%;
     border-radius: 6px;
     display: flex;
-    overflow: show;
+    overflow: visible;
 }
 
 #url_set_button {
@@ -567,7 +565,7 @@ html * {
     display: block;
 }
 
-/* TOOD(kihau): Maybe catch focus on user_box instead of just input box from user_box_bottom? */
+/* TODO(kihau): Maybe catch focus on user_box instead of just input box from user_box_bottom? */
 .user_box_bottom input:focus+.user_box_edit_name_button {
     display: block;
 }
@@ -782,7 +780,5 @@ html * {
     right: 40px;
     animation: sway 2.4s infinite;
     animation-timing-function: ease-in-out;
-    -webkit-transform-origin: top;
-    -moz-transform-origin: top;
     transform-origin: top;
 }
