@@ -1510,6 +1510,7 @@ func getSubtitles() []string {
 }
 
 func setupGenericFileProxy(url string, referer string) bool {
+	_ = os.RemoveAll(WEB_PROXY)
 	_ = os.Mkdir(WEB_PROXY, os.ModePerm)
 	parsedUrl, err := net_url.Parse(url)
 	if err != nil {
@@ -1550,6 +1551,7 @@ func setupHlsProxy(url string, referer string) bool {
 		return false
 	}
 
+	_ = os.RemoveAll(WEB_PROXY)
 	_ = os.Mkdir(WEB_PROXY, os.ModePerm)
 	var m3u *M3U
 	if strings.HasPrefix(url, MEDIA) || strings.HasPrefix(url, serverRootAddress) {
