@@ -1033,6 +1033,11 @@ class Internals {
             if (!this.options.enableDoubleTapSeek) {
                 return;
             }
+            let fromElement = event.target;
+            if (!(fromElement.tagName === "VIDEO" || fromElement.id === "player_backward_container" ||
+                fromElement.id === "player_forward_container")) {
+                return;
+            }
             let rect = this.htmlPlayerRoot.getBoundingClientRect();
             // Get the click coordinates relative to the viewport
             const relativeClickX = event.clientX - rect.left;
