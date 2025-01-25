@@ -278,9 +278,11 @@ type Search struct {
 	Episode string `json:"episode"`
 }
 
+const OUT_DIR = "../web/media/subs"
+
 // TODO: Check if executable exists or was disabled at launch with a flag
 func downloadSubtitle(executable string, search *Search) (string, error) {
-	command := exec.Command(executable, search.Title, "--skip-select", "--to", "vtt")
+	command := exec.Command(executable, search.Title, "--skip-select", "--to", "vtt", "--out", OUT_DIR)
 	if search.Lang != "" {
 		command.Args = append(command.Args, "--lang", search.Lang)
 	}

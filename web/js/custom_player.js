@@ -1494,7 +1494,10 @@ class Internals {
         let subsSwitch     = menu.subsSwitcher;
         let searchView     = newDiv("player_submenu_search_view");
         let subtitleImport = newElement("input", "player_submenu_import");
-        let searchSubtitle = newElement("button");
+        let subtitleName = newElement("input", null, "player_input_box");
+        let subtitleLanguage = newElement("input", null, "player_input_box");
+        let subtitleYear = newElement("input", null, "player_input_box");
+        let searchSubtitle = newElement("button", "player_subtitle_search");
         let optionsView    = newDiv("player_submenu_bottom_options");
         let subsShift      = this.subtitleShift;
         let subsSize       = this.subtitleSize;
@@ -1516,8 +1519,12 @@ class Internals {
         subtitleImport.type = "file";
         subtitleImport.accept = ".vtt,.srt";
 
+        subtitleName.style.marginTop = "10px";
+        subtitleName.placeholder = "Title";
+        subtitleLanguage.placeholder = "Language";
+        subtitleYear.placeholder = "Year";
+
         searchSubtitle.textContent = "Search sub";
-        searchSubtitle.style.marginTop = "50px";
 
         subsFgColor.type = "color";
         subsFgColor.value = "white";
@@ -1568,8 +1575,16 @@ class Internals {
             this.addSubtitle(objectUrl, true, trackInfo);
         };
 
+        // Maybe this is not even needed if the layering is setup correctly
+        subtitleName.oninput = consumeEvent;
+        subtitleLanguage.oninput = consumeEvent;
+        subtitleYear.oninput = consumeEvent;
+
         searchSubtitle.addEventListener("click", async _ => {
-            let search = new Search("Star Wars", "eng", "1977");
+            let title = subtitleName.value;
+            let lang = subtitleLanguage.value;
+            let year = subtitleYear.value;
+            let search = new Search(title, lang, year);
             let success = await this.fireSubtitleSearch(search);
             console.debug("Search", success ? "was successful" : "failed");
         });
@@ -1593,6 +1608,9 @@ class Internals {
                 }
                 menuViews.append(searchView); {
                     searchView.append(subtitleImport)
+                    searchView.append(subtitleName)
+                    searchView.append(subtitleLanguage)
+                    searchView.append(subtitleYear)
                     searchView.append(searchSubtitle)
                 }
                 menuViews.append(optionsView); {

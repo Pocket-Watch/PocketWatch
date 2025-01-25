@@ -576,6 +576,7 @@ func apiSearchSubs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	path, err := downloadSubtitle("subs", search)
+	//
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

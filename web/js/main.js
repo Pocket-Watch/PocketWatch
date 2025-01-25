@@ -195,6 +195,20 @@ class Room {
             }
         })
 
+        this.player.onSubtitleSearch(async (search) => {
+            console.log("Search requested.", search);
+            return false;
+            /*let jsonResponse = await api.subtitleRequest(search);
+            if (jsonResponse.checkError()) {
+                return false;
+            }
+            let subtitleUrl = jsonResponse.json;
+            // This should be received with a proper prefix
+            this.player.setToast(subtitleUrl);
+            // this.player.addSubtitle(subtitleUrl);
+            return true;*/
+        })
+
         this.player.onPlaybackEnd(_ => {
             if (this.playlist.autoplayEnabled) {
                 api.playerNext(this.currentEntryId);
