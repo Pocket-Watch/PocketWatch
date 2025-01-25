@@ -362,13 +362,15 @@ class Internals {
         this.selectedSubtitle = null;
         this.activeCues = [];
 
-        this.htmlSeekForward = newDiv("player_forward_container", "unselectable");
+        this.htmlSeekForward = newDiv("player_forward_container", "hide", "unselectable");
         this.htmlSeekForward.appendChild(this.svgs.seekForward.svg);
         this.htmlPlayerRoot.appendChild(this.htmlSeekForward);
+        this.seekForwardTimeout = new Timeout(_ => this.htmlSeekForward.classList.add("hide"), 200);
 
-        this.htmlSeekBackward = newDiv("player_backward_container", "unselectable");
+        this.htmlSeekBackward = newDiv("player_backward_container", "hide", "unselectable");
         this.htmlSeekBackward.appendChild(this.svgs.seekBackward.svg);
         this.htmlPlayerRoot.appendChild(this.htmlSeekBackward);
+        this.seekBackwardTimeout = new Timeout(_ => this.htmlSeekBackward.classList.add("hide"), 200);
 
         this.subtitleContainer = newDiv("player_subtitle_container");
         this.subtitleText      = newDiv("player_subtitle_text");
@@ -636,7 +638,6 @@ class Internals {
     showPlaybackPopup() {
         show(this.playbackPopupSvg);
         this.playbackPopupSvg.classList.remove("hide");
-
         this.playbackPopupTimeout.schedule();
     }
 
@@ -990,14 +991,18 @@ class Internals {
                 consumeEvent(event);
 
             } else if (event.key === "ArrowLeft") {
-                this.htmlSeekBackward.classList.add("animate");
+                this.htmlSeekBackward.classList.remove("hide");
+                this.seekBackwardTimeout.schedule();
+
                 let timestamp = this.getNewTime(-this.options.seekBy);
                 this.fireControlsSeeked(timestamp);
                 this.seek(timestamp);
                 consumeEvent(event);
 
             } else if (event.key === "ArrowRight") {
-                this.htmlSeekForward.classList.add("animate");
+                this.htmlSeekForward.classList.remove("hide");
+                this.seekForwardTimeout.schedule();
+
                 let timestamp = this.getNewTime(this.options.seekBy);
                 this.fireControlsSeeked(timestamp);
                 this.seek(timestamp);
@@ -1267,7 +1272,9 @@ class Internals {
                 return;
             }
 
-            this.htmlSeekBackward.classList.add("animate");
+            this.htmlSeekBackward.classList.remove("hide");
+            this.seekBackwardTimeout.schedule();
+
             let timestamp = this.getNewTime(-this.options.seekBy);
             this.fireControlsSeeked(timestamp);
             this.seek(timestamp);
@@ -1279,19 +1286,13 @@ class Internals {
                 return;
             }
 
-            this.htmlSeekForward.classList.add("animate");
+            this.htmlSeekForward.classList.remove("hide");
+            this.seekForwardTimeout.schedule();
+
             let timestamp = this.getNewTime(this.options.seekBy);
             this.fireControlsSeeked(timestamp);
             this.seek(timestamp);
             consumeClick(event);
-        });
-
-        this.htmlSeekBackward.addEventListener("transitionend", _ => {
-            this.htmlSeekBackward.classList.remove("animate");
-        });
-
-        this.htmlSeekForward.addEventListener("transitionend", _ => {
-            this.htmlSeekForward.classList.remove("animate");
         });
     }
 

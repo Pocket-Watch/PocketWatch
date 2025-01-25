@@ -94,10 +94,9 @@
     position: absolute;
     display: flex;
     fill: #EEEEEE;
-    opacity: 0; 
+    opacity: 1; 
     align-items: center;
     justify-content: center;
-    transition: opacity 200ms ease-out;
 }
 
 #player_backward_container {
@@ -109,15 +108,15 @@
     position: absolute;
     display: flex;
     fill: #EEEEEE;
-    opacity: 0; 
+    opacity: 1; 
     align-items: center;
     justify-content: center;
-    transition: opacity 300ms ease-out;
 }
 
-#player_backward_container.animate, #player_forward_container.animate {
-    opacity: 1;
-    transition: opacity 32ms;
+#player_backward_container.hide, #player_forward_container.hide {
+    visibility: hidden;
+    opacity: 0;
+    transition: visibility 500ms, opacity 500ms;
 }
 
 #player_playback_popup {
