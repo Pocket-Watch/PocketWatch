@@ -12,7 +12,10 @@ class Room {
         let video0 = getById("video0");
 
         let options = new Options();
-        options.hideSpeedButton = true;
+        options.hideSpeedButton    = true;
+        options.hideDownloadButton = true;
+        options.hideAutoplayButton = true;
+        options.hideLoopingButton  = true;
         this.applyUserOptions(options);
 
         this.player   = new Player(video0, options);
@@ -146,7 +149,7 @@ class Room {
 
     attachPlayerEvents() {
         // We have to know if anything is currently playing or whether something is set
-        this.player.onControlsPlay(() => {
+        this.player.onControlsPlay(_ => {
             if (this.ended) {
                 this.ended = false;
                 api.playerPlay(0);
@@ -159,29 +162,21 @@ class Room {
             api.playerPlay(this.player.getCurrentTime());
         })
 
-        this.player.onControlsPause(() => {
+        this.player.onControlsPause(_ => {
             api.playerPause(this.player.getCurrentTime());
         })
 
-        this.player.onControlsSeeked((timestamp) => {
+        this.player.onControlsSeeked(timestamp => {
             this.ended = false;
             api.playerSeek(timestamp);
         })
 
-        this.player.onControlsSeeking((timestamp) => {
+        this.player.onControlsSeeking(timestamp => {
             console.log("User seeking to", timestamp);
         })
 
-        this.player.onControlsNext(() => {
+        this.player.onControlsNext(_ => {
             api.playerNext(this.currentEntryId);
-        });
-
-        this.player.onControlsLooping(enabled => {
-            api.playerLooping(enabled);
-        });
-
-        this.player.onControlsAutoplay(enabled => {
-            api.playerAutoplay(enabled);
         });
 
         this.player.onControlsVolumeSet(volume => {
@@ -202,8 +197,8 @@ class Room {
             }
         })
 
-        this.player.onPlaybackEnd(() => {
-            if (this.player.getAutoplay()) {
+        this.player.onPlaybackEnd(_ => {
+            if (this.playlist.autoplayEnabled) {
                 api.playerNext(this.currentEntryId);
             } else {
                 console.info("Playback ended! Informing the server");
@@ -211,6 +206,7 @@ class Room {
                 if (isNaN(endTime)) {
                     endTime = 0;
                 }
+
                 this.ended = true;
                 api.playerPause(endTime)
             }
@@ -473,8 +469,8 @@ class Room {
 
     async loadPlayerData() {
         let state = await api.playerGet();
-        this.player.setAutoplay(state.player.autoplay);
-        this.player.setLooping(state.player.looping);
+        this.playlist.setAutoplay(state.player.autoplay);
+        this.playlist.setLooping(state.player.looping);
 
         let entry = state.entry;
         this.setEntryEvent(entry);
@@ -648,6 +644,7 @@ class Room {
         this.usingProxy.checked = entry.user_proxy;
 
         this.currentEntryId = entry.id;
+        this.playlist.currentEntryId = entry.id;
 
         let url = entry.url
         if (!url) {
@@ -678,7 +675,7 @@ class Room {
             this.player.setPoster(entry.thumbnail);
         }
 
-        if (this.player.getAutoplay()) {
+        if (this.playlist.autoplayEnabled) {
             this.player.play();
         }
     }
@@ -794,7 +791,7 @@ class Room {
             this.setEntryEvent(newEntry);
 
             let prevEntry = response.prev_entry;
-            if (this.player.isLooping() && prevEntry.url !== "") {
+            if (this.playlist.loopingEnabled && prevEntry.url !== "") {
                 this.playlist.addEntry(prevEntry, this.allUsers);
             }
         });
@@ -807,7 +804,7 @@ class Room {
             this.setEntryEvent(newEntry);
 
             if (this.playlist.entries.length != 0) {
-                if (this.player.isLooping() && prevEntry.url !== "") {
+                if (this.playlist.loopingEnabled && prevEntry.url !== "") {
                     this.playlist.addEntry(prevEntry, this.allUsers);
                 }
 
@@ -817,12 +814,12 @@ class Room {
 
         events.addEventListener("playerlooping", event => {
             let looping = JSON.parse(event.data);
-            this.player.setLooping(looping)
+            this.playlist.setLooping(looping)
         });
 
         events.addEventListener("playerautoplay", event => {
             let autoplay = JSON.parse(event.data);
-            this.player.setAutoplay(autoplay)
+            this.playlist.setAutoplay(autoplay)
         });
 
         events.addEventListener("sync", event => {

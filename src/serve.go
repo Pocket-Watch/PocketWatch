@@ -369,7 +369,7 @@ func StartServer(options *Options) {
 
 func handleUnknownEndpoint(w http.ResponseWriter, r *http.Request) {
 	LogWarn("User %v requested unknown endpoint: %v", r.RemoteAddr, r.RequestURI)
-	http.Error(w, "", http.StatusTeapot)
+	http.Error(w, "¯\\_(ツ)_/¯", http.StatusTeapot)
 }
 
 func registerEndpoints(options *Options) {

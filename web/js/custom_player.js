@@ -52,24 +52,6 @@ class Player {
         return this.internals.isLive;
     }
 
-    isLooping() {
-        // return this.internals.htmlVideo.loop;
-        return this.internals.loopEnabled;
-    }
-
-    setLooping(enabled) {
-        // this.internals.htmlVideo.loop = true;
-        this.internals.setLooping(enabled);
-    }
-
-    setAutoplay(enabled) {
-        this.internals.setAutoplay(enabled);
-    }
-
-    getAutoplay() {
-        return this.internals.autoplayEnabled;
-    }
-
     getCurrentTime() {
         return this.internals.getCurrentTime();
     }
@@ -237,9 +219,6 @@ class Internals {
         this.hls = null;
         this.playingHls = false;
         this.isLive = false;
-
-        this.loopEnabled = false;
-        this.autoplayEnabled = false;
 
         this.htmlVideo = videoElement;
         this.htmlVideo.disablePictureInPicture = true;
@@ -435,8 +414,8 @@ class Internals {
     fireControlsPlay() {}
     fireControlsPause() {}
     fireControlsNext() {}
-    fireControlsLooping(_enabled) {}
-    fireControlsAutoplay(_enabled) {}
+    fireControlsLooping() {}
+    fireControlsAutoplay() {}
     fireFullscreenChange(_enabled) {}
     fireControlsSeeking(_timestamp) {}
     fireControlsSeeked(_timestamp) {}
@@ -687,26 +666,6 @@ class Internals {
         show(this.htmlToastContainer);
 
         this.playerHideToastTimeout.schedule();
-    }
-
-    setLooping(enabled) {
-        this.loopEnabled = enabled;
-        let loop = this.htmlControls.buttons.loopButton;
-        if (enabled) {
-            loop.classList.add("player_controls_button_selected");
-        } else {
-            loop.classList.remove("player_controls_button_selected");
-        }
-    }
-
-    setAutoplay(enabled) {
-        this.autoplayEnabled = enabled;
-        let autoplay = this.htmlControls.buttons.autoplayButton;
-        if (enabled) {
-            autoplay.classList.add("player_controls_button_selected");
-        } else {
-            autoplay.classList.remove("player_controls_button_selected");
-        }
     }
 
     getCurrentTime() {
@@ -1150,17 +1109,12 @@ class Internals {
             this.fireControlsNext();
         });
 
-        // This should rely on the 'loop' property of <video> element in the future
         this.htmlControls.buttons.loopButton.addEventListener("click", _ => {
-            this.loopEnabled = !this.loopEnabled;
-            this.fireControlsLooping(this.loopEnabled);
-            this.htmlControls.buttons.loopButton.classList.toggle("player_controls_button_selected");
+            this.fireControlsLooping();
         });
 
         this.htmlControls.buttons.autoplayButton.addEventListener("click", _ => {
-            this.autoplayEnabled = !this.autoplayEnabled;
-            this.fireControlsAutoplay(this.autoplayEnabled);
-            this.htmlControls.buttons.autoplayButton.classList.toggle("player_controls_button_selected");
+            this.fireControlsAutoplay();
         });
 
         this.htmlControls.buttons.volumeButton.addEventListener("click", _ => {

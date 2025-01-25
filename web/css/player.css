@@ -335,18 +335,6 @@
     fill: #FFFFFF;
 }
 
-.player_controls_button_selected svg {
-    fill: #DD0000 !important;
-}
-
-.player_controls_button_selected:hover svg {
-    fill: #EE0000 !important;
-}
-
-.player_controls_button_selected:active svg {
-    fill: #FF0000 !important;
-}
-
 #player_volume_root {
     height: 40px;
     width: 160px;

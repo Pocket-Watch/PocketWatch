@@ -11,15 +11,107 @@
     height: 46px;
     border: 2px solid #a89984;
     border-radius: 6px;
-    column-gap: 6px;
+    column-gap: 4px;
     display: flex;
     box-sizing: border-box;
     background-color: #3c3836;
     padding: 4px;
 }
 
-#playlist_controls_spacer {
-    margin-right: auto;
+#playlist_controls_search_root {
+    height: 100%;
+    width: auto;
+    border-radius: 4px;
+    border: 1px solid #665c54;
+    display: flex;
+    box-sizing: border-box;
+    flex-grow: 1;
+    overflow: hidden;
+}
+
+#playlist_controls_search_icon {
+    height: 100%;
+    width: 24px;
+    border-radius: 4px;
+    /* border-right: 1px solid #665c54; */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background-color: #363331; 
+}
+
+#playlist_controls_search_icon svg {
+    width: 16px;
+    height: 16px;
+    /* fill: #d5c4a1; */
+    fill: #bdae93;
+}
+
+#playlist_controls_search_input {
+    height: 100%;
+    width: auto;
+    display: flex;
+    box-sizing: border-box;
+    flex-grow: 1;
+    padding-left: 6px;
+    padding-right: 6px;
+    background-color: #3c3836; 
+    color: #bdae93;
+}
+
+.playlist_controls_button {
+    width: 36px;
+    height: 100%;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* background-color: #665c54; */
+    background-color: #504945;
+}
+
+.playlist_controls_button:hover {
+    background-color: #665c54;
+}
+
+.playlist_controls_button:active {
+    background-color: #7c6f64;
+}
+
+.playlist_controls_button svg {
+    width: 20px;
+    height: 20px;
+    /* fill: #d5c4a1; */
+    fill: #bdae93;
+}
+
+.playlist_controls_button:hover svg {
+    fill: #d5c4a1;
+}
+
+.playlist_controls_button:active svg {
+    fill: #fe8019;
+    /* fill: #d65d0e; */
+}
+
+.playlist_controls_button.active {
+    background-color: #665c54;
+    /* background-color: #7c6f64; */
+}
+
+.playlist_controls_button:active {
+    background-color: #7c6f64;
+}
+
+.playlist_controls_button.active svg {
+    fill: #fe8019;
+    /* fill: #d65d0e; */
+}
+
+.playlist_controls_button.active:active svg {
+    /* fill: #fe8019; */
+    fill: #d65d0e;
 }
 
 #playlist_entry_list_root {

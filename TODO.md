@@ -99,12 +99,11 @@
     - [x] Update playlist entries when a user changes their name
     - [x] Animate entry add and remove
     - [x] Footer with entry count
-    - [ ] Top of the list controls
-    - [ ] Temporary playlist refresh button (or refetch) for debugging to fix playlist desync
+    - [x] Top of the list controls
     - [ ] More items in entry dropdown
     - [ ] Mouse right click / touch hold down opens context menu with extra options.
     - [ ] Proper network handling
-    - [ ] Smart scrolling - dynamic remove/add on scrolling when entry count > 300
+    - [ ] Smart scrolling - dynamic remove/add on scrolling when entry count > 300 (also includes search)
     - [ ] Add support for multiple playlists
     - [ ] Add different looping modes: none, single, playlist, shuffle...
 - [ ] Chat tab:

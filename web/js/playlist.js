@@ -13,6 +13,16 @@ const DRAG_INACTIVITY_DELAY = 32;
 
 class Playlist {
     constructor() {
+        this.controlsNextButton     = getById("playlist_controls_next");
+        this.controlsAutoplayButton = getById("playlist_controls_autoplay");
+        this.controlsLoopingButton  = getById("playlist_controls_looping");
+        this.controlsShuffleButton  = getById("playlist_controls_shuffle");
+        this.controlsClearButton    = getById("playlist_controls_clear");
+        this.controlsSettingsButton = getById("playlist_controls_settings");
+
+        this.autoplayEnabled = false;
+        this.loopiongEnabled = false;
+
         this.htmlEntryList     = getById("playlist_entry_list");
         this.footerEntryCount  = getById("playlist_footer_entry_count");
 
@@ -41,9 +51,52 @@ class Playlist {
         this.draggableEntry    = null;
         this.dragStartIndex    = -1;
         this.dragCurrentIndex  = -1;
+
+        this.currentEntryId = 0;
+    }
+
+    setAutoplay(enabled) {
+        if (enabled) {
+            this.controlsAutoplayButton.classList.add("active");
+        } else {
+            this.controlsAutoplayButton.classList.remove("active");
+        }
+
+        this.autoplayEnabled = enabled;
+    }
+
+    setLooping(enabled) {
+        if (enabled) {
+            this.controlsLoopingButton.classList.add("active");
+        } else {
+            this.controlsLoopingButton.classList.remove("active");
+        }
+
+        this.loopingEnabled = enabled;
     }
 
     attachPlaylistEvents() {
+        this.controlsNextButton.onclick = _ => {
+            if (this.entries.length > 0) {
+                api.playerNext(this.currentEntryId);
+            }
+        }
+
+        this.controlsAutoplayButton.onclick = _ => {
+            this.controlsAutoplayButton.classList.toggle("active");
+            this.autoplayEnabled = !this.autoplayEnabled;
+            api.playerAutoplay(this.autoplayEnabled);
+        };
+
+        this.controlsLoopingButton.onclick = _ => {
+            this.controlsLoopingButton.classList.toggle("active");
+            this.loopingEnabled = !this.loopingEnabled;
+            api.playerLooping(this.loopingEnabled);
+        };
+
+        this.controlsShuffleButton.onclick  = _ => api.playlistShuffle();
+        this.controlsClearButton.onclick    = _ => api.playlistClear();
+        this.controlsSettingsButton.onclick = _ => console.debug("TODO: settings button");
     }
 
     handleUserUpdate(user) {
