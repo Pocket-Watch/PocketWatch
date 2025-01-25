@@ -926,7 +926,7 @@ class Internals {
     }
 
     hidePlayerUI() {
-        if (!this.options.autohideControls) {
+        if (this.options.alwaysShowControls) {
             return;
         }
 
@@ -1616,13 +1616,13 @@ class Internals {
         let appearanceTab  = newDiv(null, "player_menu_tab");
         let generalView    = newDiv("player_submenu_select_view");
         let appearanceView = newDiv("player_submenu_select_view");
-        let autohide       = new Switcher("Auto-hide controls");
+        let alwaysShow     = new Switcher("Always show controls");
         let showOnPause    = new Switcher("Show controls on pause");
         let playbackSpeed  = new Slider("Playback speed", 0.25, 5.0, 0.25, 1.0, "x");
         let brightness  = new Slider("Brightness", 0.2, 1.5, 0.05, 1.0);
 
         hide(menuRoot);
-        autohide.setState(this.options.autohideControls);
+        alwaysShow.setState(this.options.alwaysShowControls);
         showOnPause.setState(this.options.showControlsOnPause);
 
         generalTab.textContent    = "General";
@@ -1653,9 +1653,9 @@ class Internals {
 
         menuRoot.onclick = consumeClick;
 
-        autohide.onAction = state => {
-            this.options.autohideControls = state;
-            this.fireSettingsChange(Options.AUTO_HIDE, state);
+        alwaysShow.onAction = state => {
+            this.options.alwaysShowControls = state;
+            this.fireSettingsChange(Options.ALWAYS_SHOW_CONTROLS, state);
         };
 
         showOnPause.onAction = state => {
@@ -1676,7 +1676,7 @@ class Internals {
             menuRoot.append(menuSeparator);
             menuRoot.append(menuViews); {
                 menuViews.append(generalView); {
-                    generalView.append(autohide.toggleRoot);
+                    generalView.append(alwaysShow.toggleRoot);
                     generalView.append(showOnPause.toggleRoot);
                     generalView.append(playbackSpeed.root);
                     generalView.append(brightness.root);
@@ -2218,7 +2218,7 @@ class Options {
         this.inactivityTime = 2500;
 
         // Disable the auto hide for player controls.
-        this.autohideControls = true;
+        this.alwaysShowControls  = false;
         this.showControlsOnPause = true;
 
         this.bufferingRedrawInterval = 1000;
@@ -2240,8 +2240,9 @@ class Options {
 
         return true;
     }
+
     // Constants
-    static AUTO_HIDE = "auto_hide";
+    static ALWAYS_SHOW_CONTROLS = "always_show_controls";
     static SHOW_CONTROLS_ON_PAUSE = "show_controls_on_pause";
     static SUBTITLE_FONT_SIZE = "subtitle_font_size";
     static SUBTITLE_VERTICAL_POSITION = "subtitle_vertical_position";

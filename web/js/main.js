@@ -117,9 +117,9 @@ class Room {
     }
 
     applyUserOptions(options) {
-        let autohide = Storage.getBool(Options.AUTO_HIDE);
-        if (autohide != null) {
-            options.autohideControls = autohide;
+        let alwaysShow = Storage.getBool(Options.ALWAYS_SHOW_CONTROLS);
+        if (alwaysShow != null) {
+            options.alwaysShowControls = alwaysShow;
         }
 
         let show = Storage.getBool(Options.SHOW_CONTROLS_ON_PAUSE);
@@ -185,7 +185,7 @@ class Room {
         this.player.onSettingsChange((key, value) => {
             switch (key) {
                 case Options.SHOW_CONTROLS_ON_PAUSE:
-                case Options.AUTO_HIDE:
+                case Options.ALWAYS_SHOW_CONTROLS:
                     Storage.setBool(key, value);
                     break;
                 case Options.SUBTITLE_FONT_SIZE:
