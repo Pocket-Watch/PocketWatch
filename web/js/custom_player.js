@@ -419,6 +419,7 @@ class Internals {
             return;
         }
 
+        this.playerUIHideTimeout.schedule();
         this.svgs.playback.setHref(this.icons.pause);
 
         this.htmlVideo.play().catch(exception => {
