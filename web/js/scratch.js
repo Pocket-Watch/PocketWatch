@@ -22,9 +22,7 @@ function main() {
     // let track = "https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_640x360.m4v";
     player.setVideoTrack(track);
     player.setTitle("Agent327");
-    player.addSubtitle("media/Elephants.Dream.2006.vtt")
     player.addSubtitle("media/Tears.of.Steel.2012.vtt")
-    player.addSubtitle("media/Tears.srt")
     player.addSubtitle("media/Agent327.srt")
     player.addSubtitle("media/oneline.srt")
     player.setVolume(0.01)
@@ -42,6 +40,11 @@ function main() {
 
     player.onSettingsChange((key, value) => {
         console.log("Settings change:", key, "to", value);
+    })
+
+    player.onSubtitleSearch(async (search) => {
+        console.log("Search requested.", search);
+        return true;
     })
 
     player.onPlaybackError(function (exception, error) {

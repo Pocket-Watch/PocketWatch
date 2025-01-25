@@ -445,7 +445,7 @@ class Internals {
     firePlaybackError(_exception, _mediaError) {}
     firePlaybackEnd() {}
     fireSubtitleTrackLoad(_subtitle) {}
-    fireSubtitleSearch(_search) {}
+    async fireSubtitleSearch(_search) {}
 
     isVideoPlaying() {
         return !this.htmlVideo.paused && !this.htmlVideo.ended;
@@ -1576,6 +1576,7 @@ class Internals {
         let subsSwitch     = menu.subsSwitcher;
         let searchView     = newDiv("player_submenu_search_view");
         let subtitleImport = newElement("input", "player_submenu_import");
+        let searchSubtitle = newElement("button");
         let optionsView    = newDiv("player_submenu_bottom_options");
         let subsShift      = this.subtitleShift;
         let subsSize       = this.subtitleSize;
@@ -1596,6 +1597,9 @@ class Internals {
         subtitleImport.textContent = "Import subtitle";
         subtitleImport.type = "file";
         subtitleImport.accept = ".vtt,.srt";
+
+        searchSubtitle.textContent = "Search sub";
+        searchSubtitle.style.marginTop = "50px";
 
         subsFgColor.type = "color";
         subsFgColor.value = "white";
@@ -1646,6 +1650,12 @@ class Internals {
             this.addSubtitle(objectUrl, true, trackInfo);
         };
 
+        searchSubtitle.addEventListener("click", async _ => {
+            let search = new Search("Star Wars", "eng", "1977");
+            let success = await this.fireSubtitleSearch(search);
+            console.debug("Search", success ? "was successful" : "failed");
+        });
+
         subsShift.onInput = value => this.setCurrentSubtitleShift(value);
         subsSize.onInput  = size  => this.setSubtitleFontSize(size);
         subsPos.onInput      = position => this.setSubtitleVerticalPosition(position);
@@ -1665,6 +1675,7 @@ class Internals {
                 }
                 menuViews.append(searchView); {
                     searchView.append(subtitleImport)
+                    searchView.append(searchSubtitle)
                 }
                 menuViews.append(optionsView); {
                     optionsView.append(subsShift.root);
@@ -2125,14 +2136,10 @@ function parseStamp(stamp, decimalMark) {
     }
 }
 
-function nonNullOrEmpty(arg) {
-    return arg != null && arg.length > 0;
-}
-
 export class Search {
     // Expecting strings for now
     constructor(title, lang, year, season, episode) {
-        this.isMovie = nonNullOrEmpty(season) && nonNullOrEmpty(episode);
+        this.isMovie = !season;
         this.title = title;
         this.lang = lang;
         this.year = year;
