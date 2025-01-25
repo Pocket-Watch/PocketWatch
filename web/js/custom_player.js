@@ -393,6 +393,8 @@ class Internals {
         if (isSafari) {
             this.rebindFullscreenAPIFromWebkit();
         }
+
+        this.playerUIHideTimeout = new Timeout(_ => this.hidePlayerUI(), this.options.inactivityTime);
     }
 
     fireControlsPlay() {}
@@ -1459,8 +1461,6 @@ class Internals {
         this.assembleControlButtons();
         this.createSubtitleMenu();
         this.createSettingsMenu();
-        // Assign controls hide timeout. perhaps move all timeouts into one function? this.createTimeouts()
-        this.playerUIHideTimeout = new Timeout(_ => this.hidePlayerUI, this.options.inactivityTime);
     }
 
     markSubtitleSelected(subtitle) {
