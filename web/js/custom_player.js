@@ -332,10 +332,10 @@ class Internals {
                     track:  null,
                 },
 
-                /// Part of the select view. Switch widget indicating whether subtitles are enabled or not.
+                // Part of the select view. Switch widget indicating whether subtitles are enabled or not.
                 subsSwitcher: new Switcher("Enable subtitles"),
 
-                /// Part of the select view, html track elements are appended here.
+                // Part of the select view, html track elements are appended here.
                 trackList: newDiv("subtitle_track_list"),
             },
 

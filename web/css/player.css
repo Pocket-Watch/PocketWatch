@@ -88,7 +88,7 @@
 #player_forward_container {
     width: 50%;
     height: 100%;
-    filter: drop-shadow(#1d202177 3px 3px 6px);
+    filter: drop-shadow(3px 3px 6px #1d202177);
     top: 0;
     right: 0;
     position: absolute;
@@ -103,7 +103,7 @@
 #player_backward_container {
     width: 50%;
     height: 100%;
-    filter: drop-shadow(#1d202155 3px 3px 6px);
+    filter: drop-shadow(3px 3px 6px #1d202155);
     top: 0;
     left: 0;
     position: absolute;
@@ -124,7 +124,7 @@
     width: 150px;
     height: 150px;
     pointer-events: none;
-    filter: drop-shadow(#1d202155 3px 3px 6px);
+    filter: drop-shadow(3px 3px 6px #1d202155);
     top: 0;
     left: 0;
     right: 0;
@@ -162,7 +162,6 @@
     justify-content: center;
     text-align: center;
     align-items: center;
-    text-align: center;
     background-color: #282828AA;
 }
 
@@ -774,7 +773,7 @@
 #player_buffering {
     width: 150px;
     height: 150px;
-    filter: drop-shadow(#1d202155 3px 3px 6px);
+    filter: drop-shadow(3px 3px 6px #1d202155);
     top: 0;
     left: 0;
     right: 0;

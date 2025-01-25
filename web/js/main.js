@@ -89,28 +89,28 @@ class Room {
         this.addToTopEnabled      = false;
         this.proxyEnabled         = false;
 
-        /// Current connection id.
+        // Current connection id.
         this.connectionId = 0;
 
-        /// Currently connected user. Server User structure.
+        // Currently connected user. Server User structure.
         this.currentUserId = -1;
 
-        /// User token string.
+        // User token string.
         this.token = "";
 
-        /// List of all users in current room.
+        // List of all users in current room.
         this.allUsers = [];
 
-        /// List of all html user elements displayed inside of users_list element.
+        // List of all html user elements displayed inside of users_list element.
         this.allUserBoxes = [];
 
-        /// Number of user online.
+        // Number of user online.
         this.onlineCount = 0;
 
-        /// Subtitle file to be attached to the entry.
+        // Subtitle file to be attached to the entry.
         this.subtitleFile = null;
 
-        /// Id of the currently set entry.
+        // Id of the currently set entry.
         this.currentEntryId = 0;
 
         this.applyUserPreferences();
