@@ -113,11 +113,3 @@ func DisplayHelp() {
 	fmt.Println("Example usage:")
 	fmt.Println("    ", exe, "-port 8888")
 }
-
-func errPrintln(format string, err error) {
-	if err == nil {
-		fmt.Fprintf(os.Stderr, format+"\n")
-		return
-	}
-	fmt.Fprintf(os.Stderr, format+" [%s]\n", err.Error())
-}

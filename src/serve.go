@@ -12,6 +12,7 @@ import (
 	net_url "net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -1073,35 +1074,48 @@ func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	LogInfo("Adding '%s' url to the playlist.", data.RequestEntry.Url)
+	localDir, path := isLocalDirectory(data.RequestEntry.Url)
+	if data.RequestEntry.IsPlaylist && localDir {
+		LogInfo("Adding directory '%s' to the playlist.", path)
+		localEntries := getEntriesFromDirectory(path, user.Id)
 
-	state.mutex.Lock()
-	state.entryId += 1
-	id := state.entryId
-	state.mutex.Unlock()
+		state.mutex.Lock()
+		state.playlist = append(state.playlist, localEntries...)
+		state.mutex.Unlock()
 
-	newEntry := Entry{
-		Id:          id,
-		Url:         data.RequestEntry.Url,
-		UserId:      user.Id,
-		Title:       data.RequestEntry.Title,
-		UseProxy:    data.RequestEntry.UseProxy,
-		RefererUrl:  data.RequestEntry.RefererUrl,
-		SourceUrl:   "",
-		SubtitleUrl: data.RequestEntry.SubtitleUrl,
-		Created:     time.Now(),
+		event := createPlaylistEvent("addmany", localEntries)
+		writeEventToAllConnections(w, "playlist", event)
+	} else {
+		LogInfo("Adding '%s' url to the playlist.", data.RequestEntry.Url)
+
+		state.mutex.Lock()
+		state.entryId += 1
+		id := state.entryId
+		state.mutex.Unlock()
+
+		newEntry := Entry{
+			Id:          id,
+			Url:         data.RequestEntry.Url,
+			UserId:      user.Id,
+			Title:       data.RequestEntry.Title,
+			UseProxy:    data.RequestEntry.UseProxy,
+			RefererUrl:  data.RequestEntry.RefererUrl,
+			SourceUrl:   "",
+			SubtitleUrl: data.RequestEntry.SubtitleUrl,
+			Created:     time.Now(),
+		}
+
+		newEntry.Title = constructTitleWhenMissing(&newEntry)
+
+		loadYoutubeEntry(&newEntry, data.RequestEntry)
+
+		state.mutex.Lock()
+		state.playlist = append(state.playlist, newEntry)
+		state.mutex.Unlock()
+
+		event := createPlaylistEvent("add", newEntry)
+		writeEventToAllConnections(w, "playlist", event)
 	}
-
-	newEntry.Title = constructTitleWhenMissing(&newEntry)
-
-	loadYoutubeEntry(&newEntry, data.RequestEntry)
-
-	state.mutex.Lock()
-	state.playlist = append(state.playlist, newEntry)
-	state.mutex.Unlock()
-
-	event := createPlaylistEvent("add", newEntry)
-	writeEventToAllConnections(w, "playlist", event)
 }
 
 func apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
@@ -2214,6 +2228,83 @@ func apiChatSend(w http.ResponseWriter, r *http.Request) {
 	state.messages = append(state.messages, chatMessage)
 	state.mutex.Unlock()
 	writeEventToAllConnections(w, "messagecreate", chatMessage)
+}
+
+func isLocalDirectory(url string) (bool, string) {
+	parsedUrl, err := net_url.Parse(url)
+	if err != nil {
+		return false, ""
+	}
+
+	if !strings.HasPrefix(url, MEDIA) && !strings.HasPrefix(url, serverRootAddress) {
+		return false, ""
+	}
+
+	path := parsedUrl.Path
+
+	if strings.HasPrefix(path, "/watch") {
+		path = strings.TrimPrefix(path, "/watch")
+	}
+
+	if strings.HasPrefix(path, "/") {
+		path = strings.TrimPrefix(path, "/")
+	}
+
+	if !filepath.IsLocal(path) {
+		return false, ""
+	}
+
+	stat, err := os.Stat("./web/" + path)
+	if err != nil {
+		return false, ""
+	}
+
+	if !stat.IsDir() {
+		return false, ""
+	}
+
+	path = filepath.Clean(path)
+	LogDebug("PATH %v", path)
+
+	return true, path
+}
+
+func getEntriesFromDirectory(path string, userId uint64) []Entry {
+	entries := make([]Entry, 0)
+
+	items, _ := os.ReadDir("./web/" + path)
+	for _, item := range items {
+		if !item.IsDir() {
+			webpath := path + "/" + item.Name()
+			url := net_url.URL{
+				Path: webpath,
+			}
+
+			LogDebug("File URL: %v", url.String())
+
+			state.mutex.Lock()
+			state.entryId += 1
+			id := state.entryId
+			state.mutex.Unlock()
+
+			entry := Entry{
+				Id:          id,
+				Url:         url.String(),
+				UserId:      userId,
+				Title:       "",
+				UseProxy:    false,
+				RefererUrl:  "",
+				SourceUrl:   "",
+				SubtitleUrl: "",
+				Created:     time.Now(),
+			}
+
+			entry.Title = constructTitleWhenMissing(&entry)
+			entries = append(entries, entry)
+		}
+	}
+
+	return entries
 }
 
 type ChatMessage struct {

@@ -118,6 +118,7 @@
     - [x] Do not pause the player on a single screen tap
     - [x] Don't auto-hide player
     - [x] Reduce horizontal player size for mobile (portrait)
+    - [ ] Custom website layout for mobile devices
 - [ ] Server hardening and rate-limiting
 - [ ] Add server side and client side authentication and store cookies
 - [ ] Add option to upload media file to the server and stream it to all connected clients (streaming proxy)
