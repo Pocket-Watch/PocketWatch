@@ -363,11 +363,14 @@ class Internals {
         this.activeCues = [];
 
         this.htmlSeekForward = newDiv("player_forward_container", "hide", "unselectable");
+        this.htmlSeekForward.addEventListener("focusout", _ => this.htmlPlayerRoot.focus());
         this.htmlSeekForward.appendChild(this.svgs.seekForward.svg);
         this.htmlPlayerRoot.appendChild(this.htmlSeekForward);
         this.seekForwardTimeout = new Timeout(_ => this.htmlSeekForward.classList.add("hide"), 200);
 
+
         this.htmlSeekBackward = newDiv("player_backward_container", "hide", "unselectable");
+        this.htmlSeekBackward.addEventListener("focusout", _ => this.htmlPlayerRoot.focus());
         this.htmlSeekBackward.appendChild(this.svgs.seekBackward.svg);
         this.htmlPlayerRoot.appendChild(this.htmlSeekBackward);
         this.seekBackwardTimeout = new Timeout(_ => this.htmlSeekBackward.classList.add("hide"), 200);
@@ -2250,7 +2253,7 @@ class Options {
         this.hideFullscreenButton = false;
 
         this.doubleClickThresholdMs = 250;
-        this.enableDoubleTapSeek = true;
+        this.enableDoubleTapSeek = isMobileAgent();
         this.sanitizeSubtitles = true;
         this.allowCueOverlap = true;
         this.fullscreenKeyLetter = 'f';
