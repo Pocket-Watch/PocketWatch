@@ -962,12 +962,23 @@ class Internals {
         }
     };
 
-    seekFromClickEvent(event) {
+    // 40% | 20% | 40% - triple screen split, returns respectively: 0, 1, 2
+    getClickAreaIndex(event) {
         let rect = this.htmlPlayerRoot.getBoundingClientRect();
         // Get the click coordinates relative to the viewport
         const relativeClickX = event.clientX - rect.left;
-        let isBackward = relativeClickX <= (rect.width / 2);
+        let isLeft = relativeClickX < rect.width * 0.4;
+        if (isLeft) {
+            return 0;
+        }
+        let isRight = rect.width * 0.6 < relativeClickX;
+        if (isRight) {
+            return 2;
+        }
+        return 1;
+    }
 
+    seekBasedOnDirection(isBackward) {
         let seek;
         if (isBackward) {
             seek = -this.options.seekBy;
@@ -982,7 +993,6 @@ class Internals {
         let timestamp = this.getNewTime(seek);
         this.fireControlsSeeked(timestamp);
         this.seek(timestamp);
-        stopPropagation(event);
     }
 
     attachPlayerRootEvents() {
@@ -1052,24 +1062,35 @@ class Internals {
             }
         });
 
-        this.clickTimeout = new Timeout(_ => {
-            this.togglePlayback();
-        }, this.options.doubleClickThresholdMs);
+        this.clickTimeout = new Timeout(_ => this.togglePlayback(), this.options.doubleClickThresholdMs);
+        this.lastAreaIndex = -1;
 
         this.htmlPlayerRoot.addEventListener("click", event => {
             if ((event.pointerType === "touch" || event.pointerType === "pen") && !this.isUIVisible) {
                 return;
+                // We don't allow double tap seeking without the UI shown
             }
 
-            if (this.options.enableDoubleTapSeek) {
-                if (!this.clickTimeout.inProgress()) {
-                    this.clickTimeout.schedule();
-                    return;
-                }
-                this.clickTimeout.cancel();
-                this.seekFromClickEvent(event);
-            } else {
+            if (!this.options.enableDoubleTapSeek) {
                 this.togglePlayback();
+                return;
+            }
+
+            let areaIndex = this.getClickAreaIndex(event);
+            if (areaIndex === 1) {
+                this.clickTimeout.cancel();
+                this.togglePlayback();
+                return;
+            }
+
+            if (this.clickTimeout.inProgress()) {
+                this.clickTimeout.cancel();
+                if (areaIndex === this.lastAreaIndex) {
+                    this.seekBasedOnDirection(areaIndex === 0);
+                }
+            } else {
+                this.clickTimeout.schedule();
+                this.lastAreaIndex = areaIndex;
             }
         });
     }
