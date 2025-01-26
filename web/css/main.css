@@ -1,5 +1,4 @@
 html, body {
-    background-color: #1d2021;
     padding: 0;
     margin: 0;
 }
@@ -26,8 +25,8 @@ html * {
     row-gap: 6px;
     display: flex;
     box-sizing: border-box;
-    flex-wrap: wrap;
     padding: 6px;
+    background-color: #1d2021;
 }
 
 #left_panel {
@@ -44,10 +43,20 @@ html * {
     padding: 16px;
 }
 
-/* NOTE(kihau): Weird hackery, needs to be changed */
-@media (max-width: 1417px) {
+
+@media (max-width: 1300px) {
+    #root_panel {
+        height: auto;
+        flex-direction: column;
+    }
+
     #left_panel {
         height: auto;
+    }
+
+    #right_panel {
+        min-height: 100vh;
+        overflow-y: visible;
     }
 }
 
