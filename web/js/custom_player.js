@@ -962,6 +962,29 @@ class Internals {
         }
     };
 
+    seekFromClickEvent(event) {
+        let rect = this.htmlPlayerRoot.getBoundingClientRect();
+        // Get the click coordinates relative to the viewport
+        const relativeClickX = event.clientX - rect.left;
+        let isBackward = relativeClickX <= (rect.width / 2);
+
+        let seek;
+        if (isBackward) {
+            seek = -this.options.seekBy;
+            this.htmlSeekBackward.classList.remove("hide");
+            this.seekBackwardTimeout.schedule();
+        } else {
+            seek = this.options.seekBy;
+            this.htmlSeekForward.classList.remove("hide");
+            this.seekForwardTimeout.schedule();
+        }
+
+        let timestamp = this.getNewTime(seek);
+        this.fireControlsSeeked(timestamp);
+        this.seek(timestamp);
+        stopPropagation(event);
+    }
+
     attachPlayerRootEvents() {
         this.htmlPlayerRoot.addEventListener("touchmove", _ => {
             this.showPlayerUI();
@@ -1029,45 +1052,25 @@ class Internals {
             }
         });
 
-        this.htmlPlayerRoot.addEventListener('dblclick', event => {
-            if (!this.options.enableDoubleTapSeek) {
-                return;
-            }
-            let fromElement = event.target;
-            if (!(fromElement.tagName === "VIDEO" || fromElement.id === "player_backward_container" ||
-                fromElement.id === "player_forward_container")) {
-                return;
-            }
-            let rect = this.htmlPlayerRoot.getBoundingClientRect();
-            // Get the click coordinates relative to the viewport
-            const relativeClickX = event.clientX - rect.left;
-            let isBackward = relativeClickX <= (rect.width / 2);
-
-            let seek;
-            if (isBackward) {
-                seek = -this.options.seekBy;
-                this.htmlSeekBackward.classList.remove("hide");
-                this.seekBackwardTimeout.schedule();
-            } else {
-                seek = this.options.seekBy;
-                this.htmlSeekForward.classList.remove("hide");
-                this.seekForwardTimeout.schedule();
-            }
-
-            let timestamp = this.getNewTime(seek);
-            this.fireControlsSeeked(timestamp);
-            this.seek(timestamp);
-            stopPropagation(event);
-        });
+        this.clickTimeout = new Timeout(_ => {
+            this.togglePlayback();
+        }, this.options.doubleClickThresholdMs);
 
         this.htmlPlayerRoot.addEventListener("click", event => {
-            if (event.pointerType === "touch" || event.pointerType === "pen") {
-                if (!this.isUIVisible) {
-                    return;
-                }
+            if ((event.pointerType === "touch" || event.pointerType === "pen") && !this.isUIVisible) {
+                return;
             }
 
-            this.togglePlayback();
+            if (this.options.enableDoubleTapSeek) {
+                if (!this.clickTimeout.inProgress()) {
+                    this.clickTimeout.schedule();
+                    return;
+                }
+                this.clickTimeout.cancel();
+                this.seekFromClickEvent(event);
+            } else {
+                this.togglePlayback();
+            }
         });
     }
 
@@ -2225,8 +2228,8 @@ class Options {
         this.hideSettingsButton   = false;
         this.hideFullscreenButton = false;
 
-        this.doubleTapThresholdMs = 350;
-        this.enableDoubleTapSeek = isMobileAgent();
+        this.doubleClickThresholdMs = 250;
+        this.enableDoubleTapSeek = true;
         this.sanitizeSubtitles = true;
         this.allowCueOverlap = true;
         this.fullscreenKeyLetter = 'f';
@@ -2281,10 +2284,19 @@ export class Timeout {
     }
     schedule() {
         this.cancel();
-        this.timeoutId = setTimeout(this.action, this.delay);
+        this.timeoutId = setTimeout(() => {
+            this.action();
+            this.timeoutId = 0;
+        }, this.delay);
     }
     cancel() {
-        clearTimeout(this.timeoutId);
+        if (this.timeoutId > 0) {
+            clearTimeout(this.timeoutId);
+            this.timeoutId = 0;
+        }
+    }
+    inProgress() {
+        return this.timeoutId > 0;
     }
     setAction(action) {
         this.action = action;
