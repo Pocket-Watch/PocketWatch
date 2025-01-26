@@ -17,4 +17,4 @@ web/fluid.html
 web/preview.html
 build_local.bat
 build_local.sh
-build_remote.sh
+deploy.sh
