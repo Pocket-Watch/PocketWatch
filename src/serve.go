@@ -1502,12 +1502,13 @@ func writeEventToAllConnectionsExceptSelf(origin http.ResponseWriter, eventName 
 	conns.mutex.RUnlock()
 }
 
+// It should be possible to use this list in a dropdown and attach to entry
 func getSubtitles() []string {
 	subtitles := make([]string, 0)
-	// could create a separate folder for subs if it gets too big
-	files, err := os.ReadDir(WEB_MEDIA)
+	subsFolder := WEB_MEDIA + "subs"
+	files, err := os.ReadDir(subsFolder)
 	if err != nil {
-		LogError("Failed to read %v and find subtitles.", WEB_MEDIA)
+		LogError("Failed to read directory %v", subsFolder)
 		return subtitles
 	}
 
@@ -1519,10 +1520,12 @@ func getSubtitles() []string {
 		for _, ext := range SUBTITLE_EXTENSIONS {
 			info, err := file.Info()
 			if err != nil {
-				continue
+				break
 			}
 			if strings.HasSuffix(filename, ext) && info.Size() < SUBTITLE_SIZE_LIMIT {
-				subtitles = append(subtitles, MEDIA+filename)
+				subtitlePath := MEDIA + "subs/" + filename
+				subtitles = append(subtitles, subtitlePath)
+				break
 			}
 		}
 	}
