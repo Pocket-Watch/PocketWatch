@@ -774,7 +774,8 @@ func setNewEntry(newEntry Entry) Entry {
 				LogWarn("HLS proxy setup failed!")
 			}
 		} else {
-			setup := setupGenericFileProxy(newEntry.Url, newEntry.RefererUrl)
+			//setup := setupGenericFileProxy(newEntry.Url, newEntry.RefererUrl)
+			setup := false
 			if setup {
 				newEntry.SourceUrl = PROXY_ROUTE + "proxy" + state.proxy.extensionWithDot
 				LogInfo("Generic file proxy setup was successful.")
