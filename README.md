@@ -184,7 +184,7 @@ player.shiftCurrentSubtitleTrackBy(-5);
 
 - on iPhone when a video is played it forces you into fullscreen mode on the `<video>` element <br>
   (https://discussions.apple.com/thread/251266057), <br>
-  fortunately since iOS 10 `playsinline` attribute is supported which makes disables that behavior
+  fortunately since iOS 10 `playsinline` attribute is supported which disables that behavior
 
 - on iPhone the native player is always forced regardless of browser,<br>
   as a result custom controls don't appear in fullscreen and action events cannot be received

@@ -278,11 +278,11 @@ type Search struct {
 	Episode string `json:"episode"`
 }
 
-const OUT_DIR = "../web/media/subs"
+const OUT_DIR = "web/media/subs"
 
 // TODO: Check if executable exists or was disabled at launch with a flag
 func downloadSubtitle(executable string, search *Search) (string, error) {
-	command := exec.Command(executable, search.Title, "--skip-select", "--to", "vtt", "--out", OUT_DIR)
+	command := exec.Command(executable, search.Title, "--auto-select", "--to", "vtt", "--out", OUT_DIR)
 	if search.Lang != "" {
 		command.Args = append(command.Args, "--lang", search.Lang)
 	}
@@ -315,8 +315,8 @@ func executeSubtitleDownload(command *exec.Cmd) (string, error) {
 			// This is needed to log the first error
 			firstLine = line
 		}
-		if strings.HasPrefix(line, "New name:") {
-			return line[len("New name:")+1:], nil
+		if strings.HasPrefix(line, "Saved to") {
+			return line[len("Saved to ")+1:], nil
 		}
 	}
 	return "", errors.New(firstLine)

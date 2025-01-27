@@ -198,16 +198,15 @@ class Room {
 
         this.player.onSubtitleSearch(async (search) => {
             console.log("Search requested.", search);
-            return false;
-            /*let jsonResponse = await api.subtitleRequest(search);
+            let jsonResponse = await api.subtitleRequest(search);
             if (jsonResponse.checkError()) {
                 return false;
             }
             let subtitleUrl = jsonResponse.json;
             // This should be received with a proper prefix
-            this.player.setToast(subtitleUrl);
-            // this.player.addSubtitle(subtitleUrl);
-            return true;*/
+            this.player.setToast("Adding subtitle " + subtitleUrl);
+            this.player.addSubtitle(subtitleUrl);
+            return true;
         })
 
         this.player.onPlaybackEnd(_ => {
@@ -822,7 +821,7 @@ class Room {
             let newEntry = response.new_entry;
             this.setEntryEvent(newEntry);
 
-            if (this.playlist.entries.length != 0) {
+            if (this.playlist.entries.length !== 0) {
                 if (this.playlist.loopingEnabled && prevEntry.url !== "") {
                     this.playlist.addEntry(prevEntry, this.allUsers);
                 }

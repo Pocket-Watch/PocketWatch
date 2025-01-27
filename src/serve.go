@@ -571,18 +571,24 @@ func apiSearchSubs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var search *Search
-	if !readJsonDataFromRequest(w, r, search) {
+	var search Search
+	if !readJsonDataFromRequest(w, r, &search) {
 		return
 	}
 
-	path, err := downloadSubtitle("subs", search)
-	//
+	os.MkdirAll("web/media/subs", 0750)
+	subtitlePath, err := downloadSubtitle("subs", &search)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	jsonData, err := json.Marshal(path)
+	// Expect it to be directed to /subs/
+	servedPath, isSafe := safeJoin("media/subs", filepath.Base(subtitlePath))
+	if checkTraversal(w, isSafe) {
+		return
+	}
+
+	jsonData, err := json.Marshal(servedPath)
 	io.WriteString(w, string(jsonData))
 }
 

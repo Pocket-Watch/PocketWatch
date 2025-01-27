@@ -1614,7 +1614,9 @@ class Internals {
             let lang = subtitleLanguage.value;
             let year = subtitleYear.value;
             let search = new Search(title, lang, year);
+            searchSubtitle.disabled = true;
             let success = await this.fireSubtitleSearch(search);
+            searchSubtitle.disabled = false;
             console.debug("Search", success ? "was successful" : "failed");
         });
 
@@ -1740,7 +1742,8 @@ export class FileInfo {
         this.extension = extension;
     }
     static fromUrl(url) {
-        let filename = url.substring(url.lastIndexOf("/") + 1);
+        let slash = Math.max(url.lastIndexOf("/"), url.lastIndexOf("\\"));
+        let filename = url.substring(slash + 1);
         let extension = filename.substring(filename.lastIndexOf(".") + 1).toLowerCase();
         return new FileInfo(filename, extension);
     }
