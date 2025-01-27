@@ -1,6 +1,7 @@
 import { Options, Player } from "./custom_player.js"
 import { Playlist } from "./playlist.js"
 import { Chat } from "./chat.js"
+import { sha256 } from "./auth.js"
 import * as api from "./api.js";
 import { getById, div, img, svg, button } from "./util.js";
 
@@ -715,6 +716,12 @@ class Room {
             console.warn("You are desynced! MAX_DESYNC(" + MAX_DESYNC + ") exceeded by:", diff, "Trying to resync now!");
             this.player.seek(timestamp);
         }
+    }
+
+    async login(login, password) {
+        let passwordHash = await sha256(password);
+        console.log(passwordHash);
+        // Send
     }
 
     listenToServerEvents() {
