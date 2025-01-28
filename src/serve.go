@@ -284,6 +284,11 @@ type RequestEntry struct {
 	PlaylistMaxSize   uint   `json:"playlist_max_size"`
 }
 
+type PlaylistPlayRequestData struct {
+	EntryId uint64 `json:"entry_id"`
+	Index   int    `json:"index"`
+}
+
 type PlaylistAddRequestData struct {
 	ConnectionId uint64       `json:"connection_id"`
 	RequestEntry RequestEntry `json:"request_entry"`
@@ -408,6 +413,7 @@ func registerEndpoints(options *Options) {
 
 	// API calls that change state of the playlist.
 	http.HandleFunc("/watch/api/playlist/get", apiPlaylistGet)
+	http.HandleFunc("/watch/api/playlist/play", apiPlaylistPlay)
 	http.HandleFunc("/watch/api/playlist/add", apiPlaylistAdd)
 	http.HandleFunc("/watch/api/playlist/clear", apiPlaylistClear)
 	http.HandleFunc("/watch/api/playlist/remove", apiPlaylistRemove)
@@ -1062,6 +1068,57 @@ func apiPlaylistGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	io.WriteString(w, string(jsonData))
+}
+
+func apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	if !isAuthorized(w, r) {
+		return
+	}
+
+	var data PlaylistPlayRequestData
+	if !readJsonDataFromRequest(w, r, &data) {
+		return
+	}
+
+	LogInfo("Connection %s requested playlist play.", r.RemoteAddr)
+
+	state.mutex.Lock()
+	if data.Index < 0 || data.Index >= len(state.playlist) {
+		LogError("Failed to remove playlist element at index %v.", data.Index)
+		state.mutex.Unlock()
+		return
+	}
+
+	if state.playlist[data.Index].Id != data.EntryId {
+		LogWarn("Entry ID on the server is not equal to the one provided by the client.")
+		state.mutex.Unlock()
+		return
+	}
+
+
+	if state.entry.Url != "" && state.player.Looping {
+		state.playlist = append(state.playlist, state.entry)
+	}
+
+	newEntry := state.playlist[data.Index]
+	prevEntry := setNewEntry(newEntry)
+	state.playlist = append(state.playlist[:data.Index], state.playlist[data.Index+1:]...)
+	state.mutex.Unlock()
+
+	event := createPlaylistEvent("remove", data.Index)
+	writeEventToAllConnections(w, "playlist", event)
+
+	setEvent := PlayerSetEventData{
+		PrevEntry: prevEntry,
+		NewEntry:  state.entry,
+	}
+	writeEventToAllConnections(w, "playerset", setEvent)
+	io.WriteString(w, "{}")
+	go preloadYoutubeSourceOnNextEntry()
 }
 
 func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {

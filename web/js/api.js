@@ -276,6 +276,16 @@ export async function playlistGet() {
     return await httpGet("/watch/api/playlist/get");
 }
 
+export async function playlistPlay(entryId, index) {
+    const payload = {
+        entry_id: entryId,
+        index: index,
+    };
+
+    console.info("INFO: Sending playlist play request.");
+    httpPost("/watch/api/playlist/play", payload);
+}
+
 export async function playlistAdd(requestEntry) {
     const payload = {
         connection_id: connectionId,

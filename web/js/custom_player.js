@@ -702,6 +702,7 @@ class Internals {
         // and when the base is not provided, the second argument is used to construct a valid URL
         let pathname = new URL(url, document.baseURI).pathname;
 
+        this.pause();
         this.seek(0);
 
         hide(this.htmlControls.buttons.liveIndicator);
@@ -1135,6 +1136,9 @@ class Internals {
         });
 
         this.htmlVideo.addEventListener("ended", _ => {
+            this.bufferingTimeout.cancel();
+            hide(this.bufferingSvg);
+
             this.svgs.playback.setHref(this.icons.replay)
             this.firePlaybackEnd();
         });

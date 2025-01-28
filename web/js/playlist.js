@@ -113,14 +113,14 @@ class Playlist {
         this.controlsClearButton.onclick    = _ => api.playlistClear();
         this.controlsSettingsButton.onclick = _ => console.debug("TODO: settings button");
 
-        document.addEventListener("click", _ => this.toggleContextMenu(null));
+        document.addEventListener("click", _ => this.toggleContextMenu());
 
         this.contextMenu.oncontextmenu = event => {
             event.preventDefault();
-            this.toggleContextMenu(null);
+            this.toggleContextMenu();
         };
 
-        this.contextMenuPlayNow.onclick    = _ => {};
+        this.contextMenuPlayNow.onclick    = _ => this.requestPlaylistPlay(this.contextMenuEntry);
         this.contextMenuMoveTop.onclick    = _ => this.requestEntryMove(this.contextMenuEntry, 0);
         this.contextMenuMoveBottom.onclick = _ => this.requestEntryMove(this.contextMenuEntry, this.entries.length - 1);
         this.contextMenuExpand.onclick     = _ => this.toggleEntryDropdown(this.contextMenuEntry, this.contextMenuEntryRefactorMe, this.contextMenuUserRefactorMe);
@@ -286,7 +286,7 @@ class Playlist {
 
     clear() {
         // NOTE(kihau): 
-        //     This also clears the context menu and also the deletion order is random. 
+        //     This clears the context menu (when inside the entry list) and also the deletion order is random. 
         //     It is generally a bad way to do it!
         const children = this.htmlEntryList.children;
         for (let i = 0; i < children.length; i++) {
@@ -306,6 +306,7 @@ class Playlist {
         this.dragStartIndex    = -1;
         this.dragCurrentIndex  = -1;
 
+        this.toggleContextMenu();
         this.updateFooter();
     }
 
@@ -447,7 +448,23 @@ class Playlist {
         return entryDropdown;
     }
 
-    toggleContextMenu(htmlEntry, entry, user) {
+    requestPlaylistPlay(htmlEntry) {
+        let index = this.htmlEntries.findIndex(item => item === htmlEntry);
+        if (index === -1) {
+            console.error("ERROR: Failed to find entry:", htmlEntry, "Playlist is out of sync");
+            return;
+        }
+
+        if (index < 0 || index >= this.entries.length) {
+            console.error("ERROR: Delete failed for html playlist entry:", htmlEntry, "Index:", index, "is out of bounds for array:", this.entries);
+            return;
+        }
+
+        let entry = this.entries[index];
+        api.playlistPlay(entry.id, index);
+    }
+
+    toggleContextMenu(event, htmlEntry, entry, user) {
         if (this.contextMenuEntry === htmlEntry || !htmlEntry) {
             this.contextMenuEntry = null;
             this.contextMenuUserRefactorMe  = null;
@@ -457,12 +474,10 @@ class Playlist {
         }
 
         const rect = htmlEntry.getBoundingClientRect();
-        console.log(rect, event);
+        const scrollY = this.htmlEntryList.scrollTop;
 
-        let scrollY = this.htmlEntryList.scrollTop;
-
-        let clickY = event.clientY - rect.top - scrollY;
-        let clickX = event.clientX - rect.left;
+        const clickY = event.clientY - rect.top - scrollY;
+        const clickX = event.clientX - rect.left;
 
         const padding = 6;
 
@@ -563,7 +578,7 @@ class Playlist {
 
         entryRoot.oncontextmenu = event => {
             event.preventDefault();
-            this.toggleContextMenu(entryRoot, entry, user);
+            this.toggleContextMenu(event, entryRoot, entry, user);
         };
 
         // Dragging for touch screens.
