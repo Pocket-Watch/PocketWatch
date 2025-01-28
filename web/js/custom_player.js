@@ -1527,6 +1527,8 @@ class Internals {
         let subtitleName = newElement("input", null, "player_input_box");
         let subtitleLanguage = newElement("input", null, "player_input_box");
         let subtitleYear = newElement("input", null, "player_input_box");
+        let subtitleSeason = newElement("input", null, "player_input_box");
+        let subtitleEpisode = newElement("input", null, "player_input_box");
         let searchSubtitle = newElement("button", "player_subtitle_search");
         let optionsView    = newDiv("player_submenu_bottom_options");
         let subsShift      = this.subtitleShift;
@@ -1553,6 +1555,8 @@ class Internals {
         subtitleName.placeholder = "Title";
         subtitleLanguage.placeholder = "Language";
         subtitleYear.placeholder = "Year";
+        subtitleSeason.placeholder = "Season";
+        subtitleEpisode.placeholder = "Episode";
 
         searchSubtitle.textContent = "Search sub";
 
@@ -1613,7 +1617,9 @@ class Internals {
             let title = subtitleName.value;
             let lang = subtitleLanguage.value;
             let year = subtitleYear.value;
-            let search = new Search(title, lang, year);
+            let season = subtitleSeason.value;
+            let episode = subtitleEpisode.value;
+            let search = new Search(title, lang, year, season, episode);
             searchSubtitle.disabled = true;
             let success = await this.fireSubtitleSearch(search);
             searchSubtitle.disabled = false;
@@ -1642,6 +1648,8 @@ class Internals {
                     searchView.append(subtitleName)
                     searchView.append(subtitleLanguage)
                     searchView.append(subtitleYear)
+                    searchView.append(subtitleSeason)
+                    searchView.append(subtitleEpisode)
                     searchView.append(searchSubtitle)
                 }
                 menuViews.append(optionsView); {
