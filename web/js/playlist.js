@@ -10,6 +10,7 @@ const ENTRY_HEIGHT  = 64 + ENTRY_BORDER * 2;
 const TRANSITION_TIME       = 240;
 const BULK_ACTION_DELAY     = 32;
 const DRAG_INACTIVITY_DELAY = 32;
+const DROPDOWN_EXPAND_TIME  = 100;
 
 class Playlist {
     constructor() {
@@ -285,28 +286,41 @@ class Playlist {
         return this.htmlEntries.findIndex(item => item === htmlEntry);
     }
 
-    expandEntry(entry) {
+    expandEntry(htmlEntry, entry, user) {
         if (this.expandedEntry) {
             this.expandedEntry.classList.remove("expand");
+
+            let expanded = this.expandedEntry;
+            let dropdown = expanded.getElementsByClassName("playlist_entry_dropdown")[0];
+            setTimeout(_ => expanded.removeChild(dropdown), DROPDOWN_EXPAND_TIME);
         }
 
-        if (entry) {
-            this.expandedEntry = entry;
+        if (htmlEntry) {
+            let dropdown = this.createEntryDropdown(entry, user);
+
+            this.expandedEntry = htmlEntry;
+            this.expandedEntry.appendChild(dropdown);
+
+            window.getComputedStyle(dropdown).height;
+
             this.expandedEntry.classList.add("expand");
         }
     }
 
-    collapseEntry(entry) {
-        if (entry !== this.expandedEntry) {
+    collapseEntry(htmlEntry) {
+        if (htmlEntry !== this.expandedEntry) {
             return;
         }
 
-        // NOTE(kihau): To reduce visible DOM size we could apply "display: none" after the transition.
         if (this.expandedEntry) {
             this.expandedEntry.classList.remove("expand");
+
+            let expanded = this.expandedEntry;
+            let dropdown = expanded.getElementsByClassName("playlist_entry_dropdown")[0];
+            setTimeout(_ => expanded.removeChild(dropdown), DROPDOWN_EXPAND_TIME);
         }
 
-        this.expandedEntry = null;
+        this.expandedEntry    = null;
     }
 
     startEntryEdit(entry, root, title, url) {
@@ -370,6 +384,38 @@ class Playlist {
         entry.style.top = index * (ENTRY_HEIGHT + ENTRY_ROW_GAP) + "px";
     }
 
+    createEntryDropdown(entry, user) {
+        let entryDropdown  = div("playlist_entry_dropdown"); 
+        let proxyLabels    = div("playlist_dropdown_proxy_labels"); 
+        let proxyLabel     = span("playlist_dropdown_proxy_label", "Using proxy"); 
+        let refererLabel   = span("playlist_dropdown_referer_label", "Proxy referer"); 
+        let proxyCheckbox  = /* Checkbox, custom styled */ null;
+        let proxyReferer   = a("playlist_dropdown_proxy_referer", entry.referer_url); 
+        let infoLabels     = div("playlist_dropdown_info_labels"); 
+        let addedByText    = span("playlist_dropdown_added_by", "Added by"); 
+        let createdAtText  = span("playlist_dropdown_created_at", "Created at"); 
+        let infoContent    = div("playlist_dropdown_info_content"); 
+        let userAvatar     = div("playlist_dropdown_user_avatar");
+        let userAvatarImg  = img(user.avatar);
+        let userName       = span("playlist_dropdown_user_name", user.username);
+        let date           = new Date(entry.created);
+        let creationDate   = span("playlist_dropdown_creation_date", date.toLocaleString());
+
+        entryDropdown.append(infoLabels); {
+            infoLabels.append(addedByText);
+            infoLabels.append(createdAtText);
+        }
+        entryDropdown.append(infoContent); {
+            infoContent.append(userAvatar); {
+                userAvatar.append(userAvatarImg);
+            }
+            infoContent.append(userName);
+            infoContent.append(creationDate);
+        }
+
+        return entryDropdown;
+    }
+
     createHtmlEntry(entry, user) {
         let entryRoot      = div("playlist_entry");
         let entryTop       = div("playlist_entry_top"); 
@@ -387,16 +433,6 @@ class Playlist {
         let deleteSvg      = svg("svg/main_icons.svg#delete");
         let dropdownButton = div("playlist_dropdown_button");
         let dropdownSvg    = svg("svg/main_icons.svg#dropdown");
-        let entryDropdown  = div("playlist_entry_dropdown"); 
-        let dropdownTop    = div("playlist_dropdown_info_top"); 
-        let addedByText    = span("playlist_dropdown_added_by", "Added by"); 
-        let createdAtText  = span("playlist_dropdown_created_at", "Created at"); 
-        let dropdownBottom = div("playlist_dropdown_info_bottom"); 
-        let userAvatar     = div("playlist_dropdown_user_avatar");
-        let userAvatarImg  = img(user.avatar);
-        let userName       = span("playlist_dropdown_user_name", user.username);
-        let date           = new Date(entry.created);
-        let creationDate   = span("playlist_dropdown_creation_date", date.toLocaleString());
 
         //
         // Setting html elements content.
@@ -417,7 +453,7 @@ class Playlist {
             this.dragStartIndex   = this.findHtmlIndex(entryRoot);
             this.dragCurrentIndex = this.dragStartIndex;
 
-            this.collapseEntry(this.expandedEntry);
+            this.collapseEntry(this.expandedEntry, this.expandedDropdown);
 
             let draggableEntry = entryRoot.cloneNode(true);
             draggableEntry.classList.add("draggable");
@@ -575,7 +611,7 @@ class Playlist {
 
         dropdownButton.onclick = () => {
             if (this.expandedEntry !== entryRoot) {
-                this.expandEntry(entryRoot);
+                this.expandEntry(entryRoot, entry, user);
             } else {
                 this.collapseEntry(entryRoot);
             }
@@ -603,19 +639,6 @@ class Playlist {
             }
             entryTop.append(dropdownButton); {
                 dropdownButton.append(dropdownSvg);
-            }
-        }
-        entryRoot.append(entryDropdown); {
-            entryDropdown.append(dropdownTop); {
-                dropdownTop.append(addedByText);
-                dropdownTop.append(createdAtText);
-            }
-            entryDropdown.append(dropdownBottom); {
-                dropdownBottom.append(userAvatar); {
-                    userAvatar.append(userAvatarImg);
-                }
-                dropdownBottom.append(userName);
-                dropdownBottom.append(creationDate);
             }
         }
 
