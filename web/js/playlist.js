@@ -1,5 +1,5 @@
 import * as api from "./api.js";
-import { getById, div, a, span, img, svg, button } from "./util.js";
+import { getById, div, a, span, img, svg, button, hide, show } from "./util.js";
 
 export { Playlist }
 
@@ -24,8 +24,20 @@ class Playlist {
         this.autoplayEnabled = false;
         this.loopiongEnabled = false;
 
-        this.htmlEntryList     = getById("playlist_entry_list");
-        this.footerEntryCount  = getById("playlist_footer_entry_count");
+        this.htmlEntryList    = getById("playlist_entry_list");
+        this.footerEntryCount = getById("playlist_footer_entry_count");
+
+        this.contextMenu           = getById("playlist_context_menu");
+        this.contextMenuPlayNow    = getById("context_menu_play_now");
+        this.contextMenuMoveTop    = getById("context_menu_move_to_top");
+        this.contextMenuMoveBottom = getById("context_menu_move_to_bottom");
+        this.contextMenuExpand     = getById("context_menu_expand_entry");
+        this.contextMenuEdit       = getById("context_menu_edit");
+        this.contextMenuDelete     = getById("context_menu_delete");
+
+        this.contextMenuEntry = null;
+        this.contextMenuUserRefactorMe = null;
+        this.contextMenuEntryRefactorMe = null;
 
         /// Currently expanded entry. Only one entry is allowed to be expanded at a time.
         this.expandedEntry = null;
@@ -54,6 +66,8 @@ class Playlist {
         this.dragCurrentIndex  = -1;
 
         this.currentEntryId = 0;
+        
+        hide(this.contextMenu);
     }
 
     setAutoplay(enabled) {
@@ -98,6 +112,20 @@ class Playlist {
         this.controlsShuffleButton.onclick  = _ => api.playlistShuffle();
         this.controlsClearButton.onclick    = _ => api.playlistClear();
         this.controlsSettingsButton.onclick = _ => console.debug("TODO: settings button");
+
+        document.addEventListener("click", _ => this.toggleContextMenu(null));
+
+        this.contextMenu.oncontextmenu = event => {
+            event.preventDefault();
+            this.toggleContextMenu(null);
+        };
+
+        this.contextMenuPlayNow.onclick    = _ => {};
+        this.contextMenuMoveTop.onclick    = _ => this.requestEntryMove(this.contextMenuEntry, 0);
+        this.contextMenuMoveBottom.onclick = _ => this.requestEntryMove(this.contextMenuEntry, this.entries.length - 1);
+        this.contextMenuExpand.onclick     = _ => this.toggleEntryDropdown(this.contextMenuEntry, this.contextMenuEntryRefactorMe, this.contextMenuUserRefactorMe);
+        this.contextMenuEdit.onclick       = _ => this.toggleEntryEdit(this.contextMenuEntry, this.contextMenuEntryRefactorMe);
+        this.contextMenuDelete.onclick     = _ => this.deleteEntry(this.contextMenuEntry);
     }
 
     handleUserUpdate(user) {
@@ -257,6 +285,9 @@ class Playlist {
     }
 
     clear() {
+        // NOTE(kihau): 
+        //     This also clears the context menu and also the deletion order is random. 
+        //     It is generally a bad way to do it!
         const children = this.htmlEntryList.children;
         for (let i = 0; i < children.length; i++) {
             const htmlEntry = children[i];
@@ -320,7 +351,7 @@ class Playlist {
             setTimeout(_ => expanded.removeChild(dropdown), DROPDOWN_EXPAND_TIME);
         }
 
-        this.expandedEntry    = null;
+        this.expandedEntry = null;
     }
 
     startEntryEdit(entry, root, title, url) {
@@ -416,6 +447,90 @@ class Playlist {
         return entryDropdown;
     }
 
+    toggleContextMenu(htmlEntry, entry, user) {
+        if (this.contextMenuEntry === htmlEntry || !htmlEntry) {
+            this.contextMenuEntry = null;
+            this.contextMenuUserRefactorMe  = null;
+            this.contextMenuEntryRefactorMe = null;
+            hide(this.contextMenu);
+            return;
+        }
+
+        const rect = htmlEntry.getBoundingClientRect();
+        console.log(rect, event);
+
+        let scrollY = this.htmlEntryList.scrollTop;
+
+        let clickY = event.clientY - rect.top - scrollY;
+        let clickX = event.clientX - rect.left;
+
+        const padding = 6;
+
+        this.contextMenu.style.left = clickX - padding + "px";
+        this.contextMenu.style.top  = htmlEntry.offsetTop - padding + clickY + "px";
+        show(this.contextMenu);
+
+        this.contextMenuEntry = htmlEntry;
+        this.contextMenuUserRefactorMe  = user;
+        this.contextMenuEntryRefactorMe = entry;
+    }
+
+    toggleEntryEdit(htmlEntry, entry) {
+        let prevId = 0;
+        if (this.isEditingEntry) {
+            let newEntry = this.stopEntryEdit();
+            prevId = newEntry.id;
+            api.playlistUpdate(newEntry);
+        } 
+
+        if (prevId !== entry.id) {
+            let entryTitle = htmlEntry.getElementsByClassName("playlist_entry_title")[0];
+            let entryUrl   = htmlEntry.getElementsByClassName("playlist_entry_url")[0];
+            this.startEntryEdit(entry, htmlEntry, entryTitle, entryUrl);
+        }
+    }
+
+    deleteEntry(htmlEntry) {
+        let index = this.htmlEntries.findIndex(item => item === htmlEntry);
+        if (index === -1) {
+            console.error("ERROR: Failed to find entry:", htmlEntry, "Playlist is out of sync");
+            return;
+        }
+
+        if (index < 0 || index >= this.entries.length) {
+            console.error("ERROR: Delete failed for html playlist entry:", htmlEntry, "Index:", index, "is out of bounds for array:", this.entries);
+            return;
+        }
+
+        let entry = this.entries[index];
+        api.playlistRemove(entry.id, index);
+    }
+
+    toggleEntryDropdown(htmlEntry, entry, user) {
+        if (this.expandedEntry !== htmlEntry) {
+            this.expandEntry(htmlEntry, entry, user);
+        } else {
+            this.collapseEntry(htmlEntry);
+        }
+    }
+
+    requestEntryMove(htmlEntry, destIndex) {
+        let sourceIndex = this.htmlEntries.findIndex(item => item === htmlEntry);
+        if (sourceIndex === -1) {
+            console.error("ERROR: Failed to find entry:", htmlEntry, "Playlist is out of sync");
+            return;
+        }
+
+        if (sourceIndex < 0 || sourceIndex >= this.entries.length) {
+            console.error("ERROR: Cannot request playlist move for html playlist entry:", htmlEntry, "Index:", sourceIndex, "is out of bounds for array:", this.entries);
+            return;
+        }
+
+        let entry = this.entries[sourceIndex];
+        let _TODO_handle_this_error = api.playlistMove(entry.id, sourceIndex, destIndex);
+        this.move(sourceIndex, destIndex);
+    }
+
     createHtmlEntry(entry, user) {
         let entryRoot      = div("playlist_entry");
         let entryTop       = div("playlist_entry_top"); 
@@ -446,6 +561,11 @@ class Playlist {
         // Scrolling on screen touch.
         entryRoot.ontouchstart = _ => {};
 
+        entryRoot.oncontextmenu = event => {
+            event.preventDefault();
+            this.toggleContextMenu(entryRoot, entry, user);
+        };
+
         // Dragging for touch screens.
         entryDragArea.ontouchstart = _ => {};
 
@@ -453,7 +573,7 @@ class Playlist {
             this.dragStartIndex   = this.findHtmlIndex(entryRoot);
             this.dragCurrentIndex = this.dragStartIndex;
 
-            this.collapseEntry(this.expandedEntry, this.expandedDropdown);
+            this.collapseEntry(this.expandedEntry);
 
             let draggableEntry = entryRoot.cloneNode(true);
             draggableEntry.classList.add("draggable");
@@ -580,42 +700,9 @@ class Playlist {
             document.addEventListener("mouseup",   onDraggingStop);
         };
 
-        editButton.onclick = _ => {
-            let prevId = 0;
-            if (this.isEditingEntry) {
-                let newEntry = this.stopEntryEdit();
-                prevId = newEntry.id;
-                api.playlistUpdate(newEntry);
-            } 
-
-            if (prevId !== entry.id) {
-                this.startEntryEdit(entry, entryRoot, entryTitle, entryUrl);
-            }
-        };
-
-        deleteButton.onclick = () => {
-            let index = this.htmlEntries.findIndex(item => item === entryRoot);
-            if (index === -1) {
-                console.error("ERROR: Failed to find entry:", entryRoot, "Playlist is out of sync");
-                return;
-            }
-
-            if (index < 0 || index >= this.entries.length) {
-                console.error("ERROR: Delete button click failed for html playlist entry:", entryRoot, "Index:", index, "is out of bounds for array:", this.entries);
-                return null;
-            }
-
-            let entry = this.entries[index];
-            api.playlistRemove(entry.id, index);
-        };
-
-        dropdownButton.onclick = () => {
-            if (this.expandedEntry !== entryRoot) {
-                this.expandEntry(entryRoot, entry, user);
-            } else {
-                this.collapseEntry(entryRoot);
-            }
-        };
+        editButton.onclick     = _ => this.toggleEntryEdit(entryRoot, entry);
+        deleteButton.onclick   = _ => this.deleteEntry(entryRoot);
+        dropdownButton.onclick = _ => this.toggleEntryDropdown(entryRoot, entry, user);
 
         //
         // Constructing html element structure.
