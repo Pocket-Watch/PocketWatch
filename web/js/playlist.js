@@ -558,6 +558,7 @@ class Playlist {
         let entryDragArea  = div("playlist_drag_area"); 
         let entryThumbnail = div("playlist_entry_thumbnail");
         let thumbnailSrc   = entry.thumbnail ? entry.thumbnail : "img/thumbnail_placeholder.png";
+        let thumbnailPlay  = svg("svg/main_icons.svg#thumbnail_play")
         let thumbnailImg   = img(thumbnailSrc);
         let entryInfo      = div("playlist_entry_info");
         let entryTitle     = span("playlist_entry_title", entry.title);
@@ -721,6 +722,8 @@ class Playlist {
             document.addEventListener("mouseup",   onDraggingStop);
         };
 
+
+        entryThumbnail.onclick = _ => this.requestPlaylistPlay(entryRoot);
         editButton.onclick     = _ => this.toggleEntryEdit(entryRoot, entry);
         deleteButton.onclick   = _ => this.deleteEntry(entryRoot);
         dropdownButton.onclick = _ => this.toggleEntryDropdown(entryRoot, entry, user);
@@ -731,6 +734,7 @@ class Playlist {
         entryRoot.append(entryTop); {
             entryTop.append(entryDragArea);
             entryTop.append(entryThumbnail); {
+                entryThumbnail.append(thumbnailPlay);
                 entryThumbnail.append(thumbnailImg);
             }
             entryTop.append(entryInfo); {

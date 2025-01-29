@@ -1099,12 +1099,12 @@ func apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	if state.entry.Url != "" && state.player.Looping {
 		state.playlist = append(state.playlist, state.entry)
 	}
 
 	newEntry := state.playlist[data.Index]
+	loadYoutubeEntry(&newEntry, RequestEntry{})
 	prevEntry := setNewEntry(newEntry)
 	state.playlist = append(state.playlist[:data.Index], state.playlist[data.Index+1:]...)
 	state.mutex.Unlock()
