@@ -366,14 +366,20 @@ class Internals {
         this.htmlSeekForward.addEventListener("focusout", _ => this.htmlPlayerRoot.focus());
         this.htmlSeekForward.appendChild(this.svgs.seekForward.svg);
         this.htmlPlayerRoot.appendChild(this.htmlSeekForward);
-        this.seekForwardTimeout = new Timeout(_ => this.htmlSeekForward.classList.add("hide"), 200);
+        this.seekForwardTimeout = new Timeout(_ => {
+            this.htmlSeekForward.classList.add("hide");
+            this.svgs.seekForward.setText(this.options.seekBy + "s");
+        }, 200);
 
 
         this.htmlSeekBackward = newDiv("player_backward_container", "hide", "unselectable");
         this.htmlSeekBackward.addEventListener("focusout", _ => this.htmlPlayerRoot.focus());
         this.htmlSeekBackward.appendChild(this.svgs.seekBackward.svg);
         this.htmlPlayerRoot.appendChild(this.htmlSeekBackward);
-        this.seekBackwardTimeout = new Timeout(_ => this.htmlSeekBackward.classList.add("hide"), 200);
+        this.seekBackwardTimeout = new Timeout(_ => {
+            this.htmlSeekBackward.classList.add("hide");
+            this.svgs.seekBackward.setText(this.options.seekBy + "s");
+        }, 200);
 
         this.subtitleContainer = newDiv("player_subtitle_container");
         this.subtitleText      = newDiv("player_subtitle_text");
@@ -982,19 +988,36 @@ class Internals {
         return 1;
     }
 
-    seekBasedOnDirection(isBackward) {
-        let seek;
-        if (isBackward) {
-            seek = -this.options.seekBy;
-            this.htmlSeekBackward.classList.remove("hide");
-            this.seekBackwardTimeout.schedule();
+    incrementSeekIconText(seekIcon) {
+        let iconText = seekIcon.getText();
+        let s = iconText.indexOf("s");
+        let newNumber;
+        if (s === -1) {
+            newNumber = Number(iconText) + this.options.seekBy;
         } else {
-            seek = this.options.seekBy;
-            this.htmlSeekForward.classList.remove("hide");
-            this.seekForwardTimeout.schedule();
+            newNumber = Number(iconText.substring(0, s)) + this.options.seekBy;
         }
+        seekIcon.setText(newNumber + "s");
+    }
 
-        let timestamp = this.getNewTime(seek);
+    seekBackward() {
+        this.htmlSeekBackward.classList.remove("hide");
+        if (this.seekBackwardTimeout.inProgress()) {
+            this.incrementSeekIconText(this.svgs.seekBackward);
+        }
+        this.seekBackwardTimeout.schedule();
+        let timestamp = this.getNewTime(-this.options.seekBy);
+        this.fireControlsSeeked(timestamp);
+        this.seek(timestamp);
+    }
+
+    seekForward() {
+        this.htmlSeekForward.classList.remove("hide");
+        if (this.seekForwardTimeout.inProgress()) {
+            this.incrementSeekIconText(this.svgs.seekForward);
+        }
+        this.seekForwardTimeout.schedule();
+        let timestamp = this.getNewTime(this.options.seekBy);
         this.fireControlsSeeked(timestamp);
         this.seek(timestamp);
     }
@@ -1035,21 +1058,11 @@ class Internals {
                 consumeEvent(event);
 
             } else if (event.key === "ArrowLeft") {
-                this.htmlSeekBackward.classList.remove("hide");
-                this.seekBackwardTimeout.schedule();
-
-                let timestamp = this.getNewTime(-this.options.seekBy);
-                this.fireControlsSeeked(timestamp);
-                this.seek(timestamp);
+                this.seekBackward();
                 consumeEvent(event);
 
             } else if (event.key === "ArrowRight") {
-                this.htmlSeekForward.classList.remove("hide");
-                this.seekForwardTimeout.schedule();
-
-                let timestamp = this.getNewTime(this.options.seekBy);
-                this.fireControlsSeeked(timestamp);
-                this.seek(timestamp);
+                this.seekForward();
                 consumeEvent(event);
 
             } else if (event.key === "ArrowUp") {
@@ -1090,7 +1103,11 @@ class Internals {
             if (this.clickTimeout.inProgress()) {
                 this.clickTimeout.cancel();
                 if (areaIndex === this.lastAreaIndex) {
-                    this.seekBasedOnDirection(areaIndex === 0);
+                    if (areaIndex === 0) {
+                        this.seekBackward();
+                    } else {
+                        this.seekForward();
+                    }
                 }
             } else {
                 this.clickTimeout.schedule();
@@ -2171,6 +2188,9 @@ class SeekIcon {
     }
     setText(text) {
         this.text.textContent = text;
+    }
+    getText() {
+        return this.text.textContent;
     }
 }
 

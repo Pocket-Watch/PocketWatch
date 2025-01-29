@@ -64,7 +64,7 @@
         - [x] Display seek +10/-10 on keyboard arrow click
         - [x] Perform seeks screen double tap
         - [x] Display variable seek indicator number on arrow press or screen double tap
-        - [ ] Seek indicator value stacking
+        - [x] Seek indicator value stacking
     - [ ] Custom options that include:
         - [x] Disable control auto-hide
         - [ ] Playback speed
