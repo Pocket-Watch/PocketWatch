@@ -369,7 +369,7 @@ class Internals {
         this.seekForwardTimeout = new Timeout(_ => {
             this.htmlSeekForward.classList.add("hide");
             this.svgs.seekForward.setText(this.options.seekBy + "s");
-        }, 200);
+        }, 250);
 
 
         this.htmlSeekBackward = newDiv("player_backward_container", "hide", "unselectable");
@@ -379,7 +379,7 @@ class Internals {
         this.seekBackwardTimeout = new Timeout(_ => {
             this.htmlSeekBackward.classList.add("hide");
             this.svgs.seekBackward.setText(this.options.seekBy + "s");
-        }, 200);
+        }, 250);
 
         this.subtitleContainer = newDiv("player_subtitle_container");
         this.subtitleText      = newDiv("player_subtitle_text");
