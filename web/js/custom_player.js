@@ -369,7 +369,7 @@ class Internals {
         this.seekForwardTimeout = new Timeout(_ => {
             this.htmlSeekForward.classList.add("hide");
             this.svgs.seekForward.setText(this.options.seekBy + "s");
-        }, 250);
+        }, this.options.seekStackingThresholdMs);
 
 
         this.htmlSeekBackward = newDiv("player_backward_container", "hide", "unselectable");
@@ -379,7 +379,7 @@ class Internals {
         this.seekBackwardTimeout = new Timeout(_ => {
             this.htmlSeekBackward.classList.add("hide");
             this.svgs.seekBackward.setText(this.options.seekBy + "s");
-        }, 250);
+        }, this.options.seekStackingThresholdMs);
 
         this.subtitleContainer = newDiv("player_subtitle_container");
         this.subtitleText      = newDiv("player_subtitle_text");
@@ -2287,8 +2287,10 @@ class Options {
         this.hideSettingsButton   = false;
         this.hideFullscreenButton = false;
 
+        let isMobile = isMobileAgent();
         this.doubleClickThresholdMs = 250;
-        this.enableDoubleTapSeek = isMobileAgent();
+        this.seekStackingThresholdMs = isMobile ? 350 : 250;
+        this.enableDoubleTapSeek = isMobile;
         this.sanitizeSubtitles = true;
         this.allowCueOverlap = true;
         this.fullscreenKeyLetter = 'f';

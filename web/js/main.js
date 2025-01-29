@@ -231,7 +231,7 @@ class Room {
             }
 
             if (exception.name === "AbortError") {
-                this.player.setToast("Likely an invalid URL is set, pausing playback!");
+                this.player.setToast("AbortError: Likely the video is slowly loading. Pausing playback!");
                 api.playerPause(this.player.getCurrentTime())
                 return;
             }
