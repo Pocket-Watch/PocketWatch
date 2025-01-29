@@ -366,20 +366,23 @@ class Internals {
         this.htmlSeekForward.addEventListener("focusout", _ => this.htmlPlayerRoot.focus());
         this.htmlSeekForward.appendChild(this.svgs.seekForward.svg);
         this.htmlPlayerRoot.appendChild(this.htmlSeekForward);
+        this.forwardStack = this.options.seekBy;
         this.seekForwardTimeout = new Timeout(_ => {
             this.htmlSeekForward.classList.add("hide");
-            this.svgs.seekForward.setText(this.options.seekBy + "s");
+            this.forwardStack = this.options.seekBy;
         }, this.options.seekStackingThresholdMs);
-
+        this.htmlSeekForward.ontransitionend = _ => this.svgs.seekForward.setText(this.options.seekBy + "s");
 
         this.htmlSeekBackward = newDiv("player_backward_container", "hide", "unselectable");
         this.htmlSeekBackward.addEventListener("focusout", _ => this.htmlPlayerRoot.focus());
         this.htmlSeekBackward.appendChild(this.svgs.seekBackward.svg);
         this.htmlPlayerRoot.appendChild(this.htmlSeekBackward);
+        this.backwardStack = this.options.seekBy;
         this.seekBackwardTimeout = new Timeout(_ => {
             this.htmlSeekBackward.classList.add("hide");
-            this.svgs.seekBackward.setText(this.options.seekBy + "s");
+            this.backwardStack = this.options.seekBy;
         }, this.options.seekStackingThresholdMs);
+        this.htmlSeekBackward.ontransitionend = _ => this.svgs.seekBackward.setText(this.options.seekBy + "s");
 
         this.subtitleContainer = newDiv("player_subtitle_container");
         this.subtitleText      = newDiv("player_subtitle_text");
@@ -392,8 +395,6 @@ class Internals {
         this.attachPlayerEvents();
 
         setInterval(() => this.redrawBufferedBars(), this.options.bufferingRedrawInterval);
-        let end = performance.now();
-        console.debug("Internals constructor finished in", end-initStart, "ms")
 
         this.setVolume(1.0);
 
@@ -404,6 +405,9 @@ class Internals {
         }
 
         this.playerUIHideTimeout = new Timeout(_ => this.hidePlayerUI(), this.options.inactivityTime);
+
+        let end = performance.now();
+        console.debug("Internals constructor finished in", end-initStart, "ms")
     }
 
     fireControlsPlay() {}
@@ -988,22 +992,11 @@ class Internals {
         return 1;
     }
 
-    incrementSeekIconText(seekIcon) {
-        let iconText = seekIcon.getText();
-        let s = iconText.indexOf("s");
-        let newNumber;
-        if (s === -1) {
-            newNumber = Number(iconText) + this.options.seekBy;
-        } else {
-            newNumber = Number(iconText.substring(0, s)) + this.options.seekBy;
-        }
-        seekIcon.setText(newNumber + "s");
-    }
-
     seekBackward() {
         this.htmlSeekBackward.classList.remove("hide");
         if (this.seekBackwardTimeout.inProgress()) {
-            this.incrementSeekIconText(this.svgs.seekBackward);
+            this.backwardStack += this.options.seekBy;
+            this.svgs.seekBackward.setText(this.backwardStack + "s")
         }
         this.seekBackwardTimeout.schedule();
         let timestamp = this.getNewTime(-this.options.seekBy);
@@ -1014,7 +1007,8 @@ class Internals {
     seekForward() {
         this.htmlSeekForward.classList.remove("hide");
         if (this.seekForwardTimeout.inProgress()) {
-            this.incrementSeekIconText(this.svgs.seekForward);
+            this.forwardStack += this.options.seekBy;
+            this.svgs.seekForward.setText(this.forwardStack + "s")
         }
         this.seekForwardTimeout.schedule();
         let timestamp = this.getNewTime(this.options.seekBy);
@@ -2289,7 +2283,7 @@ class Options {
 
         let isMobile = isMobileAgent();
         this.doubleClickThresholdMs = 250;
-        this.seekStackingThresholdMs = isMobile ? 350 : 250;
+        this.seekStackingThresholdMs = 250;
         this.enableDoubleTapSeek = isMobile;
         this.sanitizeSubtitles = true;
         this.allowCueOverlap = true;
