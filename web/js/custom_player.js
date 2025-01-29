@@ -1076,8 +1076,14 @@ class Internals {
             }
         });
 
-        this.clickTimeout = new Timeout(_ => this.togglePlayback(), this.options.doubleClickThresholdMs);
+        this.doubleTapped = false;
+        this.clickTimeout = new Timeout(_ => {
+            if (!this.doubleTapped) {
+                this.togglePlayback()
+            }
+        }, this.options.doubleClickThresholdMs);
         this.lastAreaIndex = -1;
+
 
         this.htmlPlayerRoot.addEventListener("click", event => {
             if ((event.pointerType === "touch" || event.pointerType === "pen") && !this.isUIVisible) {
@@ -1098,7 +1104,7 @@ class Internals {
             }
 
             if (this.clickTimeout.inProgress()) {
-                this.clickTimeout.cancel();
+                this.doubleTapped = true;
                 if (areaIndex === this.lastAreaIndex) {
                     if (areaIndex === 0) {
                         this.seekBackward();
@@ -1107,9 +1113,10 @@ class Internals {
                     }
                 }
             } else {
-                this.clickTimeout.schedule();
-                this.lastAreaIndex = areaIndex;
+                this.doubleTapped = false;
             }
+            this.clickTimeout.schedule();
+            this.lastAreaIndex = areaIndex;
         });
     }
 
