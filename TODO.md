@@ -76,11 +76,11 @@
         - [x] Option to change subtitle size
         - [x] Option to change subtitle color
         - [x] Option to change timestamp offset
-        - [ ] Vertical subtitle positioning does not work as intended
+        - [x] Fix vertical subtitle positioning
         - [ ] Instead of setting fixed subtitle size, set size based on screen scale
     - [ ] Skip/Remove entries that fail to load on the client side
 - [x] On first website load, indicate to the user that autoplay policy is disabled and manual action is required in order to play the video.
-- [ ] fix users list synchronization issues.
+- [ ] Fix users list synchronization issues.
 - [ ] Room tab:
     - [ ] Improve layout
     - [ ] Add option to add subtitle file to currently set entry
@@ -100,12 +100,13 @@
     - [x] Animate entry add and remove
     - [x] Footer with entry count
     - [x] Top of the list controls
+    - [x] Mouse right click / touch hold down opens context menu with extra options.
+    - [x] Improve playlist scrolling on entry drag
+    - [ ] Add entry dragging on mobile
     - [ ] More items in entry dropdown
-    - [ ] Mouse right click / touch hold down opens context menu with extra options.
     - [ ] Proper network handling
     - [ ] Smart scrolling - dynamic remove/add on scrolling when entry count > 300 (also includes search)
     - [ ] Add support for multiple playlists
-    - [ ] Add different looping modes: none, single, playlist, shuffle...
 - [ ] Chat tab:
     - [ ] Proper UI for chat messages
 - [ ] History tab:

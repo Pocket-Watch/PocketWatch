@@ -65,8 +65,13 @@ class Playlist {
         this.dragStartIndex    = -1;
         this.dragCurrentIndex  = -1;
 
+        this.draggableEntryLastY       = 0; 
+        this.draggableEntryMouseOffset = 0; 
+
+        this.scrollIntervalId  = null;
+
         this.currentEntryId = 0;
-        
+
         hide(this.contextMenu);
     }
 
@@ -126,6 +131,18 @@ class Playlist {
         this.contextMenuExpand.onclick     = _ => this.toggleEntryDropdown(this.contextMenuEntry, this.contextMenuEntryRefactorMe, this.contextMenuUserRefactorMe);
         this.contextMenuEdit.onclick       = _ => this.toggleEntryEdit(this.contextMenuEntry, this.contextMenuEntryRefactorMe);
         this.contextMenuDelete.onclick     = _ => this.deleteEntry(this.contextMenuEntry);
+
+        this.htmlEntryList.onscroll = event => {
+            if (this.draggableEntry) {
+                let listRect   = this.htmlEntryList.getBoundingClientRect();
+                let listScroll = this.htmlEntryList.scrollTop;
+                let top        = this.draggableEntryLastY - listRect.top + listScroll - this.draggableEntryMouseOffset;
+                let maxPos     = this.indexToPosition(this.htmlEntries.length - 2);
+                let maxTop     = Math.min(top, maxPos)
+
+                this.draggableEntry.style.top = maxTop + "px";
+            }
+        };
     }
 
     handleUserUpdate(user) {
@@ -552,6 +569,35 @@ class Playlist {
         this.move(sourceIndex, destIndex);
     }
 
+    startScrollingUp() {
+        if (!this.scrollIntervalId) {
+            this.scrollIntervalId = setInterval(_ => {
+                this.htmlEntryList.scrollBy({
+                    top: -ENTRY_HEIGHT * 2,
+                    left: 0,
+                    behavior: "smooth",
+                }); 
+            }, 16);
+        }
+    }
+
+    startScrollingDown() {
+        if (!this.scrollIntervalId) {
+            this.scrollIntervalId = setInterval(_ => {
+                this.htmlEntryList.scrollBy({
+                    top: ENTRY_HEIGHT * 2,
+                    left: 0,
+                    behavior: "smooth",
+                }); 
+            }, 16);
+        }
+    }
+
+    stopScrolling() {
+        clearInterval(this.scrollIntervalId);
+        this.scrollIntervalId = null;
+    }
+
     createHtmlEntry(entry, user) {
         let entryRoot      = div("playlist_entry");
         let entryTop       = div("playlist_entry_top"); 
@@ -589,7 +635,9 @@ class Playlist {
         };
 
         // Dragging for touch screens.
-        entryDragArea.ontouchstart = _ => {};
+        entryDragArea.ontouchstart = _ => {
+
+        };
 
         entryDragArea.onmousedown = event => {
             this.dragStartIndex   = this.findHtmlIndex(entryRoot);
@@ -609,7 +657,9 @@ class Playlist {
             let mouseOffset = event.clientY - entryRect.top;
             let listScroll  = this.htmlEntryList.scrollTop;
             let top         = (event.clientY - listRect.top + listScroll - mouseOffset) + "px";
+
             this.draggableEntry.style.top = top;
+            this.draggableEntryMouseOffset = mouseOffset; 
 
             entryRoot.classList.add("shadow");
 
@@ -670,19 +720,21 @@ class Playlist {
             let onDragging = event => {
                 let listRect   = this.htmlEntryList.getBoundingClientRect();
                 let listScroll = this.htmlEntryList.scrollTop;
-                let top        = event.clientY - listRect.top + listScroll - mouseOffset;
-                this.draggableEntry.style.top = top + "px";
+                let top        = event.clientY - listRect.top + listScroll - this.draggableEntryMouseOffset;
+                let maxPos     = this.indexToPosition(this.htmlEntries.length - 2);
+                let maxTop     = Math.min(top, maxPos)
 
-                // NOTE(kihau): Scrolling down is WAY too fast...
-                if (event.clientY - listRect.top < 0) {
-                    this.htmlEntryList.scrollTo(0, top);
-                } else if (event.clientY - listRect.top > listRect.height) {
-                    let maxPos = this.indexToPosition(this.htmlEntries.length + 1);
-                    // let scrollTop = Math.min(this.htmlEntryList.scrollHeight, maxPos);
-                    if (top < maxPos) {
-                        this.htmlEntryList.scrollTo(0, top);
-                    }
+                this.draggableEntry.style.top = maxTop + "px";
+                this.draggableEntryLastY = event.clientY;
+
+                if (event.clientY - listRect.top < ENTRY_HEIGHT) {
+                    this.startScrollingUp();
+                } else if (event.clientY - listRect.top > listRect.height - ENTRY_HEIGHT) {
+                    this.startScrollingDown();
+                } else {
+                    this.stopScrolling();
                 }
+
                 clearTimeout(timeout);
                 timeout = setTimeout(onDragTimeout, DRAG_INACTIVITY_DELAY, event);
             }
@@ -690,7 +742,7 @@ class Playlist {
             let onDraggingStop = event => {
                 clearTimeout(timeout);
                 onDragTimeout(event);
-
+                this.stopScrolling();
 
                 let oldPos = this.draggableEntry.style.top;
                 let newPos = this.calculateEntryPosition(this.dragCurrentIndex);

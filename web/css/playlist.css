@@ -316,6 +316,10 @@
     background-color: #7c6f64;
 }
 
+.playlist_entry.draggable .playlist_entry_thumbnail svg {
+    opacity: 0 !important;
+}
+
 .playlist_entry.show {
     z-index: 1;
     margin-left: 0;

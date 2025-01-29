@@ -5,7 +5,7 @@ set -xe
 project_root=$(dirname "$0")
 cd "$project_root"
 
-ip="localhost"
+ip="192.168.1.2"
 port="1234"
 browser="firefox"
 
