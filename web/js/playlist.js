@@ -499,12 +499,12 @@ class Playlist {
         const padding = 6;
 
         let contextMenuWidth = 180; // hardcoded because .offsetWidth returns 0 when it's hidden
-        let contextMenuX = clickX - padding;
+        let contextMenuX = event.clientX;
         let protrusion = contextMenuX + contextMenuWidth - rect.right;
         if (protrusion > 0) {
-            contextMenuX -= protrusion + 18;
+            contextMenuX -= protrusion;
         }
-        this.contextMenu.style.left = contextMenuX + "px";
+        this.contextMenu.style.left = (contextMenuX - rect.left) + "px";
         this.contextMenu.style.top  = htmlEntry.offsetTop - padding + clickY + "px";
         show(this.contextMenu);
 
