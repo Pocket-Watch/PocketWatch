@@ -67,6 +67,7 @@ class Playlist {
 
         this.draggableEntryLastY       = 0; 
         this.draggableEntryMouseOffset = 0; 
+        this.shadowedEntryMoveTimout   = null;
 
         this.scrollIntervalId  = null;
 
@@ -598,6 +599,134 @@ class Playlist {
         this.scrollIntervalId = null;
     }
 
+    startEntryDragging(htmlEntry, positionY) {
+        this.dragStartIndex   = this.findHtmlIndex(htmlEntry);
+        this.dragCurrentIndex = this.dragStartIndex;
+
+        this.collapseEntry(this.expandedEntry);
+
+        let draggableEntry = htmlEntry.cloneNode(true);
+        draggableEntry.classList.add("draggable");
+        draggableEntry.classList.add("disable_transition");
+        this.draggableEntry = draggableEntry;
+
+        this.htmlEntryList.appendChild(draggableEntry);
+
+        let listRect    = this.htmlEntryList.getBoundingClientRect();
+        let entryRect   = draggableEntry.getBoundingClientRect();
+        let mouseOffset = positionY - entryRect.top;
+        let listScroll  = this.htmlEntryList.scrollTop;
+        let top         = (positionY - listRect.top + listScroll - mouseOffset) + "px";
+
+        this.draggableEntry.style.top = top;
+        this.draggableEntryMouseOffset = mouseOffset; 
+
+        htmlEntry.classList.add("shadow");
+    }
+
+    moveDraggedEntry(positionY) {
+        let listRect   = this.htmlEntryList.getBoundingClientRect();
+        let listScroll = this.htmlEntryList.scrollTop;
+        let top        = positionY - listRect.top + listScroll - this.draggableEntryMouseOffset;
+        let maxPos     = this.indexToPosition(this.htmlEntries.length - 2);
+        let maxTop     = Math.min(top, maxPos)
+
+        this.draggableEntry.style.top = maxTop + "px";
+        this.draggableEntryLastY = positionY;
+
+        if (positionY - listRect.top < ENTRY_HEIGHT) {
+            this.startScrollingUp();
+        } else if (positionY - listRect.top > listRect.height - ENTRY_HEIGHT) {
+            this.startScrollingDown();
+        } else {
+            this.stopScrolling();
+        }
+
+        clearTimeout(this.shadowedEntryMoveTimout);
+        this.shadowedEntryMoveTimout = setTimeout(_ => this.moveShadowedEntry(), DRAG_INACTIVITY_DELAY);
+    }
+
+    stopEntryDragging(htmlEntry) {
+        clearTimeout(this.shadowedEntryMoveTimout);
+        this.moveShadowedEntry();
+        this.stopScrolling();
+
+        let oldPos = this.draggableEntry.style.top;
+        let newPos = this.calculateEntryPosition(this.dragCurrentIndex);
+
+        if (oldPos === newPos) {
+            this.htmlEntryList.removeChild(this.draggableEntry);
+            htmlEntry.classList.remove("shadow");
+        } else {
+            this.setEntryPosition(this.draggableEntry, this.dragCurrentIndex);
+            this.draggableEntry.classList.remove("disable_transition");
+            this.draggableEntry.ontransitionend = event => {
+                this.htmlEntryList.removeChild(event.target);
+                htmlEntry.classList.remove("shadow");
+            };
+        }
+        this.draggableEntry = null;
+
+
+        if (this.dragStartIndex !== this.dragCurrentIndex) {
+            let entry = this.entries[this.dragCurrentIndex];
+            api.playlistMove(entry.id, this.dragStartIndex, this.dragCurrentIndex)
+        }
+    }
+
+    moveShadowedEntry() {
+        let listScroll  = this.htmlEntryList.scrollTop;
+        let dragRect = this.draggableEntry.getBoundingClientRect();
+        let dragPos  = dragRect.y + listScroll + ENTRY_HEIGHT / 2.0;
+
+        let hoverIndex = this.positionToIndex(dragPos);
+        let startIndex = this.dragCurrentIndex;
+        let endIndex   = this.dragCurrentIndex;
+
+        if (hoverIndex < this.dragCurrentIndex) {
+            for (let i = this.dragCurrentIndex - 1; i >= 0; i--) {
+                const pos = this.indexToPosition(i);
+                if (dragPos > pos + ENTRY_HEIGHT * 0.66666) {
+                    break;
+                }
+
+                endIndex -= 1;
+
+                const entry = this.htmlEntries[i];
+                this.setEntryPosition(entry, i + 1);
+            }
+        } else if (hoverIndex > this.dragCurrentIndex) {
+            for (let i = this.dragCurrentIndex + 1; i < this.htmlEntries.length; i++) {
+                const pos = this.indexToPosition(i);
+                if (dragPos < pos + ENTRY_HEIGHT * 0.33333) {
+                    break;
+                }
+
+                endIndex += 1;
+
+                const entry = this.htmlEntries[i];
+                this.setEntryPosition(entry, i - 1);
+            }
+        }
+
+        if (startIndex === endIndex) {
+            return;
+        }
+
+        let entry = this.htmlEntries[startIndex];
+        this.htmlEntries.splice(startIndex, 1);
+        this.htmlEntries.splice(endIndex, 0, entry);
+
+        { // NOTE(kihau): This will be handled differently.
+            let entry = this.entries[startIndex];
+            this.entries.splice(startIndex, 1);
+            this.entries.splice(endIndex, 0, entry);
+        }
+
+        this.setEntryPosition(entry, endIndex);
+        this.dragCurrentIndex = endIndex;
+    }
+
     createHtmlEntry(entry, user) {
         let entryRoot      = div("playlist_entry");
         let entryTop       = div("playlist_entry_top"); 
@@ -635,136 +764,34 @@ class Playlist {
         };
 
         // Dragging for touch screens.
-        entryDragArea.ontouchstart = _ => {
+        entryDragArea.ontouchstart = event => {
+            this.startEntryDragging(entryRoot, event.touches[0].clientY);
 
+            let onDragging = event => {
+                event.preventDefault();
+                this.moveDraggedEntry(event.touches[0].clientY);
+            };
+
+            let onDraggingStop = event => {
+                this.stopEntryDragging(entryRoot);
+
+                document.removeEventListener("touchmove", onDragging);
+                document.removeEventListener("touchend",  onDraggingStop);
+            };
+
+            document.addEventListener("touchmove", onDragging, { passive: false });
+            document.addEventListener("touchend",  onDraggingStop);
         };
 
         entryDragArea.onmousedown = event => {
-            this.dragStartIndex   = this.findHtmlIndex(entryRoot);
-            this.dragCurrentIndex = this.dragStartIndex;
+            this.startEntryDragging(entryRoot, event.clientY);
 
-            this.collapseEntry(this.expandedEntry);
-
-            let draggableEntry = entryRoot.cloneNode(true);
-            draggableEntry.classList.add("draggable");
-            draggableEntry.classList.add("disable_transition");
-            this.draggableEntry = draggableEntry;
-
-            this.htmlEntryList.appendChild(draggableEntry);
-
-            let listRect    = this.htmlEntryList.getBoundingClientRect();
-            let entryRect   = draggableEntry.getBoundingClientRect();
-            let mouseOffset = event.clientY - entryRect.top;
-            let listScroll  = this.htmlEntryList.scrollTop;
-            let top         = (event.clientY - listRect.top + listScroll - mouseOffset) + "px";
-
-            this.draggableEntry.style.top = top;
-            this.draggableEntryMouseOffset = mouseOffset; 
-
-            entryRoot.classList.add("shadow");
-
-            let onDragTimeout = _ => { 
-                let listScroll  = this.htmlEntryList.scrollTop;
-                let dragRect = this.draggableEntry.getBoundingClientRect();
-                let dragPos  = dragRect.y + listScroll + ENTRY_HEIGHT / 2.0;
-
-                let hoverIndex = this.positionToIndex(dragPos);
-                let startIndex = this.dragCurrentIndex;
-                let endIndex   = this.dragCurrentIndex;
-
-                if (hoverIndex < this.dragCurrentIndex) {
-                    for (let i = this.dragCurrentIndex - 1; i >= 0; i--) {
-                        const pos = this.indexToPosition(i);
-                        if (dragPos > pos + ENTRY_HEIGHT * 0.66666) {
-                            break;
-                        }
-
-                        endIndex -= 1;
-
-                        const entry = this.htmlEntries[i];
-                        this.setEntryPosition(entry, i + 1);
-                    }
-                } else if (hoverIndex > this.dragCurrentIndex) {
-                    for (let i = this.dragCurrentIndex + 1; i < this.htmlEntries.length; i++) {
-                        const pos = this.indexToPosition(i);
-                        if (dragPos < pos + ENTRY_HEIGHT * 0.33333) {
-                            break;
-                        }
-
-                        endIndex += 1;
-
-                        const entry = this.htmlEntries[i];
-                        this.setEntryPosition(entry, i - 1);
-                    }
-                }
-
-                if (startIndex === endIndex) {
-                    return;
-                }
-
-                let entry = this.htmlEntries[startIndex];
-                this.htmlEntries.splice(startIndex, 1);
-                this.htmlEntries.splice(endIndex, 0, entry);
-
-                { // NOTE(kihau): This will be handled differently.
-                    let entry = this.entries[startIndex];
-                    this.entries.splice(startIndex, 1);
-                    this.entries.splice(endIndex, 0, entry);
-                }
-
-                this.setEntryPosition(entry, endIndex);
-                this.dragCurrentIndex = endIndex;
-            }
-
-            let timeout = null;
             let onDragging = event => {
-                let listRect   = this.htmlEntryList.getBoundingClientRect();
-                let listScroll = this.htmlEntryList.scrollTop;
-                let top        = event.clientY - listRect.top + listScroll - this.draggableEntryMouseOffset;
-                let maxPos     = this.indexToPosition(this.htmlEntries.length - 2);
-                let maxTop     = Math.min(top, maxPos)
-
-                this.draggableEntry.style.top = maxTop + "px";
-                this.draggableEntryLastY = event.clientY;
-
-                if (event.clientY - listRect.top < ENTRY_HEIGHT) {
-                    this.startScrollingUp();
-                } else if (event.clientY - listRect.top > listRect.height - ENTRY_HEIGHT) {
-                    this.startScrollingDown();
-                } else {
-                    this.stopScrolling();
-                }
-
-                clearTimeout(timeout);
-                timeout = setTimeout(onDragTimeout, DRAG_INACTIVITY_DELAY, event);
-            }
+                this.moveDraggedEntry(event.clientY);
+            };
 
             let onDraggingStop = event => {
-                clearTimeout(timeout);
-                onDragTimeout(event);
-                this.stopScrolling();
-
-                let oldPos = this.draggableEntry.style.top;
-                let newPos = this.calculateEntryPosition(this.dragCurrentIndex);
-
-                if (oldPos === newPos) {
-                    this.htmlEntryList.removeChild(this.draggableEntry);
-                    entryRoot.classList.remove("shadow");
-                } else {
-                    this.setEntryPosition(this.draggableEntry, this.dragCurrentIndex);
-                    this.draggableEntry.classList.remove("disable_transition");
-                    this.draggableEntry.ontransitionend = event => {
-                        this.htmlEntryList.removeChild(event.target);
-                        entryRoot.classList.remove("shadow");
-                    };
-                }
-                this.draggableEntry = null;
-
-
-                if (this.dragStartIndex !== this.dragCurrentIndex) {
-                    let entry = this.entries[this.dragCurrentIndex];
-                    api.playlistMove(entry.id, this.dragStartIndex, this.dragCurrentIndex)
-                }
+                this.stopEntryDragging(entryRoot);
 
                 document.removeEventListener("mousemove", onDragging);
                 document.removeEventListener("mouseup",   onDraggingStop);
