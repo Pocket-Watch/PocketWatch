@@ -22,7 +22,7 @@ class Playlist {
         this.controlsSettingsButton = getById("playlist_controls_settings");
 
         this.autoplayEnabled = false;
-        this.loopiongEnabled = false;
+        this.loopingEnabled = false;
 
         this.htmlEntryList    = getById("playlist_entry_list");
         this.footerEntryCount = getById("playlist_footer_entry_count");
@@ -481,7 +481,13 @@ class Playlist {
 
         const padding = 6;
 
-        this.contextMenu.style.left = clickX - padding + "px";
+        let contextMenuWidth = 180; // hardcoded because .offsetWidth returns 0 when it's hidden
+        let contextMenuX = clickX - padding;
+        let protrusion = contextMenuX + contextMenuWidth - rect.right;
+        if (protrusion > 0) {
+            contextMenuX -= protrusion + 18;
+        }
+        this.contextMenu.style.left = contextMenuX + "px";
         this.contextMenu.style.top  = htmlEntry.offsetTop - padding + clickY + "px";
         show(this.contextMenu);
 
