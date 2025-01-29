@@ -371,7 +371,6 @@ class Internals {
             this.htmlSeekForward.classList.add("hide");
             this.forwardStack = this.options.seekBy;
         }, this.options.seekStackingThresholdMs);
-        this.htmlSeekForward.ontransitionend = _ => this.svgs.seekForward.setText(this.options.seekBy + "s");
 
         this.htmlSeekBackward = newDiv("player_backward_container", "hide", "unselectable");
         this.htmlSeekBackward.addEventListener("focusout", _ => this.htmlPlayerRoot.focus());
@@ -382,7 +381,6 @@ class Internals {
             this.htmlSeekBackward.classList.add("hide");
             this.backwardStack = this.options.seekBy;
         }, this.options.seekStackingThresholdMs);
-        this.htmlSeekBackward.ontransitionend = _ => this.svgs.seekBackward.setText(this.options.seekBy + "s");
 
         this.subtitleContainer = newDiv("player_subtitle_container");
         this.subtitleText      = newDiv("player_subtitle_text");
@@ -997,7 +995,10 @@ class Internals {
         if (this.seekBackwardTimeout.inProgress()) {
             this.backwardStack += this.options.seekBy;
             this.svgs.seekBackward.setText(this.backwardStack + "s")
+        } else {
+            this.svgs.seekBackward.setText(this.options.seekBy + "s")
         }
+
         this.seekBackwardTimeout.schedule();
         let timestamp = this.getNewTime(-this.options.seekBy);
         this.fireControlsSeeked(timestamp);
@@ -1009,6 +1010,8 @@ class Internals {
         if (this.seekForwardTimeout.inProgress()) {
             this.forwardStack += this.options.seekBy;
             this.svgs.seekForward.setText(this.forwardStack + "s")
+        } else {
+            this.svgs.seekForward.setText(this.options.seekBy + "s")
         }
         this.seekForwardTimeout.schedule();
         let timestamp = this.getNewTime(this.options.seekBy);
