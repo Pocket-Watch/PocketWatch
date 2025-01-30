@@ -1282,6 +1282,8 @@ class Internals {
 
         this.htmlControls.progress.root.addEventListener("touchstart", _ => {
             const onProgressBarTouchMove = event => {
+                event.preventDefault();
+
                 const progressRoot = this.htmlControls.progress.root;
                 progressRoot.classList.add("active");
 
@@ -1308,7 +1310,7 @@ class Internals {
             }
 
             this.isDraggingProgressBar = true;
-            document.addEventListener('touchmove', onProgressBarTouchMove);
+            document.addEventListener('touchmove', onProgressBarTouchMove, { passive: false });
             document.addEventListener('touchend', onProgressBarTouchStop);
         });
 
