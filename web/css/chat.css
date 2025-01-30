@@ -1,3 +1,11 @@
+#tab_chat_new_message_indicator {
+    width: 6px;
+    height: 6px;
+    border-radius: 20px;
+    background-color: #fb4934;
+    /* margin-left: 2px; */
+}
+
 #content_chat {
     display: flex;
     box-sizing: border-box;

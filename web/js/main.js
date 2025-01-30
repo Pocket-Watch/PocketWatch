@@ -3,7 +3,7 @@ import { Playlist } from "./playlist.js"
 import { Chat } from "./chat.js"
 import { sha256 } from "./auth.js"
 import * as api from "./api.js";
-import { getById, div, img, svg, button } from "./util.js";
+import { getById, div, img, svg, button, hide, show } from "./util.js";
 
 const SERVER_ID = 0;
 const MAX_TITLE_LENGTH = 200;
@@ -66,6 +66,11 @@ class Room {
                 history:  getById("content_history"),
             },
         };
+
+        this.chatNewMessage = getById("tab_chat_new_message_indicator");
+        hide(this.chatNewMessage);
+
+        this.newMessageAudio = new Audio('audio/new_message.mp3');
 
         this.nowPlaying = getById("room_now_playing_input");
         this.usingProxy = getById("room_using_proxy");
@@ -341,7 +346,10 @@ class Room {
 
         tabs.room.onclick     = _ => select(tabs.room, content.room);
         tabs.playlist.onclick = _ => select(tabs.playlist, content.playlist);
-        tabs.chat.onclick     = _ => select(tabs.chat, content.chat);
+        tabs.chat.onclick     = _ => {
+            hide(this.chatNewMessage);
+            select(tabs.chat, content.chat);
+        };
         tabs.history.onclick  = _ => select(tabs.history, content.history);
 
         this.uploadButton.onclick = _ => {
@@ -894,6 +902,12 @@ class Room {
         events.addEventListener("messagecreate", event => {
             let data = JSON.parse(event.data);
             console.info("INFO: New message received from server");
+
+            if (this.rightPanel.selected.tab !== this.rightPanel.tabs.chat) {
+                this.newMessageAudio.play();
+                show(this.chatNewMessage);
+            }
+
             this.chat.addMessage(data, this.allUsers);
         });
 

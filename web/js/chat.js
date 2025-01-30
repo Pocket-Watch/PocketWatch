@@ -1,6 +1,6 @@
 import * as api from "./api.js";
 import { getById, div, a, span, img, svg, button } from "./util.js";
-import {chatSend} from "./api.js";
+import { chatSend } from "./api.js";
 
 export { Chat }
 

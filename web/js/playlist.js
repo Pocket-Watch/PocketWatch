@@ -144,6 +144,8 @@ class Playlist {
                 this.draggableEntry.style.top = maxTop + "px";
             }
         };
+
+        this.htmlEntryList.oncontextmenu = _ => { return false };
     }
 
     handleUserUpdate(user) {
