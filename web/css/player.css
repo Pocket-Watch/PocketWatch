@@ -212,6 +212,22 @@
     transition: height 0.15s ease-in-out;
 }
 
+#player_progress_root.active .player_progress_bar {
+    height: 10px;
+    border-radius: 2.5px;
+    transition: height 0.08s ease-in-out;
+}
+
+#player_progress_root.active #player_progress_popup_root {
+    display: flex;
+}
+
+#player_progress_root.active #player_progress_thumb {
+    height: 18px;
+    transition: height 0.10s ease-in-out;
+    background-color: #fbf1c7;
+}
+
 #player_progress_root:hover .player_progress_bar {
     height: 10px;
     border-radius: 2.5px;
@@ -230,6 +246,17 @@
 
 #player_progress_root:active #player_progress_popup_root {
     display: flex;
+}
+
+#player_progress_root:hover #player_progress_thumb {
+    height: 18px;
+    transition: height 0.10s ease-in-out;
+}
+
+#player_progress_root:active #player_progress_thumb {
+    height: 18px;
+    transition: height 0.10s ease-in-out;
+    background-color: #fbf1c7;
 }
 
 #player_progress_total {
@@ -255,17 +282,6 @@
     position: absolute;
     transition: height 0.20s ease-in-out;
     background-color: #ebdbb2;
-}
-
-#player_progress_root:hover #player_progress_thumb {
-    height: 18px;
-    transition: height 0.10s ease-in-out;
-}
-
-#player_progress_root:active #player_progress_thumb {
-    height: 18px;
-    transition: height 0.10s ease-in-out;
-    background-color: #fbf1c7;
 }
 
 #player_progress_popup_root {

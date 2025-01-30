@@ -1283,6 +1283,8 @@ class Internals {
         this.htmlControls.progress.root.addEventListener("touchstart", _ => {
             const onProgressBarTouchMove = event => {
                 const progressRoot = this.htmlControls.progress.root;
+                progressRoot.classList.add("active");
+
                 const progress = calculateProgress(event, progressRoot);
                 this.updateProgressBar(progress);
                 this.updateProgressPopup(progress);
@@ -1296,6 +1298,8 @@ class Internals {
                 document.removeEventListener('touchend', onProgressBarTouchStop);
 
                 const progressRoot = this.htmlControls.progress.root;
+                progressRoot.classList.remove("active");
+
                 const progress = calculateProgress(event, progressRoot);
                 const timestamp = this.htmlVideo.duration * progress;
 
