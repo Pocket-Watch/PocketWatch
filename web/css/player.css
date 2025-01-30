@@ -34,7 +34,7 @@
     margin-left: 10px;
     white-space: pre-wrap;
     overflow-wrap: break-word;
-    background-color: rgba(40, 40, 40, 0.3);
+    background-color: #1d20217f;
     opacity: 1;
     transition: visibility 0.3s, opacity 0.3s;
     padding: 16px;
@@ -47,7 +47,7 @@
 }
 
 #player_title_text {
-    color: white;
+    color: #fbf1c7;
     font-size: 16px;
 }
 
@@ -66,7 +66,7 @@
     text-align: center;
     margin-top: 10px;
     margin-right: 10px;
-    background-color: rgba(40, 40, 40, 0.3);
+    background-color: #1d20217f;
     white-space: pre-wrap;
     overflow-wrap: break-word;
     opacity: 1;
@@ -81,7 +81,7 @@
 }
 
 #player_toast_text {
-    color: white;
+    color: #fbf1c7;
     font-size: 16px;
 }
 
@@ -155,13 +155,13 @@
     border-radius: 6px;
     display: block;
     padding: 8px;
-    color: white;
+    color: #fbf1c7;
     font-size: 30px;
     white-space: pre-wrap;
     justify-content: center;
     text-align: center;
     align-items: center;
-    background-color: #282828AA;
+    background-color: #1d20217f;
 }
 
 #player_controls {
@@ -173,10 +173,11 @@
     box-sizing: border-box;
     visibility: visible;
     flex-direction: column;
-    background-color: rgba(40, 40, 40, 0.3);
-    color: white;
+    color: #fbf1c7;
     opacity: 1;
     transition: visibility 0.3s, opacity 0.3s;
+    background-color: #1d202166;
+    /* background-color: #2828287f; */
 }
 
 #player_controls.hide {
@@ -223,18 +224,6 @@
     transition: height 0.08s ease-in-out;
 }
 
-#player_progress_root:hover #player_progress_thumb {
-    height: 18px;
-    transition: height 0.10s ease-in-out;
-    background: rgba(235, 235, 235, 1.0);
-}
-
-#player_progress_root:active #player_progress_thumb {
-    height: 18px;
-    transition: height 0.10s ease-in-out;
-    background: rgba(255, 255, 255, 1.0);
-}
-
 #player_progress_root:hover #player_progress_popup_root {
     display: flex;
 }
@@ -245,7 +234,7 @@
 
 #player_progress_total {
     width: 100%;
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: #92837499;
 }
 
 #player_progress_buffered {
@@ -256,7 +245,7 @@
 
 #player_progress_current {
     width: 0;
-    background: rgba(255, 0, 0, 0.5);
+    background-color: #fb4934cc;
 }
 
 #player_progress_thumb {
@@ -265,21 +254,33 @@
     border-radius: 6px;
     position: absolute;
     transition: height 0.20s ease-in-out;
-    background: rgba(220, 220, 220, 1.0);
+    background-color: #ebdbb2;
+}
+
+#player_progress_root:hover #player_progress_thumb {
+    height: 18px;
+    transition: height 0.10s ease-in-out;
+}
+
+#player_progress_root:active #player_progress_thumb {
+    height: 18px;
+    transition: height 0.10s ease-in-out;
+    background-color: #fbf1c7;
 }
 
 #player_progress_popup_root {
     width: auto;
     height: auto;
+    border-radius: 4px;
     bottom: 18px;
     position: absolute;
     display: none;
     align-items: center;
-    background-color: rgba(40, 40, 40, 0.5);
+    background-color: #1d20217f;
 }
 
 #player_progress_popup_text {
-    color: white;
+    color: #fbf1c7;
     margin: 6px;
     font-size: 16px;
 }
@@ -303,7 +304,7 @@
     justify-content: center;
     align-items: center;
     transition: transform 0.1s ease-in-out;
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: #2828287f;
 }
 
 #player_spacer {
@@ -311,26 +312,26 @@
 }
 
 .player_controls_button svg {
-    fill: #CCCCCC;
+    fill: #d5c4a1;
 }
 
 .player_controls_button:hover {
     transform: scale(1.03);
 }
 
-.player_controls_button:active {
-    transform: scale(0.96);
-    outline: 1px solid;
-}
-
 .player_controls_button:hover svg {
     transform: scale(1.03);
-    fill: #EEEEEE;
+    fill: #ebdbb2;
+}
+
+.player_controls_button:active {
+    transform: scale(0.96);
+    outline: 1px solid #fbf1c7;
 }
 
 .player_controls_button:active svg {
     transform: scale(0.96);
-    fill: #FFFFFF;
+    fill: #fbf1c7;
 }
 
 #player_volume_root {
@@ -340,6 +341,7 @@
     position: relative;
     align-items: center;
     margin-right: 8px;
+    margin-left: -4px;
 }
 
 #player_volume_bar {
@@ -347,7 +349,7 @@
     width: 100%;
     border-radius: 12px;
     position: absolute;
-    background-color: #ffffff66;
+    background-color: #bdae93cc;
 }
 
 #player_volume_progress {
@@ -355,7 +357,7 @@
     width: 50%;
     border-radius: 12px;
     position: absolute;
-    background-color: #ff0000aa;
+    background: #fb4934cc;
 }
 
 #player_volume_input {
@@ -376,11 +378,11 @@
     border: none;
     border-radius: 10px;
     -webkit-appearance: none;
-    background-color: rgba(200, 200, 200, 1.0);
+    background-color: #ebdbb2;
 }
 
 #player_volume_input:active::-webkit-slider-thumb {
-    background-color: rgba(220, 220, 200, 1.0);
+    background-color: #fbf1c7;
 }
 
 #player_volume_input::-moz-range-thumb {
@@ -388,11 +390,11 @@
     width: 14px;
     border: none;
     border-radius: 10px;
-    background-color: rgba(200, 200, 200, 1.0);
+    background-color: #ebdbb2;
 }
 
 #player_volume_input:active::-moz-range-thumb {
-    background-color: rgba(220, 220, 200, 1.0);
+    background-color: #fbf1c7;
 }
 
 #player_live_indicator {
@@ -411,7 +413,7 @@
     height: 6px;
     width: 6px;
     border-radius: 30px;
-    background-color: red;
+    background-color: #fb4934;
 }
 
 #player_live_text {
@@ -420,7 +422,7 @@
 }
 
 #player_timestamp {
-    color: white;
+    color: #fbf1c7;
     margin-left: 2px;
     font-size: 14px;
     align-self: center;
@@ -520,10 +522,10 @@
 .player_input_box {
     border-radius: 2px;
     outline: black;
-    color: white;
     width: 50%;
     background-color: dimgray;
     padding: 4px;
+    color: #fbf1c7;
 }
 
 #subtitle_track_list {
@@ -627,7 +629,7 @@
 }
 
 .player_toggle_text {
-    color: white;
+    color: #fbf1c7;
     font-size: 18px;
 }
 
@@ -660,7 +662,7 @@
     left: 0;
     position: absolute;
     transform: translateX(0);
-    background-color: white;
+    background-color: #fbf1c7;
     transition: 150ms ease-out;
     margin-left: 6px;
 }
@@ -770,7 +772,7 @@
     box-sizing: border-box;
     cursor: pointer;
     padding: 10px;
-    color: white;
+    color: #fbf1c7;
 }
 
 #player_settings_root {

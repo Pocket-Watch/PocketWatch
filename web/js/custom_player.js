@@ -625,6 +625,18 @@ class Internals {
         this.updateHtmlVolume(volume);
     }
 
+    toggleVolume() {
+        let slider = this.htmlControls.buttons.volumeInput;
+        if (slider.value == 0) {
+            this.fireControlsVolumeSet(this.volumeBeforeMute);
+            this.setVolume(this.volumeBeforeMute);
+        } else {
+            this.volumeBeforeMute = slider.value;
+            this.fireControlsVolumeSet(0);
+            this.setVolume(0);
+        }
+    }
+
     setVolumeRelative(volume) {
         this.setVolume(this.htmlVideo.volume + volume);
     }
@@ -957,7 +969,7 @@ class Internals {
 
     redrawBufferedBars() {
         const context = this.htmlControls.progress.buffered.getContext("2d");
-        context.fillStyle = "rgb(204, 204, 204, 0.5)";
+        context.fillStyle = "#bdae93cc";
 
         const buffered_width = this.htmlControls.progress.buffered.width;
         const buffered_height = this.htmlControls.progress.buffered.height;
@@ -1073,6 +1085,8 @@ class Internals {
             } else if (event.key === this.options.fullscreenKeyLetter) {
                 this.toggleFullscreen();
                 consumeEvent(event);
+            } else if (event.key === "m") {
+                this.toggleVolume();
             }
         });
 
@@ -1185,15 +1199,7 @@ class Internals {
         });
 
         this.htmlControls.buttons.volumeButton.addEventListener("click", _ => {
-            let slider = this.htmlControls.buttons.volumeInput;
-            if (slider.value == 0) {
-                this.fireControlsVolumeSet(this.volumeBeforeMute);
-                this.setVolume(this.volumeBeforeMute);
-            } else {
-                this.volumeBeforeMute = slider.value;
-                this.fireControlsVolumeSet(0);
-                this.setVolume(0);
-            }
+            this.toggleVolume();
         });
 
         // This roughly simulates a click on an invisible anchor as there's no practical way to trigger "Save As" dialog
