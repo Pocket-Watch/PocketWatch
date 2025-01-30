@@ -411,7 +411,7 @@ function enableLogs(debugConfig, id) {
     // Some browsers don't allow to use bind on console object anyway
     // fallback to default if needed
     try {
-      exportedLogger.log(`Debug logs enabled for "${id}" in hls.js version ${undefined}`);
+      exportedLogger.log(`Debug logs enabled for "${id}" in hls.js version ${"1.5.20"}`);
     } catch (e) {
       exportedLogger = fakeLogger;
     }
@@ -991,172 +991,12 @@ class LevelDetails {
   }
 }
 
-function base64Decode(base64encodedStr) {
-  return Uint8Array.from(atob(base64encodedStr), c => c.charCodeAt(0));
-}
-
-function getKeyIdBytes(str) {
-  const keyIdbytes = strToUtf8array(str).subarray(0, 16);
-  const paddedkeyIdbytes = new Uint8Array(16);
-  paddedkeyIdbytes.set(keyIdbytes, 16 - keyIdbytes.length);
-  return paddedkeyIdbytes;
-}
-function changeEndianness(keyId) {
-  const swap = function swap(array, from, to) {
-    const cur = array[from];
-    array[from] = array[to];
-    array[to] = cur;
-  };
-  swap(keyId, 0, 3);
-  swap(keyId, 1, 2);
-  swap(keyId, 4, 5);
-  swap(keyId, 6, 7);
-}
-function convertDataUriToArrayBytes(uri) {
-  // data:[<media type][;attribute=value][;base64],<data>
-  const colonsplit = uri.split(':');
-  let keydata = null;
-  if (colonsplit[0] === 'data' && colonsplit.length === 2) {
-    const semicolonsplit = colonsplit[1].split(';');
-    const commasplit = semicolonsplit[semicolonsplit.length - 1].split(',');
-    if (commasplit.length === 2) {
-      const isbase64 = commasplit[0] === 'base64';
-      const data = commasplit[1];
-      if (isbase64) {
-        semicolonsplit.splice(-1, 1); // remove from processing
-        keydata = base64Decode(data);
-      } else {
-        keydata = getKeyIdBytes(data);
-      }
-    }
-  }
-  return keydata;
-}
-function strToUtf8array(str) {
-  return Uint8Array.from(unescape(encodeURIComponent(str)), c => c.charCodeAt(0));
-}
-
-/** returns `undefined` is `self` is missing, e.g. in node */
-const optionalSelf = typeof self !== 'undefined' ? self : undefined;
-
-/**
- * @see https://developer.mozilla.org/en-US/docs/Web/API/Navigator/requestMediaKeySystemAccess
- */
-var KeySystems = {
-  CLEARKEY: "org.w3.clearkey",
-  FAIRPLAY: "com.apple.fps",
-  PLAYREADY: "com.microsoft.playready",
-  WIDEVINE: "com.widevine.alpha"
-};
-
-// Playlist #EXT-X-KEY KEYFORMAT values
-var KeySystemFormats = {
-  CLEARKEY: "org.w3.clearkey",
-  FAIRPLAY: "com.apple.streamingkeydelivery",
-  PLAYREADY: "com.microsoft.playready",
-  WIDEVINE: "urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed"
-};
-function keySystemFormatToKeySystemDomain(format) {
-  switch (format) {
-    case KeySystemFormats.FAIRPLAY:
-      return KeySystems.FAIRPLAY;
-    case KeySystemFormats.PLAYREADY:
-      return KeySystems.PLAYREADY;
-    case KeySystemFormats.WIDEVINE:
-      return KeySystems.WIDEVINE;
-    case KeySystemFormats.CLEARKEY:
-      return KeySystems.CLEARKEY;
-  }
-}
-
-// System IDs for which we can extract a key ID from "encrypted" event PSSH
-var KeySystemIds = {
-  CENC: "1077efecc0b24d02ace33c1e52e2fb4b",
-  CLEARKEY: "e2719d58a985b3c9781ab030af78d30e",
-  FAIRPLAY: "94ce86fb07ff4f43adb893d2fa968ca2",
-  PLAYREADY: "9a04f07998404286ab92e65be0885f95",
-  WIDEVINE: "edef8ba979d64acea3c827dcd51d21ed"
-};
-function keySystemIdToKeySystemDomain(systemId) {
-  if (systemId === KeySystemIds.WIDEVINE) {
-    return KeySystems.WIDEVINE;
-  } else if (systemId === KeySystemIds.PLAYREADY) {
-    return KeySystems.PLAYREADY;
-  } else if (systemId === KeySystemIds.CENC || systemId === KeySystemIds.CLEARKEY) {
-    return KeySystems.CLEARKEY;
-  }
-}
-function keySystemDomainToKeySystemFormat(keySystem) {
-  switch (keySystem) {
-    case KeySystems.FAIRPLAY:
-      return KeySystemFormats.FAIRPLAY;
-    case KeySystems.PLAYREADY:
-      return KeySystemFormats.PLAYREADY;
-    case KeySystems.WIDEVINE:
-      return KeySystemFormats.WIDEVINE;
-    case KeySystems.CLEARKEY:
-      return KeySystemFormats.CLEARKEY;
-  }
-}
-function getKeySystemsForConfig(config) {
-  const {
-    drmSystems,
-    widevineLicenseUrl
-  } = config;
-  const keySystemsToAttempt = drmSystems ? [KeySystems.FAIRPLAY, KeySystems.WIDEVINE, KeySystems.PLAYREADY, KeySystems.CLEARKEY].filter(keySystem => !!drmSystems[keySystem]) : [];
-  if (!keySystemsToAttempt[KeySystems.WIDEVINE] && widevineLicenseUrl) {
-    keySystemsToAttempt.push(KeySystems.WIDEVINE);
-  }
-  return keySystemsToAttempt;
-}
-const requestMediaKeySystemAccess = function (_optionalSelf$navigat) {
-  if (optionalSelf != null && (_optionalSelf$navigat = optionalSelf.navigator) != null && _optionalSelf$navigat.requestMediaKeySystemAccess) {
-    return self.navigator.requestMediaKeySystemAccess.bind(self.navigator);
-  } else {
-    return null;
-  }
-}();
-
-/**
- * @see https://developer.mozilla.org/en-US/docs/Web/API/MediaKeySystemConfiguration
- */
-function getSupportedMediaKeySystemConfigurations(keySystem, audioCodecs, videoCodecs, drmSystemOptions) {
-  let initDataTypes;
-  switch (keySystem) {
-    case KeySystems.FAIRPLAY:
-      initDataTypes = ['cenc', 'sinf'];
-      break;
-    case KeySystems.WIDEVINE:
-    case KeySystems.PLAYREADY:
-      initDataTypes = ['cenc'];
-      break;
-    case KeySystems.CLEARKEY:
-      initDataTypes = ['cenc', 'keyids'];
-      break;
-    default:
-      throw new Error(`Unknown key-system: ${keySystem}`);
-  }
-  return createMediaKeySystemConfigurations(initDataTypes, audioCodecs, videoCodecs, drmSystemOptions);
-}
-function createMediaKeySystemConfigurations(initDataTypes, audioCodecs, videoCodecs, drmSystemOptions) {
-  const baseConfig = {
-    initDataTypes: initDataTypes,
-    persistentState: drmSystemOptions.persistentState || 'optional',
-    distinctiveIdentifier: drmSystemOptions.distinctiveIdentifier || 'optional',
-    sessionTypes: drmSystemOptions.sessionTypes || [drmSystemOptions.sessionType || 'temporary'],
-    audioCapabilities: audioCodecs.map(codec => ({
-      contentType: `audio/mp4; codecs="${codec}"`,
-      robustness: drmSystemOptions.audioRobustness || '',
-      encryptionScheme: drmSystemOptions.audioEncryptionScheme || null
-    })),
-    videoCapabilities: videoCodecs.map(codec => ({
-      contentType: `video/mp4; codecs="${codec}"`,
-      robustness: drmSystemOptions.videoRobustness || '',
-      encryptionScheme: drmSystemOptions.videoEncryptionScheme || null
-    }))
-  };
-  return [baseConfig];
-}
+// This file is inserted as a shim for modules which we do not want to include into the distro.
+// This replacement is done in the "alias" plugin of the rollup config.
+// Use a ES dedicated file as Rollup assigns an object in the output
+// For example: "var KeySystemFormats = emptyEs.KeySystemFormats;"
+var emptyEs = {};
+var Cues = /*@__PURE__*/getDefaultExportFromCjs(emptyEs);
 
 function sliceUint8(array, start, end) {
   // @ts-expect-error This polyfills IE11 usage of Uint8Array slice.
@@ -2573,140 +2413,9 @@ function parseEmsg(data) {
     payload
   };
 }
-function mp4Box(type, ...payload) {
-  const len = payload.length;
-  let size = 8;
-  let i = len;
-  while (i--) {
-    size += payload[i].byteLength;
-  }
-  const result = new Uint8Array(size);
-  result[0] = size >> 24 & 0xff;
-  result[1] = size >> 16 & 0xff;
-  result[2] = size >> 8 & 0xff;
-  result[3] = size & 0xff;
-  result.set(type, 4);
-  for (i = 0, size = 8; i < len; i++) {
-    result.set(payload[i], size);
-    size += payload[i].byteLength;
-  }
-  return result;
-}
-function mp4pssh(systemId, keyids, data) {
-  if (systemId.byteLength !== 16) {
-    throw new RangeError('Invalid system id');
-  }
-  let version;
-  let kids;
-  if (keyids) {
-    version = 1;
-    kids = new Uint8Array(keyids.length * 16);
-    for (let ix = 0; ix < keyids.length; ix++) {
-      const k = keyids[ix]; // uint8array
-      if (k.byteLength !== 16) {
-        throw new RangeError('Invalid key');
-      }
-      kids.set(k, ix * 16);
-    }
-  } else {
-    version = 0;
-    kids = new Uint8Array();
-  }
-  let kidCount;
-  if (version > 0) {
-    kidCount = new Uint8Array(4);
-    if (keyids.length > 0) {
-      new DataView(kidCount.buffer).setUint32(0, keyids.length, false);
-    }
-  } else {
-    kidCount = new Uint8Array();
-  }
-  const dataSize = new Uint8Array(4);
-  if (data && data.byteLength > 0) {
-    new DataView(dataSize.buffer).setUint32(0, data.byteLength, false);
-  }
-  return mp4Box([112, 115, 115, 104], new Uint8Array([version, 0x00, 0x00, 0x00 // Flags
-  ]), systemId,
-  // 16 bytes
-  kidCount, kids, dataSize, data || new Uint8Array());
-}
-function parseMultiPssh(initData) {
-  const results = [];
-  if (initData instanceof ArrayBuffer) {
-    const length = initData.byteLength;
-    let offset = 0;
-    while (offset + 32 < length) {
-      const view = new DataView(initData, offset);
-      const pssh = parsePssh(view);
-      results.push(pssh);
-      offset += pssh.size;
-    }
-  }
-  return results;
-}
-function parsePssh(view) {
-  const size = view.getUint32(0);
-  const offset = view.byteOffset;
-  const length = view.byteLength;
-  if (length < size) {
-    return {
-      offset,
-      size: length
-    };
-  }
-  const type = view.getUint32(4);
-  if (type !== 0x70737368) {
-    return {
-      offset,
-      size
-    };
-  }
-  const version = view.getUint32(8) >>> 24;
-  if (version !== 0 && version !== 1) {
-    return {
-      offset,
-      size
-    };
-  }
-  const buffer = view.buffer;
-  const systemId = Hex.hexDump(new Uint8Array(buffer, offset + 12, 16));
-  const dataSizeOrKidCount = view.getUint32(28);
-  let kids = null;
-  let data = null;
-  if (version === 0) {
-    if (size - 32 < dataSizeOrKidCount || dataSizeOrKidCount < 22) {
-      return {
-        offset,
-        size
-      };
-    }
-    data = new Uint8Array(buffer, offset + 32, dataSizeOrKidCount);
-  } else if (version === 1) {
-    if (!dataSizeOrKidCount || length < offset + 32 + dataSizeOrKidCount * 16 + 16) {
-      return {
-        offset,
-        size
-      };
-    }
-    kids = [];
-    for (let i = 0; i < dataSizeOrKidCount; i++) {
-      kids.push(new Uint8Array(buffer, offset + 32 + i * 16, 16));
-    }
-  }
-  return {
-    version,
-    systemId,
-    kids,
-    data,
-    offset,
-    size
-  };
-}
 
-let keyUriToKeyIdMap = {};
 class LevelKey {
   static clearKeyUriToKeyIdMap() {
-    keyUriToKeyIdMap = {};
   }
   constructor(method, uri, format, formatversions = [1], iv = null) {
     this.uri = void 0;
@@ -2736,14 +2445,6 @@ class LevelKey {
       if (this.keyFormat === 'identity') {
         // Maintain support for clear SAMPLE-AES with MPEG-3 TS
         return this.method === 'SAMPLE-AES';
-      } else {
-        switch (this.keyFormat) {
-          case KeySystemFormats.FAIRPLAY:
-          case KeySystemFormats.WIDEVINE:
-          case KeySystemFormats.PLAYREADY:
-          case KeySystemFormats.CLEARKEY:
-            return ['ISO-23001-7', 'SAMPLE-AES', 'SAMPLE-AES-CENC', 'SAMPLE-AES-CTR'].indexOf(this.method) !== -1;
-        }
       }
     }
     return false;
@@ -2767,69 +2468,9 @@ class LevelKey {
       const decryptdata = new LevelKey(this.method, this.uri, 'identity', this.keyFormatVersions, iv);
       return decryptdata;
     }
-
-    // Initialize keyId if possible
-    const keyBytes = convertDataUriToArrayBytes(this.uri);
-    if (keyBytes) {
-      switch (this.keyFormat) {
-        case KeySystemFormats.WIDEVINE:
-          this.pssh = keyBytes;
-          // In case of widevine keyID is embedded in PSSH box. Read Key ID.
-          if (keyBytes.length >= 22) {
-            this.keyId = keyBytes.subarray(keyBytes.length - 22, keyBytes.length - 6);
-          }
-          break;
-        case KeySystemFormats.PLAYREADY:
-          {
-            const PlayReadyKeySystemUUID = new Uint8Array([0x9a, 0x04, 0xf0, 0x79, 0x98, 0x40, 0x42, 0x86, 0xab, 0x92, 0xe6, 0x5b, 0xe0, 0x88, 0x5f, 0x95]);
-            this.pssh = mp4pssh(PlayReadyKeySystemUUID, null, keyBytes);
-            const keyBytesUtf16 = new Uint16Array(keyBytes.buffer, keyBytes.byteOffset, keyBytes.byteLength / 2);
-            const keyByteStr = String.fromCharCode.apply(null, Array.from(keyBytesUtf16));
-
-            // Parse Playready WRMHeader XML
-            const xmlKeyBytes = keyByteStr.substring(keyByteStr.indexOf('<'), keyByteStr.length);
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(xmlKeyBytes, 'text/xml');
-            const keyData = xmlDoc.getElementsByTagName('KID')[0];
-            if (keyData) {
-              const keyId = keyData.childNodes[0] ? keyData.childNodes[0].nodeValue : keyData.getAttribute('VALUE');
-              if (keyId) {
-                const keyIdArray = base64Decode(keyId).subarray(0, 16);
-                // KID value in PRO is a base64-encoded little endian GUID interpretation of UUID
-                // KID value in ‘tenc’ is a big endian UUID GUID interpretation of UUID
-                changeEndianness(keyIdArray);
-                this.keyId = keyIdArray;
-              }
-            }
-            break;
-          }
-        default:
-          {
-            let keydata = keyBytes.subarray(0, 16);
-            if (keydata.length !== 16) {
-              const padded = new Uint8Array(16);
-              padded.set(keydata, 16 - keydata.length);
-              keydata = padded;
-            }
-            this.keyId = keydata;
-            break;
-          }
-      }
+    {
+      return this;
     }
-
-    // Default behavior: assign a new keyId for each uri
-    if (!this.keyId || this.keyId.byteLength !== 16) {
-      let keyId = keyUriToKeyIdMap[this.uri];
-      if (!keyId) {
-        const val = Object.keys(keyUriToKeyIdMap).length % Number.MAX_SAFE_INTEGER;
-        keyId = new Uint8Array(16);
-        const dv = new DataView(keyId.buffer, 12, 4); // Just set the last 4 bytes
-        dv.setUint32(0, val);
-        keyUriToKeyIdMap[this.uri] = keyId;
-      }
-      this.keyId = keyId;
-    }
-    return this;
   }
 }
 function createInitializationVector(segmentNumber) {
@@ -2838,78 +2479,6 @@ function createInitializationVector(segmentNumber) {
     uint8View[i] = segmentNumber >> 8 * (15 - i) & 0xff;
   }
   return uint8View;
-}
-
-const VARIABLE_REPLACEMENT_REGEX = /\{\$([a-zA-Z0-9-_]+)\}/g;
-function hasVariableReferences(str) {
-  return VARIABLE_REPLACEMENT_REGEX.test(str);
-}
-function substituteVariablesInAttributes(parsed, attr, attributeNames) {
-  if (parsed.variableList !== null || parsed.hasVariableRefs) {
-    for (let i = attributeNames.length; i--;) {
-      const name = attributeNames[i];
-      const value = attr[name];
-      if (value) {
-        attr[name] = substituteVariables(parsed, value);
-      }
-    }
-  }
-}
-function substituteVariables(parsed, value) {
-  if (parsed.variableList !== null || parsed.hasVariableRefs) {
-    const variableList = parsed.variableList;
-    return value.replace(VARIABLE_REPLACEMENT_REGEX, variableReference => {
-      const variableName = variableReference.substring(2, variableReference.length - 1);
-      const variableValue = variableList == null ? void 0 : variableList[variableName];
-      if (variableValue === undefined) {
-        parsed.playlistParsingError || (parsed.playlistParsingError = new Error(`Missing preceding EXT-X-DEFINE tag for Variable Reference: "${variableName}"`));
-        return variableReference;
-      }
-      return variableValue;
-    });
-  }
-  return value;
-}
-function addVariableDefinition(parsed, attr, parentUrl) {
-  let variableList = parsed.variableList;
-  if (!variableList) {
-    parsed.variableList = variableList = {};
-  }
-  let NAME;
-  let VALUE;
-  if ('QUERYPARAM' in attr) {
-    NAME = attr.QUERYPARAM;
-    try {
-      const searchParams = new self.URL(parentUrl).searchParams;
-      if (searchParams.has(NAME)) {
-        VALUE = searchParams.get(NAME);
-      } else {
-        throw new Error(`"${NAME}" does not match any query parameter in URI: "${parentUrl}"`);
-      }
-    } catch (error) {
-      parsed.playlistParsingError || (parsed.playlistParsingError = new Error(`EXT-X-DEFINE QUERYPARAM: ${error.message}`));
-    }
-  } else {
-    NAME = attr.NAME;
-    VALUE = attr.VALUE;
-  }
-  if (NAME in variableList) {
-    parsed.playlistParsingError || (parsed.playlistParsingError = new Error(`EXT-X-DEFINE duplicate Variable Name declarations: "${NAME}"`));
-  } else {
-    variableList[NAME] = VALUE || '';
-  }
-}
-function importVariableDefinition(parsed, attr, sourceVariableList) {
-  const IMPORT = attr.IMPORT;
-  if (sourceVariableList && IMPORT in sourceVariableList) {
-    let variableList = parsed.variableList;
-    if (!variableList) {
-      parsed.variableList = variableList = {};
-    }
-    variableList[IMPORT] = sourceVariableList[IMPORT];
-  } else {
-    parsed.playlistParsingError || (parsed.playlistParsingError = new Error(`EXT-X-DEFINE IMPORT attribute not found in Multivariant Playlist: "${IMPORT}"`));
-  }
 }
 
 /**
@@ -3118,7 +2687,7 @@ class M3U8Parser {
     return IS_MEDIA_PLAYLIST.test(str);
   }
   static parseMasterPlaylist(string, baseurl) {
-    const hasVariableRefs = hasVariableReferences(string) ;
+    const hasVariableRefs = false;
     const parsed = {
       contentSteering: null,
       levels: [],
@@ -3137,10 +2706,7 @@ class M3U8Parser {
         var _level$unknownCodecs;
         // '#EXT-X-STREAM-INF' is found, parse level tag  in group 1
         const attrs = new AttrList(result[1]);
-        {
-          substituteVariablesInAttributes(parsed, attrs, ['CODECS', 'SUPPLEMENTAL-CODECS', 'ALLOWED-CPC', 'PATHWAY-ID', 'STABLE-VARIANT-ID', 'AUDIO', 'VIDEO', 'SUBTITLES', 'CLOSED-CAPTIONS', 'NAME']);
-        }
-        const uri = substituteVariables(parsed, result[2]) ;
+        const uri = result[2];
         const level = {
           attrs,
           bitrate: attrs.decimalInteger('BANDWIDTH') || attrs.decimalInteger('AVERAGE-BANDWIDTH'),
@@ -3165,9 +2731,6 @@ class M3U8Parser {
             {
               // #EXT-X-SESSION-DATA
               const sessionAttrs = new AttrList(attributes);
-              {
-                substituteVariablesInAttributes(parsed, sessionAttrs, ['DATA-ID', 'LANGUAGE', 'VALUE', 'URI']);
-              }
               const dataId = sessionAttrs['DATA-ID'];
               if (dataId) {
                 if (parsed.sessionData === null) {
@@ -3180,7 +2743,7 @@ class M3U8Parser {
           case 'SESSION-KEY':
             {
               // #EXT-X-SESSION-KEY
-              const sessionKey = parseKey(attributes, baseurl, parsed);
+              const sessionKey = parseKey(attributes, baseurl);
               if (sessionKey.encrypted && sessionKey.isSupported()) {
                 if (parsed.sessionKeys === null) {
                   parsed.sessionKeys = [];
@@ -3193,21 +2756,12 @@ class M3U8Parser {
             }
           case 'DEFINE':
             {
-              // #EXT-X-DEFINE
-              {
-                const variableAttributes = new AttrList(attributes);
-                substituteVariablesInAttributes(parsed, variableAttributes, ['NAME', 'VALUE', 'QUERYPARAM']);
-                addVariableDefinition(parsed, variableAttributes, baseurl);
-              }
               break;
             }
           case 'CONTENT-STEERING':
             {
               // #EXT-X-CONTENT-STEERING
               const contentSteeringAttributes = new AttrList(attributes);
-              {
-                substituteVariablesInAttributes(parsed, contentSteeringAttributes, ['SERVER-URI', 'PATHWAY-ID']);
-              }
               parsed.contentSteering = {
                 uri: M3U8Parser.resolve(contentSteeringAttributes['SERVER-URI'], baseurl),
                 pathwayId: contentSteeringAttributes['PATHWAY-ID'] || '.'
@@ -3255,9 +2809,6 @@ class M3U8Parser {
         const groups = groupsByType[type];
         const medias = results[type] || [];
         results[type] = medias;
-        {
-          substituteVariablesInAttributes(parsed, attrs, ['URI', 'GROUP-ID', 'LANGUAGE', 'ASSOC-LANGUAGE', 'STABLE-RENDITION-ID', 'NAME', 'INSTREAM-ID', 'CHARACTERISTICS', 'CHANNELS']);
-        }
         const lang = attrs.LANGUAGE;
         const assocLang = attrs['ASSOC-LANGUAGE'];
         const channels = attrs.CHANNELS;
@@ -3320,7 +2871,7 @@ class M3U8Parser {
     let nextByteRange = null;
     LEVEL_PLAYLIST_REGEX_FAST.lastIndex = 0;
     level.m3u8 = string;
-    level.hasVariableRefs = hasVariableReferences(string) ;
+    level.hasVariableRefs = false;
     while ((result = LEVEL_PLAYLIST_REGEX_FAST.exec(string)) !== null) {
       if (createNextFrag) {
         createNextFrag = false;
@@ -3361,7 +2912,7 @@ class M3U8Parser {
           fragments.push(frag);
           // avoid sliced strings    https://github.com/video-dev/hls.js/issues/939
           const uri = (' ' + result[3]).slice(1);
-          frag.relurl = substituteVariables(level, uri) ;
+          frag.relurl = uri;
           assignProgramDateTime(frag, prevFrag);
           prevFrag = frag;
           totalduration += frag.duration;
@@ -3411,9 +2962,6 @@ class M3U8Parser {
           case 'SKIP':
             {
               const skipAttrs = new AttrList(value1);
-              {
-                substituteVariablesInAttributes(level, skipAttrs, ['RECENTLY-REMOVED-DATERANGES']);
-              }
               const skippedSegments = skipAttrs.decimalInteger('SKIPPED-SEGMENTS');
               if (isFiniteNumber(skippedSegments)) {
                 level.skippedSegments = skippedSegments;
@@ -3460,10 +3008,6 @@ class M3U8Parser {
           case 'DATERANGE':
             {
               const dateRangeAttr = new AttrList(value1);
-              {
-                substituteVariablesInAttributes(level, dateRangeAttr, ['ID', 'CLASS', 'START-DATE', 'END-DATE', 'SCTE35-CMD', 'SCTE35-OUT', 'SCTE35-IN']);
-                substituteVariablesInAttributes(level, dateRangeAttr, dateRangeAttr.clientAttrs);
-              }
               const dateRange = new DateRange(dateRangeAttr, level.dateRanges[dateRangeAttr.ID]);
               if (dateRange.isValid || level.skippedSegments) {
                 level.dateRanges[dateRange.id] = dateRange;
@@ -3476,15 +3020,6 @@ class M3U8Parser {
             }
           case 'DEFINE':
             {
-              {
-                const variableAttributes = new AttrList(value1);
-                substituteVariablesInAttributes(level, variableAttributes, ['NAME', 'VALUE', 'IMPORT', 'QUERYPARAM']);
-                if ('IMPORT' in variableAttributes) {
-                  importVariableDefinition(level, variableAttributes, multivariantVariableList);
-                } else {
-                  addVariableDefinition(level, variableAttributes, baseurl);
-                }
-              }
               break;
             }
           case 'DISCONTINUITY-SEQUENCE':
@@ -3492,7 +3027,7 @@ class M3U8Parser {
             break;
           case 'KEY':
             {
-              const levelKey = parseKey(value1, baseurl, level);
+              const levelKey = parseKey(value1, baseurl);
               if (levelKey.isSupported()) {
                 if (levelKey.method === 'NONE') {
                   levelkeys = undefined;
@@ -3516,9 +3051,6 @@ class M3U8Parser {
           case 'MAP':
             {
               const mapAttrs = new AttrList(value1);
-              {
-                substituteVariablesInAttributes(level, mapAttrs, ['BYTERANGE', 'URI']);
-              }
               if (frag.duration) {
                 // Initial segment tag is after segment duration tag.
                 //   #EXTINF: 6.0
@@ -3571,9 +3103,6 @@ class M3U8Parser {
               const previousFragmentPart = currentPart > 0 ? partList[partList.length - 1] : undefined;
               const index = currentPart++;
               const partAttrs = new AttrList(value1);
-              {
-                substituteVariablesInAttributes(level, partAttrs, ['BYTERANGE', 'URI']);
-              }
               const part = new Part(partAttrs, frag, baseurl, index, previousFragmentPart);
               partList.push(part);
               frag.duration += part.duration;
@@ -3582,18 +3111,12 @@ class M3U8Parser {
           case 'PRELOAD-HINT':
             {
               const preloadHintAttrs = new AttrList(value1);
-              {
-                substituteVariablesInAttributes(level, preloadHintAttrs, ['URI']);
-              }
               level.preloadHint = preloadHintAttrs;
               break;
             }
           case 'RENDITION-REPORT':
             {
               const renditionReportAttrs = new AttrList(value1);
-              {
-                substituteVariablesInAttributes(level, renditionReportAttrs, ['URI']);
-              }
               level.renditionReports = level.renditionReports || [];
               level.renditionReports.push(renditionReportAttrs);
               break;
@@ -3661,9 +3184,6 @@ function parseKey(keyTagAttributes, baseurl, parsed) {
   var _keyAttrs$METHOD, _keyAttrs$KEYFORMAT;
   // https://tools.ietf.org/html/rfc8216#section-4.3.2.4
   const keyAttrs = new AttrList(keyTagAttributes);
-  {
-    substituteVariablesInAttributes(parsed, keyAttrs, ['KEYFORMAT', 'KEYFORMATVERSIONS', 'URI', 'IV', 'URI']);
-  }
   const decryptmethod = (_keyAttrs$METHOD = keyAttrs.METHOD) != null ? _keyAttrs$METHOD : '';
   const decrypturi = keyAttrs.URI;
   const decryptiv = keyAttrs.hexadecimalInteger('IV');
@@ -4297,35 +3817,6 @@ function sendAddTrackEvent(track, videoEl) {
   event.track = track;
   videoEl.dispatchEvent(event);
 }
-function addCueToTrack(track, cue) {
-  // Sometimes there are cue overlaps on segmented vtts so the same
-  // cue can appear more than once in different vtt files.
-  // This avoid showing duplicated cues with same timecode and text.
-  const mode = track.mode;
-  if (mode === 'disabled') {
-    track.mode = 'hidden';
-  }
-  if (track.cues && !track.cues.getCueById(cue.id)) {
-    try {
-      track.addCue(cue);
-      if (!track.cues.getCueById(cue.id)) {
-        throw new Error(`addCue is failed for: ${cue}`);
-      }
-    } catch (err) {
-      logger.debug(`[texttrack-utils]: ${err}`);
-      try {
-        const textTrackCue = new self.TextTrackCue(cue.startTime, cue.endTime, cue.text);
-        textTrackCue.id = cue.id;
-        track.addCue(textTrackCue);
-      } catch (err2) {
-        logger.debug(`[texttrack-utils]: Legacy TextTrackCue fallback failed: ${err2}`);
-      }
-    }
-  }
-  if (mode === 'disabled') {
-    track.mode = mode;
-  }
-}
 function clearCurrentCues(track) {
   // When track.mode is disabled, track.cues will be null.
   // To guarantee the removal of cues, we need to temporarily
@@ -4404,17 +3895,6 @@ function getCuesInRange(cues, start, end) {
     }
   }
   return cuesFound;
-}
-function filterSubtitleTracks(textTrackList) {
-  const tracks = [];
-  for (let i = 0; i < textTrackList.length; i++) {
-    const track = textTrackList[i];
-    // Edge adds a track without a label; we don't want to use it
-    if ((track.kind === 'subtitles' || track.kind === 'captions') && track.label) {
-      tracks.push(textTrackList[i]);
-    }
-  }
-  return tracks;
 }
 
 var MetadataSchema = {
@@ -5250,15 +4730,16 @@ function mergeDetails(oldDetails, newDetails) {
     delete oldDetails.fragmentHint.endPTS;
   }
   // check if old/new playlists have fragments in common
-  // loop through overlapping SN and update startPTS , cc, and duration if any found
-  let ccOffset = 0;
+  // loop through overlapping SN and update startPTS, cc, and duration if any found
   let PTSFrag;
-  mapFragmentIntersection(oldDetails, newDetails, (oldFrag, newFrag) => {
-    if (oldFrag.relurl) {
-      // Do not compare CC if the old fragment has no url. This is a level.fragmentHint used by LL-HLS parts.
-      // It maybe be off by 1 if it was created before any parts or discontinuity tags were appended to the end
-      // of the playlist.
-      ccOffset = oldFrag.cc - newFrag.cc;
+  mapFragmentIntersection(oldDetails, newDetails, (oldFrag, newFrag, newFragIndex, newFragments) => {
+    if (newDetails.skippedSegments) {
+      if (newFrag.cc !== oldFrag.cc) {
+        const ccOffset = oldFrag.cc - newFrag.cc;
+        for (let i = newFragIndex; i < newFragments.length; i++) {
+          newFragments[i].cc += ccOffset;
+        }
+      }
     }
     if (isFiniteNumber(oldFrag.startPTS) && isFiniteNumber(oldFrag.endPTS)) {
       newFrag.start = newFrag.startPTS = oldFrag.startPTS;
@@ -5283,8 +4764,9 @@ function mergeDetails(oldDetails, newDetails) {
       currentInitSegment = oldFrag.initSegment;
     }
   });
+  const newFragments = newDetails.fragments;
   if (currentInitSegment) {
-    const fragmentsToCheck = newDetails.fragmentHint ? newDetails.fragments.concat(newDetails.fragmentHint) : newDetails.fragments;
+    const fragmentsToCheck = newDetails.fragmentHint ? newFragments.concat(newDetails.fragmentHint) : newFragments;
     fragmentsToCheck.forEach(frag => {
       var _currentInitSegment;
       if (frag && (!frag.initSegment || frag.initSegment.relurl === ((_currentInitSegment = currentInitSegment) == null ? void 0 : _currentInitSegment.relurl))) {
@@ -5293,27 +4775,20 @@ function mergeDetails(oldDetails, newDetails) {
     });
   }
   if (newDetails.skippedSegments) {
-    newDetails.deltaUpdateFailed = newDetails.fragments.some(frag => !frag);
+    newDetails.deltaUpdateFailed = newFragments.some(frag => !frag);
     if (newDetails.deltaUpdateFailed) {
       logger.warn('[level-helper] Previous playlist missing segments skipped in delta playlist');
       for (let i = newDetails.skippedSegments; i--;) {
-        newDetails.fragments.shift();
+        newFragments.shift();
       }
-      newDetails.startSN = newDetails.fragments[0].sn;
-      newDetails.startCC = newDetails.fragments[0].cc;
-    } else if (newDetails.canSkipDateRanges) {
-      newDetails.dateRanges = mergeDateRanges(oldDetails.dateRanges, newDetails.dateRanges, newDetails.recentlyRemovedDateranges);
+      newDetails.startSN = newFragments[0].sn;
+    } else {
+      if (newDetails.canSkipDateRanges) {
+        newDetails.dateRanges = mergeDateRanges(oldDetails.dateRanges, newDetails.dateRanges, newDetails.recentlyRemovedDateranges);
+      }
     }
-  }
-  const newFragments = newDetails.fragments;
-  if (ccOffset) {
-    logger.warn('discontinuity sliding from playlist, take drift into account');
-    for (let i = 0; i < newFragments.length; i++) {
-      newFragments[i].cc += ccOffset;
-    }
-  }
-  if (newDetails.skippedSegments) {
     newDetails.startCC = newDetails.fragments[0].cc;
+    newDetails.endCC = newFragments[newFragments.length - 1].cc;
   }
 
   // Merge parts
@@ -5397,7 +4872,7 @@ function mapFragmentIntersection(oldDetails, newDetails, intersectionFn) {
       newFrag = newDetails.fragments[i] = oldFrag;
     }
     if (oldFrag && newFrag) {
-      intersectionFn(oldFrag, newFrag);
+      intersectionFn(oldFrag, newFrag, i, newFrags);
     }
   }
 }
@@ -6437,131 +5912,6 @@ class EwmaBandWidthEstimator {
   destroy() {}
 }
 
-const SUPPORTED_INFO_DEFAULT = {
-  supported: true,
-  configurations: [],
-  decodingInfoResults: [{
-    supported: true,
-    powerEfficient: true,
-    smooth: true
-  }]
-};
-const SUPPORTED_INFO_CACHE = {};
-function requiresMediaCapabilitiesDecodingInfo(level, audioTracksByGroup, currentVideoRange, currentFrameRate, currentBw, audioPreference) {
-  // Only test support when configuration is exceeds minimum options
-  const audioGroups = level.audioCodec ? level.audioGroups : null;
-  const audioCodecPreference = audioPreference == null ? void 0 : audioPreference.audioCodec;
-  const channelsPreference = audioPreference == null ? void 0 : audioPreference.channels;
-  const maxChannels = channelsPreference ? parseInt(channelsPreference) : audioCodecPreference ? Infinity : 2;
-  let audioChannels = null;
-  if (audioGroups != null && audioGroups.length) {
-    try {
-      if (audioGroups.length === 1 && audioGroups[0]) {
-        audioChannels = audioTracksByGroup.groups[audioGroups[0]].channels;
-      } else {
-        audioChannels = audioGroups.reduce((acc, groupId) => {
-          if (groupId) {
-            const audioTrackGroup = audioTracksByGroup.groups[groupId];
-            if (!audioTrackGroup) {
-              throw new Error(`Audio track group ${groupId} not found`);
-            }
-            // Sum all channel key values
-            Object.keys(audioTrackGroup.channels).forEach(key => {
-              acc[key] = (acc[key] || 0) + audioTrackGroup.channels[key];
-            });
-          }
-          return acc;
-        }, {
-          2: 0
-        });
-      }
-    } catch (error) {
-      return true;
-    }
-  }
-  return level.videoCodec !== undefined && (level.width > 1920 && level.height > 1088 || level.height > 1920 && level.width > 1088 || level.frameRate > Math.max(currentFrameRate, 30) || level.videoRange !== 'SDR' && level.videoRange !== currentVideoRange || level.bitrate > Math.max(currentBw, 8e6)) || !!audioChannels && isFiniteNumber(maxChannels) && Object.keys(audioChannels).some(channels => parseInt(channels) > maxChannels);
-}
-function getMediaDecodingInfoPromise(level, audioTracksByGroup, mediaCapabilities) {
-  const videoCodecs = level.videoCodec;
-  const audioCodecs = level.audioCodec;
-  if (!videoCodecs || !audioCodecs || !mediaCapabilities) {
-    return Promise.resolve(SUPPORTED_INFO_DEFAULT);
-  }
-  const baseVideoConfiguration = {
-    width: level.width,
-    height: level.height,
-    bitrate: Math.ceil(Math.max(level.bitrate * 0.9, level.averageBitrate)),
-    // Assume a framerate of 30fps since MediaCapabilities will not accept Level default of 0.
-    framerate: level.frameRate || 30
-  };
-  const videoRange = level.videoRange;
-  if (videoRange !== 'SDR') {
-    baseVideoConfiguration.transferFunction = videoRange.toLowerCase();
-  }
-  const configurations = videoCodecs.split(',').map(videoCodec => ({
-    type: 'media-source',
-    video: _objectSpread2(_objectSpread2({}, baseVideoConfiguration), {}, {
-      contentType: mimeTypeForCodec(videoCodec, 'video')
-    })
-  }));
-  if (audioCodecs && level.audioGroups) {
-    level.audioGroups.forEach(audioGroupId => {
-      var _audioTracksByGroup$g;
-      if (!audioGroupId) {
-        return;
-      }
-      (_audioTracksByGroup$g = audioTracksByGroup.groups[audioGroupId]) == null ? void 0 : _audioTracksByGroup$g.tracks.forEach(audioTrack => {
-        if (audioTrack.groupId === audioGroupId) {
-          const channels = audioTrack.channels || '';
-          const channelsNumber = parseFloat(channels);
-          if (isFiniteNumber(channelsNumber) && channelsNumber > 2) {
-            configurations.push.apply(configurations, audioCodecs.split(',').map(audioCodec => ({
-              type: 'media-source',
-              audio: {
-                contentType: mimeTypeForCodec(audioCodec, 'audio'),
-                channels: '' + channelsNumber
-                // spatialRendering:
-                //   audioCodec === 'ec-3' && channels.indexOf('JOC'),
-              }
-            })));
-          }
-        }
-      });
-    });
-  }
-  return Promise.all(configurations.map(configuration => {
-    // Cache MediaCapabilities promises
-    const decodingInfoKey = getMediaDecodingInfoKey(configuration);
-    return SUPPORTED_INFO_CACHE[decodingInfoKey] || (SUPPORTED_INFO_CACHE[decodingInfoKey] = mediaCapabilities.decodingInfo(configuration));
-  })).then(decodingInfoResults => ({
-    supported: !decodingInfoResults.some(info => !info.supported),
-    configurations,
-    decodingInfoResults
-  })).catch(error => ({
-    supported: false,
-    configurations,
-    decodingInfoResults: [],
-    error
-  }));
-}
-function getMediaDecodingInfoKey(config) {
-  const {
-    audio,
-    video
-  } = config;
-  const mediaConfig = video || audio;
-  if (mediaConfig) {
-    const codec = mediaConfig.contentType.split('"')[1];
-    if (video) {
-      return `r${video.height}x${video.width}f${Math.ceil(video.framerate)}${video.transferFunction || 'sd'}_${codec}_${Math.ceil(video.bitrate / 1e5)}`;
-    }
-    if (audio) {
-      return `c${audio.channels}${audio.spatialRendering ? 's' : 'n'}_${codec}`;
-    }
-  }
-  return '';
-}
-
 /**
  * @returns Whether we can detect and validate HDR capability within the window context
  */
@@ -6779,112 +6129,8 @@ function getCodecTiers(levels, audioTracksByGroup, minAutoLevel, maxAutoLevel) {
     tier.maxScore = Math.max(tier.maxScore, level.score);
     tier.fragmentError += level.fragmentError;
     tier.videoRanges[level.videoRange] = (tier.videoRanges[level.videoRange] || 0) + 1;
-    if (audioGroups) {
-      audioGroups.forEach(audioGroupId => {
-        if (!audioGroupId) {
-          return;
-        }
-        const audioGroup = audioTracksByGroup.groups[audioGroupId];
-        if (!audioGroup) {
-          return;
-        }
-        // Default audio is any group with DEFAULT=YES, or if missing then any group with AUTOSELECT=YES, or all variants
-        tier.hasDefaultAudio = tier.hasDefaultAudio || audioTracksByGroup.hasDefaultAudio ? audioGroup.hasDefault : audioGroup.hasAutoSelect || !audioTracksByGroup.hasDefaultAudio && !audioTracksByGroup.hasAutoSelectAudio;
-        Object.keys(audioGroup.channels).forEach(channels => {
-          tier.channels[channels] = (tier.channels[channels] || 0) + audioGroup.channels[channels];
-        });
-      });
-    }
     return tiers;
   }, {});
-}
-function findMatchingOption(option, tracks, matchPredicate) {
-  if ('attrs' in option) {
-    const index = tracks.indexOf(option);
-    if (index !== -1) {
-      return index;
-    }
-  }
-  for (let i = 0; i < tracks.length; i++) {
-    const track = tracks[i];
-    if (matchesOption(option, track, matchPredicate)) {
-      return i;
-    }
-  }
-  return -1;
-}
-function matchesOption(option, track, matchPredicate) {
-  const {
-    groupId,
-    name,
-    lang,
-    assocLang,
-    characteristics,
-    default: isDefault
-  } = option;
-  const forced = option.forced;
-  return (groupId === undefined || track.groupId === groupId) && (name === undefined || track.name === name) && (lang === undefined || track.lang === lang) && (lang === undefined || track.assocLang === assocLang) && (isDefault === undefined || track.default === isDefault) && (forced === undefined || track.forced === forced) && (characteristics === undefined || characteristicsMatch(characteristics, track.characteristics)) && (matchPredicate === undefined || matchPredicate(option, track));
-}
-function characteristicsMatch(characteristicsA, characteristicsB = '') {
-  const arrA = characteristicsA.split(',');
-  const arrB = characteristicsB.split(',');
-  // Expects each item to be unique:
-  return arrA.length === arrB.length && !arrA.some(el => arrB.indexOf(el) === -1);
-}
-function audioMatchPredicate(option, track) {
-  const {
-    audioCodec,
-    channels
-  } = option;
-  return (audioCodec === undefined || (track.audioCodec || '').substring(0, 4) === audioCodec.substring(0, 4)) && (channels === undefined || channels === (track.channels || '2'));
-}
-function findClosestLevelWithAudioGroup(option, levels, allAudioTracks, searchIndex, matchPredicate) {
-  const currentLevel = levels[searchIndex];
-  // Are there variants with same URI as current level?
-  // If so, find a match that does not require any level URI change
-  const variants = levels.reduce((variantMap, level, index) => {
-    const uri = level.uri;
-    const renditions = variantMap[uri] || (variantMap[uri] = []);
-    renditions.push(index);
-    return variantMap;
-  }, {});
-  const renditions = variants[currentLevel.uri];
-  if (renditions.length > 1) {
-    searchIndex = Math.max.apply(Math, renditions);
-  }
-  // Find best match
-  const currentVideoRange = currentLevel.videoRange;
-  const currentFrameRate = currentLevel.frameRate;
-  const currentVideoCodec = currentLevel.codecSet.substring(0, 4);
-  const matchingVideo = searchDownAndUpList(levels, searchIndex, level => {
-    if (level.videoRange !== currentVideoRange || level.frameRate !== currentFrameRate || level.codecSet.substring(0, 4) !== currentVideoCodec) {
-      return false;
-    }
-    const audioGroups = level.audioGroups;
-    const tracks = allAudioTracks.filter(track => !audioGroups || audioGroups.indexOf(track.groupId) !== -1);
-    return findMatchingOption(option, tracks, matchPredicate) > -1;
-  });
-  if (matchingVideo > -1) {
-    return matchingVideo;
-  }
-  return searchDownAndUpList(levels, searchIndex, level => {
-    const audioGroups = level.audioGroups;
-    const tracks = allAudioTracks.filter(track => !audioGroups || audioGroups.indexOf(track.groupId) !== -1);
-    return findMatchingOption(option, tracks, matchPredicate) > -1;
-  });
-}
-function searchDownAndUpList(arr, searchIndex, predicate) {
-  for (let i = searchIndex; i > -1; i--) {
-    if (predicate(arr[i])) {
-      return i;
-    }
-  }
-  for (let i = searchIndex + 1; i < arr.length; i++) {
-    if (predicate(arr[i])) {
-      return i;
-    }
-  }
-  return -1;
 }
 
 class AbrController {
@@ -7427,31 +6673,6 @@ class AbrController {
       if (!levelInfo) {
         continue;
       }
-      if (config.useMediaCapabilities && !levelInfo.supportedResult && !levelInfo.supportedPromise) {
-        const mediaCapabilities = navigator.mediaCapabilities;
-        if (typeof (mediaCapabilities == null ? void 0 : mediaCapabilities.decodingInfo) === 'function' && requiresMediaCapabilitiesDecodingInfo(levelInfo, audioTracksByGroup, currentVideoRange, currentFrameRate, currentBw, audioPreference)) {
-          levelInfo.supportedPromise = getMediaDecodingInfoPromise(levelInfo, audioTracksByGroup, mediaCapabilities);
-          levelInfo.supportedPromise.then(decodingInfo => {
-            if (!this.hls) {
-              return;
-            }
-            levelInfo.supportedResult = decodingInfo;
-            const levels = this.hls.levels;
-            const index = levels.indexOf(levelInfo);
-            if (decodingInfo.error) {
-              logger.warn(`[abr] MediaCapabilities decodingInfo error: "${decodingInfo.error}" for level ${index} ${JSON.stringify(decodingInfo)}`);
-            } else if (!decodingInfo.supported) {
-              logger.warn(`[abr] Unsupported MediaCapabilities decodingInfo result for level ${index} ${JSON.stringify(decodingInfo)}`);
-              if (index > -1 && levels.length > 1) {
-                logger.log(`[abr] Removing unsupported level ${index}`);
-                this.hls.removeLevel(index);
-              }
-            }
-          });
-        } else {
-          levelInfo.supportedResult = SUPPORTED_INFO_DEFAULT;
-        }
-      }
 
       // skip candidates which change codec-family or video-range,
       // and which decrease or increase frame-rate for up and down-switch respectfully
@@ -7518,124 +6739,3415 @@ class AbrController {
 }
 
 /**
- * @ignore
- * Sub-class specialization of EventHandler base class.
+ * Provides methods dealing with buffer length retrieval for example.
  *
- * TaskLoop allows to schedule a task function being called (optionnaly repeatedly) on the main loop,
- * scheduled asynchroneously, avoiding recursive calls in the same tick.
+ * In general, a helper around HTML5 MediaElement TimeRanges gathered from `buffered` property.
  *
- * The task itself is implemented in `doTick`. It can be requested and called for single execution
- * using the `tick` method.
- *
- * It will be assured that the task execution method (`tick`) only gets called once per main loop "tick",
- * no matter how often it gets requested for execution. Execution in further ticks will be scheduled accordingly.
- *
- * If further execution requests have already been scheduled on the next tick, it can be checked with `hasNextTick`,
- * and cancelled with `clearNextTick`.
- *
- * The task can be scheduled as an interval repeatedly with a period as parameter (see `setInterval`, `clearInterval`).
- *
- * Sub-classes need to implement the `doTick` method which will effectively have the task execution routine.
- *
- * Further explanations:
- *
- * The baseclass has a `tick` method that will schedule the doTick call. It may be called synchroneously
- * only for a stack-depth of one. On re-entrant calls, sub-sequent calls are scheduled for next main loop ticks.
- *
- * When the task execution (`tick` method) is called in re-entrant way this is detected and
- * we are limiting the task execution per call stack to exactly one, but scheduling/post-poning further
- * task processing on the next main loop iteration (also known as "next tick" in the Node/JS runtime lingo).
+ * Also @see https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/buffered
  */
-class TaskLoop {
-  constructor() {
-    this._boundTick = void 0;
-    this._tickTimer = null;
-    this._tickInterval = null;
-    this._tickCallCount = 0;
-    this._boundTick = this.tick.bind(this);
+
+const noopBuffered = {
+  length: 0,
+  start: () => 0,
+  end: () => 0
+};
+class BufferHelper {
+  /**
+   * Return true if `media`'s buffered include `position`
+   */
+  static isBuffered(media, position) {
+    try {
+      if (media) {
+        const buffered = BufferHelper.getBuffered(media);
+        for (let i = 0; i < buffered.length; i++) {
+          if (position >= buffered.start(i) && position <= buffered.end(i)) {
+            return true;
+          }
+        }
+      }
+    } catch (error) {
+      // this is to catch
+      // InvalidStateError: Failed to read the 'buffered' property from 'SourceBuffer':
+      // This SourceBuffer has been removed from the parent media source
+    }
+    return false;
+  }
+  static bufferInfo(media, pos, maxHoleDuration) {
+    try {
+      if (media) {
+        const vbuffered = BufferHelper.getBuffered(media);
+        const buffered = [];
+        let i;
+        for (i = 0; i < vbuffered.length; i++) {
+          buffered.push({
+            start: vbuffered.start(i),
+            end: vbuffered.end(i)
+          });
+        }
+        return this.bufferedInfo(buffered, pos, maxHoleDuration);
+      }
+    } catch (error) {
+      // this is to catch
+      // InvalidStateError: Failed to read the 'buffered' property from 'SourceBuffer':
+      // This SourceBuffer has been removed from the parent media source
+    }
+    return {
+      len: 0,
+      start: pos,
+      end: pos,
+      nextStart: undefined
+    };
+  }
+  static bufferedInfo(buffered, pos, maxHoleDuration) {
+    pos = Math.max(0, pos);
+    // sort on buffer.start/smaller end (IE does not always return sorted buffered range)
+    buffered.sort(function (a, b) {
+      const diff = a.start - b.start;
+      if (diff) {
+        return diff;
+      } else {
+        return b.end - a.end;
+      }
+    });
+    let buffered2 = [];
+    if (maxHoleDuration) {
+      // there might be some small holes between buffer time range
+      // consider that holes smaller than maxHoleDuration are irrelevant and build another
+      // buffer time range representations that discards those holes
+      for (let i = 0; i < buffered.length; i++) {
+        const buf2len = buffered2.length;
+        if (buf2len) {
+          const buf2end = buffered2[buf2len - 1].end;
+          // if small hole (value between 0 or maxHoleDuration ) or overlapping (negative)
+          if (buffered[i].start - buf2end < maxHoleDuration) {
+            // merge overlapping time ranges
+            // update lastRange.end only if smaller than item.end
+            // e.g.  [ 1, 15] with  [ 2,8] => [ 1,15] (no need to modify lastRange.end)
+            // whereas [ 1, 8] with  [ 2,15] => [ 1,15] ( lastRange should switch from [1,8] to [1,15])
+            if (buffered[i].end > buf2end) {
+              buffered2[buf2len - 1].end = buffered[i].end;
+            }
+          } else {
+            // big hole
+            buffered2.push(buffered[i]);
+          }
+        } else {
+          // first value
+          buffered2.push(buffered[i]);
+        }
+      }
+    } else {
+      buffered2 = buffered;
+    }
+    let bufferLen = 0;
+
+    // bufferStartNext can possibly be undefined based on the conditional logic below
+    let bufferStartNext;
+
+    // bufferStart and bufferEnd are buffer boundaries around current video position
+    let bufferStart = pos;
+    let bufferEnd = pos;
+    for (let i = 0; i < buffered2.length; i++) {
+      const start = buffered2[i].start;
+      const end = buffered2[i].end;
+      // logger.log('buf start/end:' + buffered.start(i) + '/' + buffered.end(i));
+      if (pos + maxHoleDuration >= start && pos < end) {
+        // play position is inside this buffer TimeRange, retrieve end of buffer position and buffer length
+        bufferStart = start;
+        bufferEnd = end;
+        bufferLen = bufferEnd - pos;
+      } else if (pos + maxHoleDuration < start) {
+        bufferStartNext = start;
+        break;
+      }
+    }
+    return {
+      len: bufferLen,
+      start: bufferStart || 0,
+      end: bufferEnd || 0,
+      nextStart: bufferStartNext
+    };
+  }
+
+  /**
+   * Safe method to get buffered property.
+   * SourceBuffer.buffered may throw if SourceBuffer is removed from it's MediaSource
+   */
+  static getBuffered(media) {
+    try {
+      return media.buffered;
+    } catch (e) {
+      logger.log('failed to get media.buffered', e);
+      return noopBuffered;
+    }
+  }
+}
+
+class BufferOperationQueue {
+  constructor(sourceBufferReference) {
+    this.buffers = void 0;
+    this.queues = {
+      video: [],
+      audio: [],
+      audiovideo: []
+    };
+    this.buffers = sourceBufferReference;
+  }
+  append(operation, type, pending) {
+    const queue = this.queues[type];
+    queue.push(operation);
+    if (queue.length === 1 && !pending) {
+      this.executeNext(type);
+    }
+  }
+  insertAbort(operation, type) {
+    const queue = this.queues[type];
+    queue.unshift(operation);
+    this.executeNext(type);
+  }
+  appendBlocker(type) {
+    let execute;
+    const promise = new Promise(resolve => {
+      execute = resolve;
+    });
+    const operation = {
+      execute,
+      onStart: () => {},
+      onComplete: () => {},
+      onError: () => {}
+    };
+    this.append(operation, type);
+    return promise;
+  }
+  executeNext(type) {
+    const queue = this.queues[type];
+    if (queue.length) {
+      const operation = queue[0];
+      try {
+        // Operations are expected to result in an 'updateend' event being fired. If not, the queue will lock. Operations
+        // which do not end with this event must call _onSBUpdateEnd manually
+        operation.execute();
+      } catch (error) {
+        logger.warn(`[buffer-operation-queue]: Exception executing "${type}" SourceBuffer operation: ${error}`);
+        operation.onError(error);
+
+        // Only shift the current operation off, otherwise the updateend handler will do this for us
+        const sb = this.buffers[type];
+        if (!(sb != null && sb.updating)) {
+          this.shiftAndExecuteNext(type);
+        }
+      }
+    }
+  }
+  shiftAndExecuteNext(type) {
+    this.queues[type].shift();
+    this.executeNext(type);
+  }
+  current(type) {
+    return this.queues[type][0];
+  }
+}
+
+const VIDEO_CODEC_PROFILE_REPLACE = /(avc[1234]|hvc1|hev1|dvh[1e]|vp09|av01)(?:\.[^.,]+)+/;
+class BufferController {
+  constructor(hls) {
+    // The level details used to determine duration, target-duration and live
+    this.details = null;
+    // cache the self generated object url to detect hijack of video tag
+    this._objectUrl = null;
+    // A queue of buffer operations which require the SourceBuffer to not be updating upon execution
+    this.operationQueue = void 0;
+    // References to event listeners for each SourceBuffer, so that they can be referenced for event removal
+    this.listeners = void 0;
+    this.hls = void 0;
+    // The number of BUFFER_CODEC events received before any sourceBuffers are created
+    this.bufferCodecEventsExpected = 0;
+    // The total number of BUFFER_CODEC events received
+    this._bufferCodecEventsTotal = 0;
+    // A reference to the attached media element
+    this.media = null;
+    // A reference to the active media source
+    this.mediaSource = null;
+    // Last MP3 audio chunk appended
+    this.lastMpegAudioChunk = null;
+    this.appendSource = void 0;
+    // counters
+    this.appendErrors = {
+      audio: 0,
+      video: 0,
+      audiovideo: 0
+    };
+    this.tracks = {};
+    this.pendingTracks = {};
+    this.sourceBuffer = void 0;
+    this.log = void 0;
+    this.warn = void 0;
+    this.error = void 0;
+    this._onEndStreaming = event => {
+      if (!this.hls) {
+        return;
+      }
+      this.hls.pauseBuffering();
+    };
+    this._onStartStreaming = event => {
+      if (!this.hls) {
+        return;
+      }
+      this.hls.resumeBuffering();
+    };
+    // Keep as arrow functions so that we can directly reference these functions directly as event listeners
+    this._onMediaSourceOpen = () => {
+      const {
+        media,
+        mediaSource
+      } = this;
+      this.log('Media source opened');
+      if (media) {
+        media.removeEventListener('emptied', this._onMediaEmptied);
+        this.updateMediaElementDuration();
+        this.hls.trigger(Events.MEDIA_ATTACHED, {
+          media,
+          mediaSource: mediaSource
+        });
+      }
+      if (mediaSource) {
+        // once received, don't listen anymore to sourceopen event
+        mediaSource.removeEventListener('sourceopen', this._onMediaSourceOpen);
+      }
+      this.checkPendingTracks();
+    };
+    this._onMediaSourceClose = () => {
+      this.log('Media source closed');
+    };
+    this._onMediaSourceEnded = () => {
+      this.log('Media source ended');
+    };
+    this._onMediaEmptied = () => {
+      const {
+        mediaSrc,
+        _objectUrl
+      } = this;
+      if (mediaSrc !== _objectUrl) {
+        logger.error(`Media element src was set while attaching MediaSource (${_objectUrl} > ${mediaSrc})`);
+      }
+    };
+    this.hls = hls;
+    const logPrefix = '[buffer-controller]';
+    this.appendSource = isManagedMediaSource(getMediaSource(hls.config.preferManagedMediaSource));
+    this.log = logger.log.bind(logger, logPrefix);
+    this.warn = logger.warn.bind(logger, logPrefix);
+    this.error = logger.error.bind(logger, logPrefix);
+    this._initSourceBuffer();
+    this.registerListeners();
+  }
+  hasSourceTypes() {
+    return this.getSourceBufferTypes().length > 0 || Object.keys(this.pendingTracks).length > 0;
   }
   destroy() {
-    this.onHandlerDestroying();
-    this.onHandlerDestroyed();
+    this.unregisterListeners();
+    this.details = null;
+    this.lastMpegAudioChunk = null;
+    // @ts-ignore
+    this.hls = null;
   }
-  onHandlerDestroying() {
-    // clear all timers before unregistering from event bus
-    this.clearNextTick();
-    this.clearInterval();
+  registerListeners() {
+    const {
+      hls
+    } = this;
+    hls.on(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
+    hls.on(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
+    hls.on(Events.MANIFEST_LOADING, this.onManifestLoading, this);
+    hls.on(Events.MANIFEST_PARSED, this.onManifestParsed, this);
+    hls.on(Events.BUFFER_RESET, this.onBufferReset, this);
+    hls.on(Events.BUFFER_APPENDING, this.onBufferAppending, this);
+    hls.on(Events.BUFFER_CODECS, this.onBufferCodecs, this);
+    hls.on(Events.BUFFER_EOS, this.onBufferEos, this);
+    hls.on(Events.BUFFER_FLUSHING, this.onBufferFlushing, this);
+    hls.on(Events.LEVEL_UPDATED, this.onLevelUpdated, this);
+    hls.on(Events.FRAG_PARSED, this.onFragParsed, this);
+    hls.on(Events.FRAG_CHANGED, this.onFragChanged, this);
   }
-  onHandlerDestroyed() {}
-  hasInterval() {
-    return !!this._tickInterval;
+  unregisterListeners() {
+    const {
+      hls
+    } = this;
+    hls.off(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
+    hls.off(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
+    hls.off(Events.MANIFEST_LOADING, this.onManifestLoading, this);
+    hls.off(Events.MANIFEST_PARSED, this.onManifestParsed, this);
+    hls.off(Events.BUFFER_RESET, this.onBufferReset, this);
+    hls.off(Events.BUFFER_APPENDING, this.onBufferAppending, this);
+    hls.off(Events.BUFFER_CODECS, this.onBufferCodecs, this);
+    hls.off(Events.BUFFER_EOS, this.onBufferEos, this);
+    hls.off(Events.BUFFER_FLUSHING, this.onBufferFlushing, this);
+    hls.off(Events.LEVEL_UPDATED, this.onLevelUpdated, this);
+    hls.off(Events.FRAG_PARSED, this.onFragParsed, this);
+    hls.off(Events.FRAG_CHANGED, this.onFragChanged, this);
   }
-  hasNextTick() {
-    return !!this._tickTimer;
+  _initSourceBuffer() {
+    this.sourceBuffer = {};
+    this.operationQueue = new BufferOperationQueue(this.sourceBuffer);
+    this.listeners = {
+      audio: [],
+      video: [],
+      audiovideo: []
+    };
+    this.appendErrors = {
+      audio: 0,
+      video: 0,
+      audiovideo: 0
+    };
+    this.lastMpegAudioChunk = null;
   }
-
-  /**
-   * @param millis - Interval time (ms)
-   * @eturns True when interval has been scheduled, false when already scheduled (no effect)
-   */
-  setInterval(millis) {
-    if (!this._tickInterval) {
-      this._tickCallCount = 0;
-      this._tickInterval = self.setInterval(this._boundTick, millis);
-      return true;
+  onManifestLoading() {
+    this.bufferCodecEventsExpected = this._bufferCodecEventsTotal = 0;
+    this.details = null;
+  }
+  onManifestParsed(event, data) {
+    // in case of alt audio 2 BUFFER_CODECS events will be triggered, one per stream controller
+    // sourcebuffers will be created all at once when the expected nb of tracks will be reached
+    // in case alt audio is not used, only one BUFFER_CODEC event will be fired from main stream controller
+    // it will contain the expected nb of source buffers, no need to compute it
+    let codecEvents = 2;
+    if (data.audio && !data.video || !data.altAudio || !false) {
+      codecEvents = 1;
     }
-    return false;
+    this.bufferCodecEventsExpected = this._bufferCodecEventsTotal = codecEvents;
+    this.log(`${this.bufferCodecEventsExpected} bufferCodec event(s) expected`);
   }
-
-  /**
-   * @returns True when interval was cleared, false when none was set (no effect)
-   */
-  clearInterval() {
-    if (this._tickInterval) {
-      self.clearInterval(this._tickInterval);
-      this._tickInterval = null;
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * @returns True when timeout was cleared, false when none was set (no effect)
-   */
-  clearNextTick() {
-    if (this._tickTimer) {
-      self.clearTimeout(this._tickTimer);
-      this._tickTimer = null;
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * Will call the subclass doTick implementation in this main loop tick
-   * or in the next one (via setTimeout(,0)) in case it has already been called
-   * in this tick (in case this is a re-entrant call).
-   */
-  tick() {
-    this._tickCallCount++;
-    if (this._tickCallCount === 1) {
-      this.doTick();
-      // re-entrant call to tick from previous doTick call stack
-      // -> schedule a call on the next main loop iteration to process this task processing request
-      if (this._tickCallCount > 1) {
-        // make sure only one timer exists at any time at max
-        this.tickImmediate();
+  onMediaAttaching(event, data) {
+    const media = this.media = data.media;
+    const MediaSource = getMediaSource(this.appendSource);
+    if (media && MediaSource) {
+      var _ms$constructor;
+      const ms = this.mediaSource = new MediaSource();
+      this.log(`created media source: ${(_ms$constructor = ms.constructor) == null ? void 0 : _ms$constructor.name}`);
+      // MediaSource listeners are arrow functions with a lexical scope, and do not need to be bound
+      ms.addEventListener('sourceopen', this._onMediaSourceOpen);
+      ms.addEventListener('sourceended', this._onMediaSourceEnded);
+      ms.addEventListener('sourceclose', this._onMediaSourceClose);
+      if (this.appendSource) {
+        ms.addEventListener('startstreaming', this._onStartStreaming);
+        ms.addEventListener('endstreaming', this._onEndStreaming);
       }
-      this._tickCallCount = 0;
+
+      // cache the locally generated object url
+      const objectUrl = this._objectUrl = self.URL.createObjectURL(ms);
+      // link video and media Source
+      if (this.appendSource) {
+        try {
+          media.removeAttribute('src');
+          // ManagedMediaSource will not open without disableRemotePlayback set to false or source alternatives
+          const MMS = self.ManagedMediaSource;
+          media.disableRemotePlayback = media.disableRemotePlayback || MMS && ms instanceof MMS;
+          removeSourceChildren(media);
+          addSource(media, objectUrl);
+          media.load();
+        } catch (error) {
+          media.src = objectUrl;
+        }
+      } else {
+        media.src = objectUrl;
+      }
+      media.addEventListener('emptied', this._onMediaEmptied);
     }
   }
-  tickImmediate() {
-    this.clearNextTick();
-    this._tickTimer = self.setTimeout(this._boundTick, 0);
+  onMediaDetaching() {
+    const {
+      media,
+      mediaSource,
+      _objectUrl
+    } = this;
+    if (mediaSource) {
+      this.log('media source detaching');
+      if (mediaSource.readyState === 'open') {
+        try {
+          // endOfStream could trigger exception if any sourcebuffer is in updating state
+          // we don't really care about checking sourcebuffer state here,
+          // as we are anyway detaching the MediaSource
+          // let's just avoid this exception to propagate
+          mediaSource.endOfStream();
+        } catch (err) {
+          this.warn(`onMediaDetaching: ${err.message} while calling endOfStream`);
+        }
+      }
+      // Clean up the SourceBuffers by invoking onBufferReset
+      this.onBufferReset();
+      mediaSource.removeEventListener('sourceopen', this._onMediaSourceOpen);
+      mediaSource.removeEventListener('sourceended', this._onMediaSourceEnded);
+      mediaSource.removeEventListener('sourceclose', this._onMediaSourceClose);
+      if (this.appendSource) {
+        mediaSource.removeEventListener('startstreaming', this._onStartStreaming);
+        mediaSource.removeEventListener('endstreaming', this._onEndStreaming);
+      }
+
+      // Detach properly the MediaSource from the HTMLMediaElement as
+      // suggested in https://github.com/w3c/media-source/issues/53.
+      if (media) {
+        media.removeEventListener('emptied', this._onMediaEmptied);
+        if (_objectUrl) {
+          self.URL.revokeObjectURL(_objectUrl);
+        }
+
+        // clean up video tag src only if it's our own url. some external libraries might
+        // hijack the video tag and change its 'src' without destroying the Hls instance first
+        if (this.mediaSrc === _objectUrl) {
+          media.removeAttribute('src');
+          if (this.appendSource) {
+            removeSourceChildren(media);
+          }
+          media.load();
+        } else {
+          this.warn('media|source.src was changed by a third party - skip cleanup');
+        }
+      }
+      this.mediaSource = null;
+      this.media = null;
+      this._objectUrl = null;
+      this.bufferCodecEventsExpected = this._bufferCodecEventsTotal;
+      this.pendingTracks = {};
+      this.tracks = {};
+    }
+    this.hls.trigger(Events.MEDIA_DETACHED, undefined);
+  }
+  onBufferReset() {
+    this.getSourceBufferTypes().forEach(type => {
+      this.resetBuffer(type);
+    });
+    this._initSourceBuffer();
+    this.hls.resumeBuffering();
+  }
+  resetBuffer(type) {
+    const sb = this.sourceBuffer[type];
+    try {
+      if (sb) {
+        var _this$mediaSource;
+        this.removeBufferListeners(type);
+        // Synchronously remove the SB from the map before the next call in order to prevent an async function from
+        // accessing it
+        this.sourceBuffer[type] = undefined;
+        if ((_this$mediaSource = this.mediaSource) != null && _this$mediaSource.sourceBuffers.length) {
+          this.mediaSource.removeSourceBuffer(sb);
+        }
+      }
+    } catch (err) {
+      this.warn(`onBufferReset ${type}`, err);
+    }
+  }
+  onBufferCodecs(event, data) {
+    const sourceBufferCount = this.getSourceBufferTypes().length;
+    const trackNames = Object.keys(data);
+    trackNames.forEach(trackName => {
+      if (sourceBufferCount) {
+        // check if SourceBuffer codec needs to change
+        const track = this.tracks[trackName];
+        if (track && typeof track.buffer.changeType === 'function') {
+          var _trackCodec;
+          const {
+            id,
+            codec,
+            levelCodec,
+            container,
+            metadata
+          } = data[trackName];
+          const currentCodecFull = pickMostCompleteCodecName(track.codec, track.levelCodec);
+          const currentCodec = currentCodecFull == null ? void 0 : currentCodecFull.replace(VIDEO_CODEC_PROFILE_REPLACE, '$1');
+          let trackCodec = pickMostCompleteCodecName(codec, levelCodec);
+          const nextCodec = (_trackCodec = trackCodec) == null ? void 0 : _trackCodec.replace(VIDEO_CODEC_PROFILE_REPLACE, '$1');
+          if (trackCodec && currentCodec !== nextCodec) {
+            if (trackName.slice(0, 5) === 'audio') {
+              trackCodec = getCodecCompatibleName(trackCodec, this.appendSource);
+            }
+            const mimeType = `${container};codecs=${trackCodec}`;
+            this.appendChangeType(trackName, mimeType);
+            this.log(`switching codec ${currentCodecFull} to ${trackCodec}`);
+            this.tracks[trackName] = {
+              buffer: track.buffer,
+              codec,
+              container,
+              levelCodec,
+              metadata,
+              id
+            };
+          }
+        }
+      } else {
+        // if source buffer(s) not created yet, appended buffer tracks in this.pendingTracks
+        this.pendingTracks[trackName] = data[trackName];
+      }
+    });
+
+    // if sourcebuffers already created, do nothing ...
+    if (sourceBufferCount) {
+      return;
+    }
+    const bufferCodecEventsExpected = Math.max(this.bufferCodecEventsExpected - 1, 0);
+    if (this.bufferCodecEventsExpected !== bufferCodecEventsExpected) {
+      this.log(`${bufferCodecEventsExpected} bufferCodec event(s) expected ${trackNames.join(',')}`);
+      this.bufferCodecEventsExpected = bufferCodecEventsExpected;
+    }
+    if (this.mediaSource && this.mediaSource.readyState === 'open') {
+      this.checkPendingTracks();
+    }
+  }
+  appendChangeType(type, mimeType) {
+    const {
+      operationQueue
+    } = this;
+    const operation = {
+      execute: () => {
+        const sb = this.sourceBuffer[type];
+        if (sb) {
+          this.log(`changing ${type} sourceBuffer type to ${mimeType}`);
+          sb.changeType(mimeType);
+        }
+        operationQueue.shiftAndExecuteNext(type);
+      },
+      onStart: () => {},
+      onComplete: () => {},
+      onError: error => {
+        this.warn(`Failed to change ${type} SourceBuffer type`, error);
+      }
+    };
+    operationQueue.append(operation, type, !!this.pendingTracks[type]);
+  }
+  onBufferAppending(event, eventData) {
+    const {
+      hls,
+      operationQueue,
+      tracks
+    } = this;
+    const {
+      data,
+      type,
+      frag,
+      part,
+      chunkMeta
+    } = eventData;
+    const chunkStats = chunkMeta.buffering[type];
+    const bufferAppendingStart = self.performance.now();
+    chunkStats.start = bufferAppendingStart;
+    const fragBuffering = frag.stats.buffering;
+    const partBuffering = part ? part.stats.buffering : null;
+    if (fragBuffering.start === 0) {
+      fragBuffering.start = bufferAppendingStart;
+    }
+    if (partBuffering && partBuffering.start === 0) {
+      partBuffering.start = bufferAppendingStart;
+    }
+
+    // TODO: Only update timestampOffset when audio/mpeg fragment or part is not contiguous with previously appended
+    // Adjusting `SourceBuffer.timestampOffset` (desired point in the timeline where the next frames should be appended)
+    // in Chrome browser when we detect MPEG audio container and time delta between level PTS and `SourceBuffer.timestampOffset`
+    // is greater than 100ms (this is enough to handle seek for VOD or level change for LIVE videos).
+    // More info here: https://github.com/video-dev/hls.js/issues/332#issuecomment-257986486
+    const audioTrack = tracks.audio;
+    let checkTimestampOffset = false;
+    if (type === 'audio' && (audioTrack == null ? void 0 : audioTrack.container) === 'audio/mpeg') {
+      checkTimestampOffset = !this.lastMpegAudioChunk || chunkMeta.id === 1 || this.lastMpegAudioChunk.sn !== chunkMeta.sn;
+      this.lastMpegAudioChunk = chunkMeta;
+    }
+    const fragStart = frag.start;
+    const operation = {
+      execute: () => {
+        chunkStats.executeStart = self.performance.now();
+        if (checkTimestampOffset) {
+          const sb = this.sourceBuffer[type];
+          if (sb) {
+            const delta = fragStart - sb.timestampOffset;
+            if (Math.abs(delta) >= 0.1) {
+              this.log(`Updating audio SourceBuffer timestampOffset to ${fragStart} (delta: ${delta}) sn: ${frag.sn})`);
+              sb.timestampOffset = fragStart;
+            }
+          }
+        }
+        this.appendExecutor(data, type);
+      },
+      onStart: () => {
+        // logger.debug(`[buffer-controller]: ${type} SourceBuffer updatestart`);
+      },
+      onComplete: () => {
+        // logger.debug(`[buffer-controller]: ${type} SourceBuffer updateend`);
+        const end = self.performance.now();
+        chunkStats.executeEnd = chunkStats.end = end;
+        if (fragBuffering.first === 0) {
+          fragBuffering.first = end;
+        }
+        if (partBuffering && partBuffering.first === 0) {
+          partBuffering.first = end;
+        }
+        const {
+          sourceBuffer
+        } = this;
+        const timeRanges = {};
+        for (const type in sourceBuffer) {
+          timeRanges[type] = BufferHelper.getBuffered(sourceBuffer[type]);
+        }
+        this.appendErrors[type] = 0;
+        if (type === 'audio' || type === 'video') {
+          this.appendErrors.audiovideo = 0;
+        } else {
+          this.appendErrors.audio = 0;
+          this.appendErrors.video = 0;
+        }
+        this.hls.trigger(Events.BUFFER_APPENDED, {
+          type,
+          frag,
+          part,
+          chunkMeta,
+          parent: frag.type,
+          timeRanges
+        });
+      },
+      onError: error => {
+        // in case any error occured while appending, put back segment in segments table
+        const event = {
+          type: ErrorTypes.MEDIA_ERROR,
+          parent: frag.type,
+          details: ErrorDetails.BUFFER_APPEND_ERROR,
+          sourceBufferName: type,
+          frag,
+          part,
+          chunkMeta,
+          error,
+          err: error,
+          fatal: false
+        };
+        if (error.code === DOMException.QUOTA_EXCEEDED_ERR) {
+          // QuotaExceededError: http://www.w3.org/TR/html5/infrastructure.html#quotaexceedederror
+          // let's stop appending any segments, and report BUFFER_FULL_ERROR error
+          event.details = ErrorDetails.BUFFER_FULL_ERROR;
+        } else {
+          const appendErrorCount = ++this.appendErrors[type];
+          event.details = ErrorDetails.BUFFER_APPEND_ERROR;
+          /* with UHD content, we could get loop of quota exceeded error until
+            browser is able to evict some data from sourcebuffer. Retrying can help recover.
+          */
+          this.warn(`Failed ${appendErrorCount}/${hls.config.appendErrorMaxRetry} times to append segment in "${type}" sourceBuffer`);
+          if (appendErrorCount >= hls.config.appendErrorMaxRetry) {
+            event.fatal = true;
+          }
+        }
+        hls.trigger(Events.ERROR, event);
+      }
+    };
+    operationQueue.append(operation, type, !!this.pendingTracks[type]);
+  }
+  onBufferFlushing(event, data) {
+    const {
+      operationQueue
+    } = this;
+    const flushOperation = type => ({
+      execute: this.removeExecutor.bind(this, type, data.startOffset, data.endOffset),
+      onStart: () => {
+        // logger.debug(`[buffer-controller]: Started flushing ${data.startOffset} -> ${data.endOffset} for ${type} Source Buffer`);
+      },
+      onComplete: () => {
+        // logger.debug(`[buffer-controller]: Finished flushing ${data.startOffset} -> ${data.endOffset} for ${type} Source Buffer`);
+        this.hls.trigger(Events.BUFFER_FLUSHED, {
+          type
+        });
+      },
+      onError: error => {
+        this.warn(`Failed to remove from ${type} SourceBuffer`, error);
+      }
+    });
+    if (data.type) {
+      operationQueue.append(flushOperation(data.type), data.type);
+    } else {
+      this.getSourceBufferTypes().forEach(type => {
+        operationQueue.append(flushOperation(type), type);
+      });
+    }
+  }
+  onFragParsed(event, data) {
+    const {
+      frag,
+      part
+    } = data;
+    const buffersAppendedTo = [];
+    const elementaryStreams = part ? part.elementaryStreams : frag.elementaryStreams;
+    if (elementaryStreams[ElementaryStreamTypes.AUDIOVIDEO]) {
+      buffersAppendedTo.push('audiovideo');
+    } else {
+      if (elementaryStreams[ElementaryStreamTypes.AUDIO]) {
+        buffersAppendedTo.push('audio');
+      }
+      if (elementaryStreams[ElementaryStreamTypes.VIDEO]) {
+        buffersAppendedTo.push('video');
+      }
+    }
+    const onUnblocked = () => {
+      const now = self.performance.now();
+      frag.stats.buffering.end = now;
+      if (part) {
+        part.stats.buffering.end = now;
+      }
+      const stats = part ? part.stats : frag.stats;
+      this.hls.trigger(Events.FRAG_BUFFERED, {
+        frag,
+        part,
+        stats,
+        id: frag.type
+      });
+    };
+    if (buffersAppendedTo.length === 0) {
+      this.warn(`Fragments must have at least one ElementaryStreamType set. type: ${frag.type} level: ${frag.level} sn: ${frag.sn}`);
+    }
+    this.blockBuffers(onUnblocked, buffersAppendedTo);
+  }
+  onFragChanged(event, data) {
+    this.trimBuffers();
+  }
+
+  // on BUFFER_EOS mark matching sourcebuffer(s) as ended and trigger checkEos()
+  // an undefined data.type will mark all buffers as EOS.
+  onBufferEos(event, data) {
+    const ended = this.getSourceBufferTypes().reduce((acc, type) => {
+      const sb = this.sourceBuffer[type];
+      if (sb && (!data.type || data.type === type)) {
+        sb.ending = true;
+        if (!sb.ended) {
+          sb.ended = true;
+          this.log(`${type} sourceBuffer now EOS`);
+        }
+      }
+      return acc && !!(!sb || sb.ended);
+    }, true);
+    if (ended) {
+      this.log(`Queueing mediaSource.endOfStream()`);
+      this.blockBuffers(() => {
+        this.getSourceBufferTypes().forEach(type => {
+          const sb = this.sourceBuffer[type];
+          if (sb) {
+            sb.ending = false;
+          }
+        });
+        const {
+          mediaSource
+        } = this;
+        if (!mediaSource || mediaSource.readyState !== 'open') {
+          if (mediaSource) {
+            this.log(`Could not call mediaSource.endOfStream(). mediaSource.readyState: ${mediaSource.readyState}`);
+          }
+          return;
+        }
+        this.log(`Calling mediaSource.endOfStream()`);
+        // Allow this to throw and be caught by the enqueueing function
+        mediaSource.endOfStream();
+      });
+    }
+  }
+  onLevelUpdated(event, {
+    details
+  }) {
+    if (!details.fragments.length) {
+      return;
+    }
+    this.details = details;
+    if (this.getSourceBufferTypes().length) {
+      this.blockBuffers(this.updateMediaElementDuration.bind(this));
+    } else {
+      this.updateMediaElementDuration();
+    }
+  }
+  trimBuffers() {
+    const {
+      hls,
+      details,
+      media
+    } = this;
+    if (!media || details === null) {
+      return;
+    }
+    const sourceBufferTypes = this.getSourceBufferTypes();
+    if (!sourceBufferTypes.length) {
+      return;
+    }
+    const config = hls.config;
+    const currentTime = media.currentTime;
+    const targetDuration = details.levelTargetDuration;
+
+    // Support for deprecated liveBackBufferLength
+    const backBufferLength = details.live && config.liveBackBufferLength !== null ? config.liveBackBufferLength : config.backBufferLength;
+    if (isFiniteNumber(backBufferLength) && backBufferLength > 0) {
+      const maxBackBufferLength = Math.max(backBufferLength, targetDuration);
+      const targetBackBufferPosition = Math.floor(currentTime / targetDuration) * targetDuration - maxBackBufferLength;
+      this.flushBackBuffer(currentTime, targetDuration, targetBackBufferPosition);
+    }
+    if (isFiniteNumber(config.frontBufferFlushThreshold) && config.frontBufferFlushThreshold > 0) {
+      const frontBufferLength = Math.max(config.maxBufferLength, config.frontBufferFlushThreshold);
+      const maxFrontBufferLength = Math.max(frontBufferLength, targetDuration);
+      const targetFrontBufferPosition = Math.floor(currentTime / targetDuration) * targetDuration + maxFrontBufferLength;
+      this.flushFrontBuffer(currentTime, targetDuration, targetFrontBufferPosition);
+    }
+  }
+  flushBackBuffer(currentTime, targetDuration, targetBackBufferPosition) {
+    const {
+      details,
+      sourceBuffer
+    } = this;
+    const sourceBufferTypes = this.getSourceBufferTypes();
+    sourceBufferTypes.forEach(type => {
+      const sb = sourceBuffer[type];
+      if (sb) {
+        const buffered = BufferHelper.getBuffered(sb);
+        // when target buffer start exceeds actual buffer start
+        if (buffered.length > 0 && targetBackBufferPosition > buffered.start(0)) {
+          this.hls.trigger(Events.BACK_BUFFER_REACHED, {
+            bufferEnd: targetBackBufferPosition
+          });
+
+          // Support for deprecated event:
+          if (details != null && details.live) {
+            this.hls.trigger(Events.LIVE_BACK_BUFFER_REACHED, {
+              bufferEnd: targetBackBufferPosition
+            });
+          } else if (sb.ended && buffered.end(buffered.length - 1) - currentTime < targetDuration * 2) {
+            this.log(`Cannot flush ${type} back buffer while SourceBuffer is in ended state`);
+            return;
+          }
+          this.hls.trigger(Events.BUFFER_FLUSHING, {
+            startOffset: 0,
+            endOffset: targetBackBufferPosition,
+            type
+          });
+        }
+      }
+    });
+  }
+  flushFrontBuffer(currentTime, targetDuration, targetFrontBufferPosition) {
+    const {
+      sourceBuffer
+    } = this;
+    const sourceBufferTypes = this.getSourceBufferTypes();
+    sourceBufferTypes.forEach(type => {
+      const sb = sourceBuffer[type];
+      if (sb) {
+        const buffered = BufferHelper.getBuffered(sb);
+        const numBufferedRanges = buffered.length;
+        // The buffer is either empty or contiguous
+        if (numBufferedRanges < 2) {
+          return;
+        }
+        const bufferStart = buffered.start(numBufferedRanges - 1);
+        const bufferEnd = buffered.end(numBufferedRanges - 1);
+        // No flush if we can tolerate the current buffer length or the current buffer range we would flush is contiguous with current position
+        if (targetFrontBufferPosition > bufferStart || currentTime >= bufferStart && currentTime <= bufferEnd) {
+          return;
+        } else if (sb.ended && currentTime - bufferEnd < 2 * targetDuration) {
+          this.log(`Cannot flush ${type} front buffer while SourceBuffer is in ended state`);
+          return;
+        }
+        this.hls.trigger(Events.BUFFER_FLUSHING, {
+          startOffset: bufferStart,
+          endOffset: Infinity,
+          type
+        });
+      }
+    });
   }
 
   /**
-   * For subclass to implement task logic
-   * @abstract
+   * Update Media Source duration to current level duration or override to Infinity if configuration parameter
+   * 'liveDurationInfinity` is set to `true`
+   * More details: https://github.com/video-dev/hls.js/issues/355
    */
-  doTick() {}
+  updateMediaElementDuration() {
+    if (!this.details || !this.media || !this.mediaSource || this.mediaSource.readyState !== 'open') {
+      return;
+    }
+    const {
+      details,
+      hls,
+      media,
+      mediaSource
+    } = this;
+    const levelDuration = details.fragments[0].start + details.totalduration;
+    const mediaDuration = media.duration;
+    const msDuration = isFiniteNumber(mediaSource.duration) ? mediaSource.duration : 0;
+    if (details.live && hls.config.liveDurationInfinity) {
+      // Override duration to Infinity
+      mediaSource.duration = Infinity;
+      this.updateSeekableRange(details);
+    } else if (levelDuration > msDuration && levelDuration > mediaDuration || !isFiniteNumber(mediaDuration)) {
+      // levelDuration was the last value we set.
+      // not using mediaSource.duration as the browser may tweak this value
+      // only update Media Source duration if its value increase, this is to avoid
+      // flushing already buffered portion when switching between quality level
+      this.log(`Updating Media Source duration to ${levelDuration.toFixed(3)}`);
+      mediaSource.duration = levelDuration;
+    }
+  }
+  updateSeekableRange(levelDetails) {
+    const mediaSource = this.mediaSource;
+    const fragments = levelDetails.fragments;
+    const len = fragments.length;
+    if (len && levelDetails.live && mediaSource != null && mediaSource.setLiveSeekableRange) {
+      const start = Math.max(0, fragments[0].start);
+      const end = Math.max(start, start + levelDetails.totalduration);
+      this.log(`Media Source duration is set to ${mediaSource.duration}. Setting seekable range to ${start}-${end}.`);
+      mediaSource.setLiveSeekableRange(start, end);
+    }
+  }
+  checkPendingTracks() {
+    const {
+      bufferCodecEventsExpected,
+      operationQueue,
+      pendingTracks
+    } = this;
+
+    // Check if we've received all of the expected bufferCodec events. When none remain, create all the sourceBuffers at once.
+    // This is important because the MSE spec allows implementations to throw QuotaExceededErrors if creating new sourceBuffers after
+    // data has been appended to existing ones.
+    // 2 tracks is the max (one for audio, one for video). If we've reach this max go ahead and create the buffers.
+    const pendingTracksCount = Object.keys(pendingTracks).length;
+    if (pendingTracksCount && (!bufferCodecEventsExpected || pendingTracksCount === 2 || 'audiovideo' in pendingTracks)) {
+      // ok, let's create them now !
+      this.createSourceBuffers(pendingTracks);
+      this.pendingTracks = {};
+      // append any pending segments now !
+      const buffers = this.getSourceBufferTypes();
+      if (buffers.length) {
+        this.hls.trigger(Events.BUFFER_CREATED, {
+          tracks: this.tracks
+        });
+        buffers.forEach(type => {
+          operationQueue.executeNext(type);
+        });
+      } else {
+        const error = new Error('could not create source buffer for media codec(s)');
+        this.hls.trigger(Events.ERROR, {
+          type: ErrorTypes.MEDIA_ERROR,
+          details: ErrorDetails.BUFFER_INCOMPATIBLE_CODECS_ERROR,
+          fatal: true,
+          error,
+          reason: error.message
+        });
+      }
+    }
+  }
+  createSourceBuffers(tracks) {
+    const {
+      sourceBuffer,
+      mediaSource
+    } = this;
+    if (!mediaSource) {
+      throw Error('createSourceBuffers called when mediaSource was null');
+    }
+    for (const trackName in tracks) {
+      if (!sourceBuffer[trackName]) {
+        var _track$levelCodec;
+        const track = tracks[trackName];
+        if (!track) {
+          throw Error(`source buffer exists for track ${trackName}, however track does not`);
+        }
+        // use levelCodec as first priority unless it contains multiple comma-separated codec values
+        let codec = ((_track$levelCodec = track.levelCodec) == null ? void 0 : _track$levelCodec.indexOf(',')) === -1 ? track.levelCodec : track.codec;
+        if (codec) {
+          if (trackName.slice(0, 5) === 'audio') {
+            codec = getCodecCompatibleName(codec, this.appendSource);
+          }
+        }
+        const mimeType = `${track.container};codecs=${codec}`;
+        this.log(`creating sourceBuffer(${mimeType})`);
+        try {
+          const sb = sourceBuffer[trackName] = mediaSource.addSourceBuffer(mimeType);
+          const sbName = trackName;
+          this.addBufferListener(sbName, 'updatestart', this._onSBUpdateStart);
+          this.addBufferListener(sbName, 'updateend', this._onSBUpdateEnd);
+          this.addBufferListener(sbName, 'error', this._onSBUpdateError);
+          // ManagedSourceBuffer bufferedchange event
+          if (this.appendSource) {
+            this.addBufferListener(sbName, 'bufferedchange', (type, event) => {
+              // If media was ejected check for a change. Added ranges are redundant with changes on 'updateend' event.
+              const removedRanges = event.removedRanges;
+              if (removedRanges != null && removedRanges.length) {
+                this.hls.trigger(Events.BUFFER_FLUSHED, {
+                  type: trackName
+                });
+              }
+            });
+          }
+          this.tracks[trackName] = {
+            buffer: sb,
+            codec: codec,
+            container: track.container,
+            levelCodec: track.levelCodec,
+            metadata: track.metadata,
+            id: track.id
+          };
+        } catch (err) {
+          this.error(`error while trying to add sourceBuffer: ${err.message}`);
+          this.hls.trigger(Events.ERROR, {
+            type: ErrorTypes.MEDIA_ERROR,
+            details: ErrorDetails.BUFFER_ADD_CODEC_ERROR,
+            fatal: false,
+            error: err,
+            sourceBufferName: trackName,
+            mimeType: mimeType
+          });
+        }
+      }
+    }
+  }
+  get mediaSrc() {
+    var _this$media, _this$media$querySele;
+    const media = ((_this$media = this.media) == null ? void 0 : (_this$media$querySele = _this$media.querySelector) == null ? void 0 : _this$media$querySele.call(_this$media, 'source')) || this.media;
+    return media == null ? void 0 : media.src;
+  }
+  _onSBUpdateStart(type) {
+    const {
+      operationQueue
+    } = this;
+    const operation = operationQueue.current(type);
+    operation.onStart();
+  }
+  _onSBUpdateEnd(type) {
+    var _this$mediaSource2;
+    if (((_this$mediaSource2 = this.mediaSource) == null ? void 0 : _this$mediaSource2.readyState) === 'closed') {
+      this.resetBuffer(type);
+      return;
+    }
+    const {
+      operationQueue
+    } = this;
+    const operation = operationQueue.current(type);
+    operation.onComplete();
+    operationQueue.shiftAndExecuteNext(type);
+  }
+  _onSBUpdateError(type, event) {
+    var _this$mediaSource3;
+    const error = new Error(`${type} SourceBuffer error. MediaSource readyState: ${(_this$mediaSource3 = this.mediaSource) == null ? void 0 : _this$mediaSource3.readyState}`);
+    this.error(`${error}`, event);
+    // according to http://www.w3.org/TR/media-source/#sourcebuffer-append-error
+    // SourceBuffer errors are not necessarily fatal; if so, the HTMLMediaElement will fire an error event
+    this.hls.trigger(Events.ERROR, {
+      type: ErrorTypes.MEDIA_ERROR,
+      details: ErrorDetails.BUFFER_APPENDING_ERROR,
+      sourceBufferName: type,
+      error,
+      fatal: false
+    });
+    // updateend is always fired after error, so we'll allow that to shift the current operation off of the queue
+    const operation = this.operationQueue.current(type);
+    if (operation) {
+      operation.onError(error);
+    }
+  }
+
+  // This method must result in an updateend event; if remove is not called, _onSBUpdateEnd must be called manually
+  removeExecutor(type, startOffset, endOffset) {
+    const {
+      media,
+      mediaSource,
+      operationQueue,
+      sourceBuffer
+    } = this;
+    const sb = sourceBuffer[type];
+    if (!media || !mediaSource || !sb) {
+      this.warn(`Attempting to remove from the ${type} SourceBuffer, but it does not exist`);
+      operationQueue.shiftAndExecuteNext(type);
+      return;
+    }
+    const mediaDuration = isFiniteNumber(media.duration) ? media.duration : Infinity;
+    const msDuration = isFiniteNumber(mediaSource.duration) ? mediaSource.duration : Infinity;
+    const removeStart = Math.max(0, startOffset);
+    const removeEnd = Math.min(endOffset, mediaDuration, msDuration);
+    if (removeEnd > removeStart && (!sb.ending || sb.ended)) {
+      sb.ended = false;
+      this.log(`Removing [${removeStart},${removeEnd}] from the ${type} SourceBuffer`);
+      sb.remove(removeStart, removeEnd);
+    } else {
+      // Cycle the queue
+      operationQueue.shiftAndExecuteNext(type);
+    }
+  }
+
+  // This method must result in an updateend event; if append is not called, _onSBUpdateEnd must be called manually
+  appendExecutor(data, type) {
+    const sb = this.sourceBuffer[type];
+    if (!sb) {
+      if (!this.pendingTracks[type]) {
+        throw new Error(`Attempting to append to the ${type} SourceBuffer, but it does not exist`);
+      }
+      return;
+    }
+    sb.ended = false;
+    sb.appendBuffer(data);
+  }
+
+  // Enqueues an operation to each SourceBuffer queue which, upon execution, resolves a promise. When all promises
+  // resolve, the onUnblocked function is executed. Functions calling this method do not need to unblock the queue
+  // upon completion, since we already do it here
+  blockBuffers(onUnblocked, buffers = this.getSourceBufferTypes()) {
+    if (!buffers.length) {
+      this.log('Blocking operation requested, but no SourceBuffers exist');
+      Promise.resolve().then(onUnblocked);
+      return;
+    }
+    const {
+      operationQueue
+    } = this;
+
+    // logger.debug(`[buffer-controller]: Blocking ${buffers} SourceBuffer`);
+    const blockingOperations = buffers.map(type => operationQueue.appendBlocker(type));
+    Promise.all(blockingOperations).then(() => {
+      // logger.debug(`[buffer-controller]: Blocking operation resolved; unblocking ${buffers} SourceBuffer`);
+      onUnblocked();
+      buffers.forEach(type => {
+        const sb = this.sourceBuffer[type];
+        // Only cycle the queue if the SB is not updating. There's a bug in Chrome which sets the SB updating flag to
+        // true when changing the MediaSource duration (https://bugs.chromium.org/p/chromium/issues/detail?id=959359&can=2&q=mediasource%20duration)
+        // While this is a workaround, it's probably useful to have around
+        if (!(sb != null && sb.updating)) {
+          operationQueue.shiftAndExecuteNext(type);
+        }
+      });
+    });
+  }
+  getSourceBufferTypes() {
+    return Object.keys(this.sourceBuffer);
+  }
+  addBufferListener(type, event, fn) {
+    const buffer = this.sourceBuffer[type];
+    if (!buffer) {
+      return;
+    }
+    const listener = fn.bind(this, type);
+    this.listeners[type].push({
+      event,
+      listener
+    });
+    buffer.addEventListener(event, listener);
+  }
+  removeBufferListeners(type) {
+    const buffer = this.sourceBuffer[type];
+    if (!buffer) {
+      return;
+    }
+    this.listeners[type].forEach(l => {
+      buffer.removeEventListener(l.event, l.listener);
+    });
+  }
+}
+function removeSourceChildren(node) {
+  const sourceChildren = node.querySelectorAll('source');
+  [].slice.call(sourceChildren).forEach(source => {
+    node.removeChild(source);
+  });
+}
+function addSource(media, url) {
+  const source = self.document.createElement('source');
+  source.type = 'video/mp4';
+  source.src = url;
+  media.appendChild(source);
+}
+
+class CapLevelController {
+  constructor(hls) {
+    this.hls = void 0;
+    this.autoLevelCapping = void 0;
+    this.firstLevel = void 0;
+    this.media = void 0;
+    this.restrictedLevels = void 0;
+    this.timer = void 0;
+    this.clientRect = void 0;
+    this.streamController = void 0;
+    this.hls = hls;
+    this.autoLevelCapping = Number.POSITIVE_INFINITY;
+    this.firstLevel = -1;
+    this.media = null;
+    this.restrictedLevels = [];
+    this.timer = undefined;
+    this.clientRect = null;
+    this.registerListeners();
+  }
+  setStreamController(streamController) {
+    this.streamController = streamController;
+  }
+  destroy() {
+    if (this.hls) {
+      this.unregisterListener();
+    }
+    if (this.timer) {
+      this.stopCapping();
+    }
+    this.media = null;
+    this.clientRect = null;
+    // @ts-ignore
+    this.hls = this.streamController = null;
+  }
+  registerListeners() {
+    const {
+      hls
+    } = this;
+    hls.on(Events.FPS_DROP_LEVEL_CAPPING, this.onFpsDropLevelCapping, this);
+    hls.on(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
+    hls.on(Events.MANIFEST_PARSED, this.onManifestParsed, this);
+    hls.on(Events.LEVELS_UPDATED, this.onLevelsUpdated, this);
+    hls.on(Events.BUFFER_CODECS, this.onBufferCodecs, this);
+    hls.on(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
+  }
+  unregisterListener() {
+    const {
+      hls
+    } = this;
+    hls.off(Events.FPS_DROP_LEVEL_CAPPING, this.onFpsDropLevelCapping, this);
+    hls.off(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
+    hls.off(Events.MANIFEST_PARSED, this.onManifestParsed, this);
+    hls.off(Events.LEVELS_UPDATED, this.onLevelsUpdated, this);
+    hls.off(Events.BUFFER_CODECS, this.onBufferCodecs, this);
+    hls.off(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
+  }
+  onFpsDropLevelCapping(event, data) {
+    // Don't add a restricted level more than once
+    const level = this.hls.levels[data.droppedLevel];
+    if (this.isLevelAllowed(level)) {
+      this.restrictedLevels.push({
+        bitrate: level.bitrate,
+        height: level.height,
+        width: level.width
+      });
+    }
+  }
+  onMediaAttaching(event, data) {
+    this.media = data.media instanceof HTMLVideoElement ? data.media : null;
+    this.clientRect = null;
+    if (this.timer && this.hls.levels.length) {
+      this.detectPlayerSize();
+    }
+  }
+  onManifestParsed(event, data) {
+    const hls = this.hls;
+    this.restrictedLevels = [];
+    this.firstLevel = data.firstLevel;
+    if (hls.config.capLevelToPlayerSize && data.video) {
+      // Start capping immediately if the manifest has signaled video codecs
+      this.startCapping();
+    }
+  }
+  onLevelsUpdated(event, data) {
+    if (this.timer && isFiniteNumber(this.autoLevelCapping)) {
+      this.detectPlayerSize();
+    }
+  }
+
+  // Only activate capping when playing a video stream; otherwise, multi-bitrate audio-only streams will be restricted
+  // to the first level
+  onBufferCodecs(event, data) {
+    const hls = this.hls;
+    if (hls.config.capLevelToPlayerSize && data.video) {
+      // If the manifest did not signal a video codec capping has been deferred until we're certain video is present
+      this.startCapping();
+    }
+  }
+  onMediaDetaching() {
+    this.stopCapping();
+  }
+  detectPlayerSize() {
+    if (this.media) {
+      if (this.mediaHeight <= 0 || this.mediaWidth <= 0) {
+        this.clientRect = null;
+        return;
+      }
+      const levels = this.hls.levels;
+      if (levels.length) {
+        const hls = this.hls;
+        const maxLevel = this.getMaxLevel(levels.length - 1);
+        if (maxLevel !== this.autoLevelCapping) {
+          logger.log(`Setting autoLevelCapping to ${maxLevel}: ${levels[maxLevel].height}p@${levels[maxLevel].bitrate} for media ${this.mediaWidth}x${this.mediaHeight}`);
+        }
+        hls.autoLevelCapping = maxLevel;
+        if (hls.autoLevelCapping > this.autoLevelCapping && this.streamController) {
+          // if auto level capping has a higher value for the previous one, flush the buffer using nextLevelSwitch
+          // usually happen when the user go to the fullscreen mode.
+          this.streamController.nextLevelSwitch();
+        }
+        this.autoLevelCapping = hls.autoLevelCapping;
+      }
+    }
+  }
+
+  /*
+   * returns level should be the one with the dimensions equal or greater than the media (player) dimensions (so the video will be downscaled)
+   */
+  getMaxLevel(capLevelIndex) {
+    const levels = this.hls.levels;
+    if (!levels.length) {
+      return -1;
+    }
+    const validLevels = levels.filter((level, index) => this.isLevelAllowed(level) && index <= capLevelIndex);
+    this.clientRect = null;
+    return CapLevelController.getMaxLevelByMediaSize(validLevels, this.mediaWidth, this.mediaHeight);
+  }
+  startCapping() {
+    if (this.timer) {
+      // Don't reset capping if started twice; this can happen if the manifest signals a video codec
+      return;
+    }
+    this.autoLevelCapping = Number.POSITIVE_INFINITY;
+    self.clearInterval(this.timer);
+    this.timer = self.setInterval(this.detectPlayerSize.bind(this), 1000);
+    this.detectPlayerSize();
+  }
+  stopCapping() {
+    this.restrictedLevels = [];
+    this.firstLevel = -1;
+    this.autoLevelCapping = Number.POSITIVE_INFINITY;
+    if (this.timer) {
+      self.clearInterval(this.timer);
+      this.timer = undefined;
+    }
+  }
+  getDimensions() {
+    if (this.clientRect) {
+      return this.clientRect;
+    }
+    const media = this.media;
+    const boundsRect = {
+      width: 0,
+      height: 0
+    };
+    if (media) {
+      const clientRect = media.getBoundingClientRect();
+      boundsRect.width = clientRect.width;
+      boundsRect.height = clientRect.height;
+      if (!boundsRect.width && !boundsRect.height) {
+        // When the media element has no width or height (equivalent to not being in the DOM),
+        // then use its width and height attributes (media.width, media.height)
+        boundsRect.width = clientRect.right - clientRect.left || media.width || 0;
+        boundsRect.height = clientRect.bottom - clientRect.top || media.height || 0;
+      }
+    }
+    this.clientRect = boundsRect;
+    return boundsRect;
+  }
+  get mediaWidth() {
+    return this.getDimensions().width * this.contentScaleFactor;
+  }
+  get mediaHeight() {
+    return this.getDimensions().height * this.contentScaleFactor;
+  }
+  get contentScaleFactor() {
+    let pixelRatio = 1;
+    if (!this.hls.config.ignoreDevicePixelRatio) {
+      try {
+        pixelRatio = self.devicePixelRatio;
+      } catch (e) {
+        /* no-op */
+      }
+    }
+    return pixelRatio;
+  }
+  isLevelAllowed(level) {
+    const restrictedLevels = this.restrictedLevels;
+    return !restrictedLevels.some(restrictedLevel => {
+      return level.bitrate === restrictedLevel.bitrate && level.width === restrictedLevel.width && level.height === restrictedLevel.height;
+    });
+  }
+  static getMaxLevelByMediaSize(levels, width, height) {
+    if (!(levels != null && levels.length)) {
+      return -1;
+    }
+
+    // Levels can have the same dimensions but differing bandwidths - since levels are ordered, we can look to the next
+    // to determine whether we've chosen the greatest bandwidth for the media's dimensions
+    const atGreatestBandwidth = (curLevel, nextLevel) => {
+      if (!nextLevel) {
+        return true;
+      }
+      return curLevel.width !== nextLevel.width || curLevel.height !== nextLevel.height;
+    };
+
+    // If we run through the loop without breaking, the media's dimensions are greater than every level, so default to
+    // the max level
+    let maxLevelIndex = levels.length - 1;
+    // Prevent changes in aspect-ratio from causing capping to toggle back and forth
+    const squareSize = Math.max(width, height);
+    for (let i = 0; i < levels.length; i += 1) {
+      const level = levels[i];
+      if ((level.width >= squareSize || level.height >= squareSize) && atGreatestBandwidth(level, levels[i + 1])) {
+        maxLevelIndex = i;
+        break;
+      }
+    }
+    return maxLevelIndex;
+  }
+}
+
+class FPSController {
+  constructor(hls) {
+    this.hls = void 0;
+    this.isVideoPlaybackQualityAvailable = false;
+    this.timer = void 0;
+    this.media = null;
+    this.lastTime = void 0;
+    this.lastDroppedFrames = 0;
+    this.lastDecodedFrames = 0;
+    // stream controller must be provided as a dependency!
+    this.streamController = void 0;
+    this.hls = hls;
+    this.registerListeners();
+  }
+  setStreamController(streamController) {
+    this.streamController = streamController;
+  }
+  registerListeners() {
+    this.hls.on(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
+  }
+  unregisterListeners() {
+    this.hls.off(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
+  }
+  destroy() {
+    if (this.timer) {
+      clearInterval(this.timer);
+    }
+    this.unregisterListeners();
+    this.isVideoPlaybackQualityAvailable = false;
+    this.media = null;
+  }
+  onMediaAttaching(event, data) {
+    const config = this.hls.config;
+    if (config.capLevelOnFPSDrop) {
+      const media = data.media instanceof self.HTMLVideoElement ? data.media : null;
+      this.media = media;
+      if (media && typeof media.getVideoPlaybackQuality === 'function') {
+        this.isVideoPlaybackQualityAvailable = true;
+      }
+      self.clearInterval(this.timer);
+      this.timer = self.setInterval(this.checkFPSInterval.bind(this), config.fpsDroppedMonitoringPeriod);
+    }
+  }
+  checkFPS(video, decodedFrames, droppedFrames) {
+    const currentTime = performance.now();
+    if (decodedFrames) {
+      if (this.lastTime) {
+        const currentPeriod = currentTime - this.lastTime;
+        const currentDropped = droppedFrames - this.lastDroppedFrames;
+        const currentDecoded = decodedFrames - this.lastDecodedFrames;
+        const droppedFPS = 1000 * currentDropped / currentPeriod;
+        const hls = this.hls;
+        hls.trigger(Events.FPS_DROP, {
+          currentDropped: currentDropped,
+          currentDecoded: currentDecoded,
+          totalDroppedFrames: droppedFrames
+        });
+        if (droppedFPS > 0) {
+          // logger.log('checkFPS : droppedFPS/decodedFPS:' + droppedFPS/(1000 * currentDecoded / currentPeriod));
+          if (currentDropped > hls.config.fpsDroppedMonitoringThreshold * currentDecoded) {
+            let currentLevel = hls.currentLevel;
+            logger.warn('drop FPS ratio greater than max allowed value for currentLevel: ' + currentLevel);
+            if (currentLevel > 0 && (hls.autoLevelCapping === -1 || hls.autoLevelCapping >= currentLevel)) {
+              currentLevel = currentLevel - 1;
+              hls.trigger(Events.FPS_DROP_LEVEL_CAPPING, {
+                level: currentLevel,
+                droppedLevel: hls.currentLevel
+              });
+              hls.autoLevelCapping = currentLevel;
+              this.streamController.nextLevelSwitch();
+            }
+          }
+        }
+      }
+      this.lastTime = currentTime;
+      this.lastDroppedFrames = droppedFrames;
+      this.lastDecodedFrames = decodedFrames;
+    }
+  }
+  checkFPSInterval() {
+    const video = this.media;
+    if (video) {
+      if (this.isVideoPlaybackQualityAvailable) {
+        const videoPlaybackQuality = video.getVideoPlaybackQuality();
+        this.checkFPS(video, videoPlaybackQuality.totalVideoFrames, videoPlaybackQuality.droppedVideoFrames);
+      } else {
+        // HTMLVideoElement doesn't include the webkit types
+        this.checkFPS(video, video.webkitDecodedFrameCount, video.webkitDroppedFrameCount);
+      }
+    }
+  }
+}
+
+const PATHWAY_PENALTY_DURATION_MS = 300000;
+class ContentSteeringController {
+  constructor(hls) {
+    this.hls = void 0;
+    this.log = void 0;
+    this.loader = null;
+    this.uri = null;
+    this.pathwayId = '.';
+    this.pathwayPriority = null;
+    this.timeToLoad = 300;
+    this.reloadTimer = -1;
+    this.updated = 0;
+    this.started = false;
+    this.enabled = true;
+    this.levels = null;
+    this.audioTracks = null;
+    this.subtitleTracks = null;
+    this.penalizedPathways = {};
+    this.hls = hls;
+    this.log = logger.log.bind(logger, `[content-steering]:`);
+    this.registerListeners();
+  }
+  registerListeners() {
+    const hls = this.hls;
+    hls.on(Events.MANIFEST_LOADING, this.onManifestLoading, this);
+    hls.on(Events.MANIFEST_LOADED, this.onManifestLoaded, this);
+    hls.on(Events.MANIFEST_PARSED, this.onManifestParsed, this);
+    hls.on(Events.ERROR, this.onError, this);
+  }
+  unregisterListeners() {
+    const hls = this.hls;
+    if (!hls) {
+      return;
+    }
+    hls.off(Events.MANIFEST_LOADING, this.onManifestLoading, this);
+    hls.off(Events.MANIFEST_LOADED, this.onManifestLoaded, this);
+    hls.off(Events.MANIFEST_PARSED, this.onManifestParsed, this);
+    hls.off(Events.ERROR, this.onError, this);
+  }
+  startLoad() {
+    this.started = true;
+    this.clearTimeout();
+    if (this.enabled && this.uri) {
+      if (this.updated) {
+        const ttl = this.timeToLoad * 1000 - (performance.now() - this.updated);
+        if (ttl > 0) {
+          this.scheduleRefresh(this.uri, ttl);
+          return;
+        }
+      }
+      this.loadSteeringManifest(this.uri);
+    }
+  }
+  stopLoad() {
+    this.started = false;
+    if (this.loader) {
+      this.loader.destroy();
+      this.loader = null;
+    }
+    this.clearTimeout();
+  }
+  clearTimeout() {
+    if (this.reloadTimer !== -1) {
+      self.clearTimeout(this.reloadTimer);
+      this.reloadTimer = -1;
+    }
+  }
+  destroy() {
+    this.unregisterListeners();
+    this.stopLoad();
+    // @ts-ignore
+    this.hls = null;
+    this.levels = this.audioTracks = this.subtitleTracks = null;
+  }
+  removeLevel(levelToRemove) {
+    const levels = this.levels;
+    if (levels) {
+      this.levels = levels.filter(level => level !== levelToRemove);
+    }
+  }
+  onManifestLoading() {
+    this.stopLoad();
+    this.enabled = true;
+    this.timeToLoad = 300;
+    this.updated = 0;
+    this.uri = null;
+    this.pathwayId = '.';
+    this.levels = this.audioTracks = this.subtitleTracks = null;
+  }
+  onManifestLoaded(event, data) {
+    const {
+      contentSteering
+    } = data;
+    if (contentSteering === null) {
+      return;
+    }
+    this.pathwayId = contentSteering.pathwayId;
+    this.uri = contentSteering.uri;
+    if (this.started) {
+      this.startLoad();
+    }
+  }
+  onManifestParsed(event, data) {
+    this.audioTracks = data.audioTracks;
+    this.subtitleTracks = data.subtitleTracks;
+  }
+  onError(event, data) {
+    const {
+      errorAction
+    } = data;
+    if ((errorAction == null ? void 0 : errorAction.action) === NetworkErrorAction.SendAlternateToPenaltyBox && errorAction.flags === ErrorActionFlags.MoveAllAlternatesMatchingHost) {
+      const levels = this.levels;
+      let pathwayPriority = this.pathwayPriority;
+      let errorPathway = this.pathwayId;
+      if (data.context) {
+        const {
+          groupId,
+          pathwayId,
+          type
+        } = data.context;
+        if (groupId && levels) {
+          errorPathway = this.getPathwayForGroupId(groupId, type, errorPathway);
+        } else if (pathwayId) {
+          errorPathway = pathwayId;
+        }
+      }
+      if (!(errorPathway in this.penalizedPathways)) {
+        this.penalizedPathways[errorPathway] = performance.now();
+      }
+      if (!pathwayPriority && levels) {
+        // If PATHWAY-PRIORITY was not provided, list pathways for error handling
+        pathwayPriority = levels.reduce((pathways, level) => {
+          if (pathways.indexOf(level.pathwayId) === -1) {
+            pathways.push(level.pathwayId);
+          }
+          return pathways;
+        }, []);
+      }
+      if (pathwayPriority && pathwayPriority.length > 1) {
+        this.updatePathwayPriority(pathwayPriority);
+        errorAction.resolved = this.pathwayId !== errorPathway;
+      }
+      if (!errorAction.resolved) {
+        logger.warn(`Could not resolve ${data.details} ("${data.error.message}") with content-steering for Pathway: ${errorPathway} levels: ${levels ? levels.length : levels} priorities: ${JSON.stringify(pathwayPriority)} penalized: ${JSON.stringify(this.penalizedPathways)}`);
+      }
+    }
+  }
+  filterParsedLevels(levels) {
+    // Filter levels to only include those that are in the initial pathway
+    this.levels = levels;
+    let pathwayLevels = this.getLevelsForPathway(this.pathwayId);
+    if (pathwayLevels.length === 0) {
+      const pathwayId = levels[0].pathwayId;
+      this.log(`No levels found in Pathway ${this.pathwayId}. Setting initial Pathway to "${pathwayId}"`);
+      pathwayLevels = this.getLevelsForPathway(pathwayId);
+      this.pathwayId = pathwayId;
+    }
+    if (pathwayLevels.length !== levels.length) {
+      this.log(`Found ${pathwayLevels.length}/${levels.length} levels in Pathway "${this.pathwayId}"`);
+    }
+    return pathwayLevels;
+  }
+  getLevelsForPathway(pathwayId) {
+    if (this.levels === null) {
+      return [];
+    }
+    return this.levels.filter(level => pathwayId === level.pathwayId);
+  }
+  updatePathwayPriority(pathwayPriority) {
+    this.pathwayPriority = pathwayPriority;
+    let levels;
+
+    // Evaluate if we should remove the pathway from the penalized list
+    const penalizedPathways = this.penalizedPathways;
+    const now = performance.now();
+    Object.keys(penalizedPathways).forEach(pathwayId => {
+      if (now - penalizedPathways[pathwayId] > PATHWAY_PENALTY_DURATION_MS) {
+        delete penalizedPathways[pathwayId];
+      }
+    });
+    for (let i = 0; i < pathwayPriority.length; i++) {
+      const pathwayId = pathwayPriority[i];
+      if (pathwayId in penalizedPathways) {
+        continue;
+      }
+      if (pathwayId === this.pathwayId) {
+        return;
+      }
+      const selectedIndex = this.hls.nextLoadLevel;
+      const selectedLevel = this.hls.levels[selectedIndex];
+      levels = this.getLevelsForPathway(pathwayId);
+      if (levels.length > 0) {
+        this.log(`Setting Pathway to "${pathwayId}"`);
+        this.pathwayId = pathwayId;
+        reassignFragmentLevelIndexes(levels);
+        this.hls.trigger(Events.LEVELS_UPDATED, {
+          levels
+        });
+        // Set LevelController's level to trigger LEVEL_SWITCHING which loads playlist if needed
+        const levelAfterChange = this.hls.levels[selectedIndex];
+        if (selectedLevel && levelAfterChange && this.levels) {
+          if (levelAfterChange.attrs['STABLE-VARIANT-ID'] !== selectedLevel.attrs['STABLE-VARIANT-ID'] && levelAfterChange.bitrate !== selectedLevel.bitrate) {
+            this.log(`Unstable Pathways change from bitrate ${selectedLevel.bitrate} to ${levelAfterChange.bitrate}`);
+          }
+          this.hls.nextLoadLevel = selectedIndex;
+        }
+        break;
+      }
+    }
+  }
+  getPathwayForGroupId(groupId, type, defaultPathway) {
+    const levels = this.getLevelsForPathway(defaultPathway).concat(this.levels || []);
+    for (let i = 0; i < levels.length; i++) {
+      if (type === PlaylistContextType.AUDIO_TRACK && levels[i].hasAudioGroup(groupId) || type === PlaylistContextType.SUBTITLE_TRACK && levels[i].hasSubtitleGroup(groupId)) {
+        return levels[i].pathwayId;
+      }
+    }
+    return defaultPathway;
+  }
+  clonePathways(pathwayClones) {
+    const levels = this.levels;
+    if (!levels) {
+      return;
+    }
+    const audioGroupCloneMap = {};
+    const subtitleGroupCloneMap = {};
+    pathwayClones.forEach(pathwayClone => {
+      const {
+        ID: cloneId,
+        'BASE-ID': baseId,
+        'URI-REPLACEMENT': uriReplacement
+      } = pathwayClone;
+      if (levels.some(level => level.pathwayId === cloneId)) {
+        return;
+      }
+      const clonedVariants = this.getLevelsForPathway(baseId).map(baseLevel => {
+        const attributes = new AttrList(baseLevel.attrs);
+        attributes['PATHWAY-ID'] = cloneId;
+        const clonedAudioGroupId = attributes.AUDIO && `${attributes.AUDIO}_clone_${cloneId}`;
+        const clonedSubtitleGroupId = attributes.SUBTITLES && `${attributes.SUBTITLES}_clone_${cloneId}`;
+        if (clonedAudioGroupId) {
+          audioGroupCloneMap[attributes.AUDIO] = clonedAudioGroupId;
+          attributes.AUDIO = clonedAudioGroupId;
+        }
+        if (clonedSubtitleGroupId) {
+          subtitleGroupCloneMap[attributes.SUBTITLES] = clonedSubtitleGroupId;
+          attributes.SUBTITLES = clonedSubtitleGroupId;
+        }
+        const url = performUriReplacement(baseLevel.uri, attributes['STABLE-VARIANT-ID'], 'PER-VARIANT-URIS', uriReplacement);
+        const clonedLevel = new Level({
+          attrs: attributes,
+          audioCodec: baseLevel.audioCodec,
+          bitrate: baseLevel.bitrate,
+          height: baseLevel.height,
+          name: baseLevel.name,
+          url,
+          videoCodec: baseLevel.videoCodec,
+          width: baseLevel.width
+        });
+        if (baseLevel.audioGroups) {
+          for (let i = 1; i < baseLevel.audioGroups.length; i++) {
+            clonedLevel.addGroupId('audio', `${baseLevel.audioGroups[i]}_clone_${cloneId}`);
+          }
+        }
+        if (baseLevel.subtitleGroups) {
+          for (let i = 1; i < baseLevel.subtitleGroups.length; i++) {
+            clonedLevel.addGroupId('text', `${baseLevel.subtitleGroups[i]}_clone_${cloneId}`);
+          }
+        }
+        return clonedLevel;
+      });
+      levels.push(...clonedVariants);
+      cloneRenditionGroups(this.audioTracks, audioGroupCloneMap, uriReplacement, cloneId);
+      cloneRenditionGroups(this.subtitleTracks, subtitleGroupCloneMap, uriReplacement, cloneId);
+    });
+  }
+  loadSteeringManifest(uri) {
+    const config = this.hls.config;
+    const Loader = config.loader;
+    if (this.loader) {
+      this.loader.destroy();
+    }
+    this.loader = new Loader(config);
+    let url;
+    try {
+      url = new self.URL(uri);
+    } catch (error) {
+      this.enabled = false;
+      this.log(`Failed to parse Steering Manifest URI: ${uri}`);
+      return;
+    }
+    if (url.protocol !== 'data:') {
+      const throughput = (this.hls.bandwidthEstimate || config.abrEwmaDefaultEstimate) | 0;
+      url.searchParams.set('_HLS_pathway', this.pathwayId);
+      url.searchParams.set('_HLS_throughput', '' + throughput);
+    }
+    const context = {
+      responseType: 'json',
+      url: url.href
+    };
+    const loadPolicy = config.steeringManifestLoadPolicy.default;
+    const legacyRetryCompatibility = loadPolicy.errorRetry || loadPolicy.timeoutRetry || {};
+    const loaderConfig = {
+      loadPolicy,
+      timeout: loadPolicy.maxLoadTimeMs,
+      maxRetry: legacyRetryCompatibility.maxNumRetry || 0,
+      retryDelay: legacyRetryCompatibility.retryDelayMs || 0,
+      maxRetryDelay: legacyRetryCompatibility.maxRetryDelayMs || 0
+    };
+    const callbacks = {
+      onSuccess: (response, stats, context, networkDetails) => {
+        this.log(`Loaded steering manifest: "${url}"`);
+        const steeringData = response.data;
+        if (steeringData.VERSION !== 1) {
+          this.log(`Steering VERSION ${steeringData.VERSION} not supported!`);
+          return;
+        }
+        this.updated = performance.now();
+        this.timeToLoad = steeringData.TTL;
+        const {
+          'RELOAD-URI': reloadUri,
+          'PATHWAY-CLONES': pathwayClones,
+          'PATHWAY-PRIORITY': pathwayPriority
+        } = steeringData;
+        if (reloadUri) {
+          try {
+            this.uri = new self.URL(reloadUri, url).href;
+          } catch (error) {
+            this.enabled = false;
+            this.log(`Failed to parse Steering Manifest RELOAD-URI: ${reloadUri}`);
+            return;
+          }
+        }
+        this.scheduleRefresh(this.uri || context.url);
+        if (pathwayClones) {
+          this.clonePathways(pathwayClones);
+        }
+        const loadedSteeringData = {
+          steeringManifest: steeringData,
+          url: url.toString()
+        };
+        this.hls.trigger(Events.STEERING_MANIFEST_LOADED, loadedSteeringData);
+        if (pathwayPriority) {
+          this.updatePathwayPriority(pathwayPriority);
+        }
+      },
+      onError: (error, context, networkDetails, stats) => {
+        this.log(`Error loading steering manifest: ${error.code} ${error.text} (${context.url})`);
+        this.stopLoad();
+        if (error.code === 410) {
+          this.enabled = false;
+          this.log(`Steering manifest ${context.url} no longer available`);
+          return;
+        }
+        let ttl = this.timeToLoad * 1000;
+        if (error.code === 429) {
+          const loader = this.loader;
+          if (typeof (loader == null ? void 0 : loader.getResponseHeader) === 'function') {
+            const retryAfter = loader.getResponseHeader('Retry-After');
+            if (retryAfter) {
+              ttl = parseFloat(retryAfter) * 1000;
+            }
+          }
+          this.log(`Steering manifest ${context.url} rate limited`);
+          return;
+        }
+        this.scheduleRefresh(this.uri || context.url, ttl);
+      },
+      onTimeout: (stats, context, networkDetails) => {
+        this.log(`Timeout loading steering manifest (${context.url})`);
+        this.scheduleRefresh(this.uri || context.url);
+      }
+    };
+    this.log(`Requesting steering manifest: ${url}`);
+    this.loader.load(context, loaderConfig, callbacks);
+  }
+  scheduleRefresh(uri, ttlMs = this.timeToLoad * 1000) {
+    this.clearTimeout();
+    this.reloadTimer = self.setTimeout(() => {
+      var _this$hls;
+      const media = (_this$hls = this.hls) == null ? void 0 : _this$hls.media;
+      if (media && !media.ended) {
+        this.loadSteeringManifest(uri);
+        return;
+      }
+      this.scheduleRefresh(uri, this.timeToLoad * 1000);
+    }, ttlMs);
+  }
+}
+function cloneRenditionGroups(tracks, groupCloneMap, uriReplacement, cloneId) {
+  if (!tracks) {
+    return;
+  }
+  Object.keys(groupCloneMap).forEach(audioGroupId => {
+    const clonedTracks = tracks.filter(track => track.groupId === audioGroupId).map(track => {
+      const clonedTrack = _extends({}, track);
+      clonedTrack.details = undefined;
+      clonedTrack.attrs = new AttrList(clonedTrack.attrs);
+      clonedTrack.url = clonedTrack.attrs.URI = performUriReplacement(track.url, track.attrs['STABLE-RENDITION-ID'], 'PER-RENDITION-URIS', uriReplacement);
+      clonedTrack.groupId = clonedTrack.attrs['GROUP-ID'] = groupCloneMap[audioGroupId];
+      clonedTrack.attrs['PATHWAY-ID'] = cloneId;
+      return clonedTrack;
+    });
+    tracks.push(...clonedTracks);
+  });
+}
+function performUriReplacement(uri, stableId, perOptionKey, uriReplacement) {
+  const {
+    HOST: host,
+    PARAMS: params,
+    [perOptionKey]: perOptionUris
+  } = uriReplacement;
+  let perVariantUri;
+  if (stableId) {
+    perVariantUri = perOptionUris == null ? void 0 : perOptionUris[stableId];
+    if (perVariantUri) {
+      uri = perVariantUri;
+    }
+  }
+  const url = new self.URL(uri);
+  if (host && !perVariantUri) {
+    url.host = host;
+  }
+  if (params) {
+    Object.keys(params).sort().forEach(key => {
+      if (key) {
+        url.searchParams.set(key, params[key]);
+      }
+    });
+  }
+  return url.href;
+}
+
+const AGE_HEADER_LINE_REGEX = /^age:\s*[\d.]+\s*$/im;
+class XhrLoader {
+  constructor(config) {
+    this.xhrSetup = void 0;
+    this.requestTimeout = void 0;
+    this.retryTimeout = void 0;
+    this.retryDelay = void 0;
+    this.config = null;
+    this.callbacks = null;
+    this.context = null;
+    this.loader = null;
+    this.stats = void 0;
+    this.xhrSetup = config ? config.xhrSetup || null : null;
+    this.stats = new LoadStats();
+    this.retryDelay = 0;
+  }
+  destroy() {
+    this.callbacks = null;
+    this.abortInternal();
+    this.loader = null;
+    this.config = null;
+    this.context = null;
+    this.xhrSetup = null;
+  }
+  abortInternal() {
+    const loader = this.loader;
+    self.clearTimeout(this.requestTimeout);
+    self.clearTimeout(this.retryTimeout);
+    if (loader) {
+      loader.onreadystatechange = null;
+      loader.onprogress = null;
+      if (loader.readyState !== 4) {
+        this.stats.aborted = true;
+        loader.abort();
+      }
+    }
+  }
+  abort() {
+    var _this$callbacks;
+    this.abortInternal();
+    if ((_this$callbacks = this.callbacks) != null && _this$callbacks.onAbort) {
+      this.callbacks.onAbort(this.stats, this.context, this.loader);
+    }
+  }
+  load(context, config, callbacks) {
+    if (this.stats.loading.start) {
+      throw new Error('Loader can only be used once.');
+    }
+    this.stats.loading.start = self.performance.now();
+    this.context = context;
+    this.config = config;
+    this.callbacks = callbacks;
+    this.loadInternal();
+  }
+  loadInternal() {
+    const {
+      config,
+      context
+    } = this;
+    if (!config || !context) {
+      return;
+    }
+    const xhr = this.loader = new self.XMLHttpRequest();
+    const stats = this.stats;
+    stats.loading.first = 0;
+    stats.loaded = 0;
+    stats.aborted = false;
+    const xhrSetup = this.xhrSetup;
+    if (xhrSetup) {
+      Promise.resolve().then(() => {
+        if (this.loader !== xhr || this.stats.aborted) return;
+        return xhrSetup(xhr, context.url);
+      }).catch(error => {
+        if (this.loader !== xhr || this.stats.aborted) return;
+        xhr.open('GET', context.url, true);
+        return xhrSetup(xhr, context.url);
+      }).then(() => {
+        if (this.loader !== xhr || this.stats.aborted) return;
+        this.openAndSendXhr(xhr, context, config);
+      }).catch(error => {
+        // IE11 throws an exception on xhr.open if attempting to access an HTTP resource over HTTPS
+        this.callbacks.onError({
+          code: xhr.status,
+          text: error.message
+        }, context, xhr, stats);
+        return;
+      });
+    } else {
+      this.openAndSendXhr(xhr, context, config);
+    }
+  }
+  openAndSendXhr(xhr, context, config) {
+    if (!xhr.readyState) {
+      xhr.open('GET', context.url, true);
+    }
+    const headers = context.headers;
+    const {
+      maxTimeToFirstByteMs,
+      maxLoadTimeMs
+    } = config.loadPolicy;
+    if (headers) {
+      for (const header in headers) {
+        xhr.setRequestHeader(header, headers[header]);
+      }
+    }
+    if (context.rangeEnd) {
+      xhr.setRequestHeader('Range', 'bytes=' + context.rangeStart + '-' + (context.rangeEnd - 1));
+    }
+    xhr.onreadystatechange = this.readystatechange.bind(this);
+    xhr.onprogress = this.loadprogress.bind(this);
+    xhr.responseType = context.responseType;
+    // setup timeout before we perform request
+    self.clearTimeout(this.requestTimeout);
+    config.timeout = maxTimeToFirstByteMs && isFiniteNumber(maxTimeToFirstByteMs) ? maxTimeToFirstByteMs : maxLoadTimeMs;
+    this.requestTimeout = self.setTimeout(this.loadtimeout.bind(this), config.timeout);
+    xhr.send();
+  }
+  readystatechange() {
+    const {
+      context,
+      loader: xhr,
+      stats
+    } = this;
+    if (!context || !xhr) {
+      return;
+    }
+    const readyState = xhr.readyState;
+    const config = this.config;
+
+    // don't proceed if xhr has been aborted
+    if (stats.aborted) {
+      return;
+    }
+
+    // >= HEADERS_RECEIVED
+    if (readyState >= 2) {
+      if (stats.loading.first === 0) {
+        stats.loading.first = Math.max(self.performance.now(), stats.loading.start);
+        // readyState >= 2 AND readyState !==4 (readyState = HEADERS_RECEIVED || LOADING) rearm timeout as xhr not finished yet
+        if (config.timeout !== config.loadPolicy.maxLoadTimeMs) {
+          self.clearTimeout(this.requestTimeout);
+          config.timeout = config.loadPolicy.maxLoadTimeMs;
+          this.requestTimeout = self.setTimeout(this.loadtimeout.bind(this), config.loadPolicy.maxLoadTimeMs - (stats.loading.first - stats.loading.start));
+        }
+      }
+      if (readyState === 4) {
+        self.clearTimeout(this.requestTimeout);
+        xhr.onreadystatechange = null;
+        xhr.onprogress = null;
+        const status = xhr.status;
+        // http status between 200 to 299 are all successful
+        const useResponseText = xhr.responseType === 'text' ? xhr.responseText : null;
+        if (status >= 200 && status < 300) {
+          const data = useResponseText != null ? useResponseText : xhr.response;
+          if (data != null) {
+            stats.loading.end = Math.max(self.performance.now(), stats.loading.first);
+            const len = xhr.responseType === 'arraybuffer' ? data.byteLength : data.length;
+            stats.loaded = stats.total = len;
+            stats.bwEstimate = stats.total * 8000 / (stats.loading.end - stats.loading.first);
+            if (!this.callbacks) {
+              return;
+            }
+            const onProgress = this.callbacks.onProgress;
+            if (onProgress) {
+              onProgress(stats, context, data, xhr);
+            }
+            if (!this.callbacks) {
+              return;
+            }
+            const _response = {
+              url: xhr.responseURL,
+              data: data,
+              code: status
+            };
+            this.callbacks.onSuccess(_response, stats, context, xhr);
+            return;
+          }
+        }
+
+        // Handle bad status or nullish response
+        const retryConfig = config.loadPolicy.errorRetry;
+        const retryCount = stats.retry;
+        // if max nb of retries reached or if http status between 400 and 499 (such error cannot be recovered, retrying is useless), return error
+        const response = {
+          url: context.url,
+          data: undefined,
+          code: status
+        };
+        if (shouldRetry(retryConfig, retryCount, false, response)) {
+          this.retry(retryConfig);
+        } else {
+          logger.error(`${status} while loading ${context.url}`);
+          this.callbacks.onError({
+            code: status,
+            text: xhr.statusText
+          }, context, xhr, stats);
+        }
+      }
+    }
+  }
+  loadtimeout() {
+    if (!this.config) return;
+    const retryConfig = this.config.loadPolicy.timeoutRetry;
+    const retryCount = this.stats.retry;
+    if (shouldRetry(retryConfig, retryCount, true)) {
+      this.retry(retryConfig);
+    } else {
+      var _this$context;
+      logger.warn(`timeout while loading ${(_this$context = this.context) == null ? void 0 : _this$context.url}`);
+      const callbacks = this.callbacks;
+      if (callbacks) {
+        this.abortInternal();
+        callbacks.onTimeout(this.stats, this.context, this.loader);
+      }
+    }
+  }
+  retry(retryConfig) {
+    const {
+      context,
+      stats
+    } = this;
+    this.retryDelay = getRetryDelay(retryConfig, stats.retry);
+    stats.retry++;
+    logger.warn(`${status ? 'HTTP Status ' + status : 'Timeout'} while loading ${context == null ? void 0 : context.url}, retrying ${stats.retry}/${retryConfig.maxNumRetry} in ${this.retryDelay}ms`);
+    // abort and reset internal state
+    this.abortInternal();
+    this.loader = null;
+    // schedule retry
+    self.clearTimeout(this.retryTimeout);
+    this.retryTimeout = self.setTimeout(this.loadInternal.bind(this), this.retryDelay);
+  }
+  loadprogress(event) {
+    const stats = this.stats;
+    stats.loaded = event.loaded;
+    if (event.lengthComputable) {
+      stats.total = event.total;
+    }
+  }
+  getCacheAge() {
+    let result = null;
+    if (this.loader && AGE_HEADER_LINE_REGEX.test(this.loader.getAllResponseHeaders())) {
+      const ageHeader = this.loader.getResponseHeader('age');
+      result = ageHeader ? parseFloat(ageHeader) : null;
+    }
+    return result;
+  }
+  getResponseHeader(name) {
+    if (this.loader && new RegExp(`^${name}:\\s*[\\d.]+\\s*$`, 'im').test(this.loader.getAllResponseHeaders())) {
+      return this.loader.getResponseHeader(name);
+    }
+    return null;
+  }
+}
+
+class ChunkCache {
+  constructor() {
+    this.chunks = [];
+    this.dataLength = 0;
+  }
+  push(chunk) {
+    this.chunks.push(chunk);
+    this.dataLength += chunk.length;
+  }
+  flush() {
+    const {
+      chunks,
+      dataLength
+    } = this;
+    let result;
+    if (!chunks.length) {
+      return new Uint8Array(0);
+    } else if (chunks.length === 1) {
+      result = chunks[0];
+    } else {
+      result = concatUint8Arrays(chunks, dataLength);
+    }
+    this.reset();
+    return result;
+  }
+  reset() {
+    this.chunks.length = 0;
+    this.dataLength = 0;
+  }
+}
+function concatUint8Arrays(chunks, dataLength) {
+  const result = new Uint8Array(dataLength);
+  let offset = 0;
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    result.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return result;
+}
+
+function fetchSupported() {
+  if (
+  // @ts-ignore
+  self.fetch && self.AbortController && self.ReadableStream && self.Request) {
+    try {
+      new self.ReadableStream({}); // eslint-disable-line no-new
+      return true;
+    } catch (e) {
+      /* noop */
+    }
+  }
+  return false;
+}
+const BYTERANGE = /(\d+)-(\d+)\/(\d+)/;
+class FetchLoader {
+  constructor(config /* HlsConfig */) {
+    this.fetchSetup = void 0;
+    this.requestTimeout = void 0;
+    this.request = null;
+    this.response = null;
+    this.controller = void 0;
+    this.context = null;
+    this.config = null;
+    this.callbacks = null;
+    this.stats = void 0;
+    this.loader = null;
+    this.fetchSetup = config.fetchSetup || getRequest;
+    this.controller = new self.AbortController();
+    this.stats = new LoadStats();
+  }
+  destroy() {
+    this.loader = this.callbacks = this.context = this.config = this.request = null;
+    this.abortInternal();
+    this.response = null;
+    // @ts-ignore
+    this.fetchSetup = this.controller = this.stats = null;
+  }
+  abortInternal() {
+    if (this.controller && !this.stats.loading.end) {
+      this.stats.aborted = true;
+      this.controller.abort();
+    }
+  }
+  abort() {
+    var _this$callbacks;
+    this.abortInternal();
+    if ((_this$callbacks = this.callbacks) != null && _this$callbacks.onAbort) {
+      this.callbacks.onAbort(this.stats, this.context, this.response);
+    }
+  }
+  load(context, config, callbacks) {
+    const stats = this.stats;
+    if (stats.loading.start) {
+      throw new Error('Loader can only be used once.');
+    }
+    stats.loading.start = self.performance.now();
+    const initParams = getRequestParameters(context, this.controller.signal);
+    const onProgress = callbacks.onProgress;
+    const isArrayBuffer = context.responseType === 'arraybuffer';
+    const LENGTH = isArrayBuffer ? 'byteLength' : 'length';
+    const {
+      maxTimeToFirstByteMs,
+      maxLoadTimeMs
+    } = config.loadPolicy;
+    this.context = context;
+    this.config = config;
+    this.callbacks = callbacks;
+    this.request = this.fetchSetup(context, initParams);
+    self.clearTimeout(this.requestTimeout);
+    config.timeout = maxTimeToFirstByteMs && isFiniteNumber(maxTimeToFirstByteMs) ? maxTimeToFirstByteMs : maxLoadTimeMs;
+    this.requestTimeout = self.setTimeout(() => {
+      this.abortInternal();
+      callbacks.onTimeout(stats, context, this.response);
+    }, config.timeout);
+    self.fetch(this.request).then(response => {
+      this.response = this.loader = response;
+      const first = Math.max(self.performance.now(), stats.loading.start);
+      self.clearTimeout(this.requestTimeout);
+      config.timeout = maxLoadTimeMs;
+      this.requestTimeout = self.setTimeout(() => {
+        this.abortInternal();
+        callbacks.onTimeout(stats, context, this.response);
+      }, maxLoadTimeMs - (first - stats.loading.start));
+      if (!response.ok) {
+        const {
+          status,
+          statusText
+        } = response;
+        throw new FetchError(statusText || 'fetch, bad network response', status, response);
+      }
+      stats.loading.first = first;
+      stats.total = getContentLength(response.headers) || stats.total;
+      if (onProgress && isFiniteNumber(config.highWaterMark)) {
+        return this.loadProgressively(response, stats, context, config.highWaterMark, onProgress);
+      }
+      if (isArrayBuffer) {
+        return response.arrayBuffer();
+      }
+      if (context.responseType === 'json') {
+        return response.json();
+      }
+      return response.text();
+    }).then(responseData => {
+      const response = this.response;
+      if (!response) {
+        throw new Error('loader destroyed');
+      }
+      self.clearTimeout(this.requestTimeout);
+      stats.loading.end = Math.max(self.performance.now(), stats.loading.first);
+      const total = responseData[LENGTH];
+      if (total) {
+        stats.loaded = stats.total = total;
+      }
+      const loaderResponse = {
+        url: response.url,
+        data: responseData,
+        code: response.status
+      };
+      if (onProgress && !isFiniteNumber(config.highWaterMark)) {
+        onProgress(stats, context, responseData, response);
+      }
+      callbacks.onSuccess(loaderResponse, stats, context, response);
+    }).catch(error => {
+      self.clearTimeout(this.requestTimeout);
+      if (stats.aborted) {
+        return;
+      }
+      // CORS errors result in an undefined code. Set it to 0 here to align with XHR's behavior
+      // when destroying, 'error' itself can be undefined
+      const code = !error ? 0 : error.code || 0;
+      const text = !error ? null : error.message;
+      callbacks.onError({
+        code,
+        text
+      }, context, error ? error.details : null, stats);
+    });
+  }
+  getCacheAge() {
+    let result = null;
+    if (this.response) {
+      const ageHeader = this.response.headers.get('age');
+      result = ageHeader ? parseFloat(ageHeader) : null;
+    }
+    return result;
+  }
+  getResponseHeader(name) {
+    return this.response ? this.response.headers.get(name) : null;
+  }
+  loadProgressively(response, stats, context, highWaterMark = 0, onProgress) {
+    const chunkCache = new ChunkCache();
+    const reader = response.body.getReader();
+    const pump = () => {
+      return reader.read().then(data => {
+        if (data.done) {
+          if (chunkCache.dataLength) {
+            onProgress(stats, context, chunkCache.flush(), response);
+          }
+          return Promise.resolve(new ArrayBuffer(0));
+        }
+        const chunk = data.value;
+        const len = chunk.length;
+        stats.loaded += len;
+        if (len < highWaterMark || chunkCache.dataLength) {
+          // The current chunk is too small to to be emitted or the cache already has data
+          // Push it to the cache
+          chunkCache.push(chunk);
+          if (chunkCache.dataLength >= highWaterMark) {
+            // flush in order to join the typed arrays
+            onProgress(stats, context, chunkCache.flush(), response);
+          }
+        } else {
+          // If there's nothing cached already, and the chache is large enough
+          // just emit the progress event
+          onProgress(stats, context, chunk, response);
+        }
+        return pump();
+      }).catch(() => {
+        /* aborted */
+        return Promise.reject();
+      });
+    };
+    return pump();
+  }
+}
+function getRequestParameters(context, signal) {
+  const initParams = {
+    method: 'GET',
+    mode: 'cors',
+    credentials: 'same-origin',
+    signal,
+    headers: new self.Headers(_extends({}, context.headers))
+  };
+  if (context.rangeEnd) {
+    initParams.headers.set('Range', 'bytes=' + context.rangeStart + '-' + String(context.rangeEnd - 1));
+  }
+  return initParams;
+}
+function getByteRangeLength(byteRangeHeader) {
+  const result = BYTERANGE.exec(byteRangeHeader);
+  if (result) {
+    return parseInt(result[2]) - parseInt(result[1]) + 1;
+  }
+}
+function getContentLength(headers) {
+  const contentRange = headers.get('Content-Range');
+  if (contentRange) {
+    const byteRangeLength = getByteRangeLength(contentRange);
+    if (isFiniteNumber(byteRangeLength)) {
+      return byteRangeLength;
+    }
+  }
+  const contentLength = headers.get('Content-Length');
+  if (contentLength) {
+    return parseInt(contentLength);
+  }
+}
+function getRequest(context, initParams) {
+  return new self.Request(context.url, initParams);
+}
+class FetchError extends Error {
+  constructor(message, code, details) {
+    super(message);
+    this.code = void 0;
+    this.details = void 0;
+    this.code = code;
+    this.details = details;
+  }
+}
+
+/**
+ * @deprecated use fragLoadPolicy.default
+ */
+
+/**
+ * @deprecated use manifestLoadPolicy.default and playlistLoadPolicy.default
+ */
+
+const defaultLoadPolicy = {
+  maxTimeToFirstByteMs: 8000,
+  maxLoadTimeMs: 20000,
+  timeoutRetry: null,
+  errorRetry: null
+};
+
+/**
+ * @ignore
+ * If possible, keep hlsDefaultConfig shallow
+ * It is cloned whenever a new Hls instance is created, by keeping the config
+ * shallow the properties are cloned, and we don't end up manipulating the default
+ */
+const hlsDefaultConfig = _objectSpread2(_objectSpread2({
+  autoStartLoad: true,
+  // used by stream-controller
+  startPosition: -1,
+  // used by stream-controller
+  defaultAudioCodec: undefined,
+  // used by stream-controller
+  debug: false,
+  // used by logger
+  capLevelOnFPSDrop: false,
+  // used by fps-controller
+  capLevelToPlayerSize: false,
+  // used by cap-level-controller
+  ignoreDevicePixelRatio: false,
+  // used by cap-level-controller
+  preferManagedMediaSource: true,
+  initialLiveManifestSize: 1,
+  // used by stream-controller
+  maxBufferLength: 30,
+  // used by stream-controller
+  backBufferLength: Infinity,
+  // used by buffer-controller
+  frontBufferFlushThreshold: Infinity,
+  maxBufferSize: 60 * 1000 * 1000,
+  // used by stream-controller
+  maxBufferHole: 0.1,
+  // used by stream-controller
+  highBufferWatchdogPeriod: 2,
+  // used by stream-controller
+  nudgeOffset: 0.1,
+  // used by stream-controller
+  nudgeMaxRetry: 3,
+  // used by stream-controller
+  maxFragLookUpTolerance: 0.25,
+  // used by stream-controller
+  liveSyncDurationCount: 3,
+  // used by latency-controller
+  liveMaxLatencyDurationCount: Infinity,
+  // used by latency-controller
+  liveSyncDuration: undefined,
+  // used by latency-controller
+  liveMaxLatencyDuration: undefined,
+  // used by latency-controller
+  maxLiveSyncPlaybackRate: 1,
+  // used by latency-controller
+  liveDurationInfinity: false,
+  // used by buffer-controller
+  /**
+   * @deprecated use backBufferLength
+   */
+  liveBackBufferLength: null,
+  // used by buffer-controller
+  maxMaxBufferLength: 600,
+  // used by stream-controller
+  enableWorker: true,
+  // used by transmuxer
+  workerPath: null,
+  // used by transmuxer
+  enableSoftwareAES: true,
+  // used by decrypter
+  startLevel: undefined,
+  // used by level-controller
+  startFragPrefetch: false,
+  // used by stream-controller
+  fpsDroppedMonitoringPeriod: 5000,
+  // used by fps-controller
+  fpsDroppedMonitoringThreshold: 0.2,
+  // used by fps-controller
+  appendErrorMaxRetry: 3,
+  // used by buffer-controller
+  loader: XhrLoader,
+  // loader: FetchLoader,
+  fLoader: undefined,
+  // used by fragment-loader
+  pLoader: undefined,
+  // used by playlist-loader
+  xhrSetup: undefined,
+  // used by xhr-loader
+  licenseXhrSetup: undefined,
+  // used by eme-controller
+  licenseResponseCallback: undefined,
+  // used by eme-controller
+  abrController: AbrController,
+  bufferController: BufferController,
+  capLevelController: CapLevelController,
+  errorController: ErrorController,
+  fpsController: FPSController,
+  stretchShortVideoTrack: false,
+  // used by mp4-remuxer
+  maxAudioFramesDrift: 1,
+  // used by mp4-remuxer
+  forceKeyFrameOnDiscontinuity: true,
+  // used by ts-demuxer
+  abrEwmaFastLive: 3,
+  // used by abr-controller
+  abrEwmaSlowLive: 9,
+  // used by abr-controller
+  abrEwmaFastVoD: 3,
+  // used by abr-controller
+  abrEwmaSlowVoD: 9,
+  // used by abr-controller
+  abrEwmaDefaultEstimate: 5e5,
+  // 500 kbps  // used by abr-controller
+  abrEwmaDefaultEstimateMax: 5e6,
+  // 5 mbps
+  abrBandWidthFactor: 0.95,
+  // used by abr-controller
+  abrBandWidthUpFactor: 0.7,
+  // used by abr-controller
+  abrMaxWithRealBitrate: false,
+  // used by abr-controller
+  maxStarvationDelay: 4,
+  // used by abr-controller
+  maxLoadingDelay: 4,
+  // used by abr-controller
+  minAutoBitrate: 0,
+  // used by hls
+  emeEnabled: false,
+  // used by eme-controller
+  widevineLicenseUrl: undefined,
+  // used by eme-controller
+  drmSystems: {},
+  // used by eme-controller
+  drmSystemOptions: {},
+  // used by eme-controller
+  requestMediaKeySystemAccessFunc: null,
+  // used by eme-controller
+  testBandwidth: true,
+  progressive: false,
+  lowLatencyMode: true,
+  cmcd: undefined,
+  enableDateRangeMetadataCues: true,
+  enableEmsgMetadataCues: true,
+  enableID3MetadataCues: true,
+  useMediaCapabilities: false,
+  certLoadPolicy: {
+    default: defaultLoadPolicy
+  },
+  keyLoadPolicy: {
+    default: {
+      maxTimeToFirstByteMs: 8000,
+      maxLoadTimeMs: 20000,
+      timeoutRetry: {
+        maxNumRetry: 1,
+        retryDelayMs: 1000,
+        maxRetryDelayMs: 20000,
+        backoff: 'linear'
+      },
+      errorRetry: {
+        maxNumRetry: 8,
+        retryDelayMs: 1000,
+        maxRetryDelayMs: 20000,
+        backoff: 'linear'
+      }
+    }
+  },
+  manifestLoadPolicy: {
+    default: {
+      maxTimeToFirstByteMs: Infinity,
+      maxLoadTimeMs: 20000,
+      timeoutRetry: {
+        maxNumRetry: 2,
+        retryDelayMs: 0,
+        maxRetryDelayMs: 0
+      },
+      errorRetry: {
+        maxNumRetry: 1,
+        retryDelayMs: 1000,
+        maxRetryDelayMs: 8000
+      }
+    }
+  },
+  playlistLoadPolicy: {
+    default: {
+      maxTimeToFirstByteMs: 10000,
+      maxLoadTimeMs: 20000,
+      timeoutRetry: {
+        maxNumRetry: 2,
+        retryDelayMs: 0,
+        maxRetryDelayMs: 0
+      },
+      errorRetry: {
+        maxNumRetry: 2,
+        retryDelayMs: 1000,
+        maxRetryDelayMs: 8000
+      }
+    }
+  },
+  fragLoadPolicy: {
+    default: {
+      maxTimeToFirstByteMs: 10000,
+      maxLoadTimeMs: 120000,
+      timeoutRetry: {
+        maxNumRetry: 4,
+        retryDelayMs: 0,
+        maxRetryDelayMs: 0
+      },
+      errorRetry: {
+        maxNumRetry: 6,
+        retryDelayMs: 1000,
+        maxRetryDelayMs: 8000
+      }
+    }
+  },
+  steeringManifestLoadPolicy: {
+    default: {
+      maxTimeToFirstByteMs: 10000,
+      maxLoadTimeMs: 20000,
+      timeoutRetry: {
+        maxNumRetry: 2,
+        retryDelayMs: 0,
+        maxRetryDelayMs: 0
+      },
+      errorRetry: {
+        maxNumRetry: 1,
+        retryDelayMs: 1000,
+        maxRetryDelayMs: 8000
+      }
+    } 
+  },
+  // These default settings are deprecated in favor of the above policies
+  // and are maintained for backwards compatibility
+  manifestLoadingTimeOut: 10000,
+  manifestLoadingMaxRetry: 1,
+  manifestLoadingRetryDelay: 1000,
+  manifestLoadingMaxRetryTimeout: 64000,
+  levelLoadingTimeOut: 10000,
+  levelLoadingMaxRetry: 4,
+  levelLoadingRetryDelay: 1000,
+  levelLoadingMaxRetryTimeout: 64000,
+  fragLoadingTimeOut: 20000,
+  fragLoadingMaxRetry: 6,
+  fragLoadingRetryDelay: 1000,
+  fragLoadingMaxRetryTimeout: 64000
+}, timelineConfig()), {}, {
+  subtitleStreamController: undefined,
+  subtitleTrackController: undefined,
+  timelineController: undefined,
+  audioStreamController: undefined,
+  audioTrackController: undefined,
+  emeController: undefined,
+  cmcdController: undefined,
+  contentSteeringController: ContentSteeringController 
+});
+function timelineConfig() {
+  return {
+    cueHandler: Cues,
+    // used by timeline-controller
+    enableWebVTT: false,
+    // used by timeline-controller
+    enableIMSC1: false,
+    // used by timeline-controller
+    enableCEA708Captions: false,
+    // used by timeline-controller
+    captionsTextTrack1Label: 'English',
+    // used by timeline-controller
+    captionsTextTrack1LanguageCode: 'en',
+    // used by timeline-controller
+    captionsTextTrack2Label: 'Spanish',
+    // used by timeline-controller
+    captionsTextTrack2LanguageCode: 'es',
+    // used by timeline-controller
+    captionsTextTrack3Label: 'Unknown CC',
+    // used by timeline-controller
+    captionsTextTrack3LanguageCode: '',
+    // used by timeline-controller
+    captionsTextTrack4Label: 'Unknown CC',
+    // used by timeline-controller
+    captionsTextTrack4LanguageCode: '',
+    // used by timeline-controller
+    renderTextTracksNatively: true
+  };
+}
+
+/**
+ * @ignore
+ */
+function mergeConfig(defaultConfig, userConfig) {
+  if ((userConfig.liveSyncDurationCount || userConfig.liveMaxLatencyDurationCount) && (userConfig.liveSyncDuration || userConfig.liveMaxLatencyDuration)) {
+    throw new Error("Illegal hls.js config: don't mix up liveSyncDurationCount/liveMaxLatencyDurationCount and liveSyncDuration/liveMaxLatencyDuration");
+  }
+  if (userConfig.liveMaxLatencyDurationCount !== undefined && (userConfig.liveSyncDurationCount === undefined || userConfig.liveMaxLatencyDurationCount <= userConfig.liveSyncDurationCount)) {
+    throw new Error('Illegal hls.js config: "liveMaxLatencyDurationCount" must be greater than "liveSyncDurationCount"');
+  }
+  if (userConfig.liveMaxLatencyDuration !== undefined && (userConfig.liveSyncDuration === undefined || userConfig.liveMaxLatencyDuration <= userConfig.liveSyncDuration)) {
+    throw new Error('Illegal hls.js config: "liveMaxLatencyDuration" must be greater than "liveSyncDuration"');
+  }
+  const defaultsCopy = deepCpy(defaultConfig);
+
+  // Backwards compatibility with deprecated config values
+  const deprecatedSettingTypes = ['manifest', 'level', 'frag'];
+  const deprecatedSettings = ['TimeOut', 'MaxRetry', 'RetryDelay', 'MaxRetryTimeout'];
+  deprecatedSettingTypes.forEach(type => {
+    const policyName = `${type === 'level' ? 'playlist' : type}LoadPolicy`;
+    const policyNotSet = userConfig[policyName] === undefined;
+    const report = [];
+    deprecatedSettings.forEach(setting => {
+      const deprecatedSetting = `${type}Loading${setting}`;
+      const value = userConfig[deprecatedSetting];
+      if (value !== undefined && policyNotSet) {
+        report.push(deprecatedSetting);
+        const settings = defaultsCopy[policyName].default;
+        userConfig[policyName] = {
+          default: settings
+        };
+        switch (setting) {
+          case 'TimeOut':
+            settings.maxLoadTimeMs = value;
+            settings.maxTimeToFirstByteMs = value;
+            break;
+          case 'MaxRetry':
+            settings.errorRetry.maxNumRetry = value;
+            settings.timeoutRetry.maxNumRetry = value;
+            break;
+          case 'RetryDelay':
+            settings.errorRetry.retryDelayMs = value;
+            settings.timeoutRetry.retryDelayMs = value;
+            break;
+          case 'MaxRetryTimeout':
+            settings.errorRetry.maxRetryDelayMs = value;
+            settings.timeoutRetry.maxRetryDelayMs = value;
+            break;
+        }
+      }
+    });
+    if (report.length) {
+      logger.warn(`hls.js config: "${report.join('", "')}" setting(s) are deprecated, use "${policyName}": ${JSON.stringify(userConfig[policyName])}`);
+    }
+  });
+  return _objectSpread2(_objectSpread2({}, defaultsCopy), userConfig);
+}
+function deepCpy(obj) {
+  if (obj && typeof obj === 'object') {
+    if (Array.isArray(obj)) {
+      return obj.map(deepCpy);
+    }
+    return Object.keys(obj).reduce((result, key) => {
+      result[key] = deepCpy(obj[key]);
+      return result;
+    }, {});
+  }
+  return obj;
+}
+
+/**
+ * @ignore
+ */
+function enableStreamingMode(config) {
+  const currentLoader = config.loader;
+  if (currentLoader !== FetchLoader && currentLoader !== XhrLoader) {
+    // If a developer has configured their own loader, respect that choice
+    logger.log('[config]: Custom loader detected, cannot enable progressive streaming');
+    config.progressive = false;
+  } else {
+    const canStreamProgressively = fetchSupported();
+    if (canStreamProgressively) {
+      config.loader = FetchLoader;
+      config.progressive = true;
+      config.enableSoftwareAES = true;
+      logger.log('[config]: Progressive streaming enabled, using FetchLoader');
+    }
+  }
+}
+
+let chromeOrFirefox;
+class LevelController extends BasePlaylistController {
+  constructor(hls, contentSteeringController) {
+    super(hls, '[level-controller]');
+    this._levels = [];
+    this._firstLevel = -1;
+    this._maxAutoLevel = -1;
+    this._startLevel = void 0;
+    this.currentLevel = null;
+    this.currentLevelIndex = -1;
+    this.manualLevelIndex = -1;
+    this.steering = void 0;
+    this.onParsedComplete = void 0;
+    this.steering = contentSteeringController;
+    this._registerListeners();
+  }
+  _registerListeners() {
+    const {
+      hls
+    } = this;
+    hls.on(Events.MANIFEST_LOADING, this.onManifestLoading, this);
+    hls.on(Events.MANIFEST_LOADED, this.onManifestLoaded, this);
+    hls.on(Events.LEVEL_LOADED, this.onLevelLoaded, this);
+    hls.on(Events.LEVELS_UPDATED, this.onLevelsUpdated, this);
+    hls.on(Events.FRAG_BUFFERED, this.onFragBuffered, this);
+    hls.on(Events.ERROR, this.onError, this);
+  }
+  _unregisterListeners() {
+    const {
+      hls
+    } = this;
+    hls.off(Events.MANIFEST_LOADING, this.onManifestLoading, this);
+    hls.off(Events.MANIFEST_LOADED, this.onManifestLoaded, this);
+    hls.off(Events.LEVEL_LOADED, this.onLevelLoaded, this);
+    hls.off(Events.LEVELS_UPDATED, this.onLevelsUpdated, this);
+    hls.off(Events.FRAG_BUFFERED, this.onFragBuffered, this);
+    hls.off(Events.ERROR, this.onError, this);
+  }
+  destroy() {
+    this._unregisterListeners();
+    this.steering = null;
+    this.resetLevels();
+    super.destroy();
+  }
+  stopLoad() {
+    const levels = this._levels;
+
+    // clean up live level details to force reload them, and reset load errors
+    levels.forEach(level => {
+      level.loadError = 0;
+      level.fragmentError = 0;
+    });
+    super.stopLoad();
+  }
+  resetLevels() {
+    this._startLevel = undefined;
+    this.manualLevelIndex = -1;
+    this.currentLevelIndex = -1;
+    this.currentLevel = null;
+    this._levels = [];
+    this._maxAutoLevel = -1;
+  }
+  onManifestLoading(event, data) {
+    this.resetLevels();
+  }
+  onManifestLoaded(event, data) {
+    const preferManagedMediaSource = this.hls.config.preferManagedMediaSource;
+    const levels = [];
+    const redundantSet = {};
+    const generatePathwaySet = {};
+    let resolutionFound = false;
+    let videoCodecFound = false;
+    let audioCodecFound = false;
+    data.levels.forEach(levelParsed => {
+      var _audioCodec, _videoCodec;
+      const attributes = levelParsed.attrs;
+
+      // erase audio codec info if browser does not support mp4a.40.34.
+      // demuxer will autodetect codec and fallback to mpeg/audio
+      let {
+        audioCodec,
+        videoCodec
+      } = levelParsed;
+      if (((_audioCodec = audioCodec) == null ? void 0 : _audioCodec.indexOf('mp4a.40.34')) !== -1) {
+        chromeOrFirefox || (chromeOrFirefox = /chrome|firefox/i.test(navigator.userAgent));
+        if (chromeOrFirefox) {
+          levelParsed.audioCodec = audioCodec = undefined;
+        }
+      }
+      if (audioCodec) {
+        levelParsed.audioCodec = audioCodec = getCodecCompatibleName(audioCodec, preferManagedMediaSource);
+      }
+      if (((_videoCodec = videoCodec) == null ? void 0 : _videoCodec.indexOf('avc1')) === 0) {
+        videoCodec = levelParsed.videoCodec = convertAVC1ToAVCOTI(videoCodec);
+      }
+
+      // only keep levels with supported audio/video codecs
+      const {
+        width,
+        height,
+        unknownCodecs
+      } = levelParsed;
+      resolutionFound || (resolutionFound = !!(width && height));
+      videoCodecFound || (videoCodecFound = !!videoCodec);
+      audioCodecFound || (audioCodecFound = !!audioCodec);
+      if (unknownCodecs != null && unknownCodecs.length || audioCodec && !areCodecsMediaSourceSupported(audioCodec, 'audio', preferManagedMediaSource) || videoCodec && !areCodecsMediaSourceSupported(videoCodec, 'video', preferManagedMediaSource)) {
+        return;
+      }
+      const {
+        CODECS,
+        'FRAME-RATE': FRAMERATE,
+        'HDCP-LEVEL': HDCP,
+        'PATHWAY-ID': PATHWAY,
+        RESOLUTION,
+        'VIDEO-RANGE': VIDEO_RANGE
+      } = attributes;
+      const contentSteeringPrefix = `${PATHWAY || '.'}-`;
+      const levelKey = `${contentSteeringPrefix}${levelParsed.bitrate}-${RESOLUTION}-${FRAMERATE}-${CODECS}-${VIDEO_RANGE}-${HDCP}`;
+      if (!redundantSet[levelKey]) {
+        const level = new Level(levelParsed);
+        redundantSet[levelKey] = level;
+        generatePathwaySet[levelKey] = 1;
+        levels.push(level);
+      } else if (redundantSet[levelKey].uri !== levelParsed.url && !levelParsed.attrs['PATHWAY-ID']) {
+        // Assign Pathway IDs to Redundant Streams (default Pathways is ".". Redundant Streams "..", "...", and so on.)
+        // Content Steering controller to handles Pathway fallback on error
+        const pathwayCount = generatePathwaySet[levelKey] += 1;
+        levelParsed.attrs['PATHWAY-ID'] = new Array(pathwayCount + 1).join('.');
+        const level = new Level(levelParsed);
+        redundantSet[levelKey] = level;
+        levels.push(level);
+      } else {
+        redundantSet[levelKey].addGroupId('audio', attributes.AUDIO);
+        redundantSet[levelKey].addGroupId('text', attributes.SUBTITLES);
+      }
+    });
+    this.filterAndSortMediaOptions(levels, data, resolutionFound, videoCodecFound, audioCodecFound);
+  }
+  filterAndSortMediaOptions(filteredLevels, data, resolutionFound, videoCodecFound, audioCodecFound) {
+    let audioTracks = [];
+    let subtitleTracks = [];
+    let levels = filteredLevels;
+
+    // remove audio-only and invalid video-range levels if we also have levels with video codecs or RESOLUTION signalled
+    if ((resolutionFound || videoCodecFound) && audioCodecFound) {
+      levels = levels.filter(({
+        videoCodec,
+        videoRange,
+        width,
+        height
+      }) => (!!videoCodec || !!(width && height)) && isVideoRange(videoRange));
+    }
+    if (levels.length === 0) {
+      // Dispatch error after MANIFEST_LOADED is done propagating
+      Promise.resolve().then(() => {
+        if (this.hls) {
+          if (data.levels.length) {
+            this.warn(`One or more CODECS in variant not supported: ${JSON.stringify(data.levels[0].attrs)}`);
+          }
+          const error = new Error('no level with compatible codecs found in manifest');
+          this.hls.trigger(Events.ERROR, {
+            type: ErrorTypes.MEDIA_ERROR,
+            details: ErrorDetails.MANIFEST_INCOMPATIBLE_CODECS_ERROR,
+            fatal: true,
+            url: data.url,
+            error,
+            reason: error.message
+          });
+        }
+      });
+      return;
+    }
+    if (data.audioTracks) {
+      const {
+        preferManagedMediaSource
+      } = this.hls.config;
+      audioTracks = data.audioTracks.filter(track => !track.audioCodec || areCodecsMediaSourceSupported(track.audioCodec, 'audio', preferManagedMediaSource));
+      // Assign ids after filtering as array indices by group-id
+      assignTrackIdsByGroup(audioTracks);
+    }
+    if (data.subtitles) {
+      subtitleTracks = data.subtitles;
+      assignTrackIdsByGroup(subtitleTracks);
+    }
+    // start bitrate is the first bitrate of the manifest
+    const unsortedLevels = levels.slice(0);
+    // sort levels from lowest to highest
+    levels.sort((a, b) => {
+      if (a.attrs['HDCP-LEVEL'] !== b.attrs['HDCP-LEVEL']) {
+        return (a.attrs['HDCP-LEVEL'] || '') > (b.attrs['HDCP-LEVEL'] || '') ? 1 : -1;
+      }
+      // sort on height before bitrate for cap-level-controller
+      if (resolutionFound && a.height !== b.height) {
+        return a.height - b.height;
+      }
+      if (a.frameRate !== b.frameRate) {
+        return a.frameRate - b.frameRate;
+      }
+      if (a.videoRange !== b.videoRange) {
+        return VideoRangeValues.indexOf(a.videoRange) - VideoRangeValues.indexOf(b.videoRange);
+      }
+      if (a.videoCodec !== b.videoCodec) {
+        const valueA = videoCodecPreferenceValue(a.videoCodec);
+        const valueB = videoCodecPreferenceValue(b.videoCodec);
+        if (valueA !== valueB) {
+          return valueB - valueA;
+        }
+      }
+      if (a.uri === b.uri && a.codecSet !== b.codecSet) {
+        const valueA = codecsSetSelectionPreferenceValue(a.codecSet);
+        const valueB = codecsSetSelectionPreferenceValue(b.codecSet);
+        if (valueA !== valueB) {
+          return valueB - valueA;
+        }
+      }
+      if (a.averageBitrate !== b.averageBitrate) {
+        return a.averageBitrate - b.averageBitrate;
+      }
+      return 0;
+    });
+    let firstLevelInPlaylist = unsortedLevels[0];
+    if (this.steering) {
+      levels = this.steering.filterParsedLevels(levels);
+      if (levels.length !== unsortedLevels.length) {
+        for (let i = 0; i < unsortedLevels.length; i++) {
+          if (unsortedLevels[i].pathwayId === levels[0].pathwayId) {
+            firstLevelInPlaylist = unsortedLevels[i];
+            break;
+          }
+        }
+      }
+    }
+    this._levels = levels;
+
+    // find index of first level in sorted levels
+    for (let i = 0; i < levels.length; i++) {
+      if (levels[i] === firstLevelInPlaylist) {
+        var _this$hls$userConfig;
+        this._firstLevel = i;
+        const firstLevelBitrate = firstLevelInPlaylist.bitrate;
+        const bandwidthEstimate = this.hls.bandwidthEstimate;
+        this.log(`manifest loaded, ${levels.length} level(s) found, first bitrate: ${firstLevelBitrate}`);
+        // Update default bwe to first variant bitrate as long it has not been configured or set
+        if (((_this$hls$userConfig = this.hls.userConfig) == null ? void 0 : _this$hls$userConfig.abrEwmaDefaultEstimate) === undefined) {
+          const startingBwEstimate = Math.min(firstLevelBitrate, this.hls.config.abrEwmaDefaultEstimateMax);
+          if (startingBwEstimate > bandwidthEstimate && bandwidthEstimate === hlsDefaultConfig.abrEwmaDefaultEstimate) {
+            this.hls.bandwidthEstimate = startingBwEstimate;
+          }
+        }
+        break;
+      }
+    }
+
+    // Audio is only alternate if manifest include a URI along with the audio group tag,
+    // and this is not an audio-only stream where levels contain audio-only
+    const audioOnly = audioCodecFound && !videoCodecFound;
+    const edata = {
+      levels,
+      audioTracks,
+      subtitleTracks,
+      sessionData: data.sessionData,
+      sessionKeys: data.sessionKeys,
+      firstLevel: this._firstLevel,
+      stats: data.stats,
+      audio: audioCodecFound,
+      video: videoCodecFound,
+      altAudio: !audioOnly && audioTracks.some(t => !!t.url)
+    };
+    this.hls.trigger(Events.MANIFEST_PARSED, edata);
+
+    // Initiate loading after all controllers have received MANIFEST_PARSED
+    if (this.hls.config.autoStartLoad || this.hls.forceStartLoad) {
+      this.hls.startLoad(this.hls.config.startPosition);
+    }
+  }
+  get levels() {
+    if (this._levels.length === 0) {
+      return null;
+    }
+    return this._levels;
+  }
+  get level() {
+    return this.currentLevelIndex;
+  }
+  set level(newLevel) {
+    const levels = this._levels;
+    if (levels.length === 0) {
+      return;
+    }
+    // check if level idx is valid
+    if (newLevel < 0 || newLevel >= levels.length) {
+      // invalid level id given, trigger error
+      const error = new Error('invalid level idx');
+      const fatal = newLevel < 0;
+      this.hls.trigger(Events.ERROR, {
+        type: ErrorTypes.OTHER_ERROR,
+        details: ErrorDetails.LEVEL_SWITCH_ERROR,
+        level: newLevel,
+        fatal,
+        error,
+        reason: error.message
+      });
+      if (fatal) {
+        return;
+      }
+      newLevel = Math.min(newLevel, levels.length - 1);
+    }
+    const lastLevelIndex = this.currentLevelIndex;
+    const lastLevel = this.currentLevel;
+    const lastPathwayId = lastLevel ? lastLevel.attrs['PATHWAY-ID'] : undefined;
+    const level = levels[newLevel];
+    const pathwayId = level.attrs['PATHWAY-ID'];
+    this.currentLevelIndex = newLevel;
+    this.currentLevel = level;
+    if (lastLevelIndex === newLevel && level.details && lastLevel && lastPathwayId === pathwayId) {
+      return;
+    }
+    this.log(`Switching to level ${newLevel} (${level.height ? level.height + 'p ' : ''}${level.videoRange ? level.videoRange + ' ' : ''}${level.codecSet ? level.codecSet + ' ' : ''}@${level.bitrate})${pathwayId ? ' with Pathway ' + pathwayId : ''} from level ${lastLevelIndex}${lastPathwayId ? ' with Pathway ' + lastPathwayId : ''}`);
+    const levelSwitchingData = {
+      level: newLevel,
+      attrs: level.attrs,
+      details: level.details,
+      bitrate: level.bitrate,
+      averageBitrate: level.averageBitrate,
+      maxBitrate: level.maxBitrate,
+      realBitrate: level.realBitrate,
+      width: level.width,
+      height: level.height,
+      codecSet: level.codecSet,
+      audioCodec: level.audioCodec,
+      videoCodec: level.videoCodec,
+      audioGroups: level.audioGroups,
+      subtitleGroups: level.subtitleGroups,
+      loaded: level.loaded,
+      loadError: level.loadError,
+      fragmentError: level.fragmentError,
+      name: level.name,
+      id: level.id,
+      uri: level.uri,
+      url: level.url,
+      urlId: 0,
+      audioGroupIds: level.audioGroupIds,
+      textGroupIds: level.textGroupIds
+    };
+    this.hls.trigger(Events.LEVEL_SWITCHING, levelSwitchingData);
+    // check if we need to load playlist for this level
+    const levelDetails = level.details;
+    if (!levelDetails || levelDetails.live) {
+      // level not retrieved yet, or live playlist we need to (re)load it
+      const hlsUrlParameters = this.switchParams(level.uri, lastLevel == null ? void 0 : lastLevel.details, levelDetails);
+      this.loadPlaylist(hlsUrlParameters);
+    }
+  }
+  get manualLevel() {
+    return this.manualLevelIndex;
+  }
+  set manualLevel(newLevel) {
+    this.manualLevelIndex = newLevel;
+    if (this._startLevel === undefined) {
+      this._startLevel = newLevel;
+    }
+    if (newLevel !== -1) {
+      this.level = newLevel;
+    }
+  }
+  get firstLevel() {
+    return this._firstLevel;
+  }
+  set firstLevel(newLevel) {
+    this._firstLevel = newLevel;
+  }
+  get startLevel() {
+    // Setting hls.startLevel (this._startLevel) overrides config.startLevel
+    if (this._startLevel === undefined) {
+      const configStartLevel = this.hls.config.startLevel;
+      if (configStartLevel !== undefined) {
+        return configStartLevel;
+      }
+      return this.hls.firstAutoLevel;
+    }
+    return this._startLevel;
+  }
+  set startLevel(newLevel) {
+    this._startLevel = newLevel;
+  }
+  onError(event, data) {
+    if (data.fatal || !data.context) {
+      return;
+    }
+    if (data.context.type === PlaylistContextType.LEVEL && data.context.level === this.level) {
+      this.checkRetry(data);
+    }
+  }
+
+  // reset errors on the successful load of a fragment
+  onFragBuffered(event, {
+    frag
+  }) {
+    if (frag !== undefined && frag.type === PlaylistLevelType.MAIN) {
+      const el = frag.elementaryStreams;
+      if (!Object.keys(el).some(type => !!el[type])) {
+        return;
+      }
+      const level = this._levels[frag.level];
+      if (level != null && level.loadError) {
+        this.log(`Resetting level error count of ${level.loadError} on frag buffered`);
+        level.loadError = 0;
+      }
+    }
+  }
+  onLevelLoaded(event, data) {
+    var _data$deliveryDirecti2;
+    const {
+      level,
+      details
+    } = data;
+    const curLevel = this._levels[level];
+    if (!curLevel) {
+      var _data$deliveryDirecti;
+      this.warn(`Invalid level index ${level}`);
+      if ((_data$deliveryDirecti = data.deliveryDirectives) != null && _data$deliveryDirecti.skip) {
+        details.deltaUpdateFailed = true;
+      }
+      return;
+    }
+
+    // only process level loaded events matching with expected level
+    if (level === this.currentLevelIndex) {
+      // reset level load error counter on successful level loaded only if there is no issues with fragments
+      if (curLevel.fragmentError === 0) {
+        curLevel.loadError = 0;
+      }
+      this.playlistLoaded(level, data, curLevel.details);
+    } else if ((_data$deliveryDirecti2 = data.deliveryDirectives) != null && _data$deliveryDirecti2.skip) {
+      // received a delta playlist update that cannot be merged
+      details.deltaUpdateFailed = true;
+    }
+  }
+  loadPlaylist(hlsUrlParameters) {
+    super.loadPlaylist();
+    const currentLevelIndex = this.currentLevelIndex;
+    const currentLevel = this.currentLevel;
+    if (currentLevel && this.shouldLoadPlaylist(currentLevel)) {
+      let url = currentLevel.uri;
+      if (hlsUrlParameters) {
+        try {
+          url = hlsUrlParameters.addDirectives(url);
+        } catch (error) {
+          this.warn(`Could not construct new URL with HLS Delivery Directives: ${error}`);
+        }
+      }
+      const pathwayId = currentLevel.attrs['PATHWAY-ID'];
+      this.log(`Loading level index ${currentLevelIndex}${(hlsUrlParameters == null ? void 0 : hlsUrlParameters.msn) !== undefined ? ' at sn ' + hlsUrlParameters.msn + ' part ' + hlsUrlParameters.part : ''} with${pathwayId ? ' Pathway ' + pathwayId : ''} ${url}`);
+
+      // console.log('Current audio track group ID:', this.hls.audioTracks[this.hls.audioTrack].groupId);
+      // console.log('New video quality level audio group id:', levelObject.attrs.AUDIO, level);
+      this.clearTimer();
+      this.hls.trigger(Events.LEVEL_LOADING, {
+        url,
+        level: currentLevelIndex,
+        pathwayId: currentLevel.attrs['PATHWAY-ID'],
+        id: 0,
+        // Deprecated Level urlId
+        deliveryDirectives: hlsUrlParameters || null
+      });
+    }
+  }
+  get nextLoadLevel() {
+    if (this.manualLevelIndex !== -1) {
+      return this.manualLevelIndex;
+    } else {
+      return this.hls.nextAutoLevel;
+    }
+  }
+  set nextLoadLevel(nextLevel) {
+    this.level = nextLevel;
+    if (this.manualLevelIndex === -1) {
+      this.hls.nextAutoLevel = nextLevel;
+    }
+  }
+  removeLevel(levelIndex) {
+    var _this$currentLevel;
+    const levels = this._levels.filter((level, index) => {
+      if (index !== levelIndex) {
+        return true;
+      }
+      if (this.steering) {
+        this.steering.removeLevel(level);
+      }
+      if (level === this.currentLevel) {
+        this.currentLevel = null;
+        this.currentLevelIndex = -1;
+        if (level.details) {
+          level.details.fragments.forEach(f => f.level = -1);
+        }
+      }
+      return false;
+    });
+    reassignFragmentLevelIndexes(levels);
+    this._levels = levels;
+    if (this.currentLevelIndex > -1 && (_this$currentLevel = this.currentLevel) != null && _this$currentLevel.details) {
+      this.currentLevelIndex = this.currentLevel.details.fragments[0].level;
+    }
+    this.hls.trigger(Events.LEVELS_UPDATED, {
+      levels
+    });
+  }
+  onLevelsUpdated(event, {
+    levels
+  }) {
+    this._levels = levels;
+  }
+  checkMaxAutoUpdated() {
+    const {
+      autoLevelCapping,
+      maxAutoLevel,
+      maxHdcpLevel
+    } = this.hls;
+    if (this._maxAutoLevel !== maxAutoLevel) {
+      this._maxAutoLevel = maxAutoLevel;
+      this.hls.trigger(Events.MAX_AUTO_LEVEL_UPDATED, {
+        autoLevelCapping,
+        levels: this.levels,
+        maxAutoLevel,
+        minAutoLevel: this.hls.minAutoLevel,
+        maxHdcpLevel
+      });
+    }
+  }
+}
+function assignTrackIdsByGroup(tracks) {
+  const groups = {};
+  tracks.forEach(track => {
+    const groupId = track.groupId || '';
+    track.id = groups[groupId] = groups[groupId] || 0;
+    groups[groupId]++;
+  });
 }
 
 var FragmentState = {
@@ -8048,327 +10560,6 @@ function getFragmentKey(fragment) {
   return `${fragment.type}_${fragment.level}_${fragment.sn}`;
 }
 
-/**
- * Provides methods dealing with buffer length retrieval for example.
- *
- * In general, a helper around HTML5 MediaElement TimeRanges gathered from `buffered` property.
- *
- * Also @see https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/buffered
- */
-
-const noopBuffered = {
-  length: 0,
-  start: () => 0,
-  end: () => 0
-};
-class BufferHelper {
-  /**
-   * Return true if `media`'s buffered include `position`
-   */
-  static isBuffered(media, position) {
-    try {
-      if (media) {
-        const buffered = BufferHelper.getBuffered(media);
-        for (let i = 0; i < buffered.length; i++) {
-          if (position >= buffered.start(i) && position <= buffered.end(i)) {
-            return true;
-          }
-        }
-      }
-    } catch (error) {
-      // this is to catch
-      // InvalidStateError: Failed to read the 'buffered' property from 'SourceBuffer':
-      // This SourceBuffer has been removed from the parent media source
-    }
-    return false;
-  }
-  static bufferInfo(media, pos, maxHoleDuration) {
-    try {
-      if (media) {
-        const vbuffered = BufferHelper.getBuffered(media);
-        const buffered = [];
-        let i;
-        for (i = 0; i < vbuffered.length; i++) {
-          buffered.push({
-            start: vbuffered.start(i),
-            end: vbuffered.end(i)
-          });
-        }
-        return this.bufferedInfo(buffered, pos, maxHoleDuration);
-      }
-    } catch (error) {
-      // this is to catch
-      // InvalidStateError: Failed to read the 'buffered' property from 'SourceBuffer':
-      // This SourceBuffer has been removed from the parent media source
-    }
-    return {
-      len: 0,
-      start: pos,
-      end: pos,
-      nextStart: undefined
-    };
-  }
-  static bufferedInfo(buffered, pos, maxHoleDuration) {
-    pos = Math.max(0, pos);
-    // sort on buffer.start/smaller end (IE does not always return sorted buffered range)
-    buffered.sort(function (a, b) {
-      const diff = a.start - b.start;
-      if (diff) {
-        return diff;
-      } else {
-        return b.end - a.end;
-      }
-    });
-    let buffered2 = [];
-    if (maxHoleDuration) {
-      // there might be some small holes between buffer time range
-      // consider that holes smaller than maxHoleDuration are irrelevant and build another
-      // buffer time range representations that discards those holes
-      for (let i = 0; i < buffered.length; i++) {
-        const buf2len = buffered2.length;
-        if (buf2len) {
-          const buf2end = buffered2[buf2len - 1].end;
-          // if small hole (value between 0 or maxHoleDuration ) or overlapping (negative)
-          if (buffered[i].start - buf2end < maxHoleDuration) {
-            // merge overlapping time ranges
-            // update lastRange.end only if smaller than item.end
-            // e.g.  [ 1, 15] with  [ 2,8] => [ 1,15] (no need to modify lastRange.end)
-            // whereas [ 1, 8] with  [ 2,15] => [ 1,15] ( lastRange should switch from [1,8] to [1,15])
-            if (buffered[i].end > buf2end) {
-              buffered2[buf2len - 1].end = buffered[i].end;
-            }
-          } else {
-            // big hole
-            buffered2.push(buffered[i]);
-          }
-        } else {
-          // first value
-          buffered2.push(buffered[i]);
-        }
-      }
-    } else {
-      buffered2 = buffered;
-    }
-    let bufferLen = 0;
-
-    // bufferStartNext can possibly be undefined based on the conditional logic below
-    let bufferStartNext;
-
-    // bufferStart and bufferEnd are buffer boundaries around current video position
-    let bufferStart = pos;
-    let bufferEnd = pos;
-    for (let i = 0; i < buffered2.length; i++) {
-      const start = buffered2[i].start;
-      const end = buffered2[i].end;
-      // logger.log('buf start/end:' + buffered.start(i) + '/' + buffered.end(i));
-      if (pos + maxHoleDuration >= start && pos < end) {
-        // play position is inside this buffer TimeRange, retrieve end of buffer position and buffer length
-        bufferStart = start;
-        bufferEnd = end;
-        bufferLen = bufferEnd - pos;
-      } else if (pos + maxHoleDuration < start) {
-        bufferStartNext = start;
-        break;
-      }
-    }
-    return {
-      len: bufferLen,
-      start: bufferStart || 0,
-      end: bufferEnd || 0,
-      nextStart: bufferStartNext
-    };
-  }
-
-  /**
-   * Safe method to get buffered property.
-   * SourceBuffer.buffered may throw if SourceBuffer is removed from it's MediaSource
-   */
-  static getBuffered(media) {
-    try {
-      return media.buffered;
-    } catch (e) {
-      logger.log('failed to get media.buffered', e);
-      return noopBuffered;
-    }
-  }
-}
-
-class ChunkMetadata {
-  constructor(level, sn, id, size = 0, part = -1, partial = false) {
-    this.level = void 0;
-    this.sn = void 0;
-    this.part = void 0;
-    this.id = void 0;
-    this.size = void 0;
-    this.partial = void 0;
-    this.transmuxing = getNewPerformanceTiming();
-    this.buffering = {
-      audio: getNewPerformanceTiming(),
-      video: getNewPerformanceTiming(),
-      audiovideo: getNewPerformanceTiming()
-    };
-    this.level = level;
-    this.sn = sn;
-    this.id = id;
-    this.size = size;
-    this.part = part;
-    this.partial = partial;
-  }
-}
-function getNewPerformanceTiming() {
-  return {
-    start: 0,
-    executeStart: 0,
-    executeEnd: 0,
-    end: 0
-  };
-}
-
-function findFirstFragWithCC(fragments, cc) {
-  for (let i = 0, len = fragments.length; i < len; i++) {
-    var _fragments$i;
-    if (((_fragments$i = fragments[i]) == null ? void 0 : _fragments$i.cc) === cc) {
-      return fragments[i];
-    }
-  }
-  return null;
-}
-function shouldAlignOnDiscontinuities(lastFrag, switchDetails, details) {
-  if (switchDetails) {
-    if (details.endCC > details.startCC || lastFrag && lastFrag.cc < details.startCC) {
-      return true;
-    }
-  }
-  return false;
-}
-
-// Find the first frag in the previous level which matches the CC of the first frag of the new level
-function findDiscontinuousReferenceFrag(prevDetails, curDetails) {
-  const prevFrags = prevDetails.fragments;
-  const curFrags = curDetails.fragments;
-  if (!curFrags.length || !prevFrags.length) {
-    logger.log('No fragments to align');
-    return;
-  }
-  const prevStartFrag = findFirstFragWithCC(prevFrags, curFrags[0].cc);
-  if (!prevStartFrag || prevStartFrag && !prevStartFrag.startPTS) {
-    logger.log('No frag in previous level to align on');
-    return;
-  }
-  return prevStartFrag;
-}
-function adjustFragmentStart(frag, sliding) {
-  if (frag) {
-    const start = frag.start + sliding;
-    frag.start = frag.startPTS = start;
-    frag.endPTS = start + frag.duration;
-  }
-}
-function adjustSlidingStart(sliding, details) {
-  // Update segments
-  const fragments = details.fragments;
-  for (let i = 0, len = fragments.length; i < len; i++) {
-    adjustFragmentStart(fragments[i], sliding);
-  }
-  // Update LL-HLS parts at the end of the playlist
-  if (details.fragmentHint) {
-    adjustFragmentStart(details.fragmentHint, sliding);
-  }
-  details.alignedSliding = true;
-}
-
-/**
- * Using the parameters of the last level, this function computes PTS' of the new fragments so that they form a
- * contiguous stream with the last fragments.
- * The PTS of a fragment lets Hls.js know where it fits into a stream - by knowing every PTS, we know which fragment to
- * download at any given time. PTS is normally computed when the fragment is demuxed, so taking this step saves us time
- * and an extra download.
- * @param lastFrag
- * @param lastLevel
- * @param details
- */
-function alignStream(lastFrag, switchDetails, details) {
-  if (!switchDetails) {
-    return;
-  }
-  alignDiscontinuities(lastFrag, details, switchDetails);
-  if (!details.alignedSliding && switchDetails) {
-    // If the PTS wasn't figured out via discontinuity sequence that means there was no CC increase within the level.
-    // Aligning via Program Date Time should therefore be reliable, since PDT should be the same within the same
-    // discontinuity sequence.
-    alignMediaPlaylistByPDT(details, switchDetails);
-  }
-  if (!details.alignedSliding && switchDetails && !details.skippedSegments) {
-    // Try to align on sn so that we pick a better start fragment.
-    // Do not perform this on playlists with delta updates as this is only to align levels on switch
-    // and adjustSliding only adjusts fragments after skippedSegments.
-    adjustSliding(switchDetails, details);
-  }
-}
-
-/**
- * Computes the PTS if a new level's fragments using the PTS of a fragment in the last level which shares the same
- * discontinuity sequence.
- * @param lastFrag - The last Fragment which shares the same discontinuity sequence
- * @param lastLevel - The details of the last loaded level
- * @param details - The details of the new level
- */
-function alignDiscontinuities(lastFrag, details, switchDetails) {
-  if (shouldAlignOnDiscontinuities(lastFrag, switchDetails, details)) {
-    const referenceFrag = findDiscontinuousReferenceFrag(switchDetails, details);
-    if (referenceFrag && isFiniteNumber(referenceFrag.start)) {
-      logger.log(`Adjusting PTS using last level due to CC increase within current level ${details.url}`);
-      adjustSlidingStart(referenceFrag.start, details);
-    }
-  }
-}
-
-/**
- * Ensures appropriate time-alignment between renditions based on PDT.
- * This function assumes the timelines represented in `refDetails` are accurate, including the PDTs
- * for the last discontinuity sequence number shared by both playlists when present,
- * and uses the "wallclock"/PDT timeline as a cross-reference to `details`, adjusting the presentation
- * times/timelines of `details` accordingly.
- * Given the asynchronous nature of fetches and initial loads of live `main` and audio/subtitle tracks,
- * the primary purpose of this function is to ensure the "local timelines" of audio/subtitle tracks
- * are aligned to the main/video timeline, using PDT as the cross-reference/"anchor" that should
- * be consistent across playlists, per the HLS spec.
- * @param details - The details of the rendition you'd like to time-align (e.g. an audio rendition).
- * @param refDetails - The details of the reference rendition with start and PDT times for alignment.
- */
-function alignMediaPlaylistByPDT(details, refDetails) {
-  if (!details.hasProgramDateTime || !refDetails.hasProgramDateTime) {
-    return;
-  }
-  const fragments = details.fragments;
-  const refFragments = refDetails.fragments;
-  if (!fragments.length || !refFragments.length) {
-    return;
-  }
-
-  // Calculate a delta to apply to all fragments according to the delta in PDT times and start times
-  // of a fragment in the reference details, and a fragment in the target details of the same discontinuity.
-  // If a fragment of the same discontinuity was not found use the middle fragment of both.
-  let refFrag;
-  let frag;
-  const targetCC = Math.min(refDetails.endCC, details.endCC);
-  if (refDetails.startCC < targetCC && details.startCC < targetCC) {
-    refFrag = findFirstFragWithCC(refFragments, targetCC);
-    frag = findFirstFragWithCC(fragments, targetCC);
-  }
-  if (!refFrag || !frag) {
-    refFrag = refFragments[Math.floor(refFragments.length / 2)];
-    frag = findFirstFragWithCC(fragments, refFrag.cc) || fragments[Math.floor(fragments.length / 2)];
-  }
-  const refPDT = refFrag.programDateTime;
-  const targetPDT = frag.programDateTime;
-  if (!refPDT || !targetPDT) {
-    return;
-  }
-  const delta = (targetPDT - refPDT) / 1000 - (frag.start - refFrag.start);
-  adjustSlidingStart(delta, details);
-}
-
 const MIN_CHUNK_SIZE = Math.pow(2, 17); // 128kb
 
 class FragmentLoader {
@@ -8678,6 +10869,546 @@ class LoadError extends Error {
     this.data = void 0;
     this.data = data;
   }
+}
+
+class KeyLoader {
+  constructor(config) {
+    this.config = void 0;
+    this.keyUriToKeyInfo = {};
+    this.emeController = null;
+    this.config = config;
+  }
+  abort(type) {
+    for (const uri in this.keyUriToKeyInfo) {
+      const loader = this.keyUriToKeyInfo[uri].loader;
+      if (loader) {
+        var _loader$context;
+        if (type && type !== ((_loader$context = loader.context) == null ? void 0 : _loader$context.frag.type)) {
+          return;
+        }
+        loader.abort();
+      }
+    }
+  }
+  detach() {
+    for (const uri in this.keyUriToKeyInfo) {
+      const keyInfo = this.keyUriToKeyInfo[uri];
+      // Remove cached EME keys on detach
+      if (keyInfo.mediaKeySessionContext || keyInfo.decryptdata.isCommonEncryption) {
+        delete this.keyUriToKeyInfo[uri];
+      }
+    }
+  }
+  destroy() {
+    this.detach();
+    for (const uri in this.keyUriToKeyInfo) {
+      const loader = this.keyUriToKeyInfo[uri].loader;
+      if (loader) {
+        loader.destroy();
+      }
+    }
+    this.keyUriToKeyInfo = {};
+  }
+  createKeyLoadError(frag, details = ErrorDetails.KEY_LOAD_ERROR, error, networkDetails, response) {
+    return new LoadError({
+      type: ErrorTypes.NETWORK_ERROR,
+      details,
+      fatal: false,
+      frag,
+      response,
+      error,
+      networkDetails
+    });
+  }
+  loadClear(loadingFrag, encryptedFragments) {
+    if (this.emeController && this.config.emeEnabled) {
+      // access key-system with nearest key on start (loaidng frag is unencrypted)
+      const {
+        sn,
+        cc
+      } = loadingFrag;
+      for (let i = 0; i < encryptedFragments.length; i++) {
+        const frag = encryptedFragments[i];
+        if (cc <= frag.cc && (sn === 'initSegment' || frag.sn === 'initSegment' || sn < frag.sn)) {
+          this.emeController.selectKeySystemFormat(frag).then(keySystemFormat => {
+            frag.setKeyFormat(keySystemFormat);
+          });
+          break;
+        }
+      }
+    }
+  }
+  load(frag) {
+    if (!frag.decryptdata && frag.encrypted && this.emeController && this.config.emeEnabled) {
+      // Multiple keys, but none selected, resolve in eme-controller
+      return this.emeController.selectKeySystemFormat(frag).then(keySystemFormat => {
+        return this.loadInternal(frag, keySystemFormat);
+      });
+    }
+    return this.loadInternal(frag);
+  }
+  loadInternal(frag, keySystemFormat) {
+    var _keyInfo, _keyInfo2;
+    if (keySystemFormat) {
+      frag.setKeyFormat(keySystemFormat);
+    }
+    const decryptdata = frag.decryptdata;
+    if (!decryptdata) {
+      const error = new Error(keySystemFormat ? `Expected frag.decryptdata to be defined after setting format ${keySystemFormat}` : 'Missing decryption data on fragment in onKeyLoading');
+      return Promise.reject(this.createKeyLoadError(frag, ErrorDetails.KEY_LOAD_ERROR, error));
+    }
+    const uri = decryptdata.uri;
+    if (!uri) {
+      return Promise.reject(this.createKeyLoadError(frag, ErrorDetails.KEY_LOAD_ERROR, new Error(`Invalid key URI: "${uri}"`)));
+    }
+    let keyInfo = this.keyUriToKeyInfo[uri];
+    if ((_keyInfo = keyInfo) != null && _keyInfo.decryptdata.key) {
+      decryptdata.key = keyInfo.decryptdata.key;
+      return Promise.resolve({
+        frag,
+        keyInfo
+      });
+    }
+    // Return key load promise as long as it does not have a mediakey session with an unusable key status
+    if ((_keyInfo2 = keyInfo) != null && _keyInfo2.keyLoadPromise) {
+      var _keyInfo$mediaKeySess;
+      switch ((_keyInfo$mediaKeySess = keyInfo.mediaKeySessionContext) == null ? void 0 : _keyInfo$mediaKeySess.keyStatus) {
+        case undefined:
+        case 'status-pending':
+        case 'usable':
+        case 'usable-in-future':
+          return keyInfo.keyLoadPromise.then(keyLoadedData => {
+            // Return the correct fragment with updated decryptdata key and loaded keyInfo
+            decryptdata.key = keyLoadedData.keyInfo.decryptdata.key;
+            return {
+              frag,
+              keyInfo
+            };
+          });
+      }
+      // If we have a key session and status and it is not pending or usable, continue
+      // This will go back to the eme-controller for expired keys to get a new keyLoadPromise
+    }
+
+    // Load the key or return the loading promise
+    keyInfo = this.keyUriToKeyInfo[uri] = {
+      decryptdata,
+      keyLoadPromise: null,
+      loader: null,
+      mediaKeySessionContext: null
+    };
+    switch (decryptdata.method) {
+      case 'ISO-23001-7':
+      case 'SAMPLE-AES':
+      case 'SAMPLE-AES-CENC':
+      case 'SAMPLE-AES-CTR':
+        if (decryptdata.keyFormat === 'identity') {
+          // loadKeyHTTP handles http(s) and data URLs
+          return this.loadKeyHTTP(keyInfo, frag);
+        }
+        return this.loadKeyEME(keyInfo, frag);
+      case 'AES-128':
+        return this.loadKeyHTTP(keyInfo, frag);
+      default:
+        return Promise.reject(this.createKeyLoadError(frag, ErrorDetails.KEY_LOAD_ERROR, new Error(`Key supplied with unsupported METHOD: "${decryptdata.method}"`)));
+    }
+  }
+  loadKeyEME(keyInfo, frag) {
+    const keyLoadedData = {
+      frag,
+      keyInfo
+    };
+    if (this.emeController && this.config.emeEnabled) {
+      const keySessionContextPromise = this.emeController.loadKey(keyLoadedData);
+      if (keySessionContextPromise) {
+        return (keyInfo.keyLoadPromise = keySessionContextPromise.then(keySessionContext => {
+          keyInfo.mediaKeySessionContext = keySessionContext;
+          return keyLoadedData;
+        })).catch(error => {
+          // Remove promise for license renewal or retry
+          keyInfo.keyLoadPromise = null;
+          throw error;
+        });
+      }
+    }
+    return Promise.resolve(keyLoadedData);
+  }
+  loadKeyHTTP(keyInfo, frag) {
+    const config = this.config;
+    const Loader = config.loader;
+    const keyLoader = new Loader(config);
+    frag.keyLoader = keyInfo.loader = keyLoader;
+    return keyInfo.keyLoadPromise = new Promise((resolve, reject) => {
+      const loaderContext = {
+        keyInfo,
+        frag,
+        responseType: 'arraybuffer',
+        url: keyInfo.decryptdata.uri
+      };
+
+      // maxRetry is 0 so that instead of retrying the same key on the same variant multiple times,
+      // key-loader will trigger an error and rely on stream-controller to handle retry logic.
+      // this will also align retry logic with fragment-loader
+      const loadPolicy = config.keyLoadPolicy.default;
+      const loaderConfig = {
+        loadPolicy,
+        timeout: loadPolicy.maxLoadTimeMs,
+        maxRetry: 0,
+        retryDelay: 0,
+        maxRetryDelay: 0
+      };
+      const loaderCallbacks = {
+        onSuccess: (response, stats, context, networkDetails) => {
+          const {
+            frag,
+            keyInfo,
+            url: uri
+          } = context;
+          if (!frag.decryptdata || keyInfo !== this.keyUriToKeyInfo[uri]) {
+            return reject(this.createKeyLoadError(frag, ErrorDetails.KEY_LOAD_ERROR, new Error('after key load, decryptdata unset or changed'), networkDetails));
+          }
+          keyInfo.decryptdata.key = frag.decryptdata.key = new Uint8Array(response.data);
+
+          // detach fragment key loader on load success
+          frag.keyLoader = null;
+          keyInfo.loader = null;
+          resolve({
+            frag,
+            keyInfo
+          });
+        },
+        onError: (response, context, networkDetails, stats) => {
+          this.resetLoader(context);
+          reject(this.createKeyLoadError(frag, ErrorDetails.KEY_LOAD_ERROR, new Error(`HTTP Error ${response.code} loading key ${response.text}`), networkDetails, _objectSpread2({
+            url: loaderContext.url,
+            data: undefined
+          }, response)));
+        },
+        onTimeout: (stats, context, networkDetails) => {
+          this.resetLoader(context);
+          reject(this.createKeyLoadError(frag, ErrorDetails.KEY_LOAD_TIMEOUT, new Error('key loading timed out'), networkDetails));
+        },
+        onAbort: (stats, context, networkDetails) => {
+          this.resetLoader(context);
+          reject(this.createKeyLoadError(frag, ErrorDetails.INTERNAL_ABORTED, new Error('key loading aborted'), networkDetails));
+        }
+      };
+      keyLoader.load(loaderContext, loaderConfig, loaderCallbacks);
+    });
+  }
+  resetLoader(context) {
+    const {
+      frag,
+      keyInfo,
+      url: uri
+    } = context;
+    const loader = keyInfo.loader;
+    if (frag.keyLoader === loader) {
+      frag.keyLoader = null;
+      keyInfo.loader = null;
+    }
+    delete this.keyUriToKeyInfo[uri];
+    if (loader) {
+      loader.destroy();
+    }
+  }
+}
+
+/**
+ * @ignore
+ * Sub-class specialization of EventHandler base class.
+ *
+ * TaskLoop allows to schedule a task function being called (optionnaly repeatedly) on the main loop,
+ * scheduled asynchroneously, avoiding recursive calls in the same tick.
+ *
+ * The task itself is implemented in `doTick`. It can be requested and called for single execution
+ * using the `tick` method.
+ *
+ * It will be assured that the task execution method (`tick`) only gets called once per main loop "tick",
+ * no matter how often it gets requested for execution. Execution in further ticks will be scheduled accordingly.
+ *
+ * If further execution requests have already been scheduled on the next tick, it can be checked with `hasNextTick`,
+ * and cancelled with `clearNextTick`.
+ *
+ * The task can be scheduled as an interval repeatedly with a period as parameter (see `setInterval`, `clearInterval`).
+ *
+ * Sub-classes need to implement the `doTick` method which will effectively have the task execution routine.
+ *
+ * Further explanations:
+ *
+ * The baseclass has a `tick` method that will schedule the doTick call. It may be called synchroneously
+ * only for a stack-depth of one. On re-entrant calls, sub-sequent calls are scheduled for next main loop ticks.
+ *
+ * When the task execution (`tick` method) is called in re-entrant way this is detected and
+ * we are limiting the task execution per call stack to exactly one, but scheduling/post-poning further
+ * task processing on the next main loop iteration (also known as "next tick" in the Node/JS runtime lingo).
+ */
+class TaskLoop {
+  constructor() {
+    this._boundTick = void 0;
+    this._tickTimer = null;
+    this._tickInterval = null;
+    this._tickCallCount = 0;
+    this._boundTick = this.tick.bind(this);
+  }
+  destroy() {
+    this.onHandlerDestroying();
+    this.onHandlerDestroyed();
+  }
+  onHandlerDestroying() {
+    // clear all timers before unregistering from event bus
+    this.clearNextTick();
+    this.clearInterval();
+  }
+  onHandlerDestroyed() {}
+  hasInterval() {
+    return !!this._tickInterval;
+  }
+  hasNextTick() {
+    return !!this._tickTimer;
+  }
+
+  /**
+   * @param millis - Interval time (ms)
+   * @eturns True when interval has been scheduled, false when already scheduled (no effect)
+   */
+  setInterval(millis) {
+    if (!this._tickInterval) {
+      this._tickCallCount = 0;
+      this._tickInterval = self.setInterval(this._boundTick, millis);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * @returns True when interval was cleared, false when none was set (no effect)
+   */
+  clearInterval() {
+    if (this._tickInterval) {
+      self.clearInterval(this._tickInterval);
+      this._tickInterval = null;
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * @returns True when timeout was cleared, false when none was set (no effect)
+   */
+  clearNextTick() {
+    if (this._tickTimer) {
+      self.clearTimeout(this._tickTimer);
+      this._tickTimer = null;
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Will call the subclass doTick implementation in this main loop tick
+   * or in the next one (via setTimeout(,0)) in case it has already been called
+   * in this tick (in case this is a re-entrant call).
+   */
+  tick() {
+    this._tickCallCount++;
+    if (this._tickCallCount === 1) {
+      this.doTick();
+      // re-entrant call to tick from previous doTick call stack
+      // -> schedule a call on the next main loop iteration to process this task processing request
+      if (this._tickCallCount > 1) {
+        // make sure only one timer exists at any time at max
+        this.tickImmediate();
+      }
+      this._tickCallCount = 0;
+    }
+  }
+  tickImmediate() {
+    this.clearNextTick();
+    this._tickTimer = self.setTimeout(this._boundTick, 0);
+  }
+
+  /**
+   * For subclass to implement task logic
+   * @abstract
+   */
+  doTick() {}
+}
+
+class ChunkMetadata {
+  constructor(level, sn, id, size = 0, part = -1, partial = false) {
+    this.level = void 0;
+    this.sn = void 0;
+    this.part = void 0;
+    this.id = void 0;
+    this.size = void 0;
+    this.partial = void 0;
+    this.transmuxing = getNewPerformanceTiming();
+    this.buffering = {
+      audio: getNewPerformanceTiming(),
+      video: getNewPerformanceTiming(),
+      audiovideo: getNewPerformanceTiming()
+    };
+    this.level = level;
+    this.sn = sn;
+    this.id = id;
+    this.size = size;
+    this.part = part;
+    this.partial = partial;
+  }
+}
+function getNewPerformanceTiming() {
+  return {
+    start: 0,
+    executeStart: 0,
+    executeEnd: 0,
+    end: 0
+  };
+}
+
+function findFirstFragWithCC(fragments, cc) {
+  for (let i = 0, len = fragments.length; i < len; i++) {
+    var _fragments$i;
+    if (((_fragments$i = fragments[i]) == null ? void 0 : _fragments$i.cc) === cc) {
+      return fragments[i];
+    }
+  }
+  return null;
+}
+function shouldAlignOnDiscontinuities(lastFrag, switchDetails, details) {
+  if (switchDetails) {
+    if (details.endCC > details.startCC || lastFrag && lastFrag.cc < details.startCC) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Find the first frag in the previous level which matches the CC of the first frag of the new level
+function findDiscontinuousReferenceFrag(prevDetails, curDetails) {
+  const prevFrags = prevDetails.fragments;
+  const curFrags = curDetails.fragments;
+  if (!curFrags.length || !prevFrags.length) {
+    logger.log('No fragments to align');
+    return;
+  }
+  const prevStartFrag = findFirstFragWithCC(prevFrags, curFrags[0].cc);
+  if (!prevStartFrag || prevStartFrag && !prevStartFrag.startPTS) {
+    logger.log('No frag in previous level to align on');
+    return;
+  }
+  return prevStartFrag;
+}
+function adjustFragmentStart(frag, sliding) {
+  if (frag) {
+    const start = frag.start + sliding;
+    frag.start = frag.startPTS = start;
+    frag.endPTS = start + frag.duration;
+  }
+}
+function adjustSlidingStart(sliding, details) {
+  // Update segments
+  const fragments = details.fragments;
+  for (let i = 0, len = fragments.length; i < len; i++) {
+    adjustFragmentStart(fragments[i], sliding);
+  }
+  // Update LL-HLS parts at the end of the playlist
+  if (details.fragmentHint) {
+    adjustFragmentStart(details.fragmentHint, sliding);
+  }
+  details.alignedSliding = true;
+}
+
+/**
+ * Using the parameters of the last level, this function computes PTS' of the new fragments so that they form a
+ * contiguous stream with the last fragments.
+ * The PTS of a fragment lets Hls.js know where it fits into a stream - by knowing every PTS, we know which fragment to
+ * download at any given time. PTS is normally computed when the fragment is demuxed, so taking this step saves us time
+ * and an extra download.
+ * @param lastFrag
+ * @param lastLevel
+ * @param details
+ */
+function alignStream(lastFrag, switchDetails, details) {
+  if (!switchDetails) {
+    return;
+  }
+  alignDiscontinuities(lastFrag, details, switchDetails);
+  if (!details.alignedSliding && switchDetails) {
+    // If the PTS wasn't figured out via discontinuity sequence that means there was no CC increase within the level.
+    // Aligning via Program Date Time should therefore be reliable, since PDT should be the same within the same
+    // discontinuity sequence.
+    alignMediaPlaylistByPDT(details, switchDetails);
+  }
+  if (!details.alignedSliding && switchDetails && !details.skippedSegments) {
+    // Try to align on sn so that we pick a better start fragment.
+    // Do not perform this on playlists with delta updates as this is only to align levels on switch
+    // and adjustSliding only adjusts fragments after skippedSegments.
+    adjustSliding(switchDetails, details);
+  }
+}
+
+/**
+ * Computes the PTS if a new level's fragments using the PTS of a fragment in the last level which shares the same
+ * discontinuity sequence.
+ * @param lastFrag - The last Fragment which shares the same discontinuity sequence
+ * @param lastLevel - The details of the last loaded level
+ * @param details - The details of the new level
+ */
+function alignDiscontinuities(lastFrag, details, switchDetails) {
+  if (shouldAlignOnDiscontinuities(lastFrag, switchDetails, details)) {
+    const referenceFrag = findDiscontinuousReferenceFrag(switchDetails, details);
+    if (referenceFrag && isFiniteNumber(referenceFrag.start)) {
+      logger.log(`Adjusting PTS using last level due to CC increase within current level ${details.url}`);
+      adjustSlidingStart(referenceFrag.start, details);
+    }
+  }
+}
+
+/**
+ * Ensures appropriate time-alignment between renditions based on PDT.
+ * This function assumes the timelines represented in `refDetails` are accurate, including the PDTs
+ * for the last discontinuity sequence number shared by both playlists when present,
+ * and uses the "wallclock"/PDT timeline as a cross-reference to `details`, adjusting the presentation
+ * times/timelines of `details` accordingly.
+ * Given the asynchronous nature of fetches and initial loads of live `main` and audio/subtitle tracks,
+ * the primary purpose of this function is to ensure the "local timelines" of audio/subtitle tracks
+ * are aligned to the main/video timeline, using PDT as the cross-reference/"anchor" that should
+ * be consistent across playlists, per the HLS spec.
+ * @param details - The details of the rendition you'd like to time-align (e.g. an audio rendition).
+ * @param refDetails - The details of the reference rendition with start and PDT times for alignment.
+ */
+function alignMediaPlaylistByPDT(details, refDetails) {
+  if (!details.hasProgramDateTime || !refDetails.hasProgramDateTime) {
+    return;
+  }
+  const fragments = details.fragments;
+  const refFragments = refDetails.fragments;
+  if (!fragments.length || !refFragments.length) {
+    return;
+  }
+
+  // Calculate a delta to apply to all fragments according to the delta in PDT times and start times
+  // of a fragment in the reference details, and a fragment in the target details of the same discontinuity.
+  // If a fragment of the same discontinuity was not found use the middle fragment of both.
+  let refFrag;
+  let frag;
+  const targetCC = Math.min(refDetails.endCC, details.endCC);
+  if (refDetails.startCC < targetCC && details.startCC < targetCC) {
+    refFrag = findFirstFragWithCC(refFragments, targetCC);
+    frag = findFirstFragWithCC(fragments, targetCC);
+  }
+  if (!refFrag || !frag) {
+    refFrag = refFragments[Math.floor(refFragments.length / 2)];
+    frag = findFirstFragWithCC(fragments, refFrag.cc) || fragments[Math.floor(fragments.length / 2)];
+  }
+  const refPDT = refFrag.programDateTime;
+  const targetPDT = frag.programDateTime;
+  if (!refPDT || !targetPDT) {
+    return;
+  }
+  const delta = (targetPDT - refPDT) / 1000 - (frag.start - refFrag.start);
+  adjustSlidingStart(delta, details);
 }
 
 class AESCrypto {
@@ -9168,6 +11899,7 @@ class BaseStreamController extends TaskLoop {
     this.startFragRequested = false;
     this.decrypter = void 0;
     this.initPTS = [];
+    this.buffering = true;
     this.onvseeking = null;
     this.onvended = null;
     this.logPrefix = '';
@@ -9206,6 +11938,12 @@ class BaseStreamController extends TaskLoop {
     this.clearInterval();
     this.clearNextTick();
     this.state = State.STOPPED;
+  }
+  pauseBuffering() {
+    this.buffering = false;
+  }
+  resumeBuffering() {
+    this.buffering = true;
   }
   _streamEnded(bufferInfo, levelDetails) {
     // If playlist is live, there is another buffered range after the current range, nothing buffered, media is detached,
@@ -10407,45 +13145,31 @@ class BaseStreamController extends TaskLoop {
   }
 }
 
-class ChunkCache {
-  constructor() {
-    this.chunks = [];
-    this.dataLength = 0;
-  }
-  push(chunk) {
-    this.chunks.push(chunk);
-    this.dataLength += chunk.length;
-  }
-  flush() {
-    const {
-      chunks,
-      dataLength
-    } = this;
-    let result;
-    if (!chunks.length) {
-      return new Uint8Array(0);
-    } else if (chunks.length === 1) {
-      result = chunks[0];
-    } else {
-      result = concatUint8Arrays(chunks, dataLength);
-    }
-    this.reset();
-    return result;
-  }
-  reset() {
-    this.chunks.length = 0;
-    this.dataLength = 0;
-  }
+function getSourceBuffer() {
+  return self.SourceBuffer || self.WebKitSourceBuffer;
 }
-function concatUint8Arrays(chunks, dataLength) {
-  const result = new Uint8Array(dataLength);
-  let offset = 0;
-  for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i];
-    result.set(chunk, offset);
-    offset += chunk.length;
+function isMSESupported() {
+  const mediaSource = getMediaSource();
+  if (!mediaSource) {
+    return false;
   }
-  return result;
+
+  // if SourceBuffer is exposed ensure its API is valid
+  // Older browsers do not expose SourceBuffer globally so checking SourceBuffer.prototype is impossible
+  const sourceBuffer = getSourceBuffer();
+  return !sourceBuffer || sourceBuffer.prototype && typeof sourceBuffer.prototype.appendBuffer === 'function' && typeof sourceBuffer.prototype.remove === 'function';
+}
+function isSupported() {
+  if (!isMSESupported()) {
+    return false;
+  }
+  const mediaSource = getMediaSource();
+  return typeof (mediaSource == null ? void 0 : mediaSource.isTypeSupported) === 'function' && (['avc1.42E01E,mp4a.40.2', 'av01.0.01M.08', 'vp09.00.50.08'].some(codecsForVideoContainer => mediaSource.isTypeSupported(mimeTypeForCodec(codecsForVideoContainer, 'video'))) || ['mp4a.40.2', 'fLaC'].some(codecForAudioContainer => mediaSource.isTypeSupported(mimeTypeForCodec(codecForAudioContainer, 'audio'))));
+}
+function changeTypeSupported() {
+  var _sourceBuffer$prototy;
+  const sourceBuffer = getSourceBuffer();
+  return typeof (sourceBuffer == null ? void 0 : (_sourceBuffer$prototy = sourceBuffer.prototype) == null ? void 0 : _sourceBuffer$prototy.changeType) === 'function';
 }
 
 // ensure the worker ends up in the bundle
@@ -10827,7 +13551,7 @@ function parseFrameHeader(data, offset) {
     }
   }
 }
-function appendFrame$2(track, data, offset, pts, frameIndex) {
+function appendFrame$1(track, data, offset, pts, frameIndex) {
   const frameDuration = getFrameDuration(track.samplerate);
   const stamp = pts + frameIndex * frameDuration;
   const header = parseFrameHeader(data, offset);
@@ -10926,7 +13650,7 @@ const BytesInSlot = [0,
 // Layer2
 4 // Layer1
 ];
-function appendFrame$1(track, data, offset, pts, frameIndex) {
+function appendFrame(track, data, offset, pts, frameIndex) {
   // Using http://www.datavoyage.com/mpgscript/mpeghdr.htm as a reference
   if (offset + 24 > data.length) {
     return;
@@ -11073,7 +13797,7 @@ class AACDemuxer extends BaseAudioDemuxer {
   }
   appendFrame(track, data, offset) {
     initTrackConfig(track, this.observer, data, offset, track.manifestCodec);
-    const frame = appendFrame$2(track, data, offset, this.basePTS, this.frameIndex);
+    const frame = appendFrame$1(track, data, offset, this.basePTS, this.frameIndex);
     if (frame && frame.missing === 0) {
       return frame;
     }
@@ -11232,119 +13956,6 @@ const getAudioBSID = (data, offset) => {
   }
   return bsid;
 };
-
-class AC3Demuxer extends BaseAudioDemuxer {
-  constructor(observer) {
-    super();
-    this.observer = void 0;
-    this.observer = observer;
-  }
-  resetInitSegment(initSegment, audioCodec, videoCodec, trackDuration) {
-    super.resetInitSegment(initSegment, audioCodec, videoCodec, trackDuration);
-    this._audioTrack = {
-      container: 'audio/ac-3',
-      type: 'audio',
-      id: 2,
-      pid: -1,
-      sequenceNumber: 0,
-      segmentCodec: 'ac3',
-      samples: [],
-      manifestCodec: audioCodec,
-      duration: trackDuration,
-      inputTimeScale: 90000,
-      dropped: 0
-    };
-  }
-  canParse(data, offset) {
-    return offset + 64 < data.length;
-  }
-  appendFrame(track, data, offset) {
-    const frameLength = appendFrame(track, data, offset, this.basePTS, this.frameIndex);
-    if (frameLength !== -1) {
-      const sample = track.samples[track.samples.length - 1];
-      return {
-        sample,
-        length: frameLength,
-        missing: 0
-      };
-    }
-  }
-  static probe(data) {
-    if (!data) {
-      return false;
-    }
-    const id3Data = getID3Data(data, 0);
-    if (!id3Data) {
-      return false;
-    }
-
-    // look for the ac-3 sync bytes
-    const offset = id3Data.length;
-    if (data[offset] === 0x0b && data[offset + 1] === 0x77 && getTimeStamp(id3Data) !== undefined &&
-    // check the bsid to confirm ac-3
-    getAudioBSID(data, offset) < 16) {
-      return true;
-    }
-    return false;
-  }
-}
-function appendFrame(track, data, start, pts, frameIndex) {
-  if (start + 8 > data.length) {
-    return -1; // not enough bytes left
-  }
-  if (data[start] !== 0x0b || data[start + 1] !== 0x77) {
-    return -1; // invalid magic
-  }
-
-  // get sample rate
-  const samplingRateCode = data[start + 4] >> 6;
-  if (samplingRateCode >= 3) {
-    return -1; // invalid sampling rate
-  }
-  const samplingRateMap = [48000, 44100, 32000];
-  const sampleRate = samplingRateMap[samplingRateCode];
-
-  // get frame size
-  const frameSizeCode = data[start + 4] & 0x3f;
-  const frameSizeMap = [64, 69, 96, 64, 70, 96, 80, 87, 120, 80, 88, 120, 96, 104, 144, 96, 105, 144, 112, 121, 168, 112, 122, 168, 128, 139, 192, 128, 140, 192, 160, 174, 240, 160, 175, 240, 192, 208, 288, 192, 209, 288, 224, 243, 336, 224, 244, 336, 256, 278, 384, 256, 279, 384, 320, 348, 480, 320, 349, 480, 384, 417, 576, 384, 418, 576, 448, 487, 672, 448, 488, 672, 512, 557, 768, 512, 558, 768, 640, 696, 960, 640, 697, 960, 768, 835, 1152, 768, 836, 1152, 896, 975, 1344, 896, 976, 1344, 1024, 1114, 1536, 1024, 1115, 1536, 1152, 1253, 1728, 1152, 1254, 1728, 1280, 1393, 1920, 1280, 1394, 1920];
-  const frameLength = frameSizeMap[frameSizeCode * 3 + samplingRateCode] * 2;
-  if (start + frameLength > data.length) {
-    return -1;
-  }
-
-  // get channel count
-  const channelMode = data[start + 6] >> 5;
-  let skipCount = 0;
-  if (channelMode === 2) {
-    skipCount += 2;
-  } else {
-    if (channelMode & 1 && channelMode !== 1) {
-      skipCount += 2;
-    }
-    if (channelMode & 4) {
-      skipCount += 2;
-    }
-  }
-  const lfeon = (data[start + 6] << 8 | data[start + 7]) >> 12 - skipCount & 1;
-  const channelsMap = [2, 1, 2, 3, 3, 4, 4, 5];
-  const channelCount = channelsMap[channelMode] + lfeon;
-
-  // build dac3 box
-  const bsid = data[start + 5] >> 3;
-  const bsmod = data[start + 5] & 7;
-  const config = new Uint8Array([samplingRateCode << 6 | bsid << 1 | bsmod >> 2, (bsmod & 3) << 6 | channelMode << 3 | lfeon << 2 | frameSizeCode >> 4, frameSizeCode << 4 & 0xe0]);
-  const frameDuration = 1536 / sampleRate * 90000;
-  const stamp = pts + frameIndex * frameDuration;
-  const unit = data.subarray(start, start + frameLength);
-  track.config = config;
-  track.channelCount = channelCount;
-  track.samplerate = sampleRate;
-  track.samples.push({
-    unit,
-    pts: stamp
-  });
-  return frameLength;
-}
 
 class BaseVideoParser {
   constructor() {
@@ -12283,11 +14894,6 @@ class TSDemuxer {
                   case 'mp3':
                     this.parseMPEGPES(audioTrack, pes);
                     break;
-                  case 'ac3':
-                    {
-                      this.parseAC3PES(audioTrack, pes);
-                    }
-                    break;
                 }
               }
               audioData = {
@@ -12435,11 +15041,6 @@ class TSDemuxer {
         case 'mp3':
           this.parseMPEGPES(audioTrack, pes);
           break;
-        case 'ac3':
-          {
-            this.parseAC3PES(audioTrack, pes);
-          }
-          break;
       }
       audioTrack.pesData = null;
     } else {
@@ -12547,7 +15148,7 @@ class TSDemuxer {
     let frameIndex = 0;
     let frame;
     while (offset < len) {
-      frame = appendFrame$2(track, data, offset, pts, frameIndex);
+      frame = appendFrame$1(track, data, offset, pts, frameIndex);
       offset += frame.length;
       if (!frame.missing) {
         frameIndex++;
@@ -12574,7 +15175,7 @@ class TSDemuxer {
     }
     while (offset < length) {
       if (isHeader(data, offset)) {
-        const frame = appendFrame$1(track, data, offset, pts, frameIndex);
+        const frame = appendFrame(track, data, offset, pts, frameIndex);
         if (frame) {
           offset += frame.length;
           frameIndex++;
@@ -12589,21 +15190,6 @@ class TSDemuxer {
     }
   }
   parseAC3PES(track, pes) {
-    {
-      const data = pes.data;
-      const pts = pes.pts;
-      if (pts === undefined) {
-        logger.warn('[tsdemuxer]: AC3 PES unknown PTS');
-        return;
-      }
-      const length = data.length;
-      let frameIndex = 0;
-      let offset = 0;
-      let parsed;
-      while (offset < length && (parsed = appendFrame(track, data, offset, pts, frameIndex++)) > 0) {
-        offset += parsed;
-      }
-    }
   }
   parseID3PES(id3Track, pes) {
     if (pes.pts === undefined) {
@@ -12703,12 +15289,7 @@ function parsePMT(data, offset, typeSupported, isSampleAes, observer) {
       /* falls through */
       case 0x81:
         {
-          if (!typeSupported.ac3) {
-            logger.log('AC-3 audio found, not supported in this browser');
-          } else if (result.audioPid === -1) {
-            result.audioPid = pid;
-            result.segmentAudioCodec = 'ac3';
-          }
+          logger.warn('AC-3 in M2TS support not included in build');
         }
         break;
       case 0x06:
@@ -12725,12 +15306,7 @@ function parsePMT(data, offset, typeSupported, isSampleAes, observer) {
               case 0x6a:
                 // DVB Descriptor for AC-3
                 {
-                  if (typeSupported.ac3 !== true) {
-                    logger.log('AC-3 audio found, not supported in this browser for now');
-                  } else {
-                    result.audioPid = pid;
-                    result.segmentAudioCodec = 'ac3';
-                  }
+                  logger.warn('AC-3 in M2TS support not included in build');
                 }
                 break;
             }
@@ -12925,7 +15501,7 @@ class MP3Demuxer extends BaseAudioDemuxer {
     if (this.basePTS === null) {
       return;
     }
-    return appendFrame$1(track, data, offset, this.basePTS, this.frameIndex);
+    return appendFrame(track, data, offset, this.basePTS, this.frameIndex);
   }
 }
 
@@ -13561,14 +16137,8 @@ function toTimescaleFromBase(baseTime, destScale, srcBase = 1, round = false) {
   const result = baseTime * destScale * srcBase; // equivalent to `(value * scale) / (1 / base)`
   return round ? Math.round(result) : result;
 }
-function toTimescaleFromScale(baseTime, destScale, srcScale = 1, round = false) {
-  return toTimescaleFromBase(baseTime, destScale, 1 / srcScale, round);
-}
 function toMsFromMpegTsClock(baseTime, round = false) {
   return toTimescaleFromBase(baseTime, 1000, 1 / MPEG_TS_CLOCK_FREQ_HZ, round);
-}
-function toMpegTsClockFromTimescale(baseTime, srcScale = 1) {
-  return toTimescaleFromBase(baseTime, MPEG_TS_CLOCK_FREQ_HZ, 1 / srcScale);
 }
 
 const MAX_SILENT_FRAME_DURATION = 10 * 1000; // 10 seconds
@@ -13624,19 +16194,23 @@ class MP4Remuxer {
     this.videoTrackConfig = undefined;
   }
   getVideoStartPts(videoSamples) {
+    // Get the minimum PTS value relative to the first sample's PTS, normalized for 33-bit wrapping
     let rolloverDetected = false;
+    const firstPts = videoSamples[0].pts;
     const startPTS = videoSamples.reduce((minPTS, sample) => {
-      const delta = sample.pts - minPTS;
+      let pts = sample.pts;
+      let delta = pts - minPTS;
       if (delta < -4294967296) {
         // 2^32, see PTSNormalize for reasoning, but we're hitting a rollover here, and we don't want that to impact the timeOffset calculation
         rolloverDetected = true;
-        return normalizePts(minPTS, sample.pts);
-      } else if (delta > 0) {
-        return minPTS;
-      } else {
-        return sample.pts;
+        pts = normalizePts(pts, firstPts);
+        delta = pts - minPTS;
       }
-    }, videoSamples[0].pts);
+      if (delta > 0) {
+        return minPTS;
+      }
+      return pts;
+    }, firstPts);
     if (rolloverDetected) {
       logger.debug('PTS rollover detected');
     }
@@ -14662,6 +17236,9 @@ function getParsedTrackCodec(track, type) {
   return 'avc1.42e01e';
 }
 
+/** returns `undefined` is `self` is missing, e.g. in node */
+const optionalSelf = typeof self !== 'undefined' ? self : undefined;
+
 let now;
 // performance.now() not available on WebWorker, at least on Safari Desktop
 try {
@@ -14683,12 +17260,6 @@ const muxConfig = [{
   demux: MP3Demuxer,
   remux: MP4Remuxer
 }];
-{
-  muxConfig.splice(2, 0, {
-    demux: AC3Demuxer,
-    remux: MP4Remuxer
-  });
-}
 class Transmuxer {
   constructor(observer, typeSupported, config, vendor, id) {
     this.async = false;
@@ -15421,7 +17992,7 @@ class TransmuxerInterface {
     const m2tsTypeSupported = {
       mpeg: MediaSource.isTypeSupported('audio/mpeg'),
       mp3: MediaSource.isTypeSupported('audio/mp4; codecs="mp3"'),
-      ac3: MediaSource.isTypeSupported('audio/mp4; codecs="ac-3"') 
+      ac3: false
     };
     if (this.useWorker && typeof Worker !== 'undefined') {
       const canCreateWorker = config.workerPath || hasUMDWorker();
@@ -15684,10618 +18255,6 @@ class TransmuxerInterface {
     result.chunkMeta.transmuxing.end = self.performance.now();
     this.onTransmuxComplete(result);
   }
-}
-
-function subtitleOptionsIdentical(trackList1, trackList2) {
-  if (trackList1.length !== trackList2.length) {
-    return false;
-  }
-  for (let i = 0; i < trackList1.length; i++) {
-    if (!mediaAttributesIdentical(trackList1[i].attrs, trackList2[i].attrs)) {
-      return false;
-    }
-  }
-  return true;
-}
-function mediaAttributesIdentical(attrs1, attrs2, customAttributes) {
-  // Media options with the same rendition ID must be bit identical
-  const stableRenditionId = attrs1['STABLE-RENDITION-ID'];
-  if (stableRenditionId && !customAttributes) {
-    return stableRenditionId === attrs2['STABLE-RENDITION-ID'];
-  }
-  // When rendition ID is not present, compare attributes
-  return !(customAttributes || ['LANGUAGE', 'NAME', 'CHARACTERISTICS', 'AUTOSELECT', 'DEFAULT', 'FORCED', 'ASSOC-LANGUAGE']).some(subtitleAttribute => attrs1[subtitleAttribute] !== attrs2[subtitleAttribute]);
-}
-function subtitleTrackMatchesTextTrack(subtitleTrack, textTrack) {
-  return textTrack.label.toLowerCase() === subtitleTrack.name.toLowerCase() && (!textTrack.language || textTrack.language.toLowerCase() === (subtitleTrack.lang || '').toLowerCase());
-}
-
-const TICK_INTERVAL$2 = 100; // how often to tick in ms
-
-class AudioStreamController extends BaseStreamController {
-  constructor(hls, fragmentTracker, keyLoader) {
-    super(hls, fragmentTracker, keyLoader, '[audio-stream-controller]', PlaylistLevelType.AUDIO);
-    this.videoBuffer = null;
-    this.videoTrackCC = -1;
-    this.waitingVideoCC = -1;
-    this.bufferedTrack = null;
-    this.switchingTrack = null;
-    this.trackId = -1;
-    this.waitingData = null;
-    this.mainDetails = null;
-    this.flushing = false;
-    this.bufferFlushed = false;
-    this.cachedTrackLoadedData = null;
-    this._registerListeners();
-  }
-  onHandlerDestroying() {
-    this._unregisterListeners();
-    super.onHandlerDestroying();
-    this.mainDetails = null;
-    this.bufferedTrack = null;
-    this.switchingTrack = null;
-  }
-  _registerListeners() {
-    const {
-      hls
-    } = this;
-    hls.on(Events.MEDIA_ATTACHED, this.onMediaAttached, this);
-    hls.on(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
-    hls.on(Events.MANIFEST_LOADING, this.onManifestLoading, this);
-    hls.on(Events.LEVEL_LOADED, this.onLevelLoaded, this);
-    hls.on(Events.AUDIO_TRACKS_UPDATED, this.onAudioTracksUpdated, this);
-    hls.on(Events.AUDIO_TRACK_SWITCHING, this.onAudioTrackSwitching, this);
-    hls.on(Events.AUDIO_TRACK_LOADED, this.onAudioTrackLoaded, this);
-    hls.on(Events.ERROR, this.onError, this);
-    hls.on(Events.BUFFER_RESET, this.onBufferReset, this);
-    hls.on(Events.BUFFER_CREATED, this.onBufferCreated, this);
-    hls.on(Events.BUFFER_FLUSHING, this.onBufferFlushing, this);
-    hls.on(Events.BUFFER_FLUSHED, this.onBufferFlushed, this);
-    hls.on(Events.INIT_PTS_FOUND, this.onInitPtsFound, this);
-    hls.on(Events.FRAG_BUFFERED, this.onFragBuffered, this);
-  }
-  _unregisterListeners() {
-    const {
-      hls
-    } = this;
-    hls.off(Events.MEDIA_ATTACHED, this.onMediaAttached, this);
-    hls.off(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
-    hls.off(Events.MANIFEST_LOADING, this.onManifestLoading, this);
-    hls.off(Events.LEVEL_LOADED, this.onLevelLoaded, this);
-    hls.off(Events.AUDIO_TRACKS_UPDATED, this.onAudioTracksUpdated, this);
-    hls.off(Events.AUDIO_TRACK_SWITCHING, this.onAudioTrackSwitching, this);
-    hls.off(Events.AUDIO_TRACK_LOADED, this.onAudioTrackLoaded, this);
-    hls.off(Events.ERROR, this.onError, this);
-    hls.off(Events.BUFFER_RESET, this.onBufferReset, this);
-    hls.off(Events.BUFFER_CREATED, this.onBufferCreated, this);
-    hls.off(Events.BUFFER_FLUSHING, this.onBufferFlushing, this);
-    hls.off(Events.BUFFER_FLUSHED, this.onBufferFlushed, this);
-    hls.off(Events.INIT_PTS_FOUND, this.onInitPtsFound, this);
-    hls.off(Events.FRAG_BUFFERED, this.onFragBuffered, this);
-  }
-
-  // INIT_PTS_FOUND is triggered when the video track parsed in the stream-controller has a new PTS value
-  onInitPtsFound(event, {
-    frag,
-    id,
-    initPTS,
-    timescale
-  }) {
-    // Always update the new INIT PTS
-    // Can change due level switch
-    if (id === 'main') {
-      const cc = frag.cc;
-      this.initPTS[frag.cc] = {
-        baseTime: initPTS,
-        timescale
-      };
-      this.log(`InitPTS for cc: ${cc} found from main: ${initPTS}`);
-      this.videoTrackCC = cc;
-      // If we are waiting, tick immediately to unblock audio fragment transmuxing
-      if (this.state === State.WAITING_INIT_PTS) {
-        this.tick();
-      }
-    }
-  }
-  startLoad(startPosition) {
-    if (!this.levels) {
-      this.startPosition = startPosition;
-      this.state = State.STOPPED;
-      return;
-    }
-    const lastCurrentTime = this.lastCurrentTime;
-    this.stopLoad();
-    this.setInterval(TICK_INTERVAL$2);
-    if (lastCurrentTime > 0 && startPosition === -1) {
-      this.log(`Override startPosition with lastCurrentTime @${lastCurrentTime.toFixed(3)}`);
-      startPosition = lastCurrentTime;
-      this.state = State.IDLE;
-    } else {
-      this.loadedmetadata = false;
-      this.state = State.WAITING_TRACK;
-    }
-    this.nextLoadPosition = this.startPosition = this.lastCurrentTime = startPosition;
-    this.tick();
-  }
-  doTick() {
-    switch (this.state) {
-      case State.IDLE:
-        this.doTickIdle();
-        break;
-      case State.WAITING_TRACK:
-        {
-          var _levels$trackId;
-          const {
-            levels,
-            trackId
-          } = this;
-          const details = levels == null ? void 0 : (_levels$trackId = levels[trackId]) == null ? void 0 : _levels$trackId.details;
-          if (details) {
-            if (this.waitForCdnTuneIn(details)) {
-              break;
-            }
-            this.state = State.WAITING_INIT_PTS;
-          }
-          break;
-        }
-      case State.FRAG_LOADING_WAITING_RETRY:
-        {
-          var _this$media;
-          const now = performance.now();
-          const retryDate = this.retryDate;
-          // if current time is gt than retryDate, or if media seeking let's switch to IDLE state to retry loading
-          if (!retryDate || now >= retryDate || (_this$media = this.media) != null && _this$media.seeking) {
-            const {
-              levels,
-              trackId
-            } = this;
-            this.log('RetryDate reached, switch back to IDLE state');
-            this.resetStartWhenNotLoaded((levels == null ? void 0 : levels[trackId]) || null);
-            this.state = State.IDLE;
-          }
-          break;
-        }
-      case State.WAITING_INIT_PTS:
-        {
-          // Ensure we don't get stuck in the WAITING_INIT_PTS state if the waiting frag CC doesn't match any initPTS
-          const waitingData = this.waitingData;
-          if (waitingData) {
-            const {
-              frag,
-              part,
-              cache,
-              complete
-            } = waitingData;
-            if (this.initPTS[frag.cc] !== undefined) {
-              this.waitingData = null;
-              this.waitingVideoCC = -1;
-              this.state = State.FRAG_LOADING;
-              const payload = cache.flush();
-              const data = {
-                frag,
-                part,
-                payload,
-                networkDetails: null
-              };
-              this._handleFragmentLoadProgress(data);
-              if (complete) {
-                super._handleFragmentLoadComplete(data);
-              }
-            } else if (this.videoTrackCC !== this.waitingVideoCC) {
-              // Drop waiting fragment if videoTrackCC has changed since waitingFragment was set and initPTS was not found
-              this.log(`Waiting fragment cc (${frag.cc}) cancelled because video is at cc ${this.videoTrackCC}`);
-              this.clearWaitingFragment();
-            } else {
-              // Drop waiting fragment if an earlier fragment is needed
-              const pos = this.getLoadPosition();
-              const bufferInfo = BufferHelper.bufferInfo(this.mediaBuffer, pos, this.config.maxBufferHole);
-              const waitingFragmentAtPosition = fragmentWithinToleranceTest(bufferInfo.end, this.config.maxFragLookUpTolerance, frag);
-              if (waitingFragmentAtPosition < 0) {
-                this.log(`Waiting fragment cc (${frag.cc}) @ ${frag.start} cancelled because another fragment at ${bufferInfo.end} is needed`);
-                this.clearWaitingFragment();
-              }
-            }
-          } else {
-            this.state = State.IDLE;
-          }
-        }
-    }
-    this.onTickEnd();
-  }
-  clearWaitingFragment() {
-    const waitingData = this.waitingData;
-    if (waitingData) {
-      this.fragmentTracker.removeFragment(waitingData.frag);
-      this.waitingData = null;
-      this.waitingVideoCC = -1;
-      this.state = State.IDLE;
-    }
-  }
-  resetLoadingState() {
-    this.clearWaitingFragment();
-    super.resetLoadingState();
-  }
-  onTickEnd() {
-    const {
-      media
-    } = this;
-    if (!(media != null && media.readyState)) {
-      // Exit early if we don't have media or if the media hasn't buffered anything yet (readyState 0)
-      return;
-    }
-    this.lastCurrentTime = media.currentTime;
-  }
-  doTickIdle() {
-    const {
-      hls,
-      levels,
-      media,
-      trackId
-    } = this;
-    const config = hls.config;
-
-    // 1. if video not attached AND
-    //    start fragment already requested OR start frag prefetch not enabled
-    // 2. if tracks or track not loaded and selected
-    // then exit loop
-    // => if media not attached but start frag prefetch is enabled and start frag not requested yet, we will not exit loop
-    if (!media && (this.startFragRequested || !config.startFragPrefetch) || !(levels != null && levels[trackId])) {
-      return;
-    }
-    const levelInfo = levels[trackId];
-    const trackDetails = levelInfo.details;
-    if (!trackDetails || trackDetails.live && this.levelLastLoaded !== levelInfo || this.waitForCdnTuneIn(trackDetails)) {
-      this.state = State.WAITING_TRACK;
-      return;
-    }
-    const bufferable = this.mediaBuffer ? this.mediaBuffer : this.media;
-    if (this.bufferFlushed && bufferable) {
-      this.bufferFlushed = false;
-      this.afterBufferFlushed(bufferable, ElementaryStreamTypes.AUDIO, PlaylistLevelType.AUDIO);
-    }
-    const bufferInfo = this.getFwdBufferInfo(bufferable, PlaylistLevelType.AUDIO);
-    if (bufferInfo === null) {
-      return;
-    }
-    const {
-      bufferedTrack,
-      switchingTrack
-    } = this;
-    if (!switchingTrack && this._streamEnded(bufferInfo, trackDetails)) {
-      hls.trigger(Events.BUFFER_EOS, {
-        type: 'audio'
-      });
-      this.state = State.ENDED;
-      return;
-    }
-    const mainBufferInfo = this.getFwdBufferInfo(this.videoBuffer ? this.videoBuffer : this.media, PlaylistLevelType.MAIN);
-    const bufferLen = bufferInfo.len;
-    const maxBufLen = this.getMaxBufferLength(mainBufferInfo == null ? void 0 : mainBufferInfo.len);
-    const fragments = trackDetails.fragments;
-    const start = fragments[0].start;
-    let targetBufferTime = this.flushing ? this.getLoadPosition() : bufferInfo.end;
-    if (switchingTrack && media) {
-      const pos = this.getLoadPosition();
-      // STABLE
-      if (bufferedTrack && !mediaAttributesIdentical(switchingTrack.attrs, bufferedTrack.attrs)) {
-        targetBufferTime = pos;
-      }
-      // if currentTime (pos) is less than alt audio playlist start time, it means that alt audio is ahead of currentTime
-      if (trackDetails.PTSKnown && pos < start) {
-        // if everything is buffered from pos to start or if audio buffer upfront, let's seek to start
-        if (bufferInfo.end > start || bufferInfo.nextStart) {
-          this.log('Alt audio track ahead of main track, seek to start of alt audio track');
-          media.currentTime = start + 0.05;
-        }
-      }
-    }
-
-    // if buffer length is less than maxBufLen, or near the end, find a fragment to load
-    if (bufferLen >= maxBufLen && !switchingTrack && targetBufferTime < fragments[fragments.length - 1].start) {
-      return;
-    }
-    let frag = this.getNextFragment(targetBufferTime, trackDetails);
-    let atGap = false;
-    // Avoid loop loading by using nextLoadPosition set for backtracking and skipping consecutive GAP tags
-    if (frag && this.isLoopLoading(frag, targetBufferTime)) {
-      atGap = !!frag.gap;
-      frag = this.getNextFragmentLoopLoading(frag, trackDetails, bufferInfo, PlaylistLevelType.MAIN, maxBufLen);
-    }
-    if (!frag) {
-      this.bufferFlushed = true;
-      return;
-    }
-
-    // Buffer audio up to one target duration ahead of main buffer
-    const atBufferSyncLimit = mainBufferInfo && frag.start > mainBufferInfo.end + trackDetails.targetduration;
-    if (atBufferSyncLimit ||
-    // Or wait for main buffer after buffing some audio
-    !(mainBufferInfo != null && mainBufferInfo.len) && bufferInfo.len) {
-      // Check fragment-tracker for main fragments since GAP segments do not show up in bufferInfo
-      const mainFrag = this.getAppendedFrag(frag.start, PlaylistLevelType.MAIN);
-      if (mainFrag === null) {
-        return;
-      }
-      // Bridge gaps in main buffer
-      atGap || (atGap = !!mainFrag.gap || !!atBufferSyncLimit && mainBufferInfo.len === 0);
-      if (atBufferSyncLimit && !atGap || atGap && bufferInfo.nextStart && bufferInfo.nextStart < mainFrag.end) {
-        return;
-      }
-    }
-    this.loadFragment(frag, levelInfo, targetBufferTime);
-  }
-  getMaxBufferLength(mainBufferLength) {
-    const maxConfigBuffer = super.getMaxBufferLength();
-    if (!mainBufferLength) {
-      return maxConfigBuffer;
-    }
-    return Math.min(Math.max(maxConfigBuffer, mainBufferLength), this.config.maxMaxBufferLength);
-  }
-  onMediaDetaching() {
-    this.videoBuffer = null;
-    this.bufferFlushed = this.flushing = false;
-    super.onMediaDetaching();
-  }
-  onAudioTracksUpdated(event, {
-    audioTracks
-  }) {
-    // Reset tranxmuxer is essential for large context switches (Content Steering)
-    this.resetTransmuxer();
-    this.levels = audioTracks.map(mediaPlaylist => new Level(mediaPlaylist));
-  }
-  onAudioTrackSwitching(event, data) {
-    // if any URL found on new audio track, it is an alternate audio track
-    const altAudio = !!data.url;
-    this.trackId = data.id;
-    const {
-      fragCurrent
-    } = this;
-    if (fragCurrent) {
-      fragCurrent.abortRequests();
-      this.removeUnbufferedFrags(fragCurrent.start);
-    }
-    this.resetLoadingState();
-    // destroy useless transmuxer when switching audio to main
-    if (!altAudio) {
-      this.resetTransmuxer();
-    } else {
-      // switching to audio track, start timer if not already started
-      this.setInterval(TICK_INTERVAL$2);
-    }
-
-    // should we switch tracks ?
-    if (altAudio) {
-      this.switchingTrack = data;
-      // main audio track are handled by stream-controller, just do something if switching to alt audio track
-      this.state = State.IDLE;
-      this.flushAudioIfNeeded(data);
-    } else {
-      this.switchingTrack = null;
-      this.bufferedTrack = data;
-      this.state = State.STOPPED;
-    }
-    this.tick();
-  }
-  onManifestLoading() {
-    this.fragmentTracker.removeAllFragments();
-    this.startPosition = this.lastCurrentTime = 0;
-    this.bufferFlushed = this.flushing = false;
-    this.levels = this.mainDetails = this.waitingData = this.bufferedTrack = this.cachedTrackLoadedData = this.switchingTrack = null;
-    this.startFragRequested = false;
-    this.trackId = this.videoTrackCC = this.waitingVideoCC = -1;
-  }
-  onLevelLoaded(event, data) {
-    this.mainDetails = data.details;
-    if (this.cachedTrackLoadedData !== null) {
-      this.hls.trigger(Events.AUDIO_TRACK_LOADED, this.cachedTrackLoadedData);
-      this.cachedTrackLoadedData = null;
-    }
-  }
-  onAudioTrackLoaded(event, data) {
-    var _track$details;
-    if (this.mainDetails == null) {
-      this.cachedTrackLoadedData = data;
-      return;
-    }
-    const {
-      levels
-    } = this;
-    const {
-      details: newDetails,
-      id: trackId
-    } = data;
-    if (!levels) {
-      this.warn(`Audio tracks were reset while loading level ${trackId}`);
-      return;
-    }
-    this.log(`Audio track ${trackId} loaded [${newDetails.startSN},${newDetails.endSN}]${newDetails.lastPartSn ? `[part-${newDetails.lastPartSn}-${newDetails.lastPartIndex}]` : ''},duration:${newDetails.totalduration}`);
-    const track = levels[trackId];
-    let sliding = 0;
-    if (newDetails.live || (_track$details = track.details) != null && _track$details.live) {
-      this.checkLiveUpdate(newDetails);
-      const mainDetails = this.mainDetails;
-      if (newDetails.deltaUpdateFailed || !mainDetails) {
-        return;
-      }
-      if (!track.details && newDetails.hasProgramDateTime && mainDetails.hasProgramDateTime) {
-        // Make sure our audio rendition is aligned with the "main" rendition, using
-        // pdt as our reference times.
-        alignMediaPlaylistByPDT(newDetails, mainDetails);
-        sliding = newDetails.fragments[0].start;
-      } else {
-        var _this$levelLastLoaded;
-        sliding = this.alignPlaylists(newDetails, track.details, (_this$levelLastLoaded = this.levelLastLoaded) == null ? void 0 : _this$levelLastLoaded.details);
-      }
-    }
-    track.details = newDetails;
-    this.levelLastLoaded = track;
-
-    // compute start position if we are aligned with the main playlist
-    if (!this.startFragRequested && (this.mainDetails || !newDetails.live)) {
-      this.setStartPosition(this.mainDetails || newDetails, sliding);
-    }
-    // only switch back to IDLE state if we were waiting for track to start downloading a new fragment
-    if (this.state === State.WAITING_TRACK && !this.waitForCdnTuneIn(newDetails)) {
-      this.state = State.IDLE;
-    }
-
-    // trigger handler right now
-    this.tick();
-  }
-  _handleFragmentLoadProgress(data) {
-    var _frag$initSegment;
-    const {
-      frag,
-      part,
-      payload
-    } = data;
-    const {
-      config,
-      trackId,
-      levels
-    } = this;
-    if (!levels) {
-      this.warn(`Audio tracks were reset while fragment load was in progress. Fragment ${frag.sn} of level ${frag.level} will not be buffered`);
-      return;
-    }
-    const track = levels[trackId];
-    if (!track) {
-      this.warn('Audio track is undefined on fragment load progress');
-      return;
-    }
-    const details = track.details;
-    if (!details) {
-      this.warn('Audio track details undefined on fragment load progress');
-      this.removeUnbufferedFrags(frag.start);
-      return;
-    }
-    const audioCodec = config.defaultAudioCodec || track.audioCodec || 'mp4a.40.2';
-    let transmuxer = this.transmuxer;
-    if (!transmuxer) {
-      transmuxer = this.transmuxer = new TransmuxerInterface(this.hls, PlaylistLevelType.AUDIO, this._handleTransmuxComplete.bind(this), this._handleTransmuxerFlush.bind(this));
-    }
-
-    // Check if we have video initPTS
-    // If not we need to wait for it
-    const initPTS = this.initPTS[frag.cc];
-    const initSegmentData = (_frag$initSegment = frag.initSegment) == null ? void 0 : _frag$initSegment.data;
-    if (initPTS !== undefined) {
-      // this.log(`Transmuxing ${sn} of [${details.startSN} ,${details.endSN}],track ${trackId}`);
-      // time Offset is accurate if level PTS is known, or if playlist is not sliding (not live)
-      const accurateTimeOffset = false; // details.PTSKnown || !details.live;
-      const partIndex = part ? part.index : -1;
-      const partial = partIndex !== -1;
-      const chunkMeta = new ChunkMetadata(frag.level, frag.sn, frag.stats.chunkCount, payload.byteLength, partIndex, partial);
-      transmuxer.push(payload, initSegmentData, audioCodec, '', frag, part, details.totalduration, accurateTimeOffset, chunkMeta, initPTS);
-    } else {
-      this.log(`Unknown video PTS for cc ${frag.cc}, waiting for video PTS before demuxing audio frag ${frag.sn} of [${details.startSN} ,${details.endSN}],track ${trackId}`);
-      const {
-        cache
-      } = this.waitingData = this.waitingData || {
-        frag,
-        part,
-        cache: new ChunkCache(),
-        complete: false
-      };
-      cache.push(new Uint8Array(payload));
-      this.waitingVideoCC = this.videoTrackCC;
-      this.state = State.WAITING_INIT_PTS;
-    }
-  }
-  _handleFragmentLoadComplete(fragLoadedData) {
-    if (this.waitingData) {
-      this.waitingData.complete = true;
-      return;
-    }
-    super._handleFragmentLoadComplete(fragLoadedData);
-  }
-  onBufferReset( /* event: Events.BUFFER_RESET */
-  ) {
-    // reset reference to sourcebuffers
-    this.mediaBuffer = this.videoBuffer = null;
-    this.loadedmetadata = false;
-  }
-  onBufferCreated(event, data) {
-    const audioTrack = data.tracks.audio;
-    if (audioTrack) {
-      this.mediaBuffer = audioTrack.buffer || null;
-    }
-    if (data.tracks.video) {
-      this.videoBuffer = data.tracks.video.buffer || null;
-    }
-  }
-  onFragBuffered(event, data) {
-    const {
-      frag,
-      part
-    } = data;
-    if (frag.type !== PlaylistLevelType.AUDIO) {
-      if (!this.loadedmetadata && frag.type === PlaylistLevelType.MAIN) {
-        const bufferable = this.videoBuffer || this.media;
-        if (bufferable) {
-          const bufferedTimeRanges = BufferHelper.getBuffered(bufferable);
-          if (bufferedTimeRanges.length) {
-            this.loadedmetadata = true;
-          }
-        }
-      }
-      return;
-    }
-    if (this.fragContextChanged(frag)) {
-      // If a level switch was requested while a fragment was buffering, it will emit the FRAG_BUFFERED event upon completion
-      // Avoid setting state back to IDLE or concluding the audio switch; otherwise, the switched-to track will not buffer
-      this.warn(`Fragment ${frag.sn}${part ? ' p: ' + part.index : ''} of level ${frag.level} finished buffering, but was aborted. state: ${this.state}, audioSwitch: ${this.switchingTrack ? this.switchingTrack.name : 'false'}`);
-      return;
-    }
-    if (frag.sn !== 'initSegment') {
-      this.fragPrevious = frag;
-      const track = this.switchingTrack;
-      if (track) {
-        this.bufferedTrack = track;
-        this.switchingTrack = null;
-        this.hls.trigger(Events.AUDIO_TRACK_SWITCHED, _objectSpread2({}, track));
-      }
-    }
-    this.fragBufferedComplete(frag, part);
-  }
-  onError(event, data) {
-    var _data$context;
-    if (data.fatal) {
-      this.state = State.ERROR;
-      return;
-    }
-    switch (data.details) {
-      case ErrorDetails.FRAG_GAP:
-      case ErrorDetails.FRAG_PARSING_ERROR:
-      case ErrorDetails.FRAG_DECRYPT_ERROR:
-      case ErrorDetails.FRAG_LOAD_ERROR:
-      case ErrorDetails.FRAG_LOAD_TIMEOUT:
-      case ErrorDetails.KEY_LOAD_ERROR:
-      case ErrorDetails.KEY_LOAD_TIMEOUT:
-        this.onFragmentOrKeyLoadError(PlaylistLevelType.AUDIO, data);
-        break;
-      case ErrorDetails.AUDIO_TRACK_LOAD_ERROR:
-      case ErrorDetails.AUDIO_TRACK_LOAD_TIMEOUT:
-      case ErrorDetails.LEVEL_PARSING_ERROR:
-        // in case of non fatal error while loading track, if not retrying to load track, switch back to IDLE
-        if (!data.levelRetry && this.state === State.WAITING_TRACK && ((_data$context = data.context) == null ? void 0 : _data$context.type) === PlaylistContextType.AUDIO_TRACK) {
-          this.state = State.IDLE;
-        }
-        break;
-      case ErrorDetails.BUFFER_APPEND_ERROR:
-      case ErrorDetails.BUFFER_FULL_ERROR:
-        if (!data.parent || data.parent !== 'audio') {
-          return;
-        }
-        if (data.details === ErrorDetails.BUFFER_APPEND_ERROR) {
-          this.resetLoadingState();
-          return;
-        }
-        if (this.reduceLengthAndFlushBuffer(data)) {
-          this.bufferedTrack = null;
-          super.flushMainBuffer(0, Number.POSITIVE_INFINITY, 'audio');
-        }
-        break;
-      case ErrorDetails.INTERNAL_EXCEPTION:
-        this.recoverWorkerError(data);
-        break;
-    }
-  }
-  onBufferFlushing(event, {
-    type
-  }) {
-    if (type !== ElementaryStreamTypes.VIDEO) {
-      this.flushing = true;
-    }
-  }
-  onBufferFlushed(event, {
-    type
-  }) {
-    if (type !== ElementaryStreamTypes.VIDEO) {
-      this.flushing = false;
-      this.bufferFlushed = true;
-      if (this.state === State.ENDED) {
-        this.state = State.IDLE;
-      }
-      const mediaBuffer = this.mediaBuffer || this.media;
-      if (mediaBuffer) {
-        this.afterBufferFlushed(mediaBuffer, type, PlaylistLevelType.AUDIO);
-        this.tick();
-      }
-    }
-  }
-  _handleTransmuxComplete(transmuxResult) {
-    var _id3$samples;
-    const id = 'audio';
-    const {
-      hls
-    } = this;
-    const {
-      remuxResult,
-      chunkMeta
-    } = transmuxResult;
-    const context = this.getCurrentContext(chunkMeta);
-    if (!context) {
-      this.resetWhenMissingContext(chunkMeta);
-      return;
-    }
-    const {
-      frag,
-      part,
-      level
-    } = context;
-    const {
-      details
-    } = level;
-    const {
-      audio,
-      text,
-      id3,
-      initSegment
-    } = remuxResult;
-
-    // Check if the current fragment has been aborted. We check this by first seeing if we're still playing the current level.
-    // If we are, subsequently check if the currently loading fragment (fragCurrent) has changed.
-    if (this.fragContextChanged(frag) || !details) {
-      this.fragmentTracker.removeFragment(frag);
-      return;
-    }
-    this.state = State.PARSING;
-    if (this.switchingTrack && audio) {
-      this.completeAudioSwitch(this.switchingTrack);
-    }
-    if (initSegment != null && initSegment.tracks) {
-      const mapFragment = frag.initSegment || frag;
-      this._bufferInitSegment(level, initSegment.tracks, mapFragment, chunkMeta);
-      hls.trigger(Events.FRAG_PARSING_INIT_SEGMENT, {
-        frag: mapFragment,
-        id,
-        tracks: initSegment.tracks
-      });
-      // Only flush audio from old audio tracks when PTS is known on new audio track
-    }
-    if (audio) {
-      const {
-        startPTS,
-        endPTS,
-        startDTS,
-        endDTS
-      } = audio;
-      if (part) {
-        part.elementaryStreams[ElementaryStreamTypes.AUDIO] = {
-          startPTS,
-          endPTS,
-          startDTS,
-          endDTS
-        };
-      }
-      frag.setElementaryStreamInfo(ElementaryStreamTypes.AUDIO, startPTS, endPTS, startDTS, endDTS);
-      this.bufferFragmentData(audio, frag, part, chunkMeta);
-    }
-    if (id3 != null && (_id3$samples = id3.samples) != null && _id3$samples.length) {
-      const emittedID3 = _extends({
-        id,
-        frag,
-        details
-      }, id3);
-      hls.trigger(Events.FRAG_PARSING_METADATA, emittedID3);
-    }
-    if (text) {
-      const emittedText = _extends({
-        id,
-        frag,
-        details
-      }, text);
-      hls.trigger(Events.FRAG_PARSING_USERDATA, emittedText);
-    }
-  }
-  _bufferInitSegment(currentLevel, tracks, frag, chunkMeta) {
-    if (this.state !== State.PARSING) {
-      return;
-    }
-    // delete any video track found on audio transmuxer
-    if (tracks.video) {
-      delete tracks.video;
-    }
-
-    // include levelCodec in audio and video tracks
-    const track = tracks.audio;
-    if (!track) {
-      return;
-    }
-    track.id = 'audio';
-    const variantAudioCodecs = currentLevel.audioCodec;
-    this.log(`Init audio buffer, container:${track.container}, codecs[level/parsed]=[${variantAudioCodecs}/${track.codec}]`);
-    // SourceBuffer will use track.levelCodec if defined
-    if (variantAudioCodecs && variantAudioCodecs.split(',').length === 1) {
-      track.levelCodec = variantAudioCodecs;
-    }
-    this.hls.trigger(Events.BUFFER_CODECS, tracks);
-    const initSegment = track.initSegment;
-    if (initSegment != null && initSegment.byteLength) {
-      const segment = {
-        type: 'audio',
-        frag,
-        part: null,
-        chunkMeta,
-        parent: frag.type,
-        data: initSegment
-      };
-      this.hls.trigger(Events.BUFFER_APPENDING, segment);
-    }
-    // trigger handler right now
-    this.tickImmediate();
-  }
-  loadFragment(frag, track, targetBufferTime) {
-    // only load if fragment is not loaded or if in audio switch
-    const fragState = this.fragmentTracker.getState(frag);
-    this.fragCurrent = frag;
-
-    // we force a frag loading in audio switch as fragment tracker might not have evicted previous frags in case of quick audio switch
-    if (this.switchingTrack || fragState === FragmentState.NOT_LOADED || fragState === FragmentState.PARTIAL) {
-      var _track$details2;
-      if (frag.sn === 'initSegment') {
-        this._loadInitSegment(frag, track);
-      } else if ((_track$details2 = track.details) != null && _track$details2.live && !this.initPTS[frag.cc]) {
-        this.log(`Waiting for video PTS in continuity counter ${frag.cc} of live stream before loading audio fragment ${frag.sn} of level ${this.trackId}`);
-        this.state = State.WAITING_INIT_PTS;
-        const mainDetails = this.mainDetails;
-        if (mainDetails && mainDetails.fragments[0].start !== track.details.fragments[0].start) {
-          alignMediaPlaylistByPDT(track.details, mainDetails);
-        }
-      } else {
-        this.startFragRequested = true;
-        super.loadFragment(frag, track, targetBufferTime);
-      }
-    } else {
-      this.clearTrackerIfNeeded(frag);
-    }
-  }
-  flushAudioIfNeeded(switchingTrack) {
-    const {
-      media,
-      bufferedTrack
-    } = this;
-    const bufferedAttributes = bufferedTrack == null ? void 0 : bufferedTrack.attrs;
-    const switchAttributes = switchingTrack.attrs;
-    if (media && bufferedAttributes && (bufferedAttributes.CHANNELS !== switchAttributes.CHANNELS || bufferedTrack.name !== switchingTrack.name || bufferedTrack.lang !== switchingTrack.lang)) {
-      this.log('Switching audio track : flushing all audio');
-      super.flushMainBuffer(0, Number.POSITIVE_INFINITY, 'audio');
-      this.bufferedTrack = null;
-    }
-  }
-  completeAudioSwitch(switchingTrack) {
-    const {
-      hls
-    } = this;
-    this.flushAudioIfNeeded(switchingTrack);
-    this.bufferedTrack = switchingTrack;
-    this.switchingTrack = null;
-    hls.trigger(Events.AUDIO_TRACK_SWITCHED, _objectSpread2({}, switchingTrack));
-  }
-}
-
-class AudioTrackController extends BasePlaylistController {
-  constructor(hls) {
-    super(hls, '[audio-track-controller]');
-    this.tracks = [];
-    this.groupIds = null;
-    this.tracksInGroup = [];
-    this.trackId = -1;
-    this.currentTrack = null;
-    this.selectDefaultTrack = true;
-    this.registerListeners();
-  }
-  registerListeners() {
-    const {
-      hls
-    } = this;
-    hls.on(Events.MANIFEST_LOADING, this.onManifestLoading, this);
-    hls.on(Events.MANIFEST_PARSED, this.onManifestParsed, this);
-    hls.on(Events.LEVEL_LOADING, this.onLevelLoading, this);
-    hls.on(Events.LEVEL_SWITCHING, this.onLevelSwitching, this);
-    hls.on(Events.AUDIO_TRACK_LOADED, this.onAudioTrackLoaded, this);
-    hls.on(Events.ERROR, this.onError, this);
-  }
-  unregisterListeners() {
-    const {
-      hls
-    } = this;
-    hls.off(Events.MANIFEST_LOADING, this.onManifestLoading, this);
-    hls.off(Events.MANIFEST_PARSED, this.onManifestParsed, this);
-    hls.off(Events.LEVEL_LOADING, this.onLevelLoading, this);
-    hls.off(Events.LEVEL_SWITCHING, this.onLevelSwitching, this);
-    hls.off(Events.AUDIO_TRACK_LOADED, this.onAudioTrackLoaded, this);
-    hls.off(Events.ERROR, this.onError, this);
-  }
-  destroy() {
-    this.unregisterListeners();
-    this.tracks.length = 0;
-    this.tracksInGroup.length = 0;
-    this.currentTrack = null;
-    super.destroy();
-  }
-  onManifestLoading() {
-    this.tracks = [];
-    this.tracksInGroup = [];
-    this.groupIds = null;
-    this.currentTrack = null;
-    this.trackId = -1;
-    this.selectDefaultTrack = true;
-  }
-  onManifestParsed(event, data) {
-    this.tracks = data.audioTracks || [];
-  }
-  onAudioTrackLoaded(event, data) {
-    const {
-      id,
-      groupId,
-      details
-    } = data;
-    const trackInActiveGroup = this.tracksInGroup[id];
-    if (!trackInActiveGroup || trackInActiveGroup.groupId !== groupId) {
-      this.warn(`Audio track with id:${id} and group:${groupId} not found in active group ${trackInActiveGroup == null ? void 0 : trackInActiveGroup.groupId}`);
-      return;
-    }
-    const curDetails = trackInActiveGroup.details;
-    trackInActiveGroup.details = data.details;
-    this.log(`Audio track ${id} "${trackInActiveGroup.name}" lang:${trackInActiveGroup.lang} group:${groupId} loaded [${details.startSN}-${details.endSN}]`);
-    if (id === this.trackId) {
-      this.playlistLoaded(id, data, curDetails);
-    }
-  }
-  onLevelLoading(event, data) {
-    this.switchLevel(data.level);
-  }
-  onLevelSwitching(event, data) {
-    this.switchLevel(data.level);
-  }
-  switchLevel(levelIndex) {
-    const levelInfo = this.hls.levels[levelIndex];
-    if (!levelInfo) {
-      return;
-    }
-    const audioGroups = levelInfo.audioGroups || null;
-    const currentGroups = this.groupIds;
-    let currentTrack = this.currentTrack;
-    if (!audioGroups || (currentGroups == null ? void 0 : currentGroups.length) !== (audioGroups == null ? void 0 : audioGroups.length) || audioGroups != null && audioGroups.some(groupId => (currentGroups == null ? void 0 : currentGroups.indexOf(groupId)) === -1)) {
-      this.groupIds = audioGroups;
-      this.trackId = -1;
-      this.currentTrack = null;
-      const audioTracks = this.tracks.filter(track => !audioGroups || audioGroups.indexOf(track.groupId) !== -1);
-      if (audioTracks.length) {
-        // Disable selectDefaultTrack if there are no default tracks
-        if (this.selectDefaultTrack && !audioTracks.some(track => track.default)) {
-          this.selectDefaultTrack = false;
-        }
-        // track.id should match hls.audioTracks index
-        audioTracks.forEach((track, i) => {
-          track.id = i;
-        });
-      } else if (!currentTrack && !this.tracksInGroup.length) {
-        // Do not dispatch AUDIO_TRACKS_UPDATED when there were and are no tracks
-        return;
-      }
-      this.tracksInGroup = audioTracks;
-
-      // Find preferred track
-      const audioPreference = this.hls.config.audioPreference;
-      if (!currentTrack && audioPreference) {
-        const groupIndex = findMatchingOption(audioPreference, audioTracks, audioMatchPredicate);
-        if (groupIndex > -1) {
-          currentTrack = audioTracks[groupIndex];
-        } else {
-          const allIndex = findMatchingOption(audioPreference, this.tracks);
-          currentTrack = this.tracks[allIndex];
-        }
-      }
-
-      // Select initial track
-      let trackId = this.findTrackId(currentTrack);
-      if (trackId === -1 && currentTrack) {
-        trackId = this.findTrackId(null);
-      }
-
-      // Dispatch events and load track if needed
-      const audioTracksUpdated = {
-        audioTracks
-      };
-      this.log(`Updating audio tracks, ${audioTracks.length} track(s) found in group(s): ${audioGroups == null ? void 0 : audioGroups.join(',')}`);
-      this.hls.trigger(Events.AUDIO_TRACKS_UPDATED, audioTracksUpdated);
-      const selectedTrackId = this.trackId;
-      if (trackId !== -1 && selectedTrackId === -1) {
-        this.setAudioTrack(trackId);
-      } else if (audioTracks.length && selectedTrackId === -1) {
-        var _this$groupIds;
-        const error = new Error(`No audio track selected for current audio group-ID(s): ${(_this$groupIds = this.groupIds) == null ? void 0 : _this$groupIds.join(',')} track count: ${audioTracks.length}`);
-        this.warn(error.message);
-        this.hls.trigger(Events.ERROR, {
-          type: ErrorTypes.MEDIA_ERROR,
-          details: ErrorDetails.AUDIO_TRACK_LOAD_ERROR,
-          fatal: true,
-          error
-        });
-      }
-    } else if (this.shouldReloadPlaylist(currentTrack)) {
-      // Retry playlist loading if no playlist is or has been loaded yet
-      this.setAudioTrack(this.trackId);
-    }
-  }
-  onError(event, data) {
-    if (data.fatal || !data.context) {
-      return;
-    }
-    if (data.context.type === PlaylistContextType.AUDIO_TRACK && data.context.id === this.trackId && (!this.groupIds || this.groupIds.indexOf(data.context.groupId) !== -1)) {
-      this.requestScheduled = -1;
-      this.checkRetry(data);
-    }
-  }
-  get allAudioTracks() {
-    return this.tracks;
-  }
-  get audioTracks() {
-    return this.tracksInGroup;
-  }
-  get audioTrack() {
-    return this.trackId;
-  }
-  set audioTrack(newId) {
-    // If audio track is selected from API then don't choose from the manifest default track
-    this.selectDefaultTrack = false;
-    this.setAudioTrack(newId);
-  }
-  setAudioOption(audioOption) {
-    const hls = this.hls;
-    hls.config.audioPreference = audioOption;
-    if (audioOption) {
-      const allAudioTracks = this.allAudioTracks;
-      this.selectDefaultTrack = false;
-      if (allAudioTracks.length) {
-        // First see if current option matches (no switch op)
-        const currentTrack = this.currentTrack;
-        if (currentTrack && matchesOption(audioOption, currentTrack, audioMatchPredicate)) {
-          return currentTrack;
-        }
-        // Find option in available tracks (tracksInGroup)
-        const groupIndex = findMatchingOption(audioOption, this.tracksInGroup, audioMatchPredicate);
-        if (groupIndex > -1) {
-          const track = this.tracksInGroup[groupIndex];
-          this.setAudioTrack(groupIndex);
-          return track;
-        } else if (currentTrack) {
-          // Find option in nearest level audio group
-          let searchIndex = hls.loadLevel;
-          if (searchIndex === -1) {
-            searchIndex = hls.firstAutoLevel;
-          }
-          const switchIndex = findClosestLevelWithAudioGroup(audioOption, hls.levels, allAudioTracks, searchIndex, audioMatchPredicate);
-          if (switchIndex === -1) {
-            // could not find matching variant
-            return null;
-          }
-          // and switch level to acheive the audio group switch
-          hls.nextLoadLevel = switchIndex;
-        }
-        if (audioOption.channels || audioOption.audioCodec) {
-          // Could not find a match with codec / channels predicate
-          // Find a match without channels or codec
-          const withoutCodecAndChannelsMatch = findMatchingOption(audioOption, allAudioTracks);
-          if (withoutCodecAndChannelsMatch > -1) {
-            return allAudioTracks[withoutCodecAndChannelsMatch];
-          }
-        }
-      }
-    }
-    return null;
-  }
-  setAudioTrack(newId) {
-    const tracks = this.tracksInGroup;
-
-    // check if level idx is valid
-    if (newId < 0 || newId >= tracks.length) {
-      this.warn(`Invalid audio track id: ${newId}`);
-      return;
-    }
-
-    // stopping live reloading timer if any
-    this.clearTimer();
-    this.selectDefaultTrack = false;
-    const lastTrack = this.currentTrack;
-    const track = tracks[newId];
-    const trackLoaded = track.details && !track.details.live;
-    if (newId === this.trackId && track === lastTrack && trackLoaded) {
-      return;
-    }
-    this.log(`Switching to audio-track ${newId} "${track.name}" lang:${track.lang} group:${track.groupId} channels:${track.channels}`);
-    this.trackId = newId;
-    this.currentTrack = track;
-    this.hls.trigger(Events.AUDIO_TRACK_SWITCHING, _objectSpread2({}, track));
-    // Do not reload track unless live
-    if (trackLoaded) {
-      return;
-    }
-    const hlsUrlParameters = this.switchParams(track.url, lastTrack == null ? void 0 : lastTrack.details, track.details);
-    this.loadPlaylist(hlsUrlParameters);
-  }
-  findTrackId(currentTrack) {
-    const audioTracks = this.tracksInGroup;
-    for (let i = 0; i < audioTracks.length; i++) {
-      const track = audioTracks[i];
-      if (this.selectDefaultTrack && !track.default) {
-        continue;
-      }
-      if (!currentTrack || matchesOption(currentTrack, track, audioMatchPredicate)) {
-        return i;
-      }
-    }
-    if (currentTrack) {
-      const {
-        name,
-        lang,
-        assocLang,
-        characteristics,
-        audioCodec,
-        channels
-      } = currentTrack;
-      for (let i = 0; i < audioTracks.length; i++) {
-        const track = audioTracks[i];
-        if (matchesOption({
-          name,
-          lang,
-          assocLang,
-          characteristics,
-          audioCodec,
-          channels
-        }, track, audioMatchPredicate)) {
-          return i;
-        }
-      }
-      for (let i = 0; i < audioTracks.length; i++) {
-        const track = audioTracks[i];
-        if (mediaAttributesIdentical(currentTrack.attrs, track.attrs, ['LANGUAGE', 'ASSOC-LANGUAGE', 'CHARACTERISTICS'])) {
-          return i;
-        }
-      }
-      for (let i = 0; i < audioTracks.length; i++) {
-        const track = audioTracks[i];
-        if (mediaAttributesIdentical(currentTrack.attrs, track.attrs, ['LANGUAGE'])) {
-          return i;
-        }
-      }
-    }
-    return -1;
-  }
-  loadPlaylist(hlsUrlParameters) {
-    const audioTrack = this.currentTrack;
-    if (this.shouldLoadPlaylist(audioTrack) && audioTrack) {
-      super.loadPlaylist();
-      const id = audioTrack.id;
-      const groupId = audioTrack.groupId;
-      let url = audioTrack.url;
-      if (hlsUrlParameters) {
-        try {
-          url = hlsUrlParameters.addDirectives(url);
-        } catch (error) {
-          this.warn(`Could not construct new URL with HLS Delivery Directives: ${error}`);
-        }
-      }
-      // track not retrieved yet, or live playlist we need to (re)load it
-      this.log(`loading audio-track playlist ${id} "${audioTrack.name}" lang:${audioTrack.lang} group:${groupId}`);
-      this.clearTimer();
-      this.hls.trigger(Events.AUDIO_TRACK_LOADING, {
-        url,
-        id,
-        groupId,
-        deliveryDirectives: hlsUrlParameters || null
-      });
-    }
-  }
-}
-
-const TICK_INTERVAL$1 = 500; // how often to tick in ms
-
-class SubtitleStreamController extends BaseStreamController {
-  constructor(hls, fragmentTracker, keyLoader) {
-    super(hls, fragmentTracker, keyLoader, '[subtitle-stream-controller]', PlaylistLevelType.SUBTITLE);
-    this.currentTrackId = -1;
-    this.tracksBuffered = [];
-    this.mainDetails = null;
-    this._registerListeners();
-  }
-  onHandlerDestroying() {
-    this._unregisterListeners();
-    super.onHandlerDestroying();
-    this.mainDetails = null;
-  }
-  _registerListeners() {
-    const {
-      hls
-    } = this;
-    hls.on(Events.MEDIA_ATTACHED, this.onMediaAttached, this);
-    hls.on(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
-    hls.on(Events.MANIFEST_LOADING, this.onManifestLoading, this);
-    hls.on(Events.LEVEL_LOADED, this.onLevelLoaded, this);
-    hls.on(Events.ERROR, this.onError, this);
-    hls.on(Events.SUBTITLE_TRACKS_UPDATED, this.onSubtitleTracksUpdated, this);
-    hls.on(Events.SUBTITLE_TRACK_SWITCH, this.onSubtitleTrackSwitch, this);
-    hls.on(Events.SUBTITLE_TRACK_LOADED, this.onSubtitleTrackLoaded, this);
-    hls.on(Events.SUBTITLE_FRAG_PROCESSED, this.onSubtitleFragProcessed, this);
-    hls.on(Events.BUFFER_FLUSHING, this.onBufferFlushing, this);
-    hls.on(Events.FRAG_BUFFERED, this.onFragBuffered, this);
-  }
-  _unregisterListeners() {
-    const {
-      hls
-    } = this;
-    hls.off(Events.MEDIA_ATTACHED, this.onMediaAttached, this);
-    hls.off(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
-    hls.off(Events.MANIFEST_LOADING, this.onManifestLoading, this);
-    hls.off(Events.LEVEL_LOADED, this.onLevelLoaded, this);
-    hls.off(Events.ERROR, this.onError, this);
-    hls.off(Events.SUBTITLE_TRACKS_UPDATED, this.onSubtitleTracksUpdated, this);
-    hls.off(Events.SUBTITLE_TRACK_SWITCH, this.onSubtitleTrackSwitch, this);
-    hls.off(Events.SUBTITLE_TRACK_LOADED, this.onSubtitleTrackLoaded, this);
-    hls.off(Events.SUBTITLE_FRAG_PROCESSED, this.onSubtitleFragProcessed, this);
-    hls.off(Events.BUFFER_FLUSHING, this.onBufferFlushing, this);
-    hls.off(Events.FRAG_BUFFERED, this.onFragBuffered, this);
-  }
-  startLoad(startPosition) {
-    this.stopLoad();
-    this.state = State.IDLE;
-    this.setInterval(TICK_INTERVAL$1);
-    this.nextLoadPosition = this.startPosition = this.lastCurrentTime = startPosition;
-    this.tick();
-  }
-  onManifestLoading() {
-    this.mainDetails = null;
-    this.fragmentTracker.removeAllFragments();
-  }
-  onMediaDetaching() {
-    this.tracksBuffered = [];
-    super.onMediaDetaching();
-  }
-  onLevelLoaded(event, data) {
-    this.mainDetails = data.details;
-  }
-  onSubtitleFragProcessed(event, data) {
-    const {
-      frag,
-      success
-    } = data;
-    this.fragPrevious = frag;
-    this.state = State.IDLE;
-    if (!success) {
-      return;
-    }
-    const buffered = this.tracksBuffered[this.currentTrackId];
-    if (!buffered) {
-      return;
-    }
-
-    // Create/update a buffered array matching the interface used by BufferHelper.bufferedInfo
-    // so we can re-use the logic used to detect how much has been buffered
-    let timeRange;
-    const fragStart = frag.start;
-    for (let i = 0; i < buffered.length; i++) {
-      if (fragStart >= buffered[i].start && fragStart <= buffered[i].end) {
-        timeRange = buffered[i];
-        break;
-      }
-    }
-    const fragEnd = frag.start + frag.duration;
-    if (timeRange) {
-      timeRange.end = fragEnd;
-    } else {
-      timeRange = {
-        start: fragStart,
-        end: fragEnd
-      };
-      buffered.push(timeRange);
-    }
-    this.fragmentTracker.fragBuffered(frag);
-    this.fragBufferedComplete(frag, null);
-  }
-  onBufferFlushing(event, data) {
-    const {
-      startOffset,
-      endOffset
-    } = data;
-    if (startOffset === 0 && endOffset !== Number.POSITIVE_INFINITY) {
-      const endOffsetSubtitles = endOffset - 1;
-      if (endOffsetSubtitles <= 0) {
-        return;
-      }
-      data.endOffsetSubtitles = Math.max(0, endOffsetSubtitles);
-      this.tracksBuffered.forEach(buffered => {
-        for (let i = 0; i < buffered.length;) {
-          if (buffered[i].end <= endOffsetSubtitles) {
-            buffered.shift();
-            continue;
-          } else if (buffered[i].start < endOffsetSubtitles) {
-            buffered[i].start = endOffsetSubtitles;
-          } else {
-            break;
-          }
-          i++;
-        }
-      });
-      this.fragmentTracker.removeFragmentsInRange(startOffset, endOffsetSubtitles, PlaylistLevelType.SUBTITLE);
-    }
-  }
-  onFragBuffered(event, data) {
-    if (!this.loadedmetadata && data.frag.type === PlaylistLevelType.MAIN) {
-      var _this$media;
-      if ((_this$media = this.media) != null && _this$media.buffered.length) {
-        this.loadedmetadata = true;
-      }
-    }
-  }
-
-  // If something goes wrong, proceed to next frag, if we were processing one.
-  onError(event, data) {
-    const frag = data.frag;
-    if ((frag == null ? void 0 : frag.type) === PlaylistLevelType.SUBTITLE) {
-      if (data.details === ErrorDetails.FRAG_GAP) {
-        this.fragmentTracker.fragBuffered(frag, true);
-      }
-      if (this.fragCurrent) {
-        this.fragCurrent.abortRequests();
-      }
-      if (this.state !== State.STOPPED) {
-        this.state = State.IDLE;
-      }
-    }
-  }
-
-  // Got all new subtitle levels.
-  onSubtitleTracksUpdated(event, {
-    subtitleTracks
-  }) {
-    if (this.levels && subtitleOptionsIdentical(this.levels, subtitleTracks)) {
-      this.levels = subtitleTracks.map(mediaPlaylist => new Level(mediaPlaylist));
-      return;
-    }
-    this.tracksBuffered = [];
-    this.levels = subtitleTracks.map(mediaPlaylist => {
-      const level = new Level(mediaPlaylist);
-      this.tracksBuffered[level.id] = [];
-      return level;
-    });
-    this.fragmentTracker.removeFragmentsInRange(0, Number.POSITIVE_INFINITY, PlaylistLevelType.SUBTITLE);
-    this.fragPrevious = null;
-    this.mediaBuffer = null;
-  }
-  onSubtitleTrackSwitch(event, data) {
-    var _this$levels;
-    this.currentTrackId = data.id;
-    if (!((_this$levels = this.levels) != null && _this$levels.length) || this.currentTrackId === -1) {
-      this.clearInterval();
-      return;
-    }
-
-    // Check if track has the necessary details to load fragments
-    const currentTrack = this.levels[this.currentTrackId];
-    if (currentTrack != null && currentTrack.details) {
-      this.mediaBuffer = this.mediaBufferTimeRanges;
-    } else {
-      this.mediaBuffer = null;
-    }
-    if (currentTrack) {
-      this.setInterval(TICK_INTERVAL$1);
-    }
-  }
-
-  // Got a new set of subtitle fragments.
-  onSubtitleTrackLoaded(event, data) {
-    var _track$details;
-    const {
-      currentTrackId,
-      levels
-    } = this;
-    const {
-      details: newDetails,
-      id: trackId
-    } = data;
-    if (!levels) {
-      this.warn(`Subtitle tracks were reset while loading level ${trackId}`);
-      return;
-    }
-    const track = levels[trackId];
-    if (trackId >= levels.length || !track) {
-      return;
-    }
-    this.log(`Subtitle track ${trackId} loaded [${newDetails.startSN},${newDetails.endSN}]${newDetails.lastPartSn ? `[part-${newDetails.lastPartSn}-${newDetails.lastPartIndex}]` : ''},duration:${newDetails.totalduration}`);
-    this.mediaBuffer = this.mediaBufferTimeRanges;
-    let sliding = 0;
-    if (newDetails.live || (_track$details = track.details) != null && _track$details.live) {
-      const mainDetails = this.mainDetails;
-      if (newDetails.deltaUpdateFailed || !mainDetails) {
-        return;
-      }
-      const mainSlidingStartFragment = mainDetails.fragments[0];
-      if (!track.details) {
-        if (newDetails.hasProgramDateTime && mainDetails.hasProgramDateTime) {
-          alignMediaPlaylistByPDT(newDetails, mainDetails);
-          sliding = newDetails.fragments[0].start;
-        } else if (mainSlidingStartFragment) {
-          // line up live playlist with main so that fragments in range are loaded
-          sliding = mainSlidingStartFragment.start;
-          addSliding(newDetails, sliding);
-        }
-      } else {
-        var _this$levelLastLoaded;
-        sliding = this.alignPlaylists(newDetails, track.details, (_this$levelLastLoaded = this.levelLastLoaded) == null ? void 0 : _this$levelLastLoaded.details);
-        if (sliding === 0 && mainSlidingStartFragment) {
-          // realign with main when there is no overlap with last refresh
-          sliding = mainSlidingStartFragment.start;
-          addSliding(newDetails, sliding);
-        }
-      }
-    }
-    track.details = newDetails;
-    this.levelLastLoaded = track;
-    if (trackId !== currentTrackId) {
-      return;
-    }
-    if (!this.startFragRequested && (this.mainDetails || !newDetails.live)) {
-      this.setStartPosition(this.mainDetails || newDetails, sliding);
-    }
-
-    // trigger handler right now
-    this.tick();
-
-    // If playlist is misaligned because of bad PDT or drift, delete details to resync with main on reload
-    if (newDetails.live && !this.fragCurrent && this.media && this.state === State.IDLE) {
-      const foundFrag = findFragmentByPTS(null, newDetails.fragments, this.media.currentTime, 0);
-      if (!foundFrag) {
-        this.warn('Subtitle playlist not aligned with playback');
-        track.details = undefined;
-      }
-    }
-  }
-  _handleFragmentLoadComplete(fragLoadedData) {
-    const {
-      frag,
-      payload
-    } = fragLoadedData;
-    const decryptData = frag.decryptdata;
-    const hls = this.hls;
-    if (this.fragContextChanged(frag)) {
-      return;
-    }
-    // check to see if the payload needs to be decrypted
-    if (payload && payload.byteLength > 0 && decryptData != null && decryptData.key && decryptData.iv && decryptData.method === 'AES-128') {
-      const startTime = performance.now();
-      // decrypt the subtitles
-      this.decrypter.decrypt(new Uint8Array(payload), decryptData.key.buffer, decryptData.iv.buffer).catch(err => {
-        hls.trigger(Events.ERROR, {
-          type: ErrorTypes.MEDIA_ERROR,
-          details: ErrorDetails.FRAG_DECRYPT_ERROR,
-          fatal: false,
-          error: err,
-          reason: err.message,
-          frag
-        });
-        throw err;
-      }).then(decryptedData => {
-        const endTime = performance.now();
-        hls.trigger(Events.FRAG_DECRYPTED, {
-          frag,
-          payload: decryptedData,
-          stats: {
-            tstart: startTime,
-            tdecrypt: endTime
-          }
-        });
-      }).catch(err => {
-        this.warn(`${err.name}: ${err.message}`);
-        this.state = State.IDLE;
-      });
-    }
-  }
-  doTick() {
-    if (!this.media) {
-      this.state = State.IDLE;
-      return;
-    }
-    if (this.state === State.IDLE) {
-      const {
-        currentTrackId,
-        levels
-      } = this;
-      const track = levels == null ? void 0 : levels[currentTrackId];
-      if (!track || !levels.length || !track.details) {
-        return;
-      }
-      const {
-        config
-      } = this;
-      const currentTime = this.getLoadPosition();
-      const bufferedInfo = BufferHelper.bufferedInfo(this.tracksBuffered[this.currentTrackId] || [], currentTime, config.maxBufferHole);
-      const {
-        end: targetBufferTime,
-        len: bufferLen
-      } = bufferedInfo;
-      const mainBufferInfo = this.getFwdBufferInfo(this.media, PlaylistLevelType.MAIN);
-      const trackDetails = track.details;
-      const maxBufLen = this.getMaxBufferLength(mainBufferInfo == null ? void 0 : mainBufferInfo.len) + trackDetails.levelTargetDuration;
-      if (bufferLen > maxBufLen) {
-        return;
-      }
-      const fragments = trackDetails.fragments;
-      const fragLen = fragments.length;
-      const end = trackDetails.edge;
-      let foundFrag = null;
-      const fragPrevious = this.fragPrevious;
-      if (targetBufferTime < end) {
-        const tolerance = config.maxFragLookUpTolerance;
-        const lookupTolerance = targetBufferTime > end - tolerance ? 0 : tolerance;
-        foundFrag = findFragmentByPTS(fragPrevious, fragments, Math.max(fragments[0].start, targetBufferTime), lookupTolerance);
-        if (!foundFrag && fragPrevious && fragPrevious.start < fragments[0].start) {
-          foundFrag = fragments[0];
-        }
-      } else {
-        foundFrag = fragments[fragLen - 1];
-      }
-      if (!foundFrag) {
-        return;
-      }
-      foundFrag = this.mapToInitFragWhenRequired(foundFrag);
-      if (foundFrag.sn !== 'initSegment') {
-        // Load earlier fragment in same discontinuity to make up for misaligned playlists and cues that extend beyond end of segment
-        const curSNIdx = foundFrag.sn - trackDetails.startSN;
-        const prevFrag = fragments[curSNIdx - 1];
-        if (prevFrag && prevFrag.cc === foundFrag.cc && this.fragmentTracker.getState(prevFrag) === FragmentState.NOT_LOADED) {
-          foundFrag = prevFrag;
-        }
-      }
-      if (this.fragmentTracker.getState(foundFrag) === FragmentState.NOT_LOADED) {
-        // only load if fragment is not loaded
-        this.loadFragment(foundFrag, track, targetBufferTime);
-      }
-    }
-  }
-  getMaxBufferLength(mainBufferLength) {
-    const maxConfigBuffer = super.getMaxBufferLength();
-    if (!mainBufferLength) {
-      return maxConfigBuffer;
-    }
-    return Math.max(maxConfigBuffer, mainBufferLength);
-  }
-  loadFragment(frag, level, targetBufferTime) {
-    this.fragCurrent = frag;
-    if (frag.sn === 'initSegment') {
-      this._loadInitSegment(frag, level);
-    } else {
-      this.startFragRequested = true;
-      super.loadFragment(frag, level, targetBufferTime);
-    }
-  }
-  get mediaBufferTimeRanges() {
-    return new BufferableInstance(this.tracksBuffered[this.currentTrackId] || []);
-  }
-}
-class BufferableInstance {
-  constructor(timeranges) {
-    this.buffered = void 0;
-    const getRange = (name, index, length) => {
-      index = index >>> 0;
-      if (index > length - 1) {
-        throw new DOMException(`Failed to execute '${name}' on 'TimeRanges': The index provided (${index}) is greater than the maximum bound (${length})`);
-      }
-      return timeranges[index][name];
-    };
-    this.buffered = {
-      get length() {
-        return timeranges.length;
-      },
-      end(index) {
-        return getRange('end', index, timeranges.length);
-      },
-      start(index) {
-        return getRange('start', index, timeranges.length);
-      }
-    };
-  }
-}
-
-class SubtitleTrackController extends BasePlaylistController {
-  constructor(hls) {
-    super(hls, '[subtitle-track-controller]');
-    this.media = null;
-    this.tracks = [];
-    this.groupIds = null;
-    this.tracksInGroup = [];
-    this.trackId = -1;
-    this.currentTrack = null;
-    this.selectDefaultTrack = true;
-    this.queuedDefaultTrack = -1;
-    this.asyncPollTrackChange = () => this.pollTrackChange(0);
-    this.useTextTrackPolling = false;
-    this.subtitlePollingInterval = -1;
-    this._subtitleDisplay = true;
-    this.onTextTracksChanged = () => {
-      if (!this.useTextTrackPolling) {
-        self.clearInterval(this.subtitlePollingInterval);
-      }
-      // Media is undefined when switching streams via loadSource()
-      if (!this.media || !this.hls.config.renderTextTracksNatively) {
-        return;
-      }
-      let textTrack = null;
-      const tracks = filterSubtitleTracks(this.media.textTracks);
-      for (let i = 0; i < tracks.length; i++) {
-        if (tracks[i].mode === 'hidden') {
-          // Do not break in case there is a following track with showing.
-          textTrack = tracks[i];
-        } else if (tracks[i].mode === 'showing') {
-          textTrack = tracks[i];
-          break;
-        }
-      }
-
-      // Find internal track index for TextTrack
-      const trackId = this.findTrackForTextTrack(textTrack);
-      if (this.subtitleTrack !== trackId) {
-        this.setSubtitleTrack(trackId);
-      }
-    };
-    this.registerListeners();
-  }
-  destroy() {
-    this.unregisterListeners();
-    this.tracks.length = 0;
-    this.tracksInGroup.length = 0;
-    this.currentTrack = null;
-    this.onTextTracksChanged = this.asyncPollTrackChange = null;
-    super.destroy();
-  }
-  get subtitleDisplay() {
-    return this._subtitleDisplay;
-  }
-  set subtitleDisplay(value) {
-    this._subtitleDisplay = value;
-    if (this.trackId > -1) {
-      this.toggleTrackModes();
-    }
-  }
-  registerListeners() {
-    const {
-      hls
-    } = this;
-    hls.on(Events.MEDIA_ATTACHED, this.onMediaAttached, this);
-    hls.on(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
-    hls.on(Events.MANIFEST_LOADING, this.onManifestLoading, this);
-    hls.on(Events.MANIFEST_PARSED, this.onManifestParsed, this);
-    hls.on(Events.LEVEL_LOADING, this.onLevelLoading, this);
-    hls.on(Events.LEVEL_SWITCHING, this.onLevelSwitching, this);
-    hls.on(Events.SUBTITLE_TRACK_LOADED, this.onSubtitleTrackLoaded, this);
-    hls.on(Events.ERROR, this.onError, this);
-  }
-  unregisterListeners() {
-    const {
-      hls
-    } = this;
-    hls.off(Events.MEDIA_ATTACHED, this.onMediaAttached, this);
-    hls.off(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
-    hls.off(Events.MANIFEST_LOADING, this.onManifestLoading, this);
-    hls.off(Events.MANIFEST_PARSED, this.onManifestParsed, this);
-    hls.off(Events.LEVEL_LOADING, this.onLevelLoading, this);
-    hls.off(Events.LEVEL_SWITCHING, this.onLevelSwitching, this);
-    hls.off(Events.SUBTITLE_TRACK_LOADED, this.onSubtitleTrackLoaded, this);
-    hls.off(Events.ERROR, this.onError, this);
-  }
-
-  // Listen for subtitle track change, then extract the current track ID.
-  onMediaAttached(event, data) {
-    this.media = data.media;
-    if (!this.media) {
-      return;
-    }
-    if (this.queuedDefaultTrack > -1) {
-      this.subtitleTrack = this.queuedDefaultTrack;
-      this.queuedDefaultTrack = -1;
-    }
-    this.useTextTrackPolling = !(this.media.textTracks && 'onchange' in this.media.textTracks);
-    if (this.useTextTrackPolling) {
-      this.pollTrackChange(500);
-    } else {
-      this.media.textTracks.addEventListener('change', this.asyncPollTrackChange);
-    }
-  }
-  pollTrackChange(timeout) {
-    self.clearInterval(this.subtitlePollingInterval);
-    this.subtitlePollingInterval = self.setInterval(this.onTextTracksChanged, timeout);
-  }
-  onMediaDetaching() {
-    if (!this.media) {
-      return;
-    }
-    self.clearInterval(this.subtitlePollingInterval);
-    if (!this.useTextTrackPolling) {
-      this.media.textTracks.removeEventListener('change', this.asyncPollTrackChange);
-    }
-    if (this.trackId > -1) {
-      this.queuedDefaultTrack = this.trackId;
-    }
-    const textTracks = filterSubtitleTracks(this.media.textTracks);
-    // Clear loaded cues on media detachment from tracks
-    textTracks.forEach(track => {
-      clearCurrentCues(track);
-    });
-    // Disable all subtitle tracks before detachment so when reattached only tracks in that content are enabled.
-    this.subtitleTrack = -1;
-    this.media = null;
-  }
-  onManifestLoading() {
-    this.tracks = [];
-    this.groupIds = null;
-    this.tracksInGroup = [];
-    this.trackId = -1;
-    this.currentTrack = null;
-    this.selectDefaultTrack = true;
-  }
-
-  // Fired whenever a new manifest is loaded.
-  onManifestParsed(event, data) {
-    this.tracks = data.subtitleTracks;
-  }
-  onSubtitleTrackLoaded(event, data) {
-    const {
-      id,
-      groupId,
-      details
-    } = data;
-    const trackInActiveGroup = this.tracksInGroup[id];
-    if (!trackInActiveGroup || trackInActiveGroup.groupId !== groupId) {
-      this.warn(`Subtitle track with id:${id} and group:${groupId} not found in active group ${trackInActiveGroup == null ? void 0 : trackInActiveGroup.groupId}`);
-      return;
-    }
-    const curDetails = trackInActiveGroup.details;
-    trackInActiveGroup.details = data.details;
-    this.log(`Subtitle track ${id} "${trackInActiveGroup.name}" lang:${trackInActiveGroup.lang} group:${groupId} loaded [${details.startSN}-${details.endSN}]`);
-    if (id === this.trackId) {
-      this.playlistLoaded(id, data, curDetails);
-    }
-  }
-  onLevelLoading(event, data) {
-    this.switchLevel(data.level);
-  }
-  onLevelSwitching(event, data) {
-    this.switchLevel(data.level);
-  }
-  switchLevel(levelIndex) {
-    const levelInfo = this.hls.levels[levelIndex];
-    if (!levelInfo) {
-      return;
-    }
-    const subtitleGroups = levelInfo.subtitleGroups || null;
-    const currentGroups = this.groupIds;
-    let currentTrack = this.currentTrack;
-    if (!subtitleGroups || (currentGroups == null ? void 0 : currentGroups.length) !== (subtitleGroups == null ? void 0 : subtitleGroups.length) || subtitleGroups != null && subtitleGroups.some(groupId => (currentGroups == null ? void 0 : currentGroups.indexOf(groupId)) === -1)) {
-      this.groupIds = subtitleGroups;
-      this.trackId = -1;
-      this.currentTrack = null;
-      const subtitleTracks = this.tracks.filter(track => !subtitleGroups || subtitleGroups.indexOf(track.groupId) !== -1);
-      if (subtitleTracks.length) {
-        // Disable selectDefaultTrack if there are no default tracks
-        if (this.selectDefaultTrack && !subtitleTracks.some(track => track.default)) {
-          this.selectDefaultTrack = false;
-        }
-        // track.id should match hls.audioTracks index
-        subtitleTracks.forEach((track, i) => {
-          track.id = i;
-        });
-      } else if (!currentTrack && !this.tracksInGroup.length) {
-        // Do not dispatch SUBTITLE_TRACKS_UPDATED when there were and are no tracks
-        return;
-      }
-      this.tracksInGroup = subtitleTracks;
-
-      // Find preferred track
-      const subtitlePreference = this.hls.config.subtitlePreference;
-      if (!currentTrack && subtitlePreference) {
-        this.selectDefaultTrack = false;
-        const groupIndex = findMatchingOption(subtitlePreference, subtitleTracks);
-        if (groupIndex > -1) {
-          currentTrack = subtitleTracks[groupIndex];
-        } else {
-          const allIndex = findMatchingOption(subtitlePreference, this.tracks);
-          currentTrack = this.tracks[allIndex];
-        }
-      }
-
-      // Select initial track
-      let trackId = this.findTrackId(currentTrack);
-      if (trackId === -1 && currentTrack) {
-        trackId = this.findTrackId(null);
-      }
-
-      // Dispatch events and load track if needed
-      const subtitleTracksUpdated = {
-        subtitleTracks
-      };
-      this.log(`Updating subtitle tracks, ${subtitleTracks.length} track(s) found in "${subtitleGroups == null ? void 0 : subtitleGroups.join(',')}" group-id`);
-      this.hls.trigger(Events.SUBTITLE_TRACKS_UPDATED, subtitleTracksUpdated);
-      if (trackId !== -1 && this.trackId === -1) {
-        this.setSubtitleTrack(trackId);
-      }
-    } else if (this.shouldReloadPlaylist(currentTrack)) {
-      // Retry playlist loading if no playlist is or has been loaded yet
-      this.setSubtitleTrack(this.trackId);
-    }
-  }
-  findTrackId(currentTrack) {
-    const tracks = this.tracksInGroup;
-    const selectDefault = this.selectDefaultTrack;
-    for (let i = 0; i < tracks.length; i++) {
-      const track = tracks[i];
-      if (selectDefault && !track.default || !selectDefault && !currentTrack) {
-        continue;
-      }
-      if (!currentTrack || matchesOption(track, currentTrack)) {
-        return i;
-      }
-    }
-    if (currentTrack) {
-      for (let i = 0; i < tracks.length; i++) {
-        const track = tracks[i];
-        if (mediaAttributesIdentical(currentTrack.attrs, track.attrs, ['LANGUAGE', 'ASSOC-LANGUAGE', 'CHARACTERISTICS'])) {
-          return i;
-        }
-      }
-      for (let i = 0; i < tracks.length; i++) {
-        const track = tracks[i];
-        if (mediaAttributesIdentical(currentTrack.attrs, track.attrs, ['LANGUAGE'])) {
-          return i;
-        }
-      }
-    }
-    return -1;
-  }
-  findTrackForTextTrack(textTrack) {
-    if (textTrack) {
-      const tracks = this.tracksInGroup;
-      for (let i = 0; i < tracks.length; i++) {
-        const track = tracks[i];
-        if (subtitleTrackMatchesTextTrack(track, textTrack)) {
-          return i;
-        }
-      }
-    }
-    return -1;
-  }
-  onError(event, data) {
-    if (data.fatal || !data.context) {
-      return;
-    }
-    if (data.context.type === PlaylistContextType.SUBTITLE_TRACK && data.context.id === this.trackId && (!this.groupIds || this.groupIds.indexOf(data.context.groupId) !== -1)) {
-      this.checkRetry(data);
-    }
-  }
-  get allSubtitleTracks() {
-    return this.tracks;
-  }
-
-  /** get alternate subtitle tracks list from playlist **/
-  get subtitleTracks() {
-    return this.tracksInGroup;
-  }
-
-  /** get/set index of the selected subtitle track (based on index in subtitle track lists) **/
-  get subtitleTrack() {
-    return this.trackId;
-  }
-  set subtitleTrack(newId) {
-    this.selectDefaultTrack = false;
-    this.setSubtitleTrack(newId);
-  }
-  setSubtitleOption(subtitleOption) {
-    this.hls.config.subtitlePreference = subtitleOption;
-    if (subtitleOption) {
-      const allSubtitleTracks = this.allSubtitleTracks;
-      this.selectDefaultTrack = false;
-      if (allSubtitleTracks.length) {
-        // First see if current option matches (no switch op)
-        const currentTrack = this.currentTrack;
-        if (currentTrack && matchesOption(subtitleOption, currentTrack)) {
-          return currentTrack;
-        }
-        // Find option in current group
-        const groupIndex = findMatchingOption(subtitleOption, this.tracksInGroup);
-        if (groupIndex > -1) {
-          const track = this.tracksInGroup[groupIndex];
-          this.setSubtitleTrack(groupIndex);
-          return track;
-        } else if (currentTrack) {
-          // If this is not the initial selection return null
-          // option should have matched one in active group
-          return null;
-        } else {
-          // Find the option in all tracks for initial selection
-          const allIndex = findMatchingOption(subtitleOption, allSubtitleTracks);
-          if (allIndex > -1) {
-            return allSubtitleTracks[allIndex];
-          }
-        }
-      }
-    }
-    return null;
-  }
-  loadPlaylist(hlsUrlParameters) {
-    super.loadPlaylist();
-    const currentTrack = this.currentTrack;
-    if (this.shouldLoadPlaylist(currentTrack) && currentTrack) {
-      const id = currentTrack.id;
-      const groupId = currentTrack.groupId;
-      let url = currentTrack.url;
-      if (hlsUrlParameters) {
-        try {
-          url = hlsUrlParameters.addDirectives(url);
-        } catch (error) {
-          this.warn(`Could not construct new URL with HLS Delivery Directives: ${error}`);
-        }
-      }
-      this.log(`Loading subtitle playlist for id ${id}`);
-      this.hls.trigger(Events.SUBTITLE_TRACK_LOADING, {
-        url,
-        id,
-        groupId,
-        deliveryDirectives: hlsUrlParameters || null
-      });
-    }
-  }
-
-  /**
-   * Disables the old subtitleTrack and sets current mode on the next subtitleTrack.
-   * This operates on the DOM textTracks.
-   * A value of -1 will disable all subtitle tracks.
-   */
-  toggleTrackModes() {
-    const {
-      media
-    } = this;
-    if (!media) {
-      return;
-    }
-    const textTracks = filterSubtitleTracks(media.textTracks);
-    const currentTrack = this.currentTrack;
-    let nextTrack;
-    if (currentTrack) {
-      nextTrack = textTracks.filter(textTrack => subtitleTrackMatchesTextTrack(currentTrack, textTrack))[0];
-      if (!nextTrack) {
-        this.warn(`Unable to find subtitle TextTrack with name "${currentTrack.name}" and language "${currentTrack.lang}"`);
-      }
-    }
-    [].slice.call(textTracks).forEach(track => {
-      if (track.mode !== 'disabled' && track !== nextTrack) {
-        track.mode = 'disabled';
-      }
-    });
-    if (nextTrack) {
-      const mode = this.subtitleDisplay ? 'showing' : 'hidden';
-      if (nextTrack.mode !== mode) {
-        nextTrack.mode = mode;
-      }
-    }
-  }
-
-  /**
-   * This method is responsible for validating the subtitle index and periodically reloading if live.
-   * Dispatches the SUBTITLE_TRACK_SWITCH event, which instructs the subtitle-stream-controller to load the selected track.
-   */
-  setSubtitleTrack(newId) {
-    const tracks = this.tracksInGroup;
-
-    // setting this.subtitleTrack will trigger internal logic
-    // if media has not been attached yet, it will fail
-    // we keep a reference to the default track id
-    // and we'll set subtitleTrack when onMediaAttached is triggered
-    if (!this.media) {
-      this.queuedDefaultTrack = newId;
-      return;
-    }
-
-    // exit if track id as already set or invalid
-    if (newId < -1 || newId >= tracks.length || !isFiniteNumber(newId)) {
-      this.warn(`Invalid subtitle track id: ${newId}`);
-      return;
-    }
-
-    // stopping live reloading timer if any
-    this.clearTimer();
-    this.selectDefaultTrack = false;
-    const lastTrack = this.currentTrack;
-    const track = tracks[newId] || null;
-    this.trackId = newId;
-    this.currentTrack = track;
-    this.toggleTrackModes();
-    if (!track) {
-      // switch to -1
-      this.hls.trigger(Events.SUBTITLE_TRACK_SWITCH, {
-        id: newId
-      });
-      return;
-    }
-    const trackLoaded = !!track.details && !track.details.live;
-    if (newId === this.trackId && track === lastTrack && trackLoaded) {
-      return;
-    }
-    this.log(`Switching to subtitle-track ${newId}` + (track ? ` "${track.name}" lang:${track.lang} group:${track.groupId}` : ''));
-    const {
-      id,
-      groupId = '',
-      name,
-      type,
-      url
-    } = track;
-    this.hls.trigger(Events.SUBTITLE_TRACK_SWITCH, {
-      id,
-      groupId,
-      name,
-      type,
-      url
-    });
-    const hlsUrlParameters = this.switchParams(track.url, lastTrack == null ? void 0 : lastTrack.details, track.details);
-    this.loadPlaylist(hlsUrlParameters);
-  }
-}
-
-class BufferOperationQueue {
-  constructor(sourceBufferReference) {
-    this.buffers = void 0;
-    this.queues = {
-      video: [],
-      audio: [],
-      audiovideo: []
-    };
-    this.buffers = sourceBufferReference;
-  }
-  append(operation, type, pending) {
-    const queue = this.queues[type];
-    queue.push(operation);
-    if (queue.length === 1 && !pending) {
-      this.executeNext(type);
-    }
-  }
-  insertAbort(operation, type) {
-    const queue = this.queues[type];
-    queue.unshift(operation);
-    this.executeNext(type);
-  }
-  appendBlocker(type) {
-    let execute;
-    const promise = new Promise(resolve => {
-      execute = resolve;
-    });
-    const operation = {
-      execute,
-      onStart: () => {},
-      onComplete: () => {},
-      onError: () => {}
-    };
-    this.append(operation, type);
-    return promise;
-  }
-  executeNext(type) {
-    const queue = this.queues[type];
-    if (queue.length) {
-      const operation = queue[0];
-      try {
-        // Operations are expected to result in an 'updateend' event being fired. If not, the queue will lock. Operations
-        // which do not end with this event must call _onSBUpdateEnd manually
-        operation.execute();
-      } catch (error) {
-        logger.warn(`[buffer-operation-queue]: Exception executing "${type}" SourceBuffer operation: ${error}`);
-        operation.onError(error);
-
-        // Only shift the current operation off, otherwise the updateend handler will do this for us
-        const sb = this.buffers[type];
-        if (!(sb != null && sb.updating)) {
-          this.shiftAndExecuteNext(type);
-        }
-      }
-    }
-  }
-  shiftAndExecuteNext(type) {
-    this.queues[type].shift();
-    this.executeNext(type);
-  }
-  current(type) {
-    return this.queues[type][0];
-  }
-}
-
-const VIDEO_CODEC_PROFILE_REPLACE = /(avc[1234]|hvc1|hev1|dvh[1e]|vp09|av01)(?:\.[^.,]+)+/;
-class BufferController {
-  constructor(hls) {
-    // The level details used to determine duration, target-duration and live
-    this.details = null;
-    // cache the self generated object url to detect hijack of video tag
-    this._objectUrl = null;
-    // A queue of buffer operations which require the SourceBuffer to not be updating upon execution
-    this.operationQueue = void 0;
-    // References to event listeners for each SourceBuffer, so that they can be referenced for event removal
-    this.listeners = void 0;
-    this.hls = void 0;
-    // The number of BUFFER_CODEC events received before any sourceBuffers are created
-    this.bufferCodecEventsExpected = 0;
-    // The total number of BUFFER_CODEC events received
-    this._bufferCodecEventsTotal = 0;
-    // A reference to the attached media element
-    this.media = null;
-    // A reference to the active media source
-    this.mediaSource = null;
-    // Last MP3 audio chunk appended
-    this.lastMpegAudioChunk = null;
-    this.appendSource = void 0;
-    // counters
-    this.appendErrors = {
-      audio: 0,
-      video: 0,
-      audiovideo: 0
-    };
-    this.tracks = {};
-    this.pendingTracks = {};
-    this.sourceBuffer = void 0;
-    this.log = void 0;
-    this.warn = void 0;
-    this.error = void 0;
-    this._onEndStreaming = event => {
-      if (!this.hls) {
-        return;
-      }
-      this.hls.pauseBuffering();
-    };
-    this._onStartStreaming = event => {
-      if (!this.hls) {
-        return;
-      }
-      this.hls.resumeBuffering();
-    };
-    // Keep as arrow functions so that we can directly reference these functions directly as event listeners
-    this._onMediaSourceOpen = () => {
-      const {
-        media,
-        mediaSource
-      } = this;
-      this.log('Media source opened');
-      if (media) {
-        media.removeEventListener('emptied', this._onMediaEmptied);
-        this.updateMediaElementDuration();
-        this.hls.trigger(Events.MEDIA_ATTACHED, {
-          media,
-          mediaSource: mediaSource
-        });
-      }
-      if (mediaSource) {
-        // once received, don't listen anymore to sourceopen event
-        mediaSource.removeEventListener('sourceopen', this._onMediaSourceOpen);
-      }
-      this.checkPendingTracks();
-    };
-    this._onMediaSourceClose = () => {
-      this.log('Media source closed');
-    };
-    this._onMediaSourceEnded = () => {
-      this.log('Media source ended');
-    };
-    this._onMediaEmptied = () => {
-      const {
-        mediaSrc,
-        _objectUrl
-      } = this;
-      if (mediaSrc !== _objectUrl) {
-        logger.error(`Media element src was set while attaching MediaSource (${_objectUrl} > ${mediaSrc})`);
-      }
-    };
-    this.hls = hls;
-    const logPrefix = '[buffer-controller]';
-    this.appendSource = isManagedMediaSource(getMediaSource(hls.config.preferManagedMediaSource));
-    this.log = logger.log.bind(logger, logPrefix);
-    this.warn = logger.warn.bind(logger, logPrefix);
-    this.error = logger.error.bind(logger, logPrefix);
-    this._initSourceBuffer();
-    this.registerListeners();
-  }
-  hasSourceTypes() {
-    return this.getSourceBufferTypes().length > 0 || Object.keys(this.pendingTracks).length > 0;
-  }
-  destroy() {
-    this.unregisterListeners();
-    this.details = null;
-    this.lastMpegAudioChunk = null;
-    // @ts-ignore
-    this.hls = null;
-  }
-  registerListeners() {
-    const {
-      hls
-    } = this;
-    hls.on(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
-    hls.on(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
-    hls.on(Events.MANIFEST_LOADING, this.onManifestLoading, this);
-    hls.on(Events.MANIFEST_PARSED, this.onManifestParsed, this);
-    hls.on(Events.BUFFER_RESET, this.onBufferReset, this);
-    hls.on(Events.BUFFER_APPENDING, this.onBufferAppending, this);
-    hls.on(Events.BUFFER_CODECS, this.onBufferCodecs, this);
-    hls.on(Events.BUFFER_EOS, this.onBufferEos, this);
-    hls.on(Events.BUFFER_FLUSHING, this.onBufferFlushing, this);
-    hls.on(Events.LEVEL_UPDATED, this.onLevelUpdated, this);
-    hls.on(Events.FRAG_PARSED, this.onFragParsed, this);
-    hls.on(Events.FRAG_CHANGED, this.onFragChanged, this);
-  }
-  unregisterListeners() {
-    const {
-      hls
-    } = this;
-    hls.off(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
-    hls.off(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
-    hls.off(Events.MANIFEST_LOADING, this.onManifestLoading, this);
-    hls.off(Events.MANIFEST_PARSED, this.onManifestParsed, this);
-    hls.off(Events.BUFFER_RESET, this.onBufferReset, this);
-    hls.off(Events.BUFFER_APPENDING, this.onBufferAppending, this);
-    hls.off(Events.BUFFER_CODECS, this.onBufferCodecs, this);
-    hls.off(Events.BUFFER_EOS, this.onBufferEos, this);
-    hls.off(Events.BUFFER_FLUSHING, this.onBufferFlushing, this);
-    hls.off(Events.LEVEL_UPDATED, this.onLevelUpdated, this);
-    hls.off(Events.FRAG_PARSED, this.onFragParsed, this);
-    hls.off(Events.FRAG_CHANGED, this.onFragChanged, this);
-  }
-  _initSourceBuffer() {
-    this.sourceBuffer = {};
-    this.operationQueue = new BufferOperationQueue(this.sourceBuffer);
-    this.listeners = {
-      audio: [],
-      video: [],
-      audiovideo: []
-    };
-    this.appendErrors = {
-      audio: 0,
-      video: 0,
-      audiovideo: 0
-    };
-    this.lastMpegAudioChunk = null;
-  }
-  onManifestLoading() {
-    this.bufferCodecEventsExpected = this._bufferCodecEventsTotal = 0;
-    this.details = null;
-  }
-  onManifestParsed(event, data) {
-    // in case of alt audio 2 BUFFER_CODECS events will be triggered, one per stream controller
-    // sourcebuffers will be created all at once when the expected nb of tracks will be reached
-    // in case alt audio is not used, only one BUFFER_CODEC event will be fired from main stream controller
-    // it will contain the expected nb of source buffers, no need to compute it
-    let codecEvents = 2;
-    if (data.audio && !data.video || !data.altAudio || !true) {
-      codecEvents = 1;
-    }
-    this.bufferCodecEventsExpected = this._bufferCodecEventsTotal = codecEvents;
-    this.log(`${this.bufferCodecEventsExpected} bufferCodec event(s) expected`);
-  }
-  onMediaAttaching(event, data) {
-    const media = this.media = data.media;
-    const MediaSource = getMediaSource(this.appendSource);
-    if (media && MediaSource) {
-      var _ms$constructor;
-      const ms = this.mediaSource = new MediaSource();
-      this.log(`created media source: ${(_ms$constructor = ms.constructor) == null ? void 0 : _ms$constructor.name}`);
-      // MediaSource listeners are arrow functions with a lexical scope, and do not need to be bound
-      ms.addEventListener('sourceopen', this._onMediaSourceOpen);
-      ms.addEventListener('sourceended', this._onMediaSourceEnded);
-      ms.addEventListener('sourceclose', this._onMediaSourceClose);
-      if (this.appendSource) {
-        ms.addEventListener('startstreaming', this._onStartStreaming);
-        ms.addEventListener('endstreaming', this._onEndStreaming);
-      }
-
-      // cache the locally generated object url
-      const objectUrl = this._objectUrl = self.URL.createObjectURL(ms);
-      // link video and media Source
-      if (this.appendSource) {
-        try {
-          media.removeAttribute('src');
-          // ManagedMediaSource will not open without disableRemotePlayback set to false or source alternatives
-          const MMS = self.ManagedMediaSource;
-          media.disableRemotePlayback = media.disableRemotePlayback || MMS && ms instanceof MMS;
-          removeSourceChildren(media);
-          addSource(media, objectUrl);
-          media.load();
-        } catch (error) {
-          media.src = objectUrl;
-        }
-      } else {
-        media.src = objectUrl;
-      }
-      media.addEventListener('emptied', this._onMediaEmptied);
-    }
-  }
-  onMediaDetaching() {
-    const {
-      media,
-      mediaSource,
-      _objectUrl
-    } = this;
-    if (mediaSource) {
-      this.log('media source detaching');
-      if (mediaSource.readyState === 'open') {
-        try {
-          // endOfStream could trigger exception if any sourcebuffer is in updating state
-          // we don't really care about checking sourcebuffer state here,
-          // as we are anyway detaching the MediaSource
-          // let's just avoid this exception to propagate
-          mediaSource.endOfStream();
-        } catch (err) {
-          this.warn(`onMediaDetaching: ${err.message} while calling endOfStream`);
-        }
-      }
-      // Clean up the SourceBuffers by invoking onBufferReset
-      this.onBufferReset();
-      mediaSource.removeEventListener('sourceopen', this._onMediaSourceOpen);
-      mediaSource.removeEventListener('sourceended', this._onMediaSourceEnded);
-      mediaSource.removeEventListener('sourceclose', this._onMediaSourceClose);
-      if (this.appendSource) {
-        mediaSource.removeEventListener('startstreaming', this._onStartStreaming);
-        mediaSource.removeEventListener('endstreaming', this._onEndStreaming);
-      }
-
-      // Detach properly the MediaSource from the HTMLMediaElement as
-      // suggested in https://github.com/w3c/media-source/issues/53.
-      if (media) {
-        media.removeEventListener('emptied', this._onMediaEmptied);
-        if (_objectUrl) {
-          self.URL.revokeObjectURL(_objectUrl);
-        }
-
-        // clean up video tag src only if it's our own url. some external libraries might
-        // hijack the video tag and change its 'src' without destroying the Hls instance first
-        if (this.mediaSrc === _objectUrl) {
-          media.removeAttribute('src');
-          if (this.appendSource) {
-            removeSourceChildren(media);
-          }
-          media.load();
-        } else {
-          this.warn('media|source.src was changed by a third party - skip cleanup');
-        }
-      }
-      this.mediaSource = null;
-      this.media = null;
-      this._objectUrl = null;
-      this.bufferCodecEventsExpected = this._bufferCodecEventsTotal;
-      this.pendingTracks = {};
-      this.tracks = {};
-    }
-    this.hls.trigger(Events.MEDIA_DETACHED, undefined);
-  }
-  onBufferReset() {
-    this.getSourceBufferTypes().forEach(type => {
-      this.resetBuffer(type);
-    });
-    this._initSourceBuffer();
-  }
-  resetBuffer(type) {
-    const sb = this.sourceBuffer[type];
-    try {
-      if (sb) {
-        var _this$mediaSource;
-        this.removeBufferListeners(type);
-        // Synchronously remove the SB from the map before the next call in order to prevent an async function from
-        // accessing it
-        this.sourceBuffer[type] = undefined;
-        if ((_this$mediaSource = this.mediaSource) != null && _this$mediaSource.sourceBuffers.length) {
-          this.mediaSource.removeSourceBuffer(sb);
-        }
-      }
-    } catch (err) {
-      this.warn(`onBufferReset ${type}`, err);
-    }
-  }
-  onBufferCodecs(event, data) {
-    const sourceBufferCount = this.getSourceBufferTypes().length;
-    const trackNames = Object.keys(data);
-    trackNames.forEach(trackName => {
-      if (sourceBufferCount) {
-        // check if SourceBuffer codec needs to change
-        const track = this.tracks[trackName];
-        if (track && typeof track.buffer.changeType === 'function') {
-          var _trackCodec;
-          const {
-            id,
-            codec,
-            levelCodec,
-            container,
-            metadata
-          } = data[trackName];
-          const currentCodecFull = pickMostCompleteCodecName(track.codec, track.levelCodec);
-          const currentCodec = currentCodecFull == null ? void 0 : currentCodecFull.replace(VIDEO_CODEC_PROFILE_REPLACE, '$1');
-          let trackCodec = pickMostCompleteCodecName(codec, levelCodec);
-          const nextCodec = (_trackCodec = trackCodec) == null ? void 0 : _trackCodec.replace(VIDEO_CODEC_PROFILE_REPLACE, '$1');
-          if (trackCodec && currentCodec !== nextCodec) {
-            if (trackName.slice(0, 5) === 'audio') {
-              trackCodec = getCodecCompatibleName(trackCodec, this.appendSource);
-            }
-            const mimeType = `${container};codecs=${trackCodec}`;
-            this.appendChangeType(trackName, mimeType);
-            this.log(`switching codec ${currentCodecFull} to ${trackCodec}`);
-            this.tracks[trackName] = {
-              buffer: track.buffer,
-              codec,
-              container,
-              levelCodec,
-              metadata,
-              id
-            };
-          }
-        }
-      } else {
-        // if source buffer(s) not created yet, appended buffer tracks in this.pendingTracks
-        this.pendingTracks[trackName] = data[trackName];
-      }
-    });
-
-    // if sourcebuffers already created, do nothing ...
-    if (sourceBufferCount) {
-      return;
-    }
-    const bufferCodecEventsExpected = Math.max(this.bufferCodecEventsExpected - 1, 0);
-    if (this.bufferCodecEventsExpected !== bufferCodecEventsExpected) {
-      this.log(`${bufferCodecEventsExpected} bufferCodec event(s) expected ${trackNames.join(',')}`);
-      this.bufferCodecEventsExpected = bufferCodecEventsExpected;
-    }
-    if (this.mediaSource && this.mediaSource.readyState === 'open') {
-      this.checkPendingTracks();
-    }
-  }
-  appendChangeType(type, mimeType) {
-    const {
-      operationQueue
-    } = this;
-    const operation = {
-      execute: () => {
-        const sb = this.sourceBuffer[type];
-        if (sb) {
-          this.log(`changing ${type} sourceBuffer type to ${mimeType}`);
-          sb.changeType(mimeType);
-        }
-        operationQueue.shiftAndExecuteNext(type);
-      },
-      onStart: () => {},
-      onComplete: () => {},
-      onError: error => {
-        this.warn(`Failed to change ${type} SourceBuffer type`, error);
-      }
-    };
-    operationQueue.append(operation, type, !!this.pendingTracks[type]);
-  }
-  onBufferAppending(event, eventData) {
-    const {
-      hls,
-      operationQueue,
-      tracks
-    } = this;
-    const {
-      data,
-      type,
-      frag,
-      part,
-      chunkMeta
-    } = eventData;
-    const chunkStats = chunkMeta.buffering[type];
-    const bufferAppendingStart = self.performance.now();
-    chunkStats.start = bufferAppendingStart;
-    const fragBuffering = frag.stats.buffering;
-    const partBuffering = part ? part.stats.buffering : null;
-    if (fragBuffering.start === 0) {
-      fragBuffering.start = bufferAppendingStart;
-    }
-    if (partBuffering && partBuffering.start === 0) {
-      partBuffering.start = bufferAppendingStart;
-    }
-
-    // TODO: Only update timestampOffset when audio/mpeg fragment or part is not contiguous with previously appended
-    // Adjusting `SourceBuffer.timestampOffset` (desired point in the timeline where the next frames should be appended)
-    // in Chrome browser when we detect MPEG audio container and time delta between level PTS and `SourceBuffer.timestampOffset`
-    // is greater than 100ms (this is enough to handle seek for VOD or level change for LIVE videos).
-    // More info here: https://github.com/video-dev/hls.js/issues/332#issuecomment-257986486
-    const audioTrack = tracks.audio;
-    let checkTimestampOffset = false;
-    if (type === 'audio' && (audioTrack == null ? void 0 : audioTrack.container) === 'audio/mpeg') {
-      checkTimestampOffset = !this.lastMpegAudioChunk || chunkMeta.id === 1 || this.lastMpegAudioChunk.sn !== chunkMeta.sn;
-      this.lastMpegAudioChunk = chunkMeta;
-    }
-    const fragStart = frag.start;
-    const operation = {
-      execute: () => {
-        chunkStats.executeStart = self.performance.now();
-        if (checkTimestampOffset) {
-          const sb = this.sourceBuffer[type];
-          if (sb) {
-            const delta = fragStart - sb.timestampOffset;
-            if (Math.abs(delta) >= 0.1) {
-              this.log(`Updating audio SourceBuffer timestampOffset to ${fragStart} (delta: ${delta}) sn: ${frag.sn})`);
-              sb.timestampOffset = fragStart;
-            }
-          }
-        }
-        this.appendExecutor(data, type);
-      },
-      onStart: () => {
-        // logger.debug(`[buffer-controller]: ${type} SourceBuffer updatestart`);
-      },
-      onComplete: () => {
-        // logger.debug(`[buffer-controller]: ${type} SourceBuffer updateend`);
-        const end = self.performance.now();
-        chunkStats.executeEnd = chunkStats.end = end;
-        if (fragBuffering.first === 0) {
-          fragBuffering.first = end;
-        }
-        if (partBuffering && partBuffering.first === 0) {
-          partBuffering.first = end;
-        }
-        const {
-          sourceBuffer
-        } = this;
-        const timeRanges = {};
-        for (const type in sourceBuffer) {
-          timeRanges[type] = BufferHelper.getBuffered(sourceBuffer[type]);
-        }
-        this.appendErrors[type] = 0;
-        if (type === 'audio' || type === 'video') {
-          this.appendErrors.audiovideo = 0;
-        } else {
-          this.appendErrors.audio = 0;
-          this.appendErrors.video = 0;
-        }
-        this.hls.trigger(Events.BUFFER_APPENDED, {
-          type,
-          frag,
-          part,
-          chunkMeta,
-          parent: frag.type,
-          timeRanges
-        });
-      },
-      onError: error => {
-        // in case any error occured while appending, put back segment in segments table
-        const event = {
-          type: ErrorTypes.MEDIA_ERROR,
-          parent: frag.type,
-          details: ErrorDetails.BUFFER_APPEND_ERROR,
-          sourceBufferName: type,
-          frag,
-          part,
-          chunkMeta,
-          error,
-          err: error,
-          fatal: false
-        };
-        if (error.code === DOMException.QUOTA_EXCEEDED_ERR) {
-          // QuotaExceededError: http://www.w3.org/TR/html5/infrastructure.html#quotaexceedederror
-          // let's stop appending any segments, and report BUFFER_FULL_ERROR error
-          event.details = ErrorDetails.BUFFER_FULL_ERROR;
-        } else {
-          const appendErrorCount = ++this.appendErrors[type];
-          event.details = ErrorDetails.BUFFER_APPEND_ERROR;
-          /* with UHD content, we could get loop of quota exceeded error until
-            browser is able to evict some data from sourcebuffer. Retrying can help recover.
-          */
-          this.warn(`Failed ${appendErrorCount}/${hls.config.appendErrorMaxRetry} times to append segment in "${type}" sourceBuffer`);
-          if (appendErrorCount >= hls.config.appendErrorMaxRetry) {
-            event.fatal = true;
-          }
-        }
-        hls.trigger(Events.ERROR, event);
-      }
-    };
-    operationQueue.append(operation, type, !!this.pendingTracks[type]);
-  }
-  onBufferFlushing(event, data) {
-    const {
-      operationQueue
-    } = this;
-    const flushOperation = type => ({
-      execute: this.removeExecutor.bind(this, type, data.startOffset, data.endOffset),
-      onStart: () => {
-        // logger.debug(`[buffer-controller]: Started flushing ${data.startOffset} -> ${data.endOffset} for ${type} Source Buffer`);
-      },
-      onComplete: () => {
-        // logger.debug(`[buffer-controller]: Finished flushing ${data.startOffset} -> ${data.endOffset} for ${type} Source Buffer`);
-        this.hls.trigger(Events.BUFFER_FLUSHED, {
-          type
-        });
-      },
-      onError: error => {
-        this.warn(`Failed to remove from ${type} SourceBuffer`, error);
-      }
-    });
-    if (data.type) {
-      operationQueue.append(flushOperation(data.type), data.type);
-    } else {
-      this.getSourceBufferTypes().forEach(type => {
-        operationQueue.append(flushOperation(type), type);
-      });
-    }
-  }
-  onFragParsed(event, data) {
-    const {
-      frag,
-      part
-    } = data;
-    const buffersAppendedTo = [];
-    const elementaryStreams = part ? part.elementaryStreams : frag.elementaryStreams;
-    if (elementaryStreams[ElementaryStreamTypes.AUDIOVIDEO]) {
-      buffersAppendedTo.push('audiovideo');
-    } else {
-      if (elementaryStreams[ElementaryStreamTypes.AUDIO]) {
-        buffersAppendedTo.push('audio');
-      }
-      if (elementaryStreams[ElementaryStreamTypes.VIDEO]) {
-        buffersAppendedTo.push('video');
-      }
-    }
-    const onUnblocked = () => {
-      const now = self.performance.now();
-      frag.stats.buffering.end = now;
-      if (part) {
-        part.stats.buffering.end = now;
-      }
-      const stats = part ? part.stats : frag.stats;
-      this.hls.trigger(Events.FRAG_BUFFERED, {
-        frag,
-        part,
-        stats,
-        id: frag.type
-      });
-    };
-    if (buffersAppendedTo.length === 0) {
-      this.warn(`Fragments must have at least one ElementaryStreamType set. type: ${frag.type} level: ${frag.level} sn: ${frag.sn}`);
-    }
-    this.blockBuffers(onUnblocked, buffersAppendedTo);
-  }
-  onFragChanged(event, data) {
-    this.trimBuffers();
-  }
-
-  // on BUFFER_EOS mark matching sourcebuffer(s) as ended and trigger checkEos()
-  // an undefined data.type will mark all buffers as EOS.
-  onBufferEos(event, data) {
-    const ended = this.getSourceBufferTypes().reduce((acc, type) => {
-      const sb = this.sourceBuffer[type];
-      if (sb && (!data.type || data.type === type)) {
-        sb.ending = true;
-        if (!sb.ended) {
-          sb.ended = true;
-          this.log(`${type} sourceBuffer now EOS`);
-        }
-      }
-      return acc && !!(!sb || sb.ended);
-    }, true);
-    if (ended) {
-      this.log(`Queueing mediaSource.endOfStream()`);
-      this.blockBuffers(() => {
-        this.getSourceBufferTypes().forEach(type => {
-          const sb = this.sourceBuffer[type];
-          if (sb) {
-            sb.ending = false;
-          }
-        });
-        const {
-          mediaSource
-        } = this;
-        if (!mediaSource || mediaSource.readyState !== 'open') {
-          if (mediaSource) {
-            this.log(`Could not call mediaSource.endOfStream(). mediaSource.readyState: ${mediaSource.readyState}`);
-          }
-          return;
-        }
-        this.log(`Calling mediaSource.endOfStream()`);
-        // Allow this to throw and be caught by the enqueueing function
-        mediaSource.endOfStream();
-      });
-    }
-  }
-  onLevelUpdated(event, {
-    details
-  }) {
-    if (!details.fragments.length) {
-      return;
-    }
-    this.details = details;
-    if (this.getSourceBufferTypes().length) {
-      this.blockBuffers(this.updateMediaElementDuration.bind(this));
-    } else {
-      this.updateMediaElementDuration();
-    }
-  }
-  trimBuffers() {
-    const {
-      hls,
-      details,
-      media
-    } = this;
-    if (!media || details === null) {
-      return;
-    }
-    const sourceBufferTypes = this.getSourceBufferTypes();
-    if (!sourceBufferTypes.length) {
-      return;
-    }
-    const config = hls.config;
-    const currentTime = media.currentTime;
-    const targetDuration = details.levelTargetDuration;
-
-    // Support for deprecated liveBackBufferLength
-    const backBufferLength = details.live && config.liveBackBufferLength !== null ? config.liveBackBufferLength : config.backBufferLength;
-    if (isFiniteNumber(backBufferLength) && backBufferLength > 0) {
-      const maxBackBufferLength = Math.max(backBufferLength, targetDuration);
-      const targetBackBufferPosition = Math.floor(currentTime / targetDuration) * targetDuration - maxBackBufferLength;
-      this.flushBackBuffer(currentTime, targetDuration, targetBackBufferPosition);
-    }
-    if (isFiniteNumber(config.frontBufferFlushThreshold) && config.frontBufferFlushThreshold > 0) {
-      const frontBufferLength = Math.max(config.maxBufferLength, config.frontBufferFlushThreshold);
-      const maxFrontBufferLength = Math.max(frontBufferLength, targetDuration);
-      const targetFrontBufferPosition = Math.floor(currentTime / targetDuration) * targetDuration + maxFrontBufferLength;
-      this.flushFrontBuffer(currentTime, targetDuration, targetFrontBufferPosition);
-    }
-  }
-  flushBackBuffer(currentTime, targetDuration, targetBackBufferPosition) {
-    const {
-      details,
-      sourceBuffer
-    } = this;
-    const sourceBufferTypes = this.getSourceBufferTypes();
-    sourceBufferTypes.forEach(type => {
-      const sb = sourceBuffer[type];
-      if (sb) {
-        const buffered = BufferHelper.getBuffered(sb);
-        // when target buffer start exceeds actual buffer start
-        if (buffered.length > 0 && targetBackBufferPosition > buffered.start(0)) {
-          this.hls.trigger(Events.BACK_BUFFER_REACHED, {
-            bufferEnd: targetBackBufferPosition
-          });
-
-          // Support for deprecated event:
-          if (details != null && details.live) {
-            this.hls.trigger(Events.LIVE_BACK_BUFFER_REACHED, {
-              bufferEnd: targetBackBufferPosition
-            });
-          } else if (sb.ended && buffered.end(buffered.length - 1) - currentTime < targetDuration * 2) {
-            this.log(`Cannot flush ${type} back buffer while SourceBuffer is in ended state`);
-            return;
-          }
-          this.hls.trigger(Events.BUFFER_FLUSHING, {
-            startOffset: 0,
-            endOffset: targetBackBufferPosition,
-            type
-          });
-        }
-      }
-    });
-  }
-  flushFrontBuffer(currentTime, targetDuration, targetFrontBufferPosition) {
-    const {
-      sourceBuffer
-    } = this;
-    const sourceBufferTypes = this.getSourceBufferTypes();
-    sourceBufferTypes.forEach(type => {
-      const sb = sourceBuffer[type];
-      if (sb) {
-        const buffered = BufferHelper.getBuffered(sb);
-        const numBufferedRanges = buffered.length;
-        // The buffer is either empty or contiguous
-        if (numBufferedRanges < 2) {
-          return;
-        }
-        const bufferStart = buffered.start(numBufferedRanges - 1);
-        const bufferEnd = buffered.end(numBufferedRanges - 1);
-        // No flush if we can tolerate the current buffer length or the current buffer range we would flush is contiguous with current position
-        if (targetFrontBufferPosition > bufferStart || currentTime >= bufferStart && currentTime <= bufferEnd) {
-          return;
-        } else if (sb.ended && currentTime - bufferEnd < 2 * targetDuration) {
-          this.log(`Cannot flush ${type} front buffer while SourceBuffer is in ended state`);
-          return;
-        }
-        this.hls.trigger(Events.BUFFER_FLUSHING, {
-          startOffset: bufferStart,
-          endOffset: Infinity,
-          type
-        });
-      }
-    });
-  }
-
-  /**
-   * Update Media Source duration to current level duration or override to Infinity if configuration parameter
-   * 'liveDurationInfinity` is set to `true`
-   * More details: https://github.com/video-dev/hls.js/issues/355
-   */
-  updateMediaElementDuration() {
-    if (!this.details || !this.media || !this.mediaSource || this.mediaSource.readyState !== 'open') {
-      return;
-    }
-    const {
-      details,
-      hls,
-      media,
-      mediaSource
-    } = this;
-    const levelDuration = details.fragments[0].start + details.totalduration;
-    const mediaDuration = media.duration;
-    const msDuration = isFiniteNumber(mediaSource.duration) ? mediaSource.duration : 0;
-    if (details.live && hls.config.liveDurationInfinity) {
-      // Override duration to Infinity
-      mediaSource.duration = Infinity;
-      this.updateSeekableRange(details);
-    } else if (levelDuration > msDuration && levelDuration > mediaDuration || !isFiniteNumber(mediaDuration)) {
-      // levelDuration was the last value we set.
-      // not using mediaSource.duration as the browser may tweak this value
-      // only update Media Source duration if its value increase, this is to avoid
-      // flushing already buffered portion when switching between quality level
-      this.log(`Updating Media Source duration to ${levelDuration.toFixed(3)}`);
-      mediaSource.duration = levelDuration;
-    }
-  }
-  updateSeekableRange(levelDetails) {
-    const mediaSource = this.mediaSource;
-    const fragments = levelDetails.fragments;
-    const len = fragments.length;
-    if (len && levelDetails.live && mediaSource != null && mediaSource.setLiveSeekableRange) {
-      const start = Math.max(0, fragments[0].start);
-      const end = Math.max(start, start + levelDetails.totalduration);
-      this.log(`Media Source duration is set to ${mediaSource.duration}. Setting seekable range to ${start}-${end}.`);
-      mediaSource.setLiveSeekableRange(start, end);
-    }
-  }
-  checkPendingTracks() {
-    const {
-      bufferCodecEventsExpected,
-      operationQueue,
-      pendingTracks
-    } = this;
-
-    // Check if we've received all of the expected bufferCodec events. When none remain, create all the sourceBuffers at once.
-    // This is important because the MSE spec allows implementations to throw QuotaExceededErrors if creating new sourceBuffers after
-    // data has been appended to existing ones.
-    // 2 tracks is the max (one for audio, one for video). If we've reach this max go ahead and create the buffers.
-    const pendingTracksCount = Object.keys(pendingTracks).length;
-    if (pendingTracksCount && (!bufferCodecEventsExpected || pendingTracksCount === 2 || 'audiovideo' in pendingTracks)) {
-      // ok, let's create them now !
-      this.createSourceBuffers(pendingTracks);
-      this.pendingTracks = {};
-      // append any pending segments now !
-      const buffers = this.getSourceBufferTypes();
-      if (buffers.length) {
-        this.hls.trigger(Events.BUFFER_CREATED, {
-          tracks: this.tracks
-        });
-        buffers.forEach(type => {
-          operationQueue.executeNext(type);
-        });
-      } else {
-        const error = new Error('could not create source buffer for media codec(s)');
-        this.hls.trigger(Events.ERROR, {
-          type: ErrorTypes.MEDIA_ERROR,
-          details: ErrorDetails.BUFFER_INCOMPATIBLE_CODECS_ERROR,
-          fatal: true,
-          error,
-          reason: error.message
-        });
-      }
-    }
-  }
-  createSourceBuffers(tracks) {
-    const {
-      sourceBuffer,
-      mediaSource
-    } = this;
-    if (!mediaSource) {
-      throw Error('createSourceBuffers called when mediaSource was null');
-    }
-    for (const trackName in tracks) {
-      if (!sourceBuffer[trackName]) {
-        var _track$levelCodec;
-        const track = tracks[trackName];
-        if (!track) {
-          throw Error(`source buffer exists for track ${trackName}, however track does not`);
-        }
-        // use levelCodec as first priority unless it contains multiple comma-separated codec values
-        let codec = ((_track$levelCodec = track.levelCodec) == null ? void 0 : _track$levelCodec.indexOf(',')) === -1 ? track.levelCodec : track.codec;
-        if (codec) {
-          if (trackName.slice(0, 5) === 'audio') {
-            codec = getCodecCompatibleName(codec, this.appendSource);
-          }
-        }
-        const mimeType = `${track.container};codecs=${codec}`;
-        this.log(`creating sourceBuffer(${mimeType})`);
-        try {
-          const sb = sourceBuffer[trackName] = mediaSource.addSourceBuffer(mimeType);
-          const sbName = trackName;
-          this.addBufferListener(sbName, 'updatestart', this._onSBUpdateStart);
-          this.addBufferListener(sbName, 'updateend', this._onSBUpdateEnd);
-          this.addBufferListener(sbName, 'error', this._onSBUpdateError);
-          // ManagedSourceBuffer bufferedchange event
-          if (this.appendSource) {
-            this.addBufferListener(sbName, 'bufferedchange', (type, event) => {
-              // If media was ejected check for a change. Added ranges are redundant with changes on 'updateend' event.
-              const removedRanges = event.removedRanges;
-              if (removedRanges != null && removedRanges.length) {
-                this.hls.trigger(Events.BUFFER_FLUSHED, {
-                  type: trackName
-                });
-              }
-            });
-          }
-          this.tracks[trackName] = {
-            buffer: sb,
-            codec: codec,
-            container: track.container,
-            levelCodec: track.levelCodec,
-            metadata: track.metadata,
-            id: track.id
-          };
-        } catch (err) {
-          this.error(`error while trying to add sourceBuffer: ${err.message}`);
-          this.hls.trigger(Events.ERROR, {
-            type: ErrorTypes.MEDIA_ERROR,
-            details: ErrorDetails.BUFFER_ADD_CODEC_ERROR,
-            fatal: false,
-            error: err,
-            sourceBufferName: trackName,
-            mimeType: mimeType
-          });
-        }
-      }
-    }
-  }
-  get mediaSrc() {
-    var _this$media, _this$media$querySele;
-    const media = ((_this$media = this.media) == null ? void 0 : (_this$media$querySele = _this$media.querySelector) == null ? void 0 : _this$media$querySele.call(_this$media, 'source')) || this.media;
-    return media == null ? void 0 : media.src;
-  }
-  _onSBUpdateStart(type) {
-    const {
-      operationQueue
-    } = this;
-    const operation = operationQueue.current(type);
-    operation.onStart();
-  }
-  _onSBUpdateEnd(type) {
-    var _this$mediaSource2;
-    if (((_this$mediaSource2 = this.mediaSource) == null ? void 0 : _this$mediaSource2.readyState) === 'closed') {
-      this.resetBuffer(type);
-      return;
-    }
-    const {
-      operationQueue
-    } = this;
-    const operation = operationQueue.current(type);
-    operation.onComplete();
-    operationQueue.shiftAndExecuteNext(type);
-  }
-  _onSBUpdateError(type, event) {
-    var _this$mediaSource3;
-    const error = new Error(`${type} SourceBuffer error. MediaSource readyState: ${(_this$mediaSource3 = this.mediaSource) == null ? void 0 : _this$mediaSource3.readyState}`);
-    this.error(`${error}`, event);
-    // according to http://www.w3.org/TR/media-source/#sourcebuffer-append-error
-    // SourceBuffer errors are not necessarily fatal; if so, the HTMLMediaElement will fire an error event
-    this.hls.trigger(Events.ERROR, {
-      type: ErrorTypes.MEDIA_ERROR,
-      details: ErrorDetails.BUFFER_APPENDING_ERROR,
-      sourceBufferName: type,
-      error,
-      fatal: false
-    });
-    // updateend is always fired after error, so we'll allow that to shift the current operation off of the queue
-    const operation = this.operationQueue.current(type);
-    if (operation) {
-      operation.onError(error);
-    }
-  }
-
-  // This method must result in an updateend event; if remove is not called, _onSBUpdateEnd must be called manually
-  removeExecutor(type, startOffset, endOffset) {
-    const {
-      media,
-      mediaSource,
-      operationQueue,
-      sourceBuffer
-    } = this;
-    const sb = sourceBuffer[type];
-    if (!media || !mediaSource || !sb) {
-      this.warn(`Attempting to remove from the ${type} SourceBuffer, but it does not exist`);
-      operationQueue.shiftAndExecuteNext(type);
-      return;
-    }
-    const mediaDuration = isFiniteNumber(media.duration) ? media.duration : Infinity;
-    const msDuration = isFiniteNumber(mediaSource.duration) ? mediaSource.duration : Infinity;
-    const removeStart = Math.max(0, startOffset);
-    const removeEnd = Math.min(endOffset, mediaDuration, msDuration);
-    if (removeEnd > removeStart && (!sb.ending || sb.ended)) {
-      sb.ended = false;
-      this.log(`Removing [${removeStart},${removeEnd}] from the ${type} SourceBuffer`);
-      sb.remove(removeStart, removeEnd);
-    } else {
-      // Cycle the queue
-      operationQueue.shiftAndExecuteNext(type);
-    }
-  }
-
-  // This method must result in an updateend event; if append is not called, _onSBUpdateEnd must be called manually
-  appendExecutor(data, type) {
-    const sb = this.sourceBuffer[type];
-    if (!sb) {
-      if (!this.pendingTracks[type]) {
-        throw new Error(`Attempting to append to the ${type} SourceBuffer, but it does not exist`);
-      }
-      return;
-    }
-    sb.ended = false;
-    sb.appendBuffer(data);
-  }
-
-  // Enqueues an operation to each SourceBuffer queue which, upon execution, resolves a promise. When all promises
-  // resolve, the onUnblocked function is executed. Functions calling this method do not need to unblock the queue
-  // upon completion, since we already do it here
-  blockBuffers(onUnblocked, buffers = this.getSourceBufferTypes()) {
-    if (!buffers.length) {
-      this.log('Blocking operation requested, but no SourceBuffers exist');
-      Promise.resolve().then(onUnblocked);
-      return;
-    }
-    const {
-      operationQueue
-    } = this;
-
-    // logger.debug(`[buffer-controller]: Blocking ${buffers} SourceBuffer`);
-    const blockingOperations = buffers.map(type => operationQueue.appendBlocker(type));
-    Promise.all(blockingOperations).then(() => {
-      // logger.debug(`[buffer-controller]: Blocking operation resolved; unblocking ${buffers} SourceBuffer`);
-      onUnblocked();
-      buffers.forEach(type => {
-        const sb = this.sourceBuffer[type];
-        // Only cycle the queue if the SB is not updating. There's a bug in Chrome which sets the SB updating flag to
-        // true when changing the MediaSource duration (https://bugs.chromium.org/p/chromium/issues/detail?id=959359&can=2&q=mediasource%20duration)
-        // While this is a workaround, it's probably useful to have around
-        if (!(sb != null && sb.updating)) {
-          operationQueue.shiftAndExecuteNext(type);
-        }
-      });
-    });
-  }
-  getSourceBufferTypes() {
-    return Object.keys(this.sourceBuffer);
-  }
-  addBufferListener(type, event, fn) {
-    const buffer = this.sourceBuffer[type];
-    if (!buffer) {
-      return;
-    }
-    const listener = fn.bind(this, type);
-    this.listeners[type].push({
-      event,
-      listener
-    });
-    buffer.addEventListener(event, listener);
-  }
-  removeBufferListeners(type) {
-    const buffer = this.sourceBuffer[type];
-    if (!buffer) {
-      return;
-    }
-    this.listeners[type].forEach(l => {
-      buffer.removeEventListener(l.event, l.listener);
-    });
-  }
-}
-function removeSourceChildren(node) {
-  const sourceChildren = node.querySelectorAll('source');
-  [].slice.call(sourceChildren).forEach(source => {
-    node.removeChild(source);
-  });
-}
-function addSource(media, url) {
-  const source = self.document.createElement('source');
-  source.type = 'video/mp4';
-  source.src = url;
-  media.appendChild(source);
-}
-
-/**
- *
- * This code was ported from the dash.js project at:
- *   https://github.com/Dash-Industry-Forum/dash.js/blob/development/externals/cea608-parser.js
- *   https://github.com/Dash-Industry-Forum/dash.js/commit/8269b26a761e0853bb21d78780ed945144ecdd4d#diff-71bc295a2d6b6b7093a1d3290d53a4b2
- *
- * The original copyright appears below:
- *
- * The copyright in this software is being made available under the BSD License,
- * included below. This software may be subject to other third party and contributor
- * rights, including patent rights, and no such rights are granted under this license.
- *
- * Copyright (c) 2015-2016, DASH Industry Forum.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *  1. Redistributions of source code must retain the above copyright notice, this
- *  list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright notice,
- *  this list of conditions and the following disclaimer in the documentation and/or
- *  other materials provided with the distribution.
- *  2. Neither the name of Dash Industry Forum nor the names of its
- *  contributors may be used to endorse or promote products derived from this software
- *  without specific prior written permission.
- *
- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS AS IS AND ANY
- *  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- *  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- *  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
- *  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- *  NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- *  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- *  POSSIBILITY OF SUCH DAMAGE.
- */
-/**
- *  Exceptions from regular ASCII. CodePoints are mapped to UTF-16 codes
- */
-
-const specialCea608CharsCodes = {
-  0x2a: 0xe1,
-  // lowercase a, acute accent
-  0x5c: 0xe9,
-  // lowercase e, acute accent
-  0x5e: 0xed,
-  // lowercase i, acute accent
-  0x5f: 0xf3,
-  // lowercase o, acute accent
-  0x60: 0xfa,
-  // lowercase u, acute accent
-  0x7b: 0xe7,
-  // lowercase c with cedilla
-  0x7c: 0xf7,
-  // division symbol
-  0x7d: 0xd1,
-  // uppercase N tilde
-  0x7e: 0xf1,
-  // lowercase n tilde
-  0x7f: 0x2588,
-  // Full block
-  // THIS BLOCK INCLUDES THE 16 EXTENDED (TWO-BYTE) LINE 21 CHARACTERS
-  // THAT COME FROM HI BYTE=0x11 AND LOW BETWEEN 0x30 AND 0x3F
-  // THIS MEANS THAT \x50 MUST BE ADDED TO THE VALUES
-  0x80: 0xae,
-  // Registered symbol (R)
-  0x81: 0xb0,
-  // degree sign
-  0x82: 0xbd,
-  // 1/2 symbol
-  0x83: 0xbf,
-  // Inverted (open) question mark
-  0x84: 0x2122,
-  // Trademark symbol (TM)
-  0x85: 0xa2,
-  // Cents symbol
-  0x86: 0xa3,
-  // Pounds sterling
-  0x87: 0x266a,
-  // Music 8'th note
-  0x88: 0xe0,
-  // lowercase a, grave accent
-  0x89: 0x20,
-  // transparent space (regular)
-  0x8a: 0xe8,
-  // lowercase e, grave accent
-  0x8b: 0xe2,
-  // lowercase a, circumflex accent
-  0x8c: 0xea,
-  // lowercase e, circumflex accent
-  0x8d: 0xee,
-  // lowercase i, circumflex accent
-  0x8e: 0xf4,
-  // lowercase o, circumflex accent
-  0x8f: 0xfb,
-  // lowercase u, circumflex accent
-  // THIS BLOCK INCLUDES THE 32 EXTENDED (TWO-BYTE) LINE 21 CHARACTERS
-  // THAT COME FROM HI BYTE=0x12 AND LOW BETWEEN 0x20 AND 0x3F
-  0x90: 0xc1,
-  // capital letter A with acute
-  0x91: 0xc9,
-  // capital letter E with acute
-  0x92: 0xd3,
-  // capital letter O with acute
-  0x93: 0xda,
-  // capital letter U with acute
-  0x94: 0xdc,
-  // capital letter U with diaresis
-  0x95: 0xfc,
-  // lowercase letter U with diaeresis
-  0x96: 0x2018,
-  // opening single quote
-  0x97: 0xa1,
-  // inverted exclamation mark
-  0x98: 0x2a,
-  // asterisk
-  0x99: 0x2019,
-  // closing single quote
-  0x9a: 0x2501,
-  // box drawings heavy horizontal
-  0x9b: 0xa9,
-  // copyright sign
-  0x9c: 0x2120,
-  // Service mark
-  0x9d: 0x2022,
-  // (round) bullet
-  0x9e: 0x201c,
-  // Left double quotation mark
-  0x9f: 0x201d,
-  // Right double quotation mark
-  0xa0: 0xc0,
-  // uppercase A, grave accent
-  0xa1: 0xc2,
-  // uppercase A, circumflex
-  0xa2: 0xc7,
-  // uppercase C with cedilla
-  0xa3: 0xc8,
-  // uppercase E, grave accent
-  0xa4: 0xca,
-  // uppercase E, circumflex
-  0xa5: 0xcb,
-  // capital letter E with diaresis
-  0xa6: 0xeb,
-  // lowercase letter e with diaresis
-  0xa7: 0xce,
-  // uppercase I, circumflex
-  0xa8: 0xcf,
-  // uppercase I, with diaresis
-  0xa9: 0xef,
-  // lowercase i, with diaresis
-  0xaa: 0xd4,
-  // uppercase O, circumflex
-  0xab: 0xd9,
-  // uppercase U, grave accent
-  0xac: 0xf9,
-  // lowercase u, grave accent
-  0xad: 0xdb,
-  // uppercase U, circumflex
-  0xae: 0xab,
-  // left-pointing double angle quotation mark
-  0xaf: 0xbb,
-  // right-pointing double angle quotation mark
-  // THIS BLOCK INCLUDES THE 32 EXTENDED (TWO-BYTE) LINE 21 CHARACTERS
-  // THAT COME FROM HI BYTE=0x13 AND LOW BETWEEN 0x20 AND 0x3F
-  0xb0: 0xc3,
-  // Uppercase A, tilde
-  0xb1: 0xe3,
-  // Lowercase a, tilde
-  0xb2: 0xcd,
-  // Uppercase I, acute accent
-  0xb3: 0xcc,
-  // Uppercase I, grave accent
-  0xb4: 0xec,
-  // Lowercase i, grave accent
-  0xb5: 0xd2,
-  // Uppercase O, grave accent
-  0xb6: 0xf2,
-  // Lowercase o, grave accent
-  0xb7: 0xd5,
-  // Uppercase O, tilde
-  0xb8: 0xf5,
-  // Lowercase o, tilde
-  0xb9: 0x7b,
-  // Open curly brace
-  0xba: 0x7d,
-  // Closing curly brace
-  0xbb: 0x5c,
-  // Backslash
-  0xbc: 0x5e,
-  // Caret
-  0xbd: 0x5f,
-  // Underscore
-  0xbe: 0x7c,
-  // Pipe (vertical line)
-  0xbf: 0x223c,
-  // Tilde operator
-  0xc0: 0xc4,
-  // Uppercase A, umlaut
-  0xc1: 0xe4,
-  // Lowercase A, umlaut
-  0xc2: 0xd6,
-  // Uppercase O, umlaut
-  0xc3: 0xf6,
-  // Lowercase o, umlaut
-  0xc4: 0xdf,
-  // Esszett (sharp S)
-  0xc5: 0xa5,
-  // Yen symbol
-  0xc6: 0xa4,
-  // Generic currency sign
-  0xc7: 0x2503,
-  // Box drawings heavy vertical
-  0xc8: 0xc5,
-  // Uppercase A, ring
-  0xc9: 0xe5,
-  // Lowercase A, ring
-  0xca: 0xd8,
-  // Uppercase O, stroke
-  0xcb: 0xf8,
-  // Lowercase o, strok
-  0xcc: 0x250f,
-  // Box drawings heavy down and right
-  0xcd: 0x2513,
-  // Box drawings heavy down and left
-  0xce: 0x2517,
-  // Box drawings heavy up and right
-  0xcf: 0x251b // Box drawings heavy up and left
-};
-
-/**
- * Utils
- */
-const getCharForByte = byte => String.fromCharCode(specialCea608CharsCodes[byte] || byte);
-const NR_ROWS = 15;
-const NR_COLS = 100;
-// Tables to look up row from PAC data
-const rowsLowCh1 = {
-  0x11: 1,
-  0x12: 3,
-  0x15: 5,
-  0x16: 7,
-  0x17: 9,
-  0x10: 11,
-  0x13: 12,
-  0x14: 14
-};
-const rowsHighCh1 = {
-  0x11: 2,
-  0x12: 4,
-  0x15: 6,
-  0x16: 8,
-  0x17: 10,
-  0x13: 13,
-  0x14: 15
-};
-const rowsLowCh2 = {
-  0x19: 1,
-  0x1a: 3,
-  0x1d: 5,
-  0x1e: 7,
-  0x1f: 9,
-  0x18: 11,
-  0x1b: 12,
-  0x1c: 14
-};
-const rowsHighCh2 = {
-  0x19: 2,
-  0x1a: 4,
-  0x1d: 6,
-  0x1e: 8,
-  0x1f: 10,
-  0x1b: 13,
-  0x1c: 15
-};
-const backgroundColors = ['white', 'green', 'blue', 'cyan', 'red', 'yellow', 'magenta', 'black', 'transparent'];
-class CaptionsLogger {
-  constructor() {
-    this.time = null;
-    this.verboseLevel = 0;
-  }
-  log(severity, msg) {
-    if (this.verboseLevel >= severity) {
-      const m = typeof msg === 'function' ? msg() : msg;
-      logger.log(`${this.time} [${severity}] ${m}`);
-    }
-  }
-}
-const numArrayToHexArray = function numArrayToHexArray(numArray) {
-  const hexArray = [];
-  for (let j = 0; j < numArray.length; j++) {
-    hexArray.push(numArray[j].toString(16));
-  }
-  return hexArray;
-};
-class PenState {
-  constructor() {
-    this.foreground = 'white';
-    this.underline = false;
-    this.italics = false;
-    this.background = 'black';
-    this.flash = false;
-  }
-  reset() {
-    this.foreground = 'white';
-    this.underline = false;
-    this.italics = false;
-    this.background = 'black';
-    this.flash = false;
-  }
-  setStyles(styles) {
-    const attribs = ['foreground', 'underline', 'italics', 'background', 'flash'];
-    for (let i = 0; i < attribs.length; i++) {
-      const style = attribs[i];
-      if (styles.hasOwnProperty(style)) {
-        this[style] = styles[style];
-      }
-    }
-  }
-  isDefault() {
-    return this.foreground === 'white' && !this.underline && !this.italics && this.background === 'black' && !this.flash;
-  }
-  equals(other) {
-    return this.foreground === other.foreground && this.underline === other.underline && this.italics === other.italics && this.background === other.background && this.flash === other.flash;
-  }
-  copy(newPenState) {
-    this.foreground = newPenState.foreground;
-    this.underline = newPenState.underline;
-    this.italics = newPenState.italics;
-    this.background = newPenState.background;
-    this.flash = newPenState.flash;
-  }
-  toString() {
-    return 'color=' + this.foreground + ', underline=' + this.underline + ', italics=' + this.italics + ', background=' + this.background + ', flash=' + this.flash;
-  }
-}
-
-/**
- * Unicode character with styling and background.
- * @constructor
- */
-class StyledUnicodeChar {
-  constructor() {
-    this.uchar = ' ';
-    this.penState = new PenState();
-  }
-  reset() {
-    this.uchar = ' ';
-    this.penState.reset();
-  }
-  setChar(uchar, newPenState) {
-    this.uchar = uchar;
-    this.penState.copy(newPenState);
-  }
-  setPenState(newPenState) {
-    this.penState.copy(newPenState);
-  }
-  equals(other) {
-    return this.uchar === other.uchar && this.penState.equals(other.penState);
-  }
-  copy(newChar) {
-    this.uchar = newChar.uchar;
-    this.penState.copy(newChar.penState);
-  }
-  isEmpty() {
-    return this.uchar === ' ' && this.penState.isDefault();
-  }
-}
-
-/**
- * CEA-608 row consisting of NR_COLS instances of StyledUnicodeChar.
- * @constructor
- */
-class Row {
-  constructor(logger) {
-    this.chars = [];
-    this.pos = 0;
-    this.currPenState = new PenState();
-    this.cueStartTime = null;
-    this.logger = void 0;
-    for (let i = 0; i < NR_COLS; i++) {
-      this.chars.push(new StyledUnicodeChar());
-    }
-    this.logger = logger;
-  }
-  equals(other) {
-    for (let i = 0; i < NR_COLS; i++) {
-      if (!this.chars[i].equals(other.chars[i])) {
-        return false;
-      }
-    }
-    return true;
-  }
-  copy(other) {
-    for (let i = 0; i < NR_COLS; i++) {
-      this.chars[i].copy(other.chars[i]);
-    }
-  }
-  isEmpty() {
-    let empty = true;
-    for (let i = 0; i < NR_COLS; i++) {
-      if (!this.chars[i].isEmpty()) {
-        empty = false;
-        break;
-      }
-    }
-    return empty;
-  }
-
-  /**
-   *  Set the cursor to a valid column.
-   */
-  setCursor(absPos) {
-    if (this.pos !== absPos) {
-      this.pos = absPos;
-    }
-    if (this.pos < 0) {
-      this.logger.log(3, 'Negative cursor position ' + this.pos);
-      this.pos = 0;
-    } else if (this.pos > NR_COLS) {
-      this.logger.log(3, 'Too large cursor position ' + this.pos);
-      this.pos = NR_COLS;
-    }
-  }
-
-  /**
-   * Move the cursor relative to current position.
-   */
-  moveCursor(relPos) {
-    const newPos = this.pos + relPos;
-    if (relPos > 1) {
-      for (let i = this.pos + 1; i < newPos + 1; i++) {
-        this.chars[i].setPenState(this.currPenState);
-      }
-    }
-    this.setCursor(newPos);
-  }
-
-  /**
-   * Backspace, move one step back and clear character.
-   */
-  backSpace() {
-    this.moveCursor(-1);
-    this.chars[this.pos].setChar(' ', this.currPenState);
-  }
-  insertChar(byte) {
-    if (byte >= 0x90) {
-      // Extended char
-      this.backSpace();
-    }
-    const char = getCharForByte(byte);
-    if (this.pos >= NR_COLS) {
-      this.logger.log(0, () => 'Cannot insert ' + byte.toString(16) + ' (' + char + ') at position ' + this.pos + '. Skipping it!');
-      return;
-    }
-    this.chars[this.pos].setChar(char, this.currPenState);
-    this.moveCursor(1);
-  }
-  clearFromPos(startPos) {
-    let i;
-    for (i = startPos; i < NR_COLS; i++) {
-      this.chars[i].reset();
-    }
-  }
-  clear() {
-    this.clearFromPos(0);
-    this.pos = 0;
-    this.currPenState.reset();
-  }
-  clearToEndOfRow() {
-    this.clearFromPos(this.pos);
-  }
-  getTextString() {
-    const chars = [];
-    let empty = true;
-    for (let i = 0; i < NR_COLS; i++) {
-      const char = this.chars[i].uchar;
-      if (char !== ' ') {
-        empty = false;
-      }
-      chars.push(char);
-    }
-    if (empty) {
-      return '';
-    } else {
-      return chars.join('');
-    }
-  }
-  setPenStyles(styles) {
-    this.currPenState.setStyles(styles);
-    const currChar = this.chars[this.pos];
-    currChar.setPenState(this.currPenState);
-  }
-}
-
-/**
- * Keep a CEA-608 screen of 32x15 styled characters
- * @constructor
- */
-class CaptionScreen {
-  constructor(logger) {
-    this.rows = [];
-    this.currRow = NR_ROWS - 1;
-    this.nrRollUpRows = null;
-    this.lastOutputScreen = null;
-    this.logger = void 0;
-    for (let i = 0; i < NR_ROWS; i++) {
-      this.rows.push(new Row(logger));
-    }
-    this.logger = logger;
-  }
-  reset() {
-    for (let i = 0; i < NR_ROWS; i++) {
-      this.rows[i].clear();
-    }
-    this.currRow = NR_ROWS - 1;
-  }
-  equals(other) {
-    let equal = true;
-    for (let i = 0; i < NR_ROWS; i++) {
-      if (!this.rows[i].equals(other.rows[i])) {
-        equal = false;
-        break;
-      }
-    }
-    return equal;
-  }
-  copy(other) {
-    for (let i = 0; i < NR_ROWS; i++) {
-      this.rows[i].copy(other.rows[i]);
-    }
-  }
-  isEmpty() {
-    let empty = true;
-    for (let i = 0; i < NR_ROWS; i++) {
-      if (!this.rows[i].isEmpty()) {
-        empty = false;
-        break;
-      }
-    }
-    return empty;
-  }
-  backSpace() {
-    const row = this.rows[this.currRow];
-    row.backSpace();
-  }
-  clearToEndOfRow() {
-    const row = this.rows[this.currRow];
-    row.clearToEndOfRow();
-  }
-
-  /**
-   * Insert a character (without styling) in the current row.
-   */
-  insertChar(char) {
-    const row = this.rows[this.currRow];
-    row.insertChar(char);
-  }
-  setPen(styles) {
-    const row = this.rows[this.currRow];
-    row.setPenStyles(styles);
-  }
-  moveCursor(relPos) {
-    const row = this.rows[this.currRow];
-    row.moveCursor(relPos);
-  }
-  setCursor(absPos) {
-    this.logger.log(2, 'setCursor: ' + absPos);
-    const row = this.rows[this.currRow];
-    row.setCursor(absPos);
-  }
-  setPAC(pacData) {
-    this.logger.log(2, () => 'pacData = ' + JSON.stringify(pacData));
-    let newRow = pacData.row - 1;
-    if (this.nrRollUpRows && newRow < this.nrRollUpRows - 1) {
-      newRow = this.nrRollUpRows - 1;
-    }
-
-    // Make sure this only affects Roll-up Captions by checking this.nrRollUpRows
-    if (this.nrRollUpRows && this.currRow !== newRow) {
-      // clear all rows first
-      for (let i = 0; i < NR_ROWS; i++) {
-        this.rows[i].clear();
-      }
-
-      // Copy this.nrRollUpRows rows from lastOutputScreen and place it in the newRow location
-      // topRowIndex - the start of rows to copy (inclusive index)
-      const topRowIndex = this.currRow + 1 - this.nrRollUpRows;
-      // We only copy if the last position was already shown.
-      // We use the cueStartTime value to check this.
-      const lastOutputScreen = this.lastOutputScreen;
-      if (lastOutputScreen) {
-        const prevLineTime = lastOutputScreen.rows[topRowIndex].cueStartTime;
-        const time = this.logger.time;
-        if (prevLineTime !== null && time !== null && prevLineTime < time) {
-          for (let i = 0; i < this.nrRollUpRows; i++) {
-            this.rows[newRow - this.nrRollUpRows + i + 1].copy(lastOutputScreen.rows[topRowIndex + i]);
-          }
-        }
-      }
-    }
-    this.currRow = newRow;
-    const row = this.rows[this.currRow];
-    if (pacData.indent !== null) {
-      const indent = pacData.indent;
-      const prevPos = Math.max(indent - 1, 0);
-      row.setCursor(pacData.indent);
-      pacData.color = row.chars[prevPos].penState.foreground;
-    }
-    const styles = {
-      foreground: pacData.color,
-      underline: pacData.underline,
-      italics: pacData.italics,
-      background: 'black',
-      flash: false
-    };
-    this.setPen(styles);
-  }
-
-  /**
-   * Set background/extra foreground, but first do back_space, and then insert space (backwards compatibility).
-   */
-  setBkgData(bkgData) {
-    this.logger.log(2, () => 'bkgData = ' + JSON.stringify(bkgData));
-    this.backSpace();
-    this.setPen(bkgData);
-    this.insertChar(0x20); // Space
-  }
-  setRollUpRows(nrRows) {
-    this.nrRollUpRows = nrRows;
-  }
-  rollUp() {
-    if (this.nrRollUpRows === null) {
-      this.logger.log(3, 'roll_up but nrRollUpRows not set yet');
-      return; // Not properly setup
-    }
-    this.logger.log(1, () => this.getDisplayText());
-    const topRowIndex = this.currRow + 1 - this.nrRollUpRows;
-    const topRow = this.rows.splice(topRowIndex, 1)[0];
-    topRow.clear();
-    this.rows.splice(this.currRow, 0, topRow);
-    this.logger.log(2, 'Rolling up');
-    // this.logger.log(VerboseLevel.TEXT, this.get_display_text())
-  }
-
-  /**
-   * Get all non-empty rows with as unicode text.
-   */
-  getDisplayText(asOneRow) {
-    asOneRow = asOneRow || false;
-    const displayText = [];
-    let text = '';
-    let rowNr = -1;
-    for (let i = 0; i < NR_ROWS; i++) {
-      const rowText = this.rows[i].getTextString();
-      if (rowText) {
-        rowNr = i + 1;
-        if (asOneRow) {
-          displayText.push('Row ' + rowNr + ": '" + rowText + "'");
-        } else {
-          displayText.push(rowText.trim());
-        }
-      }
-    }
-    if (displayText.length > 0) {
-      if (asOneRow) {
-        text = '[' + displayText.join(' | ') + ']';
-      } else {
-        text = displayText.join('\n');
-      }
-    }
-    return text;
-  }
-  getTextAndFormat() {
-    return this.rows;
-  }
-}
-
-// var modes = ['MODE_ROLL-UP', 'MODE_POP-ON', 'MODE_PAINT-ON', 'MODE_TEXT'];
-
-class Cea608Channel {
-  constructor(channelNumber, outputFilter, logger) {
-    this.chNr = void 0;
-    this.outputFilter = void 0;
-    this.mode = void 0;
-    this.verbose = void 0;
-    this.displayedMemory = void 0;
-    this.nonDisplayedMemory = void 0;
-    this.lastOutputScreen = void 0;
-    this.currRollUpRow = void 0;
-    this.writeScreen = void 0;
-    this.cueStartTime = void 0;
-    this.logger = void 0;
-    this.chNr = channelNumber;
-    this.outputFilter = outputFilter;
-    this.mode = null;
-    this.verbose = 0;
-    this.displayedMemory = new CaptionScreen(logger);
-    this.nonDisplayedMemory = new CaptionScreen(logger);
-    this.lastOutputScreen = new CaptionScreen(logger);
-    this.currRollUpRow = this.displayedMemory.rows[NR_ROWS - 1];
-    this.writeScreen = this.displayedMemory;
-    this.mode = null;
-    this.cueStartTime = null; // Keeps track of where a cue started.
-    this.logger = logger;
-  }
-  reset() {
-    this.mode = null;
-    this.displayedMemory.reset();
-    this.nonDisplayedMemory.reset();
-    this.lastOutputScreen.reset();
-    this.outputFilter.reset();
-    this.currRollUpRow = this.displayedMemory.rows[NR_ROWS - 1];
-    this.writeScreen = this.displayedMemory;
-    this.mode = null;
-    this.cueStartTime = null;
-  }
-  getHandler() {
-    return this.outputFilter;
-  }
-  setHandler(newHandler) {
-    this.outputFilter = newHandler;
-  }
-  setPAC(pacData) {
-    this.writeScreen.setPAC(pacData);
-  }
-  setBkgData(bkgData) {
-    this.writeScreen.setBkgData(bkgData);
-  }
-  setMode(newMode) {
-    if (newMode === this.mode) {
-      return;
-    }
-    this.mode = newMode;
-    this.logger.log(2, () => 'MODE=' + newMode);
-    if (this.mode === 'MODE_POP-ON') {
-      this.writeScreen = this.nonDisplayedMemory;
-    } else {
-      this.writeScreen = this.displayedMemory;
-      this.writeScreen.reset();
-    }
-    if (this.mode !== 'MODE_ROLL-UP') {
-      this.displayedMemory.nrRollUpRows = null;
-      this.nonDisplayedMemory.nrRollUpRows = null;
-    }
-    this.mode = newMode;
-  }
-  insertChars(chars) {
-    for (let i = 0; i < chars.length; i++) {
-      this.writeScreen.insertChar(chars[i]);
-    }
-    const screen = this.writeScreen === this.displayedMemory ? 'DISP' : 'NON_DISP';
-    this.logger.log(2, () => screen + ': ' + this.writeScreen.getDisplayText(true));
-    if (this.mode === 'MODE_PAINT-ON' || this.mode === 'MODE_ROLL-UP') {
-      this.logger.log(1, () => 'DISPLAYED: ' + this.displayedMemory.getDisplayText(true));
-      this.outputDataUpdate();
-    }
-  }
-  ccRCL() {
-    // Resume Caption Loading (switch mode to Pop On)
-    this.logger.log(2, 'RCL - Resume Caption Loading');
-    this.setMode('MODE_POP-ON');
-  }
-  ccBS() {
-    // BackSpace
-    this.logger.log(2, 'BS - BackSpace');
-    if (this.mode === 'MODE_TEXT') {
-      return;
-    }
-    this.writeScreen.backSpace();
-    if (this.writeScreen === this.displayedMemory) {
-      this.outputDataUpdate();
-    }
-  }
-  ccAOF() {
-    // Reserved (formerly Alarm Off)
-  }
-  ccAON() {
-    // Reserved (formerly Alarm On)
-  }
-  ccDER() {
-    // Delete to End of Row
-    this.logger.log(2, 'DER- Delete to End of Row');
-    this.writeScreen.clearToEndOfRow();
-    this.outputDataUpdate();
-  }
-  ccRU(nrRows) {
-    // Roll-Up Captions-2,3,or 4 Rows
-    this.logger.log(2, 'RU(' + nrRows + ') - Roll Up');
-    this.writeScreen = this.displayedMemory;
-    this.setMode('MODE_ROLL-UP');
-    this.writeScreen.setRollUpRows(nrRows);
-  }
-  ccFON() {
-    // Flash On
-    this.logger.log(2, 'FON - Flash On');
-    this.writeScreen.setPen({
-      flash: true
-    });
-  }
-  ccRDC() {
-    // Resume Direct Captioning (switch mode to PaintOn)
-    this.logger.log(2, 'RDC - Resume Direct Captioning');
-    this.setMode('MODE_PAINT-ON');
-  }
-  ccTR() {
-    // Text Restart in text mode (not supported, however)
-    this.logger.log(2, 'TR');
-    this.setMode('MODE_TEXT');
-  }
-  ccRTD() {
-    // Resume Text Display in Text mode (not supported, however)
-    this.logger.log(2, 'RTD');
-    this.setMode('MODE_TEXT');
-  }
-  ccEDM() {
-    // Erase Displayed Memory
-    this.logger.log(2, 'EDM - Erase Displayed Memory');
-    this.displayedMemory.reset();
-    this.outputDataUpdate(true);
-  }
-  ccCR() {
-    // Carriage Return
-    this.logger.log(2, 'CR - Carriage Return');
-    this.writeScreen.rollUp();
-    this.outputDataUpdate(true);
-  }
-  ccENM() {
-    // Erase Non-Displayed Memory
-    this.logger.log(2, 'ENM - Erase Non-displayed Memory');
-    this.nonDisplayedMemory.reset();
-  }
-  ccEOC() {
-    // End of Caption (Flip Memories)
-    this.logger.log(2, 'EOC - End Of Caption');
-    if (this.mode === 'MODE_POP-ON') {
-      const tmp = this.displayedMemory;
-      this.displayedMemory = this.nonDisplayedMemory;
-      this.nonDisplayedMemory = tmp;
-      this.writeScreen = this.nonDisplayedMemory;
-      this.logger.log(1, () => 'DISP: ' + this.displayedMemory.getDisplayText());
-    }
-    this.outputDataUpdate(true);
-  }
-  ccTO(nrCols) {
-    // Tab Offset 1,2, or 3 columns
-    this.logger.log(2, 'TO(' + nrCols + ') - Tab Offset');
-    this.writeScreen.moveCursor(nrCols);
-  }
-  ccMIDROW(secondByte) {
-    // Parse MIDROW command
-    const styles = {
-      flash: false
-    };
-    styles.underline = secondByte % 2 === 1;
-    styles.italics = secondByte >= 0x2e;
-    if (!styles.italics) {
-      const colorIndex = Math.floor(secondByte / 2) - 0x10;
-      const colors = ['white', 'green', 'blue', 'cyan', 'red', 'yellow', 'magenta'];
-      styles.foreground = colors[colorIndex];
-    } else {
-      styles.foreground = 'white';
-    }
-    this.logger.log(2, 'MIDROW: ' + JSON.stringify(styles));
-    this.writeScreen.setPen(styles);
-  }
-  outputDataUpdate(dispatch = false) {
-    const time = this.logger.time;
-    if (time === null) {
-      return;
-    }
-    if (this.outputFilter) {
-      if (this.cueStartTime === null && !this.displayedMemory.isEmpty()) {
-        // Start of a new cue
-        this.cueStartTime = time;
-      } else {
-        if (!this.displayedMemory.equals(this.lastOutputScreen)) {
-          this.outputFilter.newCue(this.cueStartTime, time, this.lastOutputScreen);
-          if (dispatch && this.outputFilter.dispatchCue) {
-            this.outputFilter.dispatchCue();
-          }
-          this.cueStartTime = this.displayedMemory.isEmpty() ? null : time;
-        }
-      }
-      this.lastOutputScreen.copy(this.displayedMemory);
-    }
-  }
-  cueSplitAtTime(t) {
-    if (this.outputFilter) {
-      if (!this.displayedMemory.isEmpty()) {
-        if (this.outputFilter.newCue) {
-          this.outputFilter.newCue(this.cueStartTime, t, this.displayedMemory);
-        }
-        this.cueStartTime = t;
-      }
-    }
-  }
-}
-
-// Will be 1 or 2 when parsing captions
-
-class Cea608Parser {
-  constructor(field, out1, out2) {
-    this.channels = void 0;
-    this.currentChannel = 0;
-    this.cmdHistory = createCmdHistory();
-    this.logger = void 0;
-    const logger = this.logger = new CaptionsLogger();
-    this.channels = [null, new Cea608Channel(field, out1, logger), new Cea608Channel(field + 1, out2, logger)];
-  }
-  getHandler(channel) {
-    return this.channels[channel].getHandler();
-  }
-  setHandler(channel, newHandler) {
-    this.channels[channel].setHandler(newHandler);
-  }
-
-  /**
-   * Add data for time t in forms of list of bytes (unsigned ints). The bytes are treated as pairs.
-   */
-  addData(time, byteList) {
-    this.logger.time = time;
-    for (let i = 0; i < byteList.length; i += 2) {
-      const a = byteList[i] & 0x7f;
-      const b = byteList[i + 1] & 0x7f;
-      let cmdFound = false;
-      let charsFound = null;
-      if (a === 0 && b === 0) {
-        continue;
-      } else {
-        this.logger.log(3, () => '[' + numArrayToHexArray([byteList[i], byteList[i + 1]]) + '] -> (' + numArrayToHexArray([a, b]) + ')');
-      }
-      const cmdHistory = this.cmdHistory;
-      const isControlCode = a >= 0x10 && a <= 0x1f;
-      if (isControlCode) {
-        // Skip redundant control codes
-        if (hasCmdRepeated(a, b, cmdHistory)) {
-          setLastCmd(null, null, cmdHistory);
-          this.logger.log(3, () => 'Repeated command (' + numArrayToHexArray([a, b]) + ') is dropped');
-          continue;
-        }
-        setLastCmd(a, b, this.cmdHistory);
-        cmdFound = this.parseCmd(a, b);
-        if (!cmdFound) {
-          cmdFound = this.parseMidrow(a, b);
-        }
-        if (!cmdFound) {
-          cmdFound = this.parsePAC(a, b);
-        }
-        if (!cmdFound) {
-          cmdFound = this.parseBackgroundAttributes(a, b);
-        }
-      } else {
-        setLastCmd(null, null, cmdHistory);
-      }
-      if (!cmdFound) {
-        charsFound = this.parseChars(a, b);
-        if (charsFound) {
-          const currChNr = this.currentChannel;
-          if (currChNr && currChNr > 0) {
-            const channel = this.channels[currChNr];
-            channel.insertChars(charsFound);
-          } else {
-            this.logger.log(2, 'No channel found yet. TEXT-MODE?');
-          }
-        }
-      }
-      if (!cmdFound && !charsFound) {
-        this.logger.log(2, () => "Couldn't parse cleaned data " + numArrayToHexArray([a, b]) + ' orig: ' + numArrayToHexArray([byteList[i], byteList[i + 1]]));
-      }
-    }
-  }
-
-  /**
-   * Parse Command.
-   * @returns True if a command was found
-   */
-  parseCmd(a, b) {
-    const cond1 = (a === 0x14 || a === 0x1c || a === 0x15 || a === 0x1d) && b >= 0x20 && b <= 0x2f;
-    const cond2 = (a === 0x17 || a === 0x1f) && b >= 0x21 && b <= 0x23;
-    if (!(cond1 || cond2)) {
-      return false;
-    }
-    const chNr = a === 0x14 || a === 0x15 || a === 0x17 ? 1 : 2;
-    const channel = this.channels[chNr];
-    if (a === 0x14 || a === 0x15 || a === 0x1c || a === 0x1d) {
-      if (b === 0x20) {
-        channel.ccRCL();
-      } else if (b === 0x21) {
-        channel.ccBS();
-      } else if (b === 0x22) {
-        channel.ccAOF();
-      } else if (b === 0x23) {
-        channel.ccAON();
-      } else if (b === 0x24) {
-        channel.ccDER();
-      } else if (b === 0x25) {
-        channel.ccRU(2);
-      } else if (b === 0x26) {
-        channel.ccRU(3);
-      } else if (b === 0x27) {
-        channel.ccRU(4);
-      } else if (b === 0x28) {
-        channel.ccFON();
-      } else if (b === 0x29) {
-        channel.ccRDC();
-      } else if (b === 0x2a) {
-        channel.ccTR();
-      } else if (b === 0x2b) {
-        channel.ccRTD();
-      } else if (b === 0x2c) {
-        channel.ccEDM();
-      } else if (b === 0x2d) {
-        channel.ccCR();
-      } else if (b === 0x2e) {
-        channel.ccENM();
-      } else if (b === 0x2f) {
-        channel.ccEOC();
-      }
-    } else {
-      // a == 0x17 || a == 0x1F
-      channel.ccTO(b - 0x20);
-    }
-    this.currentChannel = chNr;
-    return true;
-  }
-
-  /**
-   * Parse midrow styling command
-   */
-  parseMidrow(a, b) {
-    let chNr = 0;
-    if ((a === 0x11 || a === 0x19) && b >= 0x20 && b <= 0x2f) {
-      if (a === 0x11) {
-        chNr = 1;
-      } else {
-        chNr = 2;
-      }
-      if (chNr !== this.currentChannel) {
-        this.logger.log(0, 'Mismatch channel in midrow parsing');
-        return false;
-      }
-      const channel = this.channels[chNr];
-      if (!channel) {
-        return false;
-      }
-      channel.ccMIDROW(b);
-      this.logger.log(3, () => 'MIDROW (' + numArrayToHexArray([a, b]) + ')');
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * Parse Preable Access Codes (Table 53).
-   * @returns {Boolean} Tells if PAC found
-   */
-  parsePAC(a, b) {
-    let row;
-    const case1 = (a >= 0x11 && a <= 0x17 || a >= 0x19 && a <= 0x1f) && b >= 0x40 && b <= 0x7f;
-    const case2 = (a === 0x10 || a === 0x18) && b >= 0x40 && b <= 0x5f;
-    if (!(case1 || case2)) {
-      return false;
-    }
-    const chNr = a <= 0x17 ? 1 : 2;
-    if (b >= 0x40 && b <= 0x5f) {
-      row = chNr === 1 ? rowsLowCh1[a] : rowsLowCh2[a];
-    } else {
-      // 0x60 <= b <= 0x7F
-      row = chNr === 1 ? rowsHighCh1[a] : rowsHighCh2[a];
-    }
-    const channel = this.channels[chNr];
-    if (!channel) {
-      return false;
-    }
-    channel.setPAC(this.interpretPAC(row, b));
-    this.currentChannel = chNr;
-    return true;
-  }
-
-  /**
-   * Interpret the second byte of the pac, and return the information.
-   * @returns pacData with style parameters
-   */
-  interpretPAC(row, byte) {
-    let pacIndex;
-    const pacData = {
-      color: null,
-      italics: false,
-      indent: null,
-      underline: false,
-      row: row
-    };
-    if (byte > 0x5f) {
-      pacIndex = byte - 0x60;
-    } else {
-      pacIndex = byte - 0x40;
-    }
-    pacData.underline = (pacIndex & 1) === 1;
-    if (pacIndex <= 0xd) {
-      pacData.color = ['white', 'green', 'blue', 'cyan', 'red', 'yellow', 'magenta', 'white'][Math.floor(pacIndex / 2)];
-    } else if (pacIndex <= 0xf) {
-      pacData.italics = true;
-      pacData.color = 'white';
-    } else {
-      pacData.indent = Math.floor((pacIndex - 0x10) / 2) * 4;
-    }
-    return pacData; // Note that row has zero offset. The spec uses 1.
-  }
-
-  /**
-   * Parse characters.
-   * @returns An array with 1 to 2 codes corresponding to chars, if found. null otherwise.
-   */
-  parseChars(a, b) {
-    let channelNr;
-    let charCodes = null;
-    let charCode1 = null;
-    if (a >= 0x19) {
-      channelNr = 2;
-      charCode1 = a - 8;
-    } else {
-      channelNr = 1;
-      charCode1 = a;
-    }
-    if (charCode1 >= 0x11 && charCode1 <= 0x13) {
-      // Special character
-      let oneCode;
-      if (charCode1 === 0x11) {
-        oneCode = b + 0x50;
-      } else if (charCode1 === 0x12) {
-        oneCode = b + 0x70;
-      } else {
-        oneCode = b + 0x90;
-      }
-      this.logger.log(2, () => "Special char '" + getCharForByte(oneCode) + "' in channel " + channelNr);
-      charCodes = [oneCode];
-    } else if (a >= 0x20 && a <= 0x7f) {
-      charCodes = b === 0 ? [a] : [a, b];
-    }
-    if (charCodes) {
-      this.logger.log(3, () => 'Char codes =  ' + numArrayToHexArray(charCodes).join(','));
-    }
-    return charCodes;
-  }
-
-  /**
-   * Parse extended background attributes as well as new foreground color black.
-   * @returns True if background attributes are found
-   */
-  parseBackgroundAttributes(a, b) {
-    const case1 = (a === 0x10 || a === 0x18) && b >= 0x20 && b <= 0x2f;
-    const case2 = (a === 0x17 || a === 0x1f) && b >= 0x2d && b <= 0x2f;
-    if (!(case1 || case2)) {
-      return false;
-    }
-    let index;
-    const bkgData = {};
-    if (a === 0x10 || a === 0x18) {
-      index = Math.floor((b - 0x20) / 2);
-      bkgData.background = backgroundColors[index];
-      if (b % 2 === 1) {
-        bkgData.background = bkgData.background + '_semi';
-      }
-    } else if (b === 0x2d) {
-      bkgData.background = 'transparent';
-    } else {
-      bkgData.foreground = 'black';
-      if (b === 0x2f) {
-        bkgData.underline = true;
-      }
-    }
-    const chNr = a <= 0x17 ? 1 : 2;
-    const channel = this.channels[chNr];
-    channel.setBkgData(bkgData);
-    return true;
-  }
-
-  /**
-   * Reset state of parser and its channels.
-   */
-  reset() {
-    for (let i = 0; i < Object.keys(this.channels).length; i++) {
-      const channel = this.channels[i];
-      if (channel) {
-        channel.reset();
-      }
-    }
-    setLastCmd(null, null, this.cmdHistory);
-  }
-
-  /**
-   * Trigger the generation of a cue, and the start of a new one if displayScreens are not empty.
-   */
-  cueSplitAtTime(t) {
-    for (let i = 0; i < this.channels.length; i++) {
-      const channel = this.channels[i];
-      if (channel) {
-        channel.cueSplitAtTime(t);
-      }
-    }
-  }
-}
-function setLastCmd(a, b, cmdHistory) {
-  cmdHistory.a = a;
-  cmdHistory.b = b;
-}
-function hasCmdRepeated(a, b, cmdHistory) {
-  return cmdHistory.a === a && cmdHistory.b === b;
-}
-function createCmdHistory() {
-  return {
-    a: null,
-    b: null
-  };
-}
-
-class OutputFilter {
-  constructor(timelineController, trackName) {
-    this.timelineController = void 0;
-    this.cueRanges = [];
-    this.trackName = void 0;
-    this.startTime = null;
-    this.endTime = null;
-    this.screen = null;
-    this.timelineController = timelineController;
-    this.trackName = trackName;
-  }
-  dispatchCue() {
-    if (this.startTime === null) {
-      return;
-    }
-    this.timelineController.addCues(this.trackName, this.startTime, this.endTime, this.screen, this.cueRanges);
-    this.startTime = null;
-  }
-  newCue(startTime, endTime, screen) {
-    if (this.startTime === null || this.startTime > startTime) {
-      this.startTime = startTime;
-    }
-    this.endTime = endTime;
-    this.screen = screen;
-    this.timelineController.createCaptionsTrack(this.trackName);
-  }
-  reset() {
-    this.cueRanges = [];
-    this.startTime = null;
-  }
-}
-
-/**
- * Copyright 2013 vtt.js Contributors
- *
- * Licensed under the Apache License, Version 2.0 (the 'License');
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an 'AS IS' BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-var VTTCue = (function () {
-  if (optionalSelf != null && optionalSelf.VTTCue) {
-    return self.VTTCue;
-  }
-  const AllowedDirections = ['', 'lr', 'rl'];
-  const AllowedAlignments = ['start', 'middle', 'end', 'left', 'right'];
-  function isAllowedValue(allowed, value) {
-    if (typeof value !== 'string') {
-      return false;
-    }
-    // necessary for assuring the generic conforms to the Array interface
-    if (!Array.isArray(allowed)) {
-      return false;
-    }
-    // reset the type so that the next narrowing works well
-    const lcValue = value.toLowerCase();
-    // use the allow list to narrow the type to a specific subset of strings
-    if (~allowed.indexOf(lcValue)) {
-      return lcValue;
-    }
-    return false;
-  }
-  function findDirectionSetting(value) {
-    return isAllowedValue(AllowedDirections, value);
-  }
-  function findAlignSetting(value) {
-    return isAllowedValue(AllowedAlignments, value);
-  }
-  function extend(obj, ...rest) {
-    let i = 1;
-    for (; i < arguments.length; i++) {
-      const cobj = arguments[i];
-      for (const p in cobj) {
-        obj[p] = cobj[p];
-      }
-    }
-    return obj;
-  }
-  function VTTCue(startTime, endTime, text) {
-    const cue = this;
-    const baseObj = {
-      enumerable: true
-    };
-    /**
-     * Shim implementation specific properties. These properties are not in
-     * the spec.
-     */
-
-    // Lets us know when the VTTCue's data has changed in such a way that we need
-    // to recompute its display state. This lets us compute its display state
-    // lazily.
-    cue.hasBeenReset = false;
-
-    /**
-     * VTTCue and TextTrackCue properties
-     * http://dev.w3.org/html5/webvtt/#vttcue-interface
-     */
-
-    let _id = '';
-    let _pauseOnExit = false;
-    let _startTime = startTime;
-    let _endTime = endTime;
-    let _text = text;
-    let _region = null;
-    let _vertical = '';
-    let _snapToLines = true;
-    let _line = 'auto';
-    let _lineAlign = 'start';
-    let _position = 50;
-    let _positionAlign = 'middle';
-    let _size = 50;
-    let _align = 'middle';
-    Object.defineProperty(cue, 'id', extend({}, baseObj, {
-      get: function () {
-        return _id;
-      },
-      set: function (value) {
-        _id = '' + value;
-      }
-    }));
-    Object.defineProperty(cue, 'pauseOnExit', extend({}, baseObj, {
-      get: function () {
-        return _pauseOnExit;
-      },
-      set: function (value) {
-        _pauseOnExit = !!value;
-      }
-    }));
-    Object.defineProperty(cue, 'startTime', extend({}, baseObj, {
-      get: function () {
-        return _startTime;
-      },
-      set: function (value) {
-        if (typeof value !== 'number') {
-          throw new TypeError('Start time must be set to a number.');
-        }
-        _startTime = value;
-        this.hasBeenReset = true;
-      }
-    }));
-    Object.defineProperty(cue, 'endTime', extend({}, baseObj, {
-      get: function () {
-        return _endTime;
-      },
-      set: function (value) {
-        if (typeof value !== 'number') {
-          throw new TypeError('End time must be set to a number.');
-        }
-        _endTime = value;
-        this.hasBeenReset = true;
-      }
-    }));
-    Object.defineProperty(cue, 'text', extend({}, baseObj, {
-      get: function () {
-        return _text;
-      },
-      set: function (value) {
-        _text = '' + value;
-        this.hasBeenReset = true;
-      }
-    }));
-
-    // todo: implement VTTRegion polyfill?
-    Object.defineProperty(cue, 'region', extend({}, baseObj, {
-      get: function () {
-        return _region;
-      },
-      set: function (value) {
-        _region = value;
-        this.hasBeenReset = true;
-      }
-    }));
-    Object.defineProperty(cue, 'vertical', extend({}, baseObj, {
-      get: function () {
-        return _vertical;
-      },
-      set: function (value) {
-        const setting = findDirectionSetting(value);
-        // Have to check for false because the setting an be an empty string.
-        if (setting === false) {
-          throw new SyntaxError('An invalid or illegal string was specified.');
-        }
-        _vertical = setting;
-        this.hasBeenReset = true;
-      }
-    }));
-    Object.defineProperty(cue, 'snapToLines', extend({}, baseObj, {
-      get: function () {
-        return _snapToLines;
-      },
-      set: function (value) {
-        _snapToLines = !!value;
-        this.hasBeenReset = true;
-      }
-    }));
-    Object.defineProperty(cue, 'line', extend({}, baseObj, {
-      get: function () {
-        return _line;
-      },
-      set: function (value) {
-        if (typeof value !== 'number' && value !== 'auto') {
-          throw new SyntaxError('An invalid number or illegal string was specified.');
-        }
-        _line = value;
-        this.hasBeenReset = true;
-      }
-    }));
-    Object.defineProperty(cue, 'lineAlign', extend({}, baseObj, {
-      get: function () {
-        return _lineAlign;
-      },
-      set: function (value) {
-        const setting = findAlignSetting(value);
-        if (!setting) {
-          throw new SyntaxError('An invalid or illegal string was specified.');
-        }
-        _lineAlign = setting;
-        this.hasBeenReset = true;
-      }
-    }));
-    Object.defineProperty(cue, 'position', extend({}, baseObj, {
-      get: function () {
-        return _position;
-      },
-      set: function (value) {
-        if (value < 0 || value > 100) {
-          throw new Error('Position must be between 0 and 100.');
-        }
-        _position = value;
-        this.hasBeenReset = true;
-      }
-    }));
-    Object.defineProperty(cue, 'positionAlign', extend({}, baseObj, {
-      get: function () {
-        return _positionAlign;
-      },
-      set: function (value) {
-        const setting = findAlignSetting(value);
-        if (!setting) {
-          throw new SyntaxError('An invalid or illegal string was specified.');
-        }
-        _positionAlign = setting;
-        this.hasBeenReset = true;
-      }
-    }));
-    Object.defineProperty(cue, 'size', extend({}, baseObj, {
-      get: function () {
-        return _size;
-      },
-      set: function (value) {
-        if (value < 0 || value > 100) {
-          throw new Error('Size must be between 0 and 100.');
-        }
-        _size = value;
-        this.hasBeenReset = true;
-      }
-    }));
-    Object.defineProperty(cue, 'align', extend({}, baseObj, {
-      get: function () {
-        return _align;
-      },
-      set: function (value) {
-        const setting = findAlignSetting(value);
-        if (!setting) {
-          throw new SyntaxError('An invalid or illegal string was specified.');
-        }
-        _align = setting;
-        this.hasBeenReset = true;
-      }
-    }));
-
-    /**
-     * Other <track> spec defined properties
-     */
-
-    // http://www.whatwg.org/specs/web-apps/current-work/multipage/the-video-element.html#text-track-cue-display-state
-    cue.displayState = undefined;
-  }
-
-  /**
-   * VTTCue methods
-   */
-
-  VTTCue.prototype.getCueAsHTML = function () {
-    // Assume WebVTT.convertCueToDOMTree is on the global.
-    const WebVTT = self.WebVTT;
-    return WebVTT.convertCueToDOMTree(self, this.text);
-  };
-  // this is a polyfill hack
-  return VTTCue;
-})();
-
-/*
- * Source: https://github.com/mozilla/vtt.js/blob/master/dist/vtt.js
- */
-
-class StringDecoder {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  decode(data, options) {
-    if (!data) {
-      return '';
-    }
-    if (typeof data !== 'string') {
-      throw new Error('Error - expected string data.');
-    }
-    return decodeURIComponent(encodeURIComponent(data));
-  }
-}
-
-// Try to parse input as a time stamp.
-function parseTimeStamp(input) {
-  function computeSeconds(h, m, s, f) {
-    return (h | 0) * 3600 + (m | 0) * 60 + (s | 0) + parseFloat(f || 0);
-  }
-  const m = input.match(/^(?:(\d+):)?(\d{2}):(\d{2})(\.\d+)?/);
-  if (!m) {
-    return null;
-  }
-  if (parseFloat(m[2]) > 59) {
-    // Timestamp takes the form of [hours]:[minutes].[milliseconds]
-    // First position is hours as it's over 59.
-    return computeSeconds(m[2], m[3], 0, m[4]);
-  }
-  // Timestamp takes the form of [hours (optional)]:[minutes]:[seconds].[milliseconds]
-  return computeSeconds(m[1], m[2], m[3], m[4]);
-}
-
-// A settings object holds key/value pairs and will ignore anything but the first
-// assignment to a specific key.
-class Settings {
-  constructor() {
-    this.values = Object.create(null);
-  }
-  // Only accept the first assignment to any key.
-  set(k, v) {
-    if (!this.get(k) && v !== '') {
-      this.values[k] = v;
-    }
-  }
-  // Return the value for a key, or a default value.
-  // If 'defaultKey' is passed then 'dflt' is assumed to be an object with
-  // a number of possible default values as properties where 'defaultKey' is
-  // the key of the property that will be chosen; otherwise it's assumed to be
-  // a single value.
-  get(k, dflt, defaultKey) {
-    if (defaultKey) {
-      return this.has(k) ? this.values[k] : dflt[defaultKey];
-    }
-    return this.has(k) ? this.values[k] : dflt;
-  }
-  // Check whether we have a value for a key.
-  has(k) {
-    return k in this.values;
-  }
-  // Accept a setting if its one of the given alternatives.
-  alt(k, v, a) {
-    for (let n = 0; n < a.length; ++n) {
-      if (v === a[n]) {
-        this.set(k, v);
-        break;
-      }
-    }
-  }
-  // Accept a setting if its a valid (signed) integer.
-  integer(k, v) {
-    if (/^-?\d+$/.test(v)) {
-      // integer
-      this.set(k, parseInt(v, 10));
-    }
-  }
-  // Accept a setting if its a valid percentage.
-  percent(k, v) {
-    if (/^([\d]{1,3})(\.[\d]*)?%$/.test(v)) {
-      const percent = parseFloat(v);
-      if (percent >= 0 && percent <= 100) {
-        this.set(k, percent);
-        return true;
-      }
-    }
-    return false;
-  }
-}
-
-// Helper function to parse input into groups separated by 'groupDelim', and
-// interpret each group as a key/value pair separated by 'keyValueDelim'.
-function parseOptions(input, callback, keyValueDelim, groupDelim) {
-  const groups = groupDelim ? input.split(groupDelim) : [input];
-  for (const i in groups) {
-    if (typeof groups[i] !== 'string') {
-      continue;
-    }
-    const kv = groups[i].split(keyValueDelim);
-    if (kv.length !== 2) {
-      continue;
-    }
-    const k = kv[0];
-    const v = kv[1];
-    callback(k, v);
-  }
-}
-const defaults = new VTTCue(0, 0, '');
-// 'middle' was changed to 'center' in the spec: https://github.com/w3c/webvtt/pull/244
-//  Safari doesn't yet support this change, but FF and Chrome do.
-const center = defaults.align === 'middle' ? 'middle' : 'center';
-function parseCue(input, cue, regionList) {
-  // Remember the original input if we need to throw an error.
-  const oInput = input;
-  // 4.1 WebVTT timestamp
-  function consumeTimeStamp() {
-    const ts = parseTimeStamp(input);
-    if (ts === null) {
-      throw new Error('Malformed timestamp: ' + oInput);
-    }
-
-    // Remove time stamp from input.
-    input = input.replace(/^[^\sa-zA-Z-]+/, '');
-    return ts;
-  }
-
-  // 4.4.2 WebVTT cue settings
-  function consumeCueSettings(input, cue) {
-    const settings = new Settings();
-    parseOptions(input, function (k, v) {
-      let vals;
-      switch (k) {
-        case 'region':
-          // Find the last region we parsed with the same region id.
-          for (let i = regionList.length - 1; i >= 0; i--) {
-            if (regionList[i].id === v) {
-              settings.set(k, regionList[i].region);
-              break;
-            }
-          }
-          break;
-        case 'vertical':
-          settings.alt(k, v, ['rl', 'lr']);
-          break;
-        case 'line':
-          vals = v.split(',');
-          settings.integer(k, vals[0]);
-          if (settings.percent(k, vals[0])) {
-            settings.set('snapToLines', false);
-          }
-          settings.alt(k, vals[0], ['auto']);
-          if (vals.length === 2) {
-            settings.alt('lineAlign', vals[1], ['start', center, 'end']);
-          }
-          break;
-        case 'position':
-          vals = v.split(',');
-          settings.percent(k, vals[0]);
-          if (vals.length === 2) {
-            settings.alt('positionAlign', vals[1], ['start', center, 'end', 'line-left', 'line-right', 'auto']);
-          }
-          break;
-        case 'size':
-          settings.percent(k, v);
-          break;
-        case 'align':
-          settings.alt(k, v, ['start', center, 'end', 'left', 'right']);
-          break;
-      }
-    }, /:/, /\s/);
-
-    // Apply default values for any missing fields.
-    cue.region = settings.get('region', null);
-    cue.vertical = settings.get('vertical', '');
-    let line = settings.get('line', 'auto');
-    if (line === 'auto' && defaults.line === -1) {
-      // set numeric line number for Safari
-      line = -1;
-    }
-    cue.line = line;
-    cue.lineAlign = settings.get('lineAlign', 'start');
-    cue.snapToLines = settings.get('snapToLines', true);
-    cue.size = settings.get('size', 100);
-    cue.align = settings.get('align', center);
-    let position = settings.get('position', 'auto');
-    if (position === 'auto' && defaults.position === 50) {
-      // set numeric position for Safari
-      position = cue.align === 'start' || cue.align === 'left' ? 0 : cue.align === 'end' || cue.align === 'right' ? 100 : 50;
-    }
-    cue.position = position;
-  }
-  function skipWhitespace() {
-    input = input.replace(/^\s+/, '');
-  }
-
-  // 4.1 WebVTT cue timings.
-  skipWhitespace();
-  cue.startTime = consumeTimeStamp(); // (1) collect cue start time
-  skipWhitespace();
-  if (input.slice(0, 3) !== '-->') {
-    // (3) next characters must match '-->'
-    throw new Error("Malformed time stamp (time stamps must be separated by '-->'): " + oInput);
-  }
-  input = input.slice(3);
-  skipWhitespace();
-  cue.endTime = consumeTimeStamp(); // (5) collect cue end time
-
-  // 4.1 WebVTT cue settings list.
-  skipWhitespace();
-  consumeCueSettings(input, cue);
-}
-function fixLineBreaks(input) {
-  return input.replace(/<br(?: \/)?>/gi, '\n');
-}
-class VTTParser {
-  constructor() {
-    this.state = 'INITIAL';
-    this.buffer = '';
-    this.decoder = new StringDecoder();
-    this.regionList = [];
-    this.cue = null;
-    this.oncue = void 0;
-    this.onparsingerror = void 0;
-    this.onflush = void 0;
-  }
-  parse(data) {
-    const _this = this;
-
-    // If there is no data then we won't decode it, but will just try to parse
-    // whatever is in buffer already. This may occur in circumstances, for
-    // example when flush() is called.
-    if (data) {
-      // Try to decode the data that we received.
-      _this.buffer += _this.decoder.decode(data, {
-        stream: true
-      });
-    }
-    function collectNextLine() {
-      let buffer = _this.buffer;
-      let pos = 0;
-      buffer = fixLineBreaks(buffer);
-      while (pos < buffer.length && buffer[pos] !== '\r' && buffer[pos] !== '\n') {
-        ++pos;
-      }
-      const line = buffer.slice(0, pos);
-      // Advance the buffer early in case we fail below.
-      if (buffer[pos] === '\r') {
-        ++pos;
-      }
-      if (buffer[pos] === '\n') {
-        ++pos;
-      }
-      _this.buffer = buffer.slice(pos);
-      return line;
-    }
-
-    // 3.2 WebVTT metadata header syntax
-    function parseHeader(input) {
-      parseOptions(input, function (k, v) {
-        // switch (k) {
-        // case 'region':
-        // 3.3 WebVTT region metadata header syntax
-        // console.log('parse region', v);
-        // parseRegion(v);
-        // break;
-        // }
-      }, /:/);
-    }
-
-    // 5.1 WebVTT file parsing.
-    try {
-      let line = '';
-      if (_this.state === 'INITIAL') {
-        // We can't start parsing until we have the first line.
-        if (!/\r\n|\n/.test(_this.buffer)) {
-          return this;
-        }
-        line = collectNextLine();
-        // strip of UTF-8 BOM if any
-        // https://en.wikipedia.org/wiki/Byte_order_mark#UTF-8
-        const m = line.match(/^(ï»¿)?WEBVTT([ \t].*)?$/);
-        if (!(m != null && m[0])) {
-          throw new Error('Malformed WebVTT signature.');
-        }
-        _this.state = 'HEADER';
-      }
-      let alreadyCollectedLine = false;
-      while (_this.buffer) {
-        // We can't parse a line until we have the full line.
-        if (!/\r\n|\n/.test(_this.buffer)) {
-          return this;
-        }
-        if (!alreadyCollectedLine) {
-          line = collectNextLine();
-        } else {
-          alreadyCollectedLine = false;
-        }
-        switch (_this.state) {
-          case 'HEADER':
-            // 13-18 - Allow a header (metadata) under the WEBVTT line.
-            if (/:/.test(line)) {
-              parseHeader(line);
-            } else if (!line) {
-              // An empty line terminates the header and starts the body (cues).
-              _this.state = 'ID';
-            }
-            continue;
-          case 'NOTE':
-            // Ignore NOTE blocks.
-            if (!line) {
-              _this.state = 'ID';
-            }
-            continue;
-          case 'ID':
-            // Check for the start of NOTE blocks.
-            if (/^NOTE($|[ \t])/.test(line)) {
-              _this.state = 'NOTE';
-              break;
-            }
-            // 19-29 - Allow any number of line terminators, then initialize new cue values.
-            if (!line) {
-              continue;
-            }
-            _this.cue = new VTTCue(0, 0, '');
-            _this.state = 'CUE';
-            // 30-39 - Check if self line contains an optional identifier or timing data.
-            if (line.indexOf('-->') === -1) {
-              _this.cue.id = line;
-              continue;
-            }
-          // Process line as start of a cue.
-          /* falls through */
-          case 'CUE':
-            // 40 - Collect cue timings and settings.
-            if (!_this.cue) {
-              _this.state = 'BADCUE';
-              continue;
-            }
-            try {
-              parseCue(line, _this.cue, _this.regionList);
-            } catch (e) {
-              // In case of an error ignore rest of the cue.
-              _this.cue = null;
-              _this.state = 'BADCUE';
-              continue;
-            }
-            _this.state = 'CUETEXT';
-            continue;
-          case 'CUETEXT':
-            {
-              const hasSubstring = line.indexOf('-->') !== -1;
-              // 34 - If we have an empty line then report the cue.
-              // 35 - If we have the special substring '-->' then report the cue,
-              // but do not collect the line as we need to process the current
-              // one as a new cue.
-              if (!line || hasSubstring && (alreadyCollectedLine = true)) {
-                // We are done parsing self cue.
-                if (_this.oncue && _this.cue) {
-                  _this.oncue(_this.cue);
-                }
-                _this.cue = null;
-                _this.state = 'ID';
-                continue;
-              }
-              if (_this.cue === null) {
-                continue;
-              }
-              if (_this.cue.text) {
-                _this.cue.text += '\n';
-              }
-              _this.cue.text += line;
-            }
-            continue;
-          case 'BADCUE':
-            // 54-62 - Collect and discard the remaining cue.
-            if (!line) {
-              _this.state = 'ID';
-            }
-        }
-      }
-    } catch (e) {
-      // If we are currently parsing a cue, report what we have.
-      if (_this.state === 'CUETEXT' && _this.cue && _this.oncue) {
-        _this.oncue(_this.cue);
-      }
-      _this.cue = null;
-      // Enter BADWEBVTT state if header was not parsed correctly otherwise
-      // another exception occurred so enter BADCUE state.
-      _this.state = _this.state === 'INITIAL' ? 'BADWEBVTT' : 'BADCUE';
-    }
-    return this;
-  }
-  flush() {
-    const _this = this;
-    try {
-      // Finish decoding the stream.
-      // _this.buffer += _this.decoder.decode();
-      // Synthesize the end of the current cue or region.
-      if (_this.cue || _this.state === 'HEADER') {
-        _this.buffer += '\n\n';
-        _this.parse();
-      }
-      // If we've flushed, parsed, and we're still on the INITIAL state then
-      // that means we don't have enough of the stream to parse the first
-      // line.
-      if (_this.state === 'INITIAL' || _this.state === 'BADWEBVTT') {
-        throw new Error('Malformed WebVTT signature.');
-      }
-    } catch (e) {
-      if (_this.onparsingerror) {
-        _this.onparsingerror(e);
-      }
-    }
-    if (_this.onflush) {
-      _this.onflush();
-    }
-    return this;
-  }
-}
-
-const LINEBREAKS = /\r\n|\n\r|\n|\r/g;
-
-// String.prototype.startsWith is not supported in IE11
-const startsWith = function startsWith(inputString, searchString, position = 0) {
-  return inputString.slice(position, position + searchString.length) === searchString;
-};
-const cueString2millis = function cueString2millis(timeString) {
-  let ts = parseInt(timeString.slice(-3));
-  const secs = parseInt(timeString.slice(-6, -4));
-  const mins = parseInt(timeString.slice(-9, -7));
-  const hours = timeString.length > 9 ? parseInt(timeString.substring(0, timeString.indexOf(':'))) : 0;
-  if (!isFiniteNumber(ts) || !isFiniteNumber(secs) || !isFiniteNumber(mins) || !isFiniteNumber(hours)) {
-    throw Error(`Malformed X-TIMESTAMP-MAP: Local:${timeString}`);
-  }
-  ts += 1000 * secs;
-  ts += 60 * 1000 * mins;
-  ts += 60 * 60 * 1000 * hours;
-  return ts;
-};
-
-// From https://github.com/darkskyapp/string-hash
-const hash = function hash(text) {
-  let _hash = 5381;
-  let i = text.length;
-  while (i) {
-    _hash = _hash * 33 ^ text.charCodeAt(--i);
-  }
-  return (_hash >>> 0).toString();
-};
-
-// Create a unique hash id for a cue based on start/end times and text.
-// This helps timeline-controller to avoid showing repeated captions.
-function generateCueId(startTime, endTime, text) {
-  return hash(startTime.toString()) + hash(endTime.toString()) + hash(text);
-}
-const calculateOffset = function calculateOffset(vttCCs, cc, presentationTime) {
-  let currCC = vttCCs[cc];
-  let prevCC = vttCCs[currCC.prevCC];
-
-  // This is the first discontinuity or cues have been processed since the last discontinuity
-  // Offset = current discontinuity time
-  if (!prevCC || !prevCC.new && currCC.new) {
-    vttCCs.ccOffset = vttCCs.presentationOffset = currCC.start;
-    currCC.new = false;
-    return;
-  }
-
-  // There have been discontinuities since cues were last parsed.
-  // Offset = time elapsed
-  while ((_prevCC = prevCC) != null && _prevCC.new) {
-    var _prevCC;
-    vttCCs.ccOffset += currCC.start - prevCC.start;
-    currCC.new = false;
-    currCC = prevCC;
-    prevCC = vttCCs[currCC.prevCC];
-  }
-  vttCCs.presentationOffset = presentationTime;
-};
-function parseWebVTT(vttByteArray, initPTS, vttCCs, cc, timeOffset, callBack, errorCallBack) {
-  const parser = new VTTParser();
-  // Convert byteArray into string, replacing any somewhat exotic linefeeds with "\n", then split on that character.
-  // Uint8Array.prototype.reduce is not implemented in IE11
-  const vttLines = utf8ArrayToStr(new Uint8Array(vttByteArray)).trim().replace(LINEBREAKS, '\n').split('\n');
-  const cues = [];
-  const init90kHz = initPTS ? toMpegTsClockFromTimescale(initPTS.baseTime, initPTS.timescale) : 0;
-  let cueTime = '00:00.000';
-  let timestampMapMPEGTS = 0;
-  let timestampMapLOCAL = 0;
-  let parsingError;
-  let inHeader = true;
-  parser.oncue = function (cue) {
-    // Adjust cue timing; clamp cues to start no earlier than - and drop cues that don't end after - 0 on timeline.
-    const currCC = vttCCs[cc];
-    let cueOffset = vttCCs.ccOffset;
-
-    // Calculate subtitle PTS offset
-    const webVttMpegTsMapOffset = (timestampMapMPEGTS - init90kHz) / 90000;
-
-    // Update offsets for new discontinuities
-    if (currCC != null && currCC.new) {
-      if (timestampMapLOCAL !== undefined) {
-        // When local time is provided, offset = discontinuity start time - local time
-        cueOffset = vttCCs.ccOffset = currCC.start;
-      } else {
-        calculateOffset(vttCCs, cc, webVttMpegTsMapOffset);
-      }
-    }
-    if (webVttMpegTsMapOffset) {
-      if (!initPTS) {
-        parsingError = new Error('Missing initPTS for VTT MPEGTS');
-        return;
-      }
-      // If we have MPEGTS, offset = presentation time + discontinuity offset
-      cueOffset = webVttMpegTsMapOffset - vttCCs.presentationOffset;
-    }
-    const duration = cue.endTime - cue.startTime;
-    const startTime = normalizePts((cue.startTime + cueOffset - timestampMapLOCAL) * 90000, timeOffset * 90000) / 90000;
-    cue.startTime = Math.max(startTime, 0);
-    cue.endTime = Math.max(startTime + duration, 0);
-
-    //trim trailing webvtt block whitespaces
-    const text = cue.text.trim();
-
-    // Fix encoding of special characters
-    cue.text = decodeURIComponent(encodeURIComponent(text));
-
-    // If the cue was not assigned an id from the VTT file (line above the content), create one.
-    if (!cue.id) {
-      cue.id = generateCueId(cue.startTime, cue.endTime, text);
-    }
-    if (cue.endTime > 0) {
-      cues.push(cue);
-    }
-  };
-  parser.onparsingerror = function (error) {
-    parsingError = error;
-  };
-  parser.onflush = function () {
-    if (parsingError) {
-      errorCallBack(parsingError);
-      return;
-    }
-    callBack(cues);
-  };
-
-  // Go through contents line by line.
-  vttLines.forEach(line => {
-    if (inHeader) {
-      // Look for X-TIMESTAMP-MAP in header.
-      if (startsWith(line, 'X-TIMESTAMP-MAP=')) {
-        // Once found, no more are allowed anyway, so stop searching.
-        inHeader = false;
-        // Extract LOCAL and MPEGTS.
-        line.slice(16).split(',').forEach(timestamp => {
-          if (startsWith(timestamp, 'LOCAL:')) {
-            cueTime = timestamp.slice(6);
-          } else if (startsWith(timestamp, 'MPEGTS:')) {
-            timestampMapMPEGTS = parseInt(timestamp.slice(7));
-          }
-        });
-        try {
-          // Convert cue time to seconds
-          timestampMapLOCAL = cueString2millis(cueTime) / 1000;
-        } catch (error) {
-          parsingError = error;
-        }
-        // Return without parsing X-TIMESTAMP-MAP line.
-        return;
-      } else if (line === '') {
-        inHeader = false;
-      }
-    }
-    // Parse line by default.
-    parser.parse(line + '\n');
-  });
-  parser.flush();
-}
-
-const IMSC1_CODEC = 'stpp.ttml.im1t';
-
-// Time format: h:m:s:frames(.subframes)
-const HMSF_REGEX = /^(\d{2,}):(\d{2}):(\d{2}):(\d{2})\.?(\d+)?$/;
-
-// Time format: hours, minutes, seconds, milliseconds, frames, ticks
-const TIME_UNIT_REGEX = /^(\d*(?:\.\d*)?)(h|m|s|ms|f|t)$/;
-const textAlignToLineAlign = {
-  left: 'start',
-  center: 'center',
-  right: 'end',
-  start: 'start',
-  end: 'end'
-};
-function parseIMSC1(payload, initPTS, callBack, errorCallBack) {
-  const results = findBox(new Uint8Array(payload), ['mdat']);
-  if (results.length === 0) {
-    errorCallBack(new Error('Could not parse IMSC1 mdat'));
-    return;
-  }
-  const ttmlList = results.map(mdat => utf8ArrayToStr(mdat));
-  const syncTime = toTimescaleFromScale(initPTS.baseTime, 1, initPTS.timescale);
-  try {
-    ttmlList.forEach(ttml => callBack(parseTTML(ttml, syncTime)));
-  } catch (error) {
-    errorCallBack(error);
-  }
-}
-function parseTTML(ttml, syncTime) {
-  const parser = new DOMParser();
-  const xmlDoc = parser.parseFromString(ttml, 'text/xml');
-  const tt = xmlDoc.getElementsByTagName('tt')[0];
-  if (!tt) {
-    throw new Error('Invalid ttml');
-  }
-  const defaultRateInfo = {
-    frameRate: 30,
-    subFrameRate: 1,
-    frameRateMultiplier: 0,
-    tickRate: 0
-  };
-  const rateInfo = Object.keys(defaultRateInfo).reduce((result, key) => {
-    result[key] = tt.getAttribute(`ttp:${key}`) || defaultRateInfo[key];
-    return result;
-  }, {});
-  const trim = tt.getAttribute('xml:space') !== 'preserve';
-  const styleElements = collectionToDictionary(getElementCollection(tt, 'styling', 'style'));
-  const regionElements = collectionToDictionary(getElementCollection(tt, 'layout', 'region'));
-  const cueElements = getElementCollection(tt, 'body', '[begin]');
-  return [].map.call(cueElements, cueElement => {
-    const cueText = getTextContent(cueElement, trim);
-    if (!cueText || !cueElement.hasAttribute('begin')) {
-      return null;
-    }
-    const startTime = parseTtmlTime(cueElement.getAttribute('begin'), rateInfo);
-    const duration = parseTtmlTime(cueElement.getAttribute('dur'), rateInfo);
-    let endTime = parseTtmlTime(cueElement.getAttribute('end'), rateInfo);
-    if (startTime === null) {
-      throw timestampParsingError(cueElement);
-    }
-    if (endTime === null) {
-      if (duration === null) {
-        throw timestampParsingError(cueElement);
-      }
-      endTime = startTime + duration;
-    }
-    const cue = new VTTCue(startTime - syncTime, endTime - syncTime, cueText);
-    cue.id = generateCueId(cue.startTime, cue.endTime, cue.text);
-    const region = regionElements[cueElement.getAttribute('region')];
-    const style = styleElements[cueElement.getAttribute('style')];
-
-    // Apply styles to cue
-    const styles = getTtmlStyles(region, style, styleElements);
-    const {
-      textAlign
-    } = styles;
-    if (textAlign) {
-      // cue.positionAlign not settable in FF~2016
-      const lineAlign = textAlignToLineAlign[textAlign];
-      if (lineAlign) {
-        cue.lineAlign = lineAlign;
-      }
-      cue.align = textAlign;
-    }
-    _extends(cue, styles);
-    return cue;
-  }).filter(cue => cue !== null);
-}
-function getElementCollection(fromElement, parentName, childName) {
-  const parent = fromElement.getElementsByTagName(parentName)[0];
-  if (parent) {
-    return [].slice.call(parent.querySelectorAll(childName));
-  }
-  return [];
-}
-function collectionToDictionary(elementsWithId) {
-  return elementsWithId.reduce((dict, element) => {
-    const id = element.getAttribute('xml:id');
-    if (id) {
-      dict[id] = element;
-    }
-    return dict;
-  }, {});
-}
-function getTextContent(element, trim) {
-  return [].slice.call(element.childNodes).reduce((str, node, i) => {
-    var _node$childNodes;
-    if (node.nodeName === 'br' && i) {
-      return str + '\n';
-    }
-    if ((_node$childNodes = node.childNodes) != null && _node$childNodes.length) {
-      return getTextContent(node, trim);
-    } else if (trim) {
-      return str + node.textContent.trim().replace(/\s+/g, ' ');
-    }
-    return str + node.textContent;
-  }, '');
-}
-function getTtmlStyles(region, style, styleElements) {
-  const ttsNs = 'http://www.w3.org/ns/ttml#styling';
-  let regionStyle = null;
-  const styleAttributes = ['displayAlign', 'textAlign', 'color', 'backgroundColor', 'fontSize', 'fontFamily'
-  // 'fontWeight',
-  // 'lineHeight',
-  // 'wrapOption',
-  // 'fontStyle',
-  // 'direction',
-  // 'writingMode'
-  ];
-  const regionStyleName = region != null && region.hasAttribute('style') ? region.getAttribute('style') : null;
-  if (regionStyleName && styleElements.hasOwnProperty(regionStyleName)) {
-    regionStyle = styleElements[regionStyleName];
-  }
-  return styleAttributes.reduce((styles, name) => {
-    const value = getAttributeNS(style, ttsNs, name) || getAttributeNS(region, ttsNs, name) || getAttributeNS(regionStyle, ttsNs, name);
-    if (value) {
-      styles[name] = value;
-    }
-    return styles;
-  }, {});
-}
-function getAttributeNS(element, ns, name) {
-  if (!element) {
-    return null;
-  }
-  return element.hasAttributeNS(ns, name) ? element.getAttributeNS(ns, name) : null;
-}
-function timestampParsingError(node) {
-  return new Error(`Could not parse ttml timestamp ${node}`);
-}
-function parseTtmlTime(timeAttributeValue, rateInfo) {
-  if (!timeAttributeValue) {
-    return null;
-  }
-  let seconds = parseTimeStamp(timeAttributeValue);
-  if (seconds === null) {
-    if (HMSF_REGEX.test(timeAttributeValue)) {
-      seconds = parseHoursMinutesSecondsFrames(timeAttributeValue, rateInfo);
-    } else if (TIME_UNIT_REGEX.test(timeAttributeValue)) {
-      seconds = parseTimeUnits(timeAttributeValue, rateInfo);
-    }
-  }
-  return seconds;
-}
-function parseHoursMinutesSecondsFrames(timeAttributeValue, rateInfo) {
-  const m = HMSF_REGEX.exec(timeAttributeValue);
-  const frames = (m[4] | 0) + (m[5] | 0) / rateInfo.subFrameRate;
-  return (m[1] | 0) * 3600 + (m[2] | 0) * 60 + (m[3] | 0) + frames / rateInfo.frameRate;
-}
-function parseTimeUnits(timeAttributeValue, rateInfo) {
-  const m = TIME_UNIT_REGEX.exec(timeAttributeValue);
-  const value = Number(m[1]);
-  const unit = m[2];
-  switch (unit) {
-    case 'h':
-      return value * 3600;
-    case 'm':
-      return value * 60;
-    case 'ms':
-      return value * 1000;
-    case 'f':
-      return value / rateInfo.frameRate;
-    case 't':
-      return value / rateInfo.tickRate;
-  }
-  return value;
-}
-
-class TimelineController {
-  constructor(hls) {
-    this.hls = void 0;
-    this.media = null;
-    this.config = void 0;
-    this.enabled = true;
-    this.Cues = void 0;
-    this.textTracks = [];
-    this.tracks = [];
-    this.initPTS = [];
-    this.unparsedVttFrags = [];
-    this.captionsTracks = {};
-    this.nonNativeCaptionsTracks = {};
-    this.cea608Parser1 = void 0;
-    this.cea608Parser2 = void 0;
-    this.lastCc = -1;
-    // Last video (CEA-608) fragment CC
-    this.lastSn = -1;
-    // Last video (CEA-608) fragment MSN
-    this.lastPartIndex = -1;
-    // Last video (CEA-608) fragment Part Index
-    this.prevCC = -1;
-    // Last subtitle fragment CC
-    this.vttCCs = newVTTCCs();
-    this.captionsProperties = void 0;
-    this.hls = hls;
-    this.config = hls.config;
-    this.Cues = hls.config.cueHandler;
-    this.captionsProperties = {
-      textTrack1: {
-        label: this.config.captionsTextTrack1Label,
-        languageCode: this.config.captionsTextTrack1LanguageCode
-      },
-      textTrack2: {
-        label: this.config.captionsTextTrack2Label,
-        languageCode: this.config.captionsTextTrack2LanguageCode
-      },
-      textTrack3: {
-        label: this.config.captionsTextTrack3Label,
-        languageCode: this.config.captionsTextTrack3LanguageCode
-      },
-      textTrack4: {
-        label: this.config.captionsTextTrack4Label,
-        languageCode: this.config.captionsTextTrack4LanguageCode
-      }
-    };
-    hls.on(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
-    hls.on(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
-    hls.on(Events.MANIFEST_LOADING, this.onManifestLoading, this);
-    hls.on(Events.MANIFEST_LOADED, this.onManifestLoaded, this);
-    hls.on(Events.SUBTITLE_TRACKS_UPDATED, this.onSubtitleTracksUpdated, this);
-    hls.on(Events.FRAG_LOADING, this.onFragLoading, this);
-    hls.on(Events.FRAG_LOADED, this.onFragLoaded, this);
-    hls.on(Events.FRAG_PARSING_USERDATA, this.onFragParsingUserdata, this);
-    hls.on(Events.FRAG_DECRYPTED, this.onFragDecrypted, this);
-    hls.on(Events.INIT_PTS_FOUND, this.onInitPtsFound, this);
-    hls.on(Events.SUBTITLE_TRACKS_CLEARED, this.onSubtitleTracksCleared, this);
-    hls.on(Events.BUFFER_FLUSHING, this.onBufferFlushing, this);
-  }
-  destroy() {
-    const {
-      hls
-    } = this;
-    hls.off(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
-    hls.off(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
-    hls.off(Events.MANIFEST_LOADING, this.onManifestLoading, this);
-    hls.off(Events.MANIFEST_LOADED, this.onManifestLoaded, this);
-    hls.off(Events.SUBTITLE_TRACKS_UPDATED, this.onSubtitleTracksUpdated, this);
-    hls.off(Events.FRAG_LOADING, this.onFragLoading, this);
-    hls.off(Events.FRAG_LOADED, this.onFragLoaded, this);
-    hls.off(Events.FRAG_PARSING_USERDATA, this.onFragParsingUserdata, this);
-    hls.off(Events.FRAG_DECRYPTED, this.onFragDecrypted, this);
-    hls.off(Events.INIT_PTS_FOUND, this.onInitPtsFound, this);
-    hls.off(Events.SUBTITLE_TRACKS_CLEARED, this.onSubtitleTracksCleared, this);
-    hls.off(Events.BUFFER_FLUSHING, this.onBufferFlushing, this);
-    // @ts-ignore
-    this.hls = this.config = null;
-    this.cea608Parser1 = this.cea608Parser2 = undefined;
-  }
-  initCea608Parsers() {
-    if (this.config.enableCEA708Captions && (!this.cea608Parser1 || !this.cea608Parser2)) {
-      const channel1 = new OutputFilter(this, 'textTrack1');
-      const channel2 = new OutputFilter(this, 'textTrack2');
-      const channel3 = new OutputFilter(this, 'textTrack3');
-      const channel4 = new OutputFilter(this, 'textTrack4');
-      this.cea608Parser1 = new Cea608Parser(1, channel1, channel2);
-      this.cea608Parser2 = new Cea608Parser(3, channel3, channel4);
-    }
-  }
-  addCues(trackName, startTime, endTime, screen, cueRanges) {
-    // skip cues which overlap more than 50% with previously parsed time ranges
-    let merged = false;
-    for (let i = cueRanges.length; i--;) {
-      const cueRange = cueRanges[i];
-      const overlap = intersection(cueRange[0], cueRange[1], startTime, endTime);
-      if (overlap >= 0) {
-        cueRange[0] = Math.min(cueRange[0], startTime);
-        cueRange[1] = Math.max(cueRange[1], endTime);
-        merged = true;
-        if (overlap / (endTime - startTime) > 0.5) {
-          return;
-        }
-      }
-    }
-    if (!merged) {
-      cueRanges.push([startTime, endTime]);
-    }
-    if (this.config.renderTextTracksNatively) {
-      const track = this.captionsTracks[trackName];
-      this.Cues.newCue(track, startTime, endTime, screen);
-    } else {
-      const cues = this.Cues.newCue(null, startTime, endTime, screen);
-      this.hls.trigger(Events.CUES_PARSED, {
-        type: 'captions',
-        cues,
-        track: trackName
-      });
-    }
-  }
-
-  // Triggered when an initial PTS is found; used for synchronisation of WebVTT.
-  onInitPtsFound(event, {
-    frag,
-    id,
-    initPTS,
-    timescale
-  }) {
-    const {
-      unparsedVttFrags
-    } = this;
-    if (id === 'main') {
-      this.initPTS[frag.cc] = {
-        baseTime: initPTS,
-        timescale
-      };
-    }
-
-    // Due to asynchronous processing, initial PTS may arrive later than the first VTT fragments are loaded.
-    // Parse any unparsed fragments upon receiving the initial PTS.
-    if (unparsedVttFrags.length) {
-      this.unparsedVttFrags = [];
-      unparsedVttFrags.forEach(frag => {
-        this.onFragLoaded(Events.FRAG_LOADED, frag);
-      });
-    }
-  }
-  getExistingTrack(label, language) {
-    const {
-      media
-    } = this;
-    if (media) {
-      for (let i = 0; i < media.textTracks.length; i++) {
-        const textTrack = media.textTracks[i];
-        if (canReuseVttTextTrack(textTrack, {
-          name: label,
-          lang: language,
-          attrs: {}
-        })) {
-          return textTrack;
-        }
-      }
-    }
-    return null;
-  }
-  createCaptionsTrack(trackName) {
-    if (this.config.renderTextTracksNatively) {
-      this.createNativeTrack(trackName);
-    } else {
-      this.createNonNativeTrack(trackName);
-    }
-  }
-  createNativeTrack(trackName) {
-    if (this.captionsTracks[trackName]) {
-      return;
-    }
-    const {
-      captionsProperties,
-      captionsTracks,
-      media
-    } = this;
-    const {
-      label,
-      languageCode
-    } = captionsProperties[trackName];
-    // Enable reuse of existing text track.
-    const existingTrack = this.getExistingTrack(label, languageCode);
-    if (!existingTrack) {
-      const textTrack = this.createTextTrack('captions', label, languageCode);
-      if (textTrack) {
-        // Set a special property on the track so we know it's managed by Hls.js
-        textTrack[trackName] = true;
-        captionsTracks[trackName] = textTrack;
-      }
-    } else {
-      captionsTracks[trackName] = existingTrack;
-      clearCurrentCues(captionsTracks[trackName]);
-      sendAddTrackEvent(captionsTracks[trackName], media);
-    }
-  }
-  createNonNativeTrack(trackName) {
-    if (this.nonNativeCaptionsTracks[trackName]) {
-      return;
-    }
-    // Create a list of a single track for the provider to consume
-    const trackProperties = this.captionsProperties[trackName];
-    if (!trackProperties) {
-      return;
-    }
-    const label = trackProperties.label;
-    const track = {
-      _id: trackName,
-      label,
-      kind: 'captions',
-      default: trackProperties.media ? !!trackProperties.media.default : false,
-      closedCaptions: trackProperties.media
-    };
-    this.nonNativeCaptionsTracks[trackName] = track;
-    this.hls.trigger(Events.NON_NATIVE_TEXT_TRACKS_FOUND, {
-      tracks: [track]
-    });
-  }
-  createTextTrack(kind, label, lang) {
-    const media = this.media;
-    if (!media) {
-      return;
-    }
-    return media.addTextTrack(kind, label, lang);
-  }
-  onMediaAttaching(event, data) {
-    this.media = data.media;
-    this._cleanTracks();
-  }
-  onMediaDetaching() {
-    const {
-      captionsTracks
-    } = this;
-    Object.keys(captionsTracks).forEach(trackName => {
-      clearCurrentCues(captionsTracks[trackName]);
-      delete captionsTracks[trackName];
-    });
-    this.nonNativeCaptionsTracks = {};
-  }
-  onManifestLoading() {
-    // Detect discontinuity in video fragment (CEA-608) parsing
-    this.lastCc = -1;
-    this.lastSn = -1;
-    this.lastPartIndex = -1;
-    // Detect discontinuity in subtitle manifests
-    this.prevCC = -1;
-    this.vttCCs = newVTTCCs();
-    // Reset tracks
-    this._cleanTracks();
-    this.tracks = [];
-    this.captionsTracks = {};
-    this.nonNativeCaptionsTracks = {};
-    this.textTracks = [];
-    this.unparsedVttFrags = [];
-    this.initPTS = [];
-    if (this.cea608Parser1 && this.cea608Parser2) {
-      this.cea608Parser1.reset();
-      this.cea608Parser2.reset();
-    }
-  }
-  _cleanTracks() {
-    // clear outdated subtitles
-    const {
-      media
-    } = this;
-    if (!media) {
-      return;
-    }
-    const textTracks = media.textTracks;
-    if (textTracks) {
-      for (let i = 0; i < textTracks.length; i++) {
-        clearCurrentCues(textTracks[i]);
-      }
-    }
-  }
-  onSubtitleTracksUpdated(event, data) {
-    const tracks = data.subtitleTracks || [];
-    const hasIMSC1 = tracks.some(track => track.textCodec === IMSC1_CODEC);
-    if (this.config.enableWebVTT || hasIMSC1 && this.config.enableIMSC1) {
-      const listIsIdentical = subtitleOptionsIdentical(this.tracks, tracks);
-      if (listIsIdentical) {
-        this.tracks = tracks;
-        return;
-      }
-      this.textTracks = [];
-      this.tracks = tracks;
-      if (this.config.renderTextTracksNatively) {
-        const media = this.media;
-        const inUseTracks = media ? filterSubtitleTracks(media.textTracks) : null;
-        this.tracks.forEach((track, index) => {
-          // Reuse tracks with the same label and lang, but do not reuse 608/708 tracks
-          let textTrack;
-          if (inUseTracks) {
-            let inUseTrack = null;
-            for (let i = 0; i < inUseTracks.length; i++) {
-              if (inUseTracks[i] && canReuseVttTextTrack(inUseTracks[i], track)) {
-                inUseTrack = inUseTracks[i];
-                inUseTracks[i] = null;
-                break;
-              }
-            }
-            if (inUseTrack) {
-              textTrack = inUseTrack;
-            }
-          }
-          if (textTrack) {
-            clearCurrentCues(textTrack);
-          } else {
-            const textTrackKind = captionsOrSubtitlesFromCharacteristics(track);
-            textTrack = this.createTextTrack(textTrackKind, track.name, track.lang);
-            if (textTrack) {
-              textTrack.mode = 'disabled';
-            }
-          }
-          if (textTrack) {
-            this.textTracks.push(textTrack);
-          }
-        });
-        // Warn when video element has captions or subtitle TextTracks carried over from another source
-        if (inUseTracks != null && inUseTracks.length) {
-          const unusedTextTracks = inUseTracks.filter(t => t !== null).map(t => t.label);
-          if (unusedTextTracks.length) {
-            logger.warn(`Media element contains unused subtitle tracks: ${unusedTextTracks.join(', ')}. Replace media element for each source to clear TextTracks and captions menu.`);
-          }
-        }
-      } else if (this.tracks.length) {
-        // Create a list of tracks for the provider to consume
-        const tracksList = this.tracks.map(track => {
-          return {
-            label: track.name,
-            kind: track.type.toLowerCase(),
-            default: track.default,
-            subtitleTrack: track
-          };
-        });
-        this.hls.trigger(Events.NON_NATIVE_TEXT_TRACKS_FOUND, {
-          tracks: tracksList
-        });
-      }
-    }
-  }
-  onManifestLoaded(event, data) {
-    if (this.config.enableCEA708Captions && data.captions) {
-      data.captions.forEach(captionsTrack => {
-        const instreamIdMatch = /(?:CC|SERVICE)([1-4])/.exec(captionsTrack.instreamId);
-        if (!instreamIdMatch) {
-          return;
-        }
-        const trackName = `textTrack${instreamIdMatch[1]}`;
-        const trackProperties = this.captionsProperties[trackName];
-        if (!trackProperties) {
-          return;
-        }
-        trackProperties.label = captionsTrack.name;
-        if (captionsTrack.lang) {
-          // optional attribute
-          trackProperties.languageCode = captionsTrack.lang;
-        }
-        trackProperties.media = captionsTrack;
-      });
-    }
-  }
-  closedCaptionsForLevel(frag) {
-    const level = this.hls.levels[frag.level];
-    return level == null ? void 0 : level.attrs['CLOSED-CAPTIONS'];
-  }
-  onFragLoading(event, data) {
-    // if this frag isn't contiguous, clear the parser so cues with bad start/end times aren't added to the textTrack
-    if (this.enabled && data.frag.type === PlaylistLevelType.MAIN) {
-      var _data$part$index, _data$part;
-      const {
-        cea608Parser1,
-        cea608Parser2,
-        lastSn
-      } = this;
-      const {
-        cc,
-        sn
-      } = data.frag;
-      const partIndex = (_data$part$index = (_data$part = data.part) == null ? void 0 : _data$part.index) != null ? _data$part$index : -1;
-      if (cea608Parser1 && cea608Parser2) {
-        if (sn !== lastSn + 1 || sn === lastSn && partIndex !== this.lastPartIndex + 1 || cc !== this.lastCc) {
-          cea608Parser1.reset();
-          cea608Parser2.reset();
-        }
-      }
-      this.lastCc = cc;
-      this.lastSn = sn;
-      this.lastPartIndex = partIndex;
-    }
-  }
-  onFragLoaded(event, data) {
-    const {
-      frag,
-      payload
-    } = data;
-    if (frag.type === PlaylistLevelType.SUBTITLE) {
-      // If fragment is subtitle type, parse as WebVTT.
-      if (payload.byteLength) {
-        const decryptData = frag.decryptdata;
-        // fragment after decryption has a stats object
-        const decrypted = ('stats' in data);
-        // If the subtitles are not encrypted, parse VTTs now. Otherwise, we need to wait.
-        if (decryptData == null || !decryptData.encrypted || decrypted) {
-          const trackPlaylistMedia = this.tracks[frag.level];
-          const vttCCs = this.vttCCs;
-          if (!vttCCs[frag.cc]) {
-            vttCCs[frag.cc] = {
-              start: frag.start,
-              prevCC: this.prevCC,
-              new: true
-            };
-            this.prevCC = frag.cc;
-          }
-          if (trackPlaylistMedia && trackPlaylistMedia.textCodec === IMSC1_CODEC) {
-            this._parseIMSC1(frag, payload);
-          } else {
-            this._parseVTTs(data);
-          }
-        }
-      } else {
-        // In case there is no payload, finish unsuccessfully.
-        this.hls.trigger(Events.SUBTITLE_FRAG_PROCESSED, {
-          success: false,
-          frag,
-          error: new Error('Empty subtitle payload')
-        });
-      }
-    }
-  }
-  _parseIMSC1(frag, payload) {
-    const hls = this.hls;
-    parseIMSC1(payload, this.initPTS[frag.cc], cues => {
-      this._appendCues(cues, frag.level);
-      hls.trigger(Events.SUBTITLE_FRAG_PROCESSED, {
-        success: true,
-        frag: frag
-      });
-    }, error => {
-      logger.log(`Failed to parse IMSC1: ${error}`);
-      hls.trigger(Events.SUBTITLE_FRAG_PROCESSED, {
-        success: false,
-        frag: frag,
-        error
-      });
-    });
-  }
-  _parseVTTs(data) {
-    var _frag$initSegment;
-    const {
-      frag,
-      payload
-    } = data;
-    // We need an initial synchronisation PTS. Store fragments as long as none has arrived
-    const {
-      initPTS,
-      unparsedVttFrags
-    } = this;
-    const maxAvCC = initPTS.length - 1;
-    if (!initPTS[frag.cc] && maxAvCC === -1) {
-      unparsedVttFrags.push(data);
-      return;
-    }
-    const hls = this.hls;
-    // Parse the WebVTT file contents.
-    const payloadWebVTT = (_frag$initSegment = frag.initSegment) != null && _frag$initSegment.data ? appendUint8Array(frag.initSegment.data, new Uint8Array(payload)) : payload;
-    parseWebVTT(payloadWebVTT, this.initPTS[frag.cc], this.vttCCs, frag.cc, frag.start, cues => {
-      this._appendCues(cues, frag.level);
-      hls.trigger(Events.SUBTITLE_FRAG_PROCESSED, {
-        success: true,
-        frag: frag
-      });
-    }, error => {
-      const missingInitPTS = error.message === 'Missing initPTS for VTT MPEGTS';
-      if (missingInitPTS) {
-        unparsedVttFrags.push(data);
-      } else {
-        this._fallbackToIMSC1(frag, payload);
-      }
-      // Something went wrong while parsing. Trigger event with success false.
-      logger.log(`Failed to parse VTT cue: ${error}`);
-      if (missingInitPTS && maxAvCC > frag.cc) {
-        return;
-      }
-      hls.trigger(Events.SUBTITLE_FRAG_PROCESSED, {
-        success: false,
-        frag: frag,
-        error
-      });
-    });
-  }
-  _fallbackToIMSC1(frag, payload) {
-    // If textCodec is unknown, try parsing as IMSC1. Set textCodec based on the result
-    const trackPlaylistMedia = this.tracks[frag.level];
-    if (!trackPlaylistMedia.textCodec) {
-      parseIMSC1(payload, this.initPTS[frag.cc], () => {
-        trackPlaylistMedia.textCodec = IMSC1_CODEC;
-        this._parseIMSC1(frag, payload);
-      }, () => {
-        trackPlaylistMedia.textCodec = 'wvtt';
-      });
-    }
-  }
-  _appendCues(cues, fragLevel) {
-    const hls = this.hls;
-    if (this.config.renderTextTracksNatively) {
-      const textTrack = this.textTracks[fragLevel];
-      // WebVTTParser.parse is an async method and if the currently selected text track mode is set to "disabled"
-      // before parsing is done then don't try to access currentTrack.cues.getCueById as cues will be null
-      // and trying to access getCueById method of cues will throw an exception
-      // Because we check if the mode is disabled, we can force check `cues` below. They can't be null.
-      if (!textTrack || textTrack.mode === 'disabled') {
-        return;
-      }
-      cues.forEach(cue => addCueToTrack(textTrack, cue));
-    } else {
-      const currentTrack = this.tracks[fragLevel];
-      if (!currentTrack) {
-        return;
-      }
-      const track = currentTrack.default ? 'default' : 'subtitles' + fragLevel;
-      hls.trigger(Events.CUES_PARSED, {
-        type: 'subtitles',
-        cues,
-        track
-      });
-    }
-  }
-  onFragDecrypted(event, data) {
-    const {
-      frag
-    } = data;
-    if (frag.type === PlaylistLevelType.SUBTITLE) {
-      this.onFragLoaded(Events.FRAG_LOADED, data);
-    }
-  }
-  onSubtitleTracksCleared() {
-    this.tracks = [];
-    this.captionsTracks = {};
-  }
-  onFragParsingUserdata(event, data) {
-    this.initCea608Parsers();
-    const {
-      cea608Parser1,
-      cea608Parser2
-    } = this;
-    if (!this.enabled || !cea608Parser1 || !cea608Parser2) {
-      return;
-    }
-    const {
-      frag,
-      samples
-    } = data;
-    if (frag.type === PlaylistLevelType.MAIN && this.closedCaptionsForLevel(frag) === 'NONE') {
-      return;
-    }
-    // If the event contains captions (found in the bytes property), push all bytes into the parser immediately
-    // It will create the proper timestamps based on the PTS value
-    for (let i = 0; i < samples.length; i++) {
-      const ccBytes = samples[i].bytes;
-      if (ccBytes) {
-        const ccdatas = this.extractCea608Data(ccBytes);
-        cea608Parser1.addData(samples[i].pts, ccdatas[0]);
-        cea608Parser2.addData(samples[i].pts, ccdatas[1]);
-      }
-    }
-  }
-  onBufferFlushing(event, {
-    startOffset,
-    endOffset,
-    endOffsetSubtitles,
-    type
-  }) {
-    const {
-      media
-    } = this;
-    if (!media || media.currentTime < endOffset) {
-      return;
-    }
-    // Clear 608 caption cues from the captions TextTracks when the video back buffer is flushed
-    // Forward cues are never removed because we can loose streamed 608 content from recent fragments
-    if (!type || type === 'video') {
-      const {
-        captionsTracks
-      } = this;
-      Object.keys(captionsTracks).forEach(trackName => removeCuesInRange(captionsTracks[trackName], startOffset, endOffset));
-    }
-    if (this.config.renderTextTracksNatively) {
-      // Clear VTT/IMSC1 subtitle cues from the subtitle TextTracks when the back buffer is flushed
-      if (startOffset === 0 && endOffsetSubtitles !== undefined) {
-        const {
-          textTracks
-        } = this;
-        Object.keys(textTracks).forEach(trackName => removeCuesInRange(textTracks[trackName], startOffset, endOffsetSubtitles));
-      }
-    }
-  }
-  extractCea608Data(byteArray) {
-    const actualCCBytes = [[], []];
-    const count = byteArray[0] & 0x1f;
-    let position = 2;
-    for (let j = 0; j < count; j++) {
-      const tmpByte = byteArray[position++];
-      const ccbyte1 = 0x7f & byteArray[position++];
-      const ccbyte2 = 0x7f & byteArray[position++];
-      if (ccbyte1 === 0 && ccbyte2 === 0) {
-        continue;
-      }
-      const ccValid = (0x04 & tmpByte) !== 0; // Support all four channels
-      if (ccValid) {
-        const ccType = 0x03 & tmpByte;
-        if (0x00 /* CEA608 field1*/ === ccType || 0x01 /* CEA608 field2*/ === ccType) {
-          // Exclude CEA708 CC data.
-          actualCCBytes[ccType].push(ccbyte1);
-          actualCCBytes[ccType].push(ccbyte2);
-        }
-      }
-    }
-    return actualCCBytes;
-  }
-}
-function captionsOrSubtitlesFromCharacteristics(track) {
-  if (track.characteristics) {
-    if (/transcribes-spoken-dialog/gi.test(track.characteristics) && /describes-music-and-sound/gi.test(track.characteristics)) {
-      return 'captions';
-    }
-  }
-  return 'subtitles';
-}
-function canReuseVttTextTrack(inUseTrack, manifestTrack) {
-  return !!inUseTrack && inUseTrack.kind === captionsOrSubtitlesFromCharacteristics(manifestTrack) && subtitleTrackMatchesTextTrack(manifestTrack, inUseTrack);
-}
-function intersection(x1, x2, y1, y2) {
-  return Math.min(x2, y2) - Math.max(x1, y1);
-}
-function newVTTCCs() {
-  return {
-    ccOffset: 0,
-    presentationOffset: 0,
-    0: {
-      start: 0,
-      prevCC: -1,
-      new: true
-    }
-  };
-}
-
-class CapLevelController {
-  constructor(hls) {
-    this.hls = void 0;
-    this.autoLevelCapping = void 0;
-    this.firstLevel = void 0;
-    this.media = void 0;
-    this.restrictedLevels = void 0;
-    this.timer = void 0;
-    this.clientRect = void 0;
-    this.streamController = void 0;
-    this.hls = hls;
-    this.autoLevelCapping = Number.POSITIVE_INFINITY;
-    this.firstLevel = -1;
-    this.media = null;
-    this.restrictedLevels = [];
-    this.timer = undefined;
-    this.clientRect = null;
-    this.registerListeners();
-  }
-  setStreamController(streamController) {
-    this.streamController = streamController;
-  }
-  destroy() {
-    if (this.hls) {
-      this.unregisterListener();
-    }
-    if (this.timer) {
-      this.stopCapping();
-    }
-    this.media = null;
-    this.clientRect = null;
-    // @ts-ignore
-    this.hls = this.streamController = null;
-  }
-  registerListeners() {
-    const {
-      hls
-    } = this;
-    hls.on(Events.FPS_DROP_LEVEL_CAPPING, this.onFpsDropLevelCapping, this);
-    hls.on(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
-    hls.on(Events.MANIFEST_PARSED, this.onManifestParsed, this);
-    hls.on(Events.LEVELS_UPDATED, this.onLevelsUpdated, this);
-    hls.on(Events.BUFFER_CODECS, this.onBufferCodecs, this);
-    hls.on(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
-  }
-  unregisterListener() {
-    const {
-      hls
-    } = this;
-    hls.off(Events.FPS_DROP_LEVEL_CAPPING, this.onFpsDropLevelCapping, this);
-    hls.off(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
-    hls.off(Events.MANIFEST_PARSED, this.onManifestParsed, this);
-    hls.off(Events.LEVELS_UPDATED, this.onLevelsUpdated, this);
-    hls.off(Events.BUFFER_CODECS, this.onBufferCodecs, this);
-    hls.off(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
-  }
-  onFpsDropLevelCapping(event, data) {
-    // Don't add a restricted level more than once
-    const level = this.hls.levels[data.droppedLevel];
-    if (this.isLevelAllowed(level)) {
-      this.restrictedLevels.push({
-        bitrate: level.bitrate,
-        height: level.height,
-        width: level.width
-      });
-    }
-  }
-  onMediaAttaching(event, data) {
-    this.media = data.media instanceof HTMLVideoElement ? data.media : null;
-    this.clientRect = null;
-    if (this.timer && this.hls.levels.length) {
-      this.detectPlayerSize();
-    }
-  }
-  onManifestParsed(event, data) {
-    const hls = this.hls;
-    this.restrictedLevels = [];
-    this.firstLevel = data.firstLevel;
-    if (hls.config.capLevelToPlayerSize && data.video) {
-      // Start capping immediately if the manifest has signaled video codecs
-      this.startCapping();
-    }
-  }
-  onLevelsUpdated(event, data) {
-    if (this.timer && isFiniteNumber(this.autoLevelCapping)) {
-      this.detectPlayerSize();
-    }
-  }
-
-  // Only activate capping when playing a video stream; otherwise, multi-bitrate audio-only streams will be restricted
-  // to the first level
-  onBufferCodecs(event, data) {
-    const hls = this.hls;
-    if (hls.config.capLevelToPlayerSize && data.video) {
-      // If the manifest did not signal a video codec capping has been deferred until we're certain video is present
-      this.startCapping();
-    }
-  }
-  onMediaDetaching() {
-    this.stopCapping();
-  }
-  detectPlayerSize() {
-    if (this.media) {
-      if (this.mediaHeight <= 0 || this.mediaWidth <= 0) {
-        this.clientRect = null;
-        return;
-      }
-      const levels = this.hls.levels;
-      if (levels.length) {
-        const hls = this.hls;
-        const maxLevel = this.getMaxLevel(levels.length - 1);
-        if (maxLevel !== this.autoLevelCapping) {
-          logger.log(`Setting autoLevelCapping to ${maxLevel}: ${levels[maxLevel].height}p@${levels[maxLevel].bitrate} for media ${this.mediaWidth}x${this.mediaHeight}`);
-        }
-        hls.autoLevelCapping = maxLevel;
-        if (hls.autoLevelCapping > this.autoLevelCapping && this.streamController) {
-          // if auto level capping has a higher value for the previous one, flush the buffer using nextLevelSwitch
-          // usually happen when the user go to the fullscreen mode.
-          this.streamController.nextLevelSwitch();
-        }
-        this.autoLevelCapping = hls.autoLevelCapping;
-      }
-    }
-  }
-
-  /*
-   * returns level should be the one with the dimensions equal or greater than the media (player) dimensions (so the video will be downscaled)
-   */
-  getMaxLevel(capLevelIndex) {
-    const levels = this.hls.levels;
-    if (!levels.length) {
-      return -1;
-    }
-    const validLevels = levels.filter((level, index) => this.isLevelAllowed(level) && index <= capLevelIndex);
-    this.clientRect = null;
-    return CapLevelController.getMaxLevelByMediaSize(validLevels, this.mediaWidth, this.mediaHeight);
-  }
-  startCapping() {
-    if (this.timer) {
-      // Don't reset capping if started twice; this can happen if the manifest signals a video codec
-      return;
-    }
-    this.autoLevelCapping = Number.POSITIVE_INFINITY;
-    self.clearInterval(this.timer);
-    this.timer = self.setInterval(this.detectPlayerSize.bind(this), 1000);
-    this.detectPlayerSize();
-  }
-  stopCapping() {
-    this.restrictedLevels = [];
-    this.firstLevel = -1;
-    this.autoLevelCapping = Number.POSITIVE_INFINITY;
-    if (this.timer) {
-      self.clearInterval(this.timer);
-      this.timer = undefined;
-    }
-  }
-  getDimensions() {
-    if (this.clientRect) {
-      return this.clientRect;
-    }
-    const media = this.media;
-    const boundsRect = {
-      width: 0,
-      height: 0
-    };
-    if (media) {
-      const clientRect = media.getBoundingClientRect();
-      boundsRect.width = clientRect.width;
-      boundsRect.height = clientRect.height;
-      if (!boundsRect.width && !boundsRect.height) {
-        // When the media element has no width or height (equivalent to not being in the DOM),
-        // then use its width and height attributes (media.width, media.height)
-        boundsRect.width = clientRect.right - clientRect.left || media.width || 0;
-        boundsRect.height = clientRect.bottom - clientRect.top || media.height || 0;
-      }
-    }
-    this.clientRect = boundsRect;
-    return boundsRect;
-  }
-  get mediaWidth() {
-    return this.getDimensions().width * this.contentScaleFactor;
-  }
-  get mediaHeight() {
-    return this.getDimensions().height * this.contentScaleFactor;
-  }
-  get contentScaleFactor() {
-    let pixelRatio = 1;
-    if (!this.hls.config.ignoreDevicePixelRatio) {
-      try {
-        pixelRatio = self.devicePixelRatio;
-      } catch (e) {
-        /* no-op */
-      }
-    }
-    return pixelRatio;
-  }
-  isLevelAllowed(level) {
-    const restrictedLevels = this.restrictedLevels;
-    return !restrictedLevels.some(restrictedLevel => {
-      return level.bitrate === restrictedLevel.bitrate && level.width === restrictedLevel.width && level.height === restrictedLevel.height;
-    });
-  }
-  static getMaxLevelByMediaSize(levels, width, height) {
-    if (!(levels != null && levels.length)) {
-      return -1;
-    }
-
-    // Levels can have the same dimensions but differing bandwidths - since levels are ordered, we can look to the next
-    // to determine whether we've chosen the greatest bandwidth for the media's dimensions
-    const atGreatestBandwidth = (curLevel, nextLevel) => {
-      if (!nextLevel) {
-        return true;
-      }
-      return curLevel.width !== nextLevel.width || curLevel.height !== nextLevel.height;
-    };
-
-    // If we run through the loop without breaking, the media's dimensions are greater than every level, so default to
-    // the max level
-    let maxLevelIndex = levels.length - 1;
-    // Prevent changes in aspect-ratio from causing capping to toggle back and forth
-    const squareSize = Math.max(width, height);
-    for (let i = 0; i < levels.length; i += 1) {
-      const level = levels[i];
-      if ((level.width >= squareSize || level.height >= squareSize) && atGreatestBandwidth(level, levels[i + 1])) {
-        maxLevelIndex = i;
-        break;
-      }
-    }
-    return maxLevelIndex;
-  }
-}
-
-class FPSController {
-  constructor(hls) {
-    this.hls = void 0;
-    this.isVideoPlaybackQualityAvailable = false;
-    this.timer = void 0;
-    this.media = null;
-    this.lastTime = void 0;
-    this.lastDroppedFrames = 0;
-    this.lastDecodedFrames = 0;
-    // stream controller must be provided as a dependency!
-    this.streamController = void 0;
-    this.hls = hls;
-    this.registerListeners();
-  }
-  setStreamController(streamController) {
-    this.streamController = streamController;
-  }
-  registerListeners() {
-    this.hls.on(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
-  }
-  unregisterListeners() {
-    this.hls.off(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
-  }
-  destroy() {
-    if (this.timer) {
-      clearInterval(this.timer);
-    }
-    this.unregisterListeners();
-    this.isVideoPlaybackQualityAvailable = false;
-    this.media = null;
-  }
-  onMediaAttaching(event, data) {
-    const config = this.hls.config;
-    if (config.capLevelOnFPSDrop) {
-      const media = data.media instanceof self.HTMLVideoElement ? data.media : null;
-      this.media = media;
-      if (media && typeof media.getVideoPlaybackQuality === 'function') {
-        this.isVideoPlaybackQualityAvailable = true;
-      }
-      self.clearInterval(this.timer);
-      this.timer = self.setInterval(this.checkFPSInterval.bind(this), config.fpsDroppedMonitoringPeriod);
-    }
-  }
-  checkFPS(video, decodedFrames, droppedFrames) {
-    const currentTime = performance.now();
-    if (decodedFrames) {
-      if (this.lastTime) {
-        const currentPeriod = currentTime - this.lastTime;
-        const currentDropped = droppedFrames - this.lastDroppedFrames;
-        const currentDecoded = decodedFrames - this.lastDecodedFrames;
-        const droppedFPS = 1000 * currentDropped / currentPeriod;
-        const hls = this.hls;
-        hls.trigger(Events.FPS_DROP, {
-          currentDropped: currentDropped,
-          currentDecoded: currentDecoded,
-          totalDroppedFrames: droppedFrames
-        });
-        if (droppedFPS > 0) {
-          // logger.log('checkFPS : droppedFPS/decodedFPS:' + droppedFPS/(1000 * currentDecoded / currentPeriod));
-          if (currentDropped > hls.config.fpsDroppedMonitoringThreshold * currentDecoded) {
-            let currentLevel = hls.currentLevel;
-            logger.warn('drop FPS ratio greater than max allowed value for currentLevel: ' + currentLevel);
-            if (currentLevel > 0 && (hls.autoLevelCapping === -1 || hls.autoLevelCapping >= currentLevel)) {
-              currentLevel = currentLevel - 1;
-              hls.trigger(Events.FPS_DROP_LEVEL_CAPPING, {
-                level: currentLevel,
-                droppedLevel: hls.currentLevel
-              });
-              hls.autoLevelCapping = currentLevel;
-              this.streamController.nextLevelSwitch();
-            }
-          }
-        }
-      }
-      this.lastTime = currentTime;
-      this.lastDroppedFrames = droppedFrames;
-      this.lastDecodedFrames = decodedFrames;
-    }
-  }
-  checkFPSInterval() {
-    const video = this.media;
-    if (video) {
-      if (this.isVideoPlaybackQualityAvailable) {
-        const videoPlaybackQuality = video.getVideoPlaybackQuality();
-        this.checkFPS(video, videoPlaybackQuality.totalVideoFrames, videoPlaybackQuality.droppedVideoFrames);
-      } else {
-        // HTMLVideoElement doesn't include the webkit types
-        this.checkFPS(video, video.webkitDecodedFrameCount, video.webkitDroppedFrameCount);
-      }
-    }
-  }
-}
-
-const LOGGER_PREFIX = '[eme]';
-/**
- * Controller to deal with encrypted media extensions (EME)
- * @see https://developer.mozilla.org/en-US/docs/Web/API/Encrypted_Media_Extensions_API
- *
- * @class
- * @constructor
- */
-class EMEController {
-  constructor(hls) {
-    this.hls = void 0;
-    this.config = void 0;
-    this.media = null;
-    this.keyFormatPromise = null;
-    this.keySystemAccessPromises = {};
-    this._requestLicenseFailureCount = 0;
-    this.mediaKeySessions = [];
-    this.keyIdToKeySessionPromise = {};
-    this.setMediaKeysQueue = EMEController.CDMCleanupPromise ? [EMEController.CDMCleanupPromise] : [];
-    this.onMediaEncrypted = this._onMediaEncrypted.bind(this);
-    this.onWaitingForKey = this._onWaitingForKey.bind(this);
-    this.debug = logger.debug.bind(logger, LOGGER_PREFIX);
-    this.log = logger.log.bind(logger, LOGGER_PREFIX);
-    this.warn = logger.warn.bind(logger, LOGGER_PREFIX);
-    this.error = logger.error.bind(logger, LOGGER_PREFIX);
-    this.hls = hls;
-    this.config = hls.config;
-    this.registerListeners();
-  }
-  destroy() {
-    this.unregisterListeners();
-    this.onMediaDetached();
-    // Remove any references that could be held in config options or callbacks
-    const config = this.config;
-    config.requestMediaKeySystemAccessFunc = null;
-    config.licenseXhrSetup = config.licenseResponseCallback = undefined;
-    config.drmSystems = config.drmSystemOptions = {};
-    // @ts-ignore
-    this.hls = this.onMediaEncrypted = this.onWaitingForKey = this.keyIdToKeySessionPromise = null;
-    // @ts-ignore
-    this.config = null;
-  }
-  registerListeners() {
-    this.hls.on(Events.MEDIA_ATTACHED, this.onMediaAttached, this);
-    this.hls.on(Events.MEDIA_DETACHED, this.onMediaDetached, this);
-    this.hls.on(Events.MANIFEST_LOADING, this.onManifestLoading, this);
-    this.hls.on(Events.MANIFEST_LOADED, this.onManifestLoaded, this);
-  }
-  unregisterListeners() {
-    this.hls.off(Events.MEDIA_ATTACHED, this.onMediaAttached, this);
-    this.hls.off(Events.MEDIA_DETACHED, this.onMediaDetached, this);
-    this.hls.off(Events.MANIFEST_LOADING, this.onManifestLoading, this);
-    this.hls.off(Events.MANIFEST_LOADED, this.onManifestLoaded, this);
-  }
-  getLicenseServerUrl(keySystem) {
-    const {
-      drmSystems,
-      widevineLicenseUrl
-    } = this.config;
-    const keySystemConfiguration = drmSystems[keySystem];
-    if (keySystemConfiguration) {
-      return keySystemConfiguration.licenseUrl;
-    }
-
-    // For backward compatibility
-    if (keySystem === KeySystems.WIDEVINE && widevineLicenseUrl) {
-      return widevineLicenseUrl;
-    }
-    throw new Error(`no license server URL configured for key-system "${keySystem}"`);
-  }
-  getServerCertificateUrl(keySystem) {
-    const {
-      drmSystems
-    } = this.config;
-    const keySystemConfiguration = drmSystems[keySystem];
-    if (keySystemConfiguration) {
-      return keySystemConfiguration.serverCertificateUrl;
-    } else {
-      this.log(`No Server Certificate in config.drmSystems["${keySystem}"]`);
-    }
-  }
-  attemptKeySystemAccess(keySystemsToAttempt) {
-    const levels = this.hls.levels;
-    const uniqueCodec = (value, i, a) => !!value && a.indexOf(value) === i;
-    const audioCodecs = levels.map(level => level.audioCodec).filter(uniqueCodec);
-    const videoCodecs = levels.map(level => level.videoCodec).filter(uniqueCodec);
-    if (audioCodecs.length + videoCodecs.length === 0) {
-      videoCodecs.push('avc1.42e01e');
-    }
-    return new Promise((resolve, reject) => {
-      const attempt = keySystems => {
-        const keySystem = keySystems.shift();
-        this.getMediaKeysPromise(keySystem, audioCodecs, videoCodecs).then(mediaKeys => resolve({
-          keySystem,
-          mediaKeys
-        })).catch(error => {
-          if (keySystems.length) {
-            attempt(keySystems);
-          } else if (error instanceof EMEKeyError) {
-            reject(error);
-          } else {
-            reject(new EMEKeyError({
-              type: ErrorTypes.KEY_SYSTEM_ERROR,
-              details: ErrorDetails.KEY_SYSTEM_NO_ACCESS,
-              error,
-              fatal: true
-            }, error.message));
-          }
-        });
-      };
-      attempt(keySystemsToAttempt);
-    });
-  }
-  requestMediaKeySystemAccess(keySystem, supportedConfigurations) {
-    const {
-      requestMediaKeySystemAccessFunc
-    } = this.config;
-    if (!(typeof requestMediaKeySystemAccessFunc === 'function')) {
-      let errMessage = `Configured requestMediaKeySystemAccess is not a function ${requestMediaKeySystemAccessFunc}`;
-      if (requestMediaKeySystemAccess === null && self.location.protocol === 'http:') {
-        errMessage = `navigator.requestMediaKeySystemAccess is not available over insecure protocol ${location.protocol}`;
-      }
-      return Promise.reject(new Error(errMessage));
-    }
-    return requestMediaKeySystemAccessFunc(keySystem, supportedConfigurations);
-  }
-  getMediaKeysPromise(keySystem, audioCodecs, videoCodecs) {
-    // This can throw, but is caught in event handler callpath
-    const mediaKeySystemConfigs = getSupportedMediaKeySystemConfigurations(keySystem, audioCodecs, videoCodecs, this.config.drmSystemOptions);
-    const keySystemAccessPromises = this.keySystemAccessPromises[keySystem];
-    let keySystemAccess = keySystemAccessPromises == null ? void 0 : keySystemAccessPromises.keySystemAccess;
-    if (!keySystemAccess) {
-      this.log(`Requesting encrypted media "${keySystem}" key-system access with config: ${JSON.stringify(mediaKeySystemConfigs)}`);
-      keySystemAccess = this.requestMediaKeySystemAccess(keySystem, mediaKeySystemConfigs);
-      const _keySystemAccessPromises = this.keySystemAccessPromises[keySystem] = {
-        keySystemAccess
-      };
-      keySystemAccess.catch(error => {
-        this.log(`Failed to obtain access to key-system "${keySystem}": ${error}`);
-      });
-      return keySystemAccess.then(mediaKeySystemAccess => {
-        this.log(`Access for key-system "${mediaKeySystemAccess.keySystem}" obtained`);
-        const certificateRequest = this.fetchServerCertificate(keySystem);
-        this.log(`Create media-keys for "${keySystem}"`);
-        _keySystemAccessPromises.mediaKeys = mediaKeySystemAccess.createMediaKeys().then(mediaKeys => {
-          this.log(`Media-keys created for "${keySystem}"`);
-          return certificateRequest.then(certificate => {
-            if (certificate) {
-              return this.setMediaKeysServerCertificate(mediaKeys, keySystem, certificate);
-            }
-            return mediaKeys;
-          });
-        });
-        _keySystemAccessPromises.mediaKeys.catch(error => {
-          this.error(`Failed to create media-keys for "${keySystem}"}: ${error}`);
-        });
-        return _keySystemAccessPromises.mediaKeys;
-      });
-    }
-    return keySystemAccess.then(() => keySystemAccessPromises.mediaKeys);
-  }
-  createMediaKeySessionContext({
-    decryptdata,
-    keySystem,
-    mediaKeys
-  }) {
-    this.log(`Creating key-system session "${keySystem}" keyId: ${Hex.hexDump(decryptdata.keyId || [])}`);
-    const mediaKeysSession = mediaKeys.createSession();
-    const mediaKeySessionContext = {
-      decryptdata,
-      keySystem,
-      mediaKeys,
-      mediaKeysSession,
-      keyStatus: 'status-pending'
-    };
-    this.mediaKeySessions.push(mediaKeySessionContext);
-    return mediaKeySessionContext;
-  }
-  renewKeySession(mediaKeySessionContext) {
-    const decryptdata = mediaKeySessionContext.decryptdata;
-    if (decryptdata.pssh) {
-      const keySessionContext = this.createMediaKeySessionContext(mediaKeySessionContext);
-      const keyId = this.getKeyIdString(decryptdata);
-      const scheme = 'cenc';
-      this.keyIdToKeySessionPromise[keyId] = this.generateRequestWithPreferredKeySession(keySessionContext, scheme, decryptdata.pssh, 'expired');
-    } else {
-      this.warn(`Could not renew expired session. Missing pssh initData.`);
-    }
-    this.removeSession(mediaKeySessionContext);
-  }
-  getKeyIdString(decryptdata) {
-    if (!decryptdata) {
-      throw new Error('Could not read keyId of undefined decryptdata');
-    }
-    if (decryptdata.keyId === null) {
-      throw new Error('keyId is null');
-    }
-    return Hex.hexDump(decryptdata.keyId);
-  }
-  updateKeySession(mediaKeySessionContext, data) {
-    var _mediaKeySessionConte;
-    const keySession = mediaKeySessionContext.mediaKeysSession;
-    this.log(`Updating key-session "${keySession.sessionId}" for keyID ${Hex.hexDump(((_mediaKeySessionConte = mediaKeySessionContext.decryptdata) == null ? void 0 : _mediaKeySessionConte.keyId) || [])}
-      } (data length: ${data ? data.byteLength : data})`);
-    return keySession.update(data);
-  }
-  selectKeySystemFormat(frag) {
-    const keyFormats = Object.keys(frag.levelkeys || {});
-    if (!this.keyFormatPromise) {
-      this.log(`Selecting key-system from fragment (sn: ${frag.sn} ${frag.type}: ${frag.level}) key formats ${keyFormats.join(', ')}`);
-      this.keyFormatPromise = this.getKeyFormatPromise(keyFormats);
-    }
-    return this.keyFormatPromise;
-  }
-  getKeyFormatPromise(keyFormats) {
-    return new Promise((resolve, reject) => {
-      const keySystemsInConfig = getKeySystemsForConfig(this.config);
-      const keySystemsToAttempt = keyFormats.map(keySystemFormatToKeySystemDomain).filter(value => !!value && keySystemsInConfig.indexOf(value) !== -1);
-      return this.getKeySystemSelectionPromise(keySystemsToAttempt).then(({
-        keySystem
-      }) => {
-        const keySystemFormat = keySystemDomainToKeySystemFormat(keySystem);
-        if (keySystemFormat) {
-          resolve(keySystemFormat);
-        } else {
-          reject(new Error(`Unable to find format for key-system "${keySystem}"`));
-        }
-      }).catch(reject);
-    });
-  }
-  loadKey(data) {
-    const decryptdata = data.keyInfo.decryptdata;
-    const keyId = this.getKeyIdString(decryptdata);
-    const keyDetails = `(keyId: ${keyId} format: "${decryptdata.keyFormat}" method: ${decryptdata.method} uri: ${decryptdata.uri})`;
-    this.log(`Starting session for key ${keyDetails}`);
-    let keySessionContextPromise = this.keyIdToKeySessionPromise[keyId];
-    if (!keySessionContextPromise) {
-      keySessionContextPromise = this.keyIdToKeySessionPromise[keyId] = this.getKeySystemForKeyPromise(decryptdata).then(({
-        keySystem,
-        mediaKeys
-      }) => {
-        this.throwIfDestroyed();
-        this.log(`Handle encrypted media sn: ${data.frag.sn} ${data.frag.type}: ${data.frag.level} using key ${keyDetails}`);
-        return this.attemptSetMediaKeys(keySystem, mediaKeys).then(() => {
-          this.throwIfDestroyed();
-          const keySessionContext = this.createMediaKeySessionContext({
-            keySystem,
-            mediaKeys,
-            decryptdata
-          });
-          const scheme = 'cenc';
-          return this.generateRequestWithPreferredKeySession(keySessionContext, scheme, decryptdata.pssh, 'playlist-key');
-        });
-      });
-      keySessionContextPromise.catch(error => this.handleError(error));
-    }
-    return keySessionContextPromise;
-  }
-  throwIfDestroyed(message = 'Invalid state') {
-    if (!this.hls) {
-      throw new Error('invalid state');
-    }
-  }
-  handleError(error) {
-    if (!this.hls) {
-      return;
-    }
-    this.error(error.message);
-    if (error instanceof EMEKeyError) {
-      this.hls.trigger(Events.ERROR, error.data);
-    } else {
-      this.hls.trigger(Events.ERROR, {
-        type: ErrorTypes.KEY_SYSTEM_ERROR,
-        details: ErrorDetails.KEY_SYSTEM_NO_KEYS,
-        error,
-        fatal: true
-      });
-    }
-  }
-  getKeySystemForKeyPromise(decryptdata) {
-    const keyId = this.getKeyIdString(decryptdata);
-    const mediaKeySessionContext = this.keyIdToKeySessionPromise[keyId];
-    if (!mediaKeySessionContext) {
-      const keySystem = keySystemFormatToKeySystemDomain(decryptdata.keyFormat);
-      const keySystemsToAttempt = keySystem ? [keySystem] : getKeySystemsForConfig(this.config);
-      return this.attemptKeySystemAccess(keySystemsToAttempt);
-    }
-    return mediaKeySessionContext;
-  }
-  getKeySystemSelectionPromise(keySystemsToAttempt) {
-    if (!keySystemsToAttempt.length) {
-      keySystemsToAttempt = getKeySystemsForConfig(this.config);
-    }
-    if (keySystemsToAttempt.length === 0) {
-      throw new EMEKeyError({
-        type: ErrorTypes.KEY_SYSTEM_ERROR,
-        details: ErrorDetails.KEY_SYSTEM_NO_CONFIGURED_LICENSE,
-        fatal: true
-      }, `Missing key-system license configuration options ${JSON.stringify({
-        drmSystems: this.config.drmSystems
-      })}`);
-    }
-    return this.attemptKeySystemAccess(keySystemsToAttempt);
-  }
-  _onMediaEncrypted(event) {
-    const {
-      initDataType,
-      initData
-    } = event;
-    const logMessage = `"${event.type}" event: init data type: "${initDataType}"`;
-    this.debug(logMessage);
-
-    // Ignore event when initData is null
-    if (initData === null) {
-      return;
-    }
-    let keyId;
-    let keySystemDomain;
-    if (initDataType === 'sinf' && this.config.drmSystems[KeySystems.FAIRPLAY]) {
-      // Match sinf keyId to playlist skd://keyId=
-      const json = bin2str(new Uint8Array(initData));
-      try {
-        const sinf = base64Decode(JSON.parse(json).sinf);
-        const tenc = parseSinf(new Uint8Array(sinf));
-        if (!tenc) {
-          throw new Error(`'schm' box missing or not cbcs/cenc with schi > tenc`);
-        }
-        keyId = tenc.subarray(8, 24);
-        keySystemDomain = KeySystems.FAIRPLAY;
-      } catch (error) {
-        this.warn(`${logMessage} Failed to parse sinf: ${error}`);
-        return;
-      }
-    } else {
-      // Support Widevine clear-lead key-session creation (otherwise depend on playlist keys)
-      const psshResults = parseMultiPssh(initData);
-      const psshInfo = psshResults.filter(pssh => pssh.systemId === KeySystemIds.WIDEVINE)[0];
-      if (!psshInfo) {
-        if (psshResults.length === 0 || psshResults.some(pssh => !pssh.systemId)) {
-          this.warn(`${logMessage} contains incomplete or invalid pssh data`);
-        } else {
-          this.log(`ignoring ${logMessage} for ${psshResults.map(pssh => keySystemIdToKeySystemDomain(pssh.systemId)).join(',')} pssh data in favor of playlist keys`);
-        }
-        return;
-      }
-      keySystemDomain = keySystemIdToKeySystemDomain(psshInfo.systemId);
-      if (psshInfo.version === 0 && psshInfo.data) {
-        const offset = psshInfo.data.length - 22;
-        keyId = psshInfo.data.subarray(offset, offset + 16);
-      }
-    }
-    if (!keySystemDomain || !keyId) {
-      return;
-    }
-    const keyIdHex = Hex.hexDump(keyId);
-    const {
-      keyIdToKeySessionPromise,
-      mediaKeySessions
-    } = this;
-    let keySessionContextPromise = keyIdToKeySessionPromise[keyIdHex];
-    for (let i = 0; i < mediaKeySessions.length; i++) {
-      // Match playlist key
-      const keyContext = mediaKeySessions[i];
-      const decryptdata = keyContext.decryptdata;
-      if (!decryptdata.keyId) {
-        continue;
-      }
-      const oldKeyIdHex = Hex.hexDump(decryptdata.keyId);
-      if (keyIdHex === oldKeyIdHex || decryptdata.uri.replace(/-/g, '').indexOf(keyIdHex) !== -1) {
-        keySessionContextPromise = keyIdToKeySessionPromise[oldKeyIdHex];
-        if (decryptdata.pssh) {
-          break;
-        }
-        delete keyIdToKeySessionPromise[oldKeyIdHex];
-        decryptdata.pssh = new Uint8Array(initData);
-        decryptdata.keyId = keyId;
-        keySessionContextPromise = keyIdToKeySessionPromise[keyIdHex] = keySessionContextPromise.then(() => {
-          return this.generateRequestWithPreferredKeySession(keyContext, initDataType, initData, 'encrypted-event-key-match');
-        });
-        break;
-      }
-    }
-    if (!keySessionContextPromise) {
-      // Clear-lead key (not encountered in playlist)
-      keySessionContextPromise = keyIdToKeySessionPromise[keyIdHex] = this.getKeySystemSelectionPromise([keySystemDomain]).then(({
-        keySystem,
-        mediaKeys
-      }) => {
-        var _keySystemToKeySystem;
-        this.throwIfDestroyed();
-        const decryptdata = new LevelKey('ISO-23001-7', keyIdHex, (_keySystemToKeySystem = keySystemDomainToKeySystemFormat(keySystem)) != null ? _keySystemToKeySystem : '');
-        decryptdata.pssh = new Uint8Array(initData);
-        decryptdata.keyId = keyId;
-        return this.attemptSetMediaKeys(keySystem, mediaKeys).then(() => {
-          this.throwIfDestroyed();
-          const keySessionContext = this.createMediaKeySessionContext({
-            decryptdata,
-            keySystem,
-            mediaKeys
-          });
-          return this.generateRequestWithPreferredKeySession(keySessionContext, initDataType, initData, 'encrypted-event-no-match');
-        });
-      });
-    }
-    keySessionContextPromise.catch(error => this.handleError(error));
-  }
-  _onWaitingForKey(event) {
-    this.log(`"${event.type}" event`);
-  }
-  attemptSetMediaKeys(keySystem, mediaKeys) {
-    const queue = this.setMediaKeysQueue.slice();
-    this.log(`Setting media-keys for "${keySystem}"`);
-    // Only one setMediaKeys() can run at one time, and multiple setMediaKeys() operations
-    // can be queued for execution for multiple key sessions.
-    const setMediaKeysPromise = Promise.all(queue).then(() => {
-      if (!this.media) {
-        throw new Error('Attempted to set mediaKeys without media element attached');
-      }
-      return this.media.setMediaKeys(mediaKeys);
-    });
-    this.setMediaKeysQueue.push(setMediaKeysPromise);
-    return setMediaKeysPromise.then(() => {
-      this.log(`Media-keys set for "${keySystem}"`);
-      queue.push(setMediaKeysPromise);
-      this.setMediaKeysQueue = this.setMediaKeysQueue.filter(p => queue.indexOf(p) === -1);
-    });
-  }
-  generateRequestWithPreferredKeySession(context, initDataType, initData, reason) {
-    var _this$config$drmSyste, _this$config$drmSyste2;
-    const generateRequestFilter = (_this$config$drmSyste = this.config.drmSystems) == null ? void 0 : (_this$config$drmSyste2 = _this$config$drmSyste[context.keySystem]) == null ? void 0 : _this$config$drmSyste2.generateRequest;
-    if (generateRequestFilter) {
-      try {
-        const mappedInitData = generateRequestFilter.call(this.hls, initDataType, initData, context);
-        if (!mappedInitData) {
-          throw new Error('Invalid response from configured generateRequest filter');
-        }
-        initDataType = mappedInitData.initDataType;
-        initData = context.decryptdata.pssh = mappedInitData.initData ? new Uint8Array(mappedInitData.initData) : null;
-      } catch (error) {
-        var _this$hls;
-        this.warn(error.message);
-        if ((_this$hls = this.hls) != null && _this$hls.config.debug) {
-          throw error;
-        }
-      }
-    }
-    if (initData === null) {
-      this.log(`Skipping key-session request for "${reason}" (no initData)`);
-      return Promise.resolve(context);
-    }
-    const keyId = this.getKeyIdString(context.decryptdata);
-    this.log(`Generating key-session request for "${reason}": ${keyId} (init data type: ${initDataType} length: ${initData ? initData.byteLength : null})`);
-    const licenseStatus = new EventEmitter();
-    const onmessage = context._onmessage = event => {
-      const keySession = context.mediaKeysSession;
-      if (!keySession) {
-        licenseStatus.emit('error', new Error('invalid state'));
-        return;
-      }
-      const {
-        messageType,
-        message
-      } = event;
-      this.log(`"${messageType}" message event for session "${keySession.sessionId}" message size: ${message.byteLength}`);
-      if (messageType === 'license-request' || messageType === 'license-renewal') {
-        this.renewLicense(context, message).catch(error => {
-          this.handleError(error);
-          licenseStatus.emit('error', error);
-        });
-      } else if (messageType === 'license-release') {
-        if (context.keySystem === KeySystems.FAIRPLAY) {
-          this.updateKeySession(context, strToUtf8array('acknowledged'));
-          this.removeSession(context);
-        }
-      } else {
-        this.warn(`unhandled media key message type "${messageType}"`);
-      }
-    };
-    const onkeystatuseschange = context._onkeystatuseschange = event => {
-      const keySession = context.mediaKeysSession;
-      if (!keySession) {
-        licenseStatus.emit('error', new Error('invalid state'));
-        return;
-      }
-      this.onKeyStatusChange(context);
-      const keyStatus = context.keyStatus;
-      licenseStatus.emit('keyStatus', keyStatus);
-      if (keyStatus === 'expired') {
-        this.warn(`${context.keySystem} expired for key ${keyId}`);
-        this.renewKeySession(context);
-      }
-    };
-    context.mediaKeysSession.addEventListener('message', onmessage);
-    context.mediaKeysSession.addEventListener('keystatuseschange', onkeystatuseschange);
-    const keyUsablePromise = new Promise((resolve, reject) => {
-      licenseStatus.on('error', reject);
-      licenseStatus.on('keyStatus', keyStatus => {
-        if (keyStatus.startsWith('usable')) {
-          resolve();
-        } else if (keyStatus === 'output-restricted') {
-          reject(new EMEKeyError({
-            type: ErrorTypes.KEY_SYSTEM_ERROR,
-            details: ErrorDetails.KEY_SYSTEM_STATUS_OUTPUT_RESTRICTED,
-            fatal: false
-          }, 'HDCP level output restricted'));
-        } else if (keyStatus === 'internal-error') {
-          reject(new EMEKeyError({
-            type: ErrorTypes.KEY_SYSTEM_ERROR,
-            details: ErrorDetails.KEY_SYSTEM_STATUS_INTERNAL_ERROR,
-            fatal: true
-          }, `key status changed to "${keyStatus}"`));
-        } else if (keyStatus === 'expired') {
-          reject(new Error('key expired while generating request'));
-        } else {
-          this.warn(`unhandled key status change "${keyStatus}"`);
-        }
-      });
-    });
-    return context.mediaKeysSession.generateRequest(initDataType, initData).then(() => {
-      var _context$mediaKeysSes;
-      this.log(`Request generated for key-session "${(_context$mediaKeysSes = context.mediaKeysSession) == null ? void 0 : _context$mediaKeysSes.sessionId}" keyId: ${keyId}`);
-    }).catch(error => {
-      throw new EMEKeyError({
-        type: ErrorTypes.KEY_SYSTEM_ERROR,
-        details: ErrorDetails.KEY_SYSTEM_NO_SESSION,
-        error,
-        fatal: false
-      }, `Error generating key-session request: ${error}`);
-    }).then(() => keyUsablePromise).catch(error => {
-      licenseStatus.removeAllListeners();
-      this.removeSession(context);
-      throw error;
-    }).then(() => {
-      licenseStatus.removeAllListeners();
-      return context;
-    });
-  }
-  onKeyStatusChange(mediaKeySessionContext) {
-    mediaKeySessionContext.mediaKeysSession.keyStatuses.forEach((status, keyId) => {
-      this.log(`key status change "${status}" for keyStatuses keyId: ${Hex.hexDump('buffer' in keyId ? new Uint8Array(keyId.buffer, keyId.byteOffset, keyId.byteLength) : new Uint8Array(keyId))} session keyId: ${Hex.hexDump(new Uint8Array(mediaKeySessionContext.decryptdata.keyId || []))} uri: ${mediaKeySessionContext.decryptdata.uri}`);
-      mediaKeySessionContext.keyStatus = status;
-    });
-  }
-  fetchServerCertificate(keySystem) {
-    const config = this.config;
-    const Loader = config.loader;
-    const certLoader = new Loader(config);
-    const url = this.getServerCertificateUrl(keySystem);
-    if (!url) {
-      return Promise.resolve();
-    }
-    this.log(`Fetching server certificate for "${keySystem}"`);
-    return new Promise((resolve, reject) => {
-      const loaderContext = {
-        responseType: 'arraybuffer',
-        url
-      };
-      const loadPolicy = config.certLoadPolicy.default;
-      const loaderConfig = {
-        loadPolicy,
-        timeout: loadPolicy.maxLoadTimeMs,
-        maxRetry: 0,
-        retryDelay: 0,
-        maxRetryDelay: 0
-      };
-      const loaderCallbacks = {
-        onSuccess: (response, stats, context, networkDetails) => {
-          resolve(response.data);
-        },
-        onError: (response, contex, networkDetails, stats) => {
-          reject(new EMEKeyError({
-            type: ErrorTypes.KEY_SYSTEM_ERROR,
-            details: ErrorDetails.KEY_SYSTEM_SERVER_CERTIFICATE_REQUEST_FAILED,
-            fatal: true,
-            networkDetails,
-            response: _objectSpread2({
-              url: loaderContext.url,
-              data: undefined
-            }, response)
-          }, `"${keySystem}" certificate request failed (${url}). Status: ${response.code} (${response.text})`));
-        },
-        onTimeout: (stats, context, networkDetails) => {
-          reject(new EMEKeyError({
-            type: ErrorTypes.KEY_SYSTEM_ERROR,
-            details: ErrorDetails.KEY_SYSTEM_SERVER_CERTIFICATE_REQUEST_FAILED,
-            fatal: true,
-            networkDetails,
-            response: {
-              url: loaderContext.url,
-              data: undefined
-            }
-          }, `"${keySystem}" certificate request timed out (${url})`));
-        },
-        onAbort: (stats, context, networkDetails) => {
-          reject(new Error('aborted'));
-        }
-      };
-      certLoader.load(loaderContext, loaderConfig, loaderCallbacks);
-    });
-  }
-  setMediaKeysServerCertificate(mediaKeys, keySystem, cert) {
-    return new Promise((resolve, reject) => {
-      mediaKeys.setServerCertificate(cert).then(success => {
-        this.log(`setServerCertificate ${success ? 'success' : 'not supported by CDM'} (${cert == null ? void 0 : cert.byteLength}) on "${keySystem}"`);
-        resolve(mediaKeys);
-      }).catch(error => {
-        reject(new EMEKeyError({
-          type: ErrorTypes.KEY_SYSTEM_ERROR,
-          details: ErrorDetails.KEY_SYSTEM_SERVER_CERTIFICATE_UPDATE_FAILED,
-          error,
-          fatal: true
-        }, error.message));
-      });
-    });
-  }
-  renewLicense(context, keyMessage) {
-    return this.requestLicense(context, new Uint8Array(keyMessage)).then(data => {
-      return this.updateKeySession(context, new Uint8Array(data)).catch(error => {
-        throw new EMEKeyError({
-          type: ErrorTypes.KEY_SYSTEM_ERROR,
-          details: ErrorDetails.KEY_SYSTEM_SESSION_UPDATE_FAILED,
-          error,
-          fatal: true
-        }, error.message);
-      });
-    });
-  }
-  unpackPlayReadyKeyMessage(xhr, licenseChallenge) {
-    // On Edge, the raw license message is UTF-16-encoded XML.  We need
-    // to unpack the Challenge element (base64-encoded string containing the
-    // actual license request) and any HttpHeader elements (sent as request
-    // headers).
-    // For PlayReady CDMs, we need to dig the Challenge out of the XML.
-    const xmlString = String.fromCharCode.apply(null, new Uint16Array(licenseChallenge.buffer));
-    if (!xmlString.includes('PlayReadyKeyMessage')) {
-      // This does not appear to be a wrapped message as on Edge.  Some
-      // clients do not need this unwrapping, so we will assume this is one of
-      // them.  Note that "xml" at this point probably looks like random
-      // garbage, since we interpreted UTF-8 as UTF-16.
-      xhr.setRequestHeader('Content-Type', 'text/xml; charset=utf-8');
-      return licenseChallenge;
-    }
-    const keyMessageXml = new DOMParser().parseFromString(xmlString, 'application/xml');
-    // Set request headers.
-    const headers = keyMessageXml.querySelectorAll('HttpHeader');
-    if (headers.length > 0) {
-      let header;
-      for (let i = 0, len = headers.length; i < len; i++) {
-        var _header$querySelector, _header$querySelector2;
-        header = headers[i];
-        const name = (_header$querySelector = header.querySelector('name')) == null ? void 0 : _header$querySelector.textContent;
-        const value = (_header$querySelector2 = header.querySelector('value')) == null ? void 0 : _header$querySelector2.textContent;
-        if (name && value) {
-          xhr.setRequestHeader(name, value);
-        }
-      }
-    }
-    const challengeElement = keyMessageXml.querySelector('Challenge');
-    const challengeText = challengeElement == null ? void 0 : challengeElement.textContent;
-    if (!challengeText) {
-      throw new Error(`Cannot find <Challenge> in key message`);
-    }
-    return strToUtf8array(atob(challengeText));
-  }
-  setupLicenseXHR(xhr, url, keysListItem, licenseChallenge) {
-    const licenseXhrSetup = this.config.licenseXhrSetup;
-    if (!licenseXhrSetup) {
-      xhr.open('POST', url, true);
-      return Promise.resolve({
-        xhr,
-        licenseChallenge
-      });
-    }
-    return Promise.resolve().then(() => {
-      if (!keysListItem.decryptdata) {
-        throw new Error('Key removed');
-      }
-      return licenseXhrSetup.call(this.hls, xhr, url, keysListItem, licenseChallenge);
-    }).catch(error => {
-      if (!keysListItem.decryptdata) {
-        // Key session removed. Cancel license request.
-        throw error;
-      }
-      // let's try to open before running setup
-      xhr.open('POST', url, true);
-      return licenseXhrSetup.call(this.hls, xhr, url, keysListItem, licenseChallenge);
-    }).then(licenseXhrSetupResult => {
-      // if licenseXhrSetup did not yet call open, let's do it now
-      if (!xhr.readyState) {
-        xhr.open('POST', url, true);
-      }
-      const finalLicenseChallenge = licenseXhrSetupResult ? licenseXhrSetupResult : licenseChallenge;
-      return {
-        xhr,
-        licenseChallenge: finalLicenseChallenge
-      };
-    });
-  }
-  requestLicense(keySessionContext, licenseChallenge) {
-    const keyLoadPolicy = this.config.keyLoadPolicy.default;
-    return new Promise((resolve, reject) => {
-      const url = this.getLicenseServerUrl(keySessionContext.keySystem);
-      this.log(`Sending license request to URL: ${url}`);
-      const xhr = new XMLHttpRequest();
-      xhr.responseType = 'arraybuffer';
-      xhr.onreadystatechange = () => {
-        if (!this.hls || !keySessionContext.mediaKeysSession) {
-          return reject(new Error('invalid state'));
-        }
-        if (xhr.readyState === 4) {
-          if (xhr.status === 200) {
-            this._requestLicenseFailureCount = 0;
-            let data = xhr.response;
-            this.log(`License received ${data instanceof ArrayBuffer ? data.byteLength : data}`);
-            const licenseResponseCallback = this.config.licenseResponseCallback;
-            if (licenseResponseCallback) {
-              try {
-                data = licenseResponseCallback.call(this.hls, xhr, url, keySessionContext);
-              } catch (error) {
-                this.error(error);
-              }
-            }
-            resolve(data);
-          } else {
-            const retryConfig = keyLoadPolicy.errorRetry;
-            const maxNumRetry = retryConfig ? retryConfig.maxNumRetry : 0;
-            this._requestLicenseFailureCount++;
-            if (this._requestLicenseFailureCount > maxNumRetry || xhr.status >= 400 && xhr.status < 500) {
-              reject(new EMEKeyError({
-                type: ErrorTypes.KEY_SYSTEM_ERROR,
-                details: ErrorDetails.KEY_SYSTEM_LICENSE_REQUEST_FAILED,
-                fatal: true,
-                networkDetails: xhr,
-                response: {
-                  url,
-                  data: undefined,
-                  code: xhr.status,
-                  text: xhr.statusText
-                }
-              }, `License Request XHR failed (${url}). Status: ${xhr.status} (${xhr.statusText})`));
-            } else {
-              const attemptsLeft = maxNumRetry - this._requestLicenseFailureCount + 1;
-              this.warn(`Retrying license request, ${attemptsLeft} attempts left`);
-              this.requestLicense(keySessionContext, licenseChallenge).then(resolve, reject);
-            }
-          }
-        }
-      };
-      if (keySessionContext.licenseXhr && keySessionContext.licenseXhr.readyState !== XMLHttpRequest.DONE) {
-        keySessionContext.licenseXhr.abort();
-      }
-      keySessionContext.licenseXhr = xhr;
-      this.setupLicenseXHR(xhr, url, keySessionContext, licenseChallenge).then(({
-        xhr,
-        licenseChallenge
-      }) => {
-        if (keySessionContext.keySystem == KeySystems.PLAYREADY) {
-          licenseChallenge = this.unpackPlayReadyKeyMessage(xhr, licenseChallenge);
-        }
-        xhr.send(licenseChallenge);
-      });
-    });
-  }
-  onMediaAttached(event, data) {
-    if (!this.config.emeEnabled) {
-      return;
-    }
-    const media = data.media;
-
-    // keep reference of media
-    this.media = media;
-    media.addEventListener('encrypted', this.onMediaEncrypted);
-    media.addEventListener('waitingforkey', this.onWaitingForKey);
-  }
-  onMediaDetached() {
-    const media = this.media;
-    const mediaKeysList = this.mediaKeySessions;
-    if (media) {
-      media.removeEventListener('encrypted', this.onMediaEncrypted);
-      media.removeEventListener('waitingforkey', this.onWaitingForKey);
-      this.media = null;
-    }
-    this._requestLicenseFailureCount = 0;
-    this.setMediaKeysQueue = [];
-    this.mediaKeySessions = [];
-    this.keyIdToKeySessionPromise = {};
-    LevelKey.clearKeyUriToKeyIdMap();
-
-    // Close all sessions and remove media keys from the video element.
-    const keySessionCount = mediaKeysList.length;
-    EMEController.CDMCleanupPromise = Promise.all(mediaKeysList.map(mediaKeySessionContext => this.removeSession(mediaKeySessionContext)).concat(media == null ? void 0 : media.setMediaKeys(null).catch(error => {
-      this.log(`Could not clear media keys: ${error}`);
-    }))).then(() => {
-      if (keySessionCount) {
-        this.log('finished closing key sessions and clearing media keys');
-        mediaKeysList.length = 0;
-      }
-    }).catch(error => {
-      this.log(`Could not close sessions and clear media keys: ${error}`);
-    });
-  }
-  onManifestLoading() {
-    this.keyFormatPromise = null;
-  }
-  onManifestLoaded(event, {
-    sessionKeys
-  }) {
-    if (!sessionKeys || !this.config.emeEnabled) {
-      return;
-    }
-    if (!this.keyFormatPromise) {
-      const keyFormats = sessionKeys.reduce((formats, sessionKey) => {
-        if (formats.indexOf(sessionKey.keyFormat) === -1) {
-          formats.push(sessionKey.keyFormat);
-        }
-        return formats;
-      }, []);
-      this.log(`Selecting key-system from session-keys ${keyFormats.join(', ')}`);
-      this.keyFormatPromise = this.getKeyFormatPromise(keyFormats);
-    }
-  }
-  removeSession(mediaKeySessionContext) {
-    const {
-      mediaKeysSession,
-      licenseXhr
-    } = mediaKeySessionContext;
-    if (mediaKeysSession) {
-      this.log(`Remove licenses and keys and close session ${mediaKeysSession.sessionId}`);
-      if (mediaKeySessionContext._onmessage) {
-        mediaKeysSession.removeEventListener('message', mediaKeySessionContext._onmessage);
-        mediaKeySessionContext._onmessage = undefined;
-      }
-      if (mediaKeySessionContext._onkeystatuseschange) {
-        mediaKeysSession.removeEventListener('keystatuseschange', mediaKeySessionContext._onkeystatuseschange);
-        mediaKeySessionContext._onkeystatuseschange = undefined;
-      }
-      if (licenseXhr && licenseXhr.readyState !== XMLHttpRequest.DONE) {
-        licenseXhr.abort();
-      }
-      mediaKeySessionContext.mediaKeysSession = mediaKeySessionContext.decryptdata = mediaKeySessionContext.licenseXhr = undefined;
-      const index = this.mediaKeySessions.indexOf(mediaKeySessionContext);
-      if (index > -1) {
-        this.mediaKeySessions.splice(index, 1);
-      }
-      return mediaKeysSession.remove().catch(error => {
-        this.log(`Could not remove session: ${error}`);
-      }).then(() => {
-        return mediaKeysSession.close();
-      }).catch(error => {
-        this.log(`Could not close session: ${error}`);
-      });
-    }
-  }
-}
-EMEController.CDMCleanupPromise = void 0;
-class EMEKeyError extends Error {
-  constructor(data, message) {
-    super(message);
-    this.data = void 0;
-    data.error || (data.error = new Error(message));
-    this.data = data;
-    data.err = data.error;
-  }
-}
-
-/**
- * Common Media Object Type
- *
- * @group CMCD
- * @group CMSD
- *
- * @beta
- */
-var CmObjectType;
-(function (CmObjectType) {
-  /**
-   * text file, such as a manifest or playlist
-   */
-  CmObjectType["MANIFEST"] = "m";
-  /**
-   * audio only
-   */
-  CmObjectType["AUDIO"] = "a";
-  /**
-   * video only
-   */
-  CmObjectType["VIDEO"] = "v";
-  /**
-   * muxed audio and video
-   */
-  CmObjectType["MUXED"] = "av";
-  /**
-   * init segment
-   */
-  CmObjectType["INIT"] = "i";
-  /**
-   * caption or subtitle
-   */
-  CmObjectType["CAPTION"] = "c";
-  /**
-   * ISOBMFF timed text track
-   */
-  CmObjectType["TIMED_TEXT"] = "tt";
-  /**
-   * cryptographic key, license or certificate.
-   */
-  CmObjectType["KEY"] = "k";
-  /**
-   * other
-   */
-  CmObjectType["OTHER"] = "o";
-})(CmObjectType || (CmObjectType = {}));
-
-/**
- * Common Media Streaming Format
- *
- * @group CMCD
- * @group CMSD
- *
- * @beta
- */
-var CmStreamingFormat;
-(function (CmStreamingFormat) {
-  /**
-   * MPEG DASH
-   */
-  CmStreamingFormat["DASH"] = "d";
-  /**
-   * HTTP Live Streaming (HLS)
-   */
-  CmStreamingFormat["HLS"] = "h";
-  /**
-   * Smooth Streaming
-   */
-  CmStreamingFormat["SMOOTH"] = "s";
-  /**
-   * Other
-   */
-  CmStreamingFormat["OTHER"] = "o";
-})(CmStreamingFormat || (CmStreamingFormat = {}));
-
-/**
- * CMCD header fields.
- *
- * @group CMCD
- *
- * @beta
- */
-var CmcdHeaderField;
-(function (CmcdHeaderField) {
-  /**
-   * keys whose values vary with the object being requested.
-   */
-  CmcdHeaderField["OBJECT"] = "CMCD-Object";
-  /**
-   * keys whose values vary with each request.
-   */
-  CmcdHeaderField["REQUEST"] = "CMCD-Request";
-  /**
-   * keys whose values are expected to be invariant over the life of the session.
-   */
-  CmcdHeaderField["SESSION"] = "CMCD-Session";
-  /**
-   * keys whose values do not vary with every request or object.
-   */
-  CmcdHeaderField["STATUS"] = "CMCD-Status";
-})(CmcdHeaderField || (CmcdHeaderField = {}));
-
-/**
- * The map of CMCD header fields to official CMCD keys.
- *
- * @internal
- *
- * @group CMCD
- */
-const CmcdHeaderMap = {
-  [CmcdHeaderField.OBJECT]: ['br', 'd', 'ot', 'tb'],
-  [CmcdHeaderField.REQUEST]: ['bl', 'dl', 'mtp', 'nor', 'nrr', 'su'],
-  [CmcdHeaderField.SESSION]: ['cid', 'pr', 'sf', 'sid', 'st', 'v'],
-  [CmcdHeaderField.STATUS]: ['bs', 'rtp']
-};
-
-/**
- * Structured Field Item
- *
- * @group Structured Field
- *
- * @beta
- */
-class SfItem {
-  constructor(value, params) {
-    this.value = void 0;
-    this.params = void 0;
-    if (Array.isArray(value)) {
-      value = value.map(v => v instanceof SfItem ? v : new SfItem(v));
-    }
-    this.value = value;
-    this.params = params;
-  }
-}
-
-/**
- * A class to represent structured field tokens when `Symbol` is not available.
- *
- * @group Structured Field
- *
- * @beta
- */
-class SfToken {
-  constructor(description) {
-    this.description = void 0;
-    this.description = description;
-  }
-}
-
-const DICT = 'Dict';
-
-function format(value) {
-  if (Array.isArray(value)) {
-    return JSON.stringify(value);
-  }
-  if (value instanceof Map) {
-    return 'Map{}';
-  }
-  if (value instanceof Set) {
-    return 'Set{}';
-  }
-  if (typeof value === 'object') {
-    return JSON.stringify(value);
-  }
-  return String(value);
-}
-function throwError(action, src, type, cause) {
-  return new Error(`failed to ${action} "${format(src)}" as ${type}`, {
-    cause
-  });
-}
-
-const BARE_ITEM = 'Bare Item';
-
-const BOOLEAN = 'Boolean';
-
-const BYTES = 'Byte Sequence';
-
-const DECIMAL = 'Decimal';
-
-const INTEGER = 'Integer';
-
-function isInvalidInt(value) {
-  return value < -999999999999999 || 999999999999999 < value;
-}
-
-const STRING_REGEX = /[\x00-\x1f\x7f]+/; // eslint-disable-line no-control-regex
-
-const TOKEN = 'Token';
-
-const KEY = 'Key';
-
-function serializeError(src, type, cause) {
-  return throwError('serialize', src, type, cause);
-}
-
-// 4.1.9.  Serializing a Boolean
-//
-// Given a Boolean as input_boolean, return an ASCII string suitable for
-// use in a HTTP field value.
-//
-// 1.  If input_boolean is not a boolean, fail serialization.
-//
-// 2.  Let output be an empty string.
-//
-// 3.  Append "?" to output.
-//
-// 4.  If input_boolean is true, append "1" to output.
-//
-// 5.  If input_boolean is false, append "0" to output.
-//
-// 6.  Return output.
-function serializeBoolean(value) {
-  if (typeof value !== 'boolean') {
-    throw serializeError(value, BOOLEAN);
-  }
-  return value ? '?1' : '?0';
-}
-
-/**
- * Encodes binary data to base64
- *
- * @param binary - The binary data to encode
- * @returns The base64 encoded string
- *
- * @group Utils
- *
- * @beta
- */
-function base64encode(binary) {
-  return btoa(String.fromCharCode(...binary));
-}
-
-// 4.1.8.  Serializing a Byte Sequence
-//
-// Given a Byte Sequence as input_bytes, return an ASCII string suitable
-// for use in a HTTP field value.
-//
-// 1.  If input_bytes is not a sequence of bytes, fail serialization.
-//
-// 2.  Let output be an empty string.
-//
-// 3.  Append ":" to output.
-//
-// 4.  Append the result of base64-encoding input_bytes as per
-//     [RFC4648], Section 4, taking account of the requirements below.
-//
-// 5.  Append ":" to output.
-//
-// 6.  Return output.
-//
-// The encoded data is required to be padded with "=", as per [RFC4648],
-// Section 3.2.
-//
-// Likewise, encoded data SHOULD have pad bits set to zero, as per
-// [RFC4648], Section 3.5, unless it is not possible to do so due to
-// implementation constraints.
-function serializeByteSequence(value) {
-  if (ArrayBuffer.isView(value) === false) {
-    throw serializeError(value, BYTES);
-  }
-  return `:${base64encode(value)}:`;
-}
-
-// 4.1.4.  Serializing an Integer
-//
-// Given an Integer as input_integer, return an ASCII string suitable
-// for use in a HTTP field value.
-//
-// 1.  If input_integer is not an integer in the range of
-//     -999,999,999,999,999 to 999,999,999,999,999 inclusive, fail
-//     serialization.
-//
-// 2.  Let output be an empty string.
-//
-// 3.  If input_integer is less than (but not equal to) 0, append "-" to
-//     output.
-//
-// 4.  Append input_integer's numeric value represented in base 10 using
-//     only decimal digits to output.
-//
-// 5.  Return output.
-function serializeInteger(value) {
-  if (isInvalidInt(value)) {
-    throw serializeError(value, INTEGER);
-  }
-  return value.toString();
-}
-
-// 4.1.10.  Serializing a Date
-//
-// Given a Date as input_integer, return an ASCII string suitable for
-// use in an HTTP field value.
-// 1.  Let output be "@".
-// 2.  Append to output the result of running Serializing an Integer
-//     with input_date (Section 4.1.4).
-// 3.  Return output.
-function serializeDate(value) {
-  return `@${serializeInteger(value.getTime() / 1000)}`;
-}
-
-/**
- * This implements the rounding procedure described in step 2 of the "Serializing a Decimal" specification.
- * This rounding style is known as "even rounding", "banker's rounding", or "commercial rounding".
- *
- * @param value - The value to round
- * @param precision - The number of decimal places to round to
- * @returns The rounded value
- *
- * @group Utils
- *
- * @beta
- */
-function roundToEven(value, precision) {
-  if (value < 0) {
-    return -roundToEven(-value, precision);
-  }
-  const decimalShift = Math.pow(10, precision);
-  const isEquidistant = Math.abs(value * decimalShift % 1 - 0.5) < Number.EPSILON;
-  if (isEquidistant) {
-    // If the tail of the decimal place is 'equidistant' we round to the nearest even value
-    const flooredValue = Math.floor(value * decimalShift);
-    return (flooredValue % 2 === 0 ? flooredValue : flooredValue + 1) / decimalShift;
-  } else {
-    // Otherwise, proceed as normal
-    return Math.round(value * decimalShift) / decimalShift;
-  }
-}
-
-// 4.1.5.  Serializing a Decimal
-//
-// Given a decimal number as input_decimal, return an ASCII string
-// suitable for use in a HTTP field value.
-//
-// 1.   If input_decimal is not a decimal number, fail serialization.
-//
-// 2.   If input_decimal has more than three significant digits to the
-//      right of the decimal point, round it to three decimal places,
-//      rounding the final digit to the nearest value, or to the even
-//      value if it is equidistant.
-//
-// 3.   If input_decimal has more than 12 significant digits to the left
-//      of the decimal point after rounding, fail serialization.
-//
-// 4.   Let output be an empty string.
-//
-// 5.   If input_decimal is less than (but not equal to) 0, append "-"
-//      to output.
-//
-// 6.   Append input_decimal's integer component represented in base 10
-//      (using only decimal digits) to output; if it is zero, append
-//      "0".
-//
-// 7.   Append "." to output.
-//
-// 8.   If input_decimal's fractional component is zero, append "0" to
-//      output.
-//
-// 9.   Otherwise, append the significant digits of input_decimal's
-//      fractional component represented in base 10 (using only decimal
-//      digits) to output.
-//
-// 10.  Return output.
-function serializeDecimal(value) {
-  const roundedValue = roundToEven(value, 3); // round to 3 decimal places
-  if (Math.floor(Math.abs(roundedValue)).toString().length > 12) {
-    throw serializeError(value, DECIMAL);
-  }
-  const stringValue = roundedValue.toString();
-  return stringValue.includes('.') ? stringValue : `${stringValue}.0`;
-}
-
-const STRING = 'String';
-
-// 4.1.6.  Serializing a String
-//
-// Given a String as input_string, return an ASCII string suitable for
-// use in a HTTP field value.
-//
-// 1.  Convert input_string into a sequence of ASCII characters; if
-//     conversion fails, fail serialization.
-//
-// 2.  If input_string contains characters in the range %x00-1f or %x7f
-//     (i.e., not in VCHAR or SP), fail serialization.
-//
-// 3.  Let output be the string DQUOTE.
-//
-// 4.  For each character char in input_string:
-//
-//     1.  If char is "\" or DQUOTE:
-//
-//         1.  Append "\" to output.
-//
-//     2.  Append char to output.
-//
-// 5.  Append DQUOTE to output.
-//
-// 6.  Return output.
-function serializeString(value) {
-  if (STRING_REGEX.test(value)) {
-    throw serializeError(value, STRING);
-  }
-  return `"${value.replace(/\\/g, `\\\\`).replace(/"/g, `\\"`)}"`;
-}
-
-function symbolToStr(symbol) {
-  return symbol.description || symbol.toString().slice(7, -1);
-}
-
-function serializeToken(token) {
-  const value = symbolToStr(token);
-  if (/^([a-zA-Z*])([!#$%&'*+\-.^_`|~\w:/]*)$/.test(value) === false) {
-    throw serializeError(value, TOKEN);
-  }
-  return value;
-}
-
-// 4.1.3.1.  Serializing a Bare Item
-//
-// Given an Item as input_item, return an ASCII string suitable for use
-// in a HTTP field value.
-//
-// 1.  If input_item is an Integer, return the result of running
-//     Serializing an Integer (Section 4.1.4) with input_item.
-//
-// 2.  If input_item is a Decimal, return the result of running
-//     Serializing a Decimal (Section 4.1.5) with input_item.
-//
-// 3.  If input_item is a String, return the result of running
-//     Serializing a String (Section 4.1.6) with input_item.
-//
-// 4.  If input_item is a Token, return the result of running
-//     Serializing a Token (Section 4.1.7) with input_item.
-//
-// 5.  If input_item is a Boolean, return the result of running
-//     Serializing a Boolean (Section 4.1.9) with input_item.
-//
-// 6.  If input_item is a Byte Sequence, return the result of running
-//     Serializing a Byte Sequence (Section 4.1.8) with input_item.
-//
-// 7.  If input_item is a Date, return the result of running Serializing
-//     a Date (Section 4.1.10) with input_item.
-//
-// 8.  Otherwise, fail serialization.
-function serializeBareItem(value) {
-  switch (typeof value) {
-    case 'number':
-      if (!isFiniteNumber(value)) {
-        throw serializeError(value, BARE_ITEM);
-      }
-      if (Number.isInteger(value)) {
-        return serializeInteger(value);
-      }
-      return serializeDecimal(value);
-    case 'string':
-      return serializeString(value);
-    case 'symbol':
-      return serializeToken(value);
-    case 'boolean':
-      return serializeBoolean(value);
-    case 'object':
-      if (value instanceof Date) {
-        return serializeDate(value);
-      }
-      if (value instanceof Uint8Array) {
-        return serializeByteSequence(value);
-      }
-      if (value instanceof SfToken) {
-        return serializeToken(value);
-      }
-    default:
-      // fail
-      throw serializeError(value, BARE_ITEM);
-  }
-}
-
-// 4.1.1.3.  Serializing a Key
-//
-// Given a key as input_key, return an ASCII string suitable for use in
-// a HTTP field value.
-//
-// 1.  Convert input_key into a sequence of ASCII characters; if
-//     conversion fails, fail serialization.
-//
-// 2.  If input_key contains characters not in lcalpha, DIGIT, "_", "-",
-//     ".", or "*" fail serialization.
-//
-// 3.  If the first character of input_key is not lcalpha or "*", fail
-//     serialization.
-//
-// 4.  Let output be an empty string.
-//
-// 5.  Append input_key to output.
-//
-// 6.  Return output.
-function serializeKey(value) {
-  if (/^[a-z*][a-z0-9\-_.*]*$/.test(value) === false) {
-    throw serializeError(value, KEY);
-  }
-  return value;
-}
-
-// 4.1.1.2.  Serializing Parameters
-//
-// Given an ordered Dictionary as input_parameters (each member having a
-// param_name and a param_value), return an ASCII string suitable for
-// use in a HTTP field value.
-//
-// 1.  Let output be an empty string.
-//
-// 2.  For each param_name with a value of param_value in
-//     input_parameters:
-//
-//     1.  Append ";" to output.
-//
-//     2.  Append the result of running Serializing a Key
-//         (Section 4.1.1.3) with param_name to output.
-//
-//     3.  If param_value is not Boolean true:
-//
-//         1.  Append "=" to output.
-//
-//         2.  Append the result of running Serializing a bare Item
-//             (Section 4.1.3.1) with param_value to output.
-//
-// 3.  Return output.
-function serializeParams(params) {
-  if (params == null) {
-    return '';
-  }
-  return Object.entries(params).map(([key, value]) => {
-    if (value === true) {
-      return `;${serializeKey(key)}`; // omit true
-    }
-    return `;${serializeKey(key)}=${serializeBareItem(value)}`;
-  }).join('');
-}
-
-// 4.1.3.  Serializing an Item
-//
-// Given an Item as bare_item and Parameters as item_parameters, return
-// an ASCII string suitable for use in a HTTP field value.
-//
-// 1.  Let output be an empty string.
-//
-// 2.  Append the result of running Serializing a Bare Item
-//     Section 4.1.3.1 with bare_item to output.
-//
-// 3.  Append the result of running Serializing Parameters
-//     Section 4.1.1.2 with item_parameters to output.
-//
-// 4.  Return output.
-function serializeItem(value) {
-  if (value instanceof SfItem) {
-    return `${serializeBareItem(value.value)}${serializeParams(value.params)}`;
-  } else {
-    return serializeBareItem(value);
-  }
-}
-
-// 4.1.1.1.  Serializing an Inner List
-//
-// Given an array of (member_value, parameters) tuples as inner_list,
-// and parameters as list_parameters, return an ASCII string suitable
-// for use in a HTTP field value.
-//
-// 1.  Let output be the string "(".
-//
-// 2.  For each (member_value, parameters) of inner_list:
-//
-//     1.  Append the result of running Serializing an Item
-//         (Section 4.1.3) with (member_value, parameters) to output.
-//
-//     2.  If more values remain in inner_list, append a single SP to
-//         output.
-//
-// 3.  Append ")" to output.
-//
-// 4.  Append the result of running Serializing Parameters
-//     (Section 4.1.1.2) with list_parameters to output.
-//
-// 5.  Return output.
-function serializeInnerList(value) {
-  return `(${value.value.map(serializeItem).join(' ')})${serializeParams(value.params)}`;
-}
-
-// 4.1.2.  Serializing a Dictionary
-//
-// Given an ordered Dictionary as input_dictionary (each member having a
-// member_name and a tuple value of (member_value, parameters)), return
-// an ASCII string suitable for use in a HTTP field value.
-//
-// 1.  Let output be an empty string.
-//
-// 2.  For each member_name with a value of (member_value, parameters)
-//     in input_dictionary:
-//
-//     1.  Append the result of running Serializing a Key
-//         (Section 4.1.1.3) with member's member_name to output.
-//
-//     2.  If member_value is Boolean true:
-//
-//         1.  Append the result of running Serializing Parameters
-//             (Section 4.1.1.2) with parameters to output.
-//
-//     3.  Otherwise:
-//
-//         1.  Append "=" to output.
-//
-//         2.  If member_value is an array, append the result of running
-//             Serializing an Inner List (Section 4.1.1.1) with
-//             (member_value, parameters) to output.
-//
-//         3.  Otherwise, append the result of running Serializing an
-//             Item (Section 4.1.3) with (member_value, parameters) to
-//             output.
-//
-//     4.  If more members remain in input_dictionary:
-//
-//         1.  Append "," to output.
-//
-//         2.  Append a single SP to output.
-//
-// 3.  Return output.
-function serializeDict(dict, options = {
-  whitespace: true
-}) {
-  if (typeof dict !== 'object') {
-    throw serializeError(dict, DICT);
-  }
-  const entries = dict instanceof Map ? dict.entries() : Object.entries(dict);
-  const optionalWhiteSpace = options != null && options.whitespace ? ' ' : '';
-  return Array.from(entries).map(([key, item]) => {
-    if (item instanceof SfItem === false) {
-      item = new SfItem(item);
-    }
-    let output = serializeKey(key);
-    if (item.value === true) {
-      output += serializeParams(item.params);
-    } else {
-      output += '=';
-      if (Array.isArray(item.value)) {
-        output += serializeInnerList(item);
-      } else {
-        output += serializeItem(item);
-      }
-    }
-    return output;
-  }).join(`,${optionalWhiteSpace}`);
-}
-
-/**
- * Encode an object into a structured field dictionary
- *
- * @param input - The structured field dictionary to encode
- * @returns The structured field string
- *
- * @group Structured Field
- *
- * @beta
- */
-function encodeSfDict(value, options) {
-  return serializeDict(value, options);
-}
-
-/**
- * Checks if the given key is a token field.
- *
- * @param key - The key to check.
- *
- * @returns `true` if the key is a token field.
- *
- * @internal
- *
- * @group CMCD
- */
-const isTokenField = key => key === 'ot' || key === 'sf' || key === 'st';
-
-const isValid = value => {
-  if (typeof value === 'number') {
-    return isFiniteNumber(value);
-  }
-  return value != null && value !== '' && value !== false;
-};
-
-/**
- * Constructs a relative path from a URL.
- *
- * @param url - The destination URL
- * @param base - The base URL
- * @returns The relative path
- *
- * @group Utils
- *
- * @beta
- */
-function urlToRelativePath(url, base) {
-  const to = new URL(url);
-  const from = new URL(base);
-  if (to.origin !== from.origin) {
-    return url;
-  }
-  const toPath = to.pathname.split('/').slice(1);
-  const fromPath = from.pathname.split('/').slice(1, -1);
-  // remove common parents
-  while (toPath[0] === fromPath[0]) {
-    toPath.shift();
-    fromPath.shift();
-  }
-  // add back paths
-  while (fromPath.length) {
-    fromPath.shift();
-    toPath.unshift('..');
-  }
-  return toPath.join('/');
-}
-
-/**
- * Generate a random v4 UUID
- *
- * @returns A random v4 UUID
- *
- * @group Utils
- *
- * @beta
- */
-function uuid() {
-  try {
-    return crypto.randomUUID();
-  } catch (error) {
-    try {
-      const url = URL.createObjectURL(new Blob());
-      const uuid = url.toString();
-      URL.revokeObjectURL(url);
-      return uuid.slice(uuid.lastIndexOf('/') + 1);
-    } catch (error) {
-      let dt = new Date().getTime();
-      const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-        const r = (dt + Math.random() * 16) % 16 | 0;
-        dt = Math.floor(dt / 16);
-        return (c == 'x' ? r : r & 0x3 | 0x8).toString(16);
-      });
-      return uuid;
-    }
-  }
-}
-
-const toRounded = value => Math.round(value);
-const toUrlSafe = (value, options) => {
-  if (options != null && options.baseUrl) {
-    value = urlToRelativePath(value, options.baseUrl);
-  }
-  return encodeURIComponent(value);
-};
-const toHundred = value => toRounded(value / 100) * 100;
-/**
- * The default formatters for CMCD values.
- *
- * @group CMCD
- *
- * @beta
- */
-const CmcdFormatters = {
-  /**
-   * Bitrate (kbps) rounded integer
-   */
-  br: toRounded,
-  /**
-   * Duration (milliseconds) rounded integer
-   */
-  d: toRounded,
-  /**
-   * Buffer Length (milliseconds) rounded nearest 100ms
-   */
-  bl: toHundred,
-  /**
-   * Deadline (milliseconds) rounded nearest 100ms
-   */
-  dl: toHundred,
-  /**
-   * Measured Throughput (kbps) rounded nearest 100kbps
-   */
-  mtp: toHundred,
-  /**
-   * Next Object Request URL encoded
-   */
-  nor: toUrlSafe,
-  /**
-   * Requested maximum throughput (kbps) rounded nearest 100kbps
-   */
-  rtp: toHundred,
-  /**
-   * Top Bitrate (kbps) rounded integer
-   */
-  tb: toRounded
-};
-
-/**
- * Internal CMCD processing function.
- *
- * @param obj - The CMCD object to process.
- * @param map - The mapping function to use.
- * @param options - Options for encoding.
- *
- * @internal
- *
- * @group CMCD
- */
-function processCmcd(obj, options) {
-  const results = {};
-  if (obj == null || typeof obj !== 'object') {
-    return results;
-  }
-  const keys = Object.keys(obj).sort();
-  const formatters = _extends({}, CmcdFormatters, options == null ? void 0 : options.formatters);
-  const filter = options == null ? void 0 : options.filter;
-  keys.forEach(key => {
-    if (filter != null && filter(key)) {
-      return;
-    }
-    let value = obj[key];
-    const formatter = formatters[key];
-    if (formatter) {
-      value = formatter(value, options);
-    }
-    // Version should only be reported if not equal to 1.
-    if (key === 'v' && value === 1) {
-      return;
-    }
-    // Playback rate should only be sent if not equal to 1.
-    if (key == 'pr' && value === 1) {
-      return;
-    }
-    // ignore invalid values
-    if (!isValid(value)) {
-      return;
-    }
-    if (isTokenField(key) && typeof value === 'string') {
-      value = new SfToken(value);
-    }
-    results[key] = value;
-  });
-  return results;
-}
-
-/**
- * Encode a CMCD object to a string.
- *
- * @param cmcd - The CMCD object to encode.
- * @param options - Options for encoding.
- *
- * @returns The encoded CMCD string.
- *
- * @group CMCD
- *
- * @beta
- */
-function encodeCmcd(cmcd, options = {}) {
-  if (!cmcd) {
-    return '';
-  }
-  return encodeSfDict(processCmcd(cmcd, options), _extends({
-    whitespace: false
-  }, options));
-}
-
-/**
- * Convert a CMCD data object to request headers
- *
- * @param cmcd - The CMCD data object to convert.
- * @param options - Options for encoding the CMCD object.
- *
- * @returns The CMCD header shards.
- *
- * @group CMCD
- *
- * @beta
- */
-function toCmcdHeaders(cmcd, options = {}) {
-  if (!cmcd) {
-    return {};
-  }
-  const entries = Object.entries(cmcd);
-  const headerMap = Object.entries(CmcdHeaderMap).concat(Object.entries((options == null ? void 0 : options.customHeaderMap) || {}));
-  const shards = entries.reduce((acc, entry) => {
-    var _headerMap$find, _acc$field;
-    const [key, value] = entry;
-    const field = ((_headerMap$find = headerMap.find(entry => entry[1].includes(key))) == null ? void 0 : _headerMap$find[0]) || CmcdHeaderField.REQUEST;
-    (_acc$field = acc[field]) != null ? _acc$field : acc[field] = {};
-    acc[field][key] = value;
-    return acc;
-  }, {});
-  return Object.entries(shards).reduce((acc, [field, value]) => {
-    acc[field] = encodeCmcd(value, options);
-    return acc;
-  }, {});
-}
-
-/**
- * Append CMCD query args to a header object.
- *
- * @param headers - The headers to append to.
- * @param cmcd - The CMCD object to append.
- * @param customHeaderMap - A map of custom CMCD keys to header fields.
- *
- * @returns The headers with the CMCD header shards appended.
- *
- * @group CMCD
- *
- * @beta
- */
-function appendCmcdHeaders(headers, cmcd, options) {
-  return _extends(headers, toCmcdHeaders(cmcd, options));
-}
-
-/**
- * CMCD parameter name.
- *
- * @group CMCD
- *
- * @beta
- */
-const CMCD_PARAM = 'CMCD';
-
-/**
- * Convert a CMCD data object to a query arg.
- *
- * @param cmcd - The CMCD object to convert.
- * @param options - Options for encoding the CMCD object.
- *
- * @returns The CMCD query arg.
- *
- * @group CMCD
- *
- * @beta
- */
-function toCmcdQuery(cmcd, options = {}) {
-  if (!cmcd) {
-    return '';
-  }
-  const params = encodeCmcd(cmcd, options);
-  return `${CMCD_PARAM}=${encodeURIComponent(params)}`;
-}
-
-const REGEX = /CMCD=[^&#]+/;
-/**
- * Append CMCD query args to a URL.
- *
- * @param url - The URL to append to.
- * @param cmcd - The CMCD object to append.
- * @param options - Options for encoding the CMCD object.
- *
- * @returns The URL with the CMCD query args appended.
- *
- * @group CMCD
- *
- * @beta
- */
-function appendCmcdQuery(url, cmcd, options) {
-  // TODO: Replace with URLSearchParams once we drop Safari < 10.1 & Chrome < 49 support.
-  // https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams
-  const query = toCmcdQuery(cmcd, options);
-  if (!query) {
-    return url;
-  }
-  if (REGEX.test(url)) {
-    return url.replace(REGEX, query);
-  }
-  const separator = url.includes('?') ? '&' : '?';
-  return `${url}${separator}${query}`;
-}
-
-/**
- * Controller to deal with Common Media Client Data (CMCD)
- * @see https://cdn.cta.tech/cta/media/media/resources/standards/pdfs/cta-5004-final.pdf
- */
-class CMCDController {
-  // eslint-disable-line no-restricted-globals
-
-  constructor(hls) {
-    this.hls = void 0;
-    this.config = void 0;
-    this.media = void 0;
-    this.sid = void 0;
-    this.cid = void 0;
-    this.useHeaders = false;
-    this.includeKeys = void 0;
-    this.initialized = false;
-    this.starved = false;
-    this.buffering = true;
-    this.audioBuffer = void 0;
-    // eslint-disable-line no-restricted-globals
-    this.videoBuffer = void 0;
-    this.onWaiting = () => {
-      if (this.initialized) {
-        this.starved = true;
-      }
-      this.buffering = true;
-    };
-    this.onPlaying = () => {
-      if (!this.initialized) {
-        this.initialized = true;
-      }
-      this.buffering = false;
-    };
-    /**
-     * Apply CMCD data to a manifest request.
-     */
-    this.applyPlaylistData = context => {
-      try {
-        this.apply(context, {
-          ot: CmObjectType.MANIFEST,
-          su: !this.initialized
-        });
-      } catch (error) {
-        logger.warn('Could not generate manifest CMCD data.', error);
-      }
-    };
-    /**
-     * Apply CMCD data to a segment request
-     */
-    this.applyFragmentData = context => {
-      try {
-        const fragment = context.frag;
-        const level = this.hls.levels[fragment.level];
-        const ot = this.getObjectType(fragment);
-        const data = {
-          d: fragment.duration * 1000,
-          ot
-        };
-        if (ot === CmObjectType.VIDEO || ot === CmObjectType.AUDIO || ot == CmObjectType.MUXED) {
-          data.br = level.bitrate / 1000;
-          data.tb = this.getTopBandwidth(ot) / 1000;
-          data.bl = this.getBufferLength(ot);
-        }
-        this.apply(context, data);
-      } catch (error) {
-        logger.warn('Could not generate segment CMCD data.', error);
-      }
-    };
-    this.hls = hls;
-    const config = this.config = hls.config;
-    const {
-      cmcd
-    } = config;
-    if (cmcd != null) {
-      config.pLoader = this.createPlaylistLoader();
-      config.fLoader = this.createFragmentLoader();
-      this.sid = cmcd.sessionId || uuid();
-      this.cid = cmcd.contentId;
-      this.useHeaders = cmcd.useHeaders === true;
-      this.includeKeys = cmcd.includeKeys;
-      this.registerListeners();
-    }
-  }
-  registerListeners() {
-    const hls = this.hls;
-    hls.on(Events.MEDIA_ATTACHED, this.onMediaAttached, this);
-    hls.on(Events.MEDIA_DETACHED, this.onMediaDetached, this);
-    hls.on(Events.BUFFER_CREATED, this.onBufferCreated, this);
-  }
-  unregisterListeners() {
-    const hls = this.hls;
-    hls.off(Events.MEDIA_ATTACHED, this.onMediaAttached, this);
-    hls.off(Events.MEDIA_DETACHED, this.onMediaDetached, this);
-    hls.off(Events.BUFFER_CREATED, this.onBufferCreated, this);
-  }
-  destroy() {
-    this.unregisterListeners();
-    this.onMediaDetached();
-
-    // @ts-ignore
-    this.hls = this.config = this.audioBuffer = this.videoBuffer = null;
-    // @ts-ignore
-    this.onWaiting = this.onPlaying = null;
-  }
-  onMediaAttached(event, data) {
-    this.media = data.media;
-    this.media.addEventListener('waiting', this.onWaiting);
-    this.media.addEventListener('playing', this.onPlaying);
-  }
-  onMediaDetached() {
-    if (!this.media) {
-      return;
-    }
-    this.media.removeEventListener('waiting', this.onWaiting);
-    this.media.removeEventListener('playing', this.onPlaying);
-
-    // @ts-ignore
-    this.media = null;
-  }
-  onBufferCreated(event, data) {
-    var _data$tracks$audio, _data$tracks$video;
-    this.audioBuffer = (_data$tracks$audio = data.tracks.audio) == null ? void 0 : _data$tracks$audio.buffer;
-    this.videoBuffer = (_data$tracks$video = data.tracks.video) == null ? void 0 : _data$tracks$video.buffer;
-  }
-  /**
-   * Create baseline CMCD data
-   */
-  createData() {
-    var _this$media;
-    return {
-      v: 1,
-      sf: CmStreamingFormat.HLS,
-      sid: this.sid,
-      cid: this.cid,
-      pr: (_this$media = this.media) == null ? void 0 : _this$media.playbackRate,
-      mtp: this.hls.bandwidthEstimate / 1000
-    };
-  }
-
-  /**
-   * Apply CMCD data to a request.
-   */
-  apply(context, data = {}) {
-    // apply baseline data
-    _extends(data, this.createData());
-    const isVideo = data.ot === CmObjectType.INIT || data.ot === CmObjectType.VIDEO || data.ot === CmObjectType.MUXED;
-    if (this.starved && isVideo) {
-      data.bs = true;
-      data.su = true;
-      this.starved = false;
-    }
-    if (data.su == null) {
-      data.su = this.buffering;
-    }
-
-    // TODO: Implement rtp, nrr, nor, dl
-
-    const {
-      includeKeys
-    } = this;
-    if (includeKeys) {
-      data = Object.keys(data).reduce((acc, key) => {
-        includeKeys.includes(key) && (acc[key] = data[key]);
-        return acc;
-      }, {});
-    }
-    if (this.useHeaders) {
-      if (!context.headers) {
-        context.headers = {};
-      }
-      appendCmcdHeaders(context.headers, data);
-    } else {
-      context.url = appendCmcdQuery(context.url, data);
-    }
-  }
-  /**
-   * The CMCD object type.
-   */
-  getObjectType(fragment) {
-    const {
-      type
-    } = fragment;
-    if (type === 'subtitle') {
-      return CmObjectType.TIMED_TEXT;
-    }
-    if (fragment.sn === 'initSegment') {
-      return CmObjectType.INIT;
-    }
-    if (type === 'audio') {
-      return CmObjectType.AUDIO;
-    }
-    if (type === 'main') {
-      if (!this.hls.audioTracks.length) {
-        return CmObjectType.MUXED;
-      }
-      return CmObjectType.VIDEO;
-    }
-    return undefined;
-  }
-
-  /**
-   * Get the highest bitrate.
-   */
-  getTopBandwidth(type) {
-    let bitrate = 0;
-    let levels;
-    const hls = this.hls;
-    if (type === CmObjectType.AUDIO) {
-      levels = hls.audioTracks;
-    } else {
-      const max = hls.maxAutoLevel;
-      const len = max > -1 ? max + 1 : hls.levels.length;
-      levels = hls.levels.slice(0, len);
-    }
-    for (const level of levels) {
-      if (level.bitrate > bitrate) {
-        bitrate = level.bitrate;
-      }
-    }
-    return bitrate > 0 ? bitrate : NaN;
-  }
-
-  /**
-   * Get the buffer length for a media type in milliseconds
-   */
-  getBufferLength(type) {
-    const media = this.hls.media;
-    const buffer = type === CmObjectType.AUDIO ? this.audioBuffer : this.videoBuffer;
-    if (!buffer || !media) {
-      return NaN;
-    }
-    const info = BufferHelper.bufferInfo(buffer, media.currentTime, this.config.maxBufferHole);
-    return info.len * 1000;
-  }
-
-  /**
-   * Create a playlist loader
-   */
-  createPlaylistLoader() {
-    const {
-      pLoader
-    } = this.config;
-    const apply = this.applyPlaylistData;
-    const Ctor = pLoader || this.config.loader;
-    return class CmcdPlaylistLoader {
-      constructor(config) {
-        this.loader = void 0;
-        this.loader = new Ctor(config);
-      }
-      get stats() {
-        return this.loader.stats;
-      }
-      get context() {
-        return this.loader.context;
-      }
-      destroy() {
-        this.loader.destroy();
-      }
-      abort() {
-        this.loader.abort();
-      }
-      load(context, config, callbacks) {
-        apply(context);
-        this.loader.load(context, config, callbacks);
-      }
-    };
-  }
-
-  /**
-   * Create a playlist loader
-   */
-  createFragmentLoader() {
-    const {
-      fLoader
-    } = this.config;
-    const apply = this.applyFragmentData;
-    const Ctor = fLoader || this.config.loader;
-    return class CmcdFragmentLoader {
-      constructor(config) {
-        this.loader = void 0;
-        this.loader = new Ctor(config);
-      }
-      get stats() {
-        return this.loader.stats;
-      }
-      get context() {
-        return this.loader.context;
-      }
-      destroy() {
-        this.loader.destroy();
-      }
-      abort() {
-        this.loader.abort();
-      }
-      load(context, config, callbacks) {
-        apply(context);
-        this.loader.load(context, config, callbacks);
-      }
-    };
-  }
-}
-
-const PATHWAY_PENALTY_DURATION_MS = 300000;
-class ContentSteeringController {
-  constructor(hls) {
-    this.hls = void 0;
-    this.log = void 0;
-    this.loader = null;
-    this.uri = null;
-    this.pathwayId = '.';
-    this.pathwayPriority = null;
-    this.timeToLoad = 300;
-    this.reloadTimer = -1;
-    this.updated = 0;
-    this.started = false;
-    this.enabled = true;
-    this.levels = null;
-    this.audioTracks = null;
-    this.subtitleTracks = null;
-    this.penalizedPathways = {};
-    this.hls = hls;
-    this.log = logger.log.bind(logger, `[content-steering]:`);
-    this.registerListeners();
-  }
-  registerListeners() {
-    const hls = this.hls;
-    hls.on(Events.MANIFEST_LOADING, this.onManifestLoading, this);
-    hls.on(Events.MANIFEST_LOADED, this.onManifestLoaded, this);
-    hls.on(Events.MANIFEST_PARSED, this.onManifestParsed, this);
-    hls.on(Events.ERROR, this.onError, this);
-  }
-  unregisterListeners() {
-    const hls = this.hls;
-    if (!hls) {
-      return;
-    }
-    hls.off(Events.MANIFEST_LOADING, this.onManifestLoading, this);
-    hls.off(Events.MANIFEST_LOADED, this.onManifestLoaded, this);
-    hls.off(Events.MANIFEST_PARSED, this.onManifestParsed, this);
-    hls.off(Events.ERROR, this.onError, this);
-  }
-  startLoad() {
-    this.started = true;
-    this.clearTimeout();
-    if (this.enabled && this.uri) {
-      if (this.updated) {
-        const ttl = this.timeToLoad * 1000 - (performance.now() - this.updated);
-        if (ttl > 0) {
-          this.scheduleRefresh(this.uri, ttl);
-          return;
-        }
-      }
-      this.loadSteeringManifest(this.uri);
-    }
-  }
-  stopLoad() {
-    this.started = false;
-    if (this.loader) {
-      this.loader.destroy();
-      this.loader = null;
-    }
-    this.clearTimeout();
-  }
-  clearTimeout() {
-    if (this.reloadTimer !== -1) {
-      self.clearTimeout(this.reloadTimer);
-      this.reloadTimer = -1;
-    }
-  }
-  destroy() {
-    this.unregisterListeners();
-    this.stopLoad();
-    // @ts-ignore
-    this.hls = null;
-    this.levels = this.audioTracks = this.subtitleTracks = null;
-  }
-  removeLevel(levelToRemove) {
-    const levels = this.levels;
-    if (levels) {
-      this.levels = levels.filter(level => level !== levelToRemove);
-    }
-  }
-  onManifestLoading() {
-    this.stopLoad();
-    this.enabled = true;
-    this.timeToLoad = 300;
-    this.updated = 0;
-    this.uri = null;
-    this.pathwayId = '.';
-    this.levels = this.audioTracks = this.subtitleTracks = null;
-  }
-  onManifestLoaded(event, data) {
-    const {
-      contentSteering
-    } = data;
-    if (contentSteering === null) {
-      return;
-    }
-    this.pathwayId = contentSteering.pathwayId;
-    this.uri = contentSteering.uri;
-    if (this.started) {
-      this.startLoad();
-    }
-  }
-  onManifestParsed(event, data) {
-    this.audioTracks = data.audioTracks;
-    this.subtitleTracks = data.subtitleTracks;
-  }
-  onError(event, data) {
-    const {
-      errorAction
-    } = data;
-    if ((errorAction == null ? void 0 : errorAction.action) === NetworkErrorAction.SendAlternateToPenaltyBox && errorAction.flags === ErrorActionFlags.MoveAllAlternatesMatchingHost) {
-      const levels = this.levels;
-      let pathwayPriority = this.pathwayPriority;
-      let errorPathway = this.pathwayId;
-      if (data.context) {
-        const {
-          groupId,
-          pathwayId,
-          type
-        } = data.context;
-        if (groupId && levels) {
-          errorPathway = this.getPathwayForGroupId(groupId, type, errorPathway);
-        } else if (pathwayId) {
-          errorPathway = pathwayId;
-        }
-      }
-      if (!(errorPathway in this.penalizedPathways)) {
-        this.penalizedPathways[errorPathway] = performance.now();
-      }
-      if (!pathwayPriority && levels) {
-        // If PATHWAY-PRIORITY was not provided, list pathways for error handling
-        pathwayPriority = levels.reduce((pathways, level) => {
-          if (pathways.indexOf(level.pathwayId) === -1) {
-            pathways.push(level.pathwayId);
-          }
-          return pathways;
-        }, []);
-      }
-      if (pathwayPriority && pathwayPriority.length > 1) {
-        this.updatePathwayPriority(pathwayPriority);
-        errorAction.resolved = this.pathwayId !== errorPathway;
-      }
-      if (!errorAction.resolved) {
-        logger.warn(`Could not resolve ${data.details} ("${data.error.message}") with content-steering for Pathway: ${errorPathway} levels: ${levels ? levels.length : levels} priorities: ${JSON.stringify(pathwayPriority)} penalized: ${JSON.stringify(this.penalizedPathways)}`);
-      }
-    }
-  }
-  filterParsedLevels(levels) {
-    // Filter levels to only include those that are in the initial pathway
-    this.levels = levels;
-    let pathwayLevels = this.getLevelsForPathway(this.pathwayId);
-    if (pathwayLevels.length === 0) {
-      const pathwayId = levels[0].pathwayId;
-      this.log(`No levels found in Pathway ${this.pathwayId}. Setting initial Pathway to "${pathwayId}"`);
-      pathwayLevels = this.getLevelsForPathway(pathwayId);
-      this.pathwayId = pathwayId;
-    }
-    if (pathwayLevels.length !== levels.length) {
-      this.log(`Found ${pathwayLevels.length}/${levels.length} levels in Pathway "${this.pathwayId}"`);
-    }
-    return pathwayLevels;
-  }
-  getLevelsForPathway(pathwayId) {
-    if (this.levels === null) {
-      return [];
-    }
-    return this.levels.filter(level => pathwayId === level.pathwayId);
-  }
-  updatePathwayPriority(pathwayPriority) {
-    this.pathwayPriority = pathwayPriority;
-    let levels;
-
-    // Evaluate if we should remove the pathway from the penalized list
-    const penalizedPathways = this.penalizedPathways;
-    const now = performance.now();
-    Object.keys(penalizedPathways).forEach(pathwayId => {
-      if (now - penalizedPathways[pathwayId] > PATHWAY_PENALTY_DURATION_MS) {
-        delete penalizedPathways[pathwayId];
-      }
-    });
-    for (let i = 0; i < pathwayPriority.length; i++) {
-      const pathwayId = pathwayPriority[i];
-      if (pathwayId in penalizedPathways) {
-        continue;
-      }
-      if (pathwayId === this.pathwayId) {
-        return;
-      }
-      const selectedIndex = this.hls.nextLoadLevel;
-      const selectedLevel = this.hls.levels[selectedIndex];
-      levels = this.getLevelsForPathway(pathwayId);
-      if (levels.length > 0) {
-        this.log(`Setting Pathway to "${pathwayId}"`);
-        this.pathwayId = pathwayId;
-        reassignFragmentLevelIndexes(levels);
-        this.hls.trigger(Events.LEVELS_UPDATED, {
-          levels
-        });
-        // Set LevelController's level to trigger LEVEL_SWITCHING which loads playlist if needed
-        const levelAfterChange = this.hls.levels[selectedIndex];
-        if (selectedLevel && levelAfterChange && this.levels) {
-          if (levelAfterChange.attrs['STABLE-VARIANT-ID'] !== selectedLevel.attrs['STABLE-VARIANT-ID'] && levelAfterChange.bitrate !== selectedLevel.bitrate) {
-            this.log(`Unstable Pathways change from bitrate ${selectedLevel.bitrate} to ${levelAfterChange.bitrate}`);
-          }
-          this.hls.nextLoadLevel = selectedIndex;
-        }
-        break;
-      }
-    }
-  }
-  getPathwayForGroupId(groupId, type, defaultPathway) {
-    const levels = this.getLevelsForPathway(defaultPathway).concat(this.levels || []);
-    for (let i = 0; i < levels.length; i++) {
-      if (type === PlaylistContextType.AUDIO_TRACK && levels[i].hasAudioGroup(groupId) || type === PlaylistContextType.SUBTITLE_TRACK && levels[i].hasSubtitleGroup(groupId)) {
-        return levels[i].pathwayId;
-      }
-    }
-    return defaultPathway;
-  }
-  clonePathways(pathwayClones) {
-    const levels = this.levels;
-    if (!levels) {
-      return;
-    }
-    const audioGroupCloneMap = {};
-    const subtitleGroupCloneMap = {};
-    pathwayClones.forEach(pathwayClone => {
-      const {
-        ID: cloneId,
-        'BASE-ID': baseId,
-        'URI-REPLACEMENT': uriReplacement
-      } = pathwayClone;
-      if (levels.some(level => level.pathwayId === cloneId)) {
-        return;
-      }
-      const clonedVariants = this.getLevelsForPathway(baseId).map(baseLevel => {
-        const attributes = new AttrList(baseLevel.attrs);
-        attributes['PATHWAY-ID'] = cloneId;
-        const clonedAudioGroupId = attributes.AUDIO && `${attributes.AUDIO}_clone_${cloneId}`;
-        const clonedSubtitleGroupId = attributes.SUBTITLES && `${attributes.SUBTITLES}_clone_${cloneId}`;
-        if (clonedAudioGroupId) {
-          audioGroupCloneMap[attributes.AUDIO] = clonedAudioGroupId;
-          attributes.AUDIO = clonedAudioGroupId;
-        }
-        if (clonedSubtitleGroupId) {
-          subtitleGroupCloneMap[attributes.SUBTITLES] = clonedSubtitleGroupId;
-          attributes.SUBTITLES = clonedSubtitleGroupId;
-        }
-        const url = performUriReplacement(baseLevel.uri, attributes['STABLE-VARIANT-ID'], 'PER-VARIANT-URIS', uriReplacement);
-        const clonedLevel = new Level({
-          attrs: attributes,
-          audioCodec: baseLevel.audioCodec,
-          bitrate: baseLevel.bitrate,
-          height: baseLevel.height,
-          name: baseLevel.name,
-          url,
-          videoCodec: baseLevel.videoCodec,
-          width: baseLevel.width
-        });
-        if (baseLevel.audioGroups) {
-          for (let i = 1; i < baseLevel.audioGroups.length; i++) {
-            clonedLevel.addGroupId('audio', `${baseLevel.audioGroups[i]}_clone_${cloneId}`);
-          }
-        }
-        if (baseLevel.subtitleGroups) {
-          for (let i = 1; i < baseLevel.subtitleGroups.length; i++) {
-            clonedLevel.addGroupId('text', `${baseLevel.subtitleGroups[i]}_clone_${cloneId}`);
-          }
-        }
-        return clonedLevel;
-      });
-      levels.push(...clonedVariants);
-      cloneRenditionGroups(this.audioTracks, audioGroupCloneMap, uriReplacement, cloneId);
-      cloneRenditionGroups(this.subtitleTracks, subtitleGroupCloneMap, uriReplacement, cloneId);
-    });
-  }
-  loadSteeringManifest(uri) {
-    const config = this.hls.config;
-    const Loader = config.loader;
-    if (this.loader) {
-      this.loader.destroy();
-    }
-    this.loader = new Loader(config);
-    let url;
-    try {
-      url = new self.URL(uri);
-    } catch (error) {
-      this.enabled = false;
-      this.log(`Failed to parse Steering Manifest URI: ${uri}`);
-      return;
-    }
-    if (url.protocol !== 'data:') {
-      const throughput = (this.hls.bandwidthEstimate || config.abrEwmaDefaultEstimate) | 0;
-      url.searchParams.set('_HLS_pathway', this.pathwayId);
-      url.searchParams.set('_HLS_throughput', '' + throughput);
-    }
-    const context = {
-      responseType: 'json',
-      url: url.href
-    };
-    const loadPolicy = config.steeringManifestLoadPolicy.default;
-    const legacyRetryCompatibility = loadPolicy.errorRetry || loadPolicy.timeoutRetry || {};
-    const loaderConfig = {
-      loadPolicy,
-      timeout: loadPolicy.maxLoadTimeMs,
-      maxRetry: legacyRetryCompatibility.maxNumRetry || 0,
-      retryDelay: legacyRetryCompatibility.retryDelayMs || 0,
-      maxRetryDelay: legacyRetryCompatibility.maxRetryDelayMs || 0
-    };
-    const callbacks = {
-      onSuccess: (response, stats, context, networkDetails) => {
-        this.log(`Loaded steering manifest: "${url}"`);
-        const steeringData = response.data;
-        if (steeringData.VERSION !== 1) {
-          this.log(`Steering VERSION ${steeringData.VERSION} not supported!`);
-          return;
-        }
-        this.updated = performance.now();
-        this.timeToLoad = steeringData.TTL;
-        const {
-          'RELOAD-URI': reloadUri,
-          'PATHWAY-CLONES': pathwayClones,
-          'PATHWAY-PRIORITY': pathwayPriority
-        } = steeringData;
-        if (reloadUri) {
-          try {
-            this.uri = new self.URL(reloadUri, url).href;
-          } catch (error) {
-            this.enabled = false;
-            this.log(`Failed to parse Steering Manifest RELOAD-URI: ${reloadUri}`);
-            return;
-          }
-        }
-        this.scheduleRefresh(this.uri || context.url);
-        if (pathwayClones) {
-          this.clonePathways(pathwayClones);
-        }
-        const loadedSteeringData = {
-          steeringManifest: steeringData,
-          url: url.toString()
-        };
-        this.hls.trigger(Events.STEERING_MANIFEST_LOADED, loadedSteeringData);
-        if (pathwayPriority) {
-          this.updatePathwayPriority(pathwayPriority);
-        }
-      },
-      onError: (error, context, networkDetails, stats) => {
-        this.log(`Error loading steering manifest: ${error.code} ${error.text} (${context.url})`);
-        this.stopLoad();
-        if (error.code === 410) {
-          this.enabled = false;
-          this.log(`Steering manifest ${context.url} no longer available`);
-          return;
-        }
-        let ttl = this.timeToLoad * 1000;
-        if (error.code === 429) {
-          const loader = this.loader;
-          if (typeof (loader == null ? void 0 : loader.getResponseHeader) === 'function') {
-            const retryAfter = loader.getResponseHeader('Retry-After');
-            if (retryAfter) {
-              ttl = parseFloat(retryAfter) * 1000;
-            }
-          }
-          this.log(`Steering manifest ${context.url} rate limited`);
-          return;
-        }
-        this.scheduleRefresh(this.uri || context.url, ttl);
-      },
-      onTimeout: (stats, context, networkDetails) => {
-        this.log(`Timeout loading steering manifest (${context.url})`);
-        this.scheduleRefresh(this.uri || context.url);
-      }
-    };
-    this.log(`Requesting steering manifest: ${url}`);
-    this.loader.load(context, loaderConfig, callbacks);
-  }
-  scheduleRefresh(uri, ttlMs = this.timeToLoad * 1000) {
-    this.clearTimeout();
-    this.reloadTimer = self.setTimeout(() => {
-      var _this$hls;
-      const media = (_this$hls = this.hls) == null ? void 0 : _this$hls.media;
-      if (media && !media.ended) {
-        this.loadSteeringManifest(uri);
-        return;
-      }
-      this.scheduleRefresh(uri, this.timeToLoad * 1000);
-    }, ttlMs);
-  }
-}
-function cloneRenditionGroups(tracks, groupCloneMap, uriReplacement, cloneId) {
-  if (!tracks) {
-    return;
-  }
-  Object.keys(groupCloneMap).forEach(audioGroupId => {
-    const clonedTracks = tracks.filter(track => track.groupId === audioGroupId).map(track => {
-      const clonedTrack = _extends({}, track);
-      clonedTrack.details = undefined;
-      clonedTrack.attrs = new AttrList(clonedTrack.attrs);
-      clonedTrack.url = clonedTrack.attrs.URI = performUriReplacement(track.url, track.attrs['STABLE-RENDITION-ID'], 'PER-RENDITION-URIS', uriReplacement);
-      clonedTrack.groupId = clonedTrack.attrs['GROUP-ID'] = groupCloneMap[audioGroupId];
-      clonedTrack.attrs['PATHWAY-ID'] = cloneId;
-      return clonedTrack;
-    });
-    tracks.push(...clonedTracks);
-  });
-}
-function performUriReplacement(uri, stableId, perOptionKey, uriReplacement) {
-  const {
-    HOST: host,
-    PARAMS: params,
-    [perOptionKey]: perOptionUris
-  } = uriReplacement;
-  let perVariantUri;
-  if (stableId) {
-    perVariantUri = perOptionUris == null ? void 0 : perOptionUris[stableId];
-    if (perVariantUri) {
-      uri = perVariantUri;
-    }
-  }
-  const url = new self.URL(uri);
-  if (host && !perVariantUri) {
-    url.host = host;
-  }
-  if (params) {
-    Object.keys(params).sort().forEach(key => {
-      if (key) {
-        url.searchParams.set(key, params[key]);
-      }
-    });
-  }
-  return url.href;
-}
-
-const AGE_HEADER_LINE_REGEX = /^age:\s*[\d.]+\s*$/im;
-class XhrLoader {
-  constructor(config) {
-    this.xhrSetup = void 0;
-    this.requestTimeout = void 0;
-    this.retryTimeout = void 0;
-    this.retryDelay = void 0;
-    this.config = null;
-    this.callbacks = null;
-    this.context = null;
-    this.loader = null;
-    this.stats = void 0;
-    this.xhrSetup = config ? config.xhrSetup || null : null;
-    this.stats = new LoadStats();
-    this.retryDelay = 0;
-  }
-  destroy() {
-    this.callbacks = null;
-    this.abortInternal();
-    this.loader = null;
-    this.config = null;
-    this.context = null;
-    this.xhrSetup = null;
-  }
-  abortInternal() {
-    const loader = this.loader;
-    self.clearTimeout(this.requestTimeout);
-    self.clearTimeout(this.retryTimeout);
-    if (loader) {
-      loader.onreadystatechange = null;
-      loader.onprogress = null;
-      if (loader.readyState !== 4) {
-        this.stats.aborted = true;
-        loader.abort();
-      }
-    }
-  }
-  abort() {
-    var _this$callbacks;
-    this.abortInternal();
-    if ((_this$callbacks = this.callbacks) != null && _this$callbacks.onAbort) {
-      this.callbacks.onAbort(this.stats, this.context, this.loader);
-    }
-  }
-  load(context, config, callbacks) {
-    if (this.stats.loading.start) {
-      throw new Error('Loader can only be used once.');
-    }
-    this.stats.loading.start = self.performance.now();
-    this.context = context;
-    this.config = config;
-    this.callbacks = callbacks;
-    this.loadInternal();
-  }
-  loadInternal() {
-    const {
-      config,
-      context
-    } = this;
-    if (!config || !context) {
-      return;
-    }
-    const xhr = this.loader = new self.XMLHttpRequest();
-    const stats = this.stats;
-    stats.loading.first = 0;
-    stats.loaded = 0;
-    stats.aborted = false;
-    const xhrSetup = this.xhrSetup;
-    if (xhrSetup) {
-      Promise.resolve().then(() => {
-        if (this.loader !== xhr || this.stats.aborted) return;
-        return xhrSetup(xhr, context.url);
-      }).catch(error => {
-        if (this.loader !== xhr || this.stats.aborted) return;
-        xhr.open('GET', context.url, true);
-        return xhrSetup(xhr, context.url);
-      }).then(() => {
-        if (this.loader !== xhr || this.stats.aborted) return;
-        this.openAndSendXhr(xhr, context, config);
-      }).catch(error => {
-        // IE11 throws an exception on xhr.open if attempting to access an HTTP resource over HTTPS
-        this.callbacks.onError({
-          code: xhr.status,
-          text: error.message
-        }, context, xhr, stats);
-        return;
-      });
-    } else {
-      this.openAndSendXhr(xhr, context, config);
-    }
-  }
-  openAndSendXhr(xhr, context, config) {
-    if (!xhr.readyState) {
-      xhr.open('GET', context.url, true);
-    }
-    const headers = context.headers;
-    const {
-      maxTimeToFirstByteMs,
-      maxLoadTimeMs
-    } = config.loadPolicy;
-    if (headers) {
-      for (const header in headers) {
-        xhr.setRequestHeader(header, headers[header]);
-      }
-    }
-    if (context.rangeEnd) {
-      xhr.setRequestHeader('Range', 'bytes=' + context.rangeStart + '-' + (context.rangeEnd - 1));
-    }
-    xhr.onreadystatechange = this.readystatechange.bind(this);
-    xhr.onprogress = this.loadprogress.bind(this);
-    xhr.responseType = context.responseType;
-    // setup timeout before we perform request
-    self.clearTimeout(this.requestTimeout);
-    config.timeout = maxTimeToFirstByteMs && isFiniteNumber(maxTimeToFirstByteMs) ? maxTimeToFirstByteMs : maxLoadTimeMs;
-    this.requestTimeout = self.setTimeout(this.loadtimeout.bind(this), config.timeout);
-    xhr.send();
-  }
-  readystatechange() {
-    const {
-      context,
-      loader: xhr,
-      stats
-    } = this;
-    if (!context || !xhr) {
-      return;
-    }
-    const readyState = xhr.readyState;
-    const config = this.config;
-
-    // don't proceed if xhr has been aborted
-    if (stats.aborted) {
-      return;
-    }
-
-    // >= HEADERS_RECEIVED
-    if (readyState >= 2) {
-      if (stats.loading.first === 0) {
-        stats.loading.first = Math.max(self.performance.now(), stats.loading.start);
-        // readyState >= 2 AND readyState !==4 (readyState = HEADERS_RECEIVED || LOADING) rearm timeout as xhr not finished yet
-        if (config.timeout !== config.loadPolicy.maxLoadTimeMs) {
-          self.clearTimeout(this.requestTimeout);
-          config.timeout = config.loadPolicy.maxLoadTimeMs;
-          this.requestTimeout = self.setTimeout(this.loadtimeout.bind(this), config.loadPolicy.maxLoadTimeMs - (stats.loading.first - stats.loading.start));
-        }
-      }
-      if (readyState === 4) {
-        self.clearTimeout(this.requestTimeout);
-        xhr.onreadystatechange = null;
-        xhr.onprogress = null;
-        const status = xhr.status;
-        // http status between 200 to 299 are all successful
-        const useResponse = xhr.responseType !== 'text';
-        if (status >= 200 && status < 300 && (useResponse && xhr.response || xhr.responseText !== null)) {
-          stats.loading.end = Math.max(self.performance.now(), stats.loading.first);
-          const data = useResponse ? xhr.response : xhr.responseText;
-          const len = xhr.responseType === 'arraybuffer' ? data.byteLength : data.length;
-          stats.loaded = stats.total = len;
-          stats.bwEstimate = stats.total * 8000 / (stats.loading.end - stats.loading.first);
-          if (!this.callbacks) {
-            return;
-          }
-          const onProgress = this.callbacks.onProgress;
-          if (onProgress) {
-            onProgress(stats, context, data, xhr);
-          }
-          if (!this.callbacks) {
-            return;
-          }
-          const response = {
-            url: xhr.responseURL,
-            data: data,
-            code: status
-          };
-          this.callbacks.onSuccess(response, stats, context, xhr);
-        } else {
-          const retryConfig = config.loadPolicy.errorRetry;
-          const retryCount = stats.retry;
-          // if max nb of retries reached or if http status between 400 and 499 (such error cannot be recovered, retrying is useless), return error
-          const response = {
-            url: context.url,
-            data: undefined,
-            code: status
-          };
-          if (shouldRetry(retryConfig, retryCount, false, response)) {
-            this.retry(retryConfig);
-          } else {
-            logger.error(`${status} while loading ${context.url}`);
-            this.callbacks.onError({
-              code: status,
-              text: xhr.statusText
-            }, context, xhr, stats);
-          }
-        }
-      }
-    }
-  }
-  loadtimeout() {
-    if (!this.config) return;
-    const retryConfig = this.config.loadPolicy.timeoutRetry;
-    const retryCount = this.stats.retry;
-    if (shouldRetry(retryConfig, retryCount, true)) {
-      this.retry(retryConfig);
-    } else {
-      var _this$context;
-      logger.warn(`timeout while loading ${(_this$context = this.context) == null ? void 0 : _this$context.url}`);
-      const callbacks = this.callbacks;
-      if (callbacks) {
-        this.abortInternal();
-        callbacks.onTimeout(this.stats, this.context, this.loader);
-      }
-    }
-  }
-  retry(retryConfig) {
-    const {
-      context,
-      stats
-    } = this;
-    this.retryDelay = getRetryDelay(retryConfig, stats.retry);
-    stats.retry++;
-    logger.warn(`${status ? 'HTTP Status ' + status : 'Timeout'} while loading ${context == null ? void 0 : context.url}, retrying ${stats.retry}/${retryConfig.maxNumRetry} in ${this.retryDelay}ms`);
-    // abort and reset internal state
-    this.abortInternal();
-    this.loader = null;
-    // schedule retry
-    self.clearTimeout(this.retryTimeout);
-    this.retryTimeout = self.setTimeout(this.loadInternal.bind(this), this.retryDelay);
-  }
-  loadprogress(event) {
-    const stats = this.stats;
-    stats.loaded = event.loaded;
-    if (event.lengthComputable) {
-      stats.total = event.total;
-    }
-  }
-  getCacheAge() {
-    let result = null;
-    if (this.loader && AGE_HEADER_LINE_REGEX.test(this.loader.getAllResponseHeaders())) {
-      const ageHeader = this.loader.getResponseHeader('age');
-      result = ageHeader ? parseFloat(ageHeader) : null;
-    }
-    return result;
-  }
-  getResponseHeader(name) {
-    if (this.loader && new RegExp(`^${name}:\\s*[\\d.]+\\s*$`, 'im').test(this.loader.getAllResponseHeaders())) {
-      return this.loader.getResponseHeader(name);
-    }
-    return null;
-  }
-}
-
-function fetchSupported() {
-  if (
-  // @ts-ignore
-  self.fetch && self.AbortController && self.ReadableStream && self.Request) {
-    try {
-      new self.ReadableStream({}); // eslint-disable-line no-new
-      return true;
-    } catch (e) {
-      /* noop */
-    }
-  }
-  return false;
-}
-const BYTERANGE = /(\d+)-(\d+)\/(\d+)/;
-class FetchLoader {
-  constructor(config /* HlsConfig */) {
-    this.fetchSetup = void 0;
-    this.requestTimeout = void 0;
-    this.request = null;
-    this.response = null;
-    this.controller = void 0;
-    this.context = null;
-    this.config = null;
-    this.callbacks = null;
-    this.stats = void 0;
-    this.loader = null;
-    this.fetchSetup = config.fetchSetup || getRequest;
-    this.controller = new self.AbortController();
-    this.stats = new LoadStats();
-  }
-  destroy() {
-    this.loader = this.callbacks = this.context = this.config = this.request = null;
-    this.abortInternal();
-    this.response = null;
-    // @ts-ignore
-    this.fetchSetup = this.controller = this.stats = null;
-  }
-  abortInternal() {
-    if (this.controller && !this.stats.loading.end) {
-      this.stats.aborted = true;
-      this.controller.abort();
-    }
-  }
-  abort() {
-    var _this$callbacks;
-    this.abortInternal();
-    if ((_this$callbacks = this.callbacks) != null && _this$callbacks.onAbort) {
-      this.callbacks.onAbort(this.stats, this.context, this.response);
-    }
-  }
-  load(context, config, callbacks) {
-    const stats = this.stats;
-    if (stats.loading.start) {
-      throw new Error('Loader can only be used once.');
-    }
-    stats.loading.start = self.performance.now();
-    const initParams = getRequestParameters(context, this.controller.signal);
-    const onProgress = callbacks.onProgress;
-    const isArrayBuffer = context.responseType === 'arraybuffer';
-    const LENGTH = isArrayBuffer ? 'byteLength' : 'length';
-    const {
-      maxTimeToFirstByteMs,
-      maxLoadTimeMs
-    } = config.loadPolicy;
-    this.context = context;
-    this.config = config;
-    this.callbacks = callbacks;
-    this.request = this.fetchSetup(context, initParams);
-    self.clearTimeout(this.requestTimeout);
-    config.timeout = maxTimeToFirstByteMs && isFiniteNumber(maxTimeToFirstByteMs) ? maxTimeToFirstByteMs : maxLoadTimeMs;
-    this.requestTimeout = self.setTimeout(() => {
-      this.abortInternal();
-      callbacks.onTimeout(stats, context, this.response);
-    }, config.timeout);
-    self.fetch(this.request).then(response => {
-      this.response = this.loader = response;
-      const first = Math.max(self.performance.now(), stats.loading.start);
-      self.clearTimeout(this.requestTimeout);
-      config.timeout = maxLoadTimeMs;
-      this.requestTimeout = self.setTimeout(() => {
-        this.abortInternal();
-        callbacks.onTimeout(stats, context, this.response);
-      }, maxLoadTimeMs - (first - stats.loading.start));
-      if (!response.ok) {
-        const {
-          status,
-          statusText
-        } = response;
-        throw new FetchError(statusText || 'fetch, bad network response', status, response);
-      }
-      stats.loading.first = first;
-      stats.total = getContentLength(response.headers) || stats.total;
-      if (onProgress && isFiniteNumber(config.highWaterMark)) {
-        return this.loadProgressively(response, stats, context, config.highWaterMark, onProgress);
-      }
-      if (isArrayBuffer) {
-        return response.arrayBuffer();
-      }
-      if (context.responseType === 'json') {
-        return response.json();
-      }
-      return response.text();
-    }).then(responseData => {
-      const response = this.response;
-      if (!response) {
-        throw new Error('loader destroyed');
-      }
-      self.clearTimeout(this.requestTimeout);
-      stats.loading.end = Math.max(self.performance.now(), stats.loading.first);
-      const total = responseData[LENGTH];
-      if (total) {
-        stats.loaded = stats.total = total;
-      }
-      const loaderResponse = {
-        url: response.url,
-        data: responseData,
-        code: response.status
-      };
-      if (onProgress && !isFiniteNumber(config.highWaterMark)) {
-        onProgress(stats, context, responseData, response);
-      }
-      callbacks.onSuccess(loaderResponse, stats, context, response);
-    }).catch(error => {
-      self.clearTimeout(this.requestTimeout);
-      if (stats.aborted) {
-        return;
-      }
-      // CORS errors result in an undefined code. Set it to 0 here to align with XHR's behavior
-      // when destroying, 'error' itself can be undefined
-      const code = !error ? 0 : error.code || 0;
-      const text = !error ? null : error.message;
-      callbacks.onError({
-        code,
-        text
-      }, context, error ? error.details : null, stats);
-    });
-  }
-  getCacheAge() {
-    let result = null;
-    if (this.response) {
-      const ageHeader = this.response.headers.get('age');
-      result = ageHeader ? parseFloat(ageHeader) : null;
-    }
-    return result;
-  }
-  getResponseHeader(name) {
-    return this.response ? this.response.headers.get(name) : null;
-  }
-  loadProgressively(response, stats, context, highWaterMark = 0, onProgress) {
-    const chunkCache = new ChunkCache();
-    const reader = response.body.getReader();
-    const pump = () => {
-      return reader.read().then(data => {
-        if (data.done) {
-          if (chunkCache.dataLength) {
-            onProgress(stats, context, chunkCache.flush(), response);
-          }
-          return Promise.resolve(new ArrayBuffer(0));
-        }
-        const chunk = data.value;
-        const len = chunk.length;
-        stats.loaded += len;
-        if (len < highWaterMark || chunkCache.dataLength) {
-          // The current chunk is too small to to be emitted or the cache already has data
-          // Push it to the cache
-          chunkCache.push(chunk);
-          if (chunkCache.dataLength >= highWaterMark) {
-            // flush in order to join the typed arrays
-            onProgress(stats, context, chunkCache.flush(), response);
-          }
-        } else {
-          // If there's nothing cached already, and the chache is large enough
-          // just emit the progress event
-          onProgress(stats, context, chunk, response);
-        }
-        return pump();
-      }).catch(() => {
-        /* aborted */
-        return Promise.reject();
-      });
-    };
-    return pump();
-  }
-}
-function getRequestParameters(context, signal) {
-  const initParams = {
-    method: 'GET',
-    mode: 'cors',
-    credentials: 'same-origin',
-    signal,
-    headers: new self.Headers(_extends({}, context.headers))
-  };
-  if (context.rangeEnd) {
-    initParams.headers.set('Range', 'bytes=' + context.rangeStart + '-' + String(context.rangeEnd - 1));
-  }
-  return initParams;
-}
-function getByteRangeLength(byteRangeHeader) {
-  const result = BYTERANGE.exec(byteRangeHeader);
-  if (result) {
-    return parseInt(result[2]) - parseInt(result[1]) + 1;
-  }
-}
-function getContentLength(headers) {
-  const contentRange = headers.get('Content-Range');
-  if (contentRange) {
-    const byteRangeLength = getByteRangeLength(contentRange);
-    if (isFiniteNumber(byteRangeLength)) {
-      return byteRangeLength;
-    }
-  }
-  const contentLength = headers.get('Content-Length');
-  if (contentLength) {
-    return parseInt(contentLength);
-  }
-}
-function getRequest(context, initParams) {
-  return new self.Request(context.url, initParams);
-}
-class FetchError extends Error {
-  constructor(message, code, details) {
-    super(message);
-    this.code = void 0;
-    this.details = void 0;
-    this.code = code;
-    this.details = details;
-  }
-}
-
-const WHITESPACE_CHAR = /\s/;
-const Cues = {
-  newCue(track, startTime, endTime, captionScreen) {
-    const result = [];
-    let row;
-    // the type data states this is VTTCue, but it can potentially be a TextTrackCue on old browsers
-    let cue;
-    let indenting;
-    let indent;
-    let text;
-    const Cue = self.VTTCue || self.TextTrackCue;
-    for (let r = 0; r < captionScreen.rows.length; r++) {
-      row = captionScreen.rows[r];
-      indenting = true;
-      indent = 0;
-      text = '';
-      if (!row.isEmpty()) {
-        var _track$cues;
-        for (let c = 0; c < row.chars.length; c++) {
-          if (WHITESPACE_CHAR.test(row.chars[c].uchar) && indenting) {
-            indent++;
-          } else {
-            text += row.chars[c].uchar;
-            indenting = false;
-          }
-        }
-        // To be used for cleaning-up orphaned roll-up captions
-        row.cueStartTime = startTime;
-
-        // Give a slight bump to the endTime if it's equal to startTime to avoid a SyntaxError in IE
-        if (startTime === endTime) {
-          endTime += 0.0001;
-        }
-        if (indent >= 16) {
-          indent--;
-        } else {
-          indent++;
-        }
-        const cueText = fixLineBreaks(text.trim());
-        const id = generateCueId(startTime, endTime, cueText);
-
-        // If this cue already exists in the track do not push it
-        if (!(track != null && (_track$cues = track.cues) != null && _track$cues.getCueById(id))) {
-          cue = new Cue(startTime, endTime, cueText);
-          cue.id = id;
-          cue.line = r + 1;
-          cue.align = 'left';
-          // Clamp the position between 10 and 80 percent (CEA-608 PAC indent code)
-          // https://dvcs.w3.org/hg/text-tracks/raw-file/default/608toVTT/608toVTT.html#positioning-in-cea-608
-          // Firefox throws an exception and captions break with out of bounds 0-100 values
-          cue.position = 10 + Math.min(80, Math.floor(indent * 8 / 32) * 10);
-          result.push(cue);
-        }
-      }
-    }
-    if (track && result.length) {
-      // Sort bottom cues in reverse order so that they render in line order when overlapping in Chrome
-      result.sort((cueA, cueB) => {
-        if (cueA.line === 'auto' || cueB.line === 'auto') {
-          return 0;
-        }
-        if (cueA.line > 8 && cueB.line > 8) {
-          return cueB.line - cueA.line;
-        }
-        return cueA.line - cueB.line;
-      });
-      result.forEach(cue => addCueToTrack(track, cue));
-    }
-    return result;
-  }
-};
-
-/**
- * @deprecated use fragLoadPolicy.default
- */
-
-/**
- * @deprecated use manifestLoadPolicy.default and playlistLoadPolicy.default
- */
-
-const defaultLoadPolicy = {
-  maxTimeToFirstByteMs: 8000,
-  maxLoadTimeMs: 20000,
-  timeoutRetry: null,
-  errorRetry: null
-};
-
-/**
- * @ignore
- * If possible, keep hlsDefaultConfig shallow
- * It is cloned whenever a new Hls instance is created, by keeping the config
- * shallow the properties are cloned, and we don't end up manipulating the default
- */
-const hlsDefaultConfig = _objectSpread2(_objectSpread2({
-  autoStartLoad: true,
-  // used by stream-controller
-  startPosition: -1,
-  // used by stream-controller
-  defaultAudioCodec: undefined,
-  // used by stream-controller
-  debug: false,
-  // used by logger
-  capLevelOnFPSDrop: false,
-  // used by fps-controller
-  capLevelToPlayerSize: false,
-  // used by cap-level-controller
-  ignoreDevicePixelRatio: false,
-  // used by cap-level-controller
-  preferManagedMediaSource: true,
-  initialLiveManifestSize: 1,
-  // used by stream-controller
-  maxBufferLength: 30,
-  // used by stream-controller
-  backBufferLength: Infinity,
-  // used by buffer-controller
-  frontBufferFlushThreshold: Infinity,
-  maxBufferSize: 60 * 1000 * 1000,
-  // used by stream-controller
-  maxBufferHole: 0.1,
-  // used by stream-controller
-  highBufferWatchdogPeriod: 2,
-  // used by stream-controller
-  nudgeOffset: 0.1,
-  // used by stream-controller
-  nudgeMaxRetry: 3,
-  // used by stream-controller
-  maxFragLookUpTolerance: 0.25,
-  // used by stream-controller
-  liveSyncDurationCount: 3,
-  // used by latency-controller
-  liveMaxLatencyDurationCount: Infinity,
-  // used by latency-controller
-  liveSyncDuration: undefined,
-  // used by latency-controller
-  liveMaxLatencyDuration: undefined,
-  // used by latency-controller
-  maxLiveSyncPlaybackRate: 1,
-  // used by latency-controller
-  liveDurationInfinity: false,
-  // used by buffer-controller
-  /**
-   * @deprecated use backBufferLength
-   */
-  liveBackBufferLength: null,
-  // used by buffer-controller
-  maxMaxBufferLength: 600,
-  // used by stream-controller
-  enableWorker: true,
-  // used by transmuxer
-  workerPath: null,
-  // used by transmuxer
-  enableSoftwareAES: true,
-  // used by decrypter
-  startLevel: undefined,
-  // used by level-controller
-  startFragPrefetch: false,
-  // used by stream-controller
-  fpsDroppedMonitoringPeriod: 5000,
-  // used by fps-controller
-  fpsDroppedMonitoringThreshold: 0.2,
-  // used by fps-controller
-  appendErrorMaxRetry: 3,
-  // used by buffer-controller
-  loader: XhrLoader,
-  // loader: FetchLoader,
-  fLoader: undefined,
-  // used by fragment-loader
-  pLoader: undefined,
-  // used by playlist-loader
-  xhrSetup: undefined,
-  // used by xhr-loader
-  licenseXhrSetup: undefined,
-  // used by eme-controller
-  licenseResponseCallback: undefined,
-  // used by eme-controller
-  abrController: AbrController,
-  bufferController: BufferController,
-  capLevelController: CapLevelController,
-  errorController: ErrorController,
-  fpsController: FPSController,
-  stretchShortVideoTrack: false,
-  // used by mp4-remuxer
-  maxAudioFramesDrift: 1,
-  // used by mp4-remuxer
-  forceKeyFrameOnDiscontinuity: true,
-  // used by ts-demuxer
-  abrEwmaFastLive: 3,
-  // used by abr-controller
-  abrEwmaSlowLive: 9,
-  // used by abr-controller
-  abrEwmaFastVoD: 3,
-  // used by abr-controller
-  abrEwmaSlowVoD: 9,
-  // used by abr-controller
-  abrEwmaDefaultEstimate: 5e5,
-  // 500 kbps  // used by abr-controller
-  abrEwmaDefaultEstimateMax: 5e6,
-  // 5 mbps
-  abrBandWidthFactor: 0.95,
-  // used by abr-controller
-  abrBandWidthUpFactor: 0.7,
-  // used by abr-controller
-  abrMaxWithRealBitrate: false,
-  // used by abr-controller
-  maxStarvationDelay: 4,
-  // used by abr-controller
-  maxLoadingDelay: 4,
-  // used by abr-controller
-  minAutoBitrate: 0,
-  // used by hls
-  emeEnabled: false,
-  // used by eme-controller
-  widevineLicenseUrl: undefined,
-  // used by eme-controller
-  drmSystems: {},
-  // used by eme-controller
-  drmSystemOptions: {},
-  // used by eme-controller
-  requestMediaKeySystemAccessFunc: requestMediaKeySystemAccess ,
-  // used by eme-controller
-  testBandwidth: true,
-  progressive: false,
-  lowLatencyMode: true,
-  cmcd: undefined,
-  enableDateRangeMetadataCues: true,
-  enableEmsgMetadataCues: true,
-  enableID3MetadataCues: true,
-  useMediaCapabilities: true,
-  certLoadPolicy: {
-    default: defaultLoadPolicy
-  },
-  keyLoadPolicy: {
-    default: {
-      maxTimeToFirstByteMs: 8000,
-      maxLoadTimeMs: 20000,
-      timeoutRetry: {
-        maxNumRetry: 1,
-        retryDelayMs: 1000,
-        maxRetryDelayMs: 20000,
-        backoff: 'linear'
-      },
-      errorRetry: {
-        maxNumRetry: 8,
-        retryDelayMs: 1000,
-        maxRetryDelayMs: 20000,
-        backoff: 'linear'
-      }
-    }
-  },
-  manifestLoadPolicy: {
-    default: {
-      maxTimeToFirstByteMs: Infinity,
-      maxLoadTimeMs: 20000,
-      timeoutRetry: {
-        maxNumRetry: 2,
-        retryDelayMs: 0,
-        maxRetryDelayMs: 0
-      },
-      errorRetry: {
-        maxNumRetry: 1,
-        retryDelayMs: 1000,
-        maxRetryDelayMs: 8000
-      }
-    }
-  },
-  playlistLoadPolicy: {
-    default: {
-      maxTimeToFirstByteMs: 10000,
-      maxLoadTimeMs: 20000,
-      timeoutRetry: {
-        maxNumRetry: 2,
-        retryDelayMs: 0,
-        maxRetryDelayMs: 0
-      },
-      errorRetry: {
-        maxNumRetry: 2,
-        retryDelayMs: 1000,
-        maxRetryDelayMs: 8000
-      }
-    }
-  },
-  fragLoadPolicy: {
-    default: {
-      maxTimeToFirstByteMs: 10000,
-      maxLoadTimeMs: 120000,
-      timeoutRetry: {
-        maxNumRetry: 4,
-        retryDelayMs: 0,
-        maxRetryDelayMs: 0
-      },
-      errorRetry: {
-        maxNumRetry: 6,
-        retryDelayMs: 1000,
-        maxRetryDelayMs: 8000
-      }
-    }
-  },
-  steeringManifestLoadPolicy: {
-    default: {
-      maxTimeToFirstByteMs: 10000,
-      maxLoadTimeMs: 20000,
-      timeoutRetry: {
-        maxNumRetry: 2,
-        retryDelayMs: 0,
-        maxRetryDelayMs: 0
-      },
-      errorRetry: {
-        maxNumRetry: 1,
-        retryDelayMs: 1000,
-        maxRetryDelayMs: 8000
-      }
-    } 
-  },
-  // These default settings are deprecated in favor of the above policies
-  // and are maintained for backwards compatibility
-  manifestLoadingTimeOut: 10000,
-  manifestLoadingMaxRetry: 1,
-  manifestLoadingRetryDelay: 1000,
-  manifestLoadingMaxRetryTimeout: 64000,
-  levelLoadingTimeOut: 10000,
-  levelLoadingMaxRetry: 4,
-  levelLoadingRetryDelay: 1000,
-  levelLoadingMaxRetryTimeout: 64000,
-  fragLoadingTimeOut: 20000,
-  fragLoadingMaxRetry: 6,
-  fragLoadingRetryDelay: 1000,
-  fragLoadingMaxRetryTimeout: 64000
-}, timelineConfig()), {}, {
-  subtitleStreamController: SubtitleStreamController ,
-  subtitleTrackController: SubtitleTrackController ,
-  timelineController: TimelineController ,
-  audioStreamController: AudioStreamController ,
-  audioTrackController: AudioTrackController ,
-  emeController: EMEController ,
-  cmcdController: CMCDController ,
-  contentSteeringController: ContentSteeringController 
-});
-function timelineConfig() {
-  return {
-    cueHandler: Cues,
-    // used by timeline-controller
-    enableWebVTT: true,
-    // used by timeline-controller
-    enableIMSC1: true,
-    // used by timeline-controller
-    enableCEA708Captions: true,
-    // used by timeline-controller
-    captionsTextTrack1Label: 'English',
-    // used by timeline-controller
-    captionsTextTrack1LanguageCode: 'en',
-    // used by timeline-controller
-    captionsTextTrack2Label: 'Spanish',
-    // used by timeline-controller
-    captionsTextTrack2LanguageCode: 'es',
-    // used by timeline-controller
-    captionsTextTrack3Label: 'Unknown CC',
-    // used by timeline-controller
-    captionsTextTrack3LanguageCode: '',
-    // used by timeline-controller
-    captionsTextTrack4Label: 'Unknown CC',
-    // used by timeline-controller
-    captionsTextTrack4LanguageCode: '',
-    // used by timeline-controller
-    renderTextTracksNatively: true
-  };
-}
-
-/**
- * @ignore
- */
-function mergeConfig(defaultConfig, userConfig) {
-  if ((userConfig.liveSyncDurationCount || userConfig.liveMaxLatencyDurationCount) && (userConfig.liveSyncDuration || userConfig.liveMaxLatencyDuration)) {
-    throw new Error("Illegal hls.js config: don't mix up liveSyncDurationCount/liveMaxLatencyDurationCount and liveSyncDuration/liveMaxLatencyDuration");
-  }
-  if (userConfig.liveMaxLatencyDurationCount !== undefined && (userConfig.liveSyncDurationCount === undefined || userConfig.liveMaxLatencyDurationCount <= userConfig.liveSyncDurationCount)) {
-    throw new Error('Illegal hls.js config: "liveMaxLatencyDurationCount" must be greater than "liveSyncDurationCount"');
-  }
-  if (userConfig.liveMaxLatencyDuration !== undefined && (userConfig.liveSyncDuration === undefined || userConfig.liveMaxLatencyDuration <= userConfig.liveSyncDuration)) {
-    throw new Error('Illegal hls.js config: "liveMaxLatencyDuration" must be greater than "liveSyncDuration"');
-  }
-  const defaultsCopy = deepCpy(defaultConfig);
-
-  // Backwards compatibility with deprecated config values
-  const deprecatedSettingTypes = ['manifest', 'level', 'frag'];
-  const deprecatedSettings = ['TimeOut', 'MaxRetry', 'RetryDelay', 'MaxRetryTimeout'];
-  deprecatedSettingTypes.forEach(type => {
-    const policyName = `${type === 'level' ? 'playlist' : type}LoadPolicy`;
-    const policyNotSet = userConfig[policyName] === undefined;
-    const report = [];
-    deprecatedSettings.forEach(setting => {
-      const deprecatedSetting = `${type}Loading${setting}`;
-      const value = userConfig[deprecatedSetting];
-      if (value !== undefined && policyNotSet) {
-        report.push(deprecatedSetting);
-        const settings = defaultsCopy[policyName].default;
-        userConfig[policyName] = {
-          default: settings
-        };
-        switch (setting) {
-          case 'TimeOut':
-            settings.maxLoadTimeMs = value;
-            settings.maxTimeToFirstByteMs = value;
-            break;
-          case 'MaxRetry':
-            settings.errorRetry.maxNumRetry = value;
-            settings.timeoutRetry.maxNumRetry = value;
-            break;
-          case 'RetryDelay':
-            settings.errorRetry.retryDelayMs = value;
-            settings.timeoutRetry.retryDelayMs = value;
-            break;
-          case 'MaxRetryTimeout':
-            settings.errorRetry.maxRetryDelayMs = value;
-            settings.timeoutRetry.maxRetryDelayMs = value;
-            break;
-        }
-      }
-    });
-    if (report.length) {
-      logger.warn(`hls.js config: "${report.join('", "')}" setting(s) are deprecated, use "${policyName}": ${JSON.stringify(userConfig[policyName])}`);
-    }
-  });
-  return _objectSpread2(_objectSpread2({}, defaultsCopy), userConfig);
-}
-function deepCpy(obj) {
-  if (obj && typeof obj === 'object') {
-    if (Array.isArray(obj)) {
-      return obj.map(deepCpy);
-    }
-    return Object.keys(obj).reduce((result, key) => {
-      result[key] = deepCpy(obj[key]);
-      return result;
-    }, {});
-  }
-  return obj;
-}
-
-/**
- * @ignore
- */
-function enableStreamingMode(config) {
-  const currentLoader = config.loader;
-  if (currentLoader !== FetchLoader && currentLoader !== XhrLoader) {
-    // If a developer has configured their own loader, respect that choice
-    logger.log('[config]: Custom loader detected, cannot enable progressive streaming');
-    config.progressive = false;
-  } else {
-    const canStreamProgressively = fetchSupported();
-    if (canStreamProgressively) {
-      config.loader = FetchLoader;
-      config.progressive = true;
-      config.enableSoftwareAES = true;
-      logger.log('[config]: Progressive streaming enabled, using FetchLoader');
-    }
-  }
-}
-
-let chromeOrFirefox;
-class LevelController extends BasePlaylistController {
-  constructor(hls, contentSteeringController) {
-    super(hls, '[level-controller]');
-    this._levels = [];
-    this._firstLevel = -1;
-    this._maxAutoLevel = -1;
-    this._startLevel = void 0;
-    this.currentLevel = null;
-    this.currentLevelIndex = -1;
-    this.manualLevelIndex = -1;
-    this.steering = void 0;
-    this.onParsedComplete = void 0;
-    this.steering = contentSteeringController;
-    this._registerListeners();
-  }
-  _registerListeners() {
-    const {
-      hls
-    } = this;
-    hls.on(Events.MANIFEST_LOADING, this.onManifestLoading, this);
-    hls.on(Events.MANIFEST_LOADED, this.onManifestLoaded, this);
-    hls.on(Events.LEVEL_LOADED, this.onLevelLoaded, this);
-    hls.on(Events.LEVELS_UPDATED, this.onLevelsUpdated, this);
-    hls.on(Events.FRAG_BUFFERED, this.onFragBuffered, this);
-    hls.on(Events.ERROR, this.onError, this);
-  }
-  _unregisterListeners() {
-    const {
-      hls
-    } = this;
-    hls.off(Events.MANIFEST_LOADING, this.onManifestLoading, this);
-    hls.off(Events.MANIFEST_LOADED, this.onManifestLoaded, this);
-    hls.off(Events.LEVEL_LOADED, this.onLevelLoaded, this);
-    hls.off(Events.LEVELS_UPDATED, this.onLevelsUpdated, this);
-    hls.off(Events.FRAG_BUFFERED, this.onFragBuffered, this);
-    hls.off(Events.ERROR, this.onError, this);
-  }
-  destroy() {
-    this._unregisterListeners();
-    this.steering = null;
-    this.resetLevels();
-    super.destroy();
-  }
-  stopLoad() {
-    const levels = this._levels;
-
-    // clean up live level details to force reload them, and reset load errors
-    levels.forEach(level => {
-      level.loadError = 0;
-      level.fragmentError = 0;
-    });
-    super.stopLoad();
-  }
-  resetLevels() {
-    this._startLevel = undefined;
-    this.manualLevelIndex = -1;
-    this.currentLevelIndex = -1;
-    this.currentLevel = null;
-    this._levels = [];
-    this._maxAutoLevel = -1;
-  }
-  onManifestLoading(event, data) {
-    this.resetLevels();
-  }
-  onManifestLoaded(event, data) {
-    const preferManagedMediaSource = this.hls.config.preferManagedMediaSource;
-    const levels = [];
-    const redundantSet = {};
-    const generatePathwaySet = {};
-    let resolutionFound = false;
-    let videoCodecFound = false;
-    let audioCodecFound = false;
-    data.levels.forEach(levelParsed => {
-      var _audioCodec, _videoCodec;
-      const attributes = levelParsed.attrs;
-
-      // erase audio codec info if browser does not support mp4a.40.34.
-      // demuxer will autodetect codec and fallback to mpeg/audio
-      let {
-        audioCodec,
-        videoCodec
-      } = levelParsed;
-      if (((_audioCodec = audioCodec) == null ? void 0 : _audioCodec.indexOf('mp4a.40.34')) !== -1) {
-        chromeOrFirefox || (chromeOrFirefox = /chrome|firefox/i.test(navigator.userAgent));
-        if (chromeOrFirefox) {
-          levelParsed.audioCodec = audioCodec = undefined;
-        }
-      }
-      if (audioCodec) {
-        levelParsed.audioCodec = audioCodec = getCodecCompatibleName(audioCodec, preferManagedMediaSource);
-      }
-      if (((_videoCodec = videoCodec) == null ? void 0 : _videoCodec.indexOf('avc1')) === 0) {
-        videoCodec = levelParsed.videoCodec = convertAVC1ToAVCOTI(videoCodec);
-      }
-
-      // only keep levels with supported audio/video codecs
-      const {
-        width,
-        height,
-        unknownCodecs
-      } = levelParsed;
-      resolutionFound || (resolutionFound = !!(width && height));
-      videoCodecFound || (videoCodecFound = !!videoCodec);
-      audioCodecFound || (audioCodecFound = !!audioCodec);
-      if (unknownCodecs != null && unknownCodecs.length || audioCodec && !areCodecsMediaSourceSupported(audioCodec, 'audio', preferManagedMediaSource) || videoCodec && !areCodecsMediaSourceSupported(videoCodec, 'video', preferManagedMediaSource)) {
-        return;
-      }
-      const {
-        CODECS,
-        'FRAME-RATE': FRAMERATE,
-        'HDCP-LEVEL': HDCP,
-        'PATHWAY-ID': PATHWAY,
-        RESOLUTION,
-        'VIDEO-RANGE': VIDEO_RANGE
-      } = attributes;
-      const contentSteeringPrefix = `${PATHWAY || '.'}-`;
-      const levelKey = `${contentSteeringPrefix}${levelParsed.bitrate}-${RESOLUTION}-${FRAMERATE}-${CODECS}-${VIDEO_RANGE}-${HDCP}`;
-      if (!redundantSet[levelKey]) {
-        const level = new Level(levelParsed);
-        redundantSet[levelKey] = level;
-        generatePathwaySet[levelKey] = 1;
-        levels.push(level);
-      } else if (redundantSet[levelKey].uri !== levelParsed.url && !levelParsed.attrs['PATHWAY-ID']) {
-        // Assign Pathway IDs to Redundant Streams (default Pathways is ".". Redundant Streams "..", "...", and so on.)
-        // Content Steering controller to handles Pathway fallback on error
-        const pathwayCount = generatePathwaySet[levelKey] += 1;
-        levelParsed.attrs['PATHWAY-ID'] = new Array(pathwayCount + 1).join('.');
-        const level = new Level(levelParsed);
-        redundantSet[levelKey] = level;
-        levels.push(level);
-      } else {
-        redundantSet[levelKey].addGroupId('audio', attributes.AUDIO);
-        redundantSet[levelKey].addGroupId('text', attributes.SUBTITLES);
-      }
-    });
-    this.filterAndSortMediaOptions(levels, data, resolutionFound, videoCodecFound, audioCodecFound);
-  }
-  filterAndSortMediaOptions(filteredLevels, data, resolutionFound, videoCodecFound, audioCodecFound) {
-    let audioTracks = [];
-    let subtitleTracks = [];
-    let levels = filteredLevels;
-
-    // remove audio-only and invalid video-range levels if we also have levels with video codecs or RESOLUTION signalled
-    if ((resolutionFound || videoCodecFound) && audioCodecFound) {
-      levels = levels.filter(({
-        videoCodec,
-        videoRange,
-        width,
-        height
-      }) => (!!videoCodec || !!(width && height)) && isVideoRange(videoRange));
-    }
-    if (levels.length === 0) {
-      // Dispatch error after MANIFEST_LOADED is done propagating
-      Promise.resolve().then(() => {
-        if (this.hls) {
-          if (data.levels.length) {
-            this.warn(`One or more CODECS in variant not supported: ${JSON.stringify(data.levels[0].attrs)}`);
-          }
-          const error = new Error('no level with compatible codecs found in manifest');
-          this.hls.trigger(Events.ERROR, {
-            type: ErrorTypes.MEDIA_ERROR,
-            details: ErrorDetails.MANIFEST_INCOMPATIBLE_CODECS_ERROR,
-            fatal: true,
-            url: data.url,
-            error,
-            reason: error.message
-          });
-        }
-      });
-      return;
-    }
-    if (data.audioTracks) {
-      const {
-        preferManagedMediaSource
-      } = this.hls.config;
-      audioTracks = data.audioTracks.filter(track => !track.audioCodec || areCodecsMediaSourceSupported(track.audioCodec, 'audio', preferManagedMediaSource));
-      // Assign ids after filtering as array indices by group-id
-      assignTrackIdsByGroup(audioTracks);
-    }
-    if (data.subtitles) {
-      subtitleTracks = data.subtitles;
-      assignTrackIdsByGroup(subtitleTracks);
-    }
-    // start bitrate is the first bitrate of the manifest
-    const unsortedLevels = levels.slice(0);
-    // sort levels from lowest to highest
-    levels.sort((a, b) => {
-      if (a.attrs['HDCP-LEVEL'] !== b.attrs['HDCP-LEVEL']) {
-        return (a.attrs['HDCP-LEVEL'] || '') > (b.attrs['HDCP-LEVEL'] || '') ? 1 : -1;
-      }
-      // sort on height before bitrate for cap-level-controller
-      if (resolutionFound && a.height !== b.height) {
-        return a.height - b.height;
-      }
-      if (a.frameRate !== b.frameRate) {
-        return a.frameRate - b.frameRate;
-      }
-      if (a.videoRange !== b.videoRange) {
-        return VideoRangeValues.indexOf(a.videoRange) - VideoRangeValues.indexOf(b.videoRange);
-      }
-      if (a.videoCodec !== b.videoCodec) {
-        const valueA = videoCodecPreferenceValue(a.videoCodec);
-        const valueB = videoCodecPreferenceValue(b.videoCodec);
-        if (valueA !== valueB) {
-          return valueB - valueA;
-        }
-      }
-      if (a.uri === b.uri && a.codecSet !== b.codecSet) {
-        const valueA = codecsSetSelectionPreferenceValue(a.codecSet);
-        const valueB = codecsSetSelectionPreferenceValue(b.codecSet);
-        if (valueA !== valueB) {
-          return valueB - valueA;
-        }
-      }
-      if (a.averageBitrate !== b.averageBitrate) {
-        return a.averageBitrate - b.averageBitrate;
-      }
-      return 0;
-    });
-    let firstLevelInPlaylist = unsortedLevels[0];
-    if (this.steering) {
-      levels = this.steering.filterParsedLevels(levels);
-      if (levels.length !== unsortedLevels.length) {
-        for (let i = 0; i < unsortedLevels.length; i++) {
-          if (unsortedLevels[i].pathwayId === levels[0].pathwayId) {
-            firstLevelInPlaylist = unsortedLevels[i];
-            break;
-          }
-        }
-      }
-    }
-    this._levels = levels;
-
-    // find index of first level in sorted levels
-    for (let i = 0; i < levels.length; i++) {
-      if (levels[i] === firstLevelInPlaylist) {
-        var _this$hls$userConfig;
-        this._firstLevel = i;
-        const firstLevelBitrate = firstLevelInPlaylist.bitrate;
-        const bandwidthEstimate = this.hls.bandwidthEstimate;
-        this.log(`manifest loaded, ${levels.length} level(s) found, first bitrate: ${firstLevelBitrate}`);
-        // Update default bwe to first variant bitrate as long it has not been configured or set
-        if (((_this$hls$userConfig = this.hls.userConfig) == null ? void 0 : _this$hls$userConfig.abrEwmaDefaultEstimate) === undefined) {
-          const startingBwEstimate = Math.min(firstLevelBitrate, this.hls.config.abrEwmaDefaultEstimateMax);
-          if (startingBwEstimate > bandwidthEstimate && bandwidthEstimate === hlsDefaultConfig.abrEwmaDefaultEstimate) {
-            this.hls.bandwidthEstimate = startingBwEstimate;
-          }
-        }
-        break;
-      }
-    }
-
-    // Audio is only alternate if manifest include a URI along with the audio group tag,
-    // and this is not an audio-only stream where levels contain audio-only
-    const audioOnly = audioCodecFound && !videoCodecFound;
-    const edata = {
-      levels,
-      audioTracks,
-      subtitleTracks,
-      sessionData: data.sessionData,
-      sessionKeys: data.sessionKeys,
-      firstLevel: this._firstLevel,
-      stats: data.stats,
-      audio: audioCodecFound,
-      video: videoCodecFound,
-      altAudio: !audioOnly && audioTracks.some(t => !!t.url)
-    };
-    this.hls.trigger(Events.MANIFEST_PARSED, edata);
-
-    // Initiate loading after all controllers have received MANIFEST_PARSED
-    if (this.hls.config.autoStartLoad || this.hls.forceStartLoad) {
-      this.hls.startLoad(this.hls.config.startPosition);
-    }
-  }
-  get levels() {
-    if (this._levels.length === 0) {
-      return null;
-    }
-    return this._levels;
-  }
-  get level() {
-    return this.currentLevelIndex;
-  }
-  set level(newLevel) {
-    const levels = this._levels;
-    if (levels.length === 0) {
-      return;
-    }
-    // check if level idx is valid
-    if (newLevel < 0 || newLevel >= levels.length) {
-      // invalid level id given, trigger error
-      const error = new Error('invalid level idx');
-      const fatal = newLevel < 0;
-      this.hls.trigger(Events.ERROR, {
-        type: ErrorTypes.OTHER_ERROR,
-        details: ErrorDetails.LEVEL_SWITCH_ERROR,
-        level: newLevel,
-        fatal,
-        error,
-        reason: error.message
-      });
-      if (fatal) {
-        return;
-      }
-      newLevel = Math.min(newLevel, levels.length - 1);
-    }
-    const lastLevelIndex = this.currentLevelIndex;
-    const lastLevel = this.currentLevel;
-    const lastPathwayId = lastLevel ? lastLevel.attrs['PATHWAY-ID'] : undefined;
-    const level = levels[newLevel];
-    const pathwayId = level.attrs['PATHWAY-ID'];
-    this.currentLevelIndex = newLevel;
-    this.currentLevel = level;
-    if (lastLevelIndex === newLevel && level.details && lastLevel && lastPathwayId === pathwayId) {
-      return;
-    }
-    this.log(`Switching to level ${newLevel} (${level.height ? level.height + 'p ' : ''}${level.videoRange ? level.videoRange + ' ' : ''}${level.codecSet ? level.codecSet + ' ' : ''}@${level.bitrate})${pathwayId ? ' with Pathway ' + pathwayId : ''} from level ${lastLevelIndex}${lastPathwayId ? ' with Pathway ' + lastPathwayId : ''}`);
-    const levelSwitchingData = {
-      level: newLevel,
-      attrs: level.attrs,
-      details: level.details,
-      bitrate: level.bitrate,
-      averageBitrate: level.averageBitrate,
-      maxBitrate: level.maxBitrate,
-      realBitrate: level.realBitrate,
-      width: level.width,
-      height: level.height,
-      codecSet: level.codecSet,
-      audioCodec: level.audioCodec,
-      videoCodec: level.videoCodec,
-      audioGroups: level.audioGroups,
-      subtitleGroups: level.subtitleGroups,
-      loaded: level.loaded,
-      loadError: level.loadError,
-      fragmentError: level.fragmentError,
-      name: level.name,
-      id: level.id,
-      uri: level.uri,
-      url: level.url,
-      urlId: 0,
-      audioGroupIds: level.audioGroupIds,
-      textGroupIds: level.textGroupIds
-    };
-    this.hls.trigger(Events.LEVEL_SWITCHING, levelSwitchingData);
-    // check if we need to load playlist for this level
-    const levelDetails = level.details;
-    if (!levelDetails || levelDetails.live) {
-      // level not retrieved yet, or live playlist we need to (re)load it
-      const hlsUrlParameters = this.switchParams(level.uri, lastLevel == null ? void 0 : lastLevel.details, levelDetails);
-      this.loadPlaylist(hlsUrlParameters);
-    }
-  }
-  get manualLevel() {
-    return this.manualLevelIndex;
-  }
-  set manualLevel(newLevel) {
-    this.manualLevelIndex = newLevel;
-    if (this._startLevel === undefined) {
-      this._startLevel = newLevel;
-    }
-    if (newLevel !== -1) {
-      this.level = newLevel;
-    }
-  }
-  get firstLevel() {
-    return this._firstLevel;
-  }
-  set firstLevel(newLevel) {
-    this._firstLevel = newLevel;
-  }
-  get startLevel() {
-    // Setting hls.startLevel (this._startLevel) overrides config.startLevel
-    if (this._startLevel === undefined) {
-      const configStartLevel = this.hls.config.startLevel;
-      if (configStartLevel !== undefined) {
-        return configStartLevel;
-      }
-      return this.hls.firstAutoLevel;
-    }
-    return this._startLevel;
-  }
-  set startLevel(newLevel) {
-    this._startLevel = newLevel;
-  }
-  onError(event, data) {
-    if (data.fatal || !data.context) {
-      return;
-    }
-    if (data.context.type === PlaylistContextType.LEVEL && data.context.level === this.level) {
-      this.checkRetry(data);
-    }
-  }
-
-  // reset errors on the successful load of a fragment
-  onFragBuffered(event, {
-    frag
-  }) {
-    if (frag !== undefined && frag.type === PlaylistLevelType.MAIN) {
-      const el = frag.elementaryStreams;
-      if (!Object.keys(el).some(type => !!el[type])) {
-        return;
-      }
-      const level = this._levels[frag.level];
-      if (level != null && level.loadError) {
-        this.log(`Resetting level error count of ${level.loadError} on frag buffered`);
-        level.loadError = 0;
-      }
-    }
-  }
-  onLevelLoaded(event, data) {
-    var _data$deliveryDirecti2;
-    const {
-      level,
-      details
-    } = data;
-    const curLevel = this._levels[level];
-    if (!curLevel) {
-      var _data$deliveryDirecti;
-      this.warn(`Invalid level index ${level}`);
-      if ((_data$deliveryDirecti = data.deliveryDirectives) != null && _data$deliveryDirecti.skip) {
-        details.deltaUpdateFailed = true;
-      }
-      return;
-    }
-
-    // only process level loaded events matching with expected level
-    if (level === this.currentLevelIndex) {
-      // reset level load error counter on successful level loaded only if there is no issues with fragments
-      if (curLevel.fragmentError === 0) {
-        curLevel.loadError = 0;
-      }
-      this.playlistLoaded(level, data, curLevel.details);
-    } else if ((_data$deliveryDirecti2 = data.deliveryDirectives) != null && _data$deliveryDirecti2.skip) {
-      // received a delta playlist update that cannot be merged
-      details.deltaUpdateFailed = true;
-    }
-  }
-  loadPlaylist(hlsUrlParameters) {
-    super.loadPlaylist();
-    const currentLevelIndex = this.currentLevelIndex;
-    const currentLevel = this.currentLevel;
-    if (currentLevel && this.shouldLoadPlaylist(currentLevel)) {
-      let url = currentLevel.uri;
-      if (hlsUrlParameters) {
-        try {
-          url = hlsUrlParameters.addDirectives(url);
-        } catch (error) {
-          this.warn(`Could not construct new URL with HLS Delivery Directives: ${error}`);
-        }
-      }
-      const pathwayId = currentLevel.attrs['PATHWAY-ID'];
-      this.log(`Loading level index ${currentLevelIndex}${(hlsUrlParameters == null ? void 0 : hlsUrlParameters.msn) !== undefined ? ' at sn ' + hlsUrlParameters.msn + ' part ' + hlsUrlParameters.part : ''} with${pathwayId ? ' Pathway ' + pathwayId : ''} ${url}`);
-
-      // console.log('Current audio track group ID:', this.hls.audioTracks[this.hls.audioTrack].groupId);
-      // console.log('New video quality level audio group id:', levelObject.attrs.AUDIO, level);
-      this.clearTimer();
-      this.hls.trigger(Events.LEVEL_LOADING, {
-        url,
-        level: currentLevelIndex,
-        pathwayId: currentLevel.attrs['PATHWAY-ID'],
-        id: 0,
-        // Deprecated Level urlId
-        deliveryDirectives: hlsUrlParameters || null
-      });
-    }
-  }
-  get nextLoadLevel() {
-    if (this.manualLevelIndex !== -1) {
-      return this.manualLevelIndex;
-    } else {
-      return this.hls.nextAutoLevel;
-    }
-  }
-  set nextLoadLevel(nextLevel) {
-    this.level = nextLevel;
-    if (this.manualLevelIndex === -1) {
-      this.hls.nextAutoLevel = nextLevel;
-    }
-  }
-  removeLevel(levelIndex) {
-    var _this$currentLevel;
-    const levels = this._levels.filter((level, index) => {
-      if (index !== levelIndex) {
-        return true;
-      }
-      if (this.steering) {
-        this.steering.removeLevel(level);
-      }
-      if (level === this.currentLevel) {
-        this.currentLevel = null;
-        this.currentLevelIndex = -1;
-        if (level.details) {
-          level.details.fragments.forEach(f => f.level = -1);
-        }
-      }
-      return false;
-    });
-    reassignFragmentLevelIndexes(levels);
-    this._levels = levels;
-    if (this.currentLevelIndex > -1 && (_this$currentLevel = this.currentLevel) != null && _this$currentLevel.details) {
-      this.currentLevelIndex = this.currentLevel.details.fragments[0].level;
-    }
-    this.hls.trigger(Events.LEVELS_UPDATED, {
-      levels
-    });
-  }
-  onLevelsUpdated(event, {
-    levels
-  }) {
-    this._levels = levels;
-  }
-  checkMaxAutoUpdated() {
-    const {
-      autoLevelCapping,
-      maxAutoLevel,
-      maxHdcpLevel
-    } = this.hls;
-    if (this._maxAutoLevel !== maxAutoLevel) {
-      this._maxAutoLevel = maxAutoLevel;
-      this.hls.trigger(Events.MAX_AUTO_LEVEL_UPDATED, {
-        autoLevelCapping,
-        levels: this.levels,
-        maxAutoLevel,
-        minAutoLevel: this.hls.minAutoLevel,
-        maxHdcpLevel
-      });
-    }
-  }
-}
-function assignTrackIdsByGroup(tracks) {
-  const groups = {};
-  tracks.forEach(track => {
-    const groupId = track.groupId || '';
-    track.id = groups[groupId] = groups[groupId] || 0;
-    groups[groupId]++;
-  });
-}
-
-class KeyLoader {
-  constructor(config) {
-    this.config = void 0;
-    this.keyUriToKeyInfo = {};
-    this.emeController = null;
-    this.config = config;
-  }
-  abort(type) {
-    for (const uri in this.keyUriToKeyInfo) {
-      const loader = this.keyUriToKeyInfo[uri].loader;
-      if (loader) {
-        var _loader$context;
-        if (type && type !== ((_loader$context = loader.context) == null ? void 0 : _loader$context.frag.type)) {
-          return;
-        }
-        loader.abort();
-      }
-    }
-  }
-  detach() {
-    for (const uri in this.keyUriToKeyInfo) {
-      const keyInfo = this.keyUriToKeyInfo[uri];
-      // Remove cached EME keys on detach
-      if (keyInfo.mediaKeySessionContext || keyInfo.decryptdata.isCommonEncryption) {
-        delete this.keyUriToKeyInfo[uri];
-      }
-    }
-  }
-  destroy() {
-    this.detach();
-    for (const uri in this.keyUriToKeyInfo) {
-      const loader = this.keyUriToKeyInfo[uri].loader;
-      if (loader) {
-        loader.destroy();
-      }
-    }
-    this.keyUriToKeyInfo = {};
-  }
-  createKeyLoadError(frag, details = ErrorDetails.KEY_LOAD_ERROR, error, networkDetails, response) {
-    return new LoadError({
-      type: ErrorTypes.NETWORK_ERROR,
-      details,
-      fatal: false,
-      frag,
-      response,
-      error,
-      networkDetails
-    });
-  }
-  loadClear(loadingFrag, encryptedFragments) {
-    if (this.emeController && this.config.emeEnabled) {
-      // access key-system with nearest key on start (loaidng frag is unencrypted)
-      const {
-        sn,
-        cc
-      } = loadingFrag;
-      for (let i = 0; i < encryptedFragments.length; i++) {
-        const frag = encryptedFragments[i];
-        if (cc <= frag.cc && (sn === 'initSegment' || frag.sn === 'initSegment' || sn < frag.sn)) {
-          this.emeController.selectKeySystemFormat(frag).then(keySystemFormat => {
-            frag.setKeyFormat(keySystemFormat);
-          });
-          break;
-        }
-      }
-    }
-  }
-  load(frag) {
-    if (!frag.decryptdata && frag.encrypted && this.emeController) {
-      // Multiple keys, but none selected, resolve in eme-controller
-      return this.emeController.selectKeySystemFormat(frag).then(keySystemFormat => {
-        return this.loadInternal(frag, keySystemFormat);
-      });
-    }
-    return this.loadInternal(frag);
-  }
-  loadInternal(frag, keySystemFormat) {
-    var _keyInfo, _keyInfo2;
-    if (keySystemFormat) {
-      frag.setKeyFormat(keySystemFormat);
-    }
-    const decryptdata = frag.decryptdata;
-    if (!decryptdata) {
-      const error = new Error(keySystemFormat ? `Expected frag.decryptdata to be defined after setting format ${keySystemFormat}` : 'Missing decryption data on fragment in onKeyLoading');
-      return Promise.reject(this.createKeyLoadError(frag, ErrorDetails.KEY_LOAD_ERROR, error));
-    }
-    const uri = decryptdata.uri;
-    if (!uri) {
-      return Promise.reject(this.createKeyLoadError(frag, ErrorDetails.KEY_LOAD_ERROR, new Error(`Invalid key URI: "${uri}"`)));
-    }
-    let keyInfo = this.keyUriToKeyInfo[uri];
-    if ((_keyInfo = keyInfo) != null && _keyInfo.decryptdata.key) {
-      decryptdata.key = keyInfo.decryptdata.key;
-      return Promise.resolve({
-        frag,
-        keyInfo
-      });
-    }
-    // Return key load promise as long as it does not have a mediakey session with an unusable key status
-    if ((_keyInfo2 = keyInfo) != null && _keyInfo2.keyLoadPromise) {
-      var _keyInfo$mediaKeySess;
-      switch ((_keyInfo$mediaKeySess = keyInfo.mediaKeySessionContext) == null ? void 0 : _keyInfo$mediaKeySess.keyStatus) {
-        case undefined:
-        case 'status-pending':
-        case 'usable':
-        case 'usable-in-future':
-          return keyInfo.keyLoadPromise.then(keyLoadedData => {
-            // Return the correct fragment with updated decryptdata key and loaded keyInfo
-            decryptdata.key = keyLoadedData.keyInfo.decryptdata.key;
-            return {
-              frag,
-              keyInfo
-            };
-          });
-      }
-      // If we have a key session and status and it is not pending or usable, continue
-      // This will go back to the eme-controller for expired keys to get a new keyLoadPromise
-    }
-
-    // Load the key or return the loading promise
-    keyInfo = this.keyUriToKeyInfo[uri] = {
-      decryptdata,
-      keyLoadPromise: null,
-      loader: null,
-      mediaKeySessionContext: null
-    };
-    switch (decryptdata.method) {
-      case 'ISO-23001-7':
-      case 'SAMPLE-AES':
-      case 'SAMPLE-AES-CENC':
-      case 'SAMPLE-AES-CTR':
-        if (decryptdata.keyFormat === 'identity') {
-          // loadKeyHTTP handles http(s) and data URLs
-          return this.loadKeyHTTP(keyInfo, frag);
-        }
-        return this.loadKeyEME(keyInfo, frag);
-      case 'AES-128':
-        return this.loadKeyHTTP(keyInfo, frag);
-      default:
-        return Promise.reject(this.createKeyLoadError(frag, ErrorDetails.KEY_LOAD_ERROR, new Error(`Key supplied with unsupported METHOD: "${decryptdata.method}"`)));
-    }
-  }
-  loadKeyEME(keyInfo, frag) {
-    const keyLoadedData = {
-      frag,
-      keyInfo
-    };
-    if (this.emeController && this.config.emeEnabled) {
-      const keySessionContextPromise = this.emeController.loadKey(keyLoadedData);
-      if (keySessionContextPromise) {
-        return (keyInfo.keyLoadPromise = keySessionContextPromise.then(keySessionContext => {
-          keyInfo.mediaKeySessionContext = keySessionContext;
-          return keyLoadedData;
-        })).catch(error => {
-          // Remove promise for license renewal or retry
-          keyInfo.keyLoadPromise = null;
-          throw error;
-        });
-      }
-    }
-    return Promise.resolve(keyLoadedData);
-  }
-  loadKeyHTTP(keyInfo, frag) {
-    const config = this.config;
-    const Loader = config.loader;
-    const keyLoader = new Loader(config);
-    frag.keyLoader = keyInfo.loader = keyLoader;
-    return keyInfo.keyLoadPromise = new Promise((resolve, reject) => {
-      const loaderContext = {
-        keyInfo,
-        frag,
-        responseType: 'arraybuffer',
-        url: keyInfo.decryptdata.uri
-      };
-
-      // maxRetry is 0 so that instead of retrying the same key on the same variant multiple times,
-      // key-loader will trigger an error and rely on stream-controller to handle retry logic.
-      // this will also align retry logic with fragment-loader
-      const loadPolicy = config.keyLoadPolicy.default;
-      const loaderConfig = {
-        loadPolicy,
-        timeout: loadPolicy.maxLoadTimeMs,
-        maxRetry: 0,
-        retryDelay: 0,
-        maxRetryDelay: 0
-      };
-      const loaderCallbacks = {
-        onSuccess: (response, stats, context, networkDetails) => {
-          const {
-            frag,
-            keyInfo,
-            url: uri
-          } = context;
-          if (!frag.decryptdata || keyInfo !== this.keyUriToKeyInfo[uri]) {
-            return reject(this.createKeyLoadError(frag, ErrorDetails.KEY_LOAD_ERROR, new Error('after key load, decryptdata unset or changed'), networkDetails));
-          }
-          keyInfo.decryptdata.key = frag.decryptdata.key = new Uint8Array(response.data);
-
-          // detach fragment key loader on load success
-          frag.keyLoader = null;
-          keyInfo.loader = null;
-          resolve({
-            frag,
-            keyInfo
-          });
-        },
-        onError: (response, context, networkDetails, stats) => {
-          this.resetLoader(context);
-          reject(this.createKeyLoadError(frag, ErrorDetails.KEY_LOAD_ERROR, new Error(`HTTP Error ${response.code} loading key ${response.text}`), networkDetails, _objectSpread2({
-            url: loaderContext.url,
-            data: undefined
-          }, response)));
-        },
-        onTimeout: (stats, context, networkDetails) => {
-          this.resetLoader(context);
-          reject(this.createKeyLoadError(frag, ErrorDetails.KEY_LOAD_TIMEOUT, new Error('key loading timed out'), networkDetails));
-        },
-        onAbort: (stats, context, networkDetails) => {
-          this.resetLoader(context);
-          reject(this.createKeyLoadError(frag, ErrorDetails.INTERNAL_ABORTED, new Error('key loading aborted'), networkDetails));
-        }
-      };
-      keyLoader.load(loaderContext, loaderConfig, loaderCallbacks);
-    });
-  }
-  resetLoader(context) {
-    const {
-      frag,
-      keyInfo,
-      url: uri
-    } = context;
-    const loader = keyInfo.loader;
-    if (frag.keyLoader === loader) {
-      frag.keyLoader = null;
-      keyInfo.loader = null;
-    }
-    delete this.keyUriToKeyInfo[uri];
-    if (loader) {
-      loader.destroy();
-    }
-  }
-}
-
-function getSourceBuffer() {
-  return self.SourceBuffer || self.WebKitSourceBuffer;
-}
-function isMSESupported() {
-  const mediaSource = getMediaSource();
-  if (!mediaSource) {
-    return false;
-  }
-
-  // if SourceBuffer is exposed ensure its API is valid
-  // Older browsers do not expose SourceBuffer globally so checking SourceBuffer.prototype is impossible
-  const sourceBuffer = getSourceBuffer();
-  return !sourceBuffer || sourceBuffer.prototype && typeof sourceBuffer.prototype.appendBuffer === 'function' && typeof sourceBuffer.prototype.remove === 'function';
-}
-function isSupported() {
-  if (!isMSESupported()) {
-    return false;
-  }
-  const mediaSource = getMediaSource();
-  return typeof (mediaSource == null ? void 0 : mediaSource.isTypeSupported) === 'function' && (['avc1.42E01E,mp4a.40.2', 'av01.0.01M.08', 'vp09.00.50.08'].some(codecsForVideoContainer => mediaSource.isTypeSupported(mimeTypeForCodec(codecsForVideoContainer, 'video'))) || ['mp4a.40.2', 'fLaC'].some(codecForAudioContainer => mediaSource.isTypeSupported(mimeTypeForCodec(codecForAudioContainer, 'audio'))));
-}
-function changeTypeSupported() {
-  var _sourceBuffer$prototy;
-  const sourceBuffer = getSourceBuffer();
-  return typeof (sourceBuffer == null ? void 0 : (_sourceBuffer$prototy = sourceBuffer.prototype) == null ? void 0 : _sourceBuffer$prototy.changeType) === 'function';
 }
 
 const STALL_MINIMUM_DURATION_MS = 250;
@@ -26797,7 +18756,7 @@ class StreamController extends BaseStreamController {
     if (this.altAudio && this.audioOnly) {
       return;
     }
-    const level = hls.nextLoadLevel;
+    const level = this.buffering ? hls.nextLoadLevel : hls.loadLevel;
     if (!(levels != null && levels[level])) {
       return;
     }
@@ -26817,6 +18776,9 @@ class StreamController extends BaseStreamController {
       }
       this.hls.trigger(Events.BUFFER_EOS, data);
       this.state = State.ENDED;
+      return;
+    }
+    if (!this.buffering) {
       return;
     }
 
@@ -27781,7 +19743,7 @@ class Hls {
    * Get the video-dev/hls.js package version.
    */
   static get version() {
-    return undefined;
+    return "1.5.20";
   }
 
   /**
@@ -28062,9 +20024,13 @@ class Hls {
   startLoad(startPosition = -1) {
     logger.log(`startLoad(${startPosition})`);
     this.started = true;
-    this.networkControllers.forEach(controller => {
-      controller.startLoad(startPosition);
-    });
+    this.resumeBuffering();
+    for (let i = 0; i < this.networkControllers.length; i++) {
+      this.networkControllers[i].startLoad(startPosition);
+      if (!this.started || !this.networkControllers) {
+        break;
+      }
+    }
   }
 
   /**
@@ -28073,32 +20039,35 @@ class Hls {
   stopLoad() {
     logger.log('stopLoad');
     this.started = false;
-    this.networkControllers.forEach(controller => {
-      controller.stopLoad();
-    });
-  }
-
-  /**
-   * Resumes stream controller segment loading if previously started.
-   */
-  resumeBuffering() {
-    if (this.started) {
-      this.networkControllers.forEach(controller => {
-        if ('fragmentLoader' in controller) {
-          controller.startLoad(-1);
-        }
-      });
+    for (let i = 0; i < this.networkControllers.length; i++) {
+      this.networkControllers[i].stopLoad();
+      if (this.started || !this.networkControllers) {
+        break;
+      }
     }
   }
 
   /**
-   * Stops stream controller segment loading without changing 'started' state like stopLoad().
+   * Resumes stream controller segment loading after `pauseBuffering` has been called.
+   */
+  resumeBuffering() {
+    logger.log(`resume buffering`);
+    this.networkControllers.forEach(controller => {
+      if (controller.resumeBuffering) {
+        controller.resumeBuffering();
+      }
+    });
+  }
+
+  /**
+   * Prevents stream controller from loading new segments until `resumeBuffering` is called.
    * This allows for media buffering to be paused without interupting playlist loading.
    */
   pauseBuffering() {
+    logger.log(`pause buffering`);
     this.networkControllers.forEach(controller => {
-      if ('fragmentLoader' in controller) {
-        controller.stopLoad();
+      if (controller.pauseBuffering) {
+        controller.pauseBuffering();
       }
     });
   }
@@ -28592,4 +20561,9 @@ class Hls {
 }
 Hls.defaultConfig = void 0;
 
-export { AbrController, AttrList, AudioStreamController, AudioTrackController, BasePlaylistController, BaseSegment, BaseStreamController, BufferController, CMCDController, CapLevelController, ChunkMetadata, ContentSteeringController, DateRange, EMEController, ErrorActionFlags, ErrorController, ErrorDetails, ErrorTypes, Events, FPSController, Fragment, Hls, HlsSkip, HlsUrlParameters, KeySystemFormats, KeySystems, Level, LevelDetails, LevelKey, LoadStats, MetadataSchema, NetworkErrorAction, Part, PlaylistLevelType, SubtitleStreamController, SubtitleTrackController, TimelineController, Hls as default, getMediaSource, isMSESupported, isSupported };
+var KeySystemFormats = emptyEs.KeySystemFormats;
+var KeySystems = emptyEs.KeySystems;
+var SubtitleStreamController = emptyEs.SubtitleStreamController;
+var TimelineController = emptyEs.TimelineController;
+export { AbrController, AttrList, Cues as AudioStreamController, Cues as AudioTrackController, BasePlaylistController, BaseSegment, BaseStreamController, BufferController, Cues as CMCDController, CapLevelController, ChunkMetadata, ContentSteeringController, DateRange, Cues as EMEController, ErrorActionFlags, ErrorController, ErrorDetails, ErrorTypes, Events, FPSController, Fragment, Hls, HlsSkip, HlsUrlParameters, KeySystemFormats, KeySystems, Level, LevelDetails, LevelKey, LoadStats, MetadataSchema, NetworkErrorAction, Part, PlaylistLevelType, SubtitleStreamController, Cues as SubtitleTrackController, TimelineController, Hls as default, getMediaSource, isMSESupported, isSupported };
+//# sourceMappingURL=hls.light.mjs.map
