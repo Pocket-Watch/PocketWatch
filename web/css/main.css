@@ -819,4 +819,9 @@ html * {
         width: calc(100% - 12px);
         margin: 0 6px 6px 6px;
     }
+
+    .content_view {
+        padding: 8px;
+    }
+
 }
