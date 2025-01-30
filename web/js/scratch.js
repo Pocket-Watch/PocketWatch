@@ -7,8 +7,18 @@ function setOnClick() {
     player.setVideoTrack(input_url.value);
 }
 
+function destroy() {
+    player.destroyPlayer();
+}
+
+function attach() {
+    main();
+}
+
 function main() {
     window.setOnClick = setOnClick;
+    window.attach = attach;
+    window.destroy = destroy;
 
     let video0 = document.getElementById("video0");
     let options = new Options();

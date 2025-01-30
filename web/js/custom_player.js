@@ -100,7 +100,13 @@ class Player {
         return this.internals.shiftCurrentSubtitleTrackBy(seconds)
     }
 
-    destroyPlayer() {}
+    destroyPlayer() {
+        if (!this.internals) {
+            return;
+        }
+        this.internals.destroyPlayer();
+        this.internals = null;
+    }
 
     onControlsPlay(func) {
         if (isFunction(func)) {
@@ -406,6 +412,13 @@ class Internals {
 
         let end = performance.now();
         console.debug("Internals constructor finished in", end-initStart, "ms")
+    }
+
+    destroyPlayer() {
+        this.discardPlayback();
+        let playerParent = this.htmlPlayerRoot.parentNode;
+        playerParent.insertBefore(this.htmlVideo, this.htmlPlayerRoot);
+        this.htmlPlayerRoot.remove();
     }
 
     fireControlsPlay() {}
@@ -781,9 +794,10 @@ class Internals {
             this.isLive = false;
         }
 
-        // There's no reliable way to discard src value once it's set
-        this.htmlVideo.src = "";
         this.htmlVideo.currentTime = 0;
+        this.htmlVideo.src = "";
+        this.htmlVideo.removeAttribute("src");
+        this.htmlVideo.load();
         hide(this.htmlControls.buttons.liveIndicator);
     }
 
