@@ -65,7 +65,6 @@ class Playlist {
         this.dragStartIndex    = -1;
         this.dragCurrentIndex  = -1;
 
-        this.draggableEntryLastY       = 0; 
         this.draggableEntryMouseOffset = 0; 
         this.shadowedEntryMoveTimout   = null;
 
@@ -132,18 +131,6 @@ class Playlist {
         this.contextMenuExpand.onclick     = _ => this.toggleEntryDropdown(this.contextMenuEntry, this.contextMenuEntryRefactorMe, this.contextMenuUserRefactorMe);
         this.contextMenuEdit.onclick       = _ => this.toggleEntryEdit(this.contextMenuEntry, this.contextMenuEntryRefactorMe);
         this.contextMenuDelete.onclick     = _ => this.deleteEntry(this.contextMenuEntry);
-
-        this.htmlEntryList.onscroll = event => {
-            if (this.draggableEntry) {
-                let listRect   = this.htmlEntryList.getBoundingClientRect();
-                let listScroll = this.htmlEntryList.scrollTop;
-                let top        = this.draggableEntryLastY - listRect.top + listScroll - this.draggableEntryMouseOffset;
-                let maxPos     = this.indexToPosition(this.htmlEntries.length - 2);
-                let maxTop     = Math.min(top, maxPos)
-
-                this.draggableEntry.style.top = maxTop + "px";
-            }
-        };
 
         this.htmlEntryList.oncontextmenu = _ => { return false };
     }
@@ -615,12 +602,11 @@ class Playlist {
         this.htmlEntryList.appendChild(draggableEntry);
 
         let listRect    = this.htmlEntryList.getBoundingClientRect();
-        let entryRect   = draggableEntry.getBoundingClientRect();
+        let entryRect   = htmlEntry.getBoundingClientRect();
         let mouseOffset = positionY - entryRect.top;
-        let listScroll  = this.htmlEntryList.scrollTop;
-        let top         = (positionY - listRect.top + listScroll - mouseOffset) + "px";
+        let top         = (positionY - listRect.top - mouseOffset) + "px";
 
-        this.draggableEntry.style.top = top;
+        this.draggableEntry.style.top  = top;
         this.draggableEntryMouseOffset = mouseOffset; 
 
         htmlEntry.classList.add("shadow");
@@ -628,13 +614,11 @@ class Playlist {
 
     moveDraggedEntry(positionY) {
         let listRect   = this.htmlEntryList.getBoundingClientRect();
-        let listScroll = this.htmlEntryList.scrollTop;
-        let top        = positionY - listRect.top + listScroll - this.draggableEntryMouseOffset;
+        let top        = positionY - listRect.top - this.draggableEntryMouseOffset;
         let maxPos     = this.indexToPosition(this.htmlEntries.length - 2);
         let maxTop     = Math.min(top, maxPos)
 
         this.draggableEntry.style.top = maxTop + "px";
-        this.draggableEntryLastY = positionY;
 
         if (positionY - listRect.top < ENTRY_HEIGHT) {
             this.startScrollingUp();
@@ -653,6 +637,19 @@ class Playlist {
         this.moveShadowedEntry();
         this.stopScrolling();
 
+
+        let entryRect = this.draggableEntry.getBoundingClientRect();
+        let listRect  = this.htmlEntryList.getBoundingClientRect();
+        let listScroll = this.htmlEntryList.scrollTop;
+        let entryTop = entryRect.top - listRect.top + listScroll;
+
+
+        this.draggableEntry.classList.remove("draggable");
+        this.draggableEntry.style.top = entryTop + "px";
+
+        window.getComputedStyle(this.draggableEntry).top;
+        this.draggableEntry.classList.remove("disable_transition");
+
         let oldPos = this.draggableEntry.style.top;
         let newPos = this.calculateEntryPosition(this.dragCurrentIndex);
 
@@ -661,13 +658,13 @@ class Playlist {
             htmlEntry.classList.remove("shadow");
         } else {
             this.setEntryPosition(this.draggableEntry, this.dragCurrentIndex);
-            this.draggableEntry.classList.remove("disable_transition");
             this.draggableEntry.ontransitionend = event => {
                 this.htmlEntryList.removeChild(event.target);
                 htmlEntry.classList.remove("shadow");
             };
         }
-        this.draggableEntry = null;
+        this.draggableEntry            = null;
+        this.draggableEntryMouseOffset = 0; 
 
 
         if (this.dragStartIndex !== this.dragCurrentIndex) {

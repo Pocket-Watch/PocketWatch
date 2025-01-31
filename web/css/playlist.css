@@ -309,6 +309,7 @@
 .playlist_entry.draggable {
     box-shadow: 0px 0px 12px #1d2021;
     border-color: #928374;
+    position: sticky;
 }
 
 .playlist_entry.draggable .playlist_drag_area {
