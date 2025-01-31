@@ -67,6 +67,7 @@ class Playlist {
         this.draggableEntry    = null;
         this.dragStartIndex    = -1;
         this.dragCurrentIndex  = -1;
+        this.touchDragDelay    = null;
 
         this.draggableEntryMouseOffset = 0; 
         this.shadowedEntryMoveTimout   = null;
@@ -760,25 +761,32 @@ class Playlist {
         }
 
         entryDragArea.ontouchstart = event => {
-            this.scrollingStep = TOY_TOUCH_DEVICE_SCROLLING_STEP;
-            this.htmlEntryList.classList.add("disable-smooth-scrolling-for-toy-touch-device-systems");
-            this.startEntryDragging(entryRoot, event.touches[0].clientY);
+            clearTimeout(this.touchDragDelay);
+            this.touchDragDelay = setTimeout(_ => {
+                this.scrollingStep = TOY_TOUCH_DEVICE_SCROLLING_STEP;
+                this.htmlEntryList.classList.add("disable-smooth-scrolling-for-toy-touch-device-systems");
+                this.startEntryDragging(entryRoot, event.touches[0].clientY);
 
-            let onDragging = event => {
-                this.moveDraggedEntry(event.touches[0].clientY);
-                event.preventDefault()
-                event.stopPropagation();
-            };
+                let onDragging = event => {
+                    this.moveDraggedEntry(event.touches[0].clientY);
+                    event.preventDefault()
+                    event.stopPropagation();
+                };
 
-            let onDraggingStop = _ => {
-                this.stopEntryDragging(entryRoot);
-                document.removeEventListener("touchmove", onDragging);
-                document.removeEventListener("touchend",  onDraggingStop);
-            };
+                let onDraggingStop = _ => {
+                    this.stopEntryDragging(entryRoot);
+                    document.removeEventListener("touchmove", onDragging);
+                    document.removeEventListener("touchend",  onDraggingStop);
+                };
 
-            document.addEventListener("touchmove", onDragging, { passive: false });
-            document.addEventListener("touchend",  onDraggingStop);
+                document.addEventListener("touchmove", onDragging, { passive: false });
+                document.addEventListener("touchend",  onDraggingStop);
+            }, 80);
         };
+
+        entryDragArea.ontouchmove = event => clearTimeout(this.touchDragDelay);
+        entryDragArea.ontouchend = event => clearTimeout(this.touchDragDelay);
+
 
         entryDragArea.onmousedown = event => {
             this.scrollingStep = DESKTOP_PLATFORM_SCROLLING_STEP;
