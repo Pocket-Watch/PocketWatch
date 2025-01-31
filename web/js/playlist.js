@@ -12,6 +12,9 @@ const BULK_ACTION_DELAY     = 32;
 const DRAG_INACTIVITY_DELAY = 32;
 const DROPDOWN_EXPAND_TIME  = 100;
 
+const DESKTOP_PLATFORM_SCROLLING_STEP = ENTRY_HEIGHT * 3.0;
+const TOY_TOUCH_DEVICE_SCROLLING_STEP = 32.0
+
 class Playlist {
     constructor() {
         this.controlsNextButton     = getById("playlist_controls_next");
@@ -68,7 +71,8 @@ class Playlist {
         this.draggableEntryMouseOffset = 0; 
         this.shadowedEntryMoveTimout   = null;
 
-        this.scrollIntervalId  = null;
+        this.scrollIntervalId = null;
+        this.scrollingStep = 0;
 
         this.currentEntryId = 0;
 
@@ -561,25 +565,13 @@ class Playlist {
 
     startScrollingUp() {
         if (!this.scrollIntervalId) {
-            this.scrollIntervalId = setInterval(_ => {
-                this.htmlEntryList.scrollBy({
-                    top: -ENTRY_HEIGHT * 2,
-                    left: 0,
-                    behavior: "smooth",
-                }); 
-            }, 16);
+            this.scrollIntervalId = setInterval(_ => this.htmlEntryList.scrollTop -= this.scrollingStep, 16);
         }
     }
 
     startScrollingDown() {
         if (!this.scrollIntervalId) {
-            this.scrollIntervalId = setInterval(_ => {
-                this.htmlEntryList.scrollBy({
-                    top: ENTRY_HEIGHT * 2,
-                    left: 0,
-                    behavior: "smooth",
-                }); 
-            }, 16);
+            this.scrollIntervalId = setInterval(_ => this.htmlEntryList.scrollTop += this.scrollingStep, 16);
         }
     }
 
@@ -762,18 +754,24 @@ class Playlist {
             this.toggleContextMenu(event, entryRoot, entry, user);
         };
 
-        // Dragging for touch screens.
+        entryDragArea.oncontextmenu = event => {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
         entryDragArea.ontouchstart = event => {
+            this.scrollingStep = TOY_TOUCH_DEVICE_SCROLLING_STEP;
+            this.htmlEntryList.classList.add("disable-smooth-scrolling-for-toy-touch-device-systems");
             this.startEntryDragging(entryRoot, event.touches[0].clientY);
 
             let onDragging = event => {
-                event.preventDefault();
                 this.moveDraggedEntry(event.touches[0].clientY);
+                event.preventDefault()
+                event.stopPropagation();
             };
 
-            let onDraggingStop = event => {
+            let onDraggingStop = _ => {
                 this.stopEntryDragging(entryRoot);
-
                 document.removeEventListener("touchmove", onDragging);
                 document.removeEventListener("touchend",  onDraggingStop);
             };
@@ -783,13 +781,15 @@ class Playlist {
         };
 
         entryDragArea.onmousedown = event => {
+            this.scrollingStep = DESKTOP_PLATFORM_SCROLLING_STEP;
+            this.htmlEntryList.classList.remove("disable-smooth-scrolling-for-toy-touch-device-systems");
             this.startEntryDragging(entryRoot, event.clientY);
 
             let onDragging = event => {
                 this.moveDraggedEntry(event.clientY);
             };
 
-            let onDraggingStop = event => {
+            let onDraggingStop = _ => {
                 this.stopEntryDragging(entryRoot);
 
                 document.removeEventListener("mousemove", onDragging);
