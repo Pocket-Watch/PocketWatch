@@ -356,9 +356,10 @@ class Internals {
             }
         };
 
-        this.subtitleShift = new Slider("Subtitle shift", -20, 20, 0.1, 0, "s", true);
-        this.subtitleSize  = new Slider("Subtitle size",  10, 100, 1.0, 30, "px");
-        this.subtitlePos   = new Slider("Vertical position",  0, 100, 1, 16, "%"); 
+        this.subtitleShift   = new Slider("Subtitle shift",    -20,  20, 0.1,  0, "s", true);
+        this.subtitleSize    = new Slider("Subtitle size",      10, 100, 1.0, 30, "px");
+        this.subtitlePos     = new Slider("Vertical position",   0, 100, 1.0, 16, "%"); 
+        this.subtitleOpacity = new Slider("Subtitle opacity",    0, 100, 1.0, 60, "%"); 
 
         this.isDraggingProgressBar = false;
         this.isUIVisible = true;
@@ -409,6 +410,8 @@ class Internals {
         }
 
         this.playerUIHideTimeout = new Timeout(_ => this.hidePlayerUI(), this.options.inactivityTime);
+
+        this.setSubtitleOpacity(60);
 
         let end = performance.now();
         console.debug("Internals constructor finished in", end-initStart, "ms")
@@ -955,6 +958,10 @@ class Internals {
 
         this.subtitlePos.setValue(percentage);
         this.fireSettingsChange(Options.SUBTITLE_VERTICAL_POSITION, percentage);
+    }
+
+    setSubtitleOpacity(opacity) {
+        this.subtitleContainer.style.opacity = opacity + "%";
     }
 
     showPlayerUI() {
@@ -1562,30 +1569,31 @@ class Internals {
     }
 
     createSubtitleMenu() {
-        let playerRoot     = this.htmlPlayerRoot;
-        let menu           = this.htmlControls.subMenu;
-        let menuRoot       = menu.root;
-        let menuTabs       = newDiv(null, "player_menu_tabs");
-        let menuSeparator  = newDiv(null, "player_menu_separator");
-        let menuViews      = newDiv(null, "player_menu_views");
-        let selectTab      = newDiv(null, "player_menu_tab");
-        let searchTab      = newDiv(null, "player_menu_tab");
-        let optionsTab     = newDiv(null, "player_menu_tab");
-        let selectView     = newDiv("player_submenu_select_view");
-        let subsSwitch     = menu.subsSwitcher;
-        let searchView     = newDiv("player_submenu_search_view");
-        let subtitleImport = newElement("input", "player_submenu_import");
-        let subtitleName = newElement("input", null, "player_input_box");
+        let playerRoot       = this.htmlPlayerRoot;
+        let menu             = this.htmlControls.subMenu;
+        let menuRoot         = menu.root;
+        let menuTabs         = newDiv(null, "player_menu_tabs");
+        let menuSeparator    = newDiv(null, "player_menu_separator");
+        let menuViews        = newDiv(null, "player_menu_views");
+        let selectTab        = newDiv(null, "player_menu_tab");
+        let searchTab        = newDiv(null, "player_menu_tab");
+        let optionsTab       = newDiv(null, "player_menu_tab");
+        let selectView       = newDiv("player_submenu_select_view");
+        let subsSwitch       = menu.subsSwitcher;
+        let searchView       = newDiv("player_submenu_search_view");
+        let subtitleImport   = newElement("input", "player_submenu_import");
+        let subtitleName     = newElement("input", null, "player_input_box");
         let subtitleLanguage = newElement("input", null, "player_input_box");
-        let subtitleYear = newElement("input", null, "player_input_box");
-        let subtitleSeason = newElement("input", null, "player_input_box");
-        let subtitleEpisode = newElement("input", null, "player_input_box");
-        let searchSubtitle = newElement("button", "player_subtitle_search");
-        let optionsView    = newDiv("player_submenu_bottom_options");
-        let subsShift      = this.subtitleShift;
-        let subsSize       = this.subtitleSize;
-        let subsPos        = this.subtitlePos;
-        let subsFgColor    = newElement("input");
+        let subtitleYear     = newElement("input", null, "player_input_box");
+        let subtitleSeason   = newElement("input", null, "player_input_box");
+        let subtitleEpisode  = newElement("input", null, "player_input_box");
+        let searchSubtitle   = newElement("button", "player_subtitle_search");
+        let optionsView      = newDiv("player_submenu_bottom_options");
+        let subsShift        = this.subtitleShift;
+        let subsSize         = this.subtitleSize;
+        let subsPos          = this.subtitlePos;
+        let subsOpacity      = this.subtitleOpacity;
+        let subsFgColor      = newElement("input");
 
         hide(menuRoot);
         hide(selectView);
@@ -1677,9 +1685,10 @@ class Internals {
             console.debug("Search", success ? "was successful" : "failed");
         });
 
-        subsShift.onInput = value => this.setCurrentSubtitleShift(value);
-        subsSize.onInput  = size  => this.setSubtitleFontSize(size);
+        subsShift.onInput    = value    => this.setCurrentSubtitleShift(value);
+        subsSize.onInput     = size     => this.setSubtitleFontSize(size);
         subsPos.onInput      = position => this.setSubtitleVerticalPosition(position);
+        subsOpacity.onInput  = opacity  => this.setSubtitleOpacity(opacity);
         subsFgColor.onchange = _        => this.setSubtitleForeground(subsFgColor.value);
 
         playerRoot.append(menuRoot); {
@@ -1707,6 +1716,7 @@ class Internals {
                     optionsView.append(subsShift.root);
                     optionsView.append(subsSize.root);
                     optionsView.append(subsPos.root);
+                    optionsView.append(subsOpacity.root);
                     optionsView.append(subsFgColor);
                 }
             }
