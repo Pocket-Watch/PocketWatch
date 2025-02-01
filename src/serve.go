@@ -1774,8 +1774,12 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	users.slice[userIndex].connections += 1
-	connected := users.slice[userIndex].connections == 1
-	users.slice[userIndex].Online = connected
+
+	was_online_before := users.slice[userIndex].Online
+	is_online := users.slice[userIndex].connections != 0
+
+	users.slice[userIndex].Online = is_online
+
 	user := users.slice[userIndex]
 	users.mutex.Unlock()
 
@@ -1784,7 +1788,7 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 	connectionCount := len(conns.slice)
 	conns.mutex.Unlock()
 
-	LogInfo("New connection established with %s. Current connection count: %d", r.RemoteAddr, connectionCount)
+	LogInfo("New connection established with user %v on %s. Current connection count: %d", user.Id, r.RemoteAddr, connectionCount)
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -1795,7 +1799,7 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if connected {
+	if !was_online_before && is_online {
 		writeEventToAllConnectionsExceptSelf(w, "userconnected", user.Id, user.Id, connectionId)
 	}
 
@@ -1833,7 +1837,7 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 				writeEventToAllConnectionsExceptSelf(w, "userdisconnected", user.Id, user.Id, connectionId)
 			}
 
-			LogInfo("Connection with %s dropped. Current connection count: %d", r.RemoteAddr, connectionCount)
+			LogInfo("Connection with user %v on %s dropped. Current connection count: %d", user.Id, r.RemoteAddr, connectionCount)
 			LogDebug("Drop error message: %v", connectionErr)
 			return
 		}
