@@ -765,10 +765,22 @@ class Room {
             let userId = JSON.parse(event.data);
             console.info("INFO: User connected, ID: ", userId)
 
+            let userBoxes = this.usersArea.userList;
+            let onlineBoxes = userBoxes.getElementsByClassName("user_box_online");
+            let lastOnlineBox = onlineBoxes[onlineBoxes.length - 1];
+
             let i = this.allUsers.findIndex(user => user.id === userId);
             this.allUsers[i].online = true;
+
             this.allUserBoxes[i].classList.remove("user_box_offline");
             this.allUserBoxes[i].classList.add("user_box_online");
+
+            let connectedNow = this.allUserBoxes[i];
+            if (lastOnlineBox) {
+                userBoxes.insertBefore(connectedNow, lastOnlineBox.nextSibling);
+            } else {
+                userBoxes.appendChild(connectedNow);
+            }
 
             this.onlineCount += 1;
 
@@ -780,11 +792,22 @@ class Room {
             let userId = JSON.parse(event.data);
             console.info("INFO: User disconnected, ID: ", userId)
 
-            let i = this.allUsers.findIndex(user => user.id === userId);
+            let userBoxes = this.usersArea.userList;
+            let offlineBoxes = userBoxes.getElementsByClassName("user_box_offline");
+            let firstOfflineBox = offlineBoxes[0];
 
+            let i = this.allUsers.findIndex(user => user.id === userId);
             this.allUsers[i].online = false;
+
             this.allUserBoxes[i].classList.remove("user_box_online");
             this.allUserBoxes[i].classList.add("user_box_offline");
+
+            let disconnectedNow = this.allUserBoxes[i];
+            if (firstOfflineBox) {
+                userBoxes.insertBefore(disconnectedNow, firstOfflineBox);
+            } else {
+                userBoxes.appendChild(disconnectedNow);
+            }
 
             this.onlineCount -= 1;
 
