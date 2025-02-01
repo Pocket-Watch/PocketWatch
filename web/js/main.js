@@ -149,6 +149,16 @@ class Room {
         if (position != null) {
             this.player.setSubtitleVerticalPosition(position);
         }
+
+        let opacity = Storage.get(Options.SUBTITLE_OPACITY);
+        if (opacity != null) {
+            this.player.setSubtitleOpacity(opacity);
+        }
+
+        let subtitleFg = Storage.get(Options.SUBTITLE_FOREGROUND_COLOR);
+        if (subtitleFg != null) {
+            this.player.setSubtitleForeground(subtitleFg);
+        }
     }
 
     attachPlayerEvents() {
@@ -196,6 +206,8 @@ class Room {
                     break;
                 case Options.SUBTITLE_FONT_SIZE:
                 case Options.SUBTITLE_VERTICAL_POSITION:
+                case Options.SUBTITLE_OPACITY:
+                case Options.SUBTITLE_FOREGROUND_COLOR:
                     Storage.set(key, value);
                     break;
             }

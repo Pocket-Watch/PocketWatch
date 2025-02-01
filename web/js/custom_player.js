@@ -81,8 +81,16 @@ class Player {
         this.internals.setSubtitleFontSize(fontSize);
     }
 
+    setSubtitleForeground(color) {
+        this.internals.setSubtitleForeground(color);
+    }
+
     setSubtitleVerticalPosition(percentage) {
         this.internals.setSubtitleVerticalPosition(percentage);
+    }
+
+    setSubtitleOpacity(percentage) {
+        this.internals.setSubtitleOpacity(percentage);
     }
 
     // Select and show the track at the specified index.
@@ -359,7 +367,7 @@ class Internals {
         this.subtitleShift   = new Slider("Subtitle shift",    -20,  20, 0.1,  0, "s", true);
         this.subtitleSize    = new Slider("Subtitle size",      10, 100, 1.0, 30, "px");
         this.subtitlePos     = new Slider("Vertical position",   0, 100, 1.0, 16, "%"); 
-        this.subtitleOpacity = new Slider("Subtitle opacity",    0, 100, 1.0, 60, "%"); 
+        this.subtitleOpacity = new Slider("Subtitle opacity",    0, 100, 1.0, 80, "%");
 
         this.isDraggingProgressBar = false;
         this.isUIVisible = true;
@@ -411,7 +419,7 @@ class Internals {
 
         this.playerUIHideTimeout = new Timeout(_ => this.hidePlayerUI(), this.options.inactivityTime);
 
-        this.setSubtitleOpacity(60);
+        this.setSubtitleOpacity(80);
 
         let end = performance.now();
         console.debug("Internals constructor finished in", end-initStart, "ms")
@@ -962,6 +970,8 @@ class Internals {
 
     setSubtitleOpacity(opacity) {
         this.subtitleContainer.style.opacity = opacity + "%";
+        this.subtitleOpacity.setValue(opacity);
+        this.fireSettingsChange(Options.SUBTITLE_OPACITY, opacity);
     }
 
     showPlayerUI() {
@@ -2370,6 +2380,7 @@ class Options {
     static SHOW_CONTROLS_ON_PAUSE = "show_controls_on_pause";
     static SUBTITLE_FONT_SIZE = "subtitle_font_size";
     static SUBTITLE_VERTICAL_POSITION = "subtitle_vertical_position";
+    static SUBTITLE_OPACITY = "subtitle_opacity";
     static BRIGHTNESS = "brightness";
     static SUBTITLE_FOREGROUND_COLOR = "subtitle_foreground_color";
     static SUBTITLE_BACKGROUND_COLOR = "subtitle_background_color";
