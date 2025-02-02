@@ -81,16 +81,24 @@ class Player {
         this.internals.setSubtitleFontSize(fontSize);
     }
 
-    setSubtitleForeground(color) {
-        this.internals.setSubtitleForeground(color);
-    }
-
     setSubtitleVerticalPosition(percentage) {
         this.internals.setSubtitleVerticalPosition(percentage);
     }
 
-    setSubtitleOpacity(percentage) {
-        this.internals.setSubtitleOpacity(percentage);
+    setSubtitleForegroundColor(hexColor) {
+        this.internals.setSubtitleForegroundColor(hexColor);
+    }
+
+    setSubtitleForegroundOpacity(opacity) {
+        this.internals.setSubtitleForegroundOpacity(opacity);
+    }
+
+    setSubtitleBackgroundColor(hexColor) {
+        this.internals.setSubtitleBackgroundColor(hexColor);
+    }
+
+    setSubtitleBackgroundOpacity(opacity) {
+        this.internals.setSubtitleBackgroundOpacity(opacity);
     }
 
     // Select and show the track at the specified index.
@@ -212,6 +220,11 @@ function show(element) {
 function isHidden(element) {
     return element.style.display === "none";
 }
+
+const DEFAULT_SUBTITLE_BACKGROUND_COLOR   = "#1d2021"
+const DEFAULT_SUBTITLE_BACKGROUND_OPACITY = 80;
+const DEFAULT_SUBTITLE_FOREGROUND_COLOR   = "#fbf1c7"
+const DEFAULT_SUBTITLE_FOREGROUND_OPACITY = 100;
 
 class Internals {
     constructor(videoElement, options) {
@@ -364,10 +377,13 @@ class Internals {
             }
         };
 
-        this.subtitleShift   = new Slider("Subtitle shift",    -20,  20, 0.1,  0, "s", true);
-        this.subtitleSize    = new Slider("Subtitle size",      10, 100, 1.0, 30, "px");
-        this.subtitlePos     = new Slider("Vertical position",   0, 100, 1.0, 16, "%"); 
-        this.subtitleOpacity = new Slider("Subtitle opacity",    0, 100, 1.0, 80, "%");
+        this.subtitleShift     = new Slider("Subtitle shift",    -20,  20, 0.1,  0, "s", true);
+        this.subtitleSize      = new Slider("Subtitle size",      10, 100, 1.0, 30, "px");
+        this.subtitlePos       = new Slider("Vertical position",   0, 100, 1.0, 16, "%"); 
+        this.subtitleFgColor   = new ColorPicker("Foreground color", DEFAULT_SUBTITLE_FOREGROUND_COLOR);
+        this.subtitleFgOpacity = new Slider("Foreground opacity", 0, 100, 1.0, DEFAULT_SUBTITLE_FOREGROUND_OPACITY, "%");
+        this.subtitleBgColor   = new ColorPicker("Background color", DEFAULT_SUBTITLE_BACKGROUND_COLOR);
+        this.subtitleBgOpacity = new Slider("Background opacity", 0, 100, 1.0, DEFAULT_SUBTITLE_BACKGROUND_OPACITY, "%");
 
         this.isDraggingProgressBar = false;
         this.isUIVisible = true;
@@ -407,7 +423,7 @@ class Internals {
         this.createHtmlControls();
         this.attachPlayerEvents();
 
-        setInterval(() => this.redrawBufferedBars(), this.options.bufferingRedrawInterval);
+        setInterval(_ => this.redrawBufferedBars(), this.options.bufferingRedrawInterval);
 
         this.setVolume(1.0);
 
@@ -418,8 +434,6 @@ class Internals {
         }
 
         this.playerUIHideTimeout = new Timeout(_ => this.hidePlayerUI(), this.options.inactivityTime);
-
-        this.setSubtitleOpacity(80);
 
         let end = performance.now();
         console.debug("Internals constructor finished in", end-initStart, "ms")
@@ -943,14 +957,38 @@ class Internals {
         this.fireSettingsChange(Options.SUBTITLE_FONT_SIZE, fontSize);
     }
 
-    setSubtitleForeground(color) {
-        this.subtitleText.style.color = color;
-        this.fireSettingsChange(Options.SUBTITLE_FOREGROUND_COLOR, color);
+    colorAndOpacity(hexColor, opacity) {
+        let byteOpacity = Math.floor(opacity / 100.0 * 255);
+        let hexOpacity  = byteOpacity.toString(16)
+        return hexColor + hexOpacity;
+    } 
+
+    setSubtitleForegroundColor(hexColor) {
+        let opacity = this.subtitleFgOpacity.getValue();
+        this.subtitleText.style.color = this.colorAndOpacity(hexColor, opacity);
+        this.subtitleFgColor.setValue(hexColor);
+        this.fireSettingsChange(Options.SUBTITLE_FOREGROUND_COLOR, hexColor);
     }
 
-    setSubtitleBackground(color) {
-        this.subtitleText.style.backgroundColor = color;
-        this.fireSettingsChange(Options.SUBTITLE_BACKGROUND_COLOR, color);
+    setSubtitleForegroundOpacity(opacity) {
+        let hexColor = this.subtitleFgColor.getValue();
+        this.subtitleText.style.color = this.colorAndOpacity(hexColor, opacity);
+        this.subtitleFgOpacity.setValue(opacity);
+        this.fireSettingsChange(Options.SUBTITLE_FOREGROUND_OPACITY, opacity);
+    }
+
+    setSubtitleBackgroundColor(hexColor) {
+        let opacity = this.subtitleBgOpacity.getValue();
+        this.subtitleText.style.backgroundColor = this.colorAndOpacity(hexColor, opacity);
+        this.subtitleBgColor.setValue(hexColor);
+        this.fireSettingsChange(Options.SUBTITLE_BACKGROUND_COLOR, hexColor);
+    }
+
+    setSubtitleBackgroundOpacity(opacity) {
+        let hexColor = this.subtitleBgColor.getValue();
+        this.subtitleText.style.backgroundColor = this.colorAndOpacity(hexColor, opacity);
+        this.subtitleBgOpacity.setValue(opacity);
+        this.fireSettingsChange(Options.SUBTITLE_BACKGROUND_OPACITY, opacity);
     }
 
     setSubtitleVerticalPosition(percentage) {
@@ -966,12 +1004,6 @@ class Internals {
 
         this.subtitlePos.setValue(percentage);
         this.fireSettingsChange(Options.SUBTITLE_VERTICAL_POSITION, percentage);
-    }
-
-    setSubtitleOpacity(opacity) {
-        this.subtitleContainer.style.opacity = opacity + "%";
-        this.subtitleOpacity.setValue(opacity);
-        this.fireSettingsChange(Options.SUBTITLE_OPACITY, opacity);
     }
 
     showPlayerUI() {
@@ -1602,8 +1634,10 @@ class Internals {
         let subsShift        = this.subtitleShift;
         let subsSize         = this.subtitleSize;
         let subsPos          = this.subtitlePos;
-        let subsOpacity      = this.subtitleOpacity;
-        let subsFgColor      = newElement("input");
+        let subsFgColor      = this.subtitleFgColor;
+        let subsFgOpacity    = this.subtitleFgOpacity;
+        let subsBgColor      = this.subtitleBgColor;
+        let subsBgOpacity    = this.subtitleBgOpacity;
 
         hide(menuRoot);
         hide(selectView);
@@ -1628,9 +1662,6 @@ class Internals {
         subtitleEpisode.placeholder = "Episode";
 
         searchSubtitle.textContent = "Search sub";
-
-        subsFgColor.type = "color";
-        subsFgColor.value = "white";
 
         menu.selected.tab  = selectTab;
         menu.selected.view = selectView;
@@ -1695,11 +1726,13 @@ class Internals {
             console.debug("Search", success ? "was successful" : "failed");
         });
 
-        subsShift.onInput    = value    => this.setCurrentSubtitleShift(value);
-        subsSize.onInput     = size     => this.setSubtitleFontSize(size);
-        subsPos.onInput      = position => this.setSubtitleVerticalPosition(position);
-        subsOpacity.onInput  = opacity  => this.setSubtitleOpacity(opacity);
-        subsFgColor.onchange = _        => this.setSubtitleForeground(subsFgColor.value);
+        subsShift.onInput     = value    => this.setCurrentSubtitleShift(value);
+        subsSize.onInput      = size     => this.setSubtitleFontSize(size);
+        subsPos.onInput       = position => this.setSubtitleVerticalPosition(position);
+        subsFgColor.onInput   = hexColor => this.setSubtitleForegroundColor(hexColor);
+        subsFgOpacity.onInput = opacity  => this.setSubtitleForegroundOpacity(opacity);
+        subsBgColor.onInput   = hexColor => this.setSubtitleBackgroundColor(hexColor);
+        subsBgOpacity.onInput = opacity  => this.setSubtitleBackgroundOpacity(opacity);
 
         playerRoot.append(menuRoot); {
             menuRoot.append(menuTabs); {
@@ -1726,8 +1759,10 @@ class Internals {
                     optionsView.append(subsShift.root);
                     optionsView.append(subsSize.root);
                     optionsView.append(subsPos.root);
-                    optionsView.append(subsOpacity.root);
-                    optionsView.append(subsFgColor);
+                    optionsView.append(subsFgColor.root);
+                    optionsView.append(subsFgOpacity.root);
+                    optionsView.append(subsBgColor.root);
+                    optionsView.append(subsBgOpacity.root);
                 }
             }
         }
@@ -1747,7 +1782,7 @@ class Internals {
         let alwaysShow     = new Switcher("Always show controls");
         let showOnPause    = new Switcher("Show controls on pause");
         let playbackSpeed  = new Slider("Playback speed", 0.25, 5.0, 0.25, 1.0, "x");
-        let brightness  = new Slider("Brightness", 0.2, 1.5, 0.05, 1.0);
+        let brightness     = new Slider("Brightness", 0.2, 1.5, 0.05, 1.0);
 
         hide(menuRoot);
         alwaysShow.setState(this.options.alwaysShowControls);
@@ -1812,6 +1847,48 @@ class Internals {
                 menuViews.append(appearanceView);
             }
         }
+    }
+}
+
+class ColorPicker {
+    constructor(textContent, hexColor = "#FFFFFF") {
+        let root   = newDiv(null, "player_color_picker_root");
+        let text   = newDiv(null, "player_color_picker_text");
+        let picker = newElement("button", null, "player_color_picker_color");
+        let input  = newElement("input", null, "player_color_picker_input");
+
+        text.textContent = textContent;
+
+        input.type  = "color";
+        input.value = hexColor;
+
+        picker.style.backgroundColor = hexColor;
+
+        picker.onclick = _ => input.click();
+        input.oninput  = _ => {
+            this.picker.style.backgroundColor = this.input.value;
+            this.onInput(this.input.value);
+        }
+
+        root.appendChild(text);
+        root.appendChild(picker); {
+            picker.appendChild(input);
+        }
+
+        this.root   = root;
+        this.input  = input;
+        this.picker = picker;
+    }
+
+    onInput(_hexColor) {}
+
+    setValue(value) {
+        this.input.value = value;
+        this.picker.style.backgroundColor = value;
+    }
+
+    getValue() {
+        return this.input.value;
     }
 }
 
@@ -2376,14 +2453,15 @@ class Options {
     }
 
     // Constants
-    static ALWAYS_SHOW_CONTROLS = "always_show_controls";
-    static SHOW_CONTROLS_ON_PAUSE = "show_controls_on_pause";
-    static SUBTITLE_FONT_SIZE = "subtitle_font_size";
-    static SUBTITLE_VERTICAL_POSITION = "subtitle_vertical_position";
-    static SUBTITLE_OPACITY = "subtitle_opacity";
-    static BRIGHTNESS = "brightness";
-    static SUBTITLE_FOREGROUND_COLOR = "subtitle_foreground_color";
-    static SUBTITLE_BACKGROUND_COLOR = "subtitle_background_color";
+    static ALWAYS_SHOW_CONTROLS        = "always_show_controls";
+    static SHOW_CONTROLS_ON_PAUSE      = "show_controls_on_pause";
+    static BRIGHTNESS                  = "brightness";
+    static SUBTITLE_FONT_SIZE          = "subtitle_font_size";
+    static SUBTITLE_VERTICAL_POSITION  = "subtitle_vertical_position";
+    static SUBTITLE_FOREGROUND_COLOR   = "subtitle_foreground_color";
+    static SUBTITLE_FOREGROUND_OPACITY = "subtitle_foreground_opacity";
+    static SUBTITLE_BACKGROUND_COLOR   = "subtitle_background_color";
+    static SUBTITLE_BACKGROUND_OPACITY = "subtitle_background_opacity";
 }
 
 // Throttling scheduler. After the specified delay elapses, the scheduled action will be executed.

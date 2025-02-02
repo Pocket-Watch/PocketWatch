@@ -150,14 +150,24 @@ class Room {
             this.player.setSubtitleVerticalPosition(position);
         }
 
-        let opacity = Storage.get(Options.SUBTITLE_OPACITY);
-        if (opacity != null) {
-            this.player.setSubtitleOpacity(opacity);
+        let fgColor = Storage.get(Options.SUBTITLE_FOREGROUND_COLOR);
+        if (fgColor != null) {
+            this.player.setSubtitleForegroundColor(fgColor);
         }
 
-        let subtitleFg = Storage.get(Options.SUBTITLE_FOREGROUND_COLOR);
-        if (subtitleFg != null) {
-            this.player.setSubtitleForeground(subtitleFg);
+        let fgOpacity = Storage.get(Options.SUBTITLE_FOREGROUND_OPACITY);
+        if (fgOpacity != null) {
+            this.player.setSubtitleForegroundOpacity(fgOpacity);
+        }
+        
+        let bgColor = Storage.get(Options.SUBTITLE_BACKGROUND_COLOR);
+        if (bgColor != null) {
+            this.player.setSubtitleBackgroundColor(bgColor);
+        }
+
+        let bgOpacity = Storage.get(Options.SUBTITLE_BACKGROUND_OPACITY);
+        if (bgOpacity != null) {
+            this.player.setSubtitleBackgroundOpacity(bgOpacity);
         }
     }
 
@@ -204,10 +214,13 @@ class Room {
                 case Options.ALWAYS_SHOW_CONTROLS:
                     Storage.setBool(key, value);
                     break;
+
                 case Options.SUBTITLE_FONT_SIZE:
                 case Options.SUBTITLE_VERTICAL_POSITION:
-                case Options.SUBTITLE_OPACITY:
                 case Options.SUBTITLE_FOREGROUND_COLOR:
+                case Options.SUBTITLE_FOREGROUND_OPACITY:
+                case Options.SUBTITLE_BACKGROUND_COLOR:
+                case Options.SUBTITLE_BACKGROUND_OPACITY:
                     Storage.set(key, value);
                     break;
             }
