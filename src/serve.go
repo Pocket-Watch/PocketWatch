@@ -336,10 +336,12 @@ var conns = makeConnections()
 var serverRootAddress string
 var startTime = time.Now()
 var subsEnabled bool
+var serverDomain string
 
 func StartServer(options *Options) {
 	state.lastUpdate = time.Now()
 	subsEnabled = options.Subs
+	serverDomain = options.Domain
 	registerEndpoints(options)
 
 	var address = options.Address + ":" + strconv.Itoa(int(options.Port))
@@ -1626,6 +1628,16 @@ func setupGenericFileProxy(url string, referer string) bool {
 	return true
 }
 
+func isTrustedUrl(url string, parsedUrl *net_url.URL) bool {
+	if strings.HasPrefix(url, MEDIA) || strings.HasPrefix(url, serverRootAddress) {
+		return true
+	}
+	if parsedUrl != nil && parsedUrl.Host == serverDomain {
+		return true
+	}
+	return false
+}
+
 func setupHlsProxy(url string, referer string) bool {
 	parsedUrl, err := net_url.Parse(url)
 	if err != nil {
@@ -1636,7 +1648,7 @@ func setupHlsProxy(url string, referer string) bool {
 	_ = os.RemoveAll(WEB_PROXY)
 	_ = os.Mkdir(WEB_PROXY, os.ModePerm)
 	var m3u *M3U
-	if strings.HasPrefix(url, MEDIA) || strings.HasPrefix(url, serverRootAddress) {
+	if isTrustedUrl(url, parsedUrl) {
 		lastSegment := lastUrlSegment(url)
 		m3u, err = parseM3U(WEB_MEDIA + lastSegment)
 	} else {
@@ -2307,7 +2319,7 @@ func isLocalDirectory(url string) (bool, string) {
 		return false, ""
 	}
 
-	if !strings.HasPrefix(url, MEDIA) && !strings.HasPrefix(url, serverRootAddress) {
+	if !isTrustedUrl(url, parsedUrl) {
 		return false, ""
 	}
 
