@@ -1,4 +1,5 @@
 # Watch Locally
+![Webpage preview](https://github.com/user-attachments/assets/7bdedacf-1a9e-401b-8eda-bf7098ec9c6d)
 
 
 ## Preface
