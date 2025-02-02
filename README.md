@@ -1,5 +1,5 @@
 # Watch Locally
-This project is under construction...
+
 
 ## Preface
 This is a watch party website. Is it like the others? No. <br>
@@ -26,8 +26,8 @@ suffers from the same recurring issues, such as:
 - fighting around browser-specific quirks (lack of standardized slider customization, cues stacking)
 
 ## Prerequisites
-- Go version `1.21` (released 2023-08-08) or newer (supporting `slices`)
-- Any browser supporting `ECMAScript6` (2015), preferably newer than 2020
+- Go version `1.22` (released in Feb 2024) or newer (supporting `slices` and `sync.Map`)
+- Any major browser version released in 2021 or later (due to CSS features)
 
 ## Components
 - [hls](https://github.com/video-dev/hls.js)
