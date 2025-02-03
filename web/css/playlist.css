@@ -137,6 +137,7 @@
     overflow-y: scroll;
     overflow-x: hidden;
     scroll-behavior: smooth;
+    scrollbar-color: #a89984 #1d20217f;
 }
 
 #playlist_entry_list.disable-smooth-scrolling-for-toy-touch-device-systems {

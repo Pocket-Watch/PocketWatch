@@ -515,6 +515,7 @@
     overflow-x: hidden;
     padding: 0 4px 4px 4px;
     flex-direction: column;
+    scrollbar-color: gray #1d20217f;
 }
 
 #player_submenu_select_view {
