@@ -820,8 +820,8 @@ class Playlist {
         entryRoot.append(entryTop); {
             entryTop.append(entryDragArea);
             entryTop.append(entryThumbnail); {
-                entryThumbnail.append(thumbnailPlay);
                 entryThumbnail.append(thumbnailImg);
+                entryThumbnail.append(thumbnailPlay);
             }
             entryTop.append(entryInfo); {
                 entryInfo.append(entryTitle);
