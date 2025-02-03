@@ -15,6 +15,9 @@ const DROPDOWN_EXPAND_TIME  = 100;
 const DESKTOP_PLATFORM_SCROLLING_STEP = ENTRY_HEIGHT * 3.0;
 const TOY_TOUCH_DEVICE_SCROLLING_STEP = 32.0
 
+let CONTEXT_MENU_WIDTH = 180; // hardcoded because .offsetWidth returns 0 when it's hidden
+let CONTEXT_MENU_HEIGHT = 204; // hardcoded because it's currently auto
+
 class Playlist {
     constructor() {
         this.controlsNextButton     = getById("playlist_controls_next");
@@ -485,22 +488,23 @@ class Playlist {
             return;
         }
 
-        const rect = htmlEntry.getBoundingClientRect();
-        const scrollY = this.htmlEntryList.scrollTop;
+        const entryRect = htmlEntry.getBoundingClientRect();
+        const listRect = this.htmlEntryList.getBoundingClientRect();
 
-        const clickY = event.clientY - rect.top - scrollY;
-        const clickX = event.clientX - rect.left;
-
-        const padding = 6;
-
-        let contextMenuWidth = 180; // hardcoded because .offsetWidth returns 0 when it's hidden
         let contextMenuX = event.clientX;
-        let protrusion = contextMenuX + contextMenuWidth - rect.right;
+        let protrusion = contextMenuX + CONTEXT_MENU_WIDTH - entryRect.right;
         if (protrusion > 0) {
             contextMenuX -= protrusion;
         }
-        this.contextMenu.style.left = (contextMenuX - rect.left) + "px";
-        this.contextMenu.style.top  = htmlEntry.offsetTop - padding + clickY + "px";
+
+        let contextMenuY = event.clientY;
+        protrusion = contextMenuY + CONTEXT_MENU_HEIGHT - listRect.bottom;
+        if (protrusion > 0) {
+            contextMenuY -= protrusion;
+        }
+
+        this.contextMenu.style.left = (contextMenuX - entryRect.left) + "px";
+        this.contextMenu.style.top  = (contextMenuY - listRect.top) + "px";
         show(this.contextMenu);
 
         this.contextMenuEntry = htmlEntry;
