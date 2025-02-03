@@ -4,10 +4,6 @@ import { chatSend } from "./api.js";
 
 export { Chat }
 
-// TOOD(kihau):
-//     - Add red icon on the chat tab when someone sends new message
-//     - Play sound when someonse sends a message
-
 const CHARACTER_LIMIT = 1000;
 class Chat {
     constructor() {

@@ -1630,7 +1630,7 @@ class Internals {
         let subtitleSeason   = newElement("input", null, "player_input_box");
         let subtitleEpisode  = newElement("input", null, "player_input_box");
         let searchSubtitle   = newElement("button", "player_subtitle_search");
-        let optionsView      = newDiv("player_submenu_bottom_options");
+        let optionsView      = newDiv("player_submenu_options_view");
         let subsShift        = this.subtitleShift;
         let subsSize         = this.subtitleSize;
         let subsPos          = this.subtitlePos;

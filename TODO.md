@@ -102,7 +102,7 @@
     - [x] Top of the list controls
     - [x] Mouse right click / touch hold down opens context menu with extra options.
     - [x] Improve playlist scrolling on entry drag
-    - [ ] Add entry dragging on mobile
+    - [x] Add entry dragging on mobile
     - [ ] More items in entry dropdown
     - [ ] Proper network handling
     - [ ] Smart scrolling - dynamic remove/add on scrolling when entry count > 300 (also includes search)
