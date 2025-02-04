@@ -126,11 +126,11 @@ class Playlist {
         this.controlsClearButton.onclick    = _ => api.playlistClear();
         this.controlsSettingsButton.onclick = _ => console.debug("TODO: settings button");
 
-        document.addEventListener("click", _ => this.toggleContextMenu());
+        document.addEventListener("click", _ => this.hideContextMenu());
 
         this.contextMenu.oncontextmenu = event => {
             event.preventDefault();
-            this.toggleContextMenu();
+            this.hideContextMenu();
         };
 
         this.contextMenuPlayNow.onclick    = _ => this.requestPlaylistPlay(this.contextMenuEntry);
@@ -321,7 +321,7 @@ class Playlist {
         this.dragStartIndex    = -1;
         this.dragCurrentIndex  = -1;
 
-        this.toggleContextMenu();
+        this.hideContextMenu();
         this.updateFooter();
     }
 
@@ -479,15 +479,14 @@ class Playlist {
         api.playlistPlay(entry.id, index);
     }
 
-    toggleContextMenu(event, htmlEntry, entry, user) {
-        if (this.contextMenuEntry === htmlEntry || !htmlEntry) {
-            this.contextMenuEntry = null;
-            this.contextMenuUserRefactorMe  = null;
-            this.contextMenuEntryRefactorMe = null;
-            hide(this.contextMenu);
-            return;
-        }
+    hideContextMenu() {
+        this.contextMenuEntry = null;
+        this.contextMenuUserRefactorMe  = null;
+        this.contextMenuEntryRefactorMe = null;
+        hide(this.contextMenu);
+    }
 
+    showContextMenu(event, htmlEntry, entry, user) {
         const entryRect = htmlEntry.getBoundingClientRect();
         const listRect = this.htmlEntryList.getBoundingClientRect();
 
@@ -586,6 +585,8 @@ class Playlist {
     }
 
     startEntryDragging(htmlEntry, positionY) {
+        this.hideContextMenu();
+
         this.dragStartIndex   = this.findHtmlIndex(htmlEntry);
         this.dragCurrentIndex = this.dragStartIndex;
 
@@ -756,7 +757,12 @@ class Playlist {
 
         entryRoot.oncontextmenu = event => {
             event.preventDefault();
-            this.toggleContextMenu(event, entryRoot, entry, user);
+
+            if (this.contextMenuEntry === entryRoot) {
+                this.hideContextMenu();
+            } else {
+                this.showContextMenu(event, entryRoot, entry, user);
+            }
         };
 
         entryDragArea.oncontextmenu = event => {
