@@ -422,6 +422,7 @@
     margin-right: auto;
 }
 
+.playlist_entry.expand .playlist_entry_thumbnail svg,
 .playlist_entry:hover .playlist_entry_thumbnail svg {
     filter: drop-shadow(0px 0px 8px #1d2021);
     /* filter: drop-shadow(0px 0px 10px #d5c4a1); */
@@ -433,6 +434,7 @@
     fill: #d5c4a1;
 }
 
+.playlist_entry.expand .playlist_entry_thumbnail img,
 .playlist_entry:hover .playlist_entry_thumbnail img {
     filter: grayscale(1.0) brightness(0.6);
     transition-delay: 200ms;
@@ -499,6 +501,7 @@
     transition: width 100ms;
 }
 
+.playlist_entry.expand .playlist_entry_buttons,
 .playlist_entry:hover .playlist_entry_buttons {
     width: 36px;
     transition: width 100ms;
