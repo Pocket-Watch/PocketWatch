@@ -85,14 +85,14 @@ type YoutubePlaylist struct {
 }
 
 func preloadYoutubeSourceOnNextEntry() {
-	state.mutex.RLock()
+	state.mutex.Lock()
 	if len(state.playlist) == 0 {
-		state.mutex.RUnlock()
+		state.mutex.Unlock()
 		return
 	}
 
 	nextEntry := state.playlist[0]
-	state.mutex.RUnlock()
+	state.mutex.Unlock()
 
 	if !isYoutubeUrl(nextEntry.Url) {
 		return

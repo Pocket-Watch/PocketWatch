@@ -63,7 +63,7 @@ type Entry struct {
 }
 
 type ServerState struct {
-	mutex sync.RWMutex
+	mutex sync.Mutex
 
 	player  PlayerState
 	entry   Entry
@@ -114,7 +114,7 @@ type Connection struct {
 }
 
 type Connections struct {
-	mutex     sync.RWMutex
+	mutex     sync.Mutex
 	idCounter uint64
 	slice     []Connection
 }
@@ -131,7 +131,7 @@ type User struct {
 }
 
 type Users struct {
-	mutex     sync.RWMutex
+	mutex     sync.Mutex
 	idCounter uint64
 	slice     []User
 }
@@ -745,13 +745,13 @@ func apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request) {
 func apiPlayerGet(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested get.", r.RemoteAddr)
 
-	state.mutex.RLock()
+	state.mutex.Lock()
 	getEvent := PlayerGetResponseData{
 		Player: state.player,
 		Entry:  state.entry,
 		// Subtitles: getSubtitles(),
 	}
-	state.mutex.RUnlock()
+	state.mutex.Unlock()
 
 	jsonData, err := json.Marshal(getEvent)
 	if err != nil {
@@ -1060,9 +1060,9 @@ func apiPlaylistGet(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection %s requested playlist get.", r.RemoteAddr)
 
-	state.mutex.RLock()
+	state.mutex.Lock()
 	jsonData, err := json.Marshal(state.playlist)
-	state.mutex.RUnlock()
+	state.mutex.Unlock()
 
 	if err != nil {
 		LogWarn("Failed to serialize playlist get event.")
@@ -1378,9 +1378,9 @@ func apiHistoryGet(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection %s requested history get.", r.RemoteAddr)
 
-	conns.mutex.RLock()
+	state.mutex.Lock()
 	jsonData, err := json.Marshal(state.history)
-	conns.mutex.RUnlock()
+	state.mutex.Unlock()
 
 	if err != nil {
 		LogWarn("Failed to serialize history get event.")
@@ -1409,16 +1409,16 @@ func apiHistoryClear(w http.ResponseWriter, r *http.Request) {
 }
 
 func isAuthorized(w http.ResponseWriter, r *http.Request) bool {
-	users.mutex.RLock()
+	users.mutex.Lock()
 	index := getAuthorizedIndex(w, r)
-	users.mutex.RUnlock()
+	users.mutex.Unlock()
 
 	return index != -1
 }
 
 func getAuthorized(w http.ResponseWriter, r *http.Request) *User {
-	users.mutex.RLock()
-	defer users.mutex.RUnlock()
+	users.mutex.Lock()
+	defer users.mutex.Unlock()
 
 	index := getAuthorizedIndex(w, r)
 
@@ -1523,7 +1523,7 @@ func writeEventToAllConnections(origin http.ResponseWriter, eventName string, da
 	eventId := state.eventId.Add(1)
 	event := fmt.Sprintf("id: %v\nevent: %v\ndata: %v\nretry: %v\n\n", eventId, eventName, jsonString, RETRY)
 
-	conns.mutex.RLock()
+	conns.mutex.Lock()
 	for _, conn := range conns.slice {
 		fmt.Fprintln(conn.writer, event)
 
@@ -1531,7 +1531,7 @@ func writeEventToAllConnections(origin http.ResponseWriter, eventName string, da
 			f.Flush()
 		}
 	}
-	conns.mutex.RUnlock()
+	conns.mutex.Unlock()
 }
 
 func writeEventToAllConnectionsExceptSelf(origin http.ResponseWriter, eventName string, data any, userId uint64, connectionId uint64) {
@@ -1547,7 +1547,7 @@ func writeEventToAllConnectionsExceptSelf(origin http.ResponseWriter, eventName 
 	eventId := state.eventId.Add(1)
 	event := fmt.Sprintf("id: %v\nevent: %v\ndata: %v\nretry: %v\n\n", eventId, eventName, jsonString, RETRY)
 
-	conns.mutex.RLock()
+	conns.mutex.Lock()
 	for _, conn := range conns.slice {
 		if userId == conn.userId && conn.id == connectionId {
 			continue
@@ -1559,7 +1559,7 @@ func writeEventToAllConnectionsExceptSelf(origin http.ResponseWriter, eventName 
 			f.Flush()
 		}
 	}
-	conns.mutex.RUnlock()
+	conns.mutex.Unlock()
 }
 
 // It should be possible to use this list in a dropdown and attach to entry
@@ -1817,9 +1817,9 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 
 	for {
 		var event SyncEventData
-		state.mutex.RLock()
+		state.mutex.Lock()
 		playing := state.player.Playing
-		state.mutex.RUnlock()
+		state.mutex.Unlock()
 
 		if playing {
 			event = createSyncEvent("play", 0)
@@ -2239,14 +2239,14 @@ func updatePlayerState(isPlaying bool, newTimestamp float64) {
 }
 
 func createSyncEvent(action string, userId uint64) SyncEventData {
-	state.mutex.RLock()
+	state.mutex.Lock()
 	var timestamp = state.player.Timestamp
 	if state.player.Playing {
 		now := time.Now()
 		diff := now.Sub(state.lastUpdate)
 		timestamp = state.player.Timestamp + diff.Seconds()
 	}
-	state.mutex.RUnlock()
+	state.mutex.Unlock()
 
 	event := SyncEventData{
 		Timestamp: timestamp,
@@ -2266,9 +2266,9 @@ func apiChatGet(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection %s requested messages.", r.RemoteAddr)
 
-	conns.mutex.RLock()
+	conns.mutex.Lock()
 	jsonData, err := json.Marshal(state.messages)
-	conns.mutex.RUnlock()
+	conns.mutex.Unlock()
 
 	if err != nil {
 		LogWarn("Failed to serialize messages get event.")
