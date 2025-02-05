@@ -49,17 +49,27 @@ type PlayerState struct {
 	Timestamp float64 `json:"timestamp"`
 }
 
+type EntrySubtitle struct {
+	Id   uint64 `json:"id"`
+	Name string `json:"name"`
+	Path string `json:"path"`
+}
+
 type Entry struct {
-	Id          uint64    `json:"id"`
-	Url         string    `json:"url"`
-	Title       string    `json:"title"`
-	UserId      uint64    `json:"user_id"`
-	UseProxy    bool      `json:"use_proxy"`
-	RefererUrl  string    `json:"referer_url"`
-	SourceUrl   string    `json:"source_url"`
-	SubtitleUrl string    `json:"subtitle_url"`
-	Thumbnail   string    `json:"thumbnail"`
-	Created     time.Time `json:"created"`
+	Id          uint64 `json:"id"`
+	Url         string `json:"url"`
+	Title       string `json:"title"`
+	UserId      uint64 `json:"user_id"`
+	UseProxy    bool   `json:"use_proxy"`
+	RefererUrl  string `json:"referer_url"`
+	SourceUrl   string `json:"source_url"`
+	SubtitleUrl string `json:"subtitle_url"`
+
+	// NOTE(kihau): NEW!
+	Subtitles []EntrySubtitle `json:"subtitles"`
+
+	Thumbnail string    `json:"thumbnail"`
+	Created   time.Time `json:"created"`
 }
 
 type ServerState struct {

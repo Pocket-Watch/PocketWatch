@@ -11,11 +11,12 @@ const TRANSITION_TIME       = 240;
 const BULK_ACTION_DELAY     = 32;
 const DRAG_INACTIVITY_DELAY = 32;
 const DROPDOWN_EXPAND_TIME  = 100;
+const TOUCH_HOLD_DELAY_TIME = 80;
 
 const DESKTOP_PLATFORM_SCROLLING_STEP = ENTRY_HEIGHT * 3.0;
 const TOY_TOUCH_DEVICE_SCROLLING_STEP = 32.0
 
-let CONTEXT_MENU_WIDTH = 180; // hardcoded because .offsetWidth returns 0 when it's hidden
+let CONTEXT_MENU_WIDTH  = 180; // hardcoded because .offsetWidth returns 0 when it's hidden
 let CONTEXT_MENU_HEIGHT = 204; // hardcoded because it's currently auto
 
 class Playlist {
@@ -70,7 +71,7 @@ class Playlist {
         this.draggableEntry    = null;
         this.dragStartIndex    = -1;
         this.dragCurrentIndex  = -1;
-        this.touchDragDelay    = null;
+        this.touchHoldDelay    = null;
 
         this.draggableEntryMouseOffset = 0; 
         this.shadowedEntryMoveTimout   = null;
@@ -267,7 +268,7 @@ class Playlist {
 
                 this.entries[i] = entry;
                 this.htmlEntries[i] = htmlEntry;
-                this.htmlEntryList.replaceChild(htmlEntry, previous)
+                this.htmlEntryList.replaceChild(htmlEntry, previous);
                 break;
             }
         }
@@ -432,16 +433,16 @@ class Playlist {
     }
 
     createEntryDropdown(entry, user) {
-        let entryDropdown  = div("playlist_entry_dropdown"); 
-        let proxyLabels    = div("playlist_dropdown_proxy_labels"); 
-        let proxyLabel     = span("playlist_dropdown_proxy_label", "Using proxy"); 
-        let refererLabel   = span("playlist_dropdown_referer_label", "Proxy referer"); 
+        let entryDropdown  = div("playlist_entry_dropdown");
+        let proxyLabels    = div("playlist_dropdown_proxy_labels");
+        let proxyLabel     = span("playlist_dropdown_proxy_label", "Using proxy");
+        let refererLabel   = span("playlist_dropdown_referer_label", "Proxy referer");
         let proxyCheckbox  = /* Checkbox, custom styled */ null;
-        let proxyReferer   = a("playlist_dropdown_proxy_referer", entry.referer_url); 
-        let infoLabels     = div("playlist_dropdown_info_labels"); 
+        let proxyReferer   = a("playlist_dropdown_proxy_referer", entry.referer_url);
+        let infoLabels     = div("playlist_dropdown_info_labels");
         let addedByText    = span("playlist_dropdown_added_by", "Added by"); 
-        let createdAtText  = span("playlist_dropdown_created_at", "Created at"); 
-        let infoContent    = div("playlist_dropdown_info_content"); 
+        let createdAtText  = span("playlist_dropdown_created_at", "Created at");
+        let infoContent    = div("playlist_dropdown_info_content");
         let userAvatar     = div("playlist_dropdown_user_avatar");
         let userAvatarImg  = img(user.avatar);
         let userName       = span("playlist_dropdown_user_name", user.username);
@@ -667,7 +668,7 @@ class Playlist {
 
         if (this.dragStartIndex !== this.dragCurrentIndex) {
             let entry = this.entries[this.dragCurrentIndex];
-            api.playlistMove(entry.id, this.dragStartIndex, this.dragCurrentIndex)
+            api.playlistMove(entry.id, this.dragStartIndex, this.dragCurrentIndex);
         }
     }
 
@@ -736,9 +737,9 @@ class Playlist {
         let entryTitle     = span("playlist_entry_title", entry.title);
         let entryUrl       = a("playlist_entry_url", entry.url);
         let entryButtons   = div("playlist_entry_buttons");
-        let editButton     = button("playlist_entry_edit_button", "Edit playlist entry")
+        let editButton     = button("playlist_entry_edit_button", "Edit playlist entry");
         let editSvg        = svg("svg/main_icons.svg#edit");
-        let deleteButton   = button("playlist_entry_delete_button", "Delete playlist entry")
+        let deleteButton   = button("playlist_entry_delete_button", "Delete playlist entry");
         let deleteSvg      = svg("svg/main_icons.svg#delete");
         let dropdownButton = div("playlist_dropdown_button");
         let dropdownSvg    = svg("svg/main_icons.svg#dropdown");
@@ -768,18 +769,18 @@ class Playlist {
         entryDragArea.oncontextmenu = event => {
             event.preventDefault();
             event.stopPropagation();
-        }
+        };
 
         entryDragArea.ontouchstart = event => {
-            clearTimeout(this.touchDragDelay);
-            this.touchDragDelay = setTimeout(_ => {
+            clearTimeout(this.touchHoldDelay);
+            this.touchHoldDelay = setTimeout(_ => {
                 this.scrollingStep = TOY_TOUCH_DEVICE_SCROLLING_STEP;
                 this.htmlEntryList.classList.add("disable-smooth-scrolling-for-toy-touch-device-systems");
                 this.startEntryDragging(entryRoot, event.touches[0].clientY);
 
                 let onDragging = event => {
                     this.moveDraggedEntry(event.touches[0].clientY);
-                    event.preventDefault()
+                    event.preventDefault();
                     event.stopPropagation();
                 };
 
@@ -791,12 +792,11 @@ class Playlist {
 
                 document.addEventListener("touchmove", onDragging, { passive: false });
                 document.addEventListener("touchend",  onDraggingStop);
-            }, 80);
+            }, TOUCH_HOLD_DELAY_TIME);
         };
 
-        entryDragArea.ontouchmove = event => clearTimeout(this.touchDragDelay);
-        entryDragArea.ontouchend = event => clearTimeout(this.touchDragDelay);
-
+        entryDragArea.ontouchmove = event => clearTimeout(this.touchHoldDelay);
+        entryDragArea.ontouchend  = event => clearTimeout(this.touchHoldDelay);
 
         entryDragArea.onmousedown = event => {
             this.scrollingStep = DESKTOP_PLATFORM_SCROLLING_STEP;
@@ -864,7 +864,7 @@ class Playlist {
             } break;
 
             case "clear": {
-                this.clear()
+                this.clear();
             } break;
 
             case "remove": {

@@ -629,7 +629,7 @@ class Room {
 
             userBox.style.borderColor    = "#d5c4a1";
             userBoxTop.style.borderColor = "#d5c4a1";
-            userBox.style.boxShadow      = "0px 0px 4px #fbf1cf inset"
+            userBox.style.boxShadow      = "0px 0px 4px #fbf1cf inset";
 
 
             let changeAvatarButton = button("user_box_change_avatar", "Update your avatar");
@@ -980,7 +980,7 @@ class Room {
             let data = JSON.parse(event.data);
             console.info("INFO: New message received from server");
 
-            if (this.rightPanel.selected.tab !== this.rightPanel.tabs.chat) {
+            if (this.selected_tab !== this.rightPanel.tabs.chat) {
                 this.newMessageAudio.play();
                 show(this.chatNewMessage);
             }
@@ -994,13 +994,13 @@ class Room {
 
         events.onerror = event => {
             console.error("EVENTS ERROR: ", event);
-            console.info("Closing current EventSource, current readyState =", events.readyState)
+            console.info("Closing current EventSource, current readyState =", events.readyState);
             events.close();
             let retryAfter = 5000;
-            console.info("Attempting reconnect in", retryAfter, "ms.")
+            console.info("Attempting reconnect in", retryAfter, "ms.");
             setTimeout(() => {
-                this.listenToServerEvents()
-            }, retryAfter)
+                this.listenToServerEvents();
+            }, retryAfter);
         }
     }
 
@@ -1050,7 +1050,7 @@ class Storage {
 }
 
 async function main() {
-    let room = new Room()
+    let room = new Room();
     room.applyUserPreferences();
     room.attachPlayerEvents();
     room.attachHtmlEvents();

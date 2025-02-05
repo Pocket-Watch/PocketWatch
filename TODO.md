@@ -103,7 +103,7 @@
     - [x] Mouse right click / touch hold down opens context menu with extra options.
     - [x] Improve playlist scrolling on entry drag
     - [x] Add entry dragging on mobile
-    - [ ] Replace "Clear playlist" button with "Delete mode" button (that also has as "clear all" button). On delete mode, disable animations (for fast deletion) and allow to delete playlist entries by clicking on them.
+    - [ ] Replace "Clear playlist" button with a "Delete mode" button (that also has a "clear all" button). On delete mode, disable animations (for fast deletion) and allow to delete playlist entries by clicking on them.
     - [ ] More items in entry dropdown
     - [ ] Proper network handling
     - [ ] Smart scrolling - dynamic remove/add on scrolling when entry count > 300 (also includes search)
