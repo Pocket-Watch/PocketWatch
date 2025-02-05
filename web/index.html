@@ -171,20 +171,42 @@
 
                     <br/>
 
+                    <div id="room_entry_title"> 
+                        <span class="placeholder">Title:</span>
+                        <input readonly id="room_title_input"/>
+                        <button type="button">Update</button>
+                    </div>
+
+                    <div id="room_upload_subtitle"> 
+                        <span class="placeholder">Upload subtitle for everyone:</span>
+                        <button type="button">Upload</button>
+                    </div>
+
                     <label class="placeholder">
                         Using proxy:
                         <input readonly type="checkbox" id="room_using_proxy"/>
                     </label>
 
-                    <span class="placeholder">Add more info items here...</span>
-
-                    <div>
-                        <h1 id="room_upload_file">Upload file</h1>
-                        <input type="file" id="room_upload_input" style="display:none"/>
-                        <button id="room_upload_button">Upload</button>
-                        <progress id="room_upload_progress" value="0" max="100"></progress>
+                    <div id="room_entry_referer"> 
+                        <span class="placeholder">Proxy referer:</span>
+                        <input readonly id="room_referer_input"/>
                     </div>
 
+                    <div>
+                        <span class="placeholder">Upload file:</span>
+                        <input type="file" id="room_upload_input" style="display:none"/>
+                        <progress id="room_upload_progress" value="0" max="100"></progress>
+                        <button id="room_upload_button">Upload</button>
+                    </div>
+
+                    <div id="room_browser_media"> 
+                        <span class="placeholder">Browse media files:</span>
+                        <a href="/watch/media">Browse</a>
+                    </div>
+
+                    <br/>
+
+                    <span class="placeholder">Add more info items here...</span>
                     <img class="construction_anim" src="img/under_construction.png">
                 </div>
                 <div id="content_playlist" class="content_view">

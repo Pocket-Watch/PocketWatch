@@ -8,6 +8,13 @@ import { getById, div, img, svg, button, hide, show } from "./util.js";
 const SERVER_ID = 0;
 const MAX_TITLE_LENGTH = 200;
 
+const LAST_SELECTED_TAB = "last_selected_tab"
+
+const TAB_ROOM     = 1;
+const TAB_PLAYLIST = 2;
+const TAB_CHAT     = 3;
+const TAB_HISTORY  = 4;
+
 class Room {
     constructor() {
         let video0 = getById("video0");
@@ -79,16 +86,8 @@ class Room {
         this.uploadInput    = getById("room_upload_input");
         this.uploadProgress = getById("room_upload_progress");
 
-        let content = this.rightPanel.content.playlist;
-        content.classList.add("selected");
-
-        let tab = this.rightPanel.tabs.playlist;
-        tab.classList.add("selected");
-
-        this.rightPanel.selected = {
-            tab:     tab,
-            content: content,
-        }
+        this.selected_tab     = this.rightPanel.tabs.room;
+        this.selected_content = this.rightPanel.content.room;
 
         this.youtubeSearchEnabled = false;
         this.asPlaylistEnabled    = false;
@@ -118,8 +117,6 @@ class Room {
 
         // Id of the currently set entry.
         this.currentEntryId = 0;
-
-        this.applyUserPreferences();
     }
 
     applyUserOptions(options) {
@@ -135,6 +132,9 @@ class Room {
     }
 
     applyUserPreferences() {
+        let last_tab = Storage.getNum(LAST_SELECTED_TAB);
+        this.selectRightPanelTab(last_tab);
+
         let volume = Storage.get("volume");
         if (volume != null) {
             this.player.setVolume(volume);
@@ -354,28 +354,57 @@ class Room {
         return requestEntry;
     }
 
-    attachRightPanelEvents() {
-        let select = (tab, content) => {
-            this.rightPanel.selected.tab.classList.remove("selected");
-            this.rightPanel.selected.content.classList.remove("selected");
+    selectRightPanelTab(tab_type) {
+        this.selected_tab.classList.remove("selected");
+        this.selected_content.classList.remove("selected");
 
-            tab.classList.add("selected");
-            content.classList.add("selected");
+        let tab     = null;
+        let content = null;
+        switch (tab_type) {
+            case TAB_ROOM: {
+                tab     = this.rightPanel.tabs.room;
+                content = this.rightPanel.content.room;
+            } break;
 
-            this.rightPanel.selected.tab = tab;
-            this.rightPanel.selected.content = content;
+            case TAB_PLAYLIST: {
+                tab     = this.rightPanel.tabs.playlist;
+                content = this.rightPanel.content.playlist;
+            } break;
+
+            case TAB_CHAT: {
+                tab     = this.rightPanel.tabs.chat;
+                content = this.rightPanel.content.chat;
+
+                hide(this.chatNewMessage);
+            } break;
+
+            case TAB_HISTORY: {
+                tab     = this.rightPanel.tabs.history;
+                content = this.rightPanel.content.history;
+            } break;
+
+            default: {
+                tab     = this.rightPanel.tabs.room;
+                content = this.rightPanel.content.room;
+            } break;
         }
 
-        let tabs = this.rightPanel.tabs;
-        let content = this.rightPanel.content;
+        tab.classList.add("selected");
+        content.classList.add("selected");
 
-        tabs.room.onclick     = _ => select(tabs.room, content.room);
-        tabs.playlist.onclick = _ => select(tabs.playlist, content.playlist);
-        tabs.chat.onclick     = _ => {
-            hide(this.chatNewMessage);
-            select(tabs.chat, content.chat);
-        };
-        tabs.history.onclick  = _ => select(tabs.history, content.history);
+        this.selected_tab     = tab;
+        this.selected_content = content;
+
+        Storage.set(LAST_SELECTED_TAB, tab_type);
+    }
+
+    attachRightPanelEvents() {
+        let tabs = this.rightPanel.tabs;
+
+        tabs.room.onclick     = _ => this.selectRightPanelTab(TAB_ROOM);
+        tabs.playlist.onclick = _ => this.selectRightPanelTab(TAB_PLAYLIST);
+        tabs.chat.onclick     = _ => this.selectRightPanelTab(TAB_CHAT);
+        tabs.history.onclick  = _ => this.selectRightPanelTab(TAB_HISTORY);
 
         this.uploadButton.onclick = _ => {
             this.uploadInput.click();
@@ -1022,6 +1051,7 @@ class Storage {
 
 async function main() {
     let room = new Room()
+    room.applyUserPreferences();
     room.attachPlayerEvents();
     room.attachHtmlEvents();
     await room.connectToServer();
