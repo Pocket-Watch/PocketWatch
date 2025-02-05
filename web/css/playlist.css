@@ -231,12 +231,11 @@
     width: 22px;
 }
 
-#context_menu_entry_expand svg {
+#context_menu_expand_entry svg {
     height: 13px;
     width: 13px;
     margin-right: 4px;
 }
-
 
 #context_menu_edit span {
     color: #8ec87c;

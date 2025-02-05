@@ -89,8 +89,8 @@ html * {
 }
 
 #url_dropdown_button svg {
-    height: 86%;
-    width: 86%;
+    height: 12px;
+    width: 12px;
     fill: #1d2021;
     transform: rotate(180deg);
     transition: transform 100ms;
@@ -126,8 +126,8 @@ html * {
 }
 
 #url_reset_button svg {
-    height: 56%;
-    width: 56%;
+    height: 20px;
+    width: 20px;
     fill: #3c3836;
 }
 
@@ -215,8 +215,8 @@ html * {
 }
 
 #url_set_button svg {
-    height: 60%;
-    width: 60%;
+    height: 24px;
+    width: 24px;
     /* fill: #282828; */
     fill: #3c3836;
 }
@@ -253,8 +253,8 @@ html * {
 }
 
 #url_add_playlist_button svg {
-    height: 70%;
-    width: 70%;
+    height: 26px;
+    width: 26px;
     /* fill: #282828; */
     fill: #3c3836;
 }
