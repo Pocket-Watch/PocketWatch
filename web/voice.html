@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice chat</title>
+    <style>
+        body {
+            background-color: #282828;
+        }
+    </style>
+</head>
+
+<body>
+<div id="page">
+
+</div>
+
+<br/>
+
+<button onclick="requestPermission()">Request</button>
+<button id="processButton" onclick="processStream()">Process</button>
+<button id="stopButton" onclick="stopStream()">Stop</button>
+
+<label id="status">STATUS</label>
+
+<script type="module" src="js/voice.js"></script>
+</body>
+
+</html>
