@@ -327,7 +327,14 @@ class Room {
 
     }
 
-    createNewRequestEntry(subtitles) {
+    async createNewRequestEntry() {
+        let subtitles = [];
+        if (this.subtitleFile) {
+            let filename = this.urlArea.subtitleInput.value;
+            let sub = await api.uploadSubs(this.subtitleFile, filename);
+            subtitles.push(sub);
+        }
+
         let countString = this.urlArea.ytCountInput.value.trim();
         let count = Number(countString)
         if (!count || count <= 0) {
@@ -420,24 +427,16 @@ class Room {
     }
 
     attachUrlAreaEvents() {
-        this.urlArea.dropdownButton.onclick = () => {
+        this.urlArea.dropdownButton.onclick = _ => {
             this.urlArea.root.classList.toggle("url_area_expand");
         }
 
-        this.urlArea.resetButton.onclick = () => {
+        this.urlArea.resetButton.onclick = _ => {
             this.resetUrlAreaElements();
         }
 
         this.urlArea.setButton.onclick = async _ => {
-            let subtitles = [];
-            if (this.subtitleFile) {
-                let filename = this.urlArea.subtitleInput.value;
-                let sub = await api.uploadSubs(this.subtitleFile, filename);
-                subtitles.push(sub);
-            }
-            console.debug(subtitles);
-
-            let entry = this.createNewRequestEntry(subtitles);
+            let entry = await this.createNewRequestEntry();
             api.playerSet(entry).then(jsonResponse => {
                 if (jsonResponse.checkError()) {
                     return;
@@ -449,21 +448,12 @@ class Room {
         }
 
         this.urlArea.addPlaylistButton.onclick = async _ => {
-            let subtitles = [];
-            if (this.subtitleFile) {
-                let filename = this.urlArea.subtitleInput.value;
-                let sub = await api.uploadSubs(this.subtitleFile, filename);
-                subtitles.push(sub);
-            }
-            console.debug(subtitles);
-
-            let entry = this.createNewRequestEntry(subtitles);
+            let entry = await this.createNewRequestEntry();
             if (entry.url) {
                 api.playlistAdd(entry);
                 this.resetUrlAreaElements();
             }
         }
-
 
         this.urlArea.selectSubtitleButton.onclick = _ => {
             let input = document.createElement('input');

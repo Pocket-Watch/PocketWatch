@@ -60,7 +60,7 @@ class Player {
         return this.internals.htmlVideo.duration;
     }
 
-    setSubtitle(subtitleUrl) {
+    setSubtitle(url, name) {
         let info = FileInfo.fromUrl(url)
         if (name) {
             info.filename = name;

@@ -782,7 +782,7 @@ func apiPlayerGet(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(jsonData))
 }
 
-func setNewEntry(newEntry Entry) Entry {
+func setNewEntry(newEntry *Entry) Entry {
 	prevEntry := state.entry
 
 	if prevEntry.Url != "" {
@@ -813,7 +813,7 @@ func setNewEntry(newEntry Entry) Entry {
 		}
 	}
 
-	state.entry = newEntry
+	state.entry = *newEntry
 
 	state.player.Timestamp = 0
 	state.lastUpdate = time.Now()
@@ -865,14 +865,14 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 		state.playlist = append(state.playlist, state.entry)
 	}
 
-	prevEntry := setNewEntry(newEntry)
+	prevEntry := setNewEntry(&newEntry)
 	state.mutex.Unlock()
 
 	LogInfo("New url is now: '%s'.", state.entry.Url)
 
 	setEvent := PlayerSetEventData{
 		PrevEntry: prevEntry,
-		NewEntry:  state.entry,
+		NewEntry:  newEntry,
 	}
 	writeEventToAllConnections(w, "playerset", setEvent)
 	io.WriteString(w, "{}")
@@ -934,8 +934,7 @@ func apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 	}
 
 	loadYoutubeEntry(&newEntry, RequestEntry{})
-	prevEntry := setNewEntry(newEntry)
-
+	prevEntry := setNewEntry(&newEntry)
 	state.mutex.Unlock()
 
 	nextEvent := PlayerNextEventData{
@@ -1127,7 +1126,7 @@ func apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
 
 	newEntry := state.playlist[data.Index]
 	loadYoutubeEntry(&newEntry, RequestEntry{})
-	prevEntry := setNewEntry(newEntry)
+	prevEntry := setNewEntry(&newEntry)
 	state.playlist = append(state.playlist[:data.Index], state.playlist[data.Index+1:]...)
 	state.mutex.Unlock()
 
@@ -1136,7 +1135,7 @@ func apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
 
 	setEvent := PlayerSetEventData{
 		PrevEntry: prevEntry,
-		NewEntry:  state.entry,
+		NewEntry:  newEntry,
 	}
 	writeEventToAllConnections(w, "playerset", setEvent)
 	io.WriteString(w, "{}")
@@ -1515,15 +1514,11 @@ func writeEvent(w http.ResponseWriter, eventName string, data any) error {
 
 	conns.mutex.Lock()
 	_, err = fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\nretry: %d\n\n", eventId, eventName, jsonString, RETRY)
-	conns.mutex.Unlock()
-
-	if err != nil {
-		return err
-	}
 
 	if f, ok := w.(http.Flusher); ok {
 		f.Flush()
 	}
+	conns.mutex.Unlock()
 
 	return nil
 }
@@ -2286,9 +2281,9 @@ func apiChatGet(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection %s requested messages.", r.RemoteAddr)
 
-	conns.mutex.Lock()
+	state.mutex.Lock()
 	jsonData, err := json.Marshal(state.messages)
-	conns.mutex.Unlock()
+	state.mutex.Unlock()
 
 	if err != nil {
 		LogWarn("Failed to serialize messages get event.")
