@@ -91,6 +91,8 @@ html * {
 #url_dropdown_button svg {
     height: 12px;
     width: 12px;
+    /* fill: #d5c4a1; */
+    /* fill: #bdae93; */
     fill: #1d2021;
     transform: rotate(180deg);
     transition: transform 100ms;

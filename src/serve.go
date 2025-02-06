@@ -1515,6 +1515,11 @@ func writeEvent(w http.ResponseWriter, eventName string, data any) error {
 	conns.mutex.Lock()
 	_, err = fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\nretry: %d\n\n", eventId, eventName, jsonString, RETRY)
 
+	if err != nil {
+		conns.mutex.Unlock()
+		return err
+	}
+
 	if f, ok := w.(http.Flusher); ok {
 		f.Flush()
 	}

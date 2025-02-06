@@ -179,25 +179,27 @@ class Room {
                 api.playerPlay(0);
                 return;
             }
+
             if (this.player.getCurrentUrl() === document.baseURI) {
                 console.warn("Nothing is set");
                 return;
             }
+
             api.playerPlay(this.player.getCurrentTime());
-        })
+        });
 
         this.player.onControlsPause(_ => {
             api.playerPause(this.player.getCurrentTime());
-        })
+        });
 
         this.player.onControlsSeeked(timestamp => {
             this.ended = false;
             api.playerSeek(timestamp);
-        })
+        });
 
         this.player.onControlsSeeking(timestamp => {
             console.log("User seeking to", timestamp);
-        })
+        });
 
         this.player.onControlsNext(_ => {
             api.playerNext(this.currentEntryId);
@@ -206,7 +208,7 @@ class Room {
         this.player.onControlsVolumeSet(volume => {
             // Maybe browsers optimize calls to localStorage and don't write to disk 30 times a second?
             Storage.set("volume", volume)
-        })
+        });
 
         this.player.onSettingsChange((key, value) => {
             switch (key) {
@@ -224,7 +226,7 @@ class Room {
                     Storage.set(key, value);
                     break;
             }
-        })
+        });
 
         this.player.onSubtitleSearch(async (search) => {
             console.log("Search requested.", search);
@@ -237,7 +239,7 @@ class Room {
             this.player.setToast("Adding subtitle " + subtitleUrl);
             this.player.addSubtitle(subtitleUrl);
             return true;
-        })
+        });
 
         this.player.onPlaybackEnd(_ => {
             if (this.playlist.autoplayEnabled) {
@@ -301,7 +303,7 @@ class Room {
                 return;
             }
 
-        })
+        });
     }
 
     resetUrlAreaElements() {
@@ -324,7 +326,6 @@ class Room {
 
         this.proxyEnabled = false;
         this.urlArea.proxyToggle.classList.remove("toggle_active");
-
     }
 
     async createNewRequestEntry() {
