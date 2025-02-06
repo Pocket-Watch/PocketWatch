@@ -327,11 +327,7 @@ class Room {
 
     }
 
-    createNewRequestEntry(subtitle) {
-        if (!subtitle) {
-            subtitle = "";
-        }
-
+    createNewRequestEntry(subtitles) {
         let countString = this.urlArea.ytCountInput.value.trim();
         let count = Number(countString)
         if (!count || count <= 0) {
@@ -343,10 +339,10 @@ class Room {
             title:        this.urlArea.titleInput.value.trim(),
             use_proxy:    this.proxyEnabled,
             referer_url:  this.urlArea.refererInput.value.trim(),
-            subtitle_url: subtitle,
             search_video: this.youtubeSearchEnabled,
             is_playlist:  this.asPlaylistEnabled,
             add_to_top:   this.addToTopEnabled,
+            subtitles:    subtitles,
             playlist_skip_count: 0,
             playlist_max_size:   count,
         };
@@ -433,13 +429,15 @@ class Room {
         }
 
         this.urlArea.setButton.onclick = async _ => {
-            let subtitlePath = "";
+            let subtitles = [];
             if (this.subtitleFile) {
                 let filename = this.urlArea.subtitleInput.value;
-                subtitlePath = await api.uploadSubs(this.subtitleFile, filename);
+                let sub = await api.uploadSubs(this.subtitleFile, filename);
+                subtitles.push(sub);
             }
+            console.debug(subtitles);
 
-            let entry = this.createNewRequestEntry(subtitlePath);
+            let entry = this.createNewRequestEntry(subtitles);
             api.playerSet(entry).then(jsonResponse => {
                 if (jsonResponse.checkError()) {
                     return;
@@ -451,13 +449,15 @@ class Room {
         }
 
         this.urlArea.addPlaylistButton.onclick = async _ => {
-            let subtitlePath = "";
+            let subtitles = [];
             if (this.subtitleFile) {
                 let filename = this.urlArea.subtitleInput.value;
-                subtitlePath = await api.uploadSubs(this.subtitleFile, filename);
+                let sub = await api.uploadSubs(this.subtitleFile, filename);
+                subtitles.push(sub);
             }
+            console.debug(subtitles);
 
-            let entry = this.createNewRequestEntry(subtitlePath);
+            let entry = this.createNewRequestEntry(subtitles);
             if (entry.url) {
                 api.playlistAdd(entry);
                 this.resetUrlAreaElements();
@@ -740,8 +740,11 @@ class Room {
         }
 
         this.player.clearAllSubtitleTracks();
-        if (entry.subtitle_url) {
-            this.player.addSubtitle(entry.subtitle_url);
+        if (entry.subtitles) {
+            for (let i = 0; i < entry.subtitles.length; i++) {
+                let sub = entry.subtitles[i];
+                this.player.addSubtitle(sub.path, sub.name);
+            }
         }
 
         this.player.setPoster(null)

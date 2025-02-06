@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-type Subtitle struct {
+type SubtitleFile struct {
 	Start, End Timecode
 	Content    string
 }
@@ -85,8 +85,8 @@ func fromSrtTimestamp(timestamp string) (Timecode, error) {
 	return Timecode{hours, minutes, seconds, milliseconds}, nil
 }
 
-func newSubtitle(start, end Timecode, content string) Subtitle {
-	return Subtitle{start, end, content}
+func newSubtitle(start, end Timecode, content string) SubtitleFile {
+	return SubtitleFile{start, end, content}
 }
 
 //  Each subtitle has four parts in the SRT file.
@@ -95,16 +95,16 @@ func newSubtitle(start, end Timecode, content string) Subtitle {
 //    3. Subtitle text in one or more lines.
 //    4. A blank line indicating the end of the subtitle.
 
-func parseSRT(path string) ([]Subtitle, error) {
+func parseSRT(path string) ([]SubtitleFile, error) {
 
 	file, err := os.Open(path)
 	if err != nil {
-		return make([]Subtitle, 0), err
+		return make([]SubtitleFile, 0), err
 	}
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	subtitles := make([]Subtitle, 0, 2048)
+	subtitles := make([]SubtitleFile, 0, 2048)
 
 	for scanner.Scan() {
 		counter := scanner.Text()
@@ -169,7 +169,7 @@ func parseTimestamps(timestamps string) (Timecode, Timecode, error) {
 	return start, end, nil
 }
 
-func serializeToVTT(subtitles []Subtitle, path string) error {
+func serializeToVTT(subtitles []SubtitleFile, path string) error {
 	file, err := os.Create(path)
 	if err != nil {
 		return err
@@ -195,7 +195,7 @@ func serializeToVTT(subtitles []Subtitle, path string) error {
 }
 
 // negative / positive
-func (sub *Subtitle) shiftBy(ms int) {
+func (sub *SubtitleFile) shiftBy(ms int) {
 	if ms > 0 {
 		sub.Start.shiftForwardBy(ms)
 		sub.End.shiftForwardBy(ms)

@@ -61,11 +61,21 @@ class Player {
     }
 
     setSubtitle(subtitleUrl) {
-        this.internals.addSubtitle(subtitleUrl, true);
+        let info = FileInfo.fromUrl(url)
+        if (name) {
+            info.filename = name;
+        }
+
+        return this.internals.addSubtitle(url, true, info);
     }
 
-    addSubtitle(subtitleUrl) {
-        return this.internals.addSubtitle(subtitleUrl, false);
+    addSubtitle(url, name) {
+        let info = FileInfo.fromUrl(url)
+        if (name) {
+            info.filename = name;
+        }
+
+        return this.internals.addSubtitle(url, false, info);
     }
 
     // Disables and removes the track at the specified index.

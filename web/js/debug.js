@@ -4,7 +4,7 @@ function createEntry(title, url) {
         title:        title,
         use_proxy:    false,
         referer_url:  "",
-        subtitle_url: "",
+        subtitles:    [],
         search_video: false,
         is_playlist:  false,
         playlist_skip_count: 0,

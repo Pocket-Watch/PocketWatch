@@ -49,27 +49,23 @@ type PlayerState struct {
 	Timestamp float64 `json:"timestamp"`
 }
 
-type EntrySubtitle struct {
+type Subtitle struct {
 	Id   uint64 `json:"id"`
 	Name string `json:"name"`
 	Path string `json:"path"`
 }
 
 type Entry struct {
-	Id          uint64 `json:"id"`
-	Url         string `json:"url"`
-	Title       string `json:"title"`
-	UserId      uint64 `json:"user_id"`
-	UseProxy    bool   `json:"use_proxy"`
-	RefererUrl  string `json:"referer_url"`
-	SourceUrl   string `json:"source_url"`
-	SubtitleUrl string `json:"subtitle_url"`
-
-	// NOTE(kihau): NEW!
-	Subtitles []EntrySubtitle `json:"subtitles"`
-
-	Thumbnail string    `json:"thumbnail"`
-	Created   time.Time `json:"created"`
+	Id         uint64     `json:"id"`
+	Url        string     `json:"url"`
+	Title      string     `json:"title"`
+	UserId     uint64     `json:"user_id"`
+	UseProxy   bool       `json:"use_proxy"`
+	RefererUrl string     `json:"referer_url"`
+	SourceUrl  string     `json:"source_url"`
+	Subtitles  []Subtitle `json:"subtitles"`
+	Thumbnail  string     `json:"thumbnail"`
+	Created    time.Time  `json:"created"`
 }
 
 type ServerState struct {
@@ -87,7 +83,8 @@ type ServerState struct {
 	messages  []ChatMessage
 	messageId uint64
 
-	proxy Proxy
+	proxy  Proxy
+	subsId atomic.Uint64
 }
 
 type Proxy struct {
@@ -282,16 +279,16 @@ func createPlaylistEvent(action string, data any) PlaylistEventData {
 }
 
 type RequestEntry struct {
-	Url               string `json:"url"`
-	Title             string `json:"title"`
-	UseProxy          bool   `json:"use_proxy"`
-	RefererUrl        string `json:"referer_url"`
-	SubtitleUrl       string `json:"subtitle_url"`
-	SearchVideo       bool   `json:"search_video"`
-	IsPlaylist        bool   `json:"is_playlist"`
-	AddToTop          bool   `json:"add_to_top"`
-	PlaylistSkipCount uint   `json:"playlist_skip_count"`
-	PlaylistMaxSize   uint   `json:"playlist_max_size"`
+	Url               string     `json:"url"`
+	Title             string     `json:"title"`
+	UseProxy          bool       `json:"use_proxy"`
+	RefererUrl        string     `json:"referer_url"`
+	SearchVideo       bool       `json:"search_video"`
+	IsPlaylist        bool       `json:"is_playlist"`
+	AddToTop          bool       `json:"add_to_top"`
+	Subtitles         []Subtitle `json:"subtitles"`
+	PlaylistSkipCount uint       `json:"playlist_skip_count"`
+	PlaylistMaxSize   uint       `json:"playlist_max_size"`
 }
 
 type PlaylistPlayRequestData struct {
@@ -536,11 +533,15 @@ func apiUploadSubs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filename := headers.Filename
+	extension := path.Ext(filename)
+	subId := state.subsId.Add(1)
 
-	outputPath, isSafe := safeJoin("web", "subs", filename)
+	outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
+	outputPath, isSafe := safeJoin("web", "subs", outputName)
 	if checkTraversal(w, isSafe) {
 		return
 	}
+
 	os.MkdirAll("web/subs/", 0750)
 
 	outputFile, err := os.Create(outputPath)
@@ -567,11 +568,18 @@ func apiUploadSubs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	networkPath, isSafe := safeJoin("subs", filename)
+	networkPath, isSafe := safeJoin("subs", outputName)
 	if checkTraversal(w, isSafe) {
 		return
 	}
-	jsonData, _ := json.Marshal(networkPath)
+
+	subtitle := Subtitle{
+		Id:   subId,
+		Name: strings.TrimSuffix(filename, extension),
+		Path: networkPath,
+	}
+
+	jsonData, _ := json.Marshal(subtitle)
 	io.WriteString(w, string(jsonData))
 }
 
@@ -580,6 +588,7 @@ func apiSearchSubs(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Feature unavailable", http.StatusServiceUnavailable)
 		return
 	}
+
 	if r.Method != "POST" {
 		http.Error(w, "POST was expected", http.StatusMethodNotAllowed)
 		return
@@ -600,6 +609,7 @@ func apiSearchSubs(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
 	// Expect it to be directed to /subs/
 	servedPath, isSafe := safeJoin("media/subs", filepath.Base(subtitlePath))
 	if checkTraversal(w, isSafe) {
@@ -835,15 +845,15 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 	state.mutex.Unlock()
 
 	newEntry := Entry{
-		Id:          id,
-		Url:         data.RequestEntry.Url,
-		UserId:      user.Id,
-		Title:       data.RequestEntry.Title,
-		UseProxy:    data.RequestEntry.UseProxy,
-		RefererUrl:  data.RequestEntry.RefererUrl,
-		SourceUrl:   "",
-		SubtitleUrl: data.RequestEntry.SubtitleUrl,
-		Created:     time.Now(),
+		Id:         id,
+		Url:        data.RequestEntry.Url,
+		UserId:     user.Id,
+		Title:      data.RequestEntry.Title,
+		UseProxy:   data.RequestEntry.UseProxy,
+		RefererUrl: data.RequestEntry.RefererUrl,
+		SourceUrl:  "",
+		Subtitles:  data.RequestEntry.Subtitles,
+		Created:    time.Now(),
 	}
 
 	newEntry.Title = constructTitleWhenMissing(&newEntry)
@@ -1170,15 +1180,15 @@ func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 		state.mutex.Unlock()
 
 		newEntry := Entry{
-			Id:          id,
-			Url:         data.RequestEntry.Url,
-			UserId:      user.Id,
-			Title:       data.RequestEntry.Title,
-			UseProxy:    data.RequestEntry.UseProxy,
-			RefererUrl:  data.RequestEntry.RefererUrl,
-			SourceUrl:   "",
-			SubtitleUrl: data.RequestEntry.SubtitleUrl,
-			Created:     time.Now(),
+			Id:         id,
+			Url:        data.RequestEntry.Url,
+			UserId:     user.Id,
+			Title:      data.RequestEntry.Title,
+			UseProxy:   data.RequestEntry.UseProxy,
+			RefererUrl: data.RequestEntry.RefererUrl,
+			SourceUrl:  "",
+			Subtitles:  data.RequestEntry.Subtitles,
+			Created:    time.Now(),
 		}
 
 		newEntry.Title = constructTitleWhenMissing(&newEntry)
@@ -2381,15 +2391,15 @@ func getEntriesFromDirectory(path string, userId uint64) []Entry {
 			state.mutex.Unlock()
 
 			entry := Entry{
-				Id:          id,
-				Url:         url.String(),
-				UserId:      userId,
-				Title:       "",
-				UseProxy:    false,
-				RefererUrl:  "",
-				SourceUrl:   "",
-				SubtitleUrl: "",
-				Created:     time.Now(),
+				Id:         id,
+				Url:        url.String(),
+				UserId:     userId,
+				Title:      "",
+				UseProxy:   false,
+				RefererUrl: "",
+				SourceUrl:  "",
+				Subtitles:  []Subtitle{},
+				Created:    time.Now(),
 			}
 
 			entry.Title = constructTitleWhenMissing(&entry)
