@@ -78,9 +78,25 @@ class Player {
         return this.internals.addSubtitle(url, false, info);
     }
 
+    // Tests each subtitle with the predicate function. Returns true on first match.
+    anySubtitleMatch(predicateFunc) {
+        if (isFunction(predicateFunc)) {
+            return this.internals.anySubtitleMatch(predicateFunc)
+        }
+        return false;
+    }
+
     // Disables and removes the track at the specified index.
     removeSubtitleTrackAt(index) {
+        if (index < 0 || index >= this.subtitles.length) {
+            return;
+        }
         this.internals.removeSubtitleTrackAt(index);
+    }
+
+    // Disables and removes the track identified by the given URL.
+    removeSubtitleByUrl(url) {
+        this.internals.removeSubtitleByUrl(url);
     }
 
     clearAllSubtitleTracks() {
@@ -873,7 +889,7 @@ class Internals {
                 console.debug("Sanitized in", performance.now() - sanitizeStart, "ms")
             }
 
-            let subtitle = new Subtitle(cues, info.filename, info.extension);
+            let subtitle = new Subtitle(cues, info.filename, info.extension, url);
             subtitle.htmlTrack.onclick = _ => this.switchSubtitleTrack(subtitle);
 
             if (show) {
@@ -930,11 +946,35 @@ class Internals {
         }
     }
 
-    removeSubtitleTrackAt(index) {
+    anySubtitleMatch(predicate) {
+        // One could modify the subtitle inside the predicate function
         let subtitles = this.subtitles;
-        if (index < 0 || index >= this.subtitles.length) {
+        let found = false;
+        for (let i = 0; i < subtitles.length; i++) {
+            if (predicate(subtitles[i])) {
+                found = true;
+                break;
+            }
+        }
+        return found;
+    }
+
+    removeSubtitleByUrl(url) {
+        let subtitles = this.subtitles;
+        let index = -1;
+        for (let i = 0; i < subtitles.length; i++) {
+            if (subtitles[i].url === url) {
+                index = i;
+                break;
+            }
+        }
+        if (index === -1) {
             return;
         }
+        this.removeSubtitleTrackAt(index);
+    }
+
+    removeSubtitleTrackAt(index) {
         let list = this.htmlControls.subMenu.trackList;
         let track = list.children[index];
         if (this.selectedSubtitle != null && track === this.selectedSubtitle.htmlTrack) {
@@ -942,7 +982,7 @@ class Internals {
             this.activeCues.length = 0;
         }
         list.removeChild(track);
-        subtitles.splice(index, 1);
+        this.subtitles.splice(index, 1);
     }
     
     clearAllSubtitleTracks() {
@@ -2059,11 +2099,12 @@ class Cue {
 }
 
 // Internal representation for a subtitle, a replacement for the TextTrack and <track>
-class Subtitle {
-    constructor(cues, name, format) {
+export class Subtitle {
+    constructor(cues, name, format, url) {
         this.cues = cues;
         this.name = name;
         this.format = format;
+        this.url = url;
         this.offset = 0.0;
         this.htmlTrack = this.createSubtitleTrackElement(name);
     }

@@ -775,8 +775,9 @@ class Room {
             this.player.setTitle(entry.title);
         }
 
-        this.player.clearAllSubtitleTracks();
-        if (entry.subtitles) {
+        if (entry.subtitles && entry.subtitles.length > 0) {
+            // Clear subtitles if there's a replacement
+            this.player.clearAllSubtitleTracks();
             for (let i = 0; i < entry.subtitles.length; i++) {
                 let sub = entry.subtitles[i];
                 this.player.addSubtitle(sub.path, sub.name);
