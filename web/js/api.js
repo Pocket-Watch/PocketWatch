@@ -150,8 +150,8 @@ export async function uploadMedia(file, filename) {
 
 export async function uploadSubs(file, filename) {
     console.info("INFO: Uploading a subtitle file to the server.");
-    let filePath = await httpPostFile("/watch/api/uploadsubs", file, filename);
-    return filePath;
+    let subtitle = await httpPostFile("/watch/api/uploadsubs", file, filename);
+    return subtitle;
 }
 
 export async function uploadMediaWithProgress(file, onprogress) {
@@ -269,6 +269,16 @@ export async function playerAutoplay(state) {
 export async function playerLooping(state) {
     console.info("INFO: Sending player autoplay request.");
     httpPost("/watch/api/player/looping", state);
+}
+
+export async function apiPlayerUpdateTitle(title) {
+    console.info("INFO: Sending player title update request.");
+    httpPost("/watch/api/player/updatetitle", title);
+}
+
+export async function apiPlayerAttachSubtitle(subtitle) {
+    console.info("INFO: Sending player subtitle attach request.");
+    httpPost("/watch/api/player/attachsubtitle", subtitle);
 }
 
 export async function playlistGet() {

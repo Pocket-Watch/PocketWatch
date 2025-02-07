@@ -419,6 +419,8 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/watch/api/player/seek", apiPlayerSeek)
 	http.HandleFunc("/watch/api/player/autoplay", apiPlayerAutoplay)
 	http.HandleFunc("/watch/api/player/looping", apiPlayerLooping)
+	http.HandleFunc("/watch/api/player/updatetitle", apiPlayerUpdateTitle)
+	http.HandleFunc("/watch/api/player/attachsubtitle", apiPlayerAttachSubtitle)
 
 	// API calls that change state of the playlist.
 	http.HandleFunc("/watch/api/playlist/get", apiPlaylistGet)
@@ -1070,6 +1072,52 @@ func apiPlayerLooping(w http.ResponseWriter, r *http.Request) {
 	state.mutex.Unlock()
 
 	writeEventToAllConnections(w, "playerlooping", looping)
+}
+
+func apiPlayerUpdateTitle(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	if !isAuthorized(w, r) {
+		return
+	}
+
+	LogInfo("Connection %s requested title update.", r.RemoteAddr)
+
+	var title string
+	if !readJsonDataFromRequest(w, r, &title) {
+		return
+	}
+
+	state.mutex.Lock()
+	state.entry.Title = title
+	state.mutex.Unlock()
+
+	writeEventToAllConnections(w, "playerupdatetitle", title)
+}
+
+func apiPlayerAttachSubtitle(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	if !isAuthorized(w, r) {
+		return
+	}
+
+	LogInfo("Connection %s requested attach sub.", r.RemoteAddr)
+
+	var subtitle Subtitle
+	if !readJsonDataFromRequest(w, r, &subtitle) {
+		return
+	}
+
+	state.mutex.Lock()
+	state.entry.Subtitles = append(state.entry.Subtitles, subtitle)
+	state.mutex.Unlock()
+
+	writeEventToAllConnections(w, "playerattachsubtitle", subtitle)
 }
 
 func apiPlaylistGet(w http.ResponseWriter, r *http.Request) {

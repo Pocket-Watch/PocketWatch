@@ -74,17 +74,28 @@ class Room {
             },
         };
 
+        this.roomContent = {
+            currentUrlInput: getById("room_current_url_input"),
+            titleInput:      getById("room_title_input"),
+            refererInput:    getById("room_referer_input"),
+            uploadSubInput:  getById("room_upload_subtitle_input"),
+            uploadFileInput: getById("room_upload_file_input"),
+
+            titleUpdateButton: getById("room_title_update_button"),
+            uploadSubButton:   getById("room_upload_subtitle_button"),
+            uploadFileButton:  getById("room_upload_file_button"),
+
+            usingProxyCheckbox: getById("room_using_proxy_checkbox"),
+            uploadFileProgress: getById("room_upload_file_progress"),
+            createdByUsername:  getById("room_created_by_username"),
+            createdAtDate:      getById("room_created_at_date"),
+            lastActionText:     getById("room_last_action_text"),
+        };
+
         this.chatNewMessage = getById("tab_chat_new_message_indicator");
         hide(this.chatNewMessage);
 
         this.newMessageAudio = new Audio('audio/new_message.mp3');
-
-        this.nowPlaying = getById("room_now_playing_input");
-        this.usingProxy = getById("room_using_proxy");
-
-        this.uploadButton   = getById("room_upload_button");
-        this.uploadInput    = getById("room_upload_input");
-        this.uploadProgress = getById("room_upload_progress");
 
         this.selected_tab     = this.rightPanel.tabs.room;
         this.selected_content = this.rightPanel.content.room;
@@ -228,12 +239,13 @@ class Room {
             }
         });
 
-        this.player.onSubtitleSearch(async (search) => {
+        this.player.onSubtitleSearch(async search => {
             console.log("Search requested.", search);
             let jsonResponse = await api.subtitleRequest(search);
             if (jsonResponse.checkError()) {
                 return false;
             }
+
             let subtitleUrl = jsonResponse.json;
             // This should be received with a proper prefix
             this.player.setToast("Adding subtitle " + subtitleUrl);
@@ -410,11 +422,35 @@ class Room {
         tabs.chat.onclick     = _ => this.selectRightPanelTab(TAB_CHAT);
         tabs.history.onclick  = _ => this.selectRightPanelTab(TAB_HISTORY);
 
-        this.uploadButton.onclick = _ => {
-            this.uploadInput.click();
+
+        this.roomContent.titleUpdateButton.onclick = _ => {
+            let title = this.roomContent.titleInput.value;
+            api.apiPlayerUpdateTitle(title);
         };
 
-        this.uploadInput.onchange = event => {
+        this.roomContent.uploadSubButton.onclick = _ => {
+            this.roomContent.uploadSubInput.click();
+        };
+
+        this.roomContent.uploadSubInput.onchange = async event => {
+            let files = event.target.files;
+
+            if (files.length === 0) {
+                return;
+            }
+
+            let subtitle = await api.uploadSubs(files[0], files[0].name);
+            api.apiPlayerAttachSubtitle(subtitle);
+        };
+
+        this.roomContent.usingProxyCheckbox.onclick = _ => { return false };
+
+        this.roomContent.uploadFileButton.onclick = _ => {
+            this.roomContent.uploadFileProgress.value = "0";
+            this.roomContent.uploadFileInput.click();
+        };
+
+        this.roomContent.uploadFileInput.onchange = event => {
             let files = event.target.files;
 
             if (files.length === 0) {
@@ -422,7 +458,7 @@ class Room {
             }
 
             api.uploadMediaWithProgress(files[0], progress => {
-                this.uploadProgress.value = progress;
+                this.roomContent.uploadFileProgress.value = progress;
             });
         };
     }
@@ -505,6 +541,7 @@ class Room {
         if (userId === SERVER_ID) {
             return "Server";
         }
+
         let index = this.allUsers.findIndex(user => user.id === userId);
         return index === -1 ? userId : this.allUsers[index].username;
     }
@@ -704,9 +741,17 @@ class Room {
         this.chat.loadMessages(messages, this.allUsers);
     }
 
+    updateRoomContent(entry) {
+        this.roomContent.currentUrlInput.value         = entry.url;
+        this.roomContent.titleInput.value              = entry.title;
+        this.roomContent.usingProxyCheckbox.checked    = entry.use_proxy;
+        this.roomContent.refererInput.value            = entry.referer_url;
+        this.roomContent.createdByUsername.textContent = this.getUsernameByUserId(entry.user_id);
+        this.roomContent.createdAtDate.textContent     = new Date(entry.created);
+    }
+
     setEntryEvent(entry) {
-        this.nowPlaying.value = entry.url;
-        this.usingProxy.checked = entry.user_proxy;
+        this.updateRoomContent(entry);
 
         this.currentEntryId = entry.id;
         this.playlist.currentEntryId = entry.id;
@@ -919,6 +964,17 @@ class Room {
             this.playlist.setAutoplay(autoplay)
         });
 
+        events.addEventListener("playerupdatetitle", event => {
+            let title = JSON.parse(event.data);
+            this.player.setTitle(title);
+            this.roomContent.titleInput.value = title;
+        });
+
+        events.addEventListener("playerattachsubtitle", event => {
+            let subtitle = JSON.parse(event.data);
+            this.player.addSubtitle(subtitle.path, subtitle.name);
+        });
+
         events.addEventListener("sync", event => {
             let data = JSON.parse(event.data);
             if (!data) {
@@ -934,7 +990,9 @@ class Room {
                 case "play": {
                     if (userId != SERVER_ID) {
                         this.player.setToast(username + " clicked play.");
+                        this.roomContent.lastActionText.textContent = username + " clicked play.";
                     }
+
                     this.resyncPlayer(timestamp, userId);
                     this.player.play();
                 } break;
@@ -942,7 +1000,9 @@ class Room {
                 case "pause": {
                     if (userId != SERVER_ID) {
                         this.player.setToast(username + " clicked pause.");
+                        this.roomContent.lastActionText.textContent = username + " clicked pause.";
                     }
+
                     this.resyncPlayer(timestamp, userId);
                     this.player.pause();
                 } break;
@@ -951,6 +1011,7 @@ class Room {
                     if (userId != SERVER_ID) {
                         let shortStamp = timestamp.toFixed(2);
                         this.player.setToast(username + " seeked to " + shortStamp);
+                        this.roomContent.lastActionText.textContent = username + " seeked to " + shortStamp;
                     }
 
                     if (!this.player.isLive()) {
@@ -1004,8 +1065,8 @@ class Room {
             await this.createNewAccount();
             await this.authenticateAccount();
         }
-        await this.loadPlayerData();
         await this.loadUsersData();
+        await this.loadPlayerData();
         await this.loadPlaylistData();
         await this.loadChatData();
         this.listenToServerEvents();
