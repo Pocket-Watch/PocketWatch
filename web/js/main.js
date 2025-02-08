@@ -81,9 +81,10 @@ class Room {
             uploadSubInput:  getById("room_upload_subtitle_input"),
             uploadFileInput: getById("room_upload_file_input"),
 
-            titleUpdateButton: getById("room_title_update_button"),
-            uploadSubButton:   getById("room_upload_subtitle_button"),
-            uploadFileButton:  getById("room_upload_file_button"),
+            titleUpdateButton:   getById("room_title_update_button"),
+            uploadSubButton:     getById("room_upload_subtitle_button"),
+            uploadFileButton:    getById("room_upload_file_button"),
+            copyToInputButton:   getById("room_copy_to_input_button"),
 
             usingProxyCheckbox: getById("room_using_proxy_checkbox"),
             uploadFileProgress: getById("room_upload_file_progress"),
@@ -128,6 +129,8 @@ class Room {
 
         // Id of the currently set entry.
         this.currentEntryId = 0;
+
+        this.currentEntry = {};
     }
 
     applyUserOptions(options) {
@@ -461,6 +464,20 @@ class Room {
                 this.roomContent.uploadFileProgress.value = progress;
             });
         };
+
+        this.roomContent.copyToInputButton.onclick = _ => {
+            this.urlArea.urlInput.value     = this.currentEntry.url;
+            this.urlArea.titleInput.value   = this.currentEntry.title;
+            this.urlArea.refererInput.value = this.currentEntry.referer_url;
+
+            if (this.currentEntry.use_proxy) {
+                this.proxyEnabled = true;
+                this.urlArea.proxyToggle.classList.add("toggle_active");
+            } else {
+                this.proxyEnabled = false;
+                this.urlArea.proxyToggle.classList.remove("toggle_active");
+            }
+        };
     }
 
     attachUrlAreaEvents() {
@@ -753,7 +770,8 @@ class Room {
     setEntryEvent(entry) {
         this.updateRoomContent(entry);
 
-        this.currentEntryId = entry.id;
+        this.currentEntry            = entry;
+        this.currentEntryId          = entry.id;
         this.playlist.currentEntryId = entry.id;
 
         let url = entry.url
