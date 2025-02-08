@@ -421,6 +421,7 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/watch/api/player/looping", apiPlayerLooping)
 	http.HandleFunc("/watch/api/player/updatetitle", apiPlayerUpdateTitle)
 	http.HandleFunc("/watch/api/player/attachsubtitle", apiPlayerAttachSubtitle)
+	http.HandleFunc("/watch/api/player/shiftsubtitle", apiPlayerShiftSubtitle)
 
 	// API calls that change state of the playlist.
 	http.HandleFunc("/watch/api/playlist/get", apiPlaylistGet)
@@ -1118,6 +1119,25 @@ func apiPlayerAttachSubtitle(w http.ResponseWriter, r *http.Request) {
 	state.mutex.Unlock()
 
 	writeEventToAllConnections(w, "playerattachsubtitle", subtitle)
+}
+
+func apiPlayerShiftSubtitle(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	if !isAuthorized(w, r) {
+		return
+	}
+
+	LogInfo("Connection %s requested attach sub.", r.RemoteAddr)
+
+	var shift float64
+	if !readJsonDataFromRequest(w, r, &shift) {
+		return
+	}
+
+	writeEventToAllConnections(w, "playershiftsubtitle", shift)
 }
 
 func apiPlaylistGet(w http.ResponseWriter, r *http.Request) {

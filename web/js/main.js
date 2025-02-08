@@ -81,10 +81,11 @@ class Room {
             uploadSubInput:  getById("room_upload_subtitle_input"),
             uploadFileInput: getById("room_upload_file_input"),
 
-            titleUpdateButton:   getById("room_title_update_button"),
-            uploadSubButton:     getById("room_upload_subtitle_button"),
-            uploadFileButton:    getById("room_upload_file_button"),
-            copyToInputButton:   getById("room_copy_to_input_button"),
+            titleUpdateButton: getById("room_title_update_button"),
+            uploadSubButton:   getById("room_upload_subtitle_button"),
+            uploadFileButton:  getById("room_upload_file_button"),
+            copyToInputButton: getById("room_copy_to_input_button"),
+            setShiftButton:    getById("room_set_shift_button"),
 
             usingProxyCheckbox: getById("room_using_proxy_checkbox"),
             uploadFileProgress: getById("room_upload_file_progress"),
@@ -428,7 +429,7 @@ class Room {
 
         this.roomContent.titleUpdateButton.onclick = _ => {
             let title = this.roomContent.titleInput.value;
-            api.apiPlayerUpdateTitle(title);
+            api.playerUpdateTitle(title);
         };
 
         this.roomContent.uploadSubButton.onclick = _ => {
@@ -443,7 +444,7 @@ class Room {
             }
 
             let subtitle = await api.uploadSubs(files[0], files[0].name);
-            api.apiPlayerAttachSubtitle(subtitle);
+            api.playerAttachSubtitle(subtitle);
         };
 
         this.roomContent.usingProxyCheckbox.onclick = _ => { return false };
@@ -477,6 +478,11 @@ class Room {
                 this.proxyEnabled = false;
                 this.urlArea.proxyToggle.classList.remove("toggle_active");
             }
+        };
+
+        this.roomContent.setShiftButton.onclick = _ => {
+            let shift = this.player.getCurrentSubtitleShift();
+            api.playerShiftSubtitle(shift);
         };
     }
 
@@ -992,6 +998,11 @@ class Room {
         events.addEventListener("playerattachsubtitle", event => {
             let subtitle = JSON.parse(event.data);
             this.player.addSubtitle(subtitle.path, subtitle.name);
+        });
+
+        events.addEventListener("playershiftsubtitle", event => {
+            let shift = JSON.parse(event.data);
+            this.player.setCurrentSubtitleShift(shift);
         });
 
         events.addEventListener("sync", event => {

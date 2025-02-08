@@ -23,6 +23,31 @@ async function createExamplePlaylist(count = 10) {
     }
 }
 
+async function setExampleEntry(count = 10) {
+    let api = await import("./api.js");
+
+    let subtitle = {
+        id: 0,
+        name: "Big Buck Bunny",
+        path: "media/subs/sample.srt",
+    };
+
+    const requestEntry = {
+        url:          "media/video/big_buck_bunny.mp4",
+        title:        "Big Buck Bunny",
+        use_proxy:    false,
+        referer_url:  "",
+        search_video: false,
+        is_playlist:  false,
+        add_to_top:   false,
+        subtitles:    [ subtitle ],
+        playlist_skip_count: 0,
+        playlist_max_size:   20,
+    };
+
+    api.playerSet(requestEntry);
+}
+
 function importAll(module) {
     let entries = Object.entries(module);
 

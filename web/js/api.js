@@ -271,14 +271,19 @@ export async function playerLooping(state) {
     httpPost("/watch/api/player/looping", state);
 }
 
-export async function apiPlayerUpdateTitle(title) {
+export async function playerUpdateTitle(title) {
     console.info("INFO: Sending player title update request.");
     httpPost("/watch/api/player/updatetitle", title);
 }
 
-export async function apiPlayerAttachSubtitle(subtitle) {
+export async function playerAttachSubtitle(subtitle) {
     console.info("INFO: Sending player subtitle attach request.");
     httpPost("/watch/api/player/attachsubtitle", subtitle);
+}
+
+export async function playerShiftSubtitle(shift) {
+    console.info("INFO: Sending player subtitle shift request.");
+    httpPost("/watch/api/player/shiftsubtitle", shift);
 }
 
 export async function playlistGet() {

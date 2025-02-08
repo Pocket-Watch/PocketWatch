@@ -139,7 +139,15 @@ class Player {
 
     // The seconds argument is a double, negative shifts back, positive shifts forward
     shiftCurrentSubtitleTrackBy(seconds) {
-        return this.internals.shiftCurrentSubtitleTrackBy(seconds)
+        this.internals.shiftCurrentSubtitleTrackBy(seconds);
+    }
+
+    setCurrentSubtitleShift(seconds) {
+        this.internals.setCurrentSubtitleShift(seconds);
+    }
+
+    getCurrentSubtitleShift() {
+        return this.internals.getCurrentSubtitleShift();
     }
 
     destroyPlayer() {
@@ -937,12 +945,19 @@ class Internals {
         }
     }
 
-    // TOOD(kihau): Also public API?
     setCurrentSubtitleShift(offset) {
         if (this.selectedSubtitle) {
             this.selectedSubtitle.offset = offset;
             this.subtitleShift.setValue(this.selectedSubtitle.offset);
             this.updateSubtitles(this.getCurrentTime());
+        }
+    }
+
+    getCurrentSubtitleShift(offset) {
+        if (this.selectedSubtitle) {
+            return this.subtitleShift.getValue();
+        } else {
+            return 0.0;
         }
     }
 
