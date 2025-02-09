@@ -302,9 +302,11 @@
 }
 
 #player_control_buttons {
-    width: calc(100% - 48px);
+    /* width: calc(100% - 48px); */
+    width: 100%;
     column-gap: 8px;
     display: flex;
+    box-sizing: border-box;
     flex: 0;
     padding-right:  24px;
     padding-left:   24px;
@@ -820,4 +822,17 @@
 .unselectable {
     user-select: none;
     -webkit-user-drag: none;
+}
+
+@media (max-width: 700px) {
+    #player_volume_root {
+        display: none;
+    }
+
+    #player_control_buttons {
+        column-gap: 4px;
+        padding-right:  16px;
+        padding-left:   16px;
+        padding-bottom: 4px;
+    }
 }

@@ -23,7 +23,7 @@ async function createExamplePlaylist(count = 10) {
     }
 }
 
-async function setExampleEntry(count = 10) {
+async function setExampleEntry() {
     let api = await import("./api.js");
 
     let subtitle = {
@@ -36,6 +36,31 @@ async function setExampleEntry(count = 10) {
         url:          "media/video/big_buck_bunny.mp4",
         title:        "Big Buck Bunny",
         use_proxy:    false,
+        referer_url:  "",
+        search_video: false,
+        is_playlist:  false,
+        add_to_top:   false,
+        subtitles:    [ subtitle ],
+        playlist_skip_count: 0,
+        playlist_max_size:   20,
+    };
+
+    api.playerSet(requestEntry);
+}
+
+async function setExampleProxy() {
+    let api = await import("./api.js");
+
+    let subtitle = {
+        id: 0,
+        name: "Big Buck Bunny",
+        path: "media/subs/sample.srt",
+    };
+
+    const requestEntry = {
+        url:          "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+        title:        "Big Buck Bunny Hls + Proxy",
+        use_proxy:    true,
         referer_url:  "",
         search_video: false,
         is_playlist:  false,
