@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gorilla/websocket"
 	"io"
 	"math/rand"
 	"net/http"
@@ -443,6 +444,9 @@ func registerEndpoints(options *Options) {
 	// Server events and proxy.
 	http.HandleFunc("/watch/api/events", apiEvents)
 	http.HandleFunc(PROXY_ROUTE, watchProxy)
+
+	// Voice chat
+	http.HandleFunc("/watch/vc", voiceChat)
 }
 
 func apiVersion(w http.ResponseWriter, r *http.Request) {
@@ -1943,6 +1947,48 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 		}
 
 		smartSleep()
+	}
+}
+
+var voiceClients = make(map[*websocket.Conn]bool)
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true // Allow all origins for this example
+	},
+}
+
+func voiceChat(writer http.ResponseWriter, request *http.Request) {
+	LogInfo("Received request to voice chat")
+	conn, err := upgrader.Upgrade(writer, request, nil)
+	if err != nil {
+		LogError("Error on connection upgrade: %v", err)
+		return
+	}
+	defer conn.Close()
+	voiceClients[conn] = true
+	LogInfo("Client %v connected!", conn.RemoteAddr())
+
+	for {
+		_, bytes, err := conn.ReadMessage()
+		if err != nil {
+			LogError("Error on ReadMessage(): %v", err)
+			delete(voiceClients, conn)
+			break
+		}
+
+		// Broadcast the received message to all clients
+		for client := range voiceClients {
+			if client.RemoteAddr() == conn.RemoteAddr() {
+				continue
+			}
+			// Exclude the broadcasting client
+			LogDebug("Writing bytes of len: %v to %v clients", len(bytes), len(voiceClients))
+			if err := client.WriteMessage(websocket.BinaryMessage, bytes); err != nil {
+				LogError("Error while writing message: %v", err)
+				client.Close()
+				delete(voiceClients, client)
+			}
+		}
 	}
 }
 

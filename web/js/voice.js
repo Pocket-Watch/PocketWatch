@@ -93,6 +93,10 @@ function getAudioDevices(devices) {
 }
 
 async function requestPermission() {
+    if (!navigator.mediaDevices) {
+        console.warn("mediaDevices are unavailable in insecure contexts (HTTP)")
+        return;
+    }
     navigator.mediaDevices
         .getUserMedia({ audio: true })
         .then((stream) => {
@@ -116,7 +120,7 @@ async function stopForwarding() {
     selfAudio.srcObject = null;
 }
 
-async function startForwarding() {
+async function forwardToSelf() {
     const devices = await navigator.mediaDevices.enumerateDevices();
     let [outputs, inputs] = getAudioDevices(devices);
     if (outputs.length === 0) {
@@ -147,13 +151,127 @@ async function startForwarding() {
 
 }
 
+let remoteAudio = document.getElementById("remoteAudio");
+let webSocket;
+
+const mediaSource = new MediaSource();
+remoteAudio.src = URL.createObjectURL(mediaSource);
+let sourceBuffer;
+
+// When the MediaSource is open, create a SourceBuffer
+mediaSource.addEventListener('sourceopen', () => {
+    // Create a SourceBuffer for the audio format
+    sourceBuffer = mediaSource.addSourceBuffer("audio/webm; codecs=opus");
+});
+
+
+const DOMAIN = window.location.host;
+
+const connectButton = document.getElementById("connect");
+const disconnectButton = document.getElementById("disconnect");
+
+async function startVoiceChat() {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    let [_, inputs] = getAudioDevices(devices);
+    if (inputs.length === 0) {
+        console.warn("No inputs!");
+        return;
+    }
+    let inputDeviceId = inputs[0].deviceId;
+    console.log("Attempting to get micStream")
+    const micStream = await navigator.mediaDevices.getUserMedia({
+        audio: { deviceId: inputDeviceId }
+    });
+    console.log("Received micStream", micStream)
+
+    // Initialize WebSocket
+    // closeWebSocket(webSocket);
+    webSocket = new WebSocket("ws://" + DOMAIN + "/watch/vc");
+    connectButton.disabled = true;
+    disconnectButton.disabled = false;
+    webSocket.onopen = async event => {
+        console.log("WebSocket opened /w event:", event);
+
+        const options = { mimeType: "audio/webm; codecs=opus" };
+        let mediaRecorder = new MediaRecorder(micStream, options);
+
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                webSocket.send(event.data);
+            }
+        };
+
+        mediaRecorder.start(500); // Send audio data every given ms
+    };
+
+    webSocket.onmessage = async (event) => {
+        console.log("WebSocket onmessage called with event.data:", event.data);
+
+        if (!(event.data instanceof Blob)) {
+            console.error("Received data is not a Blob:", event.data);
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const arrayBuffer = reader.result;
+
+            // Append the audio data to the SourceBuffer
+            if (sourceBuffer && !sourceBuffer.updating) {
+                sourceBuffer.appendBuffer(arrayBuffer);
+                if (remoteAudio.paused) {
+                    remoteAudio.play();
+                }
+            } else {
+                console.warn("SourceBuffer is updating, cannot append data yet.");
+            }
+        };
+
+        // Read the Blob as an ArrayBuffer
+        reader.readAsArrayBuffer(event.data);
+    };
+
+    webSocket.onerror = async event => {
+        console.log("WebSocket ERROR", event);
+        discardWebSocket(webSocket);
+        connectButton.disabled = false;
+        disconnectButton.disabled = true;
+    }
+}
+
+async function stopVoiceChat() {
+    console.log("User disconnected by click");
+    remoteAudio.pause();
+    discardWebSocket(webSocket);
+    connectButton.disabled = false;
+    disconnectButton.disabled = true;
+    webSocket = null;
+}
+
+function close(closeable) {
+    if (closeable) {
+        closeable.close();
+        console.log(closeable, " closed.");
+    }
+}
+
+function discardWebSocket(socket) {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.close(1000, "Closing connection!");
+        console.log("WebSocket connection closed.");
+    }
+}
+
 function main() {
     window.requestPermission = requestPermission;
     window.processStream = processStream;
     window.stopStream = stopStream;
     window.enumerateDevices = enumerateDevices;
-    window.startForwarding = startForwarding;
+    window.forwardToSelf = forwardToSelf;
     window.stopForwarding = stopForwarding;
+
+    window.startVoiceChat = startVoiceChat;
+    window.stopVoiceChat = stopVoiceChat;
 
     outputsList.style.color = "white";
     outputsList.style.fontSize = "40px";

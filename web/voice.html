@@ -22,18 +22,23 @@
 <button onclick="requestPermission()">Request</button>
 <br>
 <br>
-<button id="processButton" onclick="processStream()">Process</button>
-<button id="stopButton" onclick="stopStream()">Stop</button>
+<!--<button id="processButton" onclick="processStream()">Process</button>-->
+<!--<button id="stopButton" onclick="stopStream()">Stop</button>-->
 <button id="enumerate" onclick="enumerateDevices()">Enumerate</button>
 <label id="status">STATUS</label>
 <br>
-<button id="forward" onclick="startForwarding()">Forward to self</button>
+<button id="forward" onclick="forwardToSelf()">Forward to self</button>
 <button id="stopForward" onclick="stopForwarding()">Stop forward</button>
 
 <br>
 <ul id="outputs">Output devices</ul>
 <br>
 <ul id="inputs">Input devices</ul>
+<br>
+<br>
+<button id="connect" onclick="startVoiceChat()">Start voice chat</button>
+<button id="disconnect" onclick="stopVoiceChat()">Stop voice chat</button>
+<audio id="remoteAudio"></audio>
 
 <script type="module" src="js/voice.js"></script>
 </body>
