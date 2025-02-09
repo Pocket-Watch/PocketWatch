@@ -2353,7 +2353,9 @@ func smartSleep() {
 	time.Sleep(BROADCAST_INTERVAL)
 	for {
 		now := time.Now()
+		state.mutex.Lock()
 		diff := now.Sub(state.lastUpdate)
+		state.mutex.Unlock()
 
 		if diff > BROADCAST_INTERVAL {
 			break

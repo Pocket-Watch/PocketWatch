@@ -11,7 +11,7 @@ browser="firefox"
 
 mkdir -p build/
 cd src/ 
-go build -o ../build/watchlocally
+go build -race -o ../build/watchlocally
 cd ..
 # $browser "$ip:$port/watch/" &
 ./build/watchlocally -ip $ip -port $port
