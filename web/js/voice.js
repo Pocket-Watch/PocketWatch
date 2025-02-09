@@ -166,7 +166,7 @@ mediaSource.addEventListener('sourceopen', () => {
 
 
 const DOMAIN = window.location.host;
-
+const WS_PREFIX = window.location.protocol.startsWith("https") ? "wss" : "ws";
 const connectButton = document.getElementById("connect");
 const disconnectButton = document.getElementById("disconnect");
 
@@ -185,8 +185,8 @@ async function startVoiceChat() {
     console.log("Received micStream", micStream)
 
     // Initialize WebSocket
-    // closeWebSocket(webSocket);
-    webSocket = new WebSocket("ws://" + DOMAIN + "/watch/vc");
+    discardWebSocket(webSocket);
+    webSocket = new WebSocket(WS_PREFIX + "://" + DOMAIN + "/watch/vc");
     connectButton.disabled = true;
     disconnectButton.disabled = false;
     webSocket.onopen = async event => {
