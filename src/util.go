@@ -176,11 +176,21 @@ func downloadFile(url string, filename string, referer string) error {
 	}
 	defer out.Close()
 
+	if !fileExists(filename) {
+		LogError("Sanity check failed for %v", filename)
+		return err
+	}
+
 	_, err = io.Copy(out, response.Body)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func fileExists(filePath string) bool {
+	_, err := os.Stat(filePath)
+	return err == nil
 }
 
 func getContentRange(url string, referer string) (int64, error) {
