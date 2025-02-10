@@ -86,7 +86,7 @@ type ServerState struct {
 	subsId    atomic.Uint64
 
 	setupLock    sync.Mutex
-	proxy        HlsProxy
+	proxy        *HlsProxy
 	isLive       bool
 	isHls        bool
 	genericProxy GenericProxy
@@ -1821,7 +1821,7 @@ func setupHlsProxy(url string, referer string) bool {
 
 	state.setupLock.Lock()
 	state.isHls = true
-	state.proxy = HlsProxy{}
+	state.proxy = &HlsProxy{}
 	var result bool
 	if m3u.isLive {
 		state.isLive = true
@@ -1835,7 +1835,7 @@ func setupHlsProxy(url string, referer string) bool {
 }
 
 func setupLiveProxy(m3u *M3U, liveUrl string) bool {
-	proxy := &state.proxy
+	proxy := state.proxy
 	proxy.liveUrl = liveUrl
 	proxy.liveSegments.Clear()
 	proxy.randomizer.Store(0)
@@ -1843,7 +1843,7 @@ func setupLiveProxy(m3u *M3U, liveUrl string) bool {
 }
 
 func setupVodProxy(m3u *M3U) bool {
-	proxy := &state.proxy
+	proxy := state.proxy
 	segmentCount := len(m3u.segments)
 
 	proxy.chunkLocks = make([]sync.Mutex, 0, segmentCount)
@@ -2031,7 +2031,7 @@ type FetchedSegment struct {
 
 func serveHlsLive(writer http.ResponseWriter, request *http.Request, chunk string) {
 	state.setupLock.Lock()
-	proxy := &state.proxy
+	proxy := state.proxy
 	state.setupLock.Unlock()
 
 	segmentMap := &proxy.liveSegments
@@ -2157,7 +2157,7 @@ func serveHlsVod(writer http.ResponseWriter, request *http.Request, chunk string
 	}
 
 	state.setupLock.Lock()
-	proxy := &state.proxy
+	proxy := state.proxy
 	state.setupLock.Unlock()
 	if chunkId < 0 || chunkId >= len(proxy.fetchedChunks) {
 		http.Error(writer, "Chunk ID out of range", 404)
