@@ -83,27 +83,28 @@ type ServerState struct {
 	history   []Entry
 	messages  []ChatMessage
 	messageId uint64
+	subsId    atomic.Uint64
 
-	proxy  Proxy
-	subsId atomic.Uint64
+	setupLock    sync.Mutex
+	proxy        HlsProxy
+	isLive       bool
+	isHls        bool
+	genericProxy GenericProxy
 }
 
-type Proxy struct {
+type HlsProxy struct {
 	// HLS proxy
 	chunkLocks     []sync.Mutex
 	fetchedChunks  []bool
 	originalChunks []string
-	isLive         bool
 	// Live resources
 	liveUrl      string
 	liveSegments sync.Map
 	randomizer   atomic.Int64
 	lastRefresh  time.Time
+}
 
-	isHls     bool
-	setupLock sync.Mutex
-
-	// Generic proxy
+type GenericProxy struct {
 	contentLength       int64
 	extensionWithDot    string
 	fileUrl             string
@@ -812,7 +813,7 @@ func setNewEntry(newEntry *Entry) Entry {
 			//setup := setupGenericFileProxy(newEntry.Url, newEntry.RefererUrl)
 			setup := false
 			if setup {
-				newEntry.SourceUrl = PROXY_ROUTE + "proxy" + state.proxy.extensionWithDot
+				newEntry.SourceUrl = PROXY_ROUTE + "proxy" + state.genericProxy.extensionWithDot
 				LogInfo("Generic file proxy setup was successful.")
 			} else {
 				LogWarn("Generic file proxy setup failed!")
@@ -1703,8 +1704,11 @@ func setupGenericFileProxy(url string, referer string) bool {
 		LogError("The file exceeds the specified limit of 4 GBs.")
 		return false
 	}
-	proxy := &state.proxy
-	proxy.isHls = false
+	state.setupLock.Lock()
+	defer state.setupLock.Unlock()
+	state.isHls = false
+
+	proxy := &state.genericProxy
 	proxy.fileUrl = url
 	proxy.contentLength = size
 	proxy.extensionWithDot = path.Ext(parsedUrl.Path)
@@ -1815,22 +1819,23 @@ func setupHlsProxy(url string, referer string) bool {
 	// Sometimes m3u8 chunks are not fully qualified
 	m3u.prefixRelativeSegments(prefix)
 
-	state.proxy.setupLock.Lock()
-	state.proxy.isHls = true
+	state.setupLock.Lock()
+	state.isHls = true
+	state.proxy = HlsProxy{}
 	var result bool
 	if m3u.isLive {
+		state.isLive = true
 		result = setupLiveProxy(m3u, url)
-		state.proxy.setupLock.Unlock()
 	} else {
+		state.isLive = false
 		result = setupVodProxy(m3u)
-		state.proxy.setupLock.Unlock()
 	}
+	state.setupLock.Unlock()
 	return result
 }
 
 func setupLiveProxy(m3u *M3U, liveUrl string) bool {
 	proxy := &state.proxy
-	proxy.isLive = true
 	proxy.liveUrl = liveUrl
 	proxy.liveSegments.Clear()
 	proxy.randomizer.Store(0)
@@ -1838,9 +1843,8 @@ func setupLiveProxy(m3u *M3U, liveUrl string) bool {
 }
 
 func setupVodProxy(m3u *M3U) bool {
-	segmentCount := len(m3u.segments)
 	proxy := &state.proxy
-	proxy.isLive = false
+	segmentCount := len(m3u.segments)
 
 	proxy.chunkLocks = make([]sync.Mutex, 0, segmentCount)
 	proxy.originalChunks = make([]string, 0, segmentCount)
@@ -2001,14 +2005,14 @@ func voiceChat(writer http.ResponseWriter, request *http.Request) {
 //   - 0-indexed mutex[] to ensure the same chunk is not requested while it's being fetched
 func watchProxy(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != "GET" {
-		LogWarn("Proxy not called with GET, received: %v", request.Method)
+		LogWarn("HlsProxy not called with GET, received: %v", request.Method)
 		return
 	}
 	urlPath := request.URL.Path
 	chunk := path.Base(urlPath)
 
-	if state.proxy.isHls {
-		if state.proxy.isLive {
+	if state.isHls {
+		if state.isLive {
 			serveHlsLive(writer, request, chunk)
 		} else {
 			serveHlsVod(writer, request, chunk)
@@ -2026,7 +2030,10 @@ type FetchedSegment struct {
 }
 
 func serveHlsLive(writer http.ResponseWriter, request *http.Request, chunk string) {
+	state.setupLock.Lock()
 	proxy := &state.proxy
+	state.setupLock.Unlock()
+
 	segmentMap := &proxy.liveSegments
 	lastRefresh := &proxy.lastRefresh
 
@@ -2143,38 +2150,40 @@ func serveHlsVod(writer http.ResponseWriter, request *http.Request, chunk string
 		return
 	}
 	// Otherwise it's likely a proxy chunk which is 0-indexed
-	chunk_id, err := strconv.Atoi(chunk[3:])
+	chunkId, err := strconv.Atoi(chunk[3:])
 	if err != nil {
-		http.Error(writer, "Not a correct chunk id", 404)
+		http.Error(writer, "Incorrect chunk ID", 404)
 		return
 	}
 
+	state.setupLock.Lock()
 	proxy := &state.proxy
-	if chunk_id < 0 || chunk_id >= len(proxy.fetchedChunks) {
-		http.Error(writer, "Chunk ID not in range", 404)
+	state.setupLock.Unlock()
+	if chunkId < 0 || chunkId >= len(proxy.fetchedChunks) {
+		http.Error(writer, "Chunk ID out of range", 404)
 		return
 	}
 
-	if proxy.fetchedChunks[chunk_id] {
+	if proxy.fetchedChunks[chunkId] {
 		http.ServeFile(writer, request, WEB_PROXY+chunk)
 		return
 	}
 
-	mutex := &proxy.chunkLocks[chunk_id]
+	mutex := &proxy.chunkLocks[chunkId]
 	mutex.Lock()
-	if proxy.fetchedChunks[chunk_id] {
+	if proxy.fetchedChunks[chunkId] {
 		mutex.Unlock()
 		http.ServeFile(writer, request, WEB_PROXY+chunk)
 		return
 	}
-	fetchErr := downloadFile(proxy.originalChunks[chunk_id], WEB_PROXY+chunk, state.entry.RefererUrl)
+	fetchErr := downloadFile(proxy.originalChunks[chunkId], WEB_PROXY+chunk, state.entry.RefererUrl)
 	if fetchErr != nil {
 		mutex.Unlock()
 		LogError("Failed to fetch chunk %v", fetchErr)
 		http.Error(writer, "Failed to fetch chunk", 500)
 		return
 	}
-	proxy.fetchedChunks[chunk_id] = true
+	proxy.fetchedChunks[chunkId] = true
 	mutex.Unlock()
 
 	http.ServeFile(writer, request, WEB_PROXY+chunk)
@@ -2183,7 +2192,7 @@ func serveHlsVod(writer http.ResponseWriter, request *http.Request, chunk string
 const GENERIC_CHUNK_SIZE = 4 * MB
 
 func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFile string) {
-	proxy := &state.proxy
+	proxy := &state.genericProxy
 	if path.Ext(pathFile) != proxy.extensionWithDot {
 		http.Error(writer, "Failed to fetch chunk", 404)
 		return
@@ -2276,7 +2285,7 @@ func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFil
 }
 
 func downloadProxyFilePeriodically() {
-	proxy := &state.proxy
+	proxy := &state.genericProxy
 	download := proxy.download
 	offset := proxy.downloadBeginOffset
 	id := generateUniqueId()
@@ -2321,7 +2330,7 @@ func downloadProxyFilePeriodically() {
 
 // Could make it insert with merge
 func insertContentRangeSequentially(newRange *Range) {
-	proxy := &state.proxy
+	proxy := &state.genericProxy
 	spot := 0
 	for i := 0; i < len(proxy.contentRanges); i++ {
 		r := &proxy.contentRanges[i]
@@ -2334,7 +2343,7 @@ func insertContentRangeSequentially(newRange *Range) {
 }
 
 func mergeContentRanges() {
-	proxy := &state.proxy
+	proxy := &state.genericProxy
 	for i := 0; i < len(proxy.contentRanges)-1; i++ {
 		leftRange := &proxy.contentRanges[i]
 		rightRange := &proxy.contentRanges[i+1]
