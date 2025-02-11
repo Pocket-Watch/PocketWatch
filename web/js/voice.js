@@ -151,7 +151,7 @@ async function forwardToSelf() {
 
 }
 
-let remoteAudio = document.getElementById("remoteAudio");
+let remoteAudio = new Audio();
 let webSocket;
 
 const mediaSource = new MediaSource();
@@ -161,6 +161,7 @@ let sourceBuffer;
 // When the MediaSource is open, create a SourceBuffer
 mediaSource.addEventListener('sourceopen', () => {
     // Create a SourceBuffer for the audio format
+    console.debug("Created a source buffer because media source was opened!")
     sourceBuffer = mediaSource.addSourceBuffer("audio/webm; codecs=opus");
 });
 
@@ -189,7 +190,7 @@ async function startVoiceChat() {
     webSocket = new WebSocket(WS_PREFIX + "://" + DOMAIN + "/watch/vc");
     connectButton.disabled = true;
     disconnectButton.disabled = false;
-    webSocket.onopen = async event => {
+    webSocket.onopen = event => {
         console.log("WebSocket opened /w event:", event);
 
         const options = { mimeType: "audio/webm; codecs=opus" };
@@ -204,7 +205,7 @@ async function startVoiceChat() {
         mediaRecorder.start(500); // Send audio data every given ms
     };
 
-    webSocket.onmessage = async (event) => {
+    webSocket.onmessage = (event) => {
         console.log("WebSocket onmessage called with event.data:", event.data);
 
         if (!(event.data instanceof Blob)) {
@@ -213,14 +214,20 @@ async function startVoiceChat() {
         }
 
         const reader = new FileReader();
-        reader.onloadend = () => {
+        reader.onload = () => {
             const arrayBuffer = reader.result;
 
             // Append the audio data to the SourceBuffer
             if (sourceBuffer && !sourceBuffer.updating) {
-                sourceBuffer.appendBuffer(arrayBuffer);
-                if (remoteAudio.paused) {
-                    remoteAudio.play();
+                try {
+                    sourceBuffer.appendBuffer(arrayBuffer);
+                    if (remoteAudio.paused) {
+                        remoteAudio.play().catch(err => {
+                            console.warn("FAILED TO PLAY remoteAudio", err)
+                        })
+                    }
+                } catch (error) {
+                    console.error("Error appending buffer:", error);
                 }
             } else {
                 console.warn("SourceBuffer is updating, cannot append data yet.");
@@ -231,7 +238,7 @@ async function startVoiceChat() {
         reader.readAsArrayBuffer(event.data);
     };
 
-    webSocket.onerror = async event => {
+    webSocket.onerror = event => {
         console.log("WebSocket ERROR", event);
         discardWebSocket(webSocket);
         connectButton.disabled = false;
