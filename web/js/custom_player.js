@@ -2268,7 +2268,10 @@ function parseSubtitles(subtitleText, decimalMark, skipCounter, skipHeader) {
 
         let timestamps = lines[i];
         let [start, end, ok] = parseTimestamps(timestamps, decimalMark)
-        if (!ok || ++i >= lines.length) {
+        if (!ok) {
+            continue;
+        }
+        if (++i >= lines.length) {
             return cues;
         }
         let content = lines[i].trim();
