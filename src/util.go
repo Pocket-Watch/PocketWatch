@@ -17,7 +17,9 @@ import (
 	"time"
 )
 
-var client = http.Client{}
+var client = http.Client{
+	Timeout: time.Second * 20,
+}
 
 func constructTitleWhenMissing(entry *Entry) string {
 	if entry.Title != "" {
@@ -412,13 +414,13 @@ func stall(delay time.Duration, maxChecks int, checkFunc func() bool) {
 }
 
 func respondBadRequest(writer http.ResponseWriter, format string, args ...any) {
-    output := fmt.Sprintf(format, args...)
-    LogInfo("%v", output)
-    http.Error(writer, output, http.StatusBadRequest)
+	output := fmt.Sprintf(format, args...)
+	LogInfo("%v", output)
+	http.Error(writer, output, http.StatusBadRequest)
 }
 
 func respondInternalError(writer http.ResponseWriter, format string, args ...any) {
-    output := fmt.Sprintf(format, args...)
-    LogError("%v", output)
-    http.Error(writer, output, http.StatusInternalServerError)
+	output := fmt.Sprintf(format, args...)
+	LogError("%v", output)
+	http.Error(writer, output, http.StatusInternalServerError)
 }
