@@ -245,7 +245,7 @@ class Room {
 
         this.player.onSubtitleSearch(async search => {
             console.log("Search requested.", search);
-            let jsonResponse = await api.subtitleRequest(search);
+            let jsonResponse = await api.searchSubs(search);
             if (jsonResponse.checkError()) {
                 return false;
             }
@@ -997,7 +997,14 @@ class Room {
 
         events.addEventListener("playerattachsubtitle", event => {
             let subtitle = JSON.parse(event.data);
-            this.player.addSubtitle(subtitle.path, subtitle.name);
+            console.log(subtitle);
+            this.player.addSubtitle(subtitle.url, subtitle.name);
+
+            if (!this.currentEntry.subtitles) {
+                this.currentEntry.subtitles = [];
+            }
+
+            this.currentEntry.subtitles.push(subtitle);
         });
 
         events.addEventListener("playershiftsubtitle", event => {

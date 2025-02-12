@@ -270,7 +270,6 @@ func (timecode *Timecode) shiftForwardBy(ms int) {
 }
 
 type Search struct {
-	IsMovie bool   `json:"isMovie"`
 	Title   string `json:"title"`
 	Lang    string `json:"lang"`
 	Year    string `json:"year"`
@@ -278,35 +277,30 @@ type Search struct {
 	Episode string `json:"episode"`
 }
 
-const OUT_DIR = "web/media/subs"
-
 // TODO: Check if executable exists or was disabled at launch with a flag
-func downloadSubtitle(executable string, search *Search) (string, error) {
-	command := exec.Command(executable, search.Title, "--auto-select", "--to", "vtt", "--out", OUT_DIR)
+func downloadSubtitle(search *Search, outputDirectory string) (string, error) {
+	command := exec.Command("subs", search.Title, "--auto-select", "--to", "vtt", "--out", outputDirectory)
+
 	if search.Lang != "" {
 		command.Args = append(command.Args, "--lang", search.Lang)
 	}
+
 	if search.Year != "" {
 		command.Args = append(command.Args, "-y", search.Year)
 	}
-	if !search.IsMovie && search.Season != "" && search.Episode != "" {
+
+	if search.Season != "" && search.Episode != "" {
 		command.Args = append(command.Args, "-s", search.Season, "-e", search.Episode)
 	}
-	return executeSubtitleDownload(command)
-}
 
-func executeSubtitleDownload(command *exec.Cmd) (string, error) {
 	stdout, err := command.Output()
-	output := string(stdout)
 	if err != nil {
-		if output != "" {
-			output = strings.Trim(output, "\n")
-			return "", errors.Join(errors.New(output), err)
-		}
 		return "", errors.Join(err)
 	}
 
+	output := string(stdout)
 	scanner := bufio.NewScanner(strings.NewReader(output))
+
 	// Scan through the output line by line picking out the modified filename
 	firstLine := ""
 	for scanner.Scan() {
@@ -315,9 +309,12 @@ func executeSubtitleDownload(command *exec.Cmd) (string, error) {
 			// This is needed to log the first error
 			firstLine = line
 		}
-		if strings.HasPrefix(line, "Saved to") {
-			return line[len("Saved to ")+1:], nil
+
+		if strings.HasPrefix(line, "Saved to ") {
+			return line[len("Saved to "):], nil
 		}
 	}
+
 	return "", errors.New(firstLine)
+
 }

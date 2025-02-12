@@ -53,7 +53,7 @@ type PlayerState struct {
 type Subtitle struct {
 	Id   uint64 `json:"id"`
 	Name string `json:"name"`
-	Path string `json:"path"`
+	Url  string `json:"url"`
 }
 
 type Entry struct {
@@ -576,7 +576,7 @@ func apiUploadSubs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	networkPath, isSafe := safeJoin("subs", outputName)
+	networkUrl, isSafe := safeJoin("subs", outputName)
 	if checkTraversal(w, isSafe) {
 		return
 	}
@@ -584,7 +584,7 @@ func apiUploadSubs(w http.ResponseWriter, r *http.Request) {
 	subtitle := Subtitle{
 		Id:   subId,
 		Name: strings.TrimSuffix(filename, extension),
-		Path: networkPath,
+		Url:  networkUrl,
 	}
 
 	jsonData, _ := json.Marshal(subtitle)
@@ -612,20 +612,56 @@ func apiSearchSubs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	os.MkdirAll("web/media/subs", 0750)
-	subtitlePath, err := downloadSubtitle("subs", &search)
+	inputPath, err := downloadSubtitle(&search, "web/media/subs")
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		respondBadRequest(w, "Subtitle download failed: %v", err)
 		return
 	}
 
-	// Expect it to be directed to /subs/
-	servedPath, isSafe := safeJoin("media/subs", filepath.Base(subtitlePath))
-	if checkTraversal(w, isSafe) {
+	inputSub, err := os.Open(inputPath)
+	if err != nil {
+		respondInternalError(w, "Failed to open downloaded subtitle %v: %v", inputPath, err)
+		return
+	}
+	defer inputSub.Close()
+
+	extension := path.Ext(inputPath)
+	subId := state.subsId.Add(1)
+
+	outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
+	outputPath := path.Join("web", "subs", outputName)
+
+	outputSub, err := os.Create(outputPath)
+	if err != nil {
+		respondInternalError(w, "Failed to created output subtitle in %v: %v", outputPath, err)
 		return
 	}
 
-	jsonData, err := json.Marshal(servedPath)
-	io.WriteString(w, string(jsonData))
+	_, err = io.Copy(outputSub, inputSub)
+	if err != nil {
+		respondInternalError(w, "Failed to copy downloaded subtitle file: %v", err)
+		outputSub.Close()
+		return
+	}
+
+	outputSub.Close()
+
+	outputUrl := path.Join("subs", outputName)
+	baseName := path.Base(inputPath)
+	subtitleName := strings.TrimSuffix(baseName, extension)
+
+	subtitle := Subtitle{
+		Id:   subId,
+		Name: subtitleName,
+		Url:  outputUrl,
+	}
+
+	state.mutex.Lock()
+	state.entry.Subtitles = append(state.entry.Subtitles, subtitle)
+	state.mutex.Unlock()
+
+	writeEventToAllConnections(w, "playerattachsubtitle", subtitle)
+	io.WriteString(w, "{}")
 }
 
 func apiUserCreate(w http.ResponseWriter, r *http.Request) {

@@ -382,9 +382,7 @@ export async function chatGet() {
     return await httpGet("/watch/api/chat/get");
 }
 
-export async function subtitleRequest(search) {
+export async function searchSubs(search) {
     console.info("INFO: Requesting server to search for a subtitle.");
     return httpPost("/watch/api/searchsubs", search);
 }
-
-

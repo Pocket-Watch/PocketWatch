@@ -953,7 +953,7 @@ class Internals {
         }
     }
 
-    getCurrentSubtitleShift(offset) {
+    getCurrentSubtitleShift() {
         if (this.selectedSubtitle) {
             return this.subtitleShift.getValue();
         } else {
@@ -1962,6 +1962,7 @@ export class FileInfo {
         this.filename = filename;
         this.extension = extension;
     }
+
     static fromUrl(url) {
         let slash = Math.max(url.lastIndexOf("/"), url.lastIndexOf("\\"));
         let filename = url.substring(slash + 1);
@@ -2329,11 +2330,10 @@ function parseStamp(stamp, decimalMark) {
 export class Search {
     // Expecting strings for now
     constructor(title, lang, year, season, episode) {
-        this.isMovie = !season;
-        this.title = title;
-        this.lang = lang;
-        this.year = year;
-        this.season = season;
+        this.title   = title;
+        this.lang    = lang;
+        this.year    = year;
+        this.season  = season;
         this.episode = episode;
     }
 }
