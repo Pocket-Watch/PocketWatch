@@ -1,4 +1,4 @@
-import { Options, Player } from "./custom_player.js"
+import {FileInfo, Options, Player} from "./custom_player.js"
 import { Playlist } from "./playlist.js"
 import { Chat } from "./chat.js"
 import { sha256 } from "./auth.js"
@@ -250,7 +250,7 @@ class Room {
         });
 
         this.player.onSubtitleSearch(async search => {
-            await api.subtitleSearch(search);
+            return await api.subtitleSearch(search);
         });
 
         this.player.onPlaybackEnd(_ => {
@@ -905,7 +905,9 @@ class Room {
         events.addEventListener("subtitleattach", event => {
             let subtitle = JSON.parse(event.data);
             console.log(subtitle);
-            this.player.addSubtitle(subtitle.url, subtitle.name);
+            // Since we're using clueless subtitle names
+            let name = FileInfo.fromUrl(subtitle.name).filename;
+            this.player.addSubtitle(subtitle.url, name);
             this.player.setToast("Subtitle added: " + subtitle.name);
 
             if (!this.currentEntry.subtitles) {
