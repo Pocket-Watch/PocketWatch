@@ -401,8 +401,6 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/watch/api/version", apiVersion)
 	http.HandleFunc("/watch/api/login", apiLogin)
 	http.HandleFunc("/watch/api/uploadmedia", apiUploadMedia)
-	http.HandleFunc("/watch/api/uploadsubs", apiUploadSubs)
-	http.HandleFunc("/watch/api/searchsubs", apiSearchSubs)
 
 	// User related API calls.
 	http.HandleFunc("/watch/api/user/create", apiUserCreate)
@@ -422,8 +420,14 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/watch/api/player/autoplay", apiPlayerAutoplay)
 	http.HandleFunc("/watch/api/player/looping", apiPlayerLooping)
 	http.HandleFunc("/watch/api/player/updatetitle", apiPlayerUpdateTitle)
-	http.HandleFunc("/watch/api/player/attachsubtitle", apiPlayerAttachSubtitle)
-	http.HandleFunc("/watch/api/player/shiftsubtitle", apiPlayerShiftSubtitle)
+
+	// API calls that for subtitles
+	http.HandleFunc("/watch/api/subtitle/delete", apiSubtitleDelete)
+	http.HandleFunc("/watch/api/subtitle/update", apiSubtitleUpdate)
+	http.HandleFunc("/watch/api/subtitle/attach", apiSubtitleAttach)
+	http.HandleFunc("/watch/api/subtitle/shift", apiSubtitleShift)
+	http.HandleFunc("/watch/api/subtitle/upload", apiSubtitleUpload)
+	http.HandleFunc("/watch/api/subtitle/search", apiSubtitleSearch)
 
 	// API calls that change state of the playlist.
 	http.HandleFunc("/watch/api/playlist/get", apiPlaylistGet)
@@ -517,151 +521,6 @@ func apiUploadMedia(w http.ResponseWriter, r *http.Request) {
 	}
 	jsonData, _ := json.Marshal(networkPath)
 	io.WriteString(w, string(jsonData))
-}
-
-func apiUploadSubs(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		http.Error(w, "POST was expected", http.StatusMethodNotAllowed)
-		return
-	}
-
-	if !isAuthorized(w, r) {
-		return
-	}
-
-	networkFile, headers, err := r.FormFile("file")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if headers.Size > SUBTITLE_SIZE_LIMIT {
-		http.Error(w, "Subtitle file is too large", http.StatusRequestEntityTooLarge)
-		return
-	}
-
-	filename := headers.Filename
-	extension := path.Ext(filename)
-	subId := state.subsId.Add(1)
-
-	outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
-	outputPath, isSafe := safeJoin("web", "subs", outputName)
-	if checkTraversal(w, isSafe) {
-		return
-	}
-
-	os.MkdirAll("web/subs/", 0750)
-
-	outputFile, err := os.Create(outputPath)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer outputFile.Close()
-
-	LogInfo("Saving uploaded subtitle file to: %v.", outputPath)
-
-	// Read the file content to ensure it doesn't exceed the limit
-	buf := make([]byte, headers.Size)
-	_, err = io.ReadFull(networkFile, buf)
-	if err != nil {
-		http.Error(w, "Error reading file", http.StatusBadRequest)
-		return
-	}
-
-	_, err = outputFile.Write(buf)
-	if err != nil {
-		fmt.Println("Error: Failed to write to a subtitle file:", err)
-		http.Error(w, "Error writing file", http.StatusInternalServerError)
-		return
-	}
-
-	networkUrl, isSafe := safeJoin("subs", outputName)
-	if checkTraversal(w, isSafe) {
-		return
-	}
-
-	subtitle := Subtitle{
-		Id:   subId,
-		Name: strings.TrimSuffix(filename, extension),
-		Url:  networkUrl,
-	}
-
-	jsonData, _ := json.Marshal(subtitle)
-	io.WriteString(w, string(jsonData))
-}
-
-func apiSearchSubs(w http.ResponseWriter, r *http.Request) {
-	if !subsEnabled {
-		http.Error(w, "Feature unavailable", http.StatusServiceUnavailable)
-		return
-	}
-
-	if r.Method != "POST" {
-		http.Error(w, "POST was expected", http.StatusMethodNotAllowed)
-		return
-	}
-
-	if !isAuthorized(w, r) {
-		return
-	}
-
-	var search Search
-	if !readJsonDataFromRequest(w, r, &search) {
-		return
-	}
-
-	os.MkdirAll("web/media/subs", 0750)
-	inputPath, err := downloadSubtitle(&search, "web/media/subs")
-	if err != nil {
-		respondBadRequest(w, "Subtitle download failed: %v", err)
-		return
-	}
-
-	inputSub, err := os.Open(inputPath)
-	if err != nil {
-		respondInternalError(w, "Failed to open downloaded subtitle %v: %v", inputPath, err)
-		return
-	}
-	defer inputSub.Close()
-
-	extension := path.Ext(inputPath)
-	subId := state.subsId.Add(1)
-
-	outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
-	outputPath := path.Join("web", "subs", outputName)
-
-	outputSub, err := os.Create(outputPath)
-	if err != nil {
-		respondInternalError(w, "Failed to created output subtitle in %v: %v", outputPath, err)
-		return
-	}
-
-	_, err = io.Copy(outputSub, inputSub)
-	if err != nil {
-		respondInternalError(w, "Failed to copy downloaded subtitle file: %v", err)
-		outputSub.Close()
-		return
-	}
-
-	outputSub.Close()
-
-	outputUrl := path.Join("subs", outputName)
-	baseName := path.Base(inputPath)
-	subtitleName := strings.TrimSuffix(baseName, extension)
-
-	subtitle := Subtitle{
-		Id:   subId,
-		Name: subtitleName,
-		Url:  outputUrl,
-	}
-
-	state.mutex.Lock()
-	state.entry.Subtitles = append(state.entry.Subtitles, subtitle)
-	state.mutex.Unlock()
-
-	writeEventToAllConnections(w, "playerattachsubtitle", subtitle)
-	io.WriteString(w, "{}")
 }
 
 func apiUserCreate(w http.ResponseWriter, r *http.Request) {
@@ -1139,7 +998,31 @@ func apiPlayerUpdateTitle(w http.ResponseWriter, r *http.Request) {
 	writeEventToAllConnections(w, "playerupdatetitle", title)
 }
 
-func apiPlayerAttachSubtitle(w http.ResponseWriter, r *http.Request) {
+func apiSubtitleDelete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	if !isAuthorized(w, r) {
+		return
+	}
+
+	http.Error(w, "TODO", http.StatusNotImplemented)
+}
+
+func apiSubtitleUpdate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	if !isAuthorized(w, r) {
+		return
+	}
+
+	http.Error(w, "TODO", http.StatusNotImplemented)
+}
+
+func apiSubtitleAttach(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
 	}
@@ -1159,10 +1042,10 @@ func apiPlayerAttachSubtitle(w http.ResponseWriter, r *http.Request) {
 	state.entry.Subtitles = append(state.entry.Subtitles, subtitle)
 	state.mutex.Unlock()
 
-	writeEventToAllConnections(w, "playerattachsubtitle", subtitle)
+	writeEventToAllConnections(w, "subtitleattach", subtitle)
 }
 
-func apiPlayerShiftSubtitle(w http.ResponseWriter, r *http.Request) {
+func apiSubtitleShift(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		return
 	}
@@ -1178,7 +1061,152 @@ func apiPlayerShiftSubtitle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeEventToAllConnections(w, "playershiftsubtitle", shift)
+	writeEventToAllConnections(w, "subtitleshift", shift)
+}
+
+func apiSubtitleSearch(w http.ResponseWriter, r *http.Request) {
+	if !subsEnabled {
+		http.Error(w, "Feature unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	if r.Method != "POST" {
+		http.Error(w, "POST was expected", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if !isAuthorized(w, r) {
+		return
+	}
+
+	var search Search
+	if !readJsonDataFromRequest(w, r, &search) {
+		return
+	}
+
+	os.MkdirAll("web/media/subs", 0750)
+	inputPath, err := downloadSubtitle(&search, "web/media/subs")
+	if err != nil {
+		respondBadRequest(w, "Subtitle download failed: %v", err)
+		return
+	}
+
+	inputSub, err := os.Open(inputPath)
+	if err != nil {
+		respondInternalError(w, "Failed to open downloaded subtitle %v: %v", inputPath, err)
+		return
+	}
+	defer inputSub.Close()
+
+	extension := path.Ext(inputPath)
+	subId := state.subsId.Add(1)
+
+	outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
+	outputPath := path.Join("web", "subs", outputName)
+
+	outputSub, err := os.Create(outputPath)
+	if err != nil {
+		respondInternalError(w, "Failed to created output subtitle in %v: %v", outputPath, err)
+		return
+	}
+
+	_, err = io.Copy(outputSub, inputSub)
+	if err != nil {
+		respondInternalError(w, "Failed to copy downloaded subtitle file: %v", err)
+		outputSub.Close()
+		return
+	}
+
+	outputSub.Close()
+
+	outputUrl := path.Join("subs", outputName)
+	baseName := path.Base(inputPath)
+	subtitleName := strings.TrimSuffix(baseName, extension)
+
+	subtitle := Subtitle{
+		Id:   subId,
+		Name: subtitleName,
+		Url:  outputUrl,
+	}
+
+	state.mutex.Lock()
+	state.entry.Subtitles = append(state.entry.Subtitles, subtitle)
+	state.mutex.Unlock()
+
+	writeEventToAllConnections(w, "subtitleattach", subtitle)
+	io.WriteString(w, "{}")
+}
+
+func apiSubtitleUpload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "POST was expected", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if !isAuthorized(w, r) {
+		return
+	}
+
+	networkFile, headers, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if headers.Size > SUBTITLE_SIZE_LIMIT {
+		http.Error(w, "Subtitle file is too large", http.StatusRequestEntityTooLarge)
+		return
+	}
+
+	filename := headers.Filename
+	extension := path.Ext(filename)
+	subId := state.subsId.Add(1)
+
+	outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
+	outputPath, isSafe := safeJoin("web", "subs", outputName)
+	if checkTraversal(w, isSafe) {
+		return
+	}
+
+	os.MkdirAll("web/subs/", 0750)
+
+	outputFile, err := os.Create(outputPath)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer outputFile.Close()
+
+	LogInfo("Saving uploaded subtitle file to: %v.", outputPath)
+
+	// Read the file content to ensure it doesn't exceed the limit
+	buf := make([]byte, headers.Size)
+	_, err = io.ReadFull(networkFile, buf)
+	if err != nil {
+		http.Error(w, "Error reading file", http.StatusBadRequest)
+		return
+	}
+
+	_, err = outputFile.Write(buf)
+	if err != nil {
+		fmt.Println("Error: Failed to write to a subtitle file:", err)
+		http.Error(w, "Error writing file", http.StatusInternalServerError)
+		return
+	}
+
+	networkUrl, isSafe := safeJoin("subs", outputName)
+	if checkTraversal(w, isSafe) {
+		return
+	}
+
+	subtitle := Subtitle{
+		Id:   subId,
+		Name: strings.TrimSuffix(filename, extension),
+		Url:  networkUrl,
+	}
+
+	jsonData, _ := json.Marshal(subtitle)
+	io.WriteString(w, string(jsonData))
 }
 
 func apiPlaylistGet(w http.ResponseWriter, r *http.Request) {

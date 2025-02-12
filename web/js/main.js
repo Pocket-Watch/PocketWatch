@@ -80,18 +80,22 @@ class Room {
             refererInput:    getById("room_referer_input"),
             uploadSubInput:  getById("room_upload_subtitle_input"),
             uploadFileInput: getById("room_upload_file_input"),
+            subsEditInput:   getById("room_subtitle_edit_input"),
 
             titleUpdateButton: getById("room_title_update_button"),
             uploadSubButton:   getById("room_upload_subtitle_button"),
             uploadFileButton:  getById("room_upload_file_button"),
             copyToInputButton: getById("room_copy_to_input_button"),
             setShiftButton:    getById("room_set_shift_button"),
+            subsUpdateButton:  getById("room_subtitle_update_button"),
+            subsDeleteButton:  getById("room_subtitle_delete_button"),
 
             usingProxyCheckbox: getById("room_using_proxy_checkbox"),
             uploadFileProgress: getById("room_upload_file_progress"),
             createdByUsername:  getById("room_created_by_username"),
             createdAtDate:      getById("room_created_at_date"),
             lastActionText:     getById("room_last_action_text"),
+            subtitlesSelect:    getById("room_subtitles_select"),
         };
 
         this.chatNewMessage = getById("tab_chat_new_message_indicator");
@@ -106,6 +110,8 @@ class Room {
         this.asPlaylistEnabled    = false;
         this.addToTopEnabled      = false;
         this.proxyEnabled         = false;
+
+        this.roomSelectedSubId = -1;
 
         // Current connection id.
         this.connectionId = 0;
@@ -244,17 +250,7 @@ class Room {
         });
 
         this.player.onSubtitleSearch(async search => {
-            console.log("Search requested.", search);
-            let jsonResponse = await api.searchSubs(search);
-            if (jsonResponse.checkError()) {
-                return false;
-            }
-
-            let subtitleUrl = jsonResponse.json;
-            // This should be received with a proper prefix
-            this.player.setToast("Adding subtitle " + subtitleUrl);
-            this.player.addSubtitle(subtitleUrl);
-            return true;
+            await api.subtitleSearch(search);
         });
 
         this.player.onPlaybackEnd(_ => {
@@ -348,7 +344,7 @@ class Room {
         let subtitles = [];
         if (this.subtitleFile) {
             let filename = this.urlArea.subtitleInput.value;
-            let sub = await api.uploadSubs(this.subtitleFile, filename);
+            let sub = await api.subtitleUpload(this.subtitleFile, filename);
             subtitles.push(sub);
         }
 
@@ -443,8 +439,8 @@ class Room {
                 return;
             }
 
-            let subtitle = await api.uploadSubs(files[0], files[0].name);
-            api.playerAttachSubtitle(subtitle);
+            let subtitle = await api.subtitleUpload(files[0], files[0].name);
+            api.subtitleAttach(subtitle);
         };
 
         this.roomContent.usingProxyCheckbox.onclick = _ => { return false };
@@ -482,7 +478,23 @@ class Room {
 
         this.roomContent.setShiftButton.onclick = _ => {
             let shift = this.player.getCurrentSubtitleShift();
-            api.playerShiftSubtitle(shift);
+            api.subtitleShift(shift);
+        };
+
+        this.roomContent.subtitlesSelect.onchange = event => {
+            let id  = Number(event.target.value)
+            let sub = this.currentEntry.subtitles.find(sub => sub.id === id);
+
+            this.roomContent.subsEditInput.value = sub.name;
+            this.roomSelectedSubId = sub.id;
+        };
+
+        this.roomContent.subsUpdateButton.onclick = _ => {
+            console.log("sub update");
+        };
+
+        this.roomContent.subsDeleteButton.onclick = _ => {
+            console.log("sub delete");
         };
     }
 
@@ -771,6 +783,8 @@ class Room {
         this.roomContent.refererInput.value            = entry.referer_url;
         this.roomContent.createdByUsername.textContent = this.getUsernameByUserId(entry.user_id);
         this.roomContent.createdAtDate.textContent     = new Date(entry.created);
+
+        this.updateRoomSubtitlesHtml(entry);
     }
 
     setEntryEvent(entry) {
@@ -804,7 +818,7 @@ class Room {
             this.player.clearAllSubtitleTracks();
             for (let i = 0; i < entry.subtitles.length; i++) {
                 let sub = entry.subtitles[i];
-                this.player.addSubtitle(sub.path, sub.name);
+                this.player.addSubtitle(sub.url, sub.name);
             }
         }
 
@@ -854,7 +868,63 @@ class Room {
         this.subscribeToServerEvents(events);
     }
 
+    updateRoomSubtitlesHtml(entry) {
+        let select = this.roomContent.subtitlesSelect;
+        while (select.lastChild) {
+            select.removeChild(select.lastChild);
+        }
+
+        let subs = entry.subtitles;
+        if (!subs || subs.length === 0) {
+            this.roomSelectedSubId = -1;
+            return;
+        }
+
+        this.roomContent.subsEditInput.value = subs[0].name;
+        this.roomSelectedSubId = subs[0].id;
+
+        for (let i = 0; i < subs.length; i++) {
+            let sub = subs[i];
+            let option = document.createElement("option");
+
+            option.textContent = sub.name;
+            option.value       = sub.id;
+            select.appendChild(option);
+        }
+    }
+
+    subscribeToSubtitleEvents(events) {
+        events.addEventListener("subtitledelete", event => {
+            console.warn("TODO");
+        });
+
+        events.addEventListener("subtitleupdate", event => {
+            console.warn("TODO");
+        });
+
+        events.addEventListener("subtitleattach", event => {
+            let subtitle = JSON.parse(event.data);
+            console.log(subtitle);
+            this.player.addSubtitle(subtitle.url, subtitle.name);
+            this.player.setToast("Subtitle added: " + subtitle.name);
+
+            if (!this.currentEntry.subtitles) {
+                this.currentEntry.subtitles = [];
+            }
+
+            this.currentEntry.subtitles.push(subtitle);
+            this.updateRoomSubtitlesHtml(this.currentEntry);
+        });
+
+        events.addEventListener("subtitleshift", event => {
+            let shift = JSON.parse(event.data);
+            this.player.setCurrentSubtitleShift(shift);
+        });
+    }
+
     subscribeToServerEvents(events) {
+        this.subscribeToSubtitleEvents(events);
+
         events.addEventListener("userwelcome", event => {
             let connectionId = JSON.parse(event.data);
             console.info("INFO: Received a welcome request with connection id:", connectionId);
@@ -993,23 +1063,6 @@ class Room {
             let title = JSON.parse(event.data);
             this.player.setTitle(title);
             this.roomContent.titleInput.value = title;
-        });
-
-        events.addEventListener("playerattachsubtitle", event => {
-            let subtitle = JSON.parse(event.data);
-            console.log(subtitle);
-            this.player.addSubtitle(subtitle.url, subtitle.name);
-
-            if (!this.currentEntry.subtitles) {
-                this.currentEntry.subtitles = [];
-            }
-
-            this.currentEntry.subtitles.push(subtitle);
-        });
-
-        events.addEventListener("playershiftsubtitle", event => {
-            let shift = JSON.parse(event.data);
-            this.player.setCurrentSubtitleShift(shift);
         });
 
         events.addEventListener("sync", event => {

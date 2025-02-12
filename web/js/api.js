@@ -148,12 +148,6 @@ export async function uploadMedia(file, filename) {
     return filePath;
 }
 
-export async function uploadSubs(file, filename) {
-    console.info("INFO: Uploading a subtitle file to the server.");
-    let subtitle = await httpPostFile("/watch/api/uploadsubs", file, filename);
-    return subtitle;
-}
-
 export async function uploadMediaWithProgress(file, onprogress) {
     console.info("INFO: Uploading a file to the server (with progress callback).");
 
@@ -276,14 +270,35 @@ export async function playerUpdateTitle(title) {
     httpPost("/watch/api/player/updatetitle", title);
 }
 
-export async function playerAttachSubtitle(subtitle) {
-    console.info("INFO: Sending player subtitle attach request.");
-    httpPost("/watch/api/player/attachsubtitle", subtitle);
+export async function subtitleDelete(subtitleId) {
+    console.info("INFO: Sending player subtitle delete request for subtitle", subtitleId);
+    httpPost("/watch/api/subtitle/delete", subtitleId);
 }
 
-export async function playerShiftSubtitle(shift) {
+export async function subtitleUpdate(subtitle) {
+    console.info("INFO: Sending player subtitle update request for subtitle", subtitle.id);
+    httpPost("/watch/api/subtitle/update", subtitle);
+}
+
+export async function subtitleAttach(subtitle) {
+    console.info("INFO: Sending player subtitle attach request for subtitle", subtitle.id);
+    httpPost("/watch/api/subtitle/attach", subtitle);
+}
+
+export async function subtitleShift(shift) {
     console.info("INFO: Sending player subtitle shift request.");
-    httpPost("/watch/api/player/shiftsubtitle", shift);
+    httpPost("/watch/api/subtitle/shift", shift);
+}
+
+export async function subtitleSearch(search) {
+    console.info("INFO: Requesting server to search for a subtitle.");
+    return httpPost("/watch/api/subtitle/search", search);
+}
+
+export async function subtitleUpload(file, filename) {
+    console.info("INFO: Uploading a subtitle file to the server.");
+    let subtitle = await httpPostFile("/watch/api/subtitle/upload", file, filename);
+    return subtitle;
 }
 
 export async function playlistGet() {
@@ -380,9 +395,4 @@ export async function chatSend(message) {
 export async function chatGet() {
     console.info("INFO: Fetching the chat from server.");
     return await httpGet("/watch/api/chat/get");
-}
-
-export async function searchSubs(search) {
-    console.info("INFO: Requesting server to search for a subtitle.");
-    return httpPost("/watch/api/searchsubs", search);
 }

@@ -54,6 +54,11 @@ input {
     min-width: 0;
 }
 
+select {
+    border: 0;
+    border-radius: 0;
+}
+
 button {
     border: 0;
     border-radius: 0;
