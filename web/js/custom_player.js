@@ -60,22 +60,22 @@ class Player {
         return this.internals.htmlVideo.duration;
     }
 
-    setSubtitle(url, name) {
+    setSubtitle(url, name, shift = 0.0) {
         let info = FileInfo.fromUrl(url)
         if (name) {
             info.filename = name;
         }
 
-        return this.internals.addSubtitle(url, true, info);
+        return this.internals.addSubtitle(url, true, info, shift);
     }
 
-    addSubtitle(url, name) {
+    addSubtitle(url, name, shift = 0.0) {
         let info = FileInfo.fromUrl(url)
         if (name) {
             info.filename = name;
         }
 
-        return this.internals.addSubtitle(url, false, info);
+        return this.internals.addSubtitle(url, false, info, shift);
     }
 
     // Tests each subtitle with the predicate function. Returns true on first match.
@@ -146,8 +146,16 @@ class Player {
         this.internals.setCurrentSubtitleShift(seconds);
     }
 
+    setSubtitleShiftByUrl(url, seconds) {
+        this.internals.setSubtitleShiftByUrl(url, seconds);
+    }
+
     getCurrentSubtitleShift() {
         return this.internals.getCurrentSubtitleShift();
+    }
+
+    getSubtitleShiftByUrl(url) {
+        return this.internals.getSubtitleShiftByUrl(url);
     }
 
     destroyPlayer() {
@@ -860,7 +868,7 @@ class Internals {
         hide(this.htmlControls.buttons.liveIndicator);
     }
 
-    addSubtitle(url, show, info) {
+    addSubtitle(url, show, info, shift) {
         if (!info) {
             info = FileInfo.fromUrl(url)
         }
@@ -897,7 +905,7 @@ class Internals {
                 console.debug("Sanitized in", performance.now() - sanitizeStart, "ms")
             }
 
-            let subtitle = new Subtitle(cues, info.filename, info.extension, url);
+            let subtitle = new Subtitle(cues, info.filename, info.extension, url, shift);
             subtitle.htmlTrack.onclick = _ => this.switchSubtitleTrack(subtitle);
 
             if (show) {
@@ -953,12 +961,38 @@ class Internals {
         }
     }
 
+    setSubtitleShiftByUrl(url, seconds) {
+        let subs = this.subtitles;
+        for (let i = 0; i < subs.length; i++) {
+            let sub = subs[i];
+            if (sub.url === url) {
+                sub.offset = seconds;
+                break;
+            }
+        }
+
+        this.subtitleShift.setValue(this.selectedSubtitle.offset);
+        this.updateSubtitles(this.getCurrentTime());
+    }
+
     getCurrentSubtitleShift() {
         if (this.selectedSubtitle) {
             return this.subtitleShift.getValue();
         } else {
             return 0.0;
         }
+    }
+
+    getSubtitleShiftByUrl(url) {
+        let subtitles = this.subtitles;
+        for (let i = 0; i < subtitles.length; i++) {
+            const sub = subtitles[i];
+            if (sub.url === url) {
+                return sub.offset;
+            }
+        }
+
+        return 0.0;
     }
 
     anySubtitleMatch(predicate) {
@@ -1771,7 +1805,7 @@ class Internals {
             const objectUrl = URL.createObjectURL(file);
             let trackInfo = FileInfo.fromUrl(file.name);
             console.debug("Adding", trackInfo.extension, "subtitle from disk");
-            this.addSubtitle(objectUrl, true, trackInfo);
+            this.addSubtitle(objectUrl, true, trackInfo, 0.0);
         };
 
         subtitleName.addEventListener("keydown", stopPropagation);
@@ -2116,12 +2150,12 @@ class Cue {
 
 // Internal representation for a subtitle, a replacement for the TextTrack and <track>
 export class Subtitle {
-    constructor(cues, name, format, url) {
+    constructor(cues, name, format, url, offset = 0.0) {
         this.cues = cues;
         this.name = name;
         this.format = format;
         this.url = url;
-        this.offset = 0.0;
+        this.offset = offset;
         this.htmlTrack = this.createSubtitleTrackElement(name);
     }
 

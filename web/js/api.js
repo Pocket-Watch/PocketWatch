@@ -285,9 +285,13 @@ export async function subtitleAttach(subtitle) {
     httpPost("/watch/api/subtitle/attach", subtitle);
 }
 
-export async function subtitleShift(shift) {
+export async function subtitleShift(id, shift) {
     console.info("INFO: Sending player subtitle shift request.");
-    httpPost("/watch/api/subtitle/shift", shift);
+    let data = {
+        id:    id,
+        shift: shift,
+    }
+    httpPost("/watch/api/subtitle/shift", data);
 }
 
 export async function subtitleSearch(search) {

@@ -22,23 +22,39 @@ const COLOR_GREEN_DARK = "\x1b[0;92m"
 var ENABLE_COLORS = true
 
 func LogError(format string, args ...any) {
-	logOutput("ERROR", COLOR_RED, format, args...)
+	logOutput("ERROR", COLOR_RED, 0, format, args...)
 }
 
 func LogWarn(format string, args ...any) {
-	logOutput("WARN ", COLOR_YELLOW, format, args...)
+	logOutput("WARN ", COLOR_YELLOW, 0, format, args...)
 }
 
 func LogInfo(format string, args ...any) {
-	logOutput("INFO ", COLOR_BLUE, format, args...)
+	logOutput("INFO ", COLOR_BLUE, 0, format, args...)
 }
 
 func LogDebug(format string, args ...any) {
-	logOutput("DEBUG", COLOR_PURPLE, format, args...)
+	logOutput("DEBUG", COLOR_PURPLE, 0, format, args...)
 }
 
-func logOutput(severity string, color string, format string, args ...any) {
-	_, file, line, ok := runtime.Caller(2)
+func LogErrorSkip(stackDepthSkip int, format string, args ...any) {
+	logOutput("ERROR", COLOR_RED, stackDepthSkip, format, args...)
+}
+
+func LogWarnSkip(stackDepthSkip int, format string, args ...any) {
+	logOutput("WARN ", COLOR_YELLOW, stackDepthSkip, format, args...)
+}
+
+func LogInfoSkip(stackDepthSkip int, format string, args ...any) {
+	logOutput("INFO ", COLOR_BLUE, stackDepthSkip, format, args...)
+}
+
+func LogDebugSkip(stackDepthSkip int, format string, args ...any) {
+	logOutput("DEBUG", COLOR_PURPLE, stackDepthSkip, format, args...)
+}
+
+func logOutput(severity string, color string, stackDepthSkip int, format string, args ...any) {
+	_, file, line, ok := runtime.Caller(stackDepthSkip + 2)
 
 	if !ok {
 		file = "unknown"

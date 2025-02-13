@@ -177,10 +177,11 @@
                         <button id="room_title_update_button" type="button">Update</button>
                     </div>
 
+                    <br/>
+                    <br/>
+
                     <div>
-                        <select id="room_subtitles_select">
-                            <option>Big Buck Bunny</option>
-                        </select>
+                        <select id="room_subtitles_select"></select>
                         <button id="room_subtitle_delete_button">Delete</button>
                     </div>
 
@@ -189,11 +190,19 @@
                         <button id="room_subtitle_update_button">Update</button>
                     </div>
 
+                    <div id="room_set_shift"> 
+                        <span class="placeholder">Set shift for everyone:</span>
+                        <button id="room_set_shift_button" type="button">Set Shift</button>
+                    </div>
+
                     <div id="room_upload_subtitle"> 
                         <span class="placeholder">Upload subtitle for everyone:</span>
                         <input type="file" id="room_upload_subtitle_input" accept=".srt,.vtt" style="display:none"/>
                         <button id="room_upload_subtitle_button" type="button">Upload</button>
                     </div>
+
+                    <br/>
+                    <br/>
 
                     <label class="placeholder">
                         <span>Using proxy:</span>
@@ -205,6 +214,9 @@
                         <input readonly id="room_referer_input"/>
                     </div>
 
+                    <br/>
+                    <br/>
+
                     <div id="room_created_by"> 
                         <span class="placeholder">Created by:</span>
                         <span id="room_created_by_username" class="placeholder"></span>
@@ -214,6 +226,14 @@
                         <span class="placeholder">Created at:</span>
                         <span id="room_created_at_date" class="placeholder"></span>
                     </div>
+
+                    <div id="room_last_action"> 
+                        <span class="placeholder">Last action:</span>
+                        <span id="room_last_action_text" class="placeholder"></span>
+                    </div>
+
+                    <br/>
+                    <br/>
 
                     <div>
                         <span class="placeholder">Upload file:</span>
@@ -227,19 +247,9 @@
                         <a href="/watch/media">Browse</a>
                     </div>
 
-                    <div id="room_last_action"> 
-                        <span class="placeholder">Last action:</span>
-                        <span id="room_last_action_text" class="placeholder"></span>
-                    </div>
-
                     <div id="room_copy_to_input"> 
                         <span class="placeholder">Copy to input area:</span>
                         <button id="room_copy_to_input_button" type="button">Copy</button>
-                    </div>
-
-                    <div id="room_set_shift"> 
-                        <span class="placeholder">Set your subtitle shift for everyone:</span>
-                        <button id="room_set_shift_button" type="button">Set Shift</button>
                     </div>
 
                     <br/>

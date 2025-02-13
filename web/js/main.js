@@ -477,8 +477,19 @@ class Room {
         };
 
         this.roomContent.setShiftButton.onclick = _ => {
-            let shift = this.player.getCurrentSubtitleShift();
-            api.subtitleShift(shift);
+            let subs = this.currentEntry.subtitles;
+            if (!subs) {
+                return;
+            }
+
+            for (let i = 0; i < subs.length; i++) {
+                let sub = subs[i];
+                if (sub.id === this.roomSelectedSubId) {
+                    let shift = this.player.getSubtitleShiftByUrl(sub.url);
+                    api.subtitleShift(sub.id, shift);
+                    break;
+                }
+            }
         };
 
         this.roomContent.subtitlesSelect.onchange = event => {
@@ -818,7 +829,7 @@ class Room {
             this.player.clearAllSubtitleTracks();
             for (let i = 0; i < entry.subtitles.length; i++) {
                 let sub = entry.subtitles[i];
-                this.player.addSubtitle(sub.url, sub.name);
+                this.player.addSubtitle(sub.url, sub.name, sub.shift);
             }
         }
 
@@ -905,9 +916,7 @@ class Room {
         events.addEventListener("subtitleattach", event => {
             let subtitle = JSON.parse(event.data);
             console.log(subtitle);
-            // Since we're using clueless subtitle names
-            let name = FileInfo.fromUrl(subtitle.name).filename;
-            this.player.addSubtitle(subtitle.url, name);
+            this.player.addSubtitle(subtitle.url, subtitle.name, subtitle.shift);
             this.player.setToast("Subtitle added: " + subtitle.name);
 
             if (!this.currentEntry.subtitles) {
@@ -919,8 +928,18 @@ class Room {
         });
 
         events.addEventListener("subtitleshift", event => {
-            let shift = JSON.parse(event.data);
-            this.player.setCurrentSubtitleShift(shift);
+            let data = JSON.parse(event.data);
+
+            let subs = this.currentEntry.subtitles;
+            for (let i = 0; i < subs.length; i++) {
+                let sub = subs[i];
+                if (sub.id === data.id) {
+                    this.player.setSubtitleShiftByUrl(sub.url, data.shift);
+                    subs[i].shift = data.shift;
+                    break;
+                }
+            }
+
         });
     }
 

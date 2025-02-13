@@ -415,12 +415,12 @@ func stall(delay time.Duration, maxChecks int, checkFunc func() bool) {
 
 func respondBadRequest(writer http.ResponseWriter, format string, args ...any) {
 	output := fmt.Sprintf(format, args...)
-	LogInfo("%v", output)
+	LogInfoSkip(1, "%v", output)
 	http.Error(writer, output, http.StatusBadRequest)
 }
 
 func respondInternalError(writer http.ResponseWriter, format string, args ...any) {
 	output := fmt.Sprintf(format, args...)
-	LogError("%v", output)
+	LogErrorSkip(1, "%v", output)
 	http.Error(writer, output, http.StatusInternalServerError)
 }

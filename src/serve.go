@@ -51,9 +51,10 @@ type PlayerState struct {
 }
 
 type Subtitle struct {
-	Id   uint64 `json:"id"`
-	Name string `json:"name"`
-	Url  string `json:"url"`
+	Id    uint64  `json:"id"`
+	Name  string  `json:"name"`
+	Url   string  `json:"url"`
+	Shift float64 `json:"shift"`
 }
 
 type Entry struct {
@@ -266,6 +267,11 @@ type PlayerNextEventData struct {
 	NewEntry  Entry `json:"new_entry"`
 }
 
+type SubtitleShiftRequestData struct {
+	Id    uint64  `json:"id"`
+	Shift float64 `json:"shift"`
+}
+
 type PlaylistEventData struct {
 	Action string `json:"action"`
 	Data   any    `json:"data"`
@@ -421,7 +427,7 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/watch/api/player/looping", apiPlayerLooping)
 	http.HandleFunc("/watch/api/player/updatetitle", apiPlayerUpdateTitle)
 
-	// API calls that for subtitles
+	// Subtitle API calls.
 	http.HandleFunc("/watch/api/subtitle/delete", apiSubtitleDelete)
 	http.HandleFunc("/watch/api/subtitle/update", apiSubtitleUpdate)
 	http.HandleFunc("/watch/api/subtitle/attach", apiSubtitleAttach)
@@ -1056,12 +1062,21 @@ func apiSubtitleShift(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection %s requested attach sub.", r.RemoteAddr)
 
-	var shift float64
-	if !readJsonDataFromRequest(w, r, &shift) {
+	var data SubtitleShiftRequestData
+	if !readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
-	writeEventToAllConnections(w, "subtitleshift", shift)
+	state.mutex.Lock()
+	for i, sub := range state.entry.Subtitles {
+		if sub.Id == data.Id {
+			state.entry.Subtitles[i].Shift = data.Shift
+			break
+		}
+	}
+	state.mutex.Unlock()
+
+	writeEventToAllConnections(w, "subtitleshift", data)
 }
 
 func apiSubtitleSearch(w http.ResponseWriter, r *http.Request) {
@@ -1124,9 +1139,10 @@ func apiSubtitleSearch(w http.ResponseWriter, r *http.Request) {
 	subtitleName := strings.TrimSuffix(baseName, extension)
 
 	subtitle := Subtitle{
-		Id:   subId,
-		Name: subtitleName,
-		Url:  outputUrl,
+		Id:    subId,
+		Name:  subtitleName,
+		Url:   outputUrl,
+		Shift: 0.0,
 	}
 
 	state.mutex.Lock()
@@ -1200,9 +1216,10 @@ func apiSubtitleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	subtitle := Subtitle{
-		Id:   subId,
-		Name: strings.TrimSuffix(filename, extension),
-		Url:  networkUrl,
+		Id:    subId,
+		Name:  strings.TrimSuffix(filename, extension),
+		Url:   networkUrl,
+		Shift: 0.0,
 	}
 
 	jsonData, _ := json.Marshal(subtitle)
