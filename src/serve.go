@@ -1013,7 +1013,22 @@ func apiSubtitleDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Error(w, "TODO", http.StatusNotImplemented)
+	var subId uint64
+	if !readJsonDataFromRequest(w, r, &subId) {
+		return
+	}
+
+	state.mutex.Lock()
+	for i, sub := range state.entry.Subtitles {
+		if sub.Id == subId {
+			subs := state.entry.Subtitles
+			state.entry.Subtitles = append(subs[:i], subs[i+1:]...)
+			break
+		}
+	}
+	state.mutex.Unlock()
+
+	writeEventToAllConnections(w, "subtitleremove", subId)
 }
 
 func apiSubtitleUpdate(w http.ResponseWriter, r *http.Request) {
@@ -1100,20 +1115,21 @@ func apiSubtitleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	os.MkdirAll("web/media/subs", 0750)
-	inputPath, err := downloadSubtitle(&search, "web/media/subs")
+	downloadPath, err := downloadSubtitle(&search, "web/media/subs")
 	if err != nil {
 		respondBadRequest(w, "Subtitle download failed: %v", err)
 		return
 	}
 
-	inputSub, err := os.Open(inputPath)
+	os.MkdirAll("web/subs/", 0750)
+	inputSub, err := os.Open(downloadPath)
 	if err != nil {
-		respondInternalError(w, "Failed to open downloaded subtitle %v: %v", inputPath, err)
+		respondInternalError(w, "Failed to open downloaded subtitle %v: %v", downloadPath, err)
 		return
 	}
 	defer inputSub.Close()
 
-	extension := path.Ext(inputPath)
+	extension := path.Ext(downloadPath)
 	subId := state.subsId.Add(1)
 
 	outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
@@ -1135,7 +1151,7 @@ func apiSubtitleSearch(w http.ResponseWriter, r *http.Request) {
 	outputSub.Close()
 
 	outputUrl := path.Join("subs", outputName)
-	baseName := path.Base(inputPath)
+	baseName := filepath.Base(downloadPath)
 	subtitleName := strings.TrimSuffix(baseName, extension)
 
 	subtitle := Subtitle{

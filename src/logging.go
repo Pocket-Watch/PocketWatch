@@ -64,7 +64,10 @@ func logOutput(severity string, color string, stackDepthSkip int, format string,
 	filename := path.Base(file)
 	codeLocation := fmt.Sprintf("%v:%v", filename, line)
 
-	date := time.Now().Format(time.RFC1123)
+	date := time.Now().Format("02 Jan 2006 15:04:05.00")
+	// date := time.Now().Format("2006.01.02 15:04:05.00")
+	// date := time.Now().Format(time.RFC1123)
+
 	message := fmt.Sprintf(format, args...)
 	if ENABLE_COLORS {
 		fmt.Printf("%v[%v] %v[%-16s] %v[%v]%v %v\n", COLOR_GREEN_LIGHT, date, COLOR_CYAN, codeLocation, color, severity, COLOR_RESET, message)
