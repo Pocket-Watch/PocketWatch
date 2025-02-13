@@ -1881,7 +1881,7 @@ class Internals {
         let alwaysShow     = new Switcher("Always show controls");
         let showOnPause    = new Switcher("Show controls on pause");
         let playbackSpeed  = new Slider("Playback speed", 0.25, 5.0, 0.25, 1.0, "x");
-        let brightness     = new Slider("Brightness", 0.2, 1.5, 0.05, 1.0);
+        let brightness     = new Slider("Brightness", 0.2, 2, 0.05, 1.0);
 
         hide(menuRoot);
         alwaysShow.setState(this.options.alwaysShowControls);
@@ -1923,6 +1923,11 @@ class Internals {
         showOnPause.onAction = state => {
             this.options.showControlsOnPause = state;
             this.fireSettingsChange(Options.SHOW_CONTROLS_ON_PAUSE, state);
+        };
+
+        playbackSpeed.onInput = value => {
+            this.setSpeed(value);
+            this.fireSettingsChange(Options.PLAYBACK_SPEED, value);
         };
 
         brightness.onInput = value => {
@@ -2559,6 +2564,7 @@ class Options {
     static ALWAYS_SHOW_CONTROLS        = "always_show_controls";
     static SHOW_CONTROLS_ON_PAUSE      = "show_controls_on_pause";
     static BRIGHTNESS                  = "brightness";
+    static PLAYBACK_SPEED                     = "playback_speed";
     static SUBTITLE_FONT_SIZE          = "subtitle_font_size";
     static SUBTITLE_VERTICAL_POSITION  = "subtitle_vertical_position";
     static SUBTITLE_FOREGROUND_COLOR   = "subtitle_foreground_color";
