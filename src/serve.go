@@ -267,6 +267,11 @@ type PlayerNextEventData struct {
 	NewEntry  Entry `json:"new_entry"`
 }
 
+type SubtitleUpdateRequestData struct {
+	Id   uint64 `json:"id"`
+	Name string `json:"name"`
+}
+
 type SubtitleShiftRequestData struct {
 	Id    uint64  `json:"id"`
 	Shift float64 `json:"shift"`
@@ -1028,7 +1033,7 @@ func apiSubtitleDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	state.mutex.Unlock()
 
-	writeEventToAllConnections(w, "subtitleremove", subId)
+	writeEventToAllConnections(w, "subtitledelete", subId)
 }
 
 func apiSubtitleUpdate(w http.ResponseWriter, r *http.Request) {
@@ -1040,7 +1045,21 @@ func apiSubtitleUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Error(w, "TODO", http.StatusNotImplemented)
+	var data SubtitleUpdateRequestData
+	if !readJsonDataFromRequest(w, r, &data) {
+		return
+	}
+
+	state.mutex.Lock()
+	for i, sub := range state.entry.Subtitles {
+		if sub.Id == data.Id {
+			state.entry.Subtitles[i].Name = data.Name
+			break
+		}
+	}
+	state.mutex.Unlock()
+
+	writeEventToAllConnections(w, "subtitleupdate", data)
 }
 
 func apiSubtitleAttach(w http.ResponseWriter, r *http.Request) {

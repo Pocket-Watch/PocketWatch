@@ -275,9 +275,14 @@ export async function subtitleDelete(subtitleId) {
     httpPost("/watch/api/subtitle/delete", subtitleId);
 }
 
-export async function subtitleUpdate(subtitle) {
-    console.info("INFO: Sending player subtitle update request for subtitle", subtitle.id);
-    httpPost("/watch/api/subtitle/update", subtitle);
+export async function subtitleUpdate(id, name) {
+    let data = {
+        id:    id,
+        name:  name,
+    }
+
+    console.info("INFO: Sending player subtitle update request for subtitle", id);
+    httpPost("/watch/api/subtitle/update", data);
 }
 
 export async function subtitleAttach(subtitle) {

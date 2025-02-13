@@ -27,9 +27,10 @@ async function setExampleEntry() {
     let api = await import("./api.js");
 
     let subtitle = {
-        id: 0,
-        name: "Big Buck Bunny",
-        path: "media/subs/sample.srt",
+        id:    0,
+        name:  "Big Buck Bunny",
+        url:   "media/subs/sample.srt",
+        shift: 0.0,
     };
 
     const requestEntry = {
@@ -52,9 +53,10 @@ async function setExampleProxy() {
     let api = await import("./api.js");
 
     let subtitle = {
-        id: 0,
-        name: "Big Buck Bunny",
-        path: "media/subs/sample.srt",
+        id:    0,
+        name:  "Big Buck Bunny",
+        url:   "media/subs/sample.srt",
+        shift: 0.0,
     };
 
     const requestEntry = {

@@ -501,11 +501,22 @@ class Room {
         };
 
         this.roomContent.subsUpdateButton.onclick = _ => {
-            console.log("sub update");
+            let subtitle = this.currentEntry.subtitles.find(sub => sub.id === this.roomSelectedSubId);
+            if (!subtitle) {
+                return
+            }
+
+            let newName = this.roomContent.subsEditInput.value.trim();
+            api.subtitleUpdate(subtitle.id, newName)
         };
 
         this.roomContent.subsDeleteButton.onclick = _ => {
-            console.log("sub delete");
+            let subtitle = this.currentEntry.subtitles.find(sub => sub.id === this.roomSelectedSubId);
+            if (!subtitle) {
+                return
+            }
+
+            api.subtitleDelete(subtitle.id)
         };
     }
 
@@ -888,6 +899,7 @@ class Room {
         let subs = entry.subtitles;
         if (!subs || subs.length === 0) {
             this.roomSelectedSubId = -1;
+            this.roomContent.subsEditInput.value = "";
             return;
         }
 
@@ -906,11 +918,67 @@ class Room {
 
     subscribeToSubtitleEvents(events) {
         events.addEventListener("subtitledelete", event => {
-            console.warn("TODO");
+            if (!event.data) {
+                console.warn("Subtitle delete event failed, event data is null.")
+                return;
+            }
+
+            let subId = JSON.parse(event.data);
+            console.info("Received subtitle delete event for subtitle with ID:", subId);
+
+            let subs = this.currentEntry.subtitles;
+            if (!subs) {
+                console.warn("Subtitle delete event failed, currentEntry subtitles is null.")
+                return;
+            }
+
+            let index = subs.findIndex(sub => sub.id === subId);
+            if (index === -1) {
+                console.warn("Subtitle delete event failed, subtitle index is -1.")
+                return;
+            }
+
+            subs.splice(index, 1);
+
+            this.player.clearAllSubtitleTracks();
+            for (let i = 0; i < subs.length; i++) {
+                const sub = subs[i];
+                this.player.addSubtitle(sub.url, sub.name, sub.shift);
+            }
+
+            this.updateRoomSubtitlesHtml(this.currentEntry);
         });
 
         events.addEventListener("subtitleupdate", event => {
-            console.warn("TODO");
+            let data = JSON.parse(event.data);
+            if (!data) {
+                console.warn("Subtitle update event failed, event data is null.")
+                return;
+            }
+
+            console.info("Received subtitle update event with:", data);
+
+            let subs = this.currentEntry.subtitles;
+            if (!subs) {
+                console.warn("Subtitle update event failed, currentEntry subtitles is null.")
+                return;
+            }
+
+            let index = subs.findIndex(sub => sub.id === data.id);
+            if (index === -1) {
+                console.warn("Subtitle update event failed, subtitle index is -1.")
+                return;
+            }
+
+            subs[index].name = data.name;
+
+            this.player.clearAllSubtitleTracks();
+            for (let i = 0; i < subs.length; i++) {
+                const sub = subs[i];
+                this.player.addSubtitle(sub.url, sub.name, sub.shift);
+            }
+
+            this.updateRoomSubtitlesHtml(this.currentEntry);
         });
 
         events.addEventListener("subtitleattach", event => {
@@ -939,7 +1007,6 @@ class Room {
                     break;
                 }
             }
-
         });
     }
 
