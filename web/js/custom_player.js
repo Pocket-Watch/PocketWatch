@@ -2076,8 +2076,7 @@ class Slider {
             value = min;
         }
 
-        // Set precision to a single digit of the fractional part.
-        value = value.toFixed(this.precision);
+        value = Number(value).toFixed(this.precision);
 
         let valueString = "";
         if (this.includeSign && value > 0) {
