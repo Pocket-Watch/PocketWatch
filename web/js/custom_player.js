@@ -2054,7 +2054,15 @@ class Slider {
         this.slider      = slider;
         this.valueText   = valueText;
         this.includeSign = includeSign;
+
+        this.precision   = Slider.calculatePrecision(step);
         this.setValue(initialValue);
+    }
+
+    static calculatePrecision(step) {
+        let strNum = step.toString();
+        let dot = strNum.indexOf(".");
+        return dot === -1 ? 0 : (strNum.length - dot - 1);
     }
 
     createValueString(value) {
@@ -2069,7 +2077,7 @@ class Slider {
         }
 
         // Set precision to a single digit of the fractional part.
-        value = Math.round(value * 10.0) / 10.0;
+        value = value.toFixed(this.precision);
 
         let valueString = "";
         if (this.includeSign && value > 0) {
@@ -2077,11 +2085,6 @@ class Slider {
         }
 
         valueString += value;
-
-        // Append ".0" when the value has no fractional part.
-        if ((value * 10) % 10 === 0.0) {
-            valueString += ".0";
-        }
 
         valueString += this.valueSuffix;
         return valueString;
