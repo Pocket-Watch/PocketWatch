@@ -250,7 +250,8 @@ class Room {
         });
 
         this.player.onSubtitleSearch(async search => {
-            return await api.subtitleSearch(search);
+            let jsonResponse = await api.subtitleSearch(search);
+            return jsonResponse.ok;
         });
 
         this.player.onPlaybackEnd(_ => {
@@ -1187,9 +1188,9 @@ class Room {
 
                 case "seek": {
                     if (userId != SERVER_ID) {
-                        let shortStamp = timestamp.toFixed(2);
-                        this.player.setToast(username + " seeked to " + shortStamp);
-                        this.roomContent.lastActionText.textContent = username + " seeked to " + shortStamp;
+                        let time = formatTime(timestamp);
+                        this.player.setToast(username + " seeked to " + time);
+                        this.roomContent.lastActionText.textContent = username + " seeked to " + time;
                     }
 
                     if (!this.player.isLive()) {
@@ -1249,6 +1250,35 @@ class Room {
         await this.loadChatData();
         this.listenToServerEvents();
     }
+}
+
+function formatTime(seconds) {
+    let time = "";
+    let hours = 0;
+    if (seconds >= 3600) {
+        hours = (seconds / 3600) | 0;
+        seconds %= 3600;
+    }
+
+    let minutes = 0;
+    if (seconds >= 60) {
+        minutes = (seconds / 60) | 0;
+        seconds %= 60;
+    }
+
+    if (seconds > 0) {
+        seconds |= 0;
+    }
+
+    if (hours > 0) {
+        let hourSuffix = hours + ":";
+        time += (hours < 10) ? "0" + hourSuffix : hourSuffix;
+    }
+
+    let minSuffix = minutes + ":";
+    time += (minutes < 10) ? "0" + minSuffix : minSuffix;
+    time += (seconds < 10) ? "0" + seconds : seconds;
+    return time;
 }
 
 // This is a wrapper for localStorage (which has only string <-> string mappings)
