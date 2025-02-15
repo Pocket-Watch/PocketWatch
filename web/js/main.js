@@ -96,6 +96,8 @@ class Room {
             createdAtDate:      getById("room_created_at_date"),
             lastActionText:     getById("room_last_action_text"),
             subtitlesSelect:    getById("room_subtitles_select"),
+            websiteUptime:      getById("room_website_uptime"),
+            websiteVersion:     getById("room_website_version"),
         };
 
         this.chatNewMessage = getById("tab_chat_new_message_indicator");
@@ -1244,10 +1246,13 @@ class Room {
             await this.createNewAccount();
             await this.authenticateAccount();
         }
+
         await this.loadUsersData();
         await this.loadPlayerData();
         await this.loadPlaylistData();
         await this.loadChatData();
+        api.uptime().then(uptime => this.roomContent.websiteUptime.textContent = uptime);
+        api.version().then(version => this.roomContent.websiteVersion.textContent = version);
         this.listenToServerEvents();
     }
 }

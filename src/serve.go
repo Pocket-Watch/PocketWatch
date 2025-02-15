@@ -410,6 +410,7 @@ func registerEndpoints(options *Options) {
 
 	// Unrelated API calls.
 	http.HandleFunc("/watch/api/version", apiVersion)
+	http.HandleFunc("/watch/api/uptime", apiUptime)
 	http.HandleFunc("/watch/api/login", apiLogin)
 	http.HandleFunc("/watch/api/uploadmedia", apiUploadMedia)
 
@@ -471,9 +472,21 @@ func apiVersion(w http.ResponseWriter, r *http.Request) {
 	}
 
 	LogInfo("Connection %s requested server version.", r.RemoteAddr)
+	uptimeString := fmt.Sprintf("%v_%v", VERSION, BuildTime)
+	response, _ := json.Marshal(uptimeString)
+	io.WriteString(w, string(response))
+}
+
+func apiUptime(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		return
+	}
+
+	LogInfo("Connection %s requested server version.", r.RemoteAddr)
 	uptime := time.Now().Sub(startTime)
-	response := fmt.Sprintf("%v Uptime=%v", VERSION, uptime)
-	io.WriteString(w, response)
+	uptimeString := fmt.Sprintf("%v", uptime)
+	response, _ := json.Marshal(uptimeString)
+	io.WriteString(w, string(response))
 }
 
 func apiLogin(w http.ResponseWriter, r *http.Request) {

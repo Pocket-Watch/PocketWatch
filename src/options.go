@@ -77,7 +77,7 @@ func GetExecutableName() string {
 	return path
 }
 
-var VERSION string = "1.0.0"
+var VERSION string = "0.0.1-alpha"
 
 func DisplayHelp() {
 	exe := GetExecutableName()

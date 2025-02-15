@@ -142,6 +142,16 @@ export function getConnectionId() {
     return connectionId;
 }
 
+export async function version() {
+    console.info("INFO: Requesting server version.");
+    return await httpGet("/watch/api/version");
+}
+
+export async function uptime() {
+    console.info("INFO: Requesting server uptime.");
+    return await httpGet("/watch/api/uptime");
+}
+
 export async function uploadMedia(file, filename) {
     console.info("INFO: Uploading a file to the server.");
     let filePath = await httpPostFile("/watch/api/uploadmedia", file, filename);
