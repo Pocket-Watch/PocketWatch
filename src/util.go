@@ -165,10 +165,11 @@ func downloadFile(url string, filename string, referer string) error {
 	}
 	if response.StatusCode != 200 && response.StatusCode != 206 {
 		errBody, err := io.ReadAll(response.Body)
-		if err != nil {
-			return &DownloadError{Code: response.StatusCode, Message: "Failed to download file"}
+		var bodyError = ""
+		if err == nil {
+			bodyError = string(errBody)
 		}
-		return &DownloadError{Code: response.StatusCode, Message: "Failed to download file. " + string(errBody)}
+		return &DownloadError{Code: response.StatusCode, Message: "Failed to download file. " + bodyError}
 	}
 	defer response.Body.Close()
 
@@ -214,6 +215,14 @@ func getContentRange(url string, referer string) (int64, error) {
 	// Get the Content-Range header
 	contentRange := response.Header.Get("Content-Length")
 	return strconv.ParseInt(contentRange, 10, 64)
+}
+
+func isTimeoutError(err error) bool {
+	var urlErr *net_url.Error
+	if errors.As(err, &urlErr) {
+		return urlErr.Timeout()
+	}
+	return false
 }
 
 // This will parse only the first range, given header and max (content-length) of the whole resource

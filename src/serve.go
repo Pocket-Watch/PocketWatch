@@ -1870,6 +1870,9 @@ func setupHlsProxy(url string, referer string) bool {
 		return false
 	}
 
+	state.setupLock.Lock()
+	defer state.setupLock.Unlock()
+	start := time.Now()
 	_ = os.RemoveAll(WEB_PROXY)
 	_ = os.Mkdir(WEB_PROXY, os.ModePerm)
 	var m3u *M3U
@@ -1948,7 +1951,6 @@ func setupHlsProxy(url string, referer string) bool {
 	// Sometimes m3u8 chunks are not fully qualified
 	m3u.prefixRelativeSegments(prefix)
 
-	state.setupLock.Lock()
 	state.isHls = true
 	state.proxy = &HlsProxy{}
 	var result bool
@@ -1959,7 +1961,8 @@ func setupHlsProxy(url string, referer string) bool {
 		state.isLive = false
 		result = setupVodProxy(m3u)
 	}
-	state.setupLock.Unlock()
+	duration := time.Since(start)
+	LogDebug("Time taken to setup proxy: %v", duration)
 	return result
 }
 
@@ -2231,7 +2234,11 @@ func serveHlsLive(writer http.ResponseWriter, request *http.Request, chunk strin
 	if fetchErr != nil {
 		mutex.Unlock()
 		LogError("Failed to fetch live chunk %v", fetchErr)
-		http.Error(writer, "Failed to fetch chunk", 500)
+		code := 500
+		if isTimeoutError(fetchErr) {
+			code = 504
+		}
+		http.Error(writer, "Failed to fetch live chunk", code)
 		return
 	}
 	fetchedChunk.obtained = true
@@ -2309,7 +2316,11 @@ func serveHlsVod(writer http.ResponseWriter, request *http.Request, chunk string
 	if fetchErr != nil {
 		mutex.Unlock()
 		LogError("Failed to fetch chunk %v", fetchErr)
-		http.Error(writer, "Failed to fetch chunk", 500)
+		code := 500
+		if isTimeoutError(fetchErr) {
+			code = 504
+		}
+		http.Error(writer, "Failed to fetch vod chunk", code)
 		return
 	}
 	proxy.fetchedChunks[chunkId] = true
