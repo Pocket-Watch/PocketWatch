@@ -1,9 +1,9 @@
-import {FileInfo, Options, Player} from "./custom_player.js"
+import { Options, Player } from "./custom_player.js"
 import { Playlist } from "./playlist.js"
 import { Chat } from "./chat.js"
 import { sha256 } from "./auth.js"
 import * as api from "./api.js";
-import { getById, div, img, svg, button, hide, show } from "./util.js";
+import { getById, div, img, svg, button, hide, show, formatTime } from "./util.js";
 
 const SERVER_ID = 0;
 const MAX_TITLE_LENGTH = 200;
@@ -1255,35 +1255,6 @@ class Room {
         api.version().then(version => this.roomContent.websiteVersion.textContent = version);
         this.listenToServerEvents();
     }
-}
-
-function formatTime(seconds) {
-    let time = "";
-    let hours = 0;
-    if (seconds >= 3600) {
-        hours = (seconds / 3600) | 0;
-        seconds %= 3600;
-    }
-
-    let minutes = 0;
-    if (seconds >= 60) {
-        minutes = (seconds / 60) | 0;
-        seconds %= 60;
-    }
-
-    if (seconds > 0) {
-        seconds |= 0;
-    }
-
-    if (hours > 0) {
-        let hourSuffix = hours + ":";
-        time += (hours < 10) ? "0" + hourSuffix : hourSuffix;
-    }
-
-    let minSuffix = minutes + ":";
-    time += (minutes < 10) ? "0" + minSuffix : minSuffix;
-    time += (seconds < 10) ? "0" + seconds : seconds;
-    return time;
 }
 
 // This is a wrapper for localStorage (which has only string <-> string mappings)

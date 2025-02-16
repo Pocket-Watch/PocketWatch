@@ -795,8 +795,8 @@ class Playlist {
             }, TOUCH_HOLD_DELAY_TIME);
         };
 
-        entryDragArea.ontouchmove = event => clearTimeout(this.touchHoldDelay);
-        entryDragArea.ontouchend  = event => clearTimeout(this.touchHoldDelay);
+        entryDragArea.ontouchmove = _ => clearTimeout(this.touchHoldDelay);
+        entryDragArea.ontouchend  = _ => clearTimeout(this.touchHoldDelay);
 
         entryDragArea.onmousedown = event => {
             this.scrollingStep = DESKTOP_PLATFORM_SCROLLING_STEP;

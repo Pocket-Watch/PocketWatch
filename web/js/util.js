@@ -71,3 +71,33 @@ export function input(className, text, placeholder = null) {
 
     return element;
 }
+
+export function formatTime(seconds) {
+    let time = "";
+    let hours = 0;
+    if (seconds >= 3600) {
+        hours = (seconds / 3600) | 0;
+        seconds %= 3600;
+    }
+
+    let minutes = 0;
+    if (seconds >= 60) {
+        minutes = (seconds / 60) | 0;
+        seconds %= 60;
+    }
+
+    if (seconds > 0) {
+        seconds |= 0;
+    }
+
+    if (hours > 0) {
+        let hourSuffix = hours + ":";
+        time += (hours < 10) ? "0" + hourSuffix : hourSuffix;
+    }
+
+    let minSuffix = minutes + ":";
+    time += (minutes < 10) ? "0" + minSuffix : minSuffix;
+    time += (seconds < 10) ? "0" + seconds : seconds;
+    return time;
+}
+

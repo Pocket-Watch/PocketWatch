@@ -1,4 +1,4 @@
-module watchlocally
+module pocketwatch
 
 go 1.23
 
