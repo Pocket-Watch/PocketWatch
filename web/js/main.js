@@ -22,6 +22,7 @@ class Room {
         let options = new Options();
         options.hideSpeedButton    = true;
         options.hideDownloadButton = true;
+        options.hlsConfig.xhrSetup = (xhr, url) => this.configureHlsRequests(xhr, url);
         this.applyUserOptions(options);
 
         this.player   = new Player(video0, options);
@@ -140,6 +141,12 @@ class Room {
         this.currentEntryId = 0;
 
         this.currentEntry = {};
+    }
+
+    configureHlsRequests(xhr, url) {
+        /*if (proxying) {
+            xhr.setRequestHeader("Authorization", "Token");
+        }*/
     }
 
     applyUserOptions(options) {

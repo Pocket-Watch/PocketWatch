@@ -808,14 +808,7 @@ class Internals {
             import("../external/hls.js").then(module => {
                 if (module.Hls.isSupported()) {
                     if (this.hls == null) {
-                        this.hls = new module.Hls({
-                            // If these controllers are used, they'll clear tracks or cues when HLS is attached/detached.
-                            // HLS does not provide a way to make it optional, therefore we don't want HLS to mess with
-                            // our subtitle tracks, handling it would require hacky solutions or modifying HLS source code
-                            timelineController: null,
-                            subtitleTrackController: null,
-                            subtitleStreamController: null,
-                        });
+                        this.hls = new module.Hls(this.options.hlsConfig);
 
                         this.hls.on(module.Hls.Events.MANIFEST_PARSED, (_, data) => {
                             if (!data.levels || data.levels.length === 0) {
@@ -920,7 +913,6 @@ class Internals {
 
     enableSubtitleTrack(subtitle) {
         this.htmlControls.subMenu.subsSwitcher.setState(true);
-        this.fireSettingsChange(Options.SUBTITLES_ENABLED, true);
 
         if (!subtitle) {
             return;
@@ -1788,7 +1780,7 @@ class Internals {
         subsSwitch.onAction = enabled => {
             this.fireSettingsChange(Options.SUBTITLES_ENABLED, enabled);
 
-            if (enabled && this.subtitles.length != 0 && !this.selectedSubtitle) {
+            if (enabled && this.subtitles.length !== 0 && !this.selectedSubtitle) {
                 this.switchSubtitleTrack(this.subtitles[0])
             }
 
@@ -2547,6 +2539,14 @@ class Options {
         this.showControlsOnPause = true;
 
         this.bufferingRedrawInterval = 1000;
+        this.hlsConfig = {
+            // If these controllers are used, they'll clear tracks or cues when HLS is attached/detached.
+            // HLS does not provide a way to make it optional, therefore we don't want HLS to mess with
+            // our subtitle tracks, handling it would require hacky solutions or modifying HLS source code
+            timelineController: null,
+            subtitleTrackController: null,
+            subtitleStreamController: null,
+        }
     }
 
     // Ensure values are the intended type and within some reasonable range

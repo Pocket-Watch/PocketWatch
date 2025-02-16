@@ -1498,20 +1498,6 @@ func getAuthorizedIndex(w http.ResponseWriter, r *http.Request) int {
 	return -1
 }
 
-func processData[T any](data T) (T, error) {
-	// For demonstration, let's say we want to unmarshal JSON into data
-	// Here, we'll simulate that with a JSON string
-	jsonData := `{"Name": "Alice", "Score": 100}`
-
-	// Unmarshal JSON into the data variable
-	err := json.Unmarshal([]byte(jsonData), &data)
-	if err != nil {
-		return data, err // Return the data and the error
-	}
-
-	return data, nil // Return the processed data and no error
-}
-
 func readJsonDataFromRequest(w http.ResponseWriter, r *http.Request, data any) bool {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
