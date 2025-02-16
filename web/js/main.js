@@ -3,7 +3,7 @@ import { Playlist } from "./playlist.js"
 import { Chat } from "./chat.js"
 import { sha256 } from "./auth.js"
 import * as api from "./api.js";
-import { getById, div, img, svg, button, hide, show, formatTime } from "./util.js";
+import { Storage, getById, div, img, svg, button, hide, show, formatTime } from "./util.js";
 
 const SERVER_ID = 0;
 const MAX_TITLE_LENGTH = 200;
@@ -163,6 +163,11 @@ class Room {
             this.player.setVolume(volume);
         }
 
+        let subsEnabled = Storage.getBool(Options.SUBTITLES_ENABLED);
+        if (subsEnabled) {
+            this.player.enableSubtitleTrackAt(0);
+        }
+
         let size = Storage.get(Options.SUBTITLE_FONT_SIZE);
         if (size != null) {
             this.player.setSubtitleFontSize(size);
@@ -237,6 +242,7 @@ class Room {
             switch (key) {
                 case Options.SHOW_CONTROLS_ON_PAUSE:
                 case Options.ALWAYS_SHOW_CONTROLS:
+                case Options.SUBTITLES_ENABLED:
                     Storage.setBool(key, value);
                     break;
 
@@ -1257,43 +1263,12 @@ class Room {
     }
 }
 
-// This is a wrapper for localStorage (which has only string <-> string mappings)
-class Storage {
-    static set(key, value) {
-        localStorage.setItem(key, value);
-    }
-    static get(key) {
-        return localStorage.getItem(key);
-    }
-    static getBool(key) {
-        let value = localStorage.getItem(key);
-        if (value == null) {
-            return null;
-        }
-        return value === "1";
-    }
-    static setBool(key, value) {
-        if (value) {
-            localStorage.setItem(key, "1");
-        } else {
-            localStorage.setItem(key, "0");
-        }
-    }
-    static getNum(key) {
-        let value = localStorage.getItem(key);
-        if (value == null) {
-            return null;
-        }
-        return Number(value);
-    }
-}
-
 async function main() {
     let room = new Room();
-    room.applyUserPreferences();
     room.attachPlayerEvents();
     room.attachHtmlEvents();
     await room.connectToServer();
+    room.applyUserPreferences();
 
     // Expose room to browser console for debugging.
     window.room = room;

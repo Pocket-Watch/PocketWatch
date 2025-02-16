@@ -129,11 +129,7 @@ class Player {
 
     // Select and show the track at the specified index.
     enableSubtitleTrackAt(index) {
-        let subtitles = this.internals.subtitles;
-        if (index < 0 || index >= subtitles.length) {
-            return;
-        }
-        let subtitle = subtitles[index];
+        let subtitle = this.internals.subtitles[index];
         this.internals.enableSubtitleTrack(subtitle);
     }
 
@@ -908,7 +904,7 @@ class Internals {
             let subtitle = new Subtitle(cues, info.filename, info.extension, url, shift);
             subtitle.htmlTrack.onclick = _ => this.switchSubtitleTrack(subtitle);
 
-            if (show) {
+            if (this.htmlControls.subMenu.subsSwitcher.enabled && !this.selectedSubtitle || show) {
                 this.enableSubtitleTrack(subtitle);
             }
 
@@ -923,13 +919,16 @@ class Internals {
     }
 
     enableSubtitleTrack(subtitle) {
+        this.htmlControls.subMenu.subsSwitcher.setState(true);
+        this.fireSettingsChange(Options.SUBTITLES_ENABLED, true);
+
         if (!subtitle) {
             return;
         }
 
         this.selectedSubtitle = subtitle;
-        this.htmlControls.subMenu.subsSwitcher.setState(true);
         this.markSubtitleSelected(subtitle);
+
         this.subtitleShift.setValue(this.selectedSubtitle.offset);
         this.updateSubtitles(this.getCurrentTime());
     }
@@ -1787,6 +1786,12 @@ class Internals {
         optionsTab.onclick = _ => select(optionsTab, optionsView);
 
         subsSwitch.onAction = enabled => {
+            this.fireSettingsChange(Options.SUBTITLES_ENABLED, enabled);
+
+            if (enabled && this.subtitles.length != 0 && !this.selectedSubtitle) {
+                this.switchSubtitleTrack(this.subtitles[0])
+            }
+
             this.updateSubtitles(this.getCurrentTime());
             if (enabled && this.activeCues.length > 0) {
                 show(this.subtitleContainer);
@@ -2565,7 +2570,8 @@ class Options {
     static ALWAYS_SHOW_CONTROLS        = "always_show_controls";
     static SHOW_CONTROLS_ON_PAUSE      = "show_controls_on_pause";
     static BRIGHTNESS                  = "brightness";
-    static PLAYBACK_SPEED                     = "playback_speed";
+    static PLAYBACK_SPEED              = "playback_speed";
+    static SUBTITLES_ENABLED           = "subtitles_enabled";
     static SUBTITLE_FONT_SIZE          = "subtitle_font_size";
     static SUBTITLE_VERTICAL_POSITION  = "subtitle_vertical_position";
     static SUBTITLE_FOREGROUND_COLOR   = "subtitle_foreground_color";

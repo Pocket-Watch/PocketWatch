@@ -101,3 +101,40 @@ export function formatTime(seconds) {
     return time;
 }
 
+
+// This is a wrapper for localStorage (which has only string <-> string mappings)
+export class Storage {
+    static set(key, value) {
+        localStorage.setItem(key, value);
+    }
+
+    static get(key) {
+        return localStorage.getItem(key);
+    }
+
+    static getBool(key) {
+        let value = localStorage.getItem(key);
+        if (value == null) {
+            return null;
+        }
+
+        return value === "1";
+    }
+
+    static setBool(key, value) {
+        if (value) {
+            localStorage.setItem(key, "1");
+        } else {
+            localStorage.setItem(key, "0");
+        }
+    }
+
+    static getNum(key) {
+        let value = localStorage.getItem(key);
+        if (value == null) {
+            return null;
+        }
+
+        return Number(value);
+    }
+}
