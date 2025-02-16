@@ -410,68 +410,82 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/", handleUnknownEndpoint)
 
 	// Unrelated API calls.
-	http.HandleFunc("/watch/api/version", apiVersion)
-	http.HandleFunc("/watch/api/uptime", apiUptime)
-	http.HandleFunc("/watch/api/login", apiLogin)
-	http.HandleFunc("/watch/api/uploadmedia", apiUploadMedia)
+	HandleEndpoint("/watch/api/version", apiVersion, "GET", false)
+	HandleEndpoint("/watch/api/uptime", apiUptime, "GET", false)
+	HandleEndpoint("/watch/api/login", apiLogin, "GET", false)
+	HandleEndpoint("/watch/api/uploadmedia", apiUploadMedia, "POST", true)
 
 	// User related API calls.
-	http.HandleFunc("/watch/api/user/create", apiUserCreate)
-	http.HandleFunc("/watch/api/user/getall", apiUserGetAll)
-	http.HandleFunc("/watch/api/user/verify", apiUserVerify)
-	http.HandleFunc("/watch/api/user/updatename", apiUserUpdateName)
-	http.HandleFunc("/watch/api/user/updateavatar", apiUserUpdateAvatar)
+	HandleEndpoint("/watch/api/user/create", apiUserCreate, "GET", false)
+	HandleEndpoint("/watch/api/user/getall", apiUserGetAll, "GET", true)
+	HandleEndpoint("/watch/api/user/verify", apiUserVerify, "POST", true)
+	HandleEndpoint("/watch/api/user/updatename", apiUserUpdateName, "POST", true)
+	HandleEndpoint("/watch/api/user/updateavatar", apiUserUpdateAvatar, "POST", true)
 
 	// API calls that change state of the player.
-	http.HandleFunc("/watch/api/player/get", apiPlayerGet)
-	http.HandleFunc("/watch/api/player/set", apiPlayerSet)
-	http.HandleFunc("/watch/api/player/end", apiPlayerEnd)
-	http.HandleFunc("/watch/api/player/next", apiPlayerNext)
-	http.HandleFunc("/watch/api/player/play", apiPlayerPlay)
-	http.HandleFunc("/watch/api/player/pause", apiPlayerPause)
-	http.HandleFunc("/watch/api/player/seek", apiPlayerSeek)
-	http.HandleFunc("/watch/api/player/autoplay", apiPlayerAutoplay)
-	http.HandleFunc("/watch/api/player/looping", apiPlayerLooping)
-	http.HandleFunc("/watch/api/player/updatetitle", apiPlayerUpdateTitle)
+	HandleEndpoint("/watch/api/player/get", apiPlayerGet, "GET", true)
+	HandleEndpoint("/watch/api/player/set", apiPlayerSet, "POST", true)
+	HandleEndpoint("/watch/api/player/end", apiPlayerEnd, "POST", true)
+	HandleEndpoint("/watch/api/player/next", apiPlayerNext, "POST", true)
+	HandleEndpoint("/watch/api/player/play", apiPlayerPlay, "POST", true)
+	HandleEndpoint("/watch/api/player/pause", apiPlayerPause, "POST", true)
+	HandleEndpoint("/watch/api/player/seek", apiPlayerSeek, "POST", true)
+	HandleEndpoint("/watch/api/player/autoplay", apiPlayerAutoplay, "POST", true)
+	HandleEndpoint("/watch/api/player/looping", apiPlayerLooping, "POST", true)
+	HandleEndpoint("/watch/api/player/updatetitle", apiPlayerUpdateTitle, "POST", true)
 
 	// Subtitle API calls.
-	http.HandleFunc("/watch/api/subtitle/delete", apiSubtitleDelete)
-	http.HandleFunc("/watch/api/subtitle/update", apiSubtitleUpdate)
-	http.HandleFunc("/watch/api/subtitle/attach", apiSubtitleAttach)
-	http.HandleFunc("/watch/api/subtitle/shift", apiSubtitleShift)
-	http.HandleFunc("/watch/api/subtitle/upload", apiSubtitleUpload)
-	http.HandleFunc("/watch/api/subtitle/search", apiSubtitleSearch)
+	HandleEndpoint("/watch/api/subtitle/delete", apiSubtitleDelete, "POST", true)
+	HandleEndpoint("/watch/api/subtitle/update", apiSubtitleUpdate, "POST", true)
+	HandleEndpoint("/watch/api/subtitle/attach", apiSubtitleAttach, "POST", true)
+	HandleEndpoint("/watch/api/subtitle/shift", apiSubtitleShift, "POST", true)
+	HandleEndpoint("/watch/api/subtitle/upload", apiSubtitleUpload, "POST", true)
+	HandleEndpoint("/watch/api/subtitle/search", apiSubtitleSearch, "POST", true)
 
 	// API calls that change state of the playlist.
-	http.HandleFunc("/watch/api/playlist/get", apiPlaylistGet)
-	http.HandleFunc("/watch/api/playlist/play", apiPlaylistPlay)
-	http.HandleFunc("/watch/api/playlist/add", apiPlaylistAdd)
-	http.HandleFunc("/watch/api/playlist/clear", apiPlaylistClear)
-	http.HandleFunc("/watch/api/playlist/remove", apiPlaylistRemove)
-	http.HandleFunc("/watch/api/playlist/shuffle", apiPlaylistShuffle)
-	http.HandleFunc("/watch/api/playlist/move", apiPlaylistMove)
-	http.HandleFunc("/watch/api/playlist/update", apiPlaylistUpdate)
+	HandleEndpoint("/watch/api/playlist/get", apiPlaylistGet, "GET", true)
+	HandleEndpoint("/watch/api/playlist/play", apiPlaylistPlay, "POST", true)
+	HandleEndpoint("/watch/api/playlist/add", apiPlaylistAdd, "POST", true)
+	HandleEndpoint("/watch/api/playlist/clear", apiPlaylistClear, "POST", true)
+	HandleEndpoint("/watch/api/playlist/remove", apiPlaylistRemove, "POST", true)
+	HandleEndpoint("/watch/api/playlist/shuffle", apiPlaylistShuffle, "POST", true)
+	HandleEndpoint("/watch/api/playlist/move", apiPlaylistMove, "POST", true)
+	HandleEndpoint("/watch/api/playlist/update", apiPlaylistUpdate, "POST", true)
 
 	// API calls that change state of the history.
-	http.HandleFunc("/watch/api/history/get", apiHistoryGet)
-	http.HandleFunc("/watch/api/history/clear", apiHistoryClear)
+	HandleEndpoint("/watch/api/history/get", apiHistoryGet, "GET", true)
+	HandleEndpoint("/watch/api/history/clear", apiHistoryClear, "POST", true)
 
-	http.HandleFunc("/watch/api/chat/messagecreate", apiChatSend)
-	http.HandleFunc("/watch/api/chat/get", apiChatGet)
+	HandleEndpoint("/watch/api/chat/messagecreate", apiChatSend, "POST", true)
+	HandleEndpoint("/watch/api/chat/get", apiChatGet, "GET", true)
 
 	// Server events and proxy.
-	http.HandleFunc("/watch/api/events", apiEvents)
-	http.HandleFunc(PROXY_ROUTE, watchProxy)
+	HandleEndpoint("/watch/api/events", apiEvents, "GET", false)
+
+	HandleEndpoint(PROXY_ROUTE, watchProxy, "GET", false)
 
 	// Voice chat
-	http.HandleFunc("/watch/vc", voiceChat)
+	HandleEndpoint("/watch/vc", voiceChat, "GET", false)
+}
+
+func HandleEndpoint(pattern string, endpointHandler func(w http.ResponseWriter, r *http.Request), method string, requireAuth bool) {
+	// TODO Investigate if this function is made on every call
+	genericHandler := func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != method {
+			errMsg := fmt.Sprintf("Method not allowed. %v was expected.", method)
+			http.Error(w, errMsg, http.StatusMethodNotAllowed)
+			return
+		}
+
+		if requireAuth && !isAuthorized(w, r) {
+			return
+		}
+		endpointHandler(w, r)
+	}
+	http.HandleFunc(pattern, genericHandler)
 }
 
 func apiVersion(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		return
-	}
-
 	LogInfo("Connection %s requested server version.", r.RemoteAddr)
 	uptimeString := fmt.Sprintf("%v_%v", VERSION, BuildTime)
 	response, _ := json.Marshal(uptimeString)
@@ -479,10 +493,6 @@ func apiVersion(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiUptime(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		return
-	}
-
 	LogInfo("Connection %s requested server version.", r.RemoteAddr)
 	uptime := time.Now().Sub(startTime)
 	uptimeString := fmt.Sprintf("%v", uptime)
@@ -491,23 +501,11 @@ func apiUptime(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiLogin(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		return
-	}
-
 	LogInfo("Connection %s attempted to log in.", r.RemoteAddr)
 	io.WriteString(w, "This is unimplemented")
 }
 
 func apiUploadMedia(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		http.Error(w, "POST was expected", http.StatusMethodNotAllowed)
-		return
-	}
-
-	if !isAuthorized(w, r) {
-		return
-	}
 
 	inputFile, headers, err := r.FormFile("file")
 	if err != nil {
@@ -549,10 +547,6 @@ func apiUploadMedia(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiUserCreate(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		return
-	}
-
 	LogInfo("Connection requested %s user creation.", r.RemoteAddr)
 
 	users.mutex.Lock()
@@ -569,10 +563,6 @@ func apiUserCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiUserGetAll(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		return
-	}
-
 	LogInfo("Connection requested %s user get all.", r.RemoteAddr)
 
 	users.mutex.Lock()
@@ -588,10 +578,6 @@ func apiUserGetAll(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiUserVerify(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
 	user := getAuthorized(w, r)
 	if user == nil {
 		return
@@ -610,10 +596,6 @@ func apiUserVerify(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiUserUpdateName(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
 	LogInfo("Connection requested %s user name change.", r.RemoteAddr)
 
 	var newUsername string
@@ -639,10 +621,6 @@ func apiUserUpdateName(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
 	LogInfo("Connection requested %s user avatar change.", r.RemoteAddr)
 
 	users.mutex.Lock()
@@ -751,10 +729,6 @@ func setNewEntry(newEntry *Entry) Entry {
 }
 
 func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
 	user := getAuthorized(w, r)
 	if user == nil {
 		return
@@ -807,10 +781,6 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiPlayerEnd(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" || !isAuthorized(w, r) {
-		return
-	}
-
 	LogInfo("Connection %s reported that video ended.", r.RemoteAddr)
 
 	var data PlaybackEnded
@@ -825,14 +795,6 @@ func apiPlayerEnd(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiPlayerNext(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
-	if !isAuthorized(w, r) {
-		return
-	}
-
 	LogInfo("Connection %s requested playlist next.", r.RemoteAddr)
 
 	var data PlayerNextRequestData
@@ -875,9 +837,6 @@ func apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiPlayerPlay(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
 
 	user := getAuthorized(w, r)
 	if user == nil {
@@ -899,10 +858,6 @@ func apiPlayerPlay(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiPlayerPause(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
 	user := getAuthorized(w, r)
 	if user == nil {
 		return
@@ -923,10 +878,6 @@ func apiPlayerPause(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiPlayerSeek(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
 	user := getAuthorized(w, r)
 	if user == nil {
 		return
@@ -951,14 +902,6 @@ func apiPlayerSeek(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiPlayerAutoplay(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
-	if !isAuthorized(w, r) {
-		return
-	}
-
 	LogInfo("Connection %s requested playlist autoplay.", r.RemoteAddr)
 
 	var autoplay bool
@@ -976,14 +919,6 @@ func apiPlayerAutoplay(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiPlayerLooping(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
-	if !isAuthorized(w, r) {
-		return
-	}
-
 	LogInfo("Connection %s requested playlist looping.", r.RemoteAddr)
 
 	var looping bool
@@ -1001,14 +936,6 @@ func apiPlayerLooping(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiPlayerUpdateTitle(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
-	if !isAuthorized(w, r) {
-		return
-	}
-
 	LogInfo("Connection %s requested title update.", r.RemoteAddr)
 
 	var title string
@@ -1024,14 +951,6 @@ func apiPlayerUpdateTitle(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiSubtitleDelete(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
-	if !isAuthorized(w, r) {
-		return
-	}
-
 	var subId uint64
 	if !readJsonDataFromRequest(w, r, &subId) {
 		return
@@ -1051,14 +970,6 @@ func apiSubtitleDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiSubtitleUpdate(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
-	if !isAuthorized(w, r) {
-		return
-	}
-
 	var data SubtitleUpdateRequestData
 	if !readJsonDataFromRequest(w, r, &data) {
 		return
@@ -1077,14 +988,6 @@ func apiSubtitleUpdate(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiSubtitleAttach(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
-	if !isAuthorized(w, r) {
-		return
-	}
-
 	LogInfo("Connection %s requested attach sub.", r.RemoteAddr)
 
 	var subtitle Subtitle
@@ -1100,14 +1003,6 @@ func apiSubtitleAttach(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiSubtitleShift(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
-	if !isAuthorized(w, r) {
-		return
-	}
-
 	LogInfo("Connection %s requested attach sub.", r.RemoteAddr)
 
 	var data SubtitleShiftRequestData
@@ -1130,15 +1025,6 @@ func apiSubtitleShift(w http.ResponseWriter, r *http.Request) {
 func apiSubtitleSearch(w http.ResponseWriter, r *http.Request) {
 	if !subsEnabled {
 		http.Error(w, "Feature unavailable", http.StatusServiceUnavailable)
-		return
-	}
-
-	if r.Method != "POST" {
-		http.Error(w, "POST was expected", http.StatusMethodNotAllowed)
-		return
-	}
-
-	if !isAuthorized(w, r) {
 		return
 	}
 
@@ -1203,14 +1089,6 @@ func apiSubtitleSearch(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiSubtitleUpload(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		http.Error(w, "POST was expected", http.StatusMethodNotAllowed)
-		return
-	}
-
-	if !isAuthorized(w, r) {
-		return
-	}
 
 	networkFile, headers, err := r.FormFile("file")
 	if err != nil {
@@ -1276,10 +1154,6 @@ func apiSubtitleUpload(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiPlaylistGet(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		return
-	}
-
 	LogInfo("Connection %s requested playlist get.", r.RemoteAddr)
 
 	state.mutex.Lock()
@@ -1295,14 +1169,6 @@ func apiPlaylistGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
-	if !isAuthorized(w, r) {
-		return
-	}
-
 	var data PlaylistPlayRequestData
 	if !readJsonDataFromRequest(w, r, &data) {
 		return
@@ -1346,10 +1212,6 @@ func apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
 	user := getAuthorized(w, r)
 	if user == nil {
 		return
@@ -1407,14 +1269,6 @@ func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
-	if !isAuthorized(w, r) {
-		return
-	}
-
 	LogInfo("Connection %s requested playlist clear.", r.RemoteAddr)
 
 	var connectionId uint64
@@ -1431,14 +1285,6 @@ func apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
-	if !isAuthorized(w, r) {
-		return
-	}
-
 	LogInfo("Connection %s requested playlist remove.", r.RemoteAddr)
 
 	var data PlaylistRemoveRequestData
@@ -1468,14 +1314,6 @@ func apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiPlaylistShuffle(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
-	if !isAuthorized(w, r) {
-		return
-	}
-
 	LogInfo("Connection %s requested playlist shuffle.", r.RemoteAddr)
 
 	state.mutex.Lock()
@@ -1491,10 +1329,6 @@ func apiPlaylistShuffle(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
 	user := getAuthorized(w, r)
 	if user == nil {
 		return
@@ -1552,10 +1386,6 @@ func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiPlaylistUpdate(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
 	user := getAuthorized(w, r)
 	if user == nil {
 		return
@@ -1594,10 +1424,6 @@ func apiPlaylistUpdate(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiHistoryGet(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		return
-	}
-
 	LogInfo("Connection %s requested history get.", r.RemoteAddr)
 
 	state.mutex.Lock()
@@ -1613,14 +1439,6 @@ func apiHistoryGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiHistoryClear(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
-	if !isAuthorized(w, r) {
-		return
-	}
-
 	LogInfo("Connection %s requested history clear.", r.RemoteAddr)
 
 	state.mutex.Lock()
@@ -1678,6 +1496,20 @@ func getAuthorizedIndex(w http.ResponseWriter, r *http.Request) int {
 	LogError("Failed to find user")
 	http.Error(w, "User not found", http.StatusUnauthorized)
 	return -1
+}
+
+func processData[T any](data T) (T, error) {
+	// For demonstration, let's say we want to unmarshal JSON into data
+	// Here, we'll simulate that with a JSON string
+	jsonData := `{"Name": "Alice", "Score": 100}`
+
+	// Unmarshal JSON into the data variable
+	err := json.Unmarshal([]byte(jsonData), &data)
+	if err != nil {
+		return data, err // Return the data and the error
+	}
+
+	return data, nil // Return the processed data and no error
 }
 
 func readJsonDataFromRequest(w http.ResponseWriter, r *http.Request, data any) bool {
@@ -2546,10 +2378,6 @@ func createSyncEvent(action string, userId uint64) SyncEventData {
 const MAX_MESSAGE_CHARACTERS = 1000
 
 func apiChatGet(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		return
-	}
-
 	LogInfo("Connection %s requested messages.", r.RemoteAddr)
 
 	state.mutex.Lock()
@@ -2565,10 +2393,6 @@ func apiChatGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiChatSend(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
 	LogInfo("Connection %s posted a chat message.", r.RemoteAddr)
 
 	user := getAuthorized(w, r)

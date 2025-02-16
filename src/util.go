@@ -21,6 +21,8 @@ var client = http.Client{
 	Timeout: time.Second * 20,
 }
 
+var userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; rv:115.0) Gecko/20100101 Firefox/115.0"
+
 func constructTitleWhenMissing(entry *Entry) string {
 	if entry.Title != "" {
 		return entry.Title
@@ -123,6 +125,7 @@ func downloadFileChunk(url string, r *Range, referer string) ([]byte, error) {
 // This will download a chunk of a file within the specified range
 func openFileDownload(url string, from int64, referer string) (*http.Response, error) {
 	request, _ := http.NewRequest("GET", url, nil)
+	request.Header.Set("User-Agent", userAgent)
 	if referer != "" {
 		request.Header.Set("Referer", referer)
 		request.Header.Set("Origin", inferOrigin(referer))
@@ -154,6 +157,7 @@ func pullBytesFromResponse(response *http.Response, byteCount int) ([]byte, erro
 
 func downloadFile(url string, filename string, referer string) error {
 	request, _ := http.NewRequest("GET", url, nil)
+	request.Header.Set("User-Agent", userAgent)
 	if referer != "" {
 		request.Header.Set("Referer", referer)
 		request.Header.Set("Origin", inferOrigin(referer))

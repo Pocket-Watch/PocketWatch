@@ -88,7 +88,7 @@ class Player {
 
     // Disables and removes the track at the specified index.
     removeSubtitleTrackAt(index) {
-        if (index < 0 || index >= this.subtitles.length) {
+        if (index < 0 || index >= this.internals.subtitles.length) {
             return;
         }
         this.internals.removeSubtitleTrackAt(index);
@@ -216,7 +216,7 @@ class Player {
 
     onPlaybackError(func) {
         if (isFunction(func)) {
-            this.internals.firePlaybackError = func;;
+            this.internals.firePlaybackError = func;
         }
     }
 
@@ -2150,7 +2150,6 @@ class Cue {
         this.startTime = start;
         this.endTime = end;
         this.text = text;
-        this.sanitized = false;
     }
     // if (!cue.sanitized) { cue.text = sanitizeHTMLForDisplay(cue.text); cue.sanitized = true; }
 }
