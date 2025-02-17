@@ -144,7 +144,7 @@ func pickBestThumbnail(thumbnails []YoutubeThumbnail) string {
 	return bestThumbnail
 }
 
-func loadYoutubePlaylist(query string, videoId string, userId uint64, size uint) {
+func (server *Server) loadYoutubePlaylist(query string, videoId string, userId uint64, size uint) {
 	url, err := neturl.Parse(query)
 	if err != nil {
 		LogError("Failed to parse youtube source url: %v", err)
@@ -214,11 +214,11 @@ func loadYoutubePlaylist(query string, videoId string, userId uint64, size uint)
 	state.mutex.Unlock()
 
 	event := createPlaylistEvent("addmany", entries)
-	writeEventToAllConnections(nil, "playlist", event)
+	server.writeEventToAllConnections(nil, "playlist", event)
 	go preloadYoutubeSourceOnNextEntry()
 }
 
-func loadYoutubeEntry(entry *Entry, requested RequestEntry) {
+func (server *Server) loadYoutubeEntry(entry *Entry, requested RequestEntry) {
 	if !YOUTUBE_ENABLED {
 		return
 	}
@@ -257,6 +257,6 @@ func loadYoutubeEntry(entry *Entry, requested RequestEntry) {
 	}
 
 	if requested.IsPlaylist {
-		go loadYoutubePlaylist(query, video.Id, entry.UserId, requested.PlaylistMaxSize)
+		go server.loadYoutubePlaylist(query, video.Id, entry.UserId, requested.PlaylistMaxSize)
 	}
 }

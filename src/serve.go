@@ -44,6 +44,12 @@ const MEDIA = "media/"
 const ORIGINAL_M3U8 = "original.m3u8"
 const PROXY_M3U8 = "proxy.m3u8"
 
+type Server struct {
+	state ServerState
+	users Users
+	conns Connections
+}
+
 type PlayerState struct {
 	Playing   bool    `json:"playing"`
 	Autoplay  bool    `json:"autoplay"`
@@ -360,10 +366,12 @@ var subsEnabled bool
 var serverDomain string
 
 func StartServer(options *Options) {
+	server := Server{}
+
 	state.lastUpdate = time.Now()
 	subsEnabled = options.Subs
 	serverDomain = options.Domain
-	registerEndpoints(options)
+	registerEndpoints(&server)
 
 	var address = options.Address + ":" + strconv.Itoa(int(options.Port))
 	LogInfo("Starting server on address: %s", address)
@@ -401,8 +409,7 @@ func handleUnknownEndpoint(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "¯\\_(ツ)_/¯", http.StatusTeapot)
 }
 
-func registerEndpoints(options *Options) {
-	_ = options
+func registerEndpoints(server *Server) {
 
 	fileserver := http.FileServer(http.Dir("./web"))
 	http.Handle("/watch/", http.StripPrefix("/watch/", fileserver))
@@ -410,65 +417,65 @@ func registerEndpoints(options *Options) {
 	http.HandleFunc("/", handleUnknownEndpoint)
 
 	// Unrelated API calls.
-	HandleEndpoint("/watch/api/version", apiVersion, "GET", false)
-	HandleEndpoint("/watch/api/uptime", apiUptime, "GET", false)
-	HandleEndpoint("/watch/api/login", apiLogin, "GET", false)
-	HandleEndpoint("/watch/api/uploadmedia", apiUploadMedia, "POST", true)
+	server.HandleEndpoint("/watch/api/version", server.apiVersion, "GET", false)
+	server.HandleEndpoint("/watch/api/uptime", server.apiUptime, "GET", false)
+	server.HandleEndpoint("/watch/api/login", server.apiLogin, "GET", false)
+	server.HandleEndpoint("/watch/api/uploadmedia", server.apiUploadMedia, "POST", true)
 
 	// User related API calls.
-	HandleEndpoint("/watch/api/user/create", apiUserCreate, "GET", false)
-	HandleEndpoint("/watch/api/user/getall", apiUserGetAll, "GET", true)
-	HandleEndpoint("/watch/api/user/verify", apiUserVerify, "POST", true)
-	HandleEndpoint("/watch/api/user/updatename", apiUserUpdateName, "POST", true)
-	HandleEndpoint("/watch/api/user/updateavatar", apiUserUpdateAvatar, "POST", true)
+	server.HandleEndpoint("/watch/api/user/create", server.apiUserCreate, "GET", false)
+	server.HandleEndpoint("/watch/api/user/getall", server.apiUserGetAll, "GET", true)
+	server.HandleEndpoint("/watch/api/user/verify", server.apiUserVerify, "POST", true)
+	server.HandleEndpoint("/watch/api/user/updatename", server.apiUserUpdateName, "POST", true)
+	server.HandleEndpoint("/watch/api/user/updateavatar", server.apiUserUpdateAvatar, "POST", true)
 
 	// API calls that change state of the player.
-	HandleEndpoint("/watch/api/player/get", apiPlayerGet, "GET", true)
-	HandleEndpoint("/watch/api/player/set", apiPlayerSet, "POST", true)
-	HandleEndpoint("/watch/api/player/end", apiPlayerEnd, "POST", true)
-	HandleEndpoint("/watch/api/player/next", apiPlayerNext, "POST", true)
-	HandleEndpoint("/watch/api/player/play", apiPlayerPlay, "POST", true)
-	HandleEndpoint("/watch/api/player/pause", apiPlayerPause, "POST", true)
-	HandleEndpoint("/watch/api/player/seek", apiPlayerSeek, "POST", true)
-	HandleEndpoint("/watch/api/player/autoplay", apiPlayerAutoplay, "POST", true)
-	HandleEndpoint("/watch/api/player/looping", apiPlayerLooping, "POST", true)
-	HandleEndpoint("/watch/api/player/updatetitle", apiPlayerUpdateTitle, "POST", true)
+	server.HandleEndpoint("/watch/api/player/get", server.apiPlayerGet, "GET", true)
+	server.HandleEndpoint("/watch/api/player/set", server.apiPlayerSet, "POST", true)
+	server.HandleEndpoint("/watch/api/player/end", server.apiPlayerEnd, "POST", true)
+	server.HandleEndpoint("/watch/api/player/next", server.apiPlayerNext, "POST", true)
+	server.HandleEndpoint("/watch/api/player/play", server.apiPlayerPlay, "POST", true)
+	server.HandleEndpoint("/watch/api/player/pause", server.apiPlayerPause, "POST", true)
+	server.HandleEndpoint("/watch/api/player/seek", server.apiPlayerSeek, "POST", true)
+	server.HandleEndpoint("/watch/api/player/autoplay", server.apiPlayerAutoplay, "POST", true)
+	server.HandleEndpoint("/watch/api/player/looping", server.apiPlayerLooping, "POST", true)
+	server.HandleEndpoint("/watch/api/player/updatetitle", server.apiPlayerUpdateTitle, "POST", true)
 
 	// Subtitle API calls.
-	HandleEndpoint("/watch/api/subtitle/delete", apiSubtitleDelete, "POST", true)
-	HandleEndpoint("/watch/api/subtitle/update", apiSubtitleUpdate, "POST", true)
-	HandleEndpoint("/watch/api/subtitle/attach", apiSubtitleAttach, "POST", true)
-	HandleEndpoint("/watch/api/subtitle/shift", apiSubtitleShift, "POST", true)
-	HandleEndpoint("/watch/api/subtitle/upload", apiSubtitleUpload, "POST", true)
-	HandleEndpoint("/watch/api/subtitle/search", apiSubtitleSearch, "POST", true)
+	server.HandleEndpoint("/watch/api/subtitle/delete", server.apiSubtitleDelete, "POST", true)
+	server.HandleEndpoint("/watch/api/subtitle/update", server.apiSubtitleUpdate, "POST", true)
+	server.HandleEndpoint("/watch/api/subtitle/attach", server.apiSubtitleAttach, "POST", true)
+	server.HandleEndpoint("/watch/api/subtitle/shift", server.apiSubtitleShift, "POST", true)
+	server.HandleEndpoint("/watch/api/subtitle/upload", server.apiSubtitleUpload, "POST", true)
+	server.HandleEndpoint("/watch/api/subtitle/search", server.apiSubtitleSearch, "POST", true)
 
 	// API calls that change state of the playlist.
-	HandleEndpoint("/watch/api/playlist/get", apiPlaylistGet, "GET", true)
-	HandleEndpoint("/watch/api/playlist/play", apiPlaylistPlay, "POST", true)
-	HandleEndpoint("/watch/api/playlist/add", apiPlaylistAdd, "POST", true)
-	HandleEndpoint("/watch/api/playlist/clear", apiPlaylistClear, "POST", true)
-	HandleEndpoint("/watch/api/playlist/remove", apiPlaylistRemove, "POST", true)
-	HandleEndpoint("/watch/api/playlist/shuffle", apiPlaylistShuffle, "POST", true)
-	HandleEndpoint("/watch/api/playlist/move", apiPlaylistMove, "POST", true)
-	HandleEndpoint("/watch/api/playlist/update", apiPlaylistUpdate, "POST", true)
+	server.HandleEndpoint("/watch/api/playlist/get", server.apiPlaylistGet, "GET", true)
+	server.HandleEndpoint("/watch/api/playlist/play", server.apiPlaylistPlay, "POST", true)
+	server.HandleEndpoint("/watch/api/playlist/add", server.apiPlaylistAdd, "POST", true)
+	server.HandleEndpoint("/watch/api/playlist/clear", server.apiPlaylistClear, "POST", true)
+	server.HandleEndpoint("/watch/api/playlist/remove", server.apiPlaylistRemove, "POST", true)
+	server.HandleEndpoint("/watch/api/playlist/shuffle", server.apiPlaylistShuffle, "POST", true)
+	server.HandleEndpoint("/watch/api/playlist/move", server.apiPlaylistMove, "POST", true)
+	server.HandleEndpoint("/watch/api/playlist/update", server.apiPlaylistUpdate, "POST", true)
 
 	// API calls that change state of the history.
-	HandleEndpoint("/watch/api/history/get", apiHistoryGet, "GET", true)
-	HandleEndpoint("/watch/api/history/clear", apiHistoryClear, "POST", true)
+	server.HandleEndpoint("/watch/api/history/get", server.apiHistoryGet, "GET", true)
+	server.HandleEndpoint("/watch/api/history/clear", server.apiHistoryClear, "POST", true)
 
-	HandleEndpoint("/watch/api/chat/messagecreate", apiChatSend, "POST", true)
-	HandleEndpoint("/watch/api/chat/get", apiChatGet, "GET", true)
+	server.HandleEndpoint("/watch/api/chat/messagecreate", server.apiChatSend, "POST", true)
+	server.HandleEndpoint("/watch/api/chat/get", server.apiChatGet, "GET", true)
 
 	// Server events and proxy.
-	HandleEndpoint("/watch/api/events", apiEvents, "GET", false)
+	server.HandleEndpoint("/watch/api/events", server.apiEvents, "GET", false)
 
-	HandleEndpoint(PROXY_ROUTE, watchProxy, "GET", false)
+	server.HandleEndpoint(PROXY_ROUTE, server.watchProxy, "GET", false)
 
 	// Voice chat
-	HandleEndpoint("/watch/vc", voiceChat, "GET", false)
+	server.HandleEndpoint("/watch/vc", voiceChat, "GET", false)
 }
 
-func HandleEndpoint(pattern string, endpointHandler func(w http.ResponseWriter, r *http.Request), method string, requireAuth bool) {
+func (server *Server) HandleEndpoint(pattern string, endpointHandler func(w http.ResponseWriter, r *http.Request), method string, requireAuth bool) {
 	// TODO Investigate if this function is made on every call
 	genericHandler := func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != method {
@@ -477,7 +484,7 @@ func HandleEndpoint(pattern string, endpointHandler func(w http.ResponseWriter, 
 			return
 		}
 
-		if requireAuth && !isAuthorized(w, r) {
+		if requireAuth && !server.isAuthorized(w, r) {
 			return
 		}
 		endpointHandler(w, r)
@@ -485,14 +492,14 @@ func HandleEndpoint(pattern string, endpointHandler func(w http.ResponseWriter, 
 	http.HandleFunc(pattern, genericHandler)
 }
 
-func apiVersion(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiVersion(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested server version.", r.RemoteAddr)
 	uptimeString := fmt.Sprintf("%v_%v", VERSION, BuildTime)
 	response, _ := json.Marshal(uptimeString)
 	io.WriteString(w, string(response))
 }
 
-func apiUptime(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiUptime(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested server version.", r.RemoteAddr)
 	uptime := time.Now().Sub(startTime)
 	uptimeString := fmt.Sprintf("%v", uptime)
@@ -500,13 +507,12 @@ func apiUptime(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(response))
 }
 
-func apiLogin(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiLogin(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s attempted to log in.", r.RemoteAddr)
 	io.WriteString(w, "This is unimplemented")
 }
 
-func apiUploadMedia(w http.ResponseWriter, r *http.Request) {
-
+func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request) {
 	inputFile, headers, err := r.FormFile("file")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -546,7 +552,7 @@ func apiUploadMedia(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(jsonData))
 }
 
-func apiUserCreate(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiUserCreate(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection requested %s user creation.", r.RemoteAddr)
 
 	users.mutex.Lock()
@@ -559,10 +565,10 @@ func apiUserCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	io.WriteString(w, string(tokenJson))
-	writeEventToAllConnections(w, "usercreate", user)
+	server.writeEventToAllConnections(w, "usercreate", user)
 }
 
-func apiUserGetAll(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiUserGetAll(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection requested %s user get all.", r.RemoteAddr)
 
 	users.mutex.Lock()
@@ -577,8 +583,8 @@ func apiUserGetAll(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(usersJson))
 }
 
-func apiUserVerify(w http.ResponseWriter, r *http.Request) {
-	user := getAuthorized(w, r)
+func (server *Server) apiUserVerify(w http.ResponseWriter, r *http.Request) {
+	user := server.getAuthorized(w, r)
 	if user == nil {
 		return
 	}
@@ -595,16 +601,16 @@ func apiUserVerify(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(jsonData))
 }
 
-func apiUserUpdateName(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiUserUpdateName(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection requested %s user name change.", r.RemoteAddr)
 
 	var newUsername string
-	if !readJsonDataFromRequest(w, r, &newUsername) {
+	if !server.readJsonDataFromRequest(w, r, &newUsername) {
 		return
 	}
 
 	users.mutex.Lock()
-	userIndex := getAuthorizedIndex(w, r)
+	userIndex := server.getAuthorizedIndex(w, r)
 
 	if userIndex == -1 {
 		users.mutex.Unlock()
@@ -617,14 +623,14 @@ func apiUserUpdateName(w http.ResponseWriter, r *http.Request) {
 	users.mutex.Unlock()
 
 	io.WriteString(w, "Username updated")
-	writeEventToAllConnections(w, "userupdate", user)
+	server.writeEventToAllConnections(w, "userupdate", user)
 }
 
-func apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection requested %s user avatar change.", r.RemoteAddr)
 
 	users.mutex.Lock()
-	userIndex := getAuthorizedIndex(w, r)
+	userIndex := server.getAuthorizedIndex(w, r)
 	if userIndex == -1 {
 		users.mutex.Unlock()
 		return
@@ -665,10 +671,10 @@ func apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request) {
 	jsonData, _ := json.Marshal(avatarUrl)
 
 	io.WriteString(w, string(jsonData))
-	writeEventToAllConnections(w, "userupdate", user)
+	server.writeEventToAllConnections(w, "userupdate", user)
 }
 
-func apiPlayerGet(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiPlayerGet(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested get.", r.RemoteAddr)
 
 	state.mutex.Lock()
@@ -688,7 +694,7 @@ func apiPlayerGet(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(jsonData))
 }
 
-func setNewEntry(newEntry *Entry) Entry {
+func (server *Server) setNewEntry(newEntry *Entry) Entry {
 	prevEntry := state.entry
 
 	if prevEntry.Url != "" {
@@ -700,7 +706,7 @@ func setNewEntry(newEntry *Entry) Entry {
 	lastSegment := lastUrlSegment(newEntry.Url)
 	if newEntry.UseProxy {
 		if strings.HasSuffix(lastSegment, ".m3u8") {
-			setup := setupHlsProxy(newEntry.Url, newEntry.RefererUrl)
+			setup := server.setupHlsProxy(newEntry.Url, newEntry.RefererUrl)
 			if setup {
 				newEntry.SourceUrl = PROXY_ROUTE + PROXY_M3U8
 				LogInfo("HLS proxy setup was successful.")
@@ -728,8 +734,8 @@ func setNewEntry(newEntry *Entry) Entry {
 	return prevEntry
 }
 
-func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
-	user := getAuthorized(w, r)
+func (server *Server) apiPlayerSet(w http.ResponseWriter, r *http.Request) {
+	user := server.getAuthorized(w, r)
 	if user == nil {
 		return
 	}
@@ -737,7 +743,7 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested media url change.", r.RemoteAddr)
 
 	var data PlayerSetRequestData
-	if !readJsonDataFromRequest(w, r, &data) {
+	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
@@ -760,14 +766,14 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 
 	newEntry.Title = constructTitleWhenMissing(&newEntry)
 
-	loadYoutubeEntry(&newEntry, data.RequestEntry)
+	server.loadYoutubeEntry(&newEntry, data.RequestEntry)
 
 	state.mutex.Lock()
 	if state.entry.Url != "" && state.player.Looping {
 		state.playlist = append(state.playlist, state.entry)
 	}
 
-	prevEntry := setNewEntry(&newEntry)
+	prevEntry := server.setNewEntry(&newEntry)
 	state.mutex.Unlock()
 
 	LogInfo("New url is now: '%s'.", state.entry.Url)
@@ -776,15 +782,15 @@ func apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 		PrevEntry: prevEntry,
 		NewEntry:  newEntry,
 	}
-	writeEventToAllConnections(w, "playerset", setEvent)
+	server.writeEventToAllConnections(w, "playerset", setEvent)
 	io.WriteString(w, "{}")
 }
 
-func apiPlayerEnd(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiPlayerEnd(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s reported that video ended.", r.RemoteAddr)
 
 	var data PlaybackEnded
-	if !readJsonDataFromRequest(w, r, &data) {
+	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 	state.mutex.Lock()
@@ -794,11 +800,11 @@ func apiPlayerEnd(w http.ResponseWriter, r *http.Request) {
 	state.mutex.Unlock()
 }
 
-func apiPlayerNext(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested playlist next.", r.RemoteAddr)
 
 	var data PlayerNextRequestData
-	if !readJsonDataFromRequest(w, r, &data) {
+	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
@@ -823,22 +829,22 @@ func apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 		state.playlist = state.playlist[1:]
 	}
 
-	loadYoutubeEntry(&newEntry, RequestEntry{})
-	prevEntry := setNewEntry(&newEntry)
+	server.loadYoutubeEntry(&newEntry, RequestEntry{})
+	prevEntry := server.setNewEntry(&newEntry)
 	state.mutex.Unlock()
 
 	nextEvent := PlayerNextEventData{
 		PrevEntry: prevEntry,
 		NewEntry:  newEntry,
 	}
-	writeEventToAllConnections(w, "playernext", nextEvent)
+	server.writeEventToAllConnections(w, "playernext", nextEvent)
 	io.WriteString(w, "{}")
 	go preloadYoutubeSourceOnNextEntry()
 }
 
-func apiPlayerPlay(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiPlayerPlay(w http.ResponseWriter, r *http.Request) {
 
-	user := getAuthorized(w, r)
+	user := server.getAuthorized(w, r)
 	if user == nil {
 		return
 	}
@@ -846,7 +852,7 @@ func apiPlayerPlay(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested player start.", r.RemoteAddr)
 
 	var data SyncRequestData
-	if !readJsonDataFromRequest(w, r, &data) {
+	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
@@ -854,11 +860,11 @@ func apiPlayerPlay(w http.ResponseWriter, r *http.Request) {
 	event := createSyncEvent("play", user.Id)
 
 	io.WriteString(w, "Broadcasting start!\n")
-	writeEventToAllConnectionsExceptSelf(w, "sync", event, user.Id, data.ConnectionId)
+	server.writeEventToAllConnectionsExceptSelf(w, "sync", event, user.Id, data.ConnectionId)
 }
 
-func apiPlayerPause(w http.ResponseWriter, r *http.Request) {
-	user := getAuthorized(w, r)
+func (server *Server) apiPlayerPause(w http.ResponseWriter, r *http.Request) {
+	user := server.getAuthorized(w, r)
 	if user == nil {
 		return
 	}
@@ -866,7 +872,7 @@ func apiPlayerPause(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested player pause.", r.RemoteAddr)
 
 	var data SyncRequestData
-	if !readJsonDataFromRequest(w, r, &data) {
+	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
@@ -874,11 +880,11 @@ func apiPlayerPause(w http.ResponseWriter, r *http.Request) {
 	event := createSyncEvent("pause", user.Id)
 
 	io.WriteString(w, "Broadcasting pause!\n")
-	writeEventToAllConnectionsExceptSelf(w, "sync", event, user.Id, data.ConnectionId)
+	server.writeEventToAllConnectionsExceptSelf(w, "sync", event, user.Id, data.ConnectionId)
 }
 
-func apiPlayerSeek(w http.ResponseWriter, r *http.Request) {
-	user := getAuthorized(w, r)
+func (server *Server) apiPlayerSeek(w http.ResponseWriter, r *http.Request) {
+	user := server.getAuthorized(w, r)
 	if user == nil {
 		return
 	}
@@ -886,7 +892,7 @@ func apiPlayerSeek(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested player seek.", r.RemoteAddr)
 
 	var data SyncRequestData
-	if !readJsonDataFromRequest(w, r, &data) {
+	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
@@ -898,14 +904,14 @@ func apiPlayerSeek(w http.ResponseWriter, r *http.Request) {
 	event := createSyncEvent("seek", user.Id)
 
 	io.WriteString(w, "Broadcasting seek!\n")
-	writeEventToAllConnectionsExceptSelf(w, "sync", event, user.Id, data.ConnectionId)
+	server.writeEventToAllConnectionsExceptSelf(w, "sync", event, user.Id, data.ConnectionId)
 }
 
-func apiPlayerAutoplay(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiPlayerAutoplay(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested playlist autoplay.", r.RemoteAddr)
 
 	var autoplay bool
-	if !readJsonDataFromRequest(w, r, &autoplay) {
+	if !server.readJsonDataFromRequest(w, r, &autoplay) {
 		return
 	}
 
@@ -915,14 +921,14 @@ func apiPlayerAutoplay(w http.ResponseWriter, r *http.Request) {
 	state.player.Autoplay = autoplay
 	state.mutex.Unlock()
 
-	writeEventToAllConnections(w, "playerautoplay", autoplay)
+	server.writeEventToAllConnections(w, "playerautoplay", autoplay)
 }
 
-func apiPlayerLooping(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiPlayerLooping(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested playlist looping.", r.RemoteAddr)
 
 	var looping bool
-	if !readJsonDataFromRequest(w, r, &looping) {
+	if !server.readJsonDataFromRequest(w, r, &looping) {
 		return
 	}
 
@@ -932,14 +938,14 @@ func apiPlayerLooping(w http.ResponseWriter, r *http.Request) {
 	state.player.Looping = looping
 	state.mutex.Unlock()
 
-	writeEventToAllConnections(w, "playerlooping", looping)
+	server.writeEventToAllConnections(w, "playerlooping", looping)
 }
 
-func apiPlayerUpdateTitle(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiPlayerUpdateTitle(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested title update.", r.RemoteAddr)
 
 	var title string
-	if !readJsonDataFromRequest(w, r, &title) {
+	if !server.readJsonDataFromRequest(w, r, &title) {
 		return
 	}
 
@@ -947,12 +953,12 @@ func apiPlayerUpdateTitle(w http.ResponseWriter, r *http.Request) {
 	state.entry.Title = title
 	state.mutex.Unlock()
 
-	writeEventToAllConnections(w, "playerupdatetitle", title)
+	server.writeEventToAllConnections(w, "playerupdatetitle", title)
 }
 
-func apiSubtitleDelete(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiSubtitleDelete(w http.ResponseWriter, r *http.Request) {
 	var subId uint64
-	if !readJsonDataFromRequest(w, r, &subId) {
+	if !server.readJsonDataFromRequest(w, r, &subId) {
 		return
 	}
 
@@ -966,12 +972,12 @@ func apiSubtitleDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	state.mutex.Unlock()
 
-	writeEventToAllConnections(w, "subtitledelete", subId)
+	server.writeEventToAllConnections(w, "subtitledelete", subId)
 }
 
-func apiSubtitleUpdate(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiSubtitleUpdate(w http.ResponseWriter, r *http.Request) {
 	var data SubtitleUpdateRequestData
-	if !readJsonDataFromRequest(w, r, &data) {
+	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
@@ -984,14 +990,14 @@ func apiSubtitleUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	state.mutex.Unlock()
 
-	writeEventToAllConnections(w, "subtitleupdate", data)
+	server.writeEventToAllConnections(w, "subtitleupdate", data)
 }
 
-func apiSubtitleAttach(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiSubtitleAttach(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested attach sub.", r.RemoteAddr)
 
 	var subtitle Subtitle
-	if !readJsonDataFromRequest(w, r, &subtitle) {
+	if !server.readJsonDataFromRequest(w, r, &subtitle) {
 		return
 	}
 
@@ -999,14 +1005,14 @@ func apiSubtitleAttach(w http.ResponseWriter, r *http.Request) {
 	state.entry.Subtitles = append(state.entry.Subtitles, subtitle)
 	state.mutex.Unlock()
 
-	writeEventToAllConnections(w, "subtitleattach", subtitle)
+	server.writeEventToAllConnections(w, "subtitleattach", subtitle)
 }
 
-func apiSubtitleShift(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiSubtitleShift(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested attach sub.", r.RemoteAddr)
 
 	var data SubtitleShiftRequestData
-	if !readJsonDataFromRequest(w, r, &data) {
+	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
@@ -1019,17 +1025,17 @@ func apiSubtitleShift(w http.ResponseWriter, r *http.Request) {
 	}
 	state.mutex.Unlock()
 
-	writeEventToAllConnections(w, "subtitleshift", data)
+	server.writeEventToAllConnections(w, "subtitleshift", data)
 }
 
-func apiSubtitleSearch(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiSubtitleSearch(w http.ResponseWriter, r *http.Request) {
 	if !subsEnabled {
 		http.Error(w, "Feature unavailable", http.StatusServiceUnavailable)
 		return
 	}
 
 	var search Search
-	if !readJsonDataFromRequest(w, r, &search) {
+	if !server.readJsonDataFromRequest(w, r, &search) {
 		return
 	}
 
@@ -1084,11 +1090,11 @@ func apiSubtitleSearch(w http.ResponseWriter, r *http.Request) {
 	state.entry.Subtitles = append(state.entry.Subtitles, subtitle)
 	state.mutex.Unlock()
 
-	writeEventToAllConnections(w, "subtitleattach", subtitle)
+	server.writeEventToAllConnections(w, "subtitleattach", subtitle)
 	io.WriteString(w, "{}")
 }
 
-func apiSubtitleUpload(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiSubtitleUpload(w http.ResponseWriter, r *http.Request) {
 
 	networkFile, headers, err := r.FormFile("file")
 	if err != nil {
@@ -1153,7 +1159,7 @@ func apiSubtitleUpload(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(jsonData))
 }
 
-func apiPlaylistGet(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiPlaylistGet(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested playlist get.", r.RemoteAddr)
 
 	state.mutex.Lock()
@@ -1168,9 +1174,9 @@ func apiPlaylistGet(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(jsonData))
 }
 
-func apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
 	var data PlaylistPlayRequestData
-	if !readJsonDataFromRequest(w, r, &data) {
+	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
@@ -1194,25 +1200,25 @@ func apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newEntry := state.playlist[data.Index]
-	loadYoutubeEntry(&newEntry, RequestEntry{})
-	prevEntry := setNewEntry(&newEntry)
+	server.loadYoutubeEntry(&newEntry, RequestEntry{})
+	prevEntry := server.setNewEntry(&newEntry)
 	state.playlist = append(state.playlist[:data.Index], state.playlist[data.Index+1:]...)
 	state.mutex.Unlock()
 
 	event := createPlaylistEvent("remove", data.Index)
-	writeEventToAllConnections(w, "playlist", event)
+	server.writeEventToAllConnections(w, "playlist", event)
 
 	setEvent := PlayerSetEventData{
 		PrevEntry: prevEntry,
 		NewEntry:  newEntry,
 	}
-	writeEventToAllConnections(w, "playerset", setEvent)
+	server.writeEventToAllConnections(w, "playerset", setEvent)
 	io.WriteString(w, "{}")
 	go preloadYoutubeSourceOnNextEntry()
 }
 
-func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
-	user := getAuthorized(w, r)
+func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
+	user := server.getAuthorized(w, r)
 	if user == nil {
 		return
 	}
@@ -1220,7 +1226,7 @@ func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested playlist add.", r.RemoteAddr)
 
 	var data PlaylistAddRequestData
-	if !readJsonDataFromRequest(w, r, &data) {
+	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
@@ -1234,7 +1240,7 @@ func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 		state.mutex.Unlock()
 
 		event := createPlaylistEvent("addmany", localEntries)
-		writeEventToAllConnections(w, "playlist", event)
+		server.writeEventToAllConnections(w, "playlist", event)
 	} else {
 		LogInfo("Adding '%s' url to the playlist.", data.RequestEntry.Url)
 
@@ -1257,22 +1263,22 @@ func apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 
 		newEntry.Title = constructTitleWhenMissing(&newEntry)
 
-		loadYoutubeEntry(&newEntry, data.RequestEntry)
+		server.loadYoutubeEntry(&newEntry, data.RequestEntry)
 
 		state.mutex.Lock()
 		state.playlist = append(state.playlist, newEntry)
 		state.mutex.Unlock()
 
 		event := createPlaylistEvent("add", newEntry)
-		writeEventToAllConnections(w, "playlist", event)
+		server.writeEventToAllConnections(w, "playlist", event)
 	}
 }
 
-func apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested playlist clear.", r.RemoteAddr)
 
 	var connectionId uint64
-	if !readJsonDataFromRequest(w, r, &connectionId) {
+	if !server.readJsonDataFromRequest(w, r, &connectionId) {
 		return
 	}
 
@@ -1281,14 +1287,14 @@ func apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
 	state.mutex.Unlock()
 
 	event := createPlaylistEvent("clear", nil)
-	writeEventToAllConnections(w, "playlist", event)
+	server.writeEventToAllConnections(w, "playlist", event)
 }
 
-func apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested playlist remove.", r.RemoteAddr)
 
 	var data PlaylistRemoveRequestData
-	if !readJsonDataFromRequest(w, r, &data) {
+	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
@@ -1309,11 +1315,11 @@ func apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
 	state.mutex.Unlock()
 
 	event := createPlaylistEvent("remove", data.Index)
-	writeEventToAllConnections(w, "playlist", event)
+	server.writeEventToAllConnections(w, "playlist", event)
 	go preloadYoutubeSourceOnNextEntry()
 }
 
-func apiPlaylistShuffle(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiPlaylistShuffle(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested playlist shuffle.", r.RemoteAddr)
 
 	state.mutex.Lock()
@@ -1324,12 +1330,12 @@ func apiPlaylistShuffle(w http.ResponseWriter, r *http.Request) {
 	state.mutex.Unlock()
 
 	event := createPlaylistEvent("shuffle", state.playlist)
-	writeEventToAllConnections(w, "playlist", event)
+	server.writeEventToAllConnections(w, "playlist", event)
 	go preloadYoutubeSourceOnNextEntry()
 }
 
-func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
-	user := getAuthorized(w, r)
+func (server *Server) apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
+	user := server.getAuthorized(w, r)
 	if user == nil {
 		return
 	}
@@ -1337,7 +1343,7 @@ func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested playlist move.", r.RemoteAddr)
 
 	var move PlaylistMoveRequestData
-	if !readJsonDataFromRequest(w, r, &move) {
+	if !server.readJsonDataFromRequest(w, r, &move) {
 		return
 	}
 
@@ -1381,12 +1387,12 @@ func apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 	}
 
 	event := createPlaylistEvent("move", eventData)
-	writeEventToAllConnectionsExceptSelf(w, "playlist", event, user.Id, move.ConnectionId)
+	server.writeEventToAllConnectionsExceptSelf(w, "playlist", event, user.Id, move.ConnectionId)
 	go preloadYoutubeSourceOnNextEntry()
 }
 
-func apiPlaylistUpdate(w http.ResponseWriter, r *http.Request) {
-	user := getAuthorized(w, r)
+func (server *Server) apiPlaylistUpdate(w http.ResponseWriter, r *http.Request) {
+	user := server.getAuthorized(w, r)
 	if user == nil {
 		return
 	}
@@ -1394,7 +1400,7 @@ func apiPlaylistUpdate(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested playlist update.", r.RemoteAddr)
 
 	var data PlaylistUpdateRequestData
-	if !readJsonDataFromRequest(w, r, &data) {
+	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
@@ -1420,10 +1426,10 @@ func apiPlaylistUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	event := createPlaylistEvent("update", entry)
-	writeEventToAllConnectionsExceptSelf(w, "playlist", event, user.Id, data.ConnectionId)
+	server.writeEventToAllConnectionsExceptSelf(w, "playlist", event, user.Id, data.ConnectionId)
 }
 
-func apiHistoryGet(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiHistoryGet(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested history get.", r.RemoteAddr)
 
 	state.mutex.Lock()
@@ -1438,29 +1444,29 @@ func apiHistoryGet(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(jsonData))
 }
 
-func apiHistoryClear(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiHistoryClear(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested history clear.", r.RemoteAddr)
 
 	state.mutex.Lock()
 	state.history = state.history[:0]
 	state.mutex.Unlock()
 
-	writeEventToAllConnections(w, "historyclear", nil)
+	server.writeEventToAllConnections(w, "historyclear", nil)
 }
 
-func isAuthorized(w http.ResponseWriter, r *http.Request) bool {
+func (server *Server) isAuthorized(w http.ResponseWriter, r *http.Request) bool {
 	users.mutex.Lock()
-	index := getAuthorizedIndex(w, r)
+	index := server.getAuthorizedIndex(w, r)
 	users.mutex.Unlock()
 
 	return index != -1
 }
 
-func getAuthorized(w http.ResponseWriter, r *http.Request) *User {
+func (server *Server) getAuthorized(w http.ResponseWriter, r *http.Request) *User {
 	users.mutex.Lock()
 	defer users.mutex.Unlock()
 
-	index := getAuthorizedIndex(w, r)
+	index := server.getAuthorizedIndex(w, r)
 
 	if index == -1 {
 		return nil
@@ -1479,7 +1485,7 @@ func checkTraversal(w http.ResponseWriter, isSafe bool) bool {
 	return true
 }
 
-func getAuthorizedIndex(w http.ResponseWriter, r *http.Request) int {
+func (server *Server) getAuthorizedIndex(w http.ResponseWriter, r *http.Request) int {
 	token := r.Header.Get("Authorization")
 	if token == "" {
 		LogError("Invalid token")
@@ -1498,7 +1504,7 @@ func getAuthorizedIndex(w http.ResponseWriter, r *http.Request) int {
 	return -1
 }
 
-func readJsonDataFromRequest(w http.ResponseWriter, r *http.Request, data any) bool {
+func (server *Server) readJsonDataFromRequest(w http.ResponseWriter, r *http.Request, data any) bool {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		LogError("Request handler failed to read request body: %v", err)
@@ -1521,7 +1527,7 @@ func readJsonDataFromRequest(w http.ResponseWriter, r *http.Request, data any) b
 	return true
 }
 
-func writeEvent(w http.ResponseWriter, eventName string, data any) error {
+func (server *Server) writeEvent(w http.ResponseWriter, eventName string, data any) error {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		LogError("Failed to serialize data for event '%v': %v", eventName, err)
@@ -1549,7 +1555,7 @@ func writeEvent(w http.ResponseWriter, eventName string, data any) error {
 	return nil
 }
 
-func writeEventToAllConnections(origin http.ResponseWriter, eventName string, data any) {
+func (server *Server) writeEventToAllConnections(origin http.ResponseWriter, eventName string, data any) {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		LogError("Failed to serialize data for event '%v': %v", eventName, err)
@@ -1575,7 +1581,7 @@ func writeEventToAllConnections(origin http.ResponseWriter, eventName string, da
 	conns.mutex.Unlock()
 }
 
-func writeEventToAllConnectionsExceptSelf(origin http.ResponseWriter, eventName string, data any, userId uint64, connectionId uint64) {
+func (server *Server) writeEventToAllConnectionsExceptSelf(origin http.ResponseWriter, eventName string, data any, userId uint64, connectionId uint64) {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		LogError("Failed to serialize data for event '%v': %v", eventName, err)
@@ -1604,7 +1610,7 @@ func writeEventToAllConnectionsExceptSelf(origin http.ResponseWriter, eventName 
 }
 
 // It should be possible to use this list in a dropdown and attach to entry
-func getSubtitles() []string {
+func (server *Server) getSubtitles() []string {
 	subtitles := make([]string, 0)
 	subsFolder := WEB_MEDIA + "subs"
 	files, err := os.ReadDir(subsFolder)
@@ -1634,7 +1640,7 @@ func getSubtitles() []string {
 	return subtitles
 }
 
-func setupGenericFileProxy(url string, referer string) bool {
+func (server *Server) setupGenericFileProxy(url string, referer string) bool {
 	_ = os.RemoveAll(WEB_PROXY)
 	_ = os.Mkdir(WEB_PROXY, os.ModePerm)
 	parsedUrl, err := net_url.Parse(url)
@@ -1682,7 +1688,7 @@ func isTrustedUrl(url string, parsedUrl *net_url.URL) bool {
 	return false
 }
 
-func setupHlsProxy(url string, referer string) bool {
+func (server *Server) setupHlsProxy(url string, referer string) bool {
 	parsedUrl, err := net_url.Parse(url)
 	if err != nil {
 		LogError("The provided URL is invalid: %v", err)
@@ -1775,17 +1781,17 @@ func setupHlsProxy(url string, referer string) bool {
 	var result bool
 	if m3u.isLive {
 		state.isLive = true
-		result = setupLiveProxy(m3u, url)
+		result = server.setupLiveProxy(m3u, url)
 	} else {
 		state.isLive = false
-		result = setupVodProxy(m3u)
+		result = server.setupVodProxy(m3u)
 	}
 	duration := time.Since(start)
 	LogDebug("Time taken to setup proxy: %v", duration)
 	return result
 }
 
-func setupLiveProxy(m3u *M3U, liveUrl string) bool {
+func (server *Server) setupLiveProxy(m3u *M3U, liveUrl string) bool {
 	proxy := state.proxy
 	proxy.liveUrl = liveUrl
 	proxy.liveSegments.Clear()
@@ -1793,7 +1799,7 @@ func setupLiveProxy(m3u *M3U, liveUrl string) bool {
 	return true
 }
 
-func setupVodProxy(m3u *M3U) bool {
+func (server *Server) setupVodProxy(m3u *M3U) bool {
 	proxy := state.proxy
 	segmentCount := len(m3u.segments)
 
@@ -1812,7 +1818,7 @@ func setupVodProxy(m3u *M3U) bool {
 	return true
 }
 
-func apiEvents(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 	LogDebug("URL is %v", r.URL)
 
 	token := r.URL.Query().Get("token")
@@ -1853,13 +1859,13 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	welcomeErr := writeEvent(w, "userwelcome", connectionId)
+	welcomeErr := server.writeEvent(w, "userwelcome", connectionId)
 	if welcomeErr != nil {
 		return
 	}
 
 	if !was_online_before && is_online {
-		writeEventToAllConnectionsExceptSelf(w, "userconnected", user.Id, user.Id, connectionId)
+		server.writeEventToAllConnectionsExceptSelf(w, "userconnected", user.Id, user.Id, connectionId)
 	}
 
 	for {
@@ -1874,7 +1880,7 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 			event = createSyncEvent("pause", 0)
 		}
 
-		connectionErr := writeEvent(w, "sync", event)
+		connectionErr := server.writeEvent(w, "sync", event)
 
 		if connectionErr != nil {
 			conns.mutex.Lock()
@@ -1893,7 +1899,7 @@ func apiEvents(w http.ResponseWriter, r *http.Request) {
 			users.mutex.Unlock()
 
 			if disconnected {
-				writeEventToAllConnectionsExceptSelf(w, "userdisconnected", user.Id, user.Id, connectionId)
+				server.writeEventToAllConnectionsExceptSelf(w, "userdisconnected", user.Id, user.Id, connectionId)
 			}
 
 			LogInfo("Connection with user %v on %s dropped. Current connection count: %d", user.Id, r.RemoteAddr, connectionCount)
@@ -1954,7 +1960,7 @@ func voiceChat(writer http.ResponseWriter, request *http.Request) {
 // 3. In memory use:
 //   - 0-indexed string[] for original chunk URLs
 //   - 0-indexed mutex[] to ensure the same chunk is not requested while it's being fetched
-func watchProxy(writer http.ResponseWriter, request *http.Request) {
+func (server *Server) watchProxy(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != "GET" {
 		LogWarn("HlsProxy not called with GET, received: %v", request.Method)
 		return
@@ -1964,7 +1970,7 @@ func watchProxy(writer http.ResponseWriter, request *http.Request) {
 
 	if state.isHls {
 		if state.isLive {
-			serveHlsLive(writer, request, chunk)
+			server.serveHlsLive(writer, request, chunk)
 		} else {
 			serveHlsVod(writer, request, chunk)
 		}
@@ -1980,7 +1986,7 @@ type FetchedSegment struct {
 	created  time.Time
 }
 
-func serveHlsLive(writer http.ResponseWriter, request *http.Request, chunk string) {
+func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Request, chunk string) {
 	state.setupLock.Lock()
 	proxy := state.proxy
 	state.setupLock.Unlock()
@@ -2363,7 +2369,7 @@ func createSyncEvent(action string, userId uint64) SyncEventData {
 
 const MAX_MESSAGE_CHARACTERS = 1000
 
-func apiChatGet(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiChatGet(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested messages.", r.RemoteAddr)
 
 	state.mutex.Lock()
@@ -2378,16 +2384,16 @@ func apiChatGet(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(jsonData))
 }
 
-func apiChatSend(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiChatSend(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s posted a chat message.", r.RemoteAddr)
 
-	user := getAuthorized(w, r)
+	user := server.getAuthorized(w, r)
 	if user == nil {
 		return
 	}
 
 	var newMessage ChatMessageFromUser
-	if !readJsonDataFromRequest(w, r, &newMessage) {
+	if !server.readJsonDataFromRequest(w, r, &newMessage) {
 		return
 	}
 	if len(newMessage.Message) > MAX_MESSAGE_CHARACTERS {
@@ -2406,7 +2412,7 @@ func apiChatSend(w http.ResponseWriter, r *http.Request) {
 	}
 	state.messages = append(state.messages, chatMessage)
 	state.mutex.Unlock()
-	writeEventToAllConnections(w, "messagecreate", chatMessage)
+	server.writeEventToAllConnections(w, "messagecreate", chatMessage)
 }
 
 func isLocalDirectory(url string) (bool, string) {
