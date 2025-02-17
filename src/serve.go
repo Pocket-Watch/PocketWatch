@@ -46,8 +46,8 @@ const PROXY_M3U8 = "proxy.m3u8"
 
 type Server struct {
 	state ServerState
-	users Users
-	conns Connections
+	users *Users
+	conns *Connections
 }
 
 type PlayerState struct {
@@ -355,10 +355,6 @@ type PlaylistUpdateRequestData struct {
 	Index        int    `json:"index"`
 }
 
-var state = ServerState{}
-var users = makeUsers()
-var conns = makeConnections()
-
 // Constants - assignable only once!
 var serverRootAddress string
 var startTime = time.Now()
@@ -366,9 +362,13 @@ var subsEnabled bool
 var serverDomain string
 
 func StartServer(options *Options) {
-	server := Server{}
+	server := Server{
+		state: ServerState{},
+		users: makeUsers(),
+		conns: makeConnections(),
+	}
 
-	state.lastUpdate = time.Now()
+	server.state.lastUpdate = time.Now()
 	subsEnabled = options.Subs
 	serverDomain = options.Domain
 	registerEndpoints(&server)
@@ -555,9 +555,9 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request) {
 func (server *Server) apiUserCreate(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection requested %s user creation.", r.RemoteAddr)
 
-	users.mutex.Lock()
-	user := users.create()
-	users.mutex.Unlock()
+	server.users.mutex.Lock()
+	user := server.users.create()
+	server.users.mutex.Unlock()
 
 	tokenJson, err := json.Marshal(user.token)
 	if err != nil {
@@ -571,14 +571,14 @@ func (server *Server) apiUserCreate(w http.ResponseWriter, r *http.Request) {
 func (server *Server) apiUserGetAll(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection requested %s user get all.", r.RemoteAddr)
 
-	users.mutex.Lock()
-	usersJson, err := json.Marshal(users.slice)
+	server.users.mutex.Lock()
+	usersJson, err := json.Marshal(server.users.slice)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		users.mutex.Unlock()
+		server.users.mutex.Unlock()
 		return
 	}
-	users.mutex.Unlock()
+	server.users.mutex.Unlock()
 
 	io.WriteString(w, string(usersJson))
 }
@@ -609,18 +609,18 @@ func (server *Server) apiUserUpdateName(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	users.mutex.Lock()
+	server.users.mutex.Lock()
 	userIndex := server.getAuthorizedIndex(w, r)
 
 	if userIndex == -1 {
-		users.mutex.Unlock()
+		server.users.mutex.Unlock()
 		return
 	}
 
-	users.slice[userIndex].Username = newUsername
-	users.slice[userIndex].lastUpdate = time.Now()
-	user := users.slice[userIndex]
-	users.mutex.Unlock()
+	server.users.slice[userIndex].Username = newUsername
+	server.users.slice[userIndex].lastUpdate = time.Now()
+	user := server.users.slice[userIndex]
+	server.users.mutex.Unlock()
 
 	io.WriteString(w, "Username updated")
 	server.writeEventToAllConnections(w, "userupdate", user)
@@ -629,14 +629,14 @@ func (server *Server) apiUserUpdateName(w http.ResponseWriter, r *http.Request) 
 func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection requested %s user avatar change.", r.RemoteAddr)
 
-	users.mutex.Lock()
+	server.users.mutex.Lock()
 	userIndex := server.getAuthorizedIndex(w, r)
 	if userIndex == -1 {
-		users.mutex.Unlock()
+		server.users.mutex.Unlock()
 		return
 	}
-	user := users.slice[userIndex]
-	users.mutex.Unlock()
+	user := server.users.slice[userIndex]
+	server.users.mutex.Unlock()
 
 	formfile, _, err := r.FormFile("file")
 	if err != nil {
@@ -662,11 +662,11 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 	now := time.Now()
 	avatarUrl = fmt.Sprintf("users/avatar%v?%v", user.Id, now)
 
-	users.mutex.Lock()
-	users.slice[userIndex].Avatar = avatarUrl
-	users.slice[userIndex].lastUpdate = time.Now()
-	user = users.slice[userIndex]
-	users.mutex.Unlock()
+	server.users.mutex.Lock()
+	server.users.slice[userIndex].Avatar = avatarUrl
+	server.users.slice[userIndex].lastUpdate = time.Now()
+	user = server.users.slice[userIndex]
+	server.users.mutex.Unlock()
 
 	jsonData, _ := json.Marshal(avatarUrl)
 
@@ -677,13 +677,13 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 func (server *Server) apiPlayerGet(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested get.", r.RemoteAddr)
 
-	state.mutex.Lock()
+	server.state.mutex.Lock()
 	getEvent := PlayerGetResponseData{
-		Player: state.player,
-		Entry:  state.entry,
+		Player: server.state.player,
+		Entry:  server.state.entry,
 		// Subtitles: getSubtitles(),
 	}
-	state.mutex.Unlock()
+	server.state.mutex.Unlock()
 
 	jsonData, err := json.Marshal(getEvent)
 	if err != nil {
@@ -695,10 +695,10 @@ func (server *Server) apiPlayerGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) setNewEntry(newEntry *Entry) Entry {
-	prevEntry := state.entry
+	prevEntry := server.state.entry
 
 	if prevEntry.Url != "" {
-		state.history = append(state.history, prevEntry)
+		server.state.history = append(server.state.history, prevEntry)
 	}
 
 	// TODO(kihau): Proper proxy setup for youtube entries.
@@ -717,7 +717,7 @@ func (server *Server) setNewEntry(newEntry *Entry) Entry {
 			//setup := setupGenericFileProxy(newEntry.Url, newEntry.RefererUrl)
 			setup := false
 			if setup {
-				newEntry.SourceUrl = PROXY_ROUTE + "proxy" + state.genericProxy.extensionWithDot
+				newEntry.SourceUrl = PROXY_ROUTE + "proxy" + server.state.genericProxy.extensionWithDot
 				LogInfo("Generic file proxy setup was successful.")
 			} else {
 				LogWarn("Generic file proxy setup failed!")
@@ -725,11 +725,11 @@ func (server *Server) setNewEntry(newEntry *Entry) Entry {
 		}
 	}
 
-	state.entry = *newEntry
+	server.state.entry = *newEntry
 
-	state.player.Timestamp = 0
-	state.lastUpdate = time.Now()
-	state.player.Playing = state.player.Autoplay
+	server.state.player.Timestamp = 0
+	server.state.lastUpdate = time.Now()
+	server.state.player.Playing = server.state.player.Autoplay
 
 	return prevEntry
 }
@@ -747,10 +747,10 @@ func (server *Server) apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	state.mutex.Lock()
-	state.entryId += 1
-	id := state.entryId
-	state.mutex.Unlock()
+	server.state.mutex.Lock()
+	server.state.entryId += 1
+	id := server.state.entryId
+	server.state.mutex.Unlock()
 
 	newEntry := Entry{
 		Id:         id,
@@ -768,15 +768,15 @@ func (server *Server) apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 
 	server.loadYoutubeEntry(&newEntry, data.RequestEntry)
 
-	state.mutex.Lock()
-	if state.entry.Url != "" && state.player.Looping {
-		state.playlist = append(state.playlist, state.entry)
+	server.state.mutex.Lock()
+	if server.state.entry.Url != "" && server.state.player.Looping {
+		server.state.playlist = append(server.state.playlist, server.state.entry)
 	}
 
 	prevEntry := server.setNewEntry(&newEntry)
-	state.mutex.Unlock()
+	server.state.mutex.Unlock()
 
-	LogInfo("New url is now: '%s'.", state.entry.Url)
+	LogInfo("New url is now: '%s'.", server.state.entry.Url)
 
 	setEvent := PlayerSetEventData{
 		PrevEntry: prevEntry,
@@ -793,11 +793,11 @@ func (server *Server) apiPlayerEnd(w http.ResponseWriter, r *http.Request) {
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
-	state.mutex.Lock()
-	if data.EntryId == state.entry.Id {
-		state.player.Playing = false
+	server.state.mutex.Lock()
+	if data.EntryId == server.state.entry.Id {
+		server.state.player.Playing = false
 	}
-	state.mutex.Unlock()
+	server.state.mutex.Unlock()
 }
 
 func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
@@ -813,25 +813,25 @@ func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 	//     This check is necessary because multiple clients can send "playlist next" request on video end,
 	//     resulting in multiple playlist skips, which is not an intended behaviour.
 
-	if state.entry.Id != data.EntryId {
+	if server.state.entry.Id != data.EntryId {
 		LogWarn("Current entry ID on the server is not equal to the one provided by the client.")
 		return
 	}
 
-	state.mutex.Lock()
-	if state.entry.Url != "" && state.player.Looping {
-		state.playlist = append(state.playlist, state.entry)
+	server.state.mutex.Lock()
+	if server.state.entry.Url != "" && server.state.player.Looping {
+		server.state.playlist = append(server.state.playlist, server.state.entry)
 	}
 
 	newEntry := Entry{}
-	if len(state.playlist) != 0 {
-		newEntry = state.playlist[0]
-		state.playlist = state.playlist[1:]
+	if len(server.state.playlist) != 0 {
+		newEntry = server.state.playlist[0]
+		server.state.playlist = server.state.playlist[1:]
 	}
 
 	server.loadYoutubeEntry(&newEntry, RequestEntry{})
 	prevEntry := server.setNewEntry(&newEntry)
-	state.mutex.Unlock()
+	server.state.mutex.Unlock()
 
 	nextEvent := PlayerNextEventData{
 		PrevEntry: prevEntry,
@@ -839,7 +839,7 @@ func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 	}
 	server.writeEventToAllConnections(w, "playernext", nextEvent)
 	io.WriteString(w, "{}")
-	go preloadYoutubeSourceOnNextEntry()
+	go server.preloadYoutubeSourceOnNextEntry()
 }
 
 func (server *Server) apiPlayerPlay(w http.ResponseWriter, r *http.Request) {
@@ -856,8 +856,8 @@ func (server *Server) apiPlayerPlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updatePlayerState(true, data.Timestamp)
-	event := createSyncEvent("play", user.Id)
+	server.updatePlayerState(true, data.Timestamp)
+	event := server.createSyncEvent("play", user.Id)
 
 	io.WriteString(w, "Broadcasting start!\n")
 	server.writeEventToAllConnectionsExceptSelf(w, "sync", event, user.Id, data.ConnectionId)
@@ -876,8 +876,8 @@ func (server *Server) apiPlayerPause(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updatePlayerState(false, data.Timestamp)
-	event := createSyncEvent("pause", user.Id)
+	server.updatePlayerState(false, data.Timestamp)
+	event := server.createSyncEvent("pause", user.Id)
 
 	io.WriteString(w, "Broadcasting pause!\n")
 	server.writeEventToAllConnectionsExceptSelf(w, "sync", event, user.Id, data.ConnectionId)
@@ -896,12 +896,12 @@ func (server *Server) apiPlayerSeek(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	state.mutex.Lock()
-	state.player.Timestamp = data.Timestamp
-	state.lastUpdate = time.Now()
-	state.mutex.Unlock()
+	server.state.mutex.Lock()
+	server.state.player.Timestamp = data.Timestamp
+	server.state.lastUpdate = time.Now()
+	server.state.mutex.Unlock()
 
-	event := createSyncEvent("seek", user.Id)
+	event := server.createSyncEvent("seek", user.Id)
 
 	io.WriteString(w, "Broadcasting seek!\n")
 	server.writeEventToAllConnectionsExceptSelf(w, "sync", event, user.Id, data.ConnectionId)
@@ -917,9 +917,9 @@ func (server *Server) apiPlayerAutoplay(w http.ResponseWriter, r *http.Request) 
 
 	LogInfo("Setting playlist autoplay to %v.", autoplay)
 
-	state.mutex.Lock()
-	state.player.Autoplay = autoplay
-	state.mutex.Unlock()
+	server.state.mutex.Lock()
+	server.state.player.Autoplay = autoplay
+	server.state.mutex.Unlock()
 
 	server.writeEventToAllConnections(w, "playerautoplay", autoplay)
 }
@@ -934,9 +934,9 @@ func (server *Server) apiPlayerLooping(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Setting playlist looping to %v.", looping)
 
-	state.mutex.Lock()
-	state.player.Looping = looping
-	state.mutex.Unlock()
+	server.state.mutex.Lock()
+	server.state.player.Looping = looping
+	server.state.mutex.Unlock()
 
 	server.writeEventToAllConnections(w, "playerlooping", looping)
 }
@@ -949,9 +949,9 @@ func (server *Server) apiPlayerUpdateTitle(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	state.mutex.Lock()
-	state.entry.Title = title
-	state.mutex.Unlock()
+	server.state.mutex.Lock()
+	server.state.entry.Title = title
+	server.state.mutex.Unlock()
 
 	server.writeEventToAllConnections(w, "playerupdatetitle", title)
 }
@@ -962,15 +962,15 @@ func (server *Server) apiSubtitleDelete(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	state.mutex.Lock()
-	for i, sub := range state.entry.Subtitles {
+	server.state.mutex.Lock()
+	for i, sub := range server.state.entry.Subtitles {
 		if sub.Id == subId {
-			subs := state.entry.Subtitles
-			state.entry.Subtitles = append(subs[:i], subs[i+1:]...)
+			subs := server.state.entry.Subtitles
+			server.state.entry.Subtitles = append(subs[:i], subs[i+1:]...)
 			break
 		}
 	}
-	state.mutex.Unlock()
+	server.state.mutex.Unlock()
 
 	server.writeEventToAllConnections(w, "subtitledelete", subId)
 }
@@ -981,14 +981,14 @@ func (server *Server) apiSubtitleUpdate(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	state.mutex.Lock()
-	for i, sub := range state.entry.Subtitles {
+	server.state.mutex.Lock()
+	for i, sub := range server.state.entry.Subtitles {
 		if sub.Id == data.Id {
-			state.entry.Subtitles[i].Name = data.Name
+			server.state.entry.Subtitles[i].Name = data.Name
 			break
 		}
 	}
-	state.mutex.Unlock()
+	server.state.mutex.Unlock()
 
 	server.writeEventToAllConnections(w, "subtitleupdate", data)
 }
@@ -1001,9 +1001,9 @@ func (server *Server) apiSubtitleAttach(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	state.mutex.Lock()
-	state.entry.Subtitles = append(state.entry.Subtitles, subtitle)
-	state.mutex.Unlock()
+	server.state.mutex.Lock()
+	server.state.entry.Subtitles = append(server.state.entry.Subtitles, subtitle)
+	server.state.mutex.Unlock()
 
 	server.writeEventToAllConnections(w, "subtitleattach", subtitle)
 }
@@ -1016,14 +1016,14 @@ func (server *Server) apiSubtitleShift(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	state.mutex.Lock()
-	for i, sub := range state.entry.Subtitles {
+	server.state.mutex.Lock()
+	for i, sub := range server.state.entry.Subtitles {
 		if sub.Id == data.Id {
-			state.entry.Subtitles[i].Shift = data.Shift
+			server.state.entry.Subtitles[i].Shift = data.Shift
 			break
 		}
 	}
-	state.mutex.Unlock()
+	server.state.mutex.Unlock()
 
 	server.writeEventToAllConnections(w, "subtitleshift", data)
 }
@@ -1055,7 +1055,7 @@ func (server *Server) apiSubtitleSearch(w http.ResponseWriter, r *http.Request) 
 	defer inputSub.Close()
 
 	extension := path.Ext(downloadPath)
-	subId := state.subsId.Add(1)
+	subId := server.state.subsId.Add(1)
 
 	outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
 	outputPath := path.Join("web", "subs", outputName)
@@ -1086,9 +1086,9 @@ func (server *Server) apiSubtitleSearch(w http.ResponseWriter, r *http.Request) 
 		Shift: 0.0,
 	}
 
-	state.mutex.Lock()
-	state.entry.Subtitles = append(state.entry.Subtitles, subtitle)
-	state.mutex.Unlock()
+	server.state.mutex.Lock()
+	server.state.entry.Subtitles = append(server.state.entry.Subtitles, subtitle)
+	server.state.mutex.Unlock()
 
 	server.writeEventToAllConnections(w, "subtitleattach", subtitle)
 	io.WriteString(w, "{}")
@@ -1109,7 +1109,7 @@ func (server *Server) apiSubtitleUpload(w http.ResponseWriter, r *http.Request) 
 
 	filename := headers.Filename
 	extension := path.Ext(filename)
-	subId := state.subsId.Add(1)
+	subId := server.state.subsId.Add(1)
 
 	outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
 	outputPath, isSafe := safeJoin("web", "subs", outputName)
@@ -1162,9 +1162,9 @@ func (server *Server) apiSubtitleUpload(w http.ResponseWriter, r *http.Request) 
 func (server *Server) apiPlaylistGet(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested playlist get.", r.RemoteAddr)
 
-	state.mutex.Lock()
-	jsonData, err := json.Marshal(state.playlist)
-	state.mutex.Unlock()
+	server.state.mutex.Lock()
+	jsonData, err := json.Marshal(server.state.playlist)
+	server.state.mutex.Unlock()
 
 	if err != nil {
 		LogWarn("Failed to serialize playlist get event.")
@@ -1182,28 +1182,28 @@ func (server *Server) apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Connection %s requested playlist play.", r.RemoteAddr)
 
-	state.mutex.Lock()
-	if data.Index < 0 || data.Index >= len(state.playlist) {
+	server.state.mutex.Lock()
+	if data.Index < 0 || data.Index >= len(server.state.playlist) {
 		LogError("Failed to remove playlist element at index %v.", data.Index)
-		state.mutex.Unlock()
+		server.state.mutex.Unlock()
 		return
 	}
 
-	if state.playlist[data.Index].Id != data.EntryId {
+	if server.state.playlist[data.Index].Id != data.EntryId {
 		LogWarn("Entry ID on the server is not equal to the one provided by the client.")
-		state.mutex.Unlock()
+		server.state.mutex.Unlock()
 		return
 	}
 
-	if state.entry.Url != "" && state.player.Looping {
-		state.playlist = append(state.playlist, state.entry)
+	if server.state.entry.Url != "" && server.state.player.Looping {
+		server.state.playlist = append(server.state.playlist, server.state.entry)
 	}
 
-	newEntry := state.playlist[data.Index]
+	newEntry := server.state.playlist[data.Index]
 	server.loadYoutubeEntry(&newEntry, RequestEntry{})
 	prevEntry := server.setNewEntry(&newEntry)
-	state.playlist = append(state.playlist[:data.Index], state.playlist[data.Index+1:]...)
-	state.mutex.Unlock()
+	server.state.playlist = append(server.state.playlist[:data.Index], server.state.playlist[data.Index+1:]...)
+	server.state.mutex.Unlock()
 
 	event := createPlaylistEvent("remove", data.Index)
 	server.writeEventToAllConnections(w, "playlist", event)
@@ -1214,7 +1214,7 @@ func (server *Server) apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
 	}
 	server.writeEventToAllConnections(w, "playerset", setEvent)
 	io.WriteString(w, "{}")
-	go preloadYoutubeSourceOnNextEntry()
+	go server.preloadYoutubeSourceOnNextEntry()
 }
 
 func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
@@ -1233,21 +1233,21 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 	localDir, path := isLocalDirectory(data.RequestEntry.Url)
 	if data.RequestEntry.IsPlaylist && localDir {
 		LogInfo("Adding directory '%s' to the playlist.", path)
-		localEntries := getEntriesFromDirectory(path, user.Id)
+		localEntries := server.getEntriesFromDirectory(path, user.Id)
 
-		state.mutex.Lock()
-		state.playlist = append(state.playlist, localEntries...)
-		state.mutex.Unlock()
+		server.state.mutex.Lock()
+		server.state.playlist = append(server.state.playlist, localEntries...)
+		server.state.mutex.Unlock()
 
 		event := createPlaylistEvent("addmany", localEntries)
 		server.writeEventToAllConnections(w, "playlist", event)
 	} else {
 		LogInfo("Adding '%s' url to the playlist.", data.RequestEntry.Url)
 
-		state.mutex.Lock()
-		state.entryId += 1
-		id := state.entryId
-		state.mutex.Unlock()
+		server.state.mutex.Lock()
+		server.state.entryId += 1
+		id := server.state.entryId
+		server.state.mutex.Unlock()
 
 		newEntry := Entry{
 			Id:         id,
@@ -1265,9 +1265,9 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 
 		server.loadYoutubeEntry(&newEntry, data.RequestEntry)
 
-		state.mutex.Lock()
-		state.playlist = append(state.playlist, newEntry)
-		state.mutex.Unlock()
+		server.state.mutex.Lock()
+		server.state.playlist = append(server.state.playlist, newEntry)
+		server.state.mutex.Unlock()
 
 		event := createPlaylistEvent("add", newEntry)
 		server.writeEventToAllConnections(w, "playlist", event)
@@ -1282,9 +1282,9 @@ func (server *Server) apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	state.mutex.Lock()
-	state.playlist = state.playlist[:0]
-	state.mutex.Unlock()
+	server.state.mutex.Lock()
+	server.state.playlist = server.state.playlist[:0]
+	server.state.mutex.Unlock()
 
 	event := createPlaylistEvent("clear", nil)
 	server.writeEventToAllConnections(w, "playlist", event)
@@ -1298,40 +1298,40 @@ func (server *Server) apiPlaylistRemove(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	state.mutex.Lock()
-	if data.Index < 0 || data.Index >= len(state.playlist) {
+	server.state.mutex.Lock()
+	if data.Index < 0 || data.Index >= len(server.state.playlist) {
 		LogError("Failed to remove playlist element at index %v.", data.Index)
-		state.mutex.Unlock()
+		server.state.mutex.Unlock()
 		return
 	}
 
-	if state.playlist[data.Index].Id != data.EntryId {
+	if server.state.playlist[data.Index].Id != data.EntryId {
 		LogWarn("Entry ID on the server is not equal to the one provided by the client.")
-		state.mutex.Unlock()
+		server.state.mutex.Unlock()
 		return
 	}
 
-	state.playlist = append(state.playlist[:data.Index], state.playlist[data.Index+1:]...)
-	state.mutex.Unlock()
+	server.state.playlist = append(server.state.playlist[:data.Index], server.state.playlist[data.Index+1:]...)
+	server.state.mutex.Unlock()
 
 	event := createPlaylistEvent("remove", data.Index)
 	server.writeEventToAllConnections(w, "playlist", event)
-	go preloadYoutubeSourceOnNextEntry()
+	go server.preloadYoutubeSourceOnNextEntry()
 }
 
 func (server *Server) apiPlaylistShuffle(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested playlist shuffle.", r.RemoteAddr)
 
-	state.mutex.Lock()
-	for i := range state.playlist {
+	server.state.mutex.Lock()
+	for i := range server.state.playlist {
 		j := rand.Intn(i + 1)
-		state.playlist[i], state.playlist[j] = state.playlist[j], state.playlist[i]
+		server.state.playlist[i], server.state.playlist[j] = server.state.playlist[j], server.state.playlist[i]
 	}
-	state.mutex.Unlock()
+	server.state.mutex.Unlock()
 
-	event := createPlaylistEvent("shuffle", state.playlist)
+	event := createPlaylistEvent("shuffle", server.state.playlist)
 	server.writeEventToAllConnections(w, "playlist", event)
-	go preloadYoutubeSourceOnNextEntry()
+	go server.preloadYoutubeSourceOnNextEntry()
 }
 
 func (server *Server) apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
@@ -1347,39 +1347,39 @@ func (server *Server) apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	state.mutex.Lock()
-	if move.SourceIndex < 0 || move.SourceIndex >= len(state.playlist) {
+	server.state.mutex.Lock()
+	if move.SourceIndex < 0 || move.SourceIndex >= len(server.state.playlist) {
 		LogError("Playlist move failed, source index out of bounds")
-		state.mutex.Unlock()
+		server.state.mutex.Unlock()
 		return
 	}
 
-	if state.playlist[move.SourceIndex].Id != move.EntryId {
+	if server.state.playlist[move.SourceIndex].Id != move.EntryId {
 		LogWarn("Entry ID on the server is not equal to the one provided by the client.")
-		state.mutex.Unlock()
+		server.state.mutex.Unlock()
 		return
 	}
 
-	if move.DestIndex < 0 || move.DestIndex >= len(state.playlist) {
+	if move.DestIndex < 0 || move.DestIndex >= len(server.state.playlist) {
 		LogError("Playlist move failed, source index out of bounds")
-		state.mutex.Unlock()
+		server.state.mutex.Unlock()
 		return
 	}
 
-	entry := state.playlist[move.SourceIndex]
+	entry := server.state.playlist[move.SourceIndex]
 
 	// Remove element from the slice:
-	state.playlist = append(state.playlist[:move.SourceIndex], state.playlist[move.SourceIndex+1:]...)
+	server.state.playlist = append(server.state.playlist[:move.SourceIndex], server.state.playlist[move.SourceIndex+1:]...)
 
 	list := make([]Entry, 0)
 
 	// Appned removed element to a new list:
-	list = append(list, state.playlist[:move.DestIndex]...)
+	list = append(list, server.state.playlist[:move.DestIndex]...)
 	list = append(list, entry)
-	list = append(list, state.playlist[move.DestIndex:]...)
+	list = append(list, server.state.playlist[move.DestIndex:]...)
 
-	state.playlist = list
-	state.mutex.Unlock()
+	server.state.playlist = list
+	server.state.mutex.Unlock()
 
 	eventData := PlaylistMoveEventData{
 		SourceIndex: move.SourceIndex,
@@ -1388,7 +1388,7 @@ func (server *Server) apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 
 	event := createPlaylistEvent("move", eventData)
 	server.writeEventToAllConnectionsExceptSelf(w, "playlist", event, user.Id, move.ConnectionId)
-	go preloadYoutubeSourceOnNextEntry()
+	go server.preloadYoutubeSourceOnNextEntry()
 }
 
 func (server *Server) apiPlaylistUpdate(w http.ResponseWriter, r *http.Request) {
@@ -1406,19 +1406,19 @@ func (server *Server) apiPlaylistUpdate(w http.ResponseWriter, r *http.Request) 
 
 	entry := data.Entry
 
-	state.mutex.Lock()
+	server.state.mutex.Lock()
 	updatedEntry := Entry{Id: 0}
 
-	for i := 0; i < len(state.playlist); i++ {
-		if state.playlist[i].Id == entry.Id {
-			state.playlist[i].Title = entry.Title
-			state.playlist[i].Url = entry.Url
-			updatedEntry = state.playlist[i]
+	for i := 0; i < len(server.state.playlist); i++ {
+		if server.state.playlist[i].Id == entry.Id {
+			server.state.playlist[i].Title = entry.Title
+			server.state.playlist[i].Url = entry.Url
+			updatedEntry = server.state.playlist[i]
 			break
 		}
 	}
 
-	state.mutex.Unlock()
+	server.state.mutex.Unlock()
 
 	if updatedEntry.Id == 0 {
 		LogWarn("Failed to find entry to update")
@@ -1432,9 +1432,9 @@ func (server *Server) apiPlaylistUpdate(w http.ResponseWriter, r *http.Request) 
 func (server *Server) apiHistoryGet(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested history get.", r.RemoteAddr)
 
-	state.mutex.Lock()
-	jsonData, err := json.Marshal(state.history)
-	state.mutex.Unlock()
+	server.state.mutex.Lock()
+	jsonData, err := json.Marshal(server.state.history)
+	server.state.mutex.Unlock()
 
 	if err != nil {
 		LogWarn("Failed to serialize history get event.")
@@ -1447,24 +1447,24 @@ func (server *Server) apiHistoryGet(w http.ResponseWriter, r *http.Request) {
 func (server *Server) apiHistoryClear(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested history clear.", r.RemoteAddr)
 
-	state.mutex.Lock()
-	state.history = state.history[:0]
-	state.mutex.Unlock()
+	server.state.mutex.Lock()
+	server.state.history = server.state.history[:0]
+	server.state.mutex.Unlock()
 
 	server.writeEventToAllConnections(w, "historyclear", nil)
 }
 
 func (server *Server) isAuthorized(w http.ResponseWriter, r *http.Request) bool {
-	users.mutex.Lock()
+	server.users.mutex.Lock()
 	index := server.getAuthorizedIndex(w, r)
-	users.mutex.Unlock()
+	server.users.mutex.Unlock()
 
 	return index != -1
 }
 
 func (server *Server) getAuthorized(w http.ResponseWriter, r *http.Request) *User {
-	users.mutex.Lock()
-	defer users.mutex.Unlock()
+	server.users.mutex.Lock()
+	defer server.users.mutex.Unlock()
 
 	index := server.getAuthorizedIndex(w, r)
 
@@ -1472,7 +1472,7 @@ func (server *Server) getAuthorized(w http.ResponseWriter, r *http.Request) *Use
 		return nil
 	}
 
-	user := users.slice[index]
+	user := server.users.slice[index]
 	return &user
 }
 
@@ -1493,7 +1493,7 @@ func (server *Server) getAuthorizedIndex(w http.ResponseWriter, r *http.Request)
 		return -1
 	}
 
-	for i, user := range users.slice {
+	for i, user := range server.users.slice {
 		if user.token == token {
 			return i
 		}
@@ -1537,20 +1537,20 @@ func (server *Server) writeEvent(w http.ResponseWriter, eventName string, data a
 	}
 
 	jsonString := string(jsonData)
-	eventId := state.eventId.Add(1)
+	eventId := server.state.eventId.Add(1)
 
-	conns.mutex.Lock()
+	server.conns.mutex.Lock()
 	_, err = fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\nretry: %d\n\n", eventId, eventName, jsonString, RETRY)
 
 	if err != nil {
-		conns.mutex.Unlock()
+		server.conns.mutex.Unlock()
 		return err
 	}
 
 	if f, ok := w.(http.Flusher); ok {
 		f.Flush()
 	}
-	conns.mutex.Unlock()
+	server.conns.mutex.Unlock()
 
 	return nil
 }
@@ -1567,18 +1567,18 @@ func (server *Server) writeEventToAllConnections(origin http.ResponseWriter, eve
 
 	jsonString := string(jsonData)
 
-	eventId := state.eventId.Add(1)
+	eventId := server.state.eventId.Add(1)
 	event := fmt.Sprintf("id: %v\nevent: %v\ndata: %v\nretry: %v\n\n", eventId, eventName, jsonString, RETRY)
 
-	conns.mutex.Lock()
-	for _, conn := range conns.slice {
+	server.conns.mutex.Lock()
+	for _, conn := range server.conns.slice {
 		fmt.Fprintln(conn.writer, event)
 
 		if f, ok := conn.writer.(http.Flusher); ok {
 			f.Flush()
 		}
 	}
-	conns.mutex.Unlock()
+	server.conns.mutex.Unlock()
 }
 
 func (server *Server) writeEventToAllConnectionsExceptSelf(origin http.ResponseWriter, eventName string, data any, userId uint64, connectionId uint64) {
@@ -1591,11 +1591,11 @@ func (server *Server) writeEventToAllConnectionsExceptSelf(origin http.ResponseW
 
 	jsonString := string(jsonData)
 
-	eventId := state.eventId.Add(1)
+	eventId := server.state.eventId.Add(1)
 	event := fmt.Sprintf("id: %v\nevent: %v\ndata: %v\nretry: %v\n\n", eventId, eventName, jsonString, RETRY)
 
-	conns.mutex.Lock()
-	for _, conn := range conns.slice {
+	server.conns.mutex.Lock()
+	for _, conn := range server.conns.slice {
 		if userId == conn.userId && conn.id == connectionId {
 			continue
 		}
@@ -1606,7 +1606,7 @@ func (server *Server) writeEventToAllConnectionsExceptSelf(origin http.ResponseW
 			f.Flush()
 		}
 	}
-	conns.mutex.Unlock()
+	server.conns.mutex.Unlock()
 }
 
 // It should be possible to use this list in a dropdown and attach to entry
@@ -1658,11 +1658,11 @@ func (server *Server) setupGenericFileProxy(url string, referer string) bool {
 		LogError("The file exceeds the specified limit of 4 GBs.")
 		return false
 	}
-	state.setupLock.Lock()
-	defer state.setupLock.Unlock()
-	state.isHls = false
+	server.state.setupLock.Lock()
+	defer server.state.setupLock.Unlock()
+	server.state.isHls = false
 
-	proxy := &state.genericProxy
+	proxy := &server.state.genericProxy
 	proxy.fileUrl = url
 	proxy.contentLength = size
 	proxy.extensionWithDot = path.Ext(parsedUrl.Path)
@@ -1695,8 +1695,8 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 		return false
 	}
 
-	state.setupLock.Lock()
-	defer state.setupLock.Unlock()
+	server.state.setupLock.Lock()
+	defer server.state.setupLock.Unlock()
 	start := time.Now()
 	_ = os.RemoveAll(WEB_PROXY)
 	_ = os.Mkdir(WEB_PROXY, os.ModePerm)
@@ -1776,14 +1776,14 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 	// Sometimes m3u8 chunks are not fully qualified
 	m3u.prefixRelativeSegments(prefix)
 
-	state.isHls = true
-	state.proxy = &HlsProxy{}
+	server.state.isHls = true
+	server.state.proxy = &HlsProxy{}
 	var result bool
 	if m3u.isLive {
-		state.isLive = true
+		server.state.isLive = true
 		result = server.setupLiveProxy(m3u, url)
 	} else {
-		state.isLive = false
+		server.state.isLive = false
 		result = server.setupVodProxy(m3u)
 	}
 	duration := time.Since(start)
@@ -1792,7 +1792,7 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 }
 
 func (server *Server) setupLiveProxy(m3u *M3U, liveUrl string) bool {
-	proxy := state.proxy
+	proxy := server.state.proxy
 	proxy.liveUrl = liveUrl
 	proxy.liveSegments.Clear()
 	proxy.randomizer.Store(0)
@@ -1800,7 +1800,7 @@ func (server *Server) setupLiveProxy(m3u *M3U, liveUrl string) bool {
 }
 
 func (server *Server) setupVodProxy(m3u *M3U) bool {
-	proxy := state.proxy
+	proxy := server.state.proxy
 	segmentCount := len(m3u.segments)
 
 	proxy.chunkLocks = make([]sync.Mutex, 0, segmentCount)
@@ -1829,29 +1829,29 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	users.mutex.Lock()
-	userIndex := users.findIndex(token)
+	server.users.mutex.Lock()
+	userIndex := server.users.findIndex(token)
 	if userIndex == -1 {
 		http.Error(w, "User not found", http.StatusUnauthorized)
 		LogError("Failed to connect to event stream. User not found.")
-		users.mutex.Unlock()
+		server.users.mutex.Unlock()
 		return
 	}
 
-	users.slice[userIndex].connections += 1
+	server.users.slice[userIndex].connections += 1
 
-	was_online_before := users.slice[userIndex].Online
-	is_online := users.slice[userIndex].connections != 0
+	was_online_before := server.users.slice[userIndex].Online
+	is_online := server.users.slice[userIndex].connections != 0
 
-	users.slice[userIndex].Online = is_online
+	server.users.slice[userIndex].Online = is_online
 
-	user := users.slice[userIndex]
-	users.mutex.Unlock()
+	user := server.users.slice[userIndex]
+	server.users.mutex.Unlock()
 
-	conns.mutex.Lock()
-	connectionId := conns.add(w, user.Id)
-	connectionCount := len(conns.slice)
-	conns.mutex.Unlock()
+	server.conns.mutex.Lock()
+	connectionId := server.conns.add(w, user.Id)
+	connectionCount := len(server.conns.slice)
+	server.conns.mutex.Unlock()
 
 	LogInfo("New connection established with user %v on %s. Current connection count: %d", user.Id, r.RemoteAddr, connectionCount)
 
@@ -1870,33 +1870,33 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 
 	for {
 		var event SyncEventData
-		state.mutex.Lock()
-		playing := state.player.Playing
-		state.mutex.Unlock()
+		server.state.mutex.Lock()
+		playing := server.state.player.Playing
+		server.state.mutex.Unlock()
 
 		if playing {
-			event = createSyncEvent("play", 0)
+			event = server.createSyncEvent("play", 0)
 		} else {
-			event = createSyncEvent("pause", 0)
+			event = server.createSyncEvent("pause", 0)
 		}
 
 		connectionErr := server.writeEvent(w, "sync", event)
 
 		if connectionErr != nil {
-			conns.mutex.Lock()
-			conns.remove(connectionId)
-			connectionCount = len(conns.slice)
-			conns.mutex.Unlock()
+			server.conns.mutex.Lock()
+			server.conns.remove(connectionId)
+			connectionCount = len(server.conns.slice)
+			server.conns.mutex.Unlock()
 
-			users.mutex.Lock()
-			userIndex := users.findIndex(token)
+			server.users.mutex.Lock()
+			userIndex := server.users.findIndex(token)
 			disconnected := false
 			if userIndex != -1 {
-				users.slice[userIndex].connections -= 1
-				disconnected = users.slice[userIndex].connections == 0
-				users.slice[userIndex].Online = !disconnected
+				server.users.slice[userIndex].connections -= 1
+				disconnected = server.users.slice[userIndex].connections == 0
+				server.users.slice[userIndex].Online = !disconnected
 			}
-			users.mutex.Unlock()
+			server.users.mutex.Unlock()
 
 			if disconnected {
 				server.writeEventToAllConnectionsExceptSelf(w, "userdisconnected", user.Id, user.Id, connectionId)
@@ -1907,7 +1907,7 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		smartSleep()
+		server.smartSleep()
 	}
 }
 
@@ -1968,14 +1968,14 @@ func (server *Server) watchProxy(writer http.ResponseWriter, request *http.Reque
 	urlPath := request.URL.Path
 	chunk := path.Base(urlPath)
 
-	if state.isHls {
-		if state.isLive {
+	if server.state.isHls {
+		if server.state.isLive {
 			server.serveHlsLive(writer, request, chunk)
 		} else {
-			serveHlsVod(writer, request, chunk)
+			server.serveHlsVod(writer, request, chunk)
 		}
 	} else {
-		serveGenericFile(writer, request, chunk)
+		server.serveGenericFile(writer, request, chunk)
 	}
 }
 
@@ -1987,9 +1987,9 @@ type FetchedSegment struct {
 }
 
 func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Request, chunk string) {
-	state.setupLock.Lock()
-	proxy := state.proxy
-	state.setupLock.Unlock()
+	server.state.setupLock.Lock()
+	proxy := server.state.proxy
+	server.state.setupLock.Unlock()
 
 	segmentMap := &proxy.liveSegments
 	lastRefresh := &proxy.lastRefresh
@@ -2005,7 +2005,7 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 			return
 		}
 
-		liveM3U, err := downloadM3U(proxy.liveUrl, WEB_PROXY+ORIGINAL_M3U8, state.entry.RefererUrl)
+		liveM3U, err := downloadM3U(proxy.liveUrl, WEB_PROXY+ORIGINAL_M3U8, server.state.entry.RefererUrl)
 		var downloadErr *DownloadError
 		if errors.As(err, &downloadErr) {
 			LogError("Download error of the live url [%v] %v", proxy.liveUrl, err.Error())
@@ -2055,7 +2055,7 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 		http.ServeFile(writer, request, WEB_PROXY+chunk)
 		return
 	}
-	fetchErr := downloadFile(fetchedChunk.realUrl, WEB_PROXY+chunk, state.entry.RefererUrl)
+	fetchErr := downloadFile(fetchedChunk.realUrl, WEB_PROXY+chunk, server.state.entry.RefererUrl)
 	if fetchErr != nil {
 		mutex.Unlock()
 		LogError("Failed to fetch live chunk %v", fetchErr)
@@ -2099,7 +2099,7 @@ func cleanupSegmentMap(segmentMap *sync.Map) {
 	}
 }
 
-func serveHlsVod(writer http.ResponseWriter, request *http.Request, chunk string) {
+func (server *Server) serveHlsVod(writer http.ResponseWriter, request *http.Request, chunk string) {
 	if chunk == PROXY_M3U8 {
 		LogDebug("Serving %v", PROXY_M3U8)
 		http.ServeFile(writer, request, WEB_PROXY+PROXY_M3U8)
@@ -2117,9 +2117,9 @@ func serveHlsVod(writer http.ResponseWriter, request *http.Request, chunk string
 		return
 	}
 
-	state.setupLock.Lock()
-	proxy := state.proxy
-	state.setupLock.Unlock()
+	server.state.setupLock.Lock()
+	proxy := server.state.proxy
+	server.state.setupLock.Unlock()
 	if chunkId < 0 || chunkId >= len(proxy.fetchedChunks) {
 		http.Error(writer, "Chunk ID out of range", 404)
 		return
@@ -2137,7 +2137,7 @@ func serveHlsVod(writer http.ResponseWriter, request *http.Request, chunk string
 		http.ServeFile(writer, request, WEB_PROXY+chunk)
 		return
 	}
-	fetchErr := downloadFile(proxy.originalChunks[chunkId], WEB_PROXY+chunk, state.entry.RefererUrl)
+	fetchErr := downloadFile(proxy.originalChunks[chunkId], WEB_PROXY+chunk, server.state.entry.RefererUrl)
 	if fetchErr != nil {
 		mutex.Unlock()
 		LogError("Failed to fetch chunk %v", fetchErr)
@@ -2156,8 +2156,8 @@ func serveHlsVod(writer http.ResponseWriter, request *http.Request, chunk string
 
 const GENERIC_CHUNK_SIZE = 4 * MB
 
-func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFile string) {
-	proxy := &state.genericProxy
+func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFile string) {
+	proxy := &server.state.genericProxy
 	if path.Ext(pathFile) != proxy.extensionWithDot {
 		http.Error(writer, "Failed to fetch chunk", 404)
 		return
@@ -2190,13 +2190,13 @@ func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFil
 	proxy.downloadMutex.Lock()
 	if proxy.downloadBeginOffset != byteRange.start {
 		proxy.downloadBeginOffset = byteRange.start
-		response, err := openFileDownload(proxy.fileUrl, byteRange.start, state.entry.RefererUrl)
+		response, err := openFileDownload(proxy.fileUrl, byteRange.start, server.state.entry.RefererUrl)
 		if err != nil {
 			http.Error(writer, "Unable to open file download", 500)
 			return
 		}
 		proxy.download = response
-		go downloadProxyFilePeriodically()
+		go server.downloadProxyFilePeriodically()
 	}
 	proxy.downloadMutex.Unlock()
 
@@ -2249,8 +2249,8 @@ func serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFil
 
 }
 
-func downloadProxyFilePeriodically() {
-	proxy := &state.genericProxy
+func (server *Server) downloadProxyFilePeriodically() {
+	proxy := &server.state.genericProxy
 	download := proxy.download
 	offset := proxy.downloadBeginOffset
 	id := generateUniqueId()
@@ -2278,8 +2278,8 @@ func downloadProxyFilePeriodically() {
 		// The ranges should be checked before the download to avoid re-downloading
 		// Probably open a new download so the entire coroutine should be controlling opening and closing
 		proxy.rangesMutex.Lock()
-		insertContentRangeSequentially(newRange(offset, offset+GENERIC_CHUNK_SIZE-1))
-		mergeContentRanges()
+		server.insertContentRangeSequentially(newRange(offset, offset+GENERIC_CHUNK_SIZE-1))
+		server.mergeContentRanges()
 		LogInfo("RANGES %v:", len(proxy.contentRanges))
 		for i := 0; i < len(proxy.contentRanges); i++ {
 			rang := &proxy.contentRanges[i]
@@ -2294,8 +2294,8 @@ func downloadProxyFilePeriodically() {
 }
 
 // Could make it insert with merge
-func insertContentRangeSequentially(newRange *Range) {
-	proxy := &state.genericProxy
+func (server *Server) insertContentRangeSequentially(newRange *Range) {
+	proxy := &server.state.genericProxy
 	spot := 0
 	for i := 0; i < len(proxy.contentRanges); i++ {
 		r := &proxy.contentRanges[i]
@@ -2307,8 +2307,8 @@ func insertContentRangeSequentially(newRange *Range) {
 	proxy.contentRanges = slices.Insert(proxy.contentRanges, spot, *newRange)
 }
 
-func mergeContentRanges() {
-	proxy := &state.genericProxy
+func (server *Server) mergeContentRanges() {
+	proxy := &server.state.genericProxy
 	for i := 0; i < len(proxy.contentRanges)-1; i++ {
 		leftRange := &proxy.contentRanges[i]
 		rightRange := &proxy.contentRanges[i+1]
@@ -2323,13 +2323,13 @@ func mergeContentRanges() {
 }
 
 // this will prevent LAZY broadcasts when users make frequent updates
-func smartSleep() {
+func (server *Server) smartSleep() {
 	time.Sleep(BROADCAST_INTERVAL)
 	for {
 		now := time.Now()
-		state.mutex.Lock()
-		diff := now.Sub(state.lastUpdate)
-		state.mutex.Unlock()
+		server.state.mutex.Lock()
+		diff := now.Sub(server.state.lastUpdate)
+		server.state.mutex.Unlock()
 
 		if diff > BROADCAST_INTERVAL {
 			break
@@ -2338,25 +2338,25 @@ func smartSleep() {
 	}
 }
 
-func updatePlayerState(isPlaying bool, newTimestamp float64) {
-	state.mutex.Lock()
+func (server *Server) updatePlayerState(isPlaying bool, newTimestamp float64) {
+	server.state.mutex.Lock()
 
-	state.player.Playing = isPlaying
-	state.player.Timestamp = newTimestamp
-	state.lastUpdate = time.Now()
+	server.state.player.Playing = isPlaying
+	server.state.player.Timestamp = newTimestamp
+	server.state.lastUpdate = time.Now()
 
-	state.mutex.Unlock()
+	server.state.mutex.Unlock()
 }
 
-func createSyncEvent(action string, userId uint64) SyncEventData {
-	state.mutex.Lock()
-	var timestamp = state.player.Timestamp
-	if state.player.Playing {
+func (server *Server) createSyncEvent(action string, userId uint64) SyncEventData {
+	server.state.mutex.Lock()
+	var timestamp = server.state.player.Timestamp
+	if server.state.player.Playing {
 		now := time.Now()
-		diff := now.Sub(state.lastUpdate)
-		timestamp = state.player.Timestamp + diff.Seconds()
+		diff := now.Sub(server.state.lastUpdate)
+		timestamp = server.state.player.Timestamp + diff.Seconds()
 	}
-	state.mutex.Unlock()
+	server.state.mutex.Unlock()
 
 	event := SyncEventData{
 		Timestamp: timestamp,
@@ -2372,9 +2372,9 @@ const MAX_MESSAGE_CHARACTERS = 1000
 func (server *Server) apiChatGet(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested messages.", r.RemoteAddr)
 
-	state.mutex.Lock()
-	jsonData, err := json.Marshal(state.messages)
-	state.mutex.Unlock()
+	server.state.mutex.Lock()
+	jsonData, err := json.Marshal(server.state.messages)
+	server.state.mutex.Unlock()
 
 	if err != nil {
 		LogWarn("Failed to serialize messages get event.")
@@ -2401,8 +2401,8 @@ func (server *Server) apiChatSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	state.mutex.Lock()
-	state.messageId += 1
+	server.state.mutex.Lock()
+	server.state.messageId += 1
 	chatMessage := ChatMessage{
 		Id:       1,
 		Message:  newMessage.Message,
@@ -2410,8 +2410,8 @@ func (server *Server) apiChatSend(w http.ResponseWriter, r *http.Request) {
 		UnixTime: time.Now().UnixMilli(),
 		Edited:   false,
 	}
-	state.messages = append(state.messages, chatMessage)
-	state.mutex.Unlock()
+	server.state.messages = append(server.state.messages, chatMessage)
+	server.state.mutex.Unlock()
 	server.writeEventToAllConnections(w, "messagecreate", chatMessage)
 }
 
@@ -2454,7 +2454,7 @@ func isLocalDirectory(url string) (bool, string) {
 	return true, path
 }
 
-func getEntriesFromDirectory(path string, userId uint64) []Entry {
+func (server *Server) getEntriesFromDirectory(path string, userId uint64) []Entry {
 	entries := make([]Entry, 0)
 
 	items, _ := os.ReadDir("./web/" + path)
@@ -2467,10 +2467,10 @@ func getEntriesFromDirectory(path string, userId uint64) []Entry {
 
 			LogDebug("File URL: %v", url.String())
 
-			state.mutex.Lock()
-			state.entryId += 1
-			id := state.entryId
-			state.mutex.Unlock()
+			server.state.mutex.Lock()
+			server.state.entryId += 1
+			id := server.state.entryId
+			server.state.mutex.Unlock()
 
 			entry := Entry{
 				Id:         id,

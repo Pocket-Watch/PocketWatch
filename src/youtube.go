@@ -84,15 +84,15 @@ type YoutubePlaylist struct {
 	Entries []YoutubePlaylistVideo `json:"entries"`
 }
 
-func preloadYoutubeSourceOnNextEntry() {
-	state.mutex.Lock()
-	if len(state.playlist) == 0 {
-		state.mutex.Unlock()
+func (server *Server) preloadYoutubeSourceOnNextEntry() {
+	server.state.mutex.Lock()
+	if len(server.state.playlist) == 0 {
+		server.state.mutex.Unlock()
 		return
 	}
 
-	nextEntry := state.playlist[0]
-	state.mutex.Unlock()
+	nextEntry := server.state.playlist[0]
+	server.state.mutex.Unlock()
 
 	if !isYoutubeUrl(nextEntry.Url) {
 		return
@@ -117,16 +117,16 @@ func preloadYoutubeSourceOnNextEntry() {
 	nextEntry.Thumbnail = video.Thumbnail
 	nextEntry.SourceUrl = video.SourceUrl
 
-	state.mutex.Lock()
-	if len(state.playlist) == 0 {
-		state.mutex.Unlock()
+	server.state.mutex.Lock()
+	if len(server.state.playlist) == 0 {
+		server.state.mutex.Unlock()
 		return
 	}
 
-	if state.playlist[0].Id == nextEntry.Id {
-		state.playlist[0] = nextEntry
+	if server.state.playlist[0].Id == nextEntry.Id {
+		server.state.playlist[0] = nextEntry
 	}
-	state.mutex.Unlock()
+	server.state.mutex.Unlock()
 }
 
 func pickBestThumbnail(thumbnails []YoutubeThumbnail) string {
@@ -186,11 +186,11 @@ func (server *Server) loadYoutubePlaylist(query string, videoId string, userId u
 	entries := make([]Entry, 0)
 
 	for _, ytEntry := range playlist.Entries {
-		state.mutex.Lock()
-		state.entryId += 1
+		server.state.mutex.Lock()
+		server.state.entryId += 1
 
 		entry := Entry{
-			Id:         state.entryId,
+			Id:         server.state.entryId,
 			Url:        ytEntry.Url,
 			Title:      ytEntry.Title,
 			UserId:     userId,
@@ -206,16 +206,16 @@ func (server *Server) loadYoutubePlaylist(query string, videoId string, userId u
 		}
 
 		entries = append(entries, entry)
-		state.mutex.Unlock()
+		server.state.mutex.Unlock()
 	}
 
-	state.mutex.Lock()
-	state.playlist = append(state.playlist, entries...)
-	state.mutex.Unlock()
+	server.state.mutex.Lock()
+	server.state.playlist = append(server.state.playlist, entries...)
+	server.state.mutex.Unlock()
 
 	event := createPlaylistEvent("addmany", entries)
 	server.writeEventToAllConnections(nil, "playlist", event)
-	go preloadYoutubeSourceOnNextEntry()
+	go server.preloadYoutubeSourceOnNextEntry()
 }
 
 func (server *Server) loadYoutubeEntry(entry *Entry, requested RequestEntry) {
