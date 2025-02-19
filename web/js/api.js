@@ -408,7 +408,7 @@ export async function chatSend(message) {
     };
 
     console.info("INFO: Sending new chat to the server.");
-    httpPost("/watch/api/chat/messagecreate", payload);
+    httpPost("/watch/api/chat/send", payload);
 }
 
 export async function chatGet() {

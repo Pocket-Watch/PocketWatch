@@ -1,0 +1,1169 @@
+package main
+
+import (
+	cryptorand "crypto/rand"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	net_url "net/url"
+	"os"
+	"path"
+	"path/filepath"
+	"slices"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/gorilla/websocket"
+)
+
+func makeUsers() *Users {
+	users := new(Users)
+	users.slice = make([]User, 0)
+	users.idCounter = 1
+	return users
+}
+
+func generateToken() string {
+	bytes := make([]byte, TOKEN_LENGTH)
+	_, err := cryptorand.Read(bytes)
+
+	if err != nil {
+		LogError("Token generation failed, this should not happen!")
+		return ""
+	}
+
+	return base64.URLEncoding.EncodeToString(bytes)
+}
+
+func (users *Users) create() User {
+	id := users.idCounter
+	users.idCounter += 1
+
+	new_user := User{
+		Id:         id,
+		Username:   fmt.Sprintf("User %v", id),
+		Avatar:     "img/default_avatar.png",
+		token:      generateToken(),
+		created:    time.Now(),
+		lastUpdate: time.Now(),
+	}
+
+	users.slice = append(users.slice, new_user)
+	return new_user
+}
+
+func (users *Users) findIndex(token string) int {
+	for i, user := range users.slice {
+		if user.token == token {
+			return i
+		}
+	}
+
+	return -1
+}
+
+func makeConnections() *Connections {
+	conns := new(Connections)
+	conns.slice = make([]Connection, 0)
+	conns.idCounter = 1
+	return conns
+}
+
+func (conns *Connections) add(writer http.ResponseWriter, userId uint64) uint64 {
+	id := conns.idCounter
+	conns.idCounter += 1
+
+	conn := Connection{
+		id:     id,
+		userId: userId,
+		writer: writer,
+	}
+	conns.slice = append(conns.slice, conn)
+
+	return id
+}
+
+func (conns *Connections) remove(id uint64) {
+	for i, conn := range conns.slice {
+		if conn.id != id {
+			continue
+		}
+
+		length := len(conns.slice)
+		conns.slice[i], conns.slice[length-1] = conns.slice[length-1], conns.slice[i]
+		conns.slice = conns.slice[:length-1]
+		break
+	}
+}
+
+func createPlaylistEvent(action string, data any) PlaylistEventData {
+	event := PlaylistEventData{
+		Action: action,
+		Data:   data,
+	}
+
+	return event
+}
+
+func StartServer(options *Options) {
+	server := Server{
+		state: ServerState{},
+		users: makeUsers(),
+		conns: makeConnections(),
+	}
+
+	server.state.lastUpdate = time.Now()
+	subsEnabled = options.Subs
+	serverDomain = options.Domain
+	registerEndpoints(&server)
+
+	var address = options.Address + ":" + strconv.Itoa(int(options.Port))
+	LogInfo("Starting server on address: %s", address)
+
+	const CERT = "./secret/certificate.pem"
+	const PRIV_KEY = "./secret/privatekey.pem"
+
+	_, err_cert := os.Stat(CERT)
+	_, err_priv := os.Stat(PRIV_KEY)
+
+	missing_ssl_keys := errors.Is(err_priv, os.ErrNotExist) || errors.Is(err_cert, os.ErrNotExist)
+
+	if options.Ssl && missing_ssl_keys {
+		LogError("Failed to find either SSL certificate or the private key.")
+	}
+
+	var server_start_error error
+	if !options.Ssl || missing_ssl_keys {
+		serverRootAddress = "http://" + address
+		LogWarn("Server is running in unencrypted http mode.")
+		server_start_error = http.ListenAndServe(address, nil)
+	} else {
+		serverRootAddress = "https://" + address
+		LogInfo("Server is running with TLS on.")
+		server_start_error = http.ListenAndServeTLS(address, CERT, PRIV_KEY, nil)
+	}
+
+	if server_start_error != nil {
+		LogError("Error starting the server: %v", server_start_error)
+	}
+}
+
+func handleUnknownEndpoint(w http.ResponseWriter, r *http.Request) {
+	LogWarn("User %v requested unknown endpoint: %v", r.RemoteAddr, r.RequestURI)
+	http.Error(w, "¯\\_(ツ)_/¯", http.StatusTeapot)
+}
+
+func registerEndpoints(server *Server) {
+	fileserver := http.FileServer(http.Dir("./web"))
+	http.Handle("/watch/", http.StripPrefix("/watch/", fileserver))
+
+	http.HandleFunc("/", handleUnknownEndpoint)
+
+	// Unrelated API calls.
+	server.HandleEndpoint("/watch/api/version", server.apiVersion, "GET", false)
+	server.HandleEndpoint("/watch/api/uptime", server.apiUptime, "GET", false)
+	server.HandleEndpoint("/watch/api/login", server.apiLogin, "GET", false)
+	server.HandleEndpoint("/watch/api/uploadmedia", server.apiUploadMedia, "POST", true)
+
+	// User related API calls.
+	server.HandleEndpoint("/watch/api/user/create", server.apiUserCreate, "GET", false)
+	server.HandleEndpoint("/watch/api/user/getall", server.apiUserGetAll, "GET", true)
+	server.HandleEndpoint("/watch/api/user/verify", server.apiUserVerify, "POST", true)
+	server.HandleEndpoint("/watch/api/user/updatename", server.apiUserUpdateName, "POST", true)
+	server.HandleEndpoint("/watch/api/user/updateavatar", server.apiUserUpdateAvatar, "POST", true)
+
+	// API calls that change state of the player.
+	server.HandleEndpoint("/watch/api/player/get", server.apiPlayerGet, "GET", true)
+	server.HandleEndpoint("/watch/api/player/set", server.apiPlayerSet, "POST", true)
+	server.HandleEndpoint("/watch/api/player/end", server.apiPlayerEnd, "POST", true)
+	server.HandleEndpoint("/watch/api/player/next", server.apiPlayerNext, "POST", true)
+	server.HandleEndpoint("/watch/api/player/play", server.apiPlayerPlay, "POST", true)
+	server.HandleEndpoint("/watch/api/player/pause", server.apiPlayerPause, "POST", true)
+	server.HandleEndpoint("/watch/api/player/seek", server.apiPlayerSeek, "POST", true)
+	server.HandleEndpoint("/watch/api/player/autoplay", server.apiPlayerAutoplay, "POST", true)
+	server.HandleEndpoint("/watch/api/player/looping", server.apiPlayerLooping, "POST", true)
+	server.HandleEndpoint("/watch/api/player/updatetitle", server.apiPlayerUpdateTitle, "POST", true)
+
+	// Subtitle API calls.
+	server.HandleEndpoint("/watch/api/subtitle/delete", server.apiSubtitleDelete, "POST", true)
+	server.HandleEndpoint("/watch/api/subtitle/update", server.apiSubtitleUpdate, "POST", true)
+	server.HandleEndpoint("/watch/api/subtitle/attach", server.apiSubtitleAttach, "POST", true)
+	server.HandleEndpoint("/watch/api/subtitle/shift", server.apiSubtitleShift, "POST", true)
+	server.HandleEndpoint("/watch/api/subtitle/upload", server.apiSubtitleUpload, "POST", true)
+	server.HandleEndpoint("/watch/api/subtitle/search", server.apiSubtitleSearch, "POST", true)
+
+	// API calls that change state of the playlist.
+	server.HandleEndpoint("/watch/api/playlist/get", server.apiPlaylistGet, "GET", true)
+	server.HandleEndpoint("/watch/api/playlist/play", server.apiPlaylistPlay, "POST", true)
+	server.HandleEndpoint("/watch/api/playlist/add", server.apiPlaylistAdd, "POST", true)
+	server.HandleEndpoint("/watch/api/playlist/clear", server.apiPlaylistClear, "POST", true)
+	server.HandleEndpoint("/watch/api/playlist/remove", server.apiPlaylistRemove, "POST", true)
+	server.HandleEndpoint("/watch/api/playlist/shuffle", server.apiPlaylistShuffle, "POST", true)
+	server.HandleEndpoint("/watch/api/playlist/move", server.apiPlaylistMove, "POST", true)
+	server.HandleEndpoint("/watch/api/playlist/update", server.apiPlaylistUpdate, "POST", true)
+
+	// API calls that change state of the history.
+	server.HandleEndpoint("/watch/api/history/get", server.apiHistoryGet, "GET", true)
+	server.HandleEndpoint("/watch/api/history/clear", server.apiHistoryClear, "POST", true)
+
+	server.HandleEndpoint("/watch/api/chat/send", server.apiChatSend, "POST", true)
+	server.HandleEndpoint("/watch/api/chat/get", server.apiChatGet, "GET", true)
+
+	// Server events and proxy.
+	server.HandleEndpoint("/watch/api/events", server.apiEvents, "GET", false)
+
+	server.HandleEndpoint(PROXY_ROUTE, server.watchProxy, "GET", false)
+
+	// Voice chat
+	server.HandleEndpoint("/watch/vc", voiceChat, "GET", false)
+}
+
+func (server *Server) HandleEndpoint(pattern string, endpointHandler func(w http.ResponseWriter, r *http.Request), method string, requireAuth bool) {
+	// TODO Investigate if this function is made on every call
+	genericHandler := func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != method {
+			errMsg := fmt.Sprintf("Method not allowed. %v was expected.", method)
+			http.Error(w, errMsg, http.StatusMethodNotAllowed)
+			return
+		}
+
+		if requireAuth && !server.isAuthorized(w, r) {
+			return
+		}
+		endpointHandler(w, r)
+	}
+	http.HandleFunc(pattern, genericHandler)
+}
+
+func (server *Server) setNewEntry(newEntry *Entry) Entry {
+	prevEntry := server.state.entry
+
+	if prevEntry.Url != "" {
+		server.state.history = append(server.state.history, prevEntry)
+	}
+
+	// TODO(kihau): Proper proxy setup for youtube entries.
+
+	lastSegment := lastUrlSegment(newEntry.Url)
+	if newEntry.UseProxy {
+		if strings.HasSuffix(lastSegment, ".m3u8") {
+			setup := server.setupHlsProxy(newEntry.Url, newEntry.RefererUrl)
+			if setup {
+				newEntry.SourceUrl = PROXY_ROUTE + PROXY_M3U8
+				LogInfo("HLS proxy setup was successful.")
+			} else {
+				LogWarn("HLS proxy setup failed!")
+			}
+		} else {
+			//setup := setupGenericFileProxy(newEntry.Url, newEntry.RefererUrl)
+			setup := false
+			if setup {
+				newEntry.SourceUrl = PROXY_ROUTE + "proxy" + server.state.genericProxy.extensionWithDot
+				LogInfo("Generic file proxy setup was successful.")
+			} else {
+				LogWarn("Generic file proxy setup failed!")
+			}
+		}
+	}
+
+	server.state.entry = *newEntry
+
+	server.state.player.Timestamp = 0
+	server.state.lastUpdate = time.Now()
+	server.state.player.Playing = server.state.player.Autoplay
+
+	return prevEntry
+}
+
+func (server *Server) isAuthorized(w http.ResponseWriter, r *http.Request) bool {
+	server.users.mutex.Lock()
+	index := server.getAuthorizedIndex(w, r)
+	server.users.mutex.Unlock()
+
+	return index != -1
+}
+
+func (server *Server) getAuthorized(w http.ResponseWriter, r *http.Request) *User {
+	server.users.mutex.Lock()
+	defer server.users.mutex.Unlock()
+
+	index := server.getAuthorizedIndex(w, r)
+
+	if index == -1 {
+		return nil
+	}
+
+	user := server.users.slice[index]
+	return &user
+}
+
+func checkTraversal(w http.ResponseWriter, isSafe bool) bool {
+	if isSafe {
+		return false
+	}
+	LogWarn("Traversal was attempted!")
+	http.Error(w, "Invalid path", http.StatusUnprocessableEntity)
+	return true
+}
+
+func (server *Server) getAuthorizedIndex(w http.ResponseWriter, r *http.Request) int {
+	token := r.Header.Get("Authorization")
+	if token == "" {
+		LogError("Invalid token")
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return -1
+	}
+
+	for i, user := range server.users.slice {
+		if user.token == token {
+			return i
+		}
+	}
+
+	LogError("Failed to find user")
+	http.Error(w, "User not found", http.StatusUnauthorized)
+	return -1
+}
+
+func (server *Server) readJsonDataFromRequest(w http.ResponseWriter, r *http.Request, data any) bool {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		LogError("Request handler failed to read request body: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return false
+	}
+
+	if len(body) > BODY_LIMIT {
+		http.Error(w, "Request body too large", http.StatusRequestEntityTooLarge)
+		return false
+	}
+
+	err = json.Unmarshal(body, &data)
+	if err != nil {
+		LogError("Request handler failed to read json payload: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return false
+	}
+
+	return true
+}
+
+func (server *Server) writeEvent(w http.ResponseWriter, eventName string, data any) error {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		LogError("Failed to serialize data for event '%v': %v", eventName, err)
+
+		http.Error(w, "Failed to serialize welcome message", http.StatusInternalServerError)
+		return err
+	}
+
+	jsonString := string(jsonData)
+	eventId := server.state.eventId.Add(1)
+
+	server.conns.mutex.Lock()
+	_, err = fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\nretry: %d\n\n", eventId, eventName, jsonString, RETRY)
+
+	if err != nil {
+		server.conns.mutex.Unlock()
+		return err
+	}
+
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
+	}
+	server.conns.mutex.Unlock()
+
+	return nil
+}
+
+func (server *Server) writeEventToAllConnections(origin http.ResponseWriter, eventName string, data any) {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		LogError("Failed to serialize data for event '%v': %v", eventName, err)
+		if origin != nil {
+			http.Error(origin, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	jsonString := string(jsonData)
+
+	eventId := server.state.eventId.Add(1)
+	event := fmt.Sprintf("id: %v\nevent: %v\ndata: %v\nretry: %v\n\n", eventId, eventName, jsonString, RETRY)
+
+	server.conns.mutex.Lock()
+	for _, conn := range server.conns.slice {
+		fmt.Fprintln(conn.writer, event)
+
+		if f, ok := conn.writer.(http.Flusher); ok {
+			f.Flush()
+		}
+	}
+	server.conns.mutex.Unlock()
+}
+
+func (server *Server) writeEventToAllConnectionsExceptSelf(origin http.ResponseWriter, eventName string, data any, userId uint64, connectionId uint64) {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		LogError("Failed to serialize data for event '%v': %v", eventName, err)
+		http.Error(origin, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	jsonString := string(jsonData)
+
+	eventId := server.state.eventId.Add(1)
+	event := fmt.Sprintf("id: %v\nevent: %v\ndata: %v\nretry: %v\n\n", eventId, eventName, jsonString, RETRY)
+
+	server.conns.mutex.Lock()
+	for _, conn := range server.conns.slice {
+		if userId == conn.userId && conn.id == connectionId {
+			continue
+		}
+
+		fmt.Fprintln(conn.writer, event)
+
+		if f, ok := conn.writer.(http.Flusher); ok {
+			f.Flush()
+		}
+	}
+	server.conns.mutex.Unlock()
+}
+
+// It should be possible to use this list in a dropdown and attach to entry
+func (server *Server) getSubtitles() []string {
+	subtitles := make([]string, 0)
+	subsFolder := WEB_MEDIA + "subs"
+	files, err := os.ReadDir(subsFolder)
+	if err != nil {
+		LogError("Failed to read directory %v", subsFolder)
+		return subtitles
+	}
+
+	for _, file := range files {
+		filename := file.Name()
+		if !file.Type().IsRegular() {
+			continue
+		}
+		for _, ext := range SUBTITLE_EXTENSIONS {
+			info, err := file.Info()
+			if err != nil {
+				break
+			}
+			if strings.HasSuffix(filename, ext) && info.Size() < SUBTITLE_SIZE_LIMIT {
+				subtitlePath := MEDIA + "subs/" + filename
+				subtitles = append(subtitles, subtitlePath)
+				break
+			}
+		}
+	}
+	LogInfo("Served subtitles: %v", subtitles)
+	return subtitles
+}
+
+func (server *Server) setupGenericFileProxy(url string, referer string) bool {
+	_ = os.RemoveAll(WEB_PROXY)
+	_ = os.Mkdir(WEB_PROXY, os.ModePerm)
+	parsedUrl, err := net_url.Parse(url)
+	if err != nil {
+		LogError("The provided URL is invalid: %v", err)
+		return false
+	}
+
+	size, err := getContentRange(url, referer)
+	if err != nil {
+		LogError("Couldn't read resource metadata: %v", err)
+		return false
+	}
+	if size > PROXY_FILE_SIZE_LIMIT {
+		LogError("The file exceeds the specified limit of 4 GBs.")
+		return false
+	}
+	server.state.setupLock.Lock()
+	defer server.state.setupLock.Unlock()
+	server.state.isHls = false
+
+	proxy := &server.state.genericProxy
+	proxy.fileUrl = url
+	proxy.contentLength = size
+	proxy.extensionWithDot = path.Ext(parsedUrl.Path)
+	proxyFilename := WEB_PROXY + "proxy" + proxy.extensionWithDot
+	proxyFile, err := os.OpenFile(proxyFilename, os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		LogError("Failed to open proxy file for writing: %v", err)
+		return false
+	}
+	proxy.file = proxyFile
+	proxy.downloadBeginOffset = -1
+	proxy.contentRanges = make([]Range, 0)
+	return true
+}
+
+func isTrustedUrl(url string, parsedUrl *net_url.URL) bool {
+	if strings.HasPrefix(url, MEDIA) || strings.HasPrefix(url, serverRootAddress) {
+		return true
+	}
+	if parsedUrl != nil && parsedUrl.Host == serverDomain {
+		return true
+	}
+	return false
+}
+
+func (server *Server) setupHlsProxy(url string, referer string) bool {
+	parsedUrl, err := net_url.Parse(url)
+	if err != nil {
+		LogError("The provided URL is invalid: %v", err)
+		return false
+	}
+
+	server.state.setupLock.Lock()
+	defer server.state.setupLock.Unlock()
+	start := time.Now()
+	_ = os.RemoveAll(WEB_PROXY)
+	_ = os.Mkdir(WEB_PROXY, os.ModePerm)
+	var m3u *M3U
+	if isTrustedUrl(url, parsedUrl) {
+		lastSegment := lastUrlSegment(url)
+		m3u, err = parseM3U(WEB_MEDIA + lastSegment)
+	} else {
+		m3u, err = downloadM3U(url, WEB_PROXY+ORIGINAL_M3U8, referer)
+	}
+
+	if err != nil {
+		LogError("Failed to fetch m3u8: %v", err)
+		return false
+	}
+
+	prefix := stripLastSegment(parsedUrl)
+	if m3u.isMasterPlaylist {
+		if len(m3u.tracks) == 0 {
+			LogError("Master playlist contains 0 tracks!")
+			return false
+		}
+
+		// Rarely tracks are not fully qualified
+		originalMasterPlaylist := m3u.copy()
+		m3u.prefixRelativeTracks(prefix)
+		LogInfo("User provided a master playlist. The best track will be chosen based on quality.")
+		bestTrack := m3u.getBestTrack()
+		if bestTrack == nil {
+			bestTrack = &m3u.tracks[0]
+			url = bestTrack.url
+		}
+		m3u, err = downloadM3U(bestTrack.url, WEB_PROXY+ORIGINAL_M3U8, referer)
+		var downloadErr *DownloadError
+		if errors.As(err, &downloadErr) && downloadErr.Code == 404 {
+			// Hacky trick for relative non-compliant m3u8's 💩
+			domain := getRootDomain(parsedUrl)
+			originalMasterPlaylist.prefixRelativeTracks(domain)
+			bestTrack = originalMasterPlaylist.getBestTrack()
+			if bestTrack == nil {
+				bestTrack = &originalMasterPlaylist.tracks[0]
+			}
+			m3u, err = downloadM3U(bestTrack.url, WEB_PROXY+ORIGINAL_M3U8, referer)
+			if err != nil {
+				LogError("Fallback failed :( %v", err.Error())
+				return false
+			}
+		} else if err != nil {
+			LogError("Failed to fetch track from master playlist: %v", err.Error())
+			return false
+		}
+		// Refreshing the prefix in case the newly assembled track consists of 2 or more components
+		parsedUrl, err := net_url.Parse(bestTrack.url)
+		if err != nil {
+			LogError("Failed to parse URL from the best track, likely the segment is invalid: %v", err.Error())
+			return false
+		}
+		prefix = stripLastSegment(parsedUrl)
+	}
+	// At this point it either succeeded or it already returned
+
+	segmentCount := len(m3u.segments)
+	if segmentCount == 0 {
+		LogWarn("No segments found")
+		return false
+	}
+
+	// state.entry.Url = url
+	// state.entry.RefererUrl = referer
+
+	LogDebug("Playlist type: %v", m3u.getAttribute(EXT_X_PLAYLIST_TYPE))
+	LogDebug("Max segment length: %vs", m3u.getAttribute(EXT_X_TARGETDURATION))
+	LogDebug("isLive: %v", m3u.isLive)
+	LogDebug("segments: %v", segmentCount)
+	LogDebug("total duration: %v", m3u.totalDuration())
+
+	// Sometimes m3u8 chunks are not fully qualified
+	m3u.prefixRelativeSegments(prefix)
+
+	server.state.isHls = true
+	server.state.proxy = &HlsProxy{}
+	var result bool
+	if m3u.isLive {
+		server.state.isLive = true
+		result = server.setupLiveProxy(url)
+	} else {
+		server.state.isLive = false
+		result = server.setupVodProxy(m3u)
+	}
+	duration := time.Since(start)
+	LogDebug("Time taken to setup proxy: %v", duration)
+	return result
+}
+
+func (server *Server) setupLiveProxy(liveUrl string) bool {
+	proxy := server.state.proxy
+	proxy.liveUrl = liveUrl
+	proxy.liveSegments.Clear()
+	proxy.randomizer.Store(0)
+	return true
+}
+
+func (server *Server) setupVodProxy(m3u *M3U) bool {
+	proxy := server.state.proxy
+	segmentCount := len(m3u.segments)
+
+	proxy.chunkLocks = make([]sync.Mutex, 0, segmentCount)
+	proxy.originalChunks = make([]string, 0, segmentCount)
+	proxy.fetchedChunks = make([]bool, 0, segmentCount)
+	for i := 0; i < segmentCount; i++ {
+		proxy.chunkLocks = append(proxy.chunkLocks, sync.Mutex{})
+		proxy.originalChunks = append(proxy.originalChunks, m3u.segments[i].url)
+		proxy.fetchedChunks = append(proxy.fetchedChunks, false)
+		m3u.segments[i].url = "ch-" + toString(i)
+	}
+
+	m3u.serialize(WEB_PROXY + PROXY_M3U8)
+	LogDebug("Prepared proxy file %v", PROXY_M3U8)
+	return true
+}
+
+var voiceClients = make(map[*websocket.Conn]bool)
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true // Allow all origins for this example
+	},
+}
+
+func voiceChat(writer http.ResponseWriter, request *http.Request) {
+	LogInfo("Received request to voice chat")
+	conn, err := upgrader.Upgrade(writer, request, nil)
+	if err != nil {
+		LogError("Error on connection upgrade: %v", err)
+		return
+	}
+	defer conn.Close()
+	voiceClients[conn] = true
+	LogInfo("Client %v connected!", conn.RemoteAddr())
+
+	for {
+		_, bytes, err := conn.ReadMessage()
+		if err != nil {
+			LogError("Error on ReadMessage(): %v", err)
+			delete(voiceClients, conn)
+			break
+		}
+
+		// Broadcast the received message to all clients
+		for client := range voiceClients {
+			if client.RemoteAddr() == conn.RemoteAddr() {
+				continue
+			}
+			// Exclude the broadcasting client
+			LogDebug("Writing bytes of len: %v to %v clients", len(bytes), len(voiceClients))
+			if err := client.WriteMessage(websocket.BinaryMessage, bytes); err != nil {
+				LogError("Error while writing message: %v", err)
+				client.Close()
+				delete(voiceClients, client)
+			}
+		}
+	}
+}
+
+// This endpoints should serve HLS chunks
+// If the chunk is out of range or has no id, then 404 should be returned
+// 1. Download m3u8 provided by a user
+// 2. Serve a modified m3u8 to every user that wants to use a proxy
+// 3. In memory use:
+//   - 0-indexed string[] for original chunk URLs
+//   - 0-indexed mutex[] to ensure the same chunk is not requested while it's being fetched
+func (server *Server) watchProxy(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != "GET" {
+		LogWarn("HlsProxy not called with GET, received: %v", request.Method)
+		return
+	}
+	urlPath := request.URL.Path
+	chunk := path.Base(urlPath)
+
+	if server.state.isHls {
+		if server.state.isLive {
+			server.serveHlsLive(writer, request, chunk)
+		} else {
+			server.serveHlsVod(writer, request, chunk)
+		}
+	} else {
+		server.serveGenericFile(writer, request, chunk)
+	}
+}
+
+func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Request, chunk string) {
+	server.state.setupLock.Lock()
+	proxy := server.state.proxy
+	server.state.setupLock.Unlock()
+
+	segmentMap := &proxy.liveSegments
+	lastRefresh := &proxy.lastRefresh
+
+	now := time.Now()
+	if chunk == PROXY_M3U8 {
+		cleanupSegmentMap(segmentMap)
+		refreshedAgo := now.Sub(*lastRefresh)
+		// Optimized to refresh only every 1.5 seconds
+		if refreshedAgo.Seconds() < 1.5 {
+			LogDebug("Serving unmodified %v", PROXY_M3U8)
+			http.ServeFile(writer, request, WEB_PROXY+PROXY_M3U8)
+			return
+		}
+
+		liveM3U, err := downloadM3U(proxy.liveUrl, WEB_PROXY+ORIGINAL_M3U8, server.state.entry.RefererUrl)
+		var downloadErr *DownloadError
+		if errors.As(err, &downloadErr) {
+			LogError("Download error of the live url [%v] %v", proxy.liveUrl, err.Error())
+			http.Error(writer, downloadErr.Message, downloadErr.Code)
+			return
+		} else if err != nil {
+			LogError("Failed to fetch live url: %v", err.Error())
+			http.Error(writer, err.Error(), 500)
+			return
+		}
+
+		segmentCount := len(liveM3U.segments)
+		for i := 0; i < segmentCount; i++ {
+			segment := &liveM3U.segments[i]
+
+			realUrl := segment.url
+			fetched := FetchedSegment{realUrl, false, sync.Mutex{}, time.Now()}
+			seed := proxy.randomizer.Add(1)
+			segName := "live-" + int64ToString(seed)
+			segmentMap.Store(segName, &fetched)
+
+			segment.url = segName
+		}
+
+		liveM3U.serialize(WEB_PROXY + PROXY_M3U8)
+		// LogDebug("Serving refreshed %v", PROXY_M3U8)
+		http.ServeFile(writer, request, WEB_PROXY+PROXY_M3U8)
+		return
+	}
+
+	if len(chunk) < 6 {
+		http.Error(writer, "Not found", 404)
+		return
+	}
+
+	maybeChunk, found := segmentMap.Load(chunk)
+	if !found {
+		http.Error(writer, "Not found", 404)
+		return
+	}
+
+	fetchedChunk := maybeChunk.(*FetchedSegment)
+	mutex := &fetchedChunk.mutex
+	mutex.Lock()
+	if fetchedChunk.obtained {
+		mutex.Unlock()
+		http.ServeFile(writer, request, WEB_PROXY+chunk)
+		return
+	}
+	fetchErr := downloadFile(fetchedChunk.realUrl, WEB_PROXY+chunk, server.state.entry.RefererUrl)
+	if fetchErr != nil {
+		mutex.Unlock()
+		LogError("Failed to fetch live chunk %v", fetchErr)
+		code := 500
+		if isTimeoutError(fetchErr) {
+			code = 504
+		}
+		http.Error(writer, "Failed to fetch live chunk", code)
+		return
+	}
+	fetchedChunk.obtained = true
+	mutex.Unlock()
+
+	/*if len(keysToRemove) > 0 {
+		LogDebug("Removed %v keys. Current map size: %v", len(keysToRemove), size)
+	}*/
+
+	http.ServeFile(writer, request, WEB_PROXY+chunk)
+	return
+}
+
+func cleanupSegmentMap(segmentMap *sync.Map) {
+	// Cleanup map - remove old entries to avoid memory leaks
+	var keysToRemove []string
+	now := time.Now()
+	size := 0
+	segmentMap.Range(func(key, value interface{}) bool {
+		fSegment := value.(*FetchedSegment)
+		age := now.Sub(fSegment.created)
+		if age.Seconds() > 30 {
+			keysToRemove = append(keysToRemove, key.(string))
+		}
+		size++
+		// true continues iteration
+		return true
+	})
+
+	// Remove the collected keys
+	for _, key := range keysToRemove {
+		segmentMap.Delete(key)
+	}
+}
+
+func (server *Server) serveHlsVod(writer http.ResponseWriter, request *http.Request, chunk string) {
+	if chunk == PROXY_M3U8 {
+		LogDebug("Serving %v", PROXY_M3U8)
+		http.ServeFile(writer, request, WEB_PROXY+PROXY_M3U8)
+		return
+	}
+
+	if len(chunk) < 4 {
+		http.Error(writer, "Not found", 404)
+		return
+	}
+	// Otherwise it's likely a proxy chunk which is 0-indexed
+	chunkId, err := strconv.Atoi(chunk[3:])
+	if err != nil {
+		http.Error(writer, "Incorrect chunk ID", 404)
+		return
+	}
+
+	server.state.setupLock.Lock()
+	proxy := server.state.proxy
+	server.state.setupLock.Unlock()
+	if chunkId < 0 || chunkId >= len(proxy.fetchedChunks) {
+		http.Error(writer, "Chunk ID out of range", 404)
+		return
+	}
+
+	if proxy.fetchedChunks[chunkId] {
+		http.ServeFile(writer, request, WEB_PROXY+chunk)
+		return
+	}
+
+	mutex := &proxy.chunkLocks[chunkId]
+	mutex.Lock()
+	if proxy.fetchedChunks[chunkId] {
+		mutex.Unlock()
+		http.ServeFile(writer, request, WEB_PROXY+chunk)
+		return
+	}
+	fetchErr := downloadFile(proxy.originalChunks[chunkId], WEB_PROXY+chunk, server.state.entry.RefererUrl)
+	if fetchErr != nil {
+		mutex.Unlock()
+		LogError("Failed to fetch chunk %v", fetchErr)
+		code := 500
+		if isTimeoutError(fetchErr) {
+			code = 504
+		}
+		http.Error(writer, "Failed to fetch vod chunk", code)
+		return
+	}
+	proxy.fetchedChunks[chunkId] = true
+	mutex.Unlock()
+
+	http.ServeFile(writer, request, WEB_PROXY+chunk)
+}
+
+func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFile string) {
+	proxy := &server.state.genericProxy
+	if path.Ext(pathFile) != proxy.extensionWithDot {
+		http.Error(writer, "Failed to fetch chunk", 404)
+		return
+	}
+
+	rangeHeader := request.Header.Get("Range")
+	if rangeHeader == "" {
+		http.Error(writer, "Expected 'Range' header. No range was specified.", 400)
+		return
+	}
+	byteRange, err := parseRangeHeader(rangeHeader, proxy.contentLength)
+	if err != nil {
+		LogError("400 after parsing header")
+		http.Error(writer, err.Error(), 400)
+		return
+	}
+	if byteRange == nil || byteRange.start < 0 || byteRange.end < 0 {
+		http.Error(writer, "Bad range", 400)
+		return
+	}
+
+	if byteRange.start >= proxy.contentLength || byteRange.end >= proxy.contentLength {
+		http.Error(writer, "Range out of bounds", 400)
+		return
+	}
+
+	LogDebug("serveGenericFile() called at offset: %v", byteRange.start)
+	// If download offset is different from requested it's likely due to a seek and since everyone
+	// should be in sync anyway we can terminate the existing download and create a new one.
+	proxy.downloadMutex.Lock()
+	if proxy.downloadBeginOffset != byteRange.start {
+		proxy.downloadBeginOffset = byteRange.start
+		response, err := openFileDownload(proxy.fileUrl, byteRange.start, server.state.entry.RefererUrl)
+		if err != nil {
+			http.Error(writer, "Unable to open file download", 500)
+			return
+		}
+		proxy.download = response
+		go server.downloadProxyFilePeriodically()
+	}
+	proxy.downloadMutex.Unlock()
+
+	wroteHeaders := false
+	offset := byteRange.start
+	i := 0
+
+	for {
+		proxy.rangesMutex.Lock()
+		if i >= len(proxy.contentRanges) {
+			proxy.rangesMutex.Unlock()
+			// Sleeps until offset becomes available
+			i = 0
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		contentRange := &proxy.contentRanges[i]
+		proxy.rangesMutex.Unlock()
+		i++
+
+		if contentRange.includes(offset) && contentRange.length() >= GENERIC_CHUNK_SIZE {
+			payload := make([]byte, GENERIC_CHUNK_SIZE)
+			_, err := proxy.file.ReadAt(payload, offset)
+			if err != nil {
+				LogError("An error occurred while reading file from memory, %v", err)
+				return
+			}
+
+			if !wroteHeaders {
+				currentContentLength := proxy.contentLength - offset
+				writer.Header().Set("Accept-Ranges", "bytes")
+				writer.Header().Set("Content-Length", strconv.FormatInt(currentContentLength, 10))
+				writer.Header().Set(
+					"Content-Range",
+					fmt.Sprintf("bytes=%v-%v/%v", offset, proxy.contentLength-1, proxy.contentLength))
+				writer.WriteHeader(http.StatusPartialContent)
+				wroteHeaders = true
+			}
+
+			_, err = writer.Write(payload)
+			if err != nil {
+				LogError("An error occurred while writing payload to user %v", err)
+				return
+			}
+			LogInfo("Successfully wrote payload, range: %v - %v", offset, offset+GENERIC_CHUNK_SIZE)
+
+			offset += GENERIC_CHUNK_SIZE
+		}
+	}
+
+}
+
+func (server *Server) downloadProxyFilePeriodically() {
+	proxy := &server.state.genericProxy
+	download := proxy.download
+	offset := proxy.downloadBeginOffset
+	id := generateUniqueId()
+	LogInfo("Starting download (id: %v)", id)
+	for {
+		// Download periodically until the download is replaced pointing to a different object
+		if proxy.download != download {
+			_ = download.Body.Close()
+			LogInfo("Terminating download (id: %v)", id)
+			return
+		}
+
+		bytes, err := pullBytesFromResponse(download, GENERIC_CHUNK_SIZE)
+		if err != nil {
+			LogError("An error occurred while pulling from source: %v", err)
+			return
+		}
+
+		_, err = proxy.file.WriteAt(bytes, offset)
+		if err != nil {
+			LogError("Error writing to file: %v", err)
+			return
+		}
+
+		// The ranges should be checked before the download to avoid re-downloading
+		// Probably open a new download so the entire coroutine should be controlling opening and closing
+		proxy.rangesMutex.Lock()
+		server.insertContentRangeSequentially(newRange(offset, offset+GENERIC_CHUNK_SIZE-1))
+		server.mergeContentRanges()
+		LogInfo("RANGES %v:", len(proxy.contentRanges))
+		for i := 0; i < len(proxy.contentRanges); i++ {
+			rang := &proxy.contentRanges[i]
+			LogInfo("[%v] %v - %v", i, rang.start, rang.end)
+		}
+		proxy.rangesMutex.Unlock()
+
+		offset += GENERIC_CHUNK_SIZE
+
+		time.Sleep(5 * time.Second)
+	}
+}
+
+// Could make it insert with merge
+func (server *Server) insertContentRangeSequentially(newRange *Range) {
+	proxy := &server.state.genericProxy
+	spot := 0
+	for i := 0; i < len(proxy.contentRanges); i++ {
+		r := &proxy.contentRanges[i]
+		if newRange.start <= r.start {
+			break
+		}
+		spot++
+	}
+	proxy.contentRanges = slices.Insert(proxy.contentRanges, spot, *newRange)
+}
+
+func (server *Server) mergeContentRanges() {
+	proxy := &server.state.genericProxy
+	for i := 0; i < len(proxy.contentRanges)-1; i++ {
+		leftRange := &proxy.contentRanges[i]
+		rightRange := &proxy.contentRanges[i+1]
+		exclusiveRange := newRange(0, leftRange.end+1)
+		if !exclusiveRange.overlaps(rightRange) {
+			continue
+		}
+		merge := leftRange.mergeWith(rightRange)
+		// This removes the leftRange and rightRange and inserts merged range
+		proxy.contentRanges = slices.Replace(proxy.contentRanges, i, i+2, merge)
+	}
+}
+
+// this will prevent LAZY broadcasts when users make frequent updates
+func (server *Server) smartSleep() {
+	time.Sleep(BROADCAST_INTERVAL)
+	for {
+		now := time.Now()
+		server.state.mutex.Lock()
+		diff := now.Sub(server.state.lastUpdate)
+		server.state.mutex.Unlock()
+
+		if diff > BROADCAST_INTERVAL {
+			break
+		}
+		time.Sleep(BROADCAST_INTERVAL - diff)
+	}
+}
+
+func (server *Server) updatePlayerState(isPlaying bool, newTimestamp float64) {
+	server.state.mutex.Lock()
+
+	server.state.player.Playing = isPlaying
+	server.state.player.Timestamp = newTimestamp
+	server.state.lastUpdate = time.Now()
+
+	server.state.mutex.Unlock()
+}
+
+func (server *Server) createSyncEvent(action string, userId uint64) SyncEventData {
+	server.state.mutex.Lock()
+	var timestamp = server.state.player.Timestamp
+	if server.state.player.Playing {
+		now := time.Now()
+		diff := now.Sub(server.state.lastUpdate)
+		timestamp = server.state.player.Timestamp + diff.Seconds()
+	}
+	server.state.mutex.Unlock()
+
+	event := SyncEventData{
+		Timestamp: timestamp,
+		Action:    action,
+		UserId:    userId,
+	}
+
+	return event
+}
+
+func isLocalDirectory(url string) (bool, string) {
+	parsedUrl, err := net_url.Parse(url)
+	if err != nil {
+		return false, ""
+	}
+
+	if !isTrustedUrl(url, parsedUrl) {
+		return false, ""
+	}
+
+	path := parsedUrl.Path
+
+	if strings.HasPrefix(path, "/watch") {
+		path = strings.TrimPrefix(path, "/watch")
+	}
+
+	if strings.HasPrefix(path, "/") {
+		path = strings.TrimPrefix(path, "/")
+	}
+
+	if !filepath.IsLocal(path) {
+		return false, ""
+	}
+
+	stat, err := os.Stat("./web/" + path)
+	if err != nil {
+		return false, ""
+	}
+
+	if !stat.IsDir() {
+		return false, ""
+	}
+
+	path = filepath.Clean(path)
+	LogDebug("PATH %v", path)
+
+	return true, path
+}
+
+func (server *Server) getEntriesFromDirectory(path string, userId uint64) []Entry {
+	entries := make([]Entry, 0)
+
+	items, _ := os.ReadDir("./web/" + path)
+	for _, item := range items {
+		if !item.IsDir() {
+			webpath := path + "/" + item.Name()
+			url := net_url.URL{
+				Path: webpath,
+			}
+
+			LogDebug("File URL: %v", url.String())
+
+			server.state.mutex.Lock()
+			server.state.entryId += 1
+			id := server.state.entryId
+			server.state.mutex.Unlock()
+
+			entry := Entry{
+				Id:         id,
+				Url:        url.String(),
+				UserId:     userId,
+				Title:      "",
+				UseProxy:   false,
+				RefererUrl: "",
+				SourceUrl:  "",
+				Subtitles:  []Subtitle{},
+				Created:    time.Now(),
+			}
+
+			entry.Title = constructTitleWhenMissing(&entry)
+			entries = append(entries, entry)
+		}
+	}
+
+	return entries
+}
