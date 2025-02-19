@@ -387,15 +387,35 @@ func getMediaType(extension string) string {
 	return mediaType
 }
 
-// Safe equivalent of path.Join which allows path traversal
-// Returns a bool - true if the path wasn't traversed, false otherwise
+// Safe equivalent of path.Join
+// Returns (string, bool):
+//   - string - joined path or empty string if path is unsafe
+//   - bool   - true if path is safe (wasn't traversed), false otherwise
 func safeJoin(segments ...string) (string, bool) {
 	for _, seg := range segments {
-		if strings.Contains(seg, "..") || strings.Contains(seg, "~") {
+		if strings.Contains(seg, "~") {
+			return "", false
+		}
+		for {
+			dotsIndex := strings.Index(seg, "..")
+			if dotsIndex == -1 {
+				break
+			}
+			leftSafe := 0 < dotsIndex && !isSlash(seg[dotsIndex-1])
+			afterDotsIndex := dotsIndex + 2
+			rightSafe := afterDotsIndex < len(seg) && !isSlash(seg[afterDotsIndex])
+			if leftSafe || rightSafe {
+				seg = seg[dotsIndex+2:]
+				continue
+			}
 			return "", false
 		}
 	}
 	return filepath.Join(segments...), true
+}
+
+func isSlash(char uint8) bool {
+	return char == '/' || char == '\\'
 }
 
 type HeldMutex struct {

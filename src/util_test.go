@@ -128,10 +128,7 @@ func TestTildeTraversal(t *testing.T) {
 }
 
 func TestSuccessfulJoin(t *testing.T) {
-	sep := "/"
-	if runtime.GOOS == "windows" {
-		sep = "\\"
-	}
+	sep := getPathSeparator()
 	path, isSafe := safeJoin("abc/", "/123/", "/45")
 	if !isSafe {
 		t.Errorf("Path should be safe!")
@@ -143,4 +140,69 @@ func TestSuccessfulJoin(t *testing.T) {
 		t.Errorf("Path is %v, different from expected %v", given, expected)
 		return
 	}
+}
+
+func TestSafeDoubleDot(t *testing.T) {
+	sep := getPathSeparator()
+	path, isSafe := safeJoin("Really...", "/45")
+	if !isSafe {
+		t.Errorf("Path should be safe!")
+		return
+	}
+	expected := "Really..." + sep + "45"
+	if path != expected {
+		t.Errorf("Path %v is different from expected %v", path, expected)
+		return
+	}
+}
+
+func TestSuspiciousYetSafePath(t *testing.T) {
+	input := ".../.../"
+	_, isSafe := safeJoin(input)
+	if !isSafe {
+		t.Errorf("Path %v should be safe!", input)
+		return
+	}
+}
+
+func TestRepeatedDots(t *testing.T) {
+	input := ".../../"
+	_, isSafe := safeJoin(".../../")
+	if isSafe {
+		t.Errorf("Path %v is not safe!", input)
+		return
+	}
+}
+
+func TestMixedTraversal(t *testing.T) {
+	input := "abc/rly../..\\bin"
+	_, isSafe := safeJoin(input)
+	if isSafe {
+		t.Errorf("Path %v is not safe!", input)
+		return
+	}
+}
+
+func TestManySafeDots(t *testing.T) {
+	input := "./.\\ABC ../DEF/.../bin"
+	joined, isSafe := safeJoin(input)
+	if !isSafe {
+		t.Errorf("Path %v is safe!", input)
+		return
+	}
+	sep := getPathSeparator()
+	given := strings.Split(joined, sep)
+	expected := []string{"ABC ..", "DEF", "...", "bin"}
+	if !slices.Equal(given, expected) {
+		t.Errorf("Path is %v, different from expected %v", given, expected)
+		return
+	}
+}
+
+func getPathSeparator() string {
+	sep := "/"
+	if runtime.GOOS == "windows" {
+		sep = "\\"
+	}
+	return sep
 }
