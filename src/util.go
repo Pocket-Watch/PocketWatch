@@ -393,9 +393,6 @@ func getMediaType(extension string) string {
 //   - bool   - true if path is safe (wasn't traversed), false otherwise
 func safeJoin(segments ...string) (string, bool) {
 	for _, seg := range segments {
-		if strings.Contains(seg, "~") {
-			return "", false
-		}
 		for {
 			dotsIndex := strings.Index(seg, "..")
 			if dotsIndex == -1 {

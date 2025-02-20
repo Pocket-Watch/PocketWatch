@@ -223,8 +223,7 @@ func registerEndpoints(server *Server) {
 	server.HandleEndpoint("/watch/vc", voiceChat, "GET", false)
 }
 
-func (server *Server) HandleEndpoint(pattern string, endpointHandler func(w http.ResponseWriter, r *http.Request), method string, requireAuth bool) {
-	// TODO Investigate if this function is made on every call
+func (server *Server) HandleEndpoint(endpoint string, endpointHandler func(w http.ResponseWriter, r *http.Request), method string, requireAuth bool) {
 	genericHandler := func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != method {
 			errMsg := fmt.Sprintf("Method not allowed. %v was expected.", method)
@@ -237,7 +236,7 @@ func (server *Server) HandleEndpoint(pattern string, endpointHandler func(w http
 		}
 		endpointHandler(w, r)
 	}
-	http.HandleFunc(pattern, genericHandler)
+	http.HandleFunc(endpoint, genericHandler)
 }
 
 func (server *Server) setNewEntry(newEntry *Entry) Entry {
