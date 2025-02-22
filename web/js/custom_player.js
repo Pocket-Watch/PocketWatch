@@ -502,7 +502,7 @@ class Internals {
     }
 
     play() {
-        if (this.isVideoPlaying()) {
+        if (this.isVideoPlaying() || !this.getCurrentUrl()) {
             return;
         }
 
