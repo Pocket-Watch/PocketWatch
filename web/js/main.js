@@ -170,9 +170,14 @@ class Room {
             this.player.setVolume(volume);
         }
 
+        let lastSub = Storage.get("last_selected_subtitle");
+        if (lastSub !== null) {
+            this.player.switchSubtitleTrackByUrl(lastSub)
+        }
+
         let subsEnabled = Storage.getBool(Options.SUBTITLES_ENABLED);
         if (subsEnabled) {
-            this.player.enableSubtitleTrackAt(0);
+            this.player.enableSubtitles();
         }
 
         let size = Storage.get(Options.SUBTITLE_FONT_SIZE);
@@ -282,6 +287,10 @@ class Room {
                 this.ended = true;
                 api.playerPause(endTime)
             }
+        });
+
+        this.player.onSubtitleSelect(subtitle => {
+            Storage.set("last_selected_subtitle", subtitle.url);
         });
 
         this.player.onPlaybackError((exception, error) => {

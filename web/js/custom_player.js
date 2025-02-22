@@ -127,10 +127,25 @@ class Player {
         this.internals.setSubtitleBackgroundOpacity(opacity);
     }
 
-    // Select and show the track at the specified index.
+    enableSubtitles() {
+        this.internals.enableSubtitleTrack(null);
+    }
+
+    // Enable and show the track at the specified index.
     enableSubtitleTrackAt(index) {
         let subtitle = this.internals.subtitles[index];
         this.internals.enableSubtitleTrack(subtitle);
+    }
+
+    switchSubtitleTrackByUrl(url) {
+        let subs = this.internals.subtitles;
+        for (let i = 0; i < subs.length; i++) {
+            let sub = subs[i];
+            if (sub && sub.url === url) {
+                this.internals.switchSubtitleTrack(sub);
+                break;
+            }
+        }
     }
 
     // The seconds argument is a double, negative shifts back, positive shifts forward
@@ -225,6 +240,12 @@ class Player {
     onSubtitleTrackLoad(func) {
         if (isFunction(func)) {
             this.internals.fireSubtitleTrackLoad = func;
+        }
+    }
+
+    onSubtitleSelect(func) {
+        if (isFunction(func)) {
+            this.internals.fireSubtitleSelect = func;
         }
     }
 
@@ -495,6 +516,7 @@ class Internals {
     firePlaybackError(_exception, _mediaError) {}
     firePlaybackEnd() {}
     fireSubtitleTrackLoad(_subtitle) {}
+    fireSubtitleSelect(_subtitle) {}
     async fireSubtitleSearch(_search) {}
 
     isVideoPlaying() {
@@ -918,6 +940,8 @@ class Internals {
             return;
         }
 
+        this.fireSubtitleSelect(subtitle)
+
         this.selectedSubtitle = subtitle;
         this.markSubtitleSelected(subtitle);
 
@@ -929,6 +953,8 @@ class Internals {
         if (!subtitle) {
             return;
         }
+
+        this.fireSubtitleSelect(subtitle)
 
         this.selectedSubtitle = subtitle;
         this.markSubtitleSelected(subtitle);
