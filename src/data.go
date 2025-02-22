@@ -119,10 +119,9 @@ type GenericProxy struct {
 }
 
 type Connection struct {
-	event  chan<- string
 	id     uint64
 	userId uint64
-	writer http.ResponseWriter
+	events chan string
 }
 
 type Connections struct {

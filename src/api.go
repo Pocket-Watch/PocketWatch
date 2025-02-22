@@ -324,7 +324,6 @@ func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiPlayerPlay(w http.ResponseWriter, r *http.Request) {
-
 	user := server.getAuthorized(w, r)
 	if user == nil {
 		return
@@ -993,7 +992,7 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	server.users.mutex.Lock()
-	userIndex := server.users.findIndex(token)
+	userIndex := server.users.findByToken(token)
 	if userIndex == -1 {
 		http.Error(w, "User not found", http.StatusUnauthorized)
 		LogError("Failed to connect to event stream. User not found.")
@@ -1001,75 +1000,59 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server.users.slice[userIndex].connections += 1
-
-	was_online_before := server.users.slice[userIndex].Online
-	is_online := server.users.slice[userIndex].connections != 0
-
-	server.users.slice[userIndex].Online = is_online
-
-	user := server.users.slice[userIndex]
+	userId := server.users.slice[userIndex].Id
+	went_online := server.users.addConnection(userId)
 	server.users.mutex.Unlock()
-
-	server.conns.mutex.Lock()
-	connectionId := server.conns.add(w, user.Id)
-	connectionCount := len(server.conns.slice)
-	server.conns.mutex.Unlock()
-
-	LogInfo("New connection established with user %v on %s. Current connection count: %d", user.Id, r.RemoteAddr, connectionCount)
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	welcomeErr := server.writeEvent(w, "userwelcome", connectionId)
+	server.conns.mutex.Lock()
+	conn := server.conns.add(userId)
+	connectionCount := len(server.conns.slice)
+	server.conns.mutex.Unlock()
+
+	LogInfo("New connection id:%v established with user id:%v on %s. Current connection count: %d", conn.id, userId, r.RemoteAddr, connectionCount)
+
+	welcomeErr := server.writeEvent(w, "userwelcome", conn.id)
 	if welcomeErr != nil {
 		return
 	}
 
-	if !was_online_before && is_online {
-		server.writeEventToAllConnectionsExceptSelf(w, "userconnected", user.Id, user.Id, connectionId)
+	if went_online {
+		server.writeEventToAllConnectionsExceptSelf(w, "userconnected", userId, userId, conn.id)
 	}
 
 	for {
-		var event SyncEventData
-		server.state.mutex.Lock()
-		playing := server.state.player.Playing
-		server.state.mutex.Unlock()
+		event := <-conn.events
+		_, err := fmt.Fprint(w, event)
 
-		if playing {
-			event = server.createSyncEvent("play", 0)
-		} else {
-			event = server.createSyncEvent("pause", 0)
+		if err != nil {
+			LogDebug("Connection write fail: %v", err)
+			break
 		}
 
-		connectionErr := server.writeEvent(w, "sync", event)
-
-		if connectionErr != nil {
-			server.conns.mutex.Lock()
-			server.conns.remove(connectionId)
-			connectionCount = len(server.conns.slice)
-			server.conns.mutex.Unlock()
-
-			server.users.mutex.Lock()
-			userIndex := server.users.findIndex(token)
-			disconnected := false
-			if userIndex != -1 {
-				server.users.slice[userIndex].connections -= 1
-				disconnected = server.users.slice[userIndex].connections == 0
-				server.users.slice[userIndex].Online = !disconnected
-			}
-			server.users.mutex.Unlock()
-
-			if disconnected {
-				server.writeEventToAllConnectionsExceptSelf(w, "userdisconnected", user.Id, user.Id, connectionId)
-			}
-
-			LogInfo("Connection with user %v on %s dropped. Current connection count: %d", user.Id, r.RemoteAddr, connectionCount)
-			LogDebug("Drop error message: %v", connectionErr)
-			return
+		flusher, success := w.(http.Flusher)
+		if !success {
+			break
 		}
 
-		server.smartSleep()
+		flusher.Flush()
 	}
+
+	server.conns.mutex.Lock()
+	server.conns.removeById(conn.id)
+	connectionCount = len(server.conns.slice)
+	server.conns.mutex.Unlock()
+
+	server.users.mutex.Lock()
+	went_offline := server.users.removeConnection(conn.userId)
+	server.users.mutex.Unlock()
+
+	if went_offline {
+		server.writeEventToAllConnections(nil, "userdisconnected", conn.userId)
+	}
+
+	LogInfo("Connection id:%v of user id:%v dropped. Current connection count: %d", conn.id, conn.userId, connectionCount)
 }

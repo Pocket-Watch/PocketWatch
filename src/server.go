@@ -57,7 +57,7 @@ func (users *Users) create() User {
 	return new_user
 }
 
-func (users *Users) findIndex(token string) int {
+func (users *Users) findByToken(token string) int {
 	for i, user := range users.slice {
 		if user.token == token {
 			return i
@@ -67,6 +67,45 @@ func (users *Users) findIndex(token string) int {
 	return -1
 }
 
+func (users *Users) findById(id uint64) int {
+	for i, user := range users.slice {
+		if user.Id == id {
+			return i
+		}
+	}
+
+	return -1
+}
+
+func (users *Users) addConnection(userId uint64) bool {
+	for i, user := range users.slice {
+		if user.Id == userId {
+			was_online_before := users.slice[i].Online
+
+			users.slice[i].connections += 1
+			users.slice[i].Online = true
+
+			return !was_online_before
+		}
+	}
+
+	return false
+}
+
+func (users *Users) removeConnection(userId uint64) bool {
+	for i, user := range users.slice {
+		if user.Id == userId {
+			users.slice[i].connections -= 1
+			is_offline := users.slice[i].connections == 0
+			users.slice[i].Online = !is_offline
+
+			return is_offline
+		}
+	}
+
+	return false
+}
+
 func makeConnections() *Connections {
 	conns := new(Connections)
 	conns.slice = make([]Connection, 0)
@@ -74,21 +113,27 @@ func makeConnections() *Connections {
 	return conns
 }
 
-func (conns *Connections) add(writer http.ResponseWriter, userId uint64) uint64 {
+func (conns *Connections) add(userId uint64) Connection {
 	id := conns.idCounter
 	conns.idCounter += 1
 
 	conn := Connection{
 		id:     id,
 		userId: userId,
-		writer: writer,
+		events: make(chan string, 100),
 	}
 	conns.slice = append(conns.slice, conn)
 
-	return id
+	return conn
 }
 
-func (conns *Connections) remove(id uint64) {
+func (conns *Connections) remove(index int) {
+	length := len(conns.slice)
+	conns.slice[index], conns.slice[length-1] = conns.slice[length-1], conns.slice[index]
+	conns.slice = conns.slice[:length-1]
+}
+
+func (conns *Connections) removeById(id uint64) {
 	for i, conn := range conns.slice {
 		if conn.id != id {
 			continue
@@ -136,6 +181,8 @@ func StartServer(options *Options) {
 	if options.Ssl && missing_ssl_keys {
 		LogError("Failed to find either SSL certificate or the private key.")
 	}
+
+	go server.periodicResync()
 
 	var server_start_error error
 	if !options.Ssl || missing_ssl_keys {
@@ -237,6 +284,33 @@ func (server *Server) HandleEndpoint(endpoint string, endpointHandler func(w htt
 		endpointHandler(w, r)
 	}
 	http.HandleFunc(endpoint, genericHandler)
+}
+
+func (server *Server) periodicResync() {
+	for {
+		server.smartSleep()
+
+		server.conns.mutex.Lock()
+		connectionCount := len(server.conns.slice)
+		server.conns.mutex.Unlock()
+
+		if connectionCount <= 1 {
+			continue
+		}
+
+		var event SyncEventData
+		server.state.mutex.Lock()
+		playing := server.state.player.Playing
+		server.state.mutex.Unlock()
+
+		if playing {
+			event = server.createSyncEvent("play", 0)
+		} else {
+			event = server.createSyncEvent("pause", 0)
+		}
+
+		server.writeEventToAllConnections(nil, "sync", event)
+	}
 }
 
 func (server *Server) setNewEntry(newEntry *Entry) Entry {
@@ -364,18 +438,15 @@ func (server *Server) writeEvent(w http.ResponseWriter, eventName string, data a
 	jsonString := string(jsonData)
 	eventId := server.state.eventId.Add(1)
 
-	server.conns.mutex.Lock()
 	_, err = fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\nretry: %d\n\n", eventId, eventName, jsonString, RETRY)
 
 	if err != nil {
-		server.conns.mutex.Unlock()
 		return err
 	}
 
 	if f, ok := w.(http.Flusher); ok {
 		f.Flush()
 	}
-	server.conns.mutex.Unlock()
 
 	return nil
 }
@@ -397,10 +468,10 @@ func (server *Server) writeEventToAllConnections(origin http.ResponseWriter, eve
 
 	server.conns.mutex.Lock()
 	for _, conn := range server.conns.slice {
-		fmt.Fprintln(conn.writer, event)
-
-		if f, ok := conn.writer.(http.Flusher); ok {
-			f.Flush()
+		select {
+		case conn.events <- event:
+		default:
+			LogWarn("Re-sync channel write failed for connnection: %v", conn.id)
 		}
 	}
 	server.conns.mutex.Unlock()
@@ -425,12 +496,13 @@ func (server *Server) writeEventToAllConnectionsExceptSelf(origin http.ResponseW
 			continue
 		}
 
-		fmt.Fprintln(conn.writer, event)
-
-		if f, ok := conn.writer.(http.Flusher); ok {
-			f.Flush()
+		select {
+		case conn.events <- event:
+		default:
+			LogWarn("Re-sync channel write failed for connnection: %v", conn.id)
 		}
 	}
+
 	server.conns.mutex.Unlock()
 }
 
