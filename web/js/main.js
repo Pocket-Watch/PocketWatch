@@ -836,7 +836,6 @@ class Room {
     }
 
     setEntryEvent(entry) {
-        Storage.remove(LAST_SELECTED_SUBTITLE);
         this.updateRoomContent(entry);
 
         this.currentEntry            = entry;
@@ -882,6 +881,8 @@ class Room {
     }
 
     setNothing() {
+        Storage.remove(LAST_SELECTED_SUBTITLE);
+
         this.player.discardPlayback();
         this.player.setTitle(null);
         this.player.setPoster("")
