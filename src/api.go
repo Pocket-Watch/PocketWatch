@@ -36,7 +36,8 @@ func (server *Server) apiLogin(w http.ResponseWriter, r *http.Request) {
 func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request) {
 	inputFile, headers, err := r.FormFile("file")
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondBadRequest(w, "Failed to read formdata from the request: %v", err)
+		return
 	}
 
 	extension := path.Ext(headers.Filename)
@@ -45,13 +46,14 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request) {
 
 	outputPath, isSafe := safeJoin("web", "media", directory, filename)
 	if checkTraversal(w, isSafe) {
+		respondBadRequest(w, "Filename of the uploaded file is not allowed")
 		return
 	}
 	os.MkdirAll("web/media/"+directory, 0750)
 
 	outputFile, err := os.Create(outputPath)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondInternalError(w, "Server side file creation for file %v failed with: %v", outputPath, err)
 		return
 	}
 	defer outputFile.Close()
@@ -61,14 +63,16 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request) {
 	// TODO(kihau): Copy the input file in smaller parts instead.
 	_, err = io.Copy(outputFile, inputFile)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondInternalError(w, "Server side file copy for file %v failed with: %v", outputPath, err)
 		return
 	}
 
 	networkPath, isSafe := safeJoin("media", directory, filename)
 	if checkTraversal(w, isSafe) {
+		respondBadRequest(w, "Filename of the uploaded file is not allowed")
 		return
 	}
+
 	jsonData, _ := json.Marshal(networkPath)
 	io.WriteString(w, string(jsonData))
 }
@@ -82,11 +86,12 @@ func (server *Server) apiUserCreate(w http.ResponseWriter, r *http.Request) {
 
 	tokenJson, err := json.Marshal(user.token)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondInternalError(w, "Serialization of the user token failed with: %v", err)
+		return
 	}
 
-	io.WriteString(w, string(tokenJson))
 	server.writeEventToAllConnections(w, "usercreate", user)
+	io.WriteString(w, string(tokenJson))
 }
 
 func (server *Server) apiUserGetAll(w http.ResponseWriter, r *http.Request) {
@@ -94,12 +99,12 @@ func (server *Server) apiUserGetAll(w http.ResponseWriter, r *http.Request) {
 
 	server.users.mutex.Lock()
 	usersJson, err := json.Marshal(server.users.slice)
+	server.users.mutex.Unlock()
+
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		server.users.mutex.Unlock()
+		respondInternalError(w, "Serialization of the users list failed with: %v", err)
 		return
 	}
-	server.users.mutex.Unlock()
 
 	io.WriteString(w, string(usersJson))
 }
@@ -114,8 +119,7 @@ func (server *Server) apiUserVerify(w http.ResponseWriter, r *http.Request) {
 
 	jsonData, err := json.Marshal(user.Id)
 	if err != nil {
-		LogError("Failed to serialize json data")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondInternalError(w, "Serialization of the user id failed with: %v", err)
 		return
 	}
 
@@ -161,8 +165,7 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 
 	formfile, _, err := r.FormFile("file")
 	if err != nil {
-		LogError("File to read from data from user avatar change request: %v", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		respondBadRequest(w, "Failed to read form data from the user avatar change request: %v", err)
 		return
 	}
 
@@ -172,8 +175,7 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 	os.Remove(avatarUrl)
 	file, err := os.Create(avatarUrl)
 	if err != nil {
-		LogError("Failed to create avatar file: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondInternalError(w, "File creation for the user avatar file failed with: %v", err)
 		return
 	}
 
@@ -191,8 +193,8 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 
 	jsonData, _ := json.Marshal(avatarUrl)
 
-	io.WriteString(w, string(jsonData))
 	server.writeEventToAllConnections(w, "userupdate", user)
+	io.WriteString(w, string(jsonData))
 }
 
 func (server *Server) apiPlayerGet(w http.ResponseWriter, r *http.Request) {
@@ -208,7 +210,7 @@ func (server *Server) apiPlayerGet(w http.ResponseWriter, r *http.Request) {
 
 	jsonData, err := json.Marshal(getEvent)
 	if err != nil {
-		LogError("Failed to serialize get event.")
+		respondInternalError(w, "Serialization of the get event failed with: %v", err)
 		return
 	}
 
@@ -295,7 +297,7 @@ func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 	//     resulting in multiple playlist skips, which is not an intended behaviour.
 
 	if server.state.entry.Id != data.EntryId {
-		LogWarn("Current entry ID on the server is not equal to the one provided by the client.")
+		respondBadRequest(w, "Entry ID provided in the request is not equal to the current entry ID on the server")
 		return
 	}
 
@@ -664,13 +666,13 @@ func (server *Server) apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
 
 	server.state.mutex.Lock()
 	if data.Index < 0 || data.Index >= len(server.state.playlist) {
-		LogError("Failed to remove playlist element at index %v.", data.Index)
+		respondBadRequest(w, "Failed to play playlist element %v. Index out of bounds.", data.Index)
 		server.state.mutex.Unlock()
 		return
 	}
 
 	if server.state.playlist[data.Index].Id != data.EntryId {
-		LogWarn("Entry ID on the server is not equal to the one provided by the client.")
+		respondBadRequest(w, "Playlist entry ID provided in the request is not equal to the playlist entry ID on the server")
 		server.state.mutex.Unlock()
 		return
 	}
@@ -780,13 +782,13 @@ func (server *Server) apiPlaylistRemove(w http.ResponseWriter, r *http.Request) 
 
 	server.state.mutex.Lock()
 	if data.Index < 0 || data.Index >= len(server.state.playlist) {
-		LogError("Failed to remove playlist element at index %v.", data.Index)
+		respondBadRequest(w, "Failed to remove playlist element %v. Index out of bounds.", data.Index)
 		server.state.mutex.Unlock()
 		return
 	}
 
 	if server.state.playlist[data.Index].Id != data.EntryId {
-		LogWarn("Entry ID on the server is not equal to the one provided by the client.")
+		respondBadRequest(w, "Playlist entry ID provided in the request is not equal to the playlist entry ID on the server")
 		server.state.mutex.Unlock()
 		return
 	}
@@ -829,19 +831,19 @@ func (server *Server) apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 
 	server.state.mutex.Lock()
 	if move.SourceIndex < 0 || move.SourceIndex >= len(server.state.playlist) {
-		LogError("Playlist move failed, source index out of bounds")
+		respondBadRequest(w, "Failed to move playlist element %v. Source index out of bounds.", move.SourceIndex)
 		server.state.mutex.Unlock()
 		return
 	}
 
 	if server.state.playlist[move.SourceIndex].Id != move.EntryId {
-		LogWarn("Entry ID on the server is not equal to the one provided by the client.")
+		respondBadRequest(w, "Playlist entry ID provided in the move request is not equal to the playlist entry ID on the server")
 		server.state.mutex.Unlock()
 		return
 	}
 
 	if move.DestIndex < 0 || move.DestIndex >= len(server.state.playlist) {
-		LogError("Playlist move failed, source index out of bounds")
+		respondBadRequest(w, "Failed to move playlist element %v. Dest index %v out of bounds.", move.DestIndex)
 		server.state.mutex.Unlock()
 		return
 	}

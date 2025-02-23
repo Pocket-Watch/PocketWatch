@@ -355,9 +355,9 @@ func (server *Server) setNewEntry(newEntry *Entry) Entry {
 
 func (server *Server) isAuthorized(w http.ResponseWriter, r *http.Request) bool {
 	server.users.mutex.Lock()
-	index := server.getAuthorizedIndex(w, r)
-	server.users.mutex.Unlock()
+	defer server.users.mutex.Unlock()
 
+	index := server.getAuthorizedIndex(w, r)
 	return index != -1
 }
 
@@ -366,7 +366,6 @@ func (server *Server) getAuthorized(w http.ResponseWriter, r *http.Request) *Use
 	defer server.users.mutex.Unlock()
 
 	index := server.getAuthorizedIndex(w, r)
-
 	if index == -1 {
 		return nil
 	}
@@ -379,16 +378,15 @@ func checkTraversal(w http.ResponseWriter, isSafe bool) bool {
 	if isSafe {
 		return false
 	}
+
 	LogWarn("Traversal was attempted!")
-	http.Error(w, "Invalid path", http.StatusUnprocessableEntity)
 	return true
 }
 
 func (server *Server) getAuthorizedIndex(w http.ResponseWriter, r *http.Request) int {
 	token := r.Header.Get("Authorization")
 	if token == "" {
-		LogError("Invalid token")
-		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		respondBadRequest(w, "Failed to authorize user, specified token is empty")
 		return -1
 	}
 
@@ -398,16 +396,14 @@ func (server *Server) getAuthorizedIndex(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	LogError("Failed to find user")
-	http.Error(w, "User not found", http.StatusUnauthorized)
+	respondBadRequest(w, "User with the specified token is not in the user list")
 	return -1
 }
 
 func (server *Server) readJsonDataFromRequest(w http.ResponseWriter, r *http.Request, data any) bool {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		LogError("Request handler failed to read request body: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondBadRequest(w, "Failed to read request body: %v", err)
 		return false
 	}
 
@@ -418,8 +414,7 @@ func (server *Server) readJsonDataFromRequest(w http.ResponseWriter, r *http.Req
 
 	err = json.Unmarshal(body, &data)
 	if err != nil {
-		LogError("Request handler failed to read json payload: %v", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		respondBadRequest(w, "Failed to deserialise request body data: %v", err)
 		return false
 	}
 
