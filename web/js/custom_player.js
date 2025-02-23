@@ -128,7 +128,7 @@ class Player {
     }
 
     enableSubtitles() {
-        this.internals.enableSubtitleTrack(null);
+        this.internals.enableSubtitles();
     }
 
     // Enable and show the track at the specified index.
@@ -655,6 +655,9 @@ class Internals {
         if (this.htmlControls.subMenu.subsSwitcher.enabled) {
             show(this.subtitleContainer);
         }
+
+        let position = this.subtitlePos.getValue();
+        this.updateSubtitleHtmlPosition(position);
     }
 
     updateProgressPopup(progress) {
@@ -933,13 +936,30 @@ class Internals {
         });
     }
 
-    enableSubtitleTrack(subtitle) {
+    enableSubtitles() {
         this.htmlControls.subMenu.subsSwitcher.setState(true);
+        if (this.subtitles.length !== 0 && !this.selectedSubtitle) {
+            this.switchSubtitleTrack(this.subtitles[0])
+        } else {
+            this.updateSubtitles(this.getCurrentTime());
+        }
 
+        if (this.activeCues.length > 0) {
+            show(this.subtitleContainer);
+        }
+    }
+
+    disableSubtitles() {
+        this.htmlControls.subMenu.subsSwitcher.setState(false);
+        hide(this.subtitleContainer);
+    }
+
+    enableSubtitleTrack(subtitle) {
         if (!subtitle) {
             return;
         }
 
+        this.htmlControls.subMenu.subsSwitcher.setState(true);
         this.fireSubtitleSelect(subtitle)
 
         this.selectedSubtitle = subtitle;
@@ -958,6 +978,7 @@ class Internals {
 
         this.selectedSubtitle = subtitle;
         this.markSubtitleSelected(subtitle);
+
         this.subtitleShift.setValue(this.selectedSubtitle.offset);
         this.updateSubtitles(this.getCurrentTime());
     }
@@ -1065,12 +1086,12 @@ class Internals {
     }
 
     setSubtitleFontSize(fontSize) {
-        let position = this.subtitlePos.getValue();
-        this.setSubtitleVerticalPosition(position);
-
         this.subtitleSize.setValue(fontSize);
         this.subtitleText.style.fontSize = fontSize + "px";
         this.fireSettingsChange(Options.SUBTITLE_FONT_SIZE, fontSize);
+
+        let position = this.subtitlePos.getValue();
+        this.updateSubtitleHtmlPosition(position);
     }
 
     colorAndOpacity(hexColor, opacity) {
@@ -1107,7 +1128,7 @@ class Internals {
         this.fireSettingsChange(Options.SUBTITLE_BACKGROUND_OPACITY, opacity);
     }
 
-    setSubtitleVerticalPosition(percentage) {
+    updateSubtitleHtmlPosition(percentage) {
         let playerHeight = this.htmlPlayerRoot.offsetHeight;
         let subsHeight = this.subtitleContainer.offsetHeight;
 
@@ -1117,7 +1138,10 @@ class Internals {
             let real_percentage = percentage * (playerHeight - subsHeight) / playerHeight;
             this.subtitleContainer.style.bottom = real_percentage + "%";
         }
+    }
 
+    setSubtitleVerticalPosition(percentage) {
+        this.updateSubtitleHtmlPosition(percentage);
         this.subtitlePos.setValue(percentage);
         this.fireSettingsChange(Options.SUBTITLE_VERTICAL_POSITION, percentage);
     }
@@ -1806,15 +1830,10 @@ class Internals {
         subsSwitch.onAction = enabled => {
             this.fireSettingsChange(Options.SUBTITLES_ENABLED, enabled);
 
-            if (enabled && this.subtitles.length !== 0 && !this.selectedSubtitle) {
-                this.switchSubtitleTrack(this.subtitles[0])
-            }
-
-            this.updateSubtitles(this.getCurrentTime());
-            if (enabled && this.activeCues.length > 0) {
-                show(this.subtitleContainer);
+            if (enabled) {
+                this.enableSubtitles();
             } else {
-                hide(this.subtitleContainer);
+                this.disableSubtitles();
             }
         };
 

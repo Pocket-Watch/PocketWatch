@@ -104,6 +104,10 @@ export function formatTime(seconds) {
 
 // This is a wrapper for localStorage (which has only string <-> string mappings)
 export class Storage {
+    static remove(key) {
+        localStorage.removeItem(key);
+    }
+
     static set(key, value) {
         localStorage.setItem(key, value);
     }

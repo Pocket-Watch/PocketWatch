@@ -9,6 +9,7 @@ const SERVER_ID = 0;
 const MAX_TITLE_LENGTH = 200;
 
 const LAST_SELECTED_TAB = "last_selected_tab"
+const LAST_SELECTED_SUBTITLE = "last_selected_subtitle"
 
 const TAB_ROOM     = 1;
 const TAB_PLAYLIST = 2;
@@ -170,7 +171,7 @@ class Room {
             this.player.setVolume(volume);
         }
 
-        let lastSub = Storage.get("last_selected_subtitle");
+        let lastSub = Storage.get(LAST_SELECTED_SUBTITLE);
         if (lastSub !== null) {
             this.player.switchSubtitleTrackByUrl(lastSub)
         }
@@ -185,7 +186,7 @@ class Room {
             this.player.setSubtitleFontSize(size);
         }
 
-        let position = Storage.get(Options.SUBTITLE_VERTICAL_POSITION);
+        let position = Storage.getNum(Options.SUBTITLE_VERTICAL_POSITION);
         if (position != null) {
             this.player.setSubtitleVerticalPosition(position);
         }
@@ -290,7 +291,7 @@ class Room {
         });
 
         this.player.onSubtitleSelect(subtitle => {
-            Storage.set("last_selected_subtitle", subtitle.url);
+            Storage.set(LAST_SELECTED_SUBTITLE, subtitle.url);
         });
 
         this.player.onPlaybackError((exception, error) => {
@@ -835,6 +836,7 @@ class Room {
     }
 
     setEntryEvent(entry) {
+        Storage.remove(LAST_SELECTED_SUBTITLE);
         this.updateRoomContent(entry);
 
         this.currentEntry            = entry;
