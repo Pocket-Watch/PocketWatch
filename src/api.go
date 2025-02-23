@@ -45,7 +45,7 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request) {
 	filename := headers.Filename
 
 	outputPath, isSafe := safeJoin("web", "media", directory, filename)
-	if checkTraversal(w, isSafe) {
+	if !isSafe {
 		respondBadRequest(w, "Filename of the uploaded file is not allowed")
 		return
 	}
@@ -68,7 +68,7 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request) {
 	}
 
 	networkPath, isSafe := safeJoin("media", directory, filename)
-	if checkTraversal(w, isSafe) {
+	if !isSafe {
 		respondBadRequest(w, "Filename of the uploaded file is not allowed")
 		return
 	}
@@ -147,7 +147,6 @@ func (server *Server) apiUserUpdateName(w http.ResponseWriter, r *http.Request) 
 	user := server.users.slice[userIndex]
 	server.users.mutex.Unlock()
 
-	io.WriteString(w, "Username updated")
 	server.writeEventToAllConnections(w, "userupdate", user)
 }
 
@@ -266,7 +265,6 @@ func (server *Server) apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 		NewEntry:  newEntry,
 	}
 	server.writeEventToAllConnections(w, "playerset", setEvent)
-	io.WriteString(w, "{}")
 }
 
 func (server *Server) apiPlayerEnd(w http.ResponseWriter, r *http.Request) {
@@ -276,11 +274,13 @@ func (server *Server) apiPlayerEnd(w http.ResponseWriter, r *http.Request) {
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
+
 	server.state.mutex.Lock()
+	defer server.state.mutex.Unlock()
+
 	if data.EntryId == server.state.entry.Id {
 		server.state.player.Playing = false
 	}
-	server.state.mutex.Unlock()
 }
 
 func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
@@ -292,7 +292,7 @@ func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// NOTE(kihau):
-	//     We need to check whether currently set entry ID on the clent side matches current entry ID on the server side.
+	//     We need to check whether currently set entry ID on the client side matches current entry ID on the server side.
 	//     This check is necessary because multiple clients can send "playlist next" request on video end,
 	//     resulting in multiple playlist skips, which is not an intended behaviour.
 
@@ -321,7 +321,6 @@ func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 		NewEntry:  newEntry,
 	}
 	server.writeEventToAllConnections(w, "playernext", nextEvent)
-	io.WriteString(w, "{}")
 	go server.preloadYoutubeSourceOnNextEntry()
 }
 
@@ -340,8 +339,6 @@ func (server *Server) apiPlayerPlay(w http.ResponseWriter, r *http.Request) {
 
 	server.updatePlayerState(true, data.Timestamp)
 	event := server.createSyncEvent("play", user.Id)
-
-	io.WriteString(w, "Broadcasting start!\n")
 	server.writeEventToAllConnectionsExceptSelf(w, "sync", event, user.Id, data.ConnectionId)
 }
 
@@ -511,10 +508,9 @@ func (server *Server) apiSubtitleShift(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiSubtitleUpload(w http.ResponseWriter, r *http.Request) {
-
 	networkFile, headers, err := r.FormFile("file")
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondBadRequest(w, "Failed to read form data from the subtitle upload request: %v", err)
 		return
 	}
 
@@ -528,11 +524,7 @@ func (server *Server) apiSubtitleUpload(w http.ResponseWriter, r *http.Request) 
 	subId := server.state.subsId.Add(1)
 
 	outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
-	outputPath, isSafe := safeJoin("web", "subs", outputName)
-	if checkTraversal(w, isSafe) {
-		return
-	}
-
+	outputPath := path.Join("web", "subs", outputName)
 	os.MkdirAll("web/subs/", 0750)
 
 	outputFile, err := os.Create(outputPath)
@@ -548,22 +540,17 @@ func (server *Server) apiSubtitleUpload(w http.ResponseWriter, r *http.Request) 
 	buf := make([]byte, headers.Size)
 	_, err = io.ReadFull(networkFile, buf)
 	if err != nil {
-		http.Error(w, "Error reading file", http.StatusBadRequest)
+		respondInternalError(w, "Failed to read downloaded subtitle file: %v", err)
 		return
 	}
 
 	_, err = outputFile.Write(buf)
 	if err != nil {
-		fmt.Println("Error: Failed to write to a subtitle file:", err)
-		http.Error(w, "Error writing file", http.StatusInternalServerError)
+		respondInternalError(w, "Subtitle file write failed with: %v", err)
 		return
 	}
 
-	networkUrl, isSafe := safeJoin("subs", outputName)
-	if checkTraversal(w, isSafe) {
-		return
-	}
-
+	networkUrl := path.Join("subs", outputName)
 	subtitle := Subtitle{
 		Id:    subId,
 		Name:  strings.TrimSuffix(filename, extension),
@@ -613,14 +600,13 @@ func (server *Server) apiSubtitleSearch(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	defer outputSub.Close()
+
 	_, err = io.Copy(outputSub, inputSub)
 	if err != nil {
 		respondInternalError(w, "Failed to copy downloaded subtitle file: %v", err)
-		outputSub.Close()
 		return
 	}
-
-	outputSub.Close()
 
 	outputUrl := path.Join("subs", outputName)
 	baseName := filepath.Base(downloadPath)
@@ -649,7 +635,7 @@ func (server *Server) apiPlaylistGet(w http.ResponseWriter, r *http.Request) {
 	server.state.mutex.Unlock()
 
 	if err != nil {
-		LogWarn("Failed to serialize playlist get event.")
+		respondInternalError(w, "Serialization of the playlist get event failed with: %v", err)
 		return
 	}
 
@@ -843,7 +829,7 @@ func (server *Server) apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if move.DestIndex < 0 || move.DestIndex >= len(server.state.playlist) {
-		respondBadRequest(w, "Failed to move playlist element %v. Dest index %v out of bounds.", move.DestIndex)
+		respondBadRequest(w, "Failed to move playlist element %v. Dest index %v out of bounds.", move.SourceIndex, move.DestIndex)
 		server.state.mutex.Unlock()
 		return
 	}
@@ -919,7 +905,7 @@ func (server *Server) apiHistoryGet(w http.ResponseWriter, r *http.Request) {
 	server.state.mutex.Unlock()
 
 	if err != nil {
-		LogWarn("Failed to serialize history get event.")
+		respondInternalError(w, "Serialization of the history get event failed with: %v", err)
 		return
 	}
 
@@ -944,7 +930,7 @@ func (server *Server) apiChatGet(w http.ResponseWriter, r *http.Request) {
 	server.state.mutex.Unlock()
 
 	if err != nil {
-		LogWarn("Failed to serialize messages get event.")
+		respondInternalError(w, "Serialization of the chat get event failed with: %v", err)
 		return
 	}
 
@@ -983,21 +969,16 @@ func (server *Server) apiChatSend(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
-	LogDebug("URL is %v", r.URL)
-
 	token := r.URL.Query().Get("token")
 	if token == "" {
-		response := "Failed to parse token from the event url."
-		http.Error(w, response, http.StatusInternalServerError)
-		LogError("%v", response)
+		respondBadRequest(w, "Failed to connect to event stream. User token missing")
 		return
 	}
 
 	server.users.mutex.Lock()
 	userIndex := server.users.findByToken(token)
 	if userIndex == -1 {
-		http.Error(w, "User not found", http.StatusUnauthorized)
-		LogError("Failed to connect to event stream. User not found.")
+		respondBadRequest(w, "Failed to connect to event stream. User with specified token not found.")
 		server.users.mutex.Unlock()
 		return
 	}

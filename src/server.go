@@ -374,15 +374,6 @@ func (server *Server) getAuthorized(w http.ResponseWriter, r *http.Request) *Use
 	return &user
 }
 
-func checkTraversal(w http.ResponseWriter, isSafe bool) bool {
-	if isSafe {
-		return false
-	}
-
-	LogWarn("Traversal was attempted!")
-	return true
-}
-
 func (server *Server) getAuthorizedIndex(w http.ResponseWriter, r *http.Request) int {
 	token := r.Header.Get("Authorization")
 	if token == "" {

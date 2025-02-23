@@ -415,25 +415,6 @@ func isSlash(char uint8) bool {
 	return char == '/' || char == '\\'
 }
 
-type HeldMutex struct {
-	mutex sync.Mutex
-	held  bool
-}
-
-func (hm *HeldMutex) Lock() {
-	hm.mutex.Lock()
-	hm.held = true
-}
-
-func (hm *HeldMutex) Unlock() {
-	hm.held = false
-	hm.mutex.Unlock()
-}
-
-func (hm *HeldMutex) IsHeld() bool {
-	return hm.held
-}
-
 func stall(delay time.Duration, maxChecks int, checkFunc func() bool) {
 	for i := 0; i < maxChecks; i++ {
 		time.Sleep(delay)
