@@ -804,12 +804,20 @@ html * {
     }
 
     #users_area {
-        height: 180px;
+        height: 260px;
         padding: 8px;
     }
 
+    #users_list {
+        column-gap: 6px;
+        row-gap: 6px;
+        flex-direction: column;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
     .user_box {
-        height: calc(65% - 4px);
+        height: calc(45% - 4px);
     }
 
     #users_right_panel {

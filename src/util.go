@@ -426,7 +426,7 @@ func stall(delay time.Duration, maxChecks int, checkFunc func() bool) {
 
 func respondBadRequest(writer http.ResponseWriter, format string, args ...any) {
 	output := fmt.Sprintf(format, args...)
-	LogInfoSkip(1, "%v", output)
+	LogWarnSkip(1, "%v", output)
 	http.Error(writer, output, http.StatusBadRequest)
 }
 

@@ -457,7 +457,7 @@ func (server *Server) writeEventToAllConnections(origin http.ResponseWriter, eve
 		select {
 		case conn.events <- event:
 		default:
-			LogWarn("Channel event write failed for connnection: %v", conn.id)
+			LogWarn("Channel event write failed for connection: %v", conn.id)
 		}
 	}
 	server.conns.mutex.Unlock()
@@ -485,7 +485,7 @@ func (server *Server) writeEventToAllConnectionsExceptSelf(origin http.ResponseW
 		select {
 		case conn.events <- event:
 		default:
-			LogWarn("Channel event write failed for connnection: %v", conn.id)
+			LogWarn("Channel event write failed for connection: %v", conn.id)
 		}
 	}
 
