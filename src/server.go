@@ -127,12 +127,6 @@ func (conns *Connections) add(userId uint64) Connection {
 	return conn
 }
 
-func (conns *Connections) remove(index int) {
-	length := len(conns.slice)
-	conns.slice[index], conns.slice[length-1] = conns.slice[length-1], conns.slice[index]
-	conns.slice = conns.slice[:length-1]
-}
-
 func (conns *Connections) removeById(id uint64) {
 	for i, conn := range conns.slice {
 		if conn.id != id {
@@ -689,7 +683,7 @@ func (server *Server) setupVodProxy(m3u *M3U) bool {
 	proxy.chunkLocks = make([]sync.Mutex, 0, segmentCount)
 	proxy.originalChunks = make([]string, 0, segmentCount)
 	proxy.fetchedChunks = make([]bool, 0, segmentCount)
-	for i := 0; i < segmentCount; i++ {
+	for i := range segmentCount {
 		proxy.chunkLocks = append(proxy.chunkLocks, sync.Mutex{})
 		proxy.originalChunks = append(proxy.originalChunks, m3u.segments[i].url)
 		proxy.fetchedChunks = append(proxy.fetchedChunks, false)
@@ -801,7 +795,7 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 		}
 
 		segmentCount := len(liveM3U.segments)
-		for i := 0; i < segmentCount; i++ {
+		for i := range segmentCount {
 			segment := &liveM3U.segments[i]
 
 			realUrl := segment.url
@@ -865,7 +859,7 @@ func cleanupSegmentMap(segmentMap *sync.Map) {
 	var keysToRemove []string
 	now := time.Now()
 	size := 0
-	segmentMap.Range(func(key, value interface{}) bool {
+	segmentMap.Range(func(key, value any) bool {
 		fSegment := value.(*FetchedSegment)
 		age := now.Sub(fSegment.created)
 		if age.Seconds() > 30 {
@@ -1062,7 +1056,7 @@ func (server *Server) downloadProxyFilePeriodically() {
 		server.insertContentRangeSequentially(newRange(offset, offset+GENERIC_CHUNK_SIZE-1))
 		server.mergeContentRanges()
 		LogInfo("RANGES %v:", len(proxy.contentRanges))
-		for i := 0; i < len(proxy.contentRanges); i++ {
+		for i := range proxy.contentRanges {
 			rang := &proxy.contentRanges[i]
 			LogInfo("[%v] %v - %v", i, rang.start, rang.end)
 		}
@@ -1078,7 +1072,7 @@ func (server *Server) downloadProxyFilePeriodically() {
 func (server *Server) insertContentRangeSequentially(newRange *Range) {
 	proxy := &server.state.genericProxy
 	spot := 0
-	for i := 0; i < len(proxy.contentRanges); i++ {
+	for i := range proxy.contentRanges {
 		r := &proxy.contentRanges[i]
 		if newRange.start <= r.start {
 			break
@@ -1090,7 +1084,7 @@ func (server *Server) insertContentRangeSequentially(newRange *Range) {
 
 func (server *Server) mergeContentRanges() {
 	proxy := &server.state.genericProxy
-	for i := 0; i < len(proxy.contentRanges)-1; i++ {
+	for i := range len(proxy.contentRanges)-1 {
 		leftRange := &proxy.contentRanges[i]
 		rightRange := &proxy.contentRanges[i+1]
 		exclusiveRange := newRange(0, leftRange.end+1)

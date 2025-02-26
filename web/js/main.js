@@ -915,6 +915,21 @@ class Room {
 
     listenToServerEvents() {
         let events = new EventSource("/watch/api/events?token=" + this.token);
+        events.onopen = () => {
+            console.info("Connection to events opened!");
+        }
+
+        events.onerror = event => {
+            console.error("EVENTS ERROR: ", event);
+            console.info("Closing current EventSource, current readyState =", events.readyState);
+            events.close();
+            let retryAfter = 5000;
+            console.info("Attempting reconnect in", retryAfter, "ms.");
+            setTimeout(() => {
+                this.listenToServerEvents();
+            }, retryAfter);
+        }
+
         this.subscribeToServerEvents(events);
     }
 
@@ -1248,21 +1263,6 @@ class Room {
 
             this.chat.addMessage(data, this.allUsers);
         });
-
-        events.onopen = () => {
-            console.info("Connection to events opened!");
-        }
-
-        events.onerror = event => {
-            console.error("EVENTS ERROR: ", event);
-            console.info("Closing current EventSource, current readyState =", events.readyState);
-            events.close();
-            let retryAfter = 5000;
-            console.info("Attempting reconnect in", retryAfter, "ms.");
-            setTimeout(() => {
-                this.listenToServerEvents();
-            }, retryAfter);
-        }
     }
 
     async connectToServer() {
@@ -1276,7 +1276,7 @@ class Room {
         await this.loadPlayerData();
         await this.loadPlaylistData();
         await this.loadChatData();
-        api.uptime().then(uptime => this.roomContent.websiteUptime.textContent = uptime);
+        api.uptime().then(uptime   => this.roomContent.websiteUptime.textContent  = uptime);
         api.version().then(version => this.roomContent.websiteVersion.textContent = version);
         this.listenToServerEvents();
     }

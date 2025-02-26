@@ -58,6 +58,15 @@ type Subtitle struct {
 	Shift float64 `json:"shift"`
 }
 
+// NOTE(kihau): Placeholder until client side source switching is implemented.
+type Source struct {
+	AudioUrl  string `json:"audio_url"`
+	VideoUrl  string `json:"video_url"`
+	AudioOnly bool   `json:"audio_only"`
+	Quality   string `json:"quality" ` // ex. "1080p"?
+	Type      string `json:"type" `    // ex. "hls_vod", "live", "file"?
+}
+
 type Entry struct {
 	Id         uint64     `json:"id"`
 	Url        string     `json:"url"`
@@ -66,6 +75,8 @@ type Entry struct {
 	UseProxy   bool       `json:"use_proxy"`
 	RefererUrl string     `json:"referer_url"`
 	SourceUrl  string     `json:"source_url"`
+    // NOTE(kihau): Placeholder until client side source switching is implemented.
+	// Sources    []Source   `json:"sources"`
 	Subtitles  []Subtitle `json:"subtitles"`
 	Thumbnail  string     `json:"thumbnail"`
 	Created    time.Time  `json:"created"`

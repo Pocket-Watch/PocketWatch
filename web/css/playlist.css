@@ -36,7 +36,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #363331; 
+    background-color: var(--bg_custom_1); 
 }
 
 #playlist_controls_search_icon svg {
@@ -128,7 +128,7 @@
     overflow-y: scroll;
     overflow-x: hidden;
     scroll-behavior: smooth;
-    scrollbar-color: var(--fg_6) #1d20217f;
+    scrollbar-color: var(--fg_6) var(--bg_0)
 }
 
 #playlist_entry_list.disable-smooth-scrolling-for-toy-touch-device-systems {
@@ -197,17 +197,16 @@
 }
 
 .context_menu_item:active span {
-    color: #fbf1c7;
+    color: var(--fg_1);
 }
 
 .context_menu_item:active svg {
-    fill: #fbf1c7;
+    fill: var(--fg_1);
 }
 
 #context_menu_play_now svg {
     height: 20px;
     width: 20px;
-
 }
 
 #context_menu_move_to_top svg {
@@ -227,19 +226,19 @@
 }
 
 #context_menu_edit span {
-    color: #8ec87c;
+    color: var(--aqua_2);
 }
 
 #context_menu_edit svg {
-    fill: #8ec87c;
+    fill: var(--aqua_2);
 }
 
 #context_menu_edit:hover {
-    background-color: #8ec87c28;
+    background-color: var(--aqua_custom_1);
 }
 
 #context_menu_edit:active {
-    background-color: #8ec87c55;
+    background-color: var(--aqua_custom_0);
 }
 
 
@@ -252,11 +251,11 @@
 }
 
 #context_menu_delete:hover {
-    background-color: #fb493428;
+    background-color: var(--red_custom_0);
 }
 
 #context_menu_delete:active {
-    background-color: #fb493455;
+    background-color: var(--red_custom_1);
 }
 
 #playlist_entry_list_footer {
@@ -303,7 +302,7 @@
 }
 
 .playlist_entry.draggable .playlist_drag_area {
-    color: #fbf1c7;
+    color: var(--fg_1);
     background-color: var(--bg_6);
 }
 
@@ -580,7 +579,7 @@
 }
 
 .playlist_dropdown_button:hover {
-    background-color: #5a534f;
+    background-color: var(--bg_custom_0);
 }
 
 .playlist_dropdown_button:active {
@@ -646,7 +645,7 @@
 }
 
 .playlist_entry.editing .playlist_entry_edit_button:hover svg {
-    fill: #9dd389;
+    fill: var(--aqua_custom_2);
 }
 
 .playlist_entry.editing .playlist_entry_info {

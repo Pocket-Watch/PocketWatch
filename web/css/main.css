@@ -15,6 +15,7 @@ html * {
 }
 
 :root {
+    /* Standard gruvbox palette. */
     --red_0:    #9d0006;
     --green_0:  #79740e;
     --yellow_0: #b57614;
@@ -44,7 +45,7 @@ html * {
 
     --bg_0: #1d2021;
     --bg_1: #282828;
-    --bg_2: #32303f;
+    --bg_2: #32302f;
     --bg_3: #3c3836;
     --bg_4: #504945;
     --bg_5: #665c54;
@@ -57,6 +58,17 @@ html * {
     --fg_4: #d5c4a1;
     --fg_5: #bdae93;
     --fg_6: #a89984;
+
+    /* Custom colors that extend gruvbox. */
+    --bg_custom_0: #5a534f;
+    --bg_custom_1: #363331;
+
+    --red_custom_0: #5a3a36;
+    --red_custom_1: #7c3d35;
+
+    --aqua_custom_0: #57684d;
+    --aqua_custom_1: #494e41;
+    --aqua_custom_2: #9dd389;
 }
 
 #root_panel {
@@ -129,7 +141,7 @@ html * {
 }
 
 #url_dropdown_button:active {
-    background-color: #928374;
+    background-color: var(--gray_2);
 }
 
 #url_dropdown_button svg {
@@ -155,7 +167,7 @@ html * {
     align-items: center;
     margin-left: 6px;
     transition: transform 80ms;
-    background-color: #fb4934;
+    background-color: var(--red_2);
 }
 
 #url_reset_button:hover {
@@ -695,7 +707,7 @@ html * {
     align-items: center;
     justify-content: center;
     margin-bottom: 6px;
-    background-color: #32302f;
+    background-color: var(--bg_2);
     color: var(--fg_4);
     transition: height 100ms ease;
 }

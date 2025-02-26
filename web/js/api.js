@@ -27,6 +27,7 @@ export class JsonResponse {
         if (this.ok) {
             return false;
         }
+
         this.logError();
         return true;
     }
@@ -89,13 +90,16 @@ async function httpPost(endpoint, jsonObj) {
             let errorText = await response.text();
             return JsonResponse.fromPostError(response.status, errorText, endpoint);
         }
-        let json = await response.json();
-        return JsonResponse.fromPost(response.status, json, endpoint);
-    } catch (error) {
-        if (error.name === "SyntaxError") {
-            // Server probably didn't send json? Just return empty JSON server-side {}
-            return JsonResponse.fromPostError(500, "SyntaxError: " + error.message, endpoint);
+
+        let jsonResponse;
+        try {
+            jsonResponse = await response.json();
+        } catch {
+            jsonResponse = {};
         }
+
+        return JsonResponse.fromPost(response.status, jsonResponse, endpoint);
+    } catch (error) {
         throw new Error("ERROR: POST request to endpoint: " + endpoint + " failed " + error);
     }
 }

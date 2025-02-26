@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 )
@@ -357,8 +358,6 @@ func (server *Server) apiPlayerPause(w http.ResponseWriter, r *http.Request) {
 
 	server.updatePlayerState(false, data.Timestamp)
 	event := server.createSyncEvent("pause", user.Id)
-
-	io.WriteString(w, "Broadcasting pause!\n")
 	server.writeEventToAllConnectionsExceptSelf(w, "sync", event, user.Id, data.ConnectionId)
 }
 
@@ -445,7 +444,7 @@ func (server *Server) apiSubtitleDelete(w http.ResponseWriter, r *http.Request) 
 	for i, sub := range server.state.entry.Subtitles {
 		if sub.Id == subId {
 			subs := server.state.entry.Subtitles
-			server.state.entry.Subtitles = append(subs[:i], subs[i+1:]...)
+			server.state.entry.Subtitles = slices.Delete(subs, i, i+1)
 			break
 		}
 	}
@@ -624,7 +623,6 @@ func (server *Server) apiSubtitleSearch(w http.ResponseWriter, r *http.Request) 
 	server.state.mutex.Unlock()
 
 	server.writeEventToAllConnections(w, "subtitleattach", subtitle)
-	io.WriteString(w, "{}")
 }
 
 func (server *Server) apiPlaylistGet(w http.ResponseWriter, r *http.Request) {
@@ -670,7 +668,7 @@ func (server *Server) apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
 	newEntry := server.state.playlist[data.Index]
 	server.loadYoutubeEntry(&newEntry, RequestEntry{})
 	prevEntry := server.setNewEntry(&newEntry)
-	server.state.playlist = append(server.state.playlist[:data.Index], server.state.playlist[data.Index+1:]...)
+	server.state.playlist = slices.Delete(server.state.playlist, data.Index, data.Index+1)
 	server.state.mutex.Unlock()
 
 	event := createPlaylistEvent("remove", data.Index)
@@ -681,7 +679,6 @@ func (server *Server) apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
 		NewEntry:  newEntry,
 	}
 	server.writeEventToAllConnections(w, "playerset", setEvent)
-	io.WriteString(w, "{}")
 	go server.preloadYoutubeSourceOnNextEntry()
 }
 
@@ -779,7 +776,7 @@ func (server *Server) apiPlaylistRemove(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	server.state.playlist = append(server.state.playlist[:data.Index], server.state.playlist[data.Index+1:]...)
+	server.state.playlist = slices.Delete(server.state.playlist, data.Index, data.Index+1)
 	server.state.mutex.Unlock()
 
 	event := createPlaylistEvent("remove", data.Index)
@@ -837,7 +834,7 @@ func (server *Server) apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 	entry := server.state.playlist[move.SourceIndex]
 
 	// Remove element from the slice:
-	server.state.playlist = append(server.state.playlist[:move.SourceIndex], server.state.playlist[move.SourceIndex+1:]...)
+	server.state.playlist = slices.Delete(server.state.playlist, move.SourceIndex, move.SourceIndex+1)
 
 	list := make([]Entry, 0)
 
@@ -877,7 +874,7 @@ func (server *Server) apiPlaylistUpdate(w http.ResponseWriter, r *http.Request) 
 	server.state.mutex.Lock()
 	updatedEntry := Entry{Id: 0}
 
-	for i := 0; i < len(server.state.playlist); i++ {
+	for i := range server.state.playlist {
 		if server.state.playlist[i].Id == entry.Id {
 			server.state.playlist[i].Title = entry.Title
 			server.state.playlist[i].Url = entry.Url
