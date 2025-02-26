@@ -71,6 +71,49 @@ async function httpPostFile(endpoint, file, filename) {
     }
 }
 
+async function httpPostFileWithProgress(endpoint, file, onprogress) {
+    return new Promise((resolve, _) => {
+        const request = new XMLHttpRequest();
+        request.open("POST", endpoint, true);
+        request.setRequestHeader("Authorization", token);
+
+        var formdata = new FormData();
+        formdata.append("file", file);
+
+        request.upload.onprogress = event => {
+            let progress = 0.0;
+            if (event.lengthComputable) {
+                progress = (event.loaded / event.total) * 100;
+            }
+
+            onprogress(progress);
+        };
+
+        request.onreadystatechange = _ => {
+            if (request.readyState === 4) {
+                if (request.status !== 200) {
+                    let errorText = request.responseText;
+                    let response = JsonResponse.fromPostError(request.status, errorText, endpoint);
+                    resolve(response);
+                    return;
+                }
+
+                let jsonResponse;
+                try {
+                    jsonResponse = JSON.parse(request.responseText);
+                } catch {
+                    jsonResponse = {};
+                }
+
+                let response = JsonResponse.fromPost(request.status, jsonResponse, endpoint);
+                resolve(response);
+            }
+        };
+
+        request.send(formdata);
+    });
+}
+
 // It sends a JSON body and receives a JSON body, on error receives error as text (http.Error in go)
 // Unfortunately there does not seem to be an option to disable the ugly response status console log
 async function httpPost(endpoint, jsonObj) {
@@ -158,31 +201,14 @@ export async function uptime() {
 
 export async function uploadMedia(file, filename) {
     console.info("INFO: Uploading a file to the server.");
-    let filePath = await httpPostFile("/watch/api/uploadmedia", file, filename);
-    return filePath;
+    let fileUrl = await httpPostFile("/watch/api/uploadmedia", file, filename);
+    return fileUrl;
 }
 
 export async function uploadMediaWithProgress(file, onprogress) {
     console.info("INFO: Uploading a file to the server (with progress callback).");
-
-    const request = new XMLHttpRequest();
-    request.open("POST", "/watch/api/uploadmedia", true);
-    request.setRequestHeader("Authorization", token);
-
-    var formdata = new FormData();
-    formdata.append("file", file);
-
-    request.upload.onprogress = event => {
-        let progress = 0.0;
-        if (event.lengthComputable) {
-            progress = (event.loaded / event.total) * 100;
-        }
-
-        onprogress(progress);
-    };
-
-    // TODO(kihau): Add error handing? Do we even care?
-    request.send(formdata);
+    let fileUrl = await httpPostFileWithProgress("/watch/api/uploadmedia", file, onprogress);
+    return fileUrl;
 }
 
 export async function userCreate() {

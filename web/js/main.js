@@ -483,8 +483,16 @@ class Room {
                 return;
             }
 
-            api.uploadMediaWithProgress(files[0], progress => {
+            let upload = api.uploadMediaWithProgress(files[0], progress => {
                 this.roomContent.uploadFileProgress.value = progress;
+            });
+
+            upload.then(response => {
+                if (response.checkError()) {
+                    return;
+                }
+
+                this.urlArea.urlInput.value = response.json;
             });
         };
 
