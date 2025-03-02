@@ -71,8 +71,9 @@ func FromArgs() Options {
 func GetExecutableName() string {
 	path, err := os.Executable()
 	if err != nil {
-		return "watch-locally"
+		return "pocketwatch"
 	}
+
 	path = filepath.Base(path)
 	return path
 }
@@ -82,9 +83,8 @@ var VERSION string = "0.0.1-alpha"
 func DisplayHelp() {
 	exe := GetExecutableName()
 
-	fmt.Println("  +-----------------------+")
-	fmt.Println("  | WATCH LOCALLY ", "v"+VERSION, "|")
-	fmt.Println("  +-----------------------+")
+	fmt.Println()
+	fmt.Println("Pocket Watch ", "v"+VERSION)
 	fmt.Println()
 	fmt.Println("Usage:")
 	fmt.Println("    ", exe, "[OPTIONS]")

@@ -1,6 +1,6 @@
 :root {
     /* #1d2021 */
-    --player_color_bg1: 29, 32, 21;
+    --player_color_bg1: 29, 32, 33;
 
     --player_opacity_bg1:       0.5;
     --player_opacity_shadow:    0.35;
@@ -18,10 +18,10 @@
     --player_opacity_switch: 0.6;
 
     /* #3c3836; */
-    --player_color_bg3:      60, 56, 54;
-    --player_opacity_bg3:    0.8;
-    --player_opacity_volume: 0.8;
+    --player_color_bg3:   60, 56, 54;
+    --player_opacity_bg3: 0.8;
 
+    /* #32302f; */
     --player_color_bg4:   50, 48, 47;
     --player_opacity_bg4: 0.8;
 
@@ -32,6 +32,7 @@
 
     --player_color_red1:     #fb4934;
     --player_color_progress: #fb4934cc;
+    --player_color_volume:   #bdae93cc;
 
     --player_color_gray1:  #92837499;
     --player_color_green1: #98971a99;
@@ -171,6 +172,7 @@
     visibility: visible;
     opacity: 1; 
     margin: auto;
+    stroke: var(--player_color_fg1);
 }
 
 #player_playback_popup.hide {
@@ -404,7 +406,7 @@
     width: 100%;
     border-radius: 12px;
     position: absolute;
-    background-color: rgba(var(--player_color_fg3), var(--player_opacity_volume));
+    background-color: var(--player_color_volume);
 }
 
 #player_volume_progress {
@@ -847,6 +849,8 @@
     position: absolute;
     margin: auto;
     animation: spin 4s linear infinite;
+    /* FIXME(kihau): */
+    fill: var(--player_color_fg1);
 }
 
 @keyframes spin {

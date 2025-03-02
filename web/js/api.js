@@ -90,7 +90,7 @@ async function httpPostFileWithProgress(endpoint, file, onprogress) {
         };
 
         request.onreadystatechange = _ => {
-            if (request.readyState === 4) {
+            if (request.readyState === XMLHttpRequest.DONE) {
                 if (request.status !== 200) {
                     let errorText = request.responseText;
                     let response = JsonResponse.fromPostError(request.status, errorText, endpoint);
@@ -116,14 +116,14 @@ async function httpPostFileWithProgress(endpoint, file, onprogress) {
 
 // It sends a JSON body and receives a JSON body, on error receives error as text (http.Error in go)
 // Unfortunately there does not seem to be an option to disable the ugly response status console log
-async function httpPost(endpoint, jsonObj) {
+async function httpPost(endpoint, data) {
     const headers = new Headers();
     headers.set("Content-Type", "application/json");
     headers.set("Authorization", token);
 
     const options = {
         method: "POST",
-        body: JSON.stringify(jsonObj),
+        body: JSON.stringify(data),
         headers: headers,
     };
 
