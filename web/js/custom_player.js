@@ -2526,8 +2526,6 @@ function makeRgba(hexColor, opacity) {
 
     opacity /= 100.0;
     let rgba = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
-    console.log(rgba);
-
     return rgba;
 } 
 
