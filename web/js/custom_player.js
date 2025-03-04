@@ -1094,36 +1094,30 @@ class Internals {
         this.updateSubtitleHtmlPosition(position);
     }
 
-    colorAndOpacity(hexColor, opacity) {
-        let byteOpacity = Math.floor(opacity / 100.0 * 255);
-        let hexOpacity  = byteOpacity.toString(16)
-        return hexColor + hexOpacity;
-    } 
-
     setSubtitleForegroundColor(hexColor) {
         let opacity = this.subtitleFgOpacity.getValue();
-        this.subtitleText.style.color = this.colorAndOpacity(hexColor, opacity);
+        this.subtitleText.style.color = makeRgba(hexColor, opacity);
         this.subtitleFgColor.setValue(hexColor);
         this.fireSettingsChange(Options.SUBTITLE_FOREGROUND_COLOR, hexColor);
     }
 
     setSubtitleForegroundOpacity(opacity) {
         let hexColor = this.subtitleFgColor.getValue();
-        this.subtitleText.style.color = this.colorAndOpacity(hexColor, opacity);
+        this.subtitleText.style.color = makeRgba(hexColor, opacity);
         this.subtitleFgOpacity.setValue(opacity);
         this.fireSettingsChange(Options.SUBTITLE_FOREGROUND_OPACITY, opacity);
     }
 
     setSubtitleBackgroundColor(hexColor) {
         let opacity = this.subtitleBgOpacity.getValue();
-        this.subtitleText.style.backgroundColor = this.colorAndOpacity(hexColor, opacity);
+        this.subtitleText.style.backgroundColor = makeRgba(hexColor, opacity);
         this.subtitleBgColor.setValue(hexColor);
         this.fireSettingsChange(Options.SUBTITLE_BACKGROUND_COLOR, hexColor);
     }
 
     setSubtitleBackgroundOpacity(opacity) {
         let hexColor = this.subtitleBgColor.getValue();
-        this.subtitleText.style.backgroundColor = this.colorAndOpacity(hexColor, opacity);
+        this.subtitleText.style.backgroundColor = makeRgba(hexColor, opacity);
         this.subtitleBgOpacity.setValue(opacity);
         this.fireSettingsChange(Options.SUBTITLE_BACKGROUND_OPACITY, opacity);
     }
@@ -2520,6 +2514,29 @@ function stopPropagation(event) {
 function isFunction(func) {
     return func != null && typeof func === "function";
 }
+
+function makeRgba(hexColor, opacity) {
+    let redHex   = hexColor.substring(1, 3);
+    let greenHex = hexColor.substring(3, 5);
+    let blueHex  = hexColor.substring(5, 7);
+
+    let red   = parseInt(redHex,   16);
+    let green = parseInt(greenHex, 16);
+    let blue  = parseInt(blueHex,  16);
+
+    opacity /= 100.0;
+    let rgba = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
+    console.log(rgba);
+
+    return rgba;
+} 
+
+
+function addOpacityToColor(hexColor, opacity) {
+    let byteOpacity = Math.floor(opacity / 100.0 * 255);
+    let hexOpacity  = byteOpacity.toString(16)
+    return hexColor + hexOpacity;
+} 
 
 // For example: Linux cannot be included as a desktop agent because it also appears along Android
 // Similarly: Macintosh cannot be included as a desktop agent because it also appears along iPad

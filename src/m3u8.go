@@ -184,7 +184,7 @@ func parseParams(line string) []Param {
 	onKey := true
 	inString := false
 
-	for i := 0; i < len(line); i++ {
+	for i := range len(line) {
 		switch line[i] {
 		case ',':
 			if inString {
@@ -283,7 +283,7 @@ func newM3U(segmentCapacity uint32) *M3U {
 // Returns the value associated with the given key or "" if key is missing
 func (m3u *M3U) getAttribute(key string) string {
 	length := len(m3u.attributePairs)
-	for i := 0; i < length; i++ {
+	for i := range length {
 		pair := &m3u.attributePairs[i]
 		if pair.key == key {
 			return pair.value
@@ -351,7 +351,7 @@ func (m3u *M3U) getBestTrack() *Track {
 
 // This method will only prefix relative URLs
 func (m3u *M3U) prefixRelativeTracks(prefix string) {
-	for i := 0; i < len(m3u.tracks); i++ {
+	for i := range m3u.tracks {
 		if !strings.HasPrefix(m3u.tracks[i].url, "http") {
 			m3u.tracks[i].prefixUrl(prefix)
 		}
@@ -383,7 +383,7 @@ func (m3u *M3U) copy() M3U {
 // This will only prefix URLs which are not fully qualified
 func (m3u *M3U) prefixRelativeSegments(prefix string) {
 	// if a range loop is used the track url is effectively not reassigned
-	for i := 0; i < len(m3u.segments); i++ {
+	for i := range m3u.segments {
 		if !strings.HasPrefix(m3u.segments[i].url, "http") {
 			m3u.segments[i].prefixUrl(prefix)
 		}

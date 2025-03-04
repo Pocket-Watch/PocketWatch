@@ -48,7 +48,7 @@ func formatUnit(value int, length int) string {
 	var format strings.Builder
 	formattedValue := strconv.Itoa(value)
 	pad := length - len(formattedValue)
-	for i := 0; i < pad; i++ {
+	for range pad {
 		format.WriteByte('0')
 	}
 	format.WriteString(formattedValue)

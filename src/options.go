@@ -159,7 +159,7 @@ func AnyToString(anything any) string {
 func CenterPad(builder *strings.Builder, text string, length int) {
 	rem := length - len(text)
 	half := rem / 2
-	for i := 0; i < half; i++ {
+	for range half {
 		builder.WriteString(" ")
 	}
 	builder.WriteString(text)
@@ -169,7 +169,7 @@ func CenterPad(builder *strings.Builder, text string, length int) {
 }
 
 func WriteNTimes(builder *strings.Builder, character string, times int) {
-	for i := 0; i < times; i++ {
+	for range times {
 		builder.WriteString(character)
 	}
 }

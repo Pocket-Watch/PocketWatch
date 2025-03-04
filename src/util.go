@@ -416,7 +416,7 @@ func isSlash(char uint8) bool {
 }
 
 func stall(delay time.Duration, maxChecks int, checkFunc func() bool) {
-	for i := 0; i < maxChecks; i++ {
+	for range maxChecks {
 		time.Sleep(delay)
 		if checkFunc() {
 			return
