@@ -667,6 +667,7 @@ class Room {
 
         let entry = state.entry;
         this.setEntryEvent(entry);
+        this.player.seek(state.player.timestamp)
     }
 
     async loadUsersData() {

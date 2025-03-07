@@ -1084,7 +1084,7 @@ func (server *Server) insertContentRangeSequentially(newRange *Range) {
 
 func (server *Server) mergeContentRanges() {
 	proxy := &server.state.genericProxy
-	for i := range len(proxy.contentRanges)-1 {
+	for i := range len(proxy.contentRanges) - 1 {
 		leftRange := &proxy.contentRanges[i]
 		rightRange := &proxy.contentRanges[i+1]
 		exclusiveRange := newRange(0, leftRange.end+1)

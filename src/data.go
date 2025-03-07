@@ -68,18 +68,18 @@ type Source struct {
 }
 
 type Entry struct {
-	Id         uint64     `json:"id"`
-	Url        string     `json:"url"`
-	Title      string     `json:"title"`
-	UserId     uint64     `json:"user_id"`
-	UseProxy   bool       `json:"use_proxy"`
-	RefererUrl string     `json:"referer_url"`
-	SourceUrl  string     `json:"source_url"`
-    // NOTE(kihau): Placeholder until client side source switching is implemented.
+	Id         uint64 `json:"id"`
+	Url        string `json:"url"`
+	Title      string `json:"title"`
+	UserId     uint64 `json:"user_id"`
+	UseProxy   bool   `json:"use_proxy"`
+	RefererUrl string `json:"referer_url"`
+	SourceUrl  string `json:"source_url"`
+	// NOTE(kihau): Placeholder until client side source switching is implemented.
 	// Sources    []Source   `json:"sources"`
-	Subtitles  []Subtitle `json:"subtitles"`
-	Thumbnail  string     `json:"thumbnail"`
-	Created    time.Time  `json:"created"`
+	Subtitles []Subtitle `json:"subtitles"`
+	Thumbnail string     `json:"thumbnail"`
+	Created   time.Time  `json:"created"`
 }
 
 type ServerState struct {
