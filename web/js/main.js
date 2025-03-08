@@ -21,6 +21,8 @@ class Room {
         let video0 = getById("video0");
 
         let options = new Options();
+        options.useAudioGain       = true;
+        options.maxVolume          = 2;
         options.hideSpeedButton    = true;
         options.hideDownloadButton = true;
         options.hlsConfig.xhrSetup = (xhr, url) => this.configureHlsRequests(xhr, url);

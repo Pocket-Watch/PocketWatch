@@ -484,6 +484,10 @@ class Internals {
 
         setInterval(_ => this.redrawBufferedBars(), this.options.bufferingRedrawInterval);
 
+        // Without user interaction audio gain will not take effect anyway (internal browser warning)
+        if (this.options.useAudioGain) {
+            this.gainNode = this.createAudioGain();
+        }
         this.setVolume(1.0);
 
         let userAgent = navigator.userAgent;
@@ -564,6 +568,20 @@ class Internals {
         }
 
         this.htmlVideo.currentTime = timestamp;
+    }
+
+    createAudioGain() {
+        if (!window.AudioContext) {
+            window.AudioContext = window.webkitAudioContext;
+        }
+
+        const audioContext = new AudioContext();
+        let gainNode = audioContext.createGain();
+
+        const source = audioContext.createMediaElementSource(this.htmlVideo);
+        source.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        return gainNode;
     }
 
     updateProgressBar(progress) {
@@ -680,13 +698,6 @@ class Internals {
     }
 
     updateHtmlVolume(volume) {
-        if (volume > 1.0) {
-            volume = 1.0;
-        }
-
-        if (volume < 0.0) {
-            volume = 0.0;
-        }
 
         if (volume == 0.0) {
             this.svgs.volume.setHref(this.icons.volume_muted);
@@ -702,7 +713,7 @@ class Internals {
         input.value = volume;
 
         let progress = this.htmlControls.buttons.volumeProgress;
-        progress.style.width = volume * 100.0 + "%";
+        progress.style.width = volume/this.options.maxVolume * 100.0 + "%";
     }
 
     getNewTime(timeOffset) {
@@ -714,15 +725,27 @@ class Internals {
     }
 
     setVolume(volume) {
-        if (volume > 1.0) {
-            volume = 1.0;
-        }
-
         if (volume < 0.0) {
             volume = 0.0;
         }
 
-        this.htmlVideo.volume = volume;
+        let maxVolume = this.options.useAudioGain ? this.options.maxVolume : 1;
+        if (volume > maxVolume) {
+            volume = maxVolume;
+        }
+
+        if (this.options.useAudioGain) {
+            if (volume > 1.0) {
+                this.htmlVideo.volume = 1;
+                this.gainNode.gain.value = volume;
+            } else {
+                this.gainNode.gain.value = 1;
+                this.htmlVideo.volume = volume;
+            }
+        } else {
+            this.htmlVideo.volume = volume;
+        }
+
         this.updateHtmlVolume(volume);
     }
 
@@ -1640,7 +1663,7 @@ class Internals {
 
         volumeSlider.type  = "range";
         volumeSlider.min   = "0";
-        volumeSlider.max   = "1";
+        volumeSlider.max   = this.options.maxVolume;
         volumeSlider.value = "1";
         volumeSlider.step  = "any";
 
@@ -2587,6 +2610,9 @@ class Options {
         this.sanitizeSubtitles = true;
         this.allowCueOverlap = true;
         this.fullscreenKeyLetter = 'f';
+        // Max volume will be respected only if audio gain is enabled
+        this.useAudioGain = false;
+        this.maxVolume = 1;
 
         // [Arrow keys/Double tap] seeking offset provided in seconds. (Preferably [1-99])
         this.seekBy = 5;
@@ -2612,6 +2638,10 @@ class Options {
     // Ensure values are the intended type and within some reasonable range
     valid() {
         if (typeof this.seekBy !== "number" || this.seekBy < 0) {
+            return false;
+        }
+
+        if (typeof this.maxVolume !== "number" || this.maxVolume < 0.1 || this.maxVolume > 10) {
             return false;
         }
 
