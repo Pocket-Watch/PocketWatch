@@ -438,7 +438,7 @@ class Internals {
 
         this.subtitleShift     = new Slider("Subtitle shift",    -20,  20, 0.1,  0, "s", true);
         this.subtitleSize      = new Slider("Subtitle size",      10, 100, 1.0, 30, "px");
-        this.subtitlePos       = new Slider("Vertical position",   0, 100, 1.0, 16, "%"); 
+        this.subtitlePos       = new Slider("Vertical position",   0, 100, 1.0, 16, "%");
         this.subtitleFgColor   = new ColorPicker("Foreground color", DEFAULT_SUBTITLE_FOREGROUND_COLOR);
         this.subtitleFgOpacity = new Slider("Foreground opacity", 0, 100, 1.0, DEFAULT_SUBTITLE_FOREGROUND_OPACITY, "%");
         this.subtitleBgColor   = new ColorPicker("Background color", DEFAULT_SUBTITLE_BACKGROUND_COLOR);
@@ -581,6 +581,8 @@ class Internals {
         const source = audioContext.createMediaElementSource(this.htmlVideo);
         source.connect(gainNode);
         gainNode.connect(audioContext.destination);
+        // Keep a reference so it can be resumed in Chromium based browsers
+        this.audioContext = audioContext;
         return gainNode;
     }
 
@@ -1094,7 +1096,7 @@ class Internals {
         list.removeChild(track);
         this.subtitles.splice(index, 1);
     }
-    
+
     clearAllSubtitleTracks() {
         this.subtitles = [];
         this.selectedSubtitle = null;
@@ -1399,6 +1401,11 @@ class Internals {
         });
 
         this.htmlVideo.addEventListener("play", _ => {
+            if (this.options.useAudioGain && this.audioContext.state === "suspended") {
+                this.audioContext.resume().then(_ =>
+                    console.debug("Resumed AudioContext which was suspended.")
+                );
+            }
             this.svgs.playbackPopup.setHref(this.icons.play_popup);
             this.showPlaybackPopup();
         });
@@ -2550,14 +2557,14 @@ function makeRgba(hexColor, opacity) {
     opacity /= 100.0;
     let rgba = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
     return rgba;
-} 
+}
 
 
 function addOpacityToColor(hexColor, opacity) {
     let byteOpacity = Math.floor(opacity / 100.0 * 255);
     let hexOpacity  = byteOpacity.toString(16)
     return hexColor + hexOpacity;
-} 
+}
 
 // For example: Linux cannot be included as a desktop agent because it also appears along Android
 // Similarly: Macintosh cannot be included as a desktop agent because it also appears along iPad
