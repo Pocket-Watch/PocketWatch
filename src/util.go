@@ -18,7 +18,7 @@ import (
 )
 
 var client = http.Client{
-	Timeout: time.Second * 20,
+	Timeout: time.Second * 35,
 }
 
 var userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; rv:115.0) Gecko/20100101 Firefox/115.0"
