@@ -316,9 +316,15 @@ func (server *Server) setNewEntry(newEntry *Entry) Entry {
 
 	// TODO(kihau): Proper proxy setup for youtube entries.
 
-	lastSegment := lastUrlSegment(newEntry.Url)
 	if newEntry.UseProxy {
-		if strings.HasSuffix(lastSegment, ".m3u8") {
+		paramUrl := ""
+		if SCAN_QUERY_PARAMS {
+			paramUrl = getParamUrl(newEntry.Url)
+			LogDebug("Extracted param url: %v", paramUrl)
+		}
+		lastSegment := lastUrlSegment(newEntry.Url)
+		lastSegmentOfParam := lastUrlSegment(paramUrl)
+		if strings.HasSuffix(lastSegment, ".m3u8") || strings.HasSuffix(lastSegmentOfParam, ".m3u8") {
 			setup := server.setupHlsProxy(newEntry.Url, newEntry.RefererUrl)
 			if setup {
 				newEntry.SourceUrl = PROXY_ROUTE + PROXY_M3U8

@@ -31,6 +31,7 @@ const PROXY_M3U8 = "proxy.m3u8"
 
 const MAX_MESSAGE_CHARACTERS = 1000
 const GENERIC_CHUNK_SIZE = 4 * MB
+const SCAN_QUERY_PARAMS = true
 
 // Constants - assignable only once!
 var serverRootAddress string

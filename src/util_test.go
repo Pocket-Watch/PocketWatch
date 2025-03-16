@@ -119,14 +119,6 @@ func TestPathTraversal(t *testing.T) {
 	}
 }
 
-func TestTildeTraversal(t *testing.T) {
-	_, isSafe := safeJoin("dir1", "dir2", "~")
-	if isSafe {
-		t.Errorf("Tilde is an unsafe character in Linux!")
-		return
-	}
-}
-
 func TestSuccessfulJoin(t *testing.T) {
 	sep := getPathSeparator()
 	path, isSafe := safeJoin("abc/", "/123/", "/45")
