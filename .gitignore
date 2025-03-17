@@ -1,5 +1,4 @@
 .idea
-web/favicon.ico
 web/media/**
 build/**
 secret/**
