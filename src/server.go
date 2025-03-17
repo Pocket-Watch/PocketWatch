@@ -199,11 +199,17 @@ func handleUnknownEndpoint(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "¯\\_(ツ)_/¯", http.StatusTeapot)
 }
 
+func serveFavicon(w http.ResponseWriter, r *http.Request) {
+    http.ServeFile(w, r, "web/img/favicon.ico")
+}
+
 func registerEndpoints(server *Server) {
 	fileserver := http.FileServer(http.Dir("./web"))
 	http.Handle("/watch/", http.StripPrefix("/watch/", fileserver))
 
 	http.HandleFunc("/", handleUnknownEndpoint)
+
+	http.HandleFunc("/favicon.ico", serveFavicon)
 
 	// Unrelated API calls.
 	server.HandleEndpoint("/watch/api/version", server.apiVersion, "GET", false)
