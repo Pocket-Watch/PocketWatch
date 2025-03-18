@@ -122,22 +122,28 @@ func downloadFileChunk(url string, r *Range, referer string) ([]byte, error) {
 	return buffer, nil
 }
 
-// This is arbitrary. Maybe there's some specification for proxied URLs
+// Maybe there's some specification for proxied URLs
 func getParamUrl(url string) string {
 	parsedUrl, err := net_url.Parse(url)
 	if err != nil {
 		return ""
 	}
-	paramUrl := parsedUrl.Query().Get("url")
-	if paramUrl == "" || !strings.HasPrefix(paramUrl, "http") {
-		return ""
+
+	for _, values := range parsedUrl.Query() {
+		if len(values) == 0 {
+			continue
+		}
+		paramUrl := values[0]
+		if !strings.HasPrefix(paramUrl, "http") {
+			continue
+		}
+		// Ensure that param url is a valid url
+		_, err = net_url.Parse(paramUrl)
+		if err == nil {
+			return paramUrl
+		}
 	}
-	// Ensure that param url is a valid url
-	_, err = net_url.Parse(paramUrl)
-	if err != nil {
-		return ""
-	}
-	return paramUrl
+	return ""
 }
 
 // This will download a chunk of a file within the specified range
