@@ -14,6 +14,7 @@ const (
 	LOG_WARN  = 2
 	LOG_INFO  = 3
 	LOG_DEBUG = 4
+	LOG_ALL   = 5
 )
 
 // Log colors
@@ -34,38 +35,46 @@ const (
 var LOG_CONFIG LoggingConfig
 
 func LogError(format string, args ...any) {
-	logOutput("ERROR", COLOR_RED, 0, format, args...)
+	logOutput("ERROR", LOG_ERROR, COLOR_RED, 0, format, args...)
 }
 
 func LogWarn(format string, args ...any) {
-	logOutput("WARN ", COLOR_YELLOW, 0, format, args...)
+	logOutput("WARN ", LOG_WARN, COLOR_YELLOW, 0, format, args...)
 }
 
 func LogInfo(format string, args ...any) {
-	logOutput("INFO ", COLOR_BLUE, 0, format, args...)
+	logOutput("INFO ", LOG_INFO, COLOR_BLUE, 0, format, args...)
 }
 
 func LogDebug(format string, args ...any) {
-	logOutput("DEBUG", COLOR_PURPLE, 0, format, args...)
+	logOutput("DEBUG", LOG_DEBUG, COLOR_PURPLE, 0, format, args...)
 }
 
 func LogErrorSkip(stackDepthSkip int, format string, args ...any) {
-	logOutput("ERROR", COLOR_RED, stackDepthSkip, format, args...)
+	logOutput("ERROR", LOG_ERROR, COLOR_RED, stackDepthSkip, format, args...)
 }
 
 func LogWarnSkip(stackDepthSkip int, format string, args ...any) {
-	logOutput("WARN ", COLOR_YELLOW, stackDepthSkip, format, args...)
+	logOutput("WARN ", LOG_WARN, COLOR_YELLOW, stackDepthSkip, format, args...)
 }
 
 func LogInfoSkip(stackDepthSkip int, format string, args ...any) {
-	logOutput("INFO ", COLOR_BLUE, stackDepthSkip, format, args...)
+	logOutput("INFO ", LOG_INFO, COLOR_BLUE, stackDepthSkip, format, args...)
 }
 
 func LogDebugSkip(stackDepthSkip int, format string, args ...any) {
-	logOutput("DEBUG", COLOR_PURPLE, stackDepthSkip, format, args...)
+	logOutput("DEBUG", LOG_DEBUG, COLOR_PURPLE, stackDepthSkip, format, args...)
 }
 
-func logOutput(severity string, color string, stackDepthSkip int, format string, args ...any) {
+func logOutput(severity string, level uint16, color string, stackDepthSkip int, format string, args ...any) {
+	if !LOG_CONFIG.Enabled {
+		return
+	}
+
+	if LOG_CONFIG.LogLevel < level {
+		return
+	}
+
 	_, file, line, ok := runtime.Caller(stackDepthSkip + 2)
 
 	if !ok {
