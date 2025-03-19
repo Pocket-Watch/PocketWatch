@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -76,17 +77,23 @@ func LoadConfig(config *Config, path string) (bool, string) {
 
 	_, err := os.Stat(path)
 	if err != nil {
-		return false, ""
+		if os.IsNotExist(err) {
+			programPath, _ := os.Executable()
+			return false, fmt.Sprintf("Specified config file does not exist. You can create it by running '%v --generate-config --config-path %v'", programPath, path)
+		} else {
+			errorMessage := err.(*fs.PathError).Err
+			return false, fmt.Sprintf("Failed to open '%v' config file: %v.", path, errorMessage)
+		}
 	}
 
 	bytes, err := os.ReadFile(path)
 	if err != nil {
-		return false, ""
+		return false, fmt.Sprintf("Failed to read '%v' config file: %v.", path, err.Error())
 	}
 
 	err = json.Unmarshal(bytes, &temp)
 	if err != nil {
-		return false, ""
+		return false, fmt.Sprintf("Failed deserialize '%v' json config data: %v.", path, err.Error())
 	}
 
 	*config = temp
@@ -96,6 +103,8 @@ func LoadConfig(config *Config, path string) (bool, string) {
 func SaveConfig(config Config, path string) bool {
 	file, err := os.Create(path)
 	if err != nil {
+		errorMessage := err.(*fs.PathError).Err
+		fmt.Fprintf(os.Stderr, "ERROR: Failed to create config file '%v': %v.\n", path, errorMessage)
 		return false
 	}
 
@@ -103,11 +112,13 @@ func SaveConfig(config Config, path string) bool {
 
 	data, err := json.MarshalIndent(config, "", "    ")
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: Failed to serialize config file '%v': %v.\n", path, err.Error())
 		return false
 	}
 
 	written, err := file.Write(data)
 	if err != nil || written != len(data) {
+		fmt.Fprintf(os.Stderr, "ERROR: Failed to write config to the file '%v': %v.\n", path, err.Error())
 		return false
 	}
 

@@ -25,19 +25,25 @@ func main() {
 
 	if flags.GenerateConfig {
 		config := createDefaultConfig()
-		SaveConfig(config, configPath)
+		success := SaveConfig(config, configPath)
+		if !success {
+			os.Exit(1)
+		}
+
+		fmt.Printf("Default config file was generated in '%v'. You can edit it if you wish to configure the server.\n", configPath)
 		return
 	}
 
 	config := createDefaultConfig()
-	success, _ = LoadConfig(&config, configPath)
+	success, errorMessage := LoadConfig(&config, configPath)
 
 	// Log error when config path was explicitly set, but config loading failed.
 	if !success && flags.ConfigPath != "" {
-		fmt.Fprintf(os.Stderr, "ERROR: Failed to load config file the json file.")
+		fmt.Fprintf(os.Stderr, "ERROR: %v\n", errorMessage)
 		os.Exit(1)
 	}
 
+	// Flags have priority over config and overwrite its values.
 	ApplyInputFlags(&config, flags)
 	PrettyPrintConfig(config)
 

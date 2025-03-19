@@ -5,14 +5,17 @@ set -xe
 project_root=$(dirname "$0")
 cd "$project_root"
 
-ip="0.0.0.0"
-port="1234"
-browser="firefox"
-
 mkdir -p build/
 cd src/ 
 go build -race -o ../build/pocketwatch
 cd ..
 
-# $browser "$ip:$port/watch/" &
-./build/pocketwatch --config-path "secret/config.json"
+# Generate dummy config when one is missing.
+if test ! -f "secret/config.json"; then
+    mkdir -p "secret/"
+    ./build/pocketwatch --generate-config --config-path "secret/config.json"
+else 
+    ./build/pocketwatch --config-path "secret/config.json"
+fi
+
+
