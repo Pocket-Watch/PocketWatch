@@ -7,19 +7,31 @@ import (
 	"time"
 )
 
-const COLOR_RESET = "\x1b[0m"
-const COLOR_FATAL = "\x1b[41;1;30m"
-const COLOR_RED = "\x1b[1;31m"
-const COLOR_GREEN = "\x1b[1;32m"
-const COLOR_YELLOW = "\x1b[1;33m"
-const COLOR_BLUE = "\x1b[1;34m"
-const COLOR_PURPLE = "\x1b[1;35m"
-const COLOR_CYAN = "\x1b[0;36m"
+// Log levels
+const (
+	LOG_FATAL = 0
+	LOG_ERROR = 1
+	LOG_WARN  = 2
+	LOG_INFO  = 3
+	LOG_DEBUG = 4
+)
 
-const COLOR_GREEN_LIGHT = "\x1b[0;32m"
-const COLOR_GREEN_DARK = "\x1b[0;92m"
+// Log colors
+const (
+	COLOR_RESET  = "\x1b[0m"
+	COLOR_FATAL  = "\x1b[41;1;30m"
+	COLOR_RED    = "\x1b[1;31m"
+	COLOR_GREEN  = "\x1b[1;32m"
+	COLOR_YELLOW = "\x1b[1;33m"
+	COLOR_BLUE   = "\x1b[1;34m"
+	COLOR_PURPLE = "\x1b[1;35m"
+	COLOR_CYAN   = "\x1b[0;36m"
 
-var ENABLE_COLORS = true
+	COLOR_GREEN_LIGHT = "\x1b[0;32m"
+	COLOR_GREEN_DARK  = "\x1b[0;92m"
+)
+
+var LOG_CONFIG LoggingConfig
 
 func LogError(format string, args ...any) {
 	logOutput("ERROR", COLOR_RED, 0, format, args...)
@@ -69,7 +81,7 @@ func logOutput(severity string, color string, stackDepthSkip int, format string,
 	// date := time.Now().Format(time.RFC1123)
 
 	message := fmt.Sprintf(format, args...)
-	if ENABLE_COLORS {
+	if LOG_CONFIG.EnableColors {
 		fmt.Printf("%v[%v] %v[%-16s] %v[%v]%v %v\n", COLOR_GREEN_LIGHT, date, COLOR_CYAN, codeLocation, color, severity, COLOR_RESET, message)
 	} else {
 		fmt.Printf("[%v] [%-16s] [%v] %v\n", date, codeLocation, severity, message)

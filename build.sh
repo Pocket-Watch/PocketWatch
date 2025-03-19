@@ -13,5 +13,6 @@ mkdir -p build/
 cd src/ 
 go build -race -o ../build/pocketwatch
 cd ..
+
 # $browser "$ip:$port/watch/" &
-./build/pocketwatch -ip $ip -port $port
+./build/pocketwatch --config-path "secret/config.json"

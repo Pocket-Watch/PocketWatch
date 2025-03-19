@@ -562,7 +562,7 @@ func (server *Server) apiSubtitleUpload(w http.ResponseWriter, r *http.Request) 
 }
 
 func (server *Server) apiSubtitleSearch(w http.ResponseWriter, r *http.Request) {
-	if !subsEnabled {
+	if !server.config.EnableSubs {
 		http.Error(w, "Feature unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -695,7 +695,7 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	localDir, path := isLocalDirectory(data.RequestEntry.Url)
+	localDir, path := server.isLocalDirectory(data.RequestEntry.Url)
 	if data.RequestEntry.IsPlaylist && localDir {
 		LogInfo("Adding directory '%s' to the playlist.", path)
 		localEntries := server.getEntriesFromDirectory(path, user.Id)

@@ -36,13 +36,12 @@ const SCAN_QUERY_PARAMS = true
 // Constants - assignable only once!
 var serverRootAddress string
 var startTime = time.Now()
-var subsEnabled bool
-var serverDomain string
 
 type Server struct {
-	state ServerState
-	users *Users
-	conns *Connections
+	config ServerConfig
+	state  ServerState
+	users  *Users
+	conns  *Connections
 }
 
 type PlayerState struct {

@@ -149,19 +149,18 @@ func createPlaylistEvent(action string, data any) PlaylistEventData {
 	return event
 }
 
-func StartServer(options *Options) {
+func StartServer(config ServerConfig) {
 	server := Server{
-		state: ServerState{},
-		users: makeUsers(),
-		conns: makeConnections(),
+		config: config,
+		state:  ServerState{},
+		users:  makeUsers(),
+		conns:  makeConnections(),
 	}
 
 	server.state.lastUpdate = time.Now()
-	subsEnabled = options.Subs
-	serverDomain = options.Domain
 	registerEndpoints(&server)
 
-	var address = options.Address + ":" + strconv.Itoa(int(options.Port))
+	var address = config.Address + ":" + strconv.Itoa(int(config.Port))
 	LogInfo("Starting server on address: %s", address)
 
 	const CERT = "./secret/certificate.pem"
@@ -172,14 +171,14 @@ func StartServer(options *Options) {
 
 	missing_ssl_keys := errors.Is(err_priv, os.ErrNotExist) || errors.Is(err_cert, os.ErrNotExist)
 
-	if options.Ssl && missing_ssl_keys {
+	if config.EnableSsl && missing_ssl_keys {
 		LogError("Failed to find either SSL certificate or the private key.")
 	}
 
 	go server.periodicResync()
 
 	var server_start_error error
-	if !options.Ssl || missing_ssl_keys {
+	if !config.EnableSsl || missing_ssl_keys {
 		serverRootAddress = "http://" + address
 		LogWarn("Server is running in unencrypted http mode.")
 		server_start_error = http.ListenAndServe(address, nil)
@@ -570,13 +569,15 @@ func (server *Server) setupGenericFileProxy(url string, referer string) bool {
 	return true
 }
 
-func isTrustedUrl(url string, parsedUrl *net_url.URL) bool {
+func (server *Server) isTrustedUrl(url string, parsedUrl *net_url.URL) bool {
 	if strings.HasPrefix(url, MEDIA) || strings.HasPrefix(url, serverRootAddress) {
 		return true
 	}
-	if parsedUrl != nil && parsedUrl.Host == serverDomain {
+
+	if parsedUrl != nil && parsedUrl.Host == server.config.Domain {
 		return true
 	}
+
 	return false
 }
 
@@ -593,7 +594,7 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 	_ = os.RemoveAll(WEB_PROXY)
 	_ = os.Mkdir(WEB_PROXY, os.ModePerm)
 	var m3u *M3U
-	if isTrustedUrl(url, parsedUrl) {
+	if server.isTrustedUrl(url, parsedUrl) {
 		lastSegment := lastUrlSegment(url)
 		m3u, err = parseM3U(WEB_MEDIA + lastSegment)
 	} else {
@@ -1157,13 +1158,13 @@ func (server *Server) createSyncEvent(action string, userId uint64) SyncEventDat
 	return event
 }
 
-func isLocalDirectory(url string) (bool, string) {
+func (server *Server) isLocalDirectory(url string) (bool, string) {
 	parsedUrl, err := net_url.Parse(url)
 	if err != nil {
 		return false, ""
 	}
 
-	if !isTrustedUrl(url, parsedUrl) {
+	if !server.isTrustedUrl(url, parsedUrl) {
 		return false, ""
 	}
 

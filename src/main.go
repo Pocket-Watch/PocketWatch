@@ -1,25 +1,45 @@
 package main
 
 import (
+	"fmt"
 	"os"
 )
 
 var BuildTime string
 
 func main() {
-	args := os.Args[1:]
-	if len(args) == 0 {
+	flags, success := ParseInputArgs()
+	if !success {
+		os.Exit(1)
+	}
+
+	if flags.ShowHelp {
 		DisplayHelp()
 		return
 	}
 
-	options := FromArgs()
-	if options.Help {
-		DisplayHelp()
+	configPath := "config.json"
+	if flags.ConfigPath != "" {
+		configPath = flags.ConfigPath
+	}
+
+	if flags.GenerateConfig {
+		config := createDefaultConfig()
+		SaveConfig(config, configPath)
 		return
 	}
 
-	options.prettyPrint()
+	config := createDefaultConfig()
+	success, _ = LoadConfig(&config, configPath)
+
+	// Log error when config path was explicitly set, but config loading failed.
+	if !success && flags.ConfigPath != "" {
+		fmt.Fprintf(os.Stderr, "ERROR: Failed to load config file the json file.")
+		os.Exit(1)
+	}
+
+	ApplyInputFlags(&config, flags)
+	PrettyPrintConfig(config)
 
 	exePath, _ := os.Executable()
 	file, err := os.Stat(exePath)
@@ -27,5 +47,6 @@ func main() {
 		BuildTime = file.ModTime().String()
 	}
 
-	StartServer(&options)
+	LOG_CONFIG = config.Logging
+	StartServer(config.Server)
 }
