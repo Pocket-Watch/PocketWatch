@@ -467,6 +467,7 @@
     padding: 6px;
     font-size: 16px;
     position: absolute;
+    pointer-events: none;
     visibility: hidden;
     align-items: center;
     color: var(--player_color_fg1);
