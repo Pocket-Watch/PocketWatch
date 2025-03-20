@@ -142,12 +142,16 @@ func ApplyInputFlags(config *Config, flags InputFlags) {
 		config.Server.EnableSsl = true
 	}
 
-	if flags.DisableSubs {
-		config.Server.EnableSubs = false
+	if flags.EnableSubs {
+		config.Server.EnableSubs = true
 	}
 
 	if flags.DisableColor {
 		config.Logging.EnableColors = false
+	}
+
+	if flags.EnableSql {
+		config.Database.Enabled = true
 	}
 }
 
@@ -157,8 +161,9 @@ type InputFlags struct {
 	ServerAddress  string
 	ServerDomain   string
 	ServerPort     uint16
+	EnableSql      bool
 	EnableSsl      bool
-	DisableSubs    bool
+	EnableSubs     bool
 	DisableColor   bool
 	ShowHelp       bool
 }
@@ -237,8 +242,11 @@ func ParseInputArgs() (InputFlags, bool) {
 		case "-dc", "--disable-colors":
 			flags.DisableColor = true
 
-		case "-ds", "--disable-subs":
-			flags.DisableSubs = true
+		case "-es", "--enable-subs":
+			flags.EnableSubs = false
+
+		case "-sql", "--enable-sql":
+			flags.EnableSsl = true
 
 		case "-ssl", "--enable-ssl":
 			flags.EnableSsl = true
@@ -285,8 +293,9 @@ func DisplayHelp() {
 	fmt.Println("    -ip,  --address [10.0.0.1]     Binds server to an address. (default: localhost)")
 	fmt.Println("    -p,   --port [443]             Set address port to bind. (values between '0-65535') (default: 1234)")
 	fmt.Println("    -dc,  --disable-color          Disables colored logging. (default: enabled)")
-	fmt.Println("    -ds,  --disable-subs           Disables support for subtitle search. (default: enabled)")
+	fmt.Println("    -es,  --enable-subs            Enables support for subtitle search. (default: disabled)")
 	fmt.Println("    -d,   --domain [example.com]   Domain, if any, that the server is hosted on. Serves as a hint to associate URLs with local env.")
+	fmt.Println("    -sql, --enable-sql             Enables support for the Postgres SQL database persistance. (default: disabled)")
 	fmt.Println("    -ssl, --enable-ssl             Enables SSL. Secrets are read from:")
 	fmt.Println("                                     - CERTIFICATE: ./secret/certificate.pem")
 	fmt.Println("                                     - PRIVATE KEY: ./secret/privatekey.pem")

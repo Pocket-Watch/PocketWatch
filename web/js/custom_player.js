@@ -383,13 +383,12 @@ class Internals {
         this.htmlControls = {
             root: newDiv("player_controls"),
             progress: {
-                root:      newDiv("player_progress_root"),
-                current:   newDiv("player_progress_current", "player_progress_bar"),
-                buffered:  newElement("canvas", "player_progress_buffered", "player_progress_bar"),
-                total:     newDiv("player_progress_total", "player_progress_bar"),
-                thumb:     newDiv("player_progress_thumb"),
-                popupRoot: newDiv("player_progress_popup_root"),
-                popupText: newDiv("player_progress_popup_text"),
+                root:     newDiv("player_progress_root"),
+                current:  newDiv("player_progress_current", "player_progress_bar"),
+                buffered: newElement("canvas", "player_progress_buffered", "player_progress_bar"),
+                total:    newDiv("player_progress_total", "player_progress_bar"),
+                thumb:    newDiv("player_progress_thumb"),
+                popup:    newDiv("player_progress_popup"),
             },
 
             buttons: {
@@ -405,6 +404,7 @@ class Internals {
 
                 volumeProgress: newDiv("player_volume_progress"),
                 volumeInput:    newElement("input", "player_volume_input"),
+                volumePopup:    newDiv("player_volume_popup"),
                 liveIndicator:  newDiv("player_live_indicator"),
                 timestamp:      newElement("span",  "player_timestamp"),
             },
@@ -681,26 +681,25 @@ class Internals {
     }
 
     updateProgressPopup(progress) {
-        let timestamp = this.htmlVideo.duration * progress;
-        this.htmlControls.progress.popupText.textContent = createTimestampString(timestamp);
+        const timestamp = this.htmlVideo.duration * progress;
+        const popup = this.htmlControls.progress.popup;
 
-        const popup = this.htmlControls.progress.popupRoot;
+        popup.textContent = createTimestampString(timestamp);
+
         const popupWidth = popup.clientWidth;
         const rootWidth = this.htmlControls.progress.root.clientWidth;
 
         let position = rootWidth * progress - popupWidth / 2.0;
-
         if (position < 0) {
             position = 0;
         } else if (position + popupWidth > rootWidth) {
             position = rootWidth - popupWidth;
         }
 
-        this.htmlControls.progress.popupRoot.style.left = position + "px";
+        popup.style.left = position + "px";
     }
 
     updateHtmlVolume(volume) {
-
         if (volume == 0.0) {
             this.svgs.volume.setHref(this.icons.volume_muted);
         } else if (volume < 0.3) {
@@ -711,11 +710,27 @@ class Internals {
             this.svgs.volume.setHref(this.icons.volume_full);
         }
 
-        let input = this.htmlControls.buttons.volumeInput;
+        const input = this.htmlControls.buttons.volumeInput;
         input.value = volume;
 
-        let progress = this.htmlControls.buttons.volumeProgress;
-        progress.style.width = volume/this.options.maxVolume * 100.0 + "%";
+        const progress = this.htmlControls.buttons.volumeProgress;
+        progress.style.width = volume / this.options.maxVolume * 100.0 + "%";
+
+        const popup = this.htmlControls.buttons.volumePopup;
+        popup.textContent = Math.round(volume * 100.0) + "%";
+
+        const popupWidth = popup.clientWidth;
+        const volumeWidth = this.htmlControls.buttons.volumeInput.clientWidth;
+
+        let percent = volume / this.options.maxVolume;
+        let position = volumeWidth * percent - popupWidth / 2.0;
+        if (position < 0) {
+            position = 0;
+        } else if (position + popupWidth > volumeWidth) {
+            position = volumeWidth - popupWidth;
+        }
+
+        popup.style.left = position + "px";
     }
 
     getNewTime(timeOffset) {
@@ -1629,18 +1644,20 @@ class Internals {
     }
 
     assembleProgressBar() {
-        let progress =  this.htmlControls.progress;
-        this.htmlControls.root.appendChild(progress.root);
+        let controls = this.htmlControls;
+        let root     = this.htmlControls.root;
+        let progress = this.htmlControls.progress;
 
-        progress.root.appendChild(progress.total);
-        progress.root.appendChild(progress.buffered);
-        progress.root.appendChild(progress.current);
-        progress.root.appendChild(progress.thumb);
-        progress.root.appendChild(progress.popupRoot);
+        progress.popup.textContent = "00:00";
+        progress.popup.classList.add("unselectable");
 
-        progress.popupText.textContent = "00:00";
-        progress.popupText.classList.add("unselectable");
-        progress.popupRoot.appendChild(progress.popupText);
+        root.appendChild(progress.root); {
+            progress.root.appendChild(progress.total);
+            progress.root.appendChild(progress.buffered);
+            progress.root.appendChild(progress.current);
+            progress.root.appendChild(progress.thumb);
+            progress.root.appendChild(progress.popup);
+        }
     }
 
     assembleControlButtons() {
@@ -1653,6 +1670,7 @@ class Internals {
         let volumeSlider     = this.htmlControls.buttons.volumeInput;
         let volumeBar        = newDiv("player_volume_bar");
         let volumeProgress   = this.htmlControls.buttons.volumeProgress;
+        let volumePopup      = this.htmlControls.buttons.volumePopup;
         let liveIndicator    = this.htmlControls.buttons.liveIndicator;
         let liveDot          = newDiv("player_live_dot");
         let liveText         = newDiv("player_live_text");
@@ -1673,6 +1691,9 @@ class Internals {
         volumeSlider.max   = this.options.maxVolume;
         volumeSlider.value = "1";
         volumeSlider.step  = "any";
+
+        volumePopup.textContent = "0%";
+        volumePopup.classList.add("unselectable");
 
         liveText.textContent = "LIVE";
         timestamp.textContent = "00:00 / 00:00";
@@ -1713,6 +1734,7 @@ class Internals {
                 volumeRoot.append(volumeBar);
                 volumeRoot.append(volumeProgress);
                 volumeRoot.append(volumeSlider);
+                volumeRoot.append(volumePopup);
             }
 
             buttonsRoot.append(liveIndicator); {
