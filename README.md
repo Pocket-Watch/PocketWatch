@@ -82,6 +82,14 @@ Include player stylesheet - [player.css](web/css/player.css)
 ```html
 <link rel="stylesheet" href="web/css/player.css">
 ```
+
+Include player icons svg - [player_icons.svg](web/svg/player_icons.svg)
+```js
+let options = new Options();
+// The path can be changed in options but it must point to the svg file
+options.iconsPath = "resources/pocket_icons.svg"
+```
+
 Optionally preload player script - [custom_player.js](web/js/custom_player.js)
 ```html
 <body>
@@ -93,6 +101,23 @@ Import the symbols in Javascript to use them directly
 ```js
 import {Player, Options} from "./js/custom_player.js";
 ```
+
+### Integrating into a web extension
+
+```js
+// https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/getURL
+// For simplicity it's assumed all resources are in one directory
+let resources = browser.runtime.getURL("player_resources");
+
+let module = await import(resources + "player.js");
+// Access module.Player, module.Options
+let playerCssHref = resources + "player.css";
+// Add the stylesheet dynamically to a webpage
+
+let options = new module.Options();
+options.iconsPath = resources + "player.svg";
+```
+
 ### API usage examples
 Initialize and attach the player to any video element
 ```js

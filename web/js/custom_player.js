@@ -326,26 +326,27 @@ class Internals {
         this.htmlToastContainer.appendChild(this.htmlToast);
         this.playerHideToastTimeout = new Timeout(_ => this.htmlToastContainer.classList.add("hide"), 3000);
 
+        let iconsPath = options.iconsPath;
         this.icons = {
-            play:             "svg/player_icons.svg#play",
-            play_popup:       "svg/player_icons.svg#play_popup",
-            pause:            "svg/player_icons.svg#pause",
-            pause_popup:      "svg/player_icons.svg#pause_popup",
-            replay:           "svg/player_icons.svg#replay",
-            next:             "svg/player_icons.svg#next",
-            volume_full:      "svg/player_icons.svg#volume_full",
-            volume_medium:    "svg/player_icons.svg#volume_medium",
-            volume_low:       "svg/player_icons.svg#volume_low",
-            volume_muted:     "svg/player_icons.svg#volume_muted",
-            download:         "svg/player_icons.svg#download",
-            speed:            "svg/player_icons.svg#speed",
-            subs:             "svg/player_icons.svg#subs",
-            settings:         "svg/player_icons.svg#settings",
-            fullscreen_enter: "svg/player_icons.svg#fullscreen_enter",
-            fullscreen_exit:  "svg/player_icons.svg#fullscreen_exit",
-            arrow_left:       "svg/player_icons.svg#arrow_left",
-            arrow_right:      "svg/player_icons.svg#arrow_right",
-            buffering:        "svg/player_icons.svg#buffering",
+            play:             iconsPath + "#play",
+            play_popup:       iconsPath + "#play_popup",
+            pause:            iconsPath + "#pause",
+            pause_popup:      iconsPath + "#pause_popup",
+            replay:           iconsPath + "#replay",
+            next:             iconsPath + "#next",
+            volume_full:      iconsPath + "#volume_full",
+            volume_medium:    iconsPath + "#volume_medium",
+            volume_low:       iconsPath + "#volume_low",
+            volume_muted:     iconsPath + "#volume_muted",
+            download:         iconsPath + "#download",
+            speed:            iconsPath + "#speed",
+            subs:             iconsPath + "#subs",
+            settings:         iconsPath + "#settings",
+            fullscreen_enter: iconsPath + "#fullscreen_enter",
+            fullscreen_exit:  iconsPath + "#fullscreen_exit",
+            arrow_left:       iconsPath + "#arrow_left",
+            arrow_right:      iconsPath + "#arrow_right",
+            buffering:        iconsPath + "#buffering",
         };
 
         this.svgs = {
@@ -436,6 +437,7 @@ class Internals {
             }
         };
 
+        Slider.iconsPath = iconsPath;
         this.subtitleShift     = new Slider("Subtitle shift",    -20,  20, 0.1,  0, "s", true);
         this.subtitleSize      = new Slider("Subtitle size",      10, 100, 1.0, 30, "px");
         this.subtitlePos       = new Slider("Vertical position",   0, 100, 1.0, 16, "%");
@@ -2104,6 +2106,7 @@ export class FileInfo {
 }
 
 class Slider {
+    static iconsPath;
     constructor(textContent, min, max, step, initialValue, valueSuffix = "", includeSign = false) {
         let root        = newDiv(null, "player_shifter_root");
         let top         = newDiv(null, "player_shifter_top");
@@ -2111,10 +2114,10 @@ class Slider {
         let valueText   = newElement("span", null, "player_shifter_value");
         let bottom      = newDiv(null, "player_shifter_bottom");
         let leftButton  = newElement("button", null, "player_shifter_button");
-        let arrowLeft   = Svg.new("svg/player_icons.svg#arrow_left", 20, 20);
+        let arrowLeft   = Svg.new(Slider.iconsPath + "#arrow_left", 20, 20);
         let slider      = newElement("input",  null, "player_shifter_slider");
         let rightButton = newElement("button", null, "player_shifter_button");
-        let arrowRight  = Svg.new("svg/player_icons.svg#arrow_right", 20, 20);
+        let arrowRight  = Svg.new(Slider.iconsPath + "#arrow_right", 20, 20);
 
         text.textContent = textContent;
 
@@ -2626,6 +2629,9 @@ function isMobileAgent() {
 // This is a separate class for more clarity
 class Options {
     constructor() {
+        // Icon path pointing to the svg file
+        this.iconsPath = "svg/player_icons.svg"
+
         this.hidePlaybackButton   = false;
         this.hideNextButton       = false;
         this.hideVolumeButton     = false;
@@ -2671,6 +2677,10 @@ class Options {
 
     // Ensure values are the intended type and within some reasonable range
     valid() {
+        if (typeof this.iconsPath !== "string") {
+            return false;
+        }
+
         if (typeof this.seekBy !== "number" || this.seekBy < 0) {
             return false;
         }
