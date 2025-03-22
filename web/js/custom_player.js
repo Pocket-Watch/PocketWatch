@@ -443,6 +443,7 @@ class Internals {
         this.subtitleFgOpacity = new Slider("Foreground opacity", 0, 100, 1.0, DEFAULT_SUBTITLE_FOREGROUND_OPACITY, "%");
         this.subtitleBgColor   = new ColorPicker("Background color", DEFAULT_SUBTITLE_BACKGROUND_COLOR);
         this.subtitleBgOpacity = new Slider("Background opacity", 0, 100, 1.0, DEFAULT_SUBTITLE_BACKGROUND_OPACITY, "%");
+        this.playbackSpeed = new Slider("Playback speed", 0.25, 5.0, 0.25, 1.0, "x");
 
         this.isDraggingProgressBar = false;
         this.isUIVisible = true;
@@ -1429,6 +1430,10 @@ class Internals {
             this.svgs.playbackPopup.setHref(this.icons.pause_popup);
             this.showPlaybackPopup();
         });
+
+        this.htmlVideo.addEventListener("ratechange", _ => {
+            this.playbackSpeed.setValue(this.htmlVideo.playbackRate)
+        });
     }
 
     attachPlayerControlsEvents() {
@@ -1968,7 +1973,7 @@ class Internals {
         let appearanceView = newDiv("player_submenu_select_view");
         let alwaysShow     = new Switcher("Always show controls");
         let showOnPause    = new Switcher("Show controls on pause");
-        let playbackSpeed  = new Slider("Playback speed", 0.25, 5.0, 0.25, 1.0, "x");
+        let playbackSpeed  = this.playbackSpeed;
         let brightness     = new Slider("Brightness", 0.2, 2, 0.05, 1.0);
 
         hide(menuRoot);
