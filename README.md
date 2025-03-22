@@ -103,7 +103,15 @@ import {Player, Options} from "./js/custom_player.js";
 ```
 
 ### Integrating into a web extension
-
+If you run into security errors related to loading data, expose the resources in `manifest.json`:
+```json
+{
+  "web_accessible_resources": [
+    "player_resources/player_icons.svg"
+  ]
+}
+```
+Prepare and load extension resources:
 ```js
 // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/getURL
 // For simplicity it's assumed all resources are in one directory
@@ -115,7 +123,7 @@ let playerCssHref = resources + "player.css";
 // Add the stylesheet dynamically to a webpage
 
 let options = new module.Options();
-options.iconsPath = resources + "player.svg";
+options.iconsPath = resources + "player_icons.svg";
 ```
 
 ### API usage examples
