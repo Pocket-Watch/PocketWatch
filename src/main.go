@@ -57,6 +57,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	if !MigrateDatabase(db) {
+		return
+	}
+
 	PrettyPrintConfig(config)
 
 	LOG_CONFIG = config.Logging

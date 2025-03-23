@@ -1,7 +1,7 @@
 package main
 
 import (
-    "database/sql"
+	"database/sql"
 	"net/http"
 	"os"
 	"sync"
@@ -43,7 +43,7 @@ type Server struct {
 	state  ServerState
 	users  *Users
 	conns  *Connections
-    db     *sql.DB
+	db     *sql.DB
 }
 
 type PlayerState struct {

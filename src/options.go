@@ -78,7 +78,7 @@ func LoadConfig(config *Config, path string) (bool, string) {
 	_, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			programPath, _ := os.Executable()
+			programPath := GetRelativeExecutablePath()
 			return false, fmt.Sprintf("Specified config file does not exist. You can create it by running '%v --generate-config --config-path %v'", programPath, path)
 		} else {
 			errorMessage := err.(*fs.PathError).Err
@@ -265,6 +265,26 @@ func ParseInputArgs() (InputFlags, bool) {
 	return flags, true
 }
 
+func GetRelativeExecutablePath() string {
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return "pocketwatch"
+	}
+
+	execPath, err := os.Executable()
+	if err != nil {
+		return "pocketwatch"
+	}
+
+	relPath, err := filepath.Rel(currentDir, execPath)
+	if err != nil {
+		return "pocketwatch"
+	}
+
+	return relPath
+
+}
+
 func GetExecutableName() string {
 	path, err := os.Executable()
 	if err != nil {
@@ -315,6 +335,7 @@ func PrettyPrintConfig(config Config) {
 		LengthOfBool(config.Logging.EnableColors),
 		len(config.Server.Domain),
 		len("VALUE"),
+		len("-"),
 	)
 
 	format := &strings.Builder{}
@@ -343,14 +364,18 @@ func PrettyPrintConfig(config Config) {
 
 func RowFormatKeyValue(width int, builder *strings.Builder, key string, value any) {
 	builder.WriteRune('|')
-	CenterPad(builder, key, leftColumnWidth)
+	LeftPad(builder, key, leftColumnWidth)
 	builder.WriteRune('|')
 	val := AnyToString(value)
-	CenterPad(builder, val, width)
+	RightPad(builder, val, width)
 	builder.WriteString("|\n")
 }
 
 func AnyToString(anything any) string {
+	if anything == "" {
+		return "-"
+	}
+
 	return fmt.Sprintf("%v", anything)
 }
 
@@ -360,8 +385,31 @@ func CenterPad(builder *strings.Builder, text string, length int) {
 	for range half {
 		builder.WriteString(" ")
 	}
+
 	builder.WriteString(text)
 	for i := half; i < rem; i++ {
+		builder.WriteString(" ")
+	}
+}
+
+func LeftPad(builder *strings.Builder, text string, length int) {
+	rem := length - len(text) - 1
+
+	for range rem {
+		builder.WriteString(" ")
+	}
+
+	builder.WriteString(text)
+	builder.WriteString(" ")
+}
+
+func RightPad(builder *strings.Builder, text string, length int) {
+	rem := length - len(text) - 1
+
+	builder.WriteString(" ")
+	builder.WriteString(text)
+
+	for range rem {
 		builder.WriteString(" ")
 	}
 }

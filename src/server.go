@@ -151,10 +151,15 @@ func createPlaylistEvent(action string, data any) PlaylistEventData {
 }
 
 func StartServer(config ServerConfig, db *sql.DB) {
+	users, ok := DatabaseLoadUsers(db)
+	if !ok {
+		return
+	}
+
 	server := Server{
 		config: config,
 		state:  ServerState{},
-		users:  makeUsers(),
+		users:  users,
 		conns:  makeConnections(),
 		db:     db,
 	}

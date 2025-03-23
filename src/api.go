@@ -83,6 +83,7 @@ func (server *Server) apiUserCreate(w http.ResponseWriter, r *http.Request) {
 
 	server.users.mutex.Lock()
 	user := server.users.create()
+	DatabaseAddUser(server.db, user)
 	server.users.mutex.Unlock()
 
 	tokenJson, err := json.Marshal(user.token)
@@ -146,6 +147,7 @@ func (server *Server) apiUserUpdateName(w http.ResponseWriter, r *http.Request) 
 	server.users.slice[userIndex].Username = newUsername
 	server.users.slice[userIndex].lastUpdate = time.Now()
 	user := server.users.slice[userIndex]
+	DatabaseUpdateUser(server.db, user)
 	server.users.mutex.Unlock()
 
 	server.writeEventToAllConnections(w, "userupdate", user)
@@ -183,12 +185,13 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 	io.Copy(file, formfile)
 
 	now := time.Now()
-	avatarUrl = fmt.Sprintf("users/avatar%v?%v", user.Id, now)
+	avatarUrl = fmt.Sprintf("users/avatar%v?%v", user.Id, now.UnixMilli())
 
 	server.users.mutex.Lock()
 	server.users.slice[userIndex].Avatar = avatarUrl
 	server.users.slice[userIndex].lastUpdate = time.Now()
 	user = server.users.slice[userIndex]
+	DatabaseUpdateUser(server.db, user)
 	server.users.mutex.Unlock()
 
 	jsonData, _ := json.Marshal(avatarUrl)
