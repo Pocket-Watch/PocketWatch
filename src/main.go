@@ -45,7 +45,6 @@ func main() {
 
 	// Flags have priority over config and overwrite its values.
 	ApplyInputFlags(&config, flags)
-	PrettyPrintConfig(config)
 
 	exePath, _ := os.Executable()
 	file, err := os.Stat(exePath)
@@ -53,6 +52,13 @@ func main() {
 		BuildTime = file.ModTime().String()
 	}
 
+	db, success := ConnectToDatabase(config.Database)
+	if !success {
+		os.Exit(1)
+	}
+
+	PrettyPrintConfig(config)
+
 	LOG_CONFIG = config.Logging
-	StartServer(config.Server)
+	StartServer(config.Server, db)
 }

@@ -246,7 +246,7 @@ func ParseInputArgs() (InputFlags, bool) {
 			flags.EnableSubs = false
 
 		case "-sql", "--enable-sql":
-			flags.EnableSsl = true
+			flags.EnableSql = true
 
 		case "-ssl", "--enable-ssl":
 			flags.EnableSsl = true

@@ -2,6 +2,7 @@ package main
 
 import (
 	cryptorand "crypto/rand"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -149,12 +150,13 @@ func createPlaylistEvent(action string, data any) PlaylistEventData {
 	return event
 }
 
-func StartServer(config ServerConfig) {
+func StartServer(config ServerConfig, db *sql.DB) {
 	server := Server{
 		config: config,
 		state:  ServerState{},
 		users:  makeUsers(),
 		conns:  makeConnections(),
+		db:     db,
 	}
 
 	server.state.lastUpdate = time.Now()
