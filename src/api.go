@@ -985,6 +985,9 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 
 	userId := server.users.slice[userIndex].Id
 	went_online := server.users.addConnection(userId)
+	if went_online {
+		DatabaseUpdateUserLastOnline(server.db, userId, time.Now())
+	}
 	server.users.mutex.Unlock()
 
 	w.Header().Set("Content-Type", "text/event-stream")
@@ -1005,6 +1008,7 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 
 	if went_online {
 		server.writeEventToAllConnectionsExceptSelf(w, "userconnected", userId, userId, conn.id)
+		DatabaseUpdateUserLastOnline(server.db, userId, time.Now())
 	}
 
 	for {

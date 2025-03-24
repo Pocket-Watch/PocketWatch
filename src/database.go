@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -32,31 +33,50 @@ func ConnectToDatabase(config DatabaseConfig) (*sql.DB, bool) {
 
 	db, err := sql.Open("postgres", connectionString)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: Failed to open the database: %v.\n", err)
+		LogError("Failed to open the database: %v.", err)
 		return nil, false
 	}
 
 	err = db.Ping()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: Failed to establish connection to the database: %v.\n", err)
+		LogError("Failed to establish connection to the database: %v.", err)
 		return nil, false
 	}
 
+	LogInfo("Connection to the database established.")
 	return db, true
 }
 
-func MigrateDatabase(db *sql.DB) bool {
-	if db == nil {
-		return true
-	}
+func createMigrationsTable(db *sql.DB) bool {
+	appliedTable := `
+		CREATE TABLE IF NOT EXISTS migrations (
+			name        VARCHAR(255) NOT NULL UNIQUE,
+			query       TEXT         NOT NULL,
+			applied_at  TIMESTAMP    NOT NULL
+		)
+	`
 
-	entries, err := os.ReadDir(SQL_MIGRATIONS_DIR)
+	_, err := db.Exec(appliedTable)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: Failed to read directory '%v' with sql migrations: %v\n", SQL_MIGRATIONS_DIR, err)
+		LogError("Failed to execute table creation query for the 'migrations' table: %v", err)
 		return false
 	}
 
+	return true
+}
+
+func migCompare(a, b DbMigration) int {
+	return cmp.Compare(a.name, b.name)
+}
+
+func loadLocalMigrations() ([]DbMigration, bool) {
 	migrations := make([]DbMigration, 0)
+
+	entries, err := os.ReadDir(SQL_MIGRATIONS_DIR)
+	if err != nil {
+		LogError("Failed to read directory '%v' with SQL migrations: %v", SQL_MIGRATIONS_DIR, err)
+		return migrations, false
+	}
 
 	for _, entry := range entries {
 		if entry.IsDir() {
@@ -71,8 +91,8 @@ func MigrateDatabase(db *sql.DB) bool {
 		migrationPath := filepath.Join(SQL_MIGRATIONS_DIR, name)
 		bytes, err := os.ReadFile(migrationPath)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "ERROR: Failed to read migration file %v: %v\n", name, err)
-			return false
+			LogError("Failed to read migration file %v: %v", name, err)
+			return migrations, false
 		}
 
 		mig := DbMigration{
@@ -83,17 +103,102 @@ func MigrateDatabase(db *sql.DB) bool {
 		migrations = append(migrations, mig)
 	}
 
-	compareFunc := func(a, b DbMigration) int {
-		return cmp.Compare(a.name, b.name)
+	slices.SortFunc(migrations, migCompare)
+	return migrations, true
+}
+
+func loadAppliedMigrations(db *sql.DB) ([]DbMigration, bool) {
+	applied := make([]DbMigration, 0)
+
+	rows, err := db.Query("SELECT * FROM migrations")
+	if err != nil {
+		LogError("Failed to query database migration table: %v", err)
+		return applied, false
 	}
 
-	slices.SortFunc(migrations, compareFunc)
+	defer rows.Close()
 
-	// TODO: Apply migrations only once and save what migrations have already been applied.
-	for _, mig := range migrations {
-		_, err = db.Exec(mig.query)
+	for rows.Next() {
+		var mig DbMigration
+		var appliedAt time.Time
+
+		err := rows.Scan(&mig.name, &mig.query, &appliedAt)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "ERROR: Failed to execute migration query for %v: %v\n", mig.name, err.Error())
+			LogError("Failed to read migration from the database migration table: %v", err)
+			return applied, false
+		}
+
+		applied = append(applied, mig)
+	}
+
+	if err := rows.Err(); err != nil {
+		LogError("Iterating over rows of the database migration table failed: %v.", err)
+		return applied, false
+	}
+
+	slices.SortFunc(applied, migCompare)
+	return applied, true
+}
+
+func applyMigration(db *sql.DB, mig DbMigration) bool {
+	_, err := db.Exec(mig.query)
+	if err != nil {
+		LogError("Database migration failed. Could not apply local migration '%v': %v.", mig.name, err)
+		return false
+	}
+
+	_, err = db.Exec("INSERT INTO migrations VALUES ($1, $2, $3)", mig.name, mig.query, time.Now())
+	if err != nil {
+		LogError("Failed to insert local migration %v into the applied migrations table: %v.", mig.name, err)
+		return false
+	}
+
+	LogInfo("Database migration '%v' successfully applied.", mig.name)
+	return true
+}
+
+func MigrateDatabase(db *sql.DB) bool {
+	if db == nil {
+		return true
+	}
+
+	if !createMigrationsTable(db) {
+		return false
+	}
+
+	localMigrations, ok := loadLocalMigrations()
+	if !ok {
+		return false
+	}
+
+	appliedMigrations, ok := loadAppliedMigrations(db)
+	if !ok {
+		return false
+	}
+
+	if len(appliedMigrations) > len(localMigrations) {
+		LogError("Number of applied migrations (%v) is greater than those available locally (%v).", len(appliedMigrations), len(localMigrations))
+		return false
+	}
+
+	// Validate that applied migrations match those available locally.
+	for i, applied := range appliedMigrations {
+		local := localMigrations[i]
+
+		if local.query != applied.query {
+			LogError("SQL query for local migration '%v' is different than the migration '%v' applied to the database.\n-------- Local migration query: -------\n%v\v-------- Applied migration query: -------\n%v\n-----------------------------------------\n", local.name, applied.name, local.query, applied.query)
+			return false
+		}
+	}
+
+	if len(appliedMigrations) == len(localMigrations) {
+		LogInfo("All %v applied migrations are up-to-date.", len(appliedMigrations))
+		return true
+	}
+
+	notAppliedMigrations := localMigrations[len(appliedMigrations):]
+	for _, mig := range notAppliedMigrations {
+		if !applyMigration(db, mig) {
 			return false
 		}
 	}
@@ -121,7 +226,7 @@ func DatabaseLoadUsers(db *sql.DB) (*Users, bool) {
 	for rows.Next() {
 		var user User
 
-		err := rows.Scan(&user.Id, &user.Username, &user.Avatar, &user.token, &user.created, &user.lastUpdate)
+		err := rows.Scan(&user.Id, &user.Username, &user.Avatar, &user.token, &user.createdAt, &user.lastUpdate, &user.lastOnline)
 		if err != nil {
 			LogError("Failed to load users from the database. An error occurred while reading a user from the database 'users' row: %v", err)
 			return users, false
@@ -149,7 +254,7 @@ func DatabaseAddUser(db *sql.DB, user User) bool {
 		return true
 	}
 
-	_, err := db.Exec("INSERT INTO users VALUES ($1, $2, $3, $4, $5, $6)", user.Id, user.Username, user.Avatar, user.token, user.created, user.lastUpdate)
+	_, err := db.Exec("INSERT INTO users VALUES ($1, $2, $3, $4, $5, $6, $7)", user.Id, user.Username, user.Avatar, user.token, user.createdAt, user.lastUpdate, user.lastOnline)
 	if err != nil {
 		LogError("Failed to save user id:%v to the database: %v", user.Id, err)
 		return false
@@ -166,6 +271,21 @@ func DatabaseUpdateUser(db *sql.DB, user User) bool {
 	_, err := db.Exec("UPDATE users SET username = $1, avatar_path = $2, last_update = $3 WHERE id = $4", user.Username, user.Avatar, user.lastUpdate, user.Id)
 	if err != nil {
 		LogError("Failed to update user id:%v in the database: %v", user.Id, err)
+		return false
+	}
+
+	return true
+}
+
+// NOTE(kihau): User last online is a little bit faulty due to how connect and disconnect works.
+func DatabaseUpdateUserLastOnline(db *sql.DB, id uint64, lastOnline time.Time) bool {
+	if db == nil {
+		return true
+	}
+
+	_, err := db.Exec("UPDATE users SET last_online = $1 WHERE id = $2", lastOnline, id)
+	if err != nil {
+		LogError("Failed to update last online for user id:%v in the database: %v", id, err)
 		return false
 	}
 

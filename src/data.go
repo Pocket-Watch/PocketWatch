@@ -150,8 +150,9 @@ type User struct {
 	Online      bool   `json:"online"`
 	connections uint64
 	token       string
-	created     time.Time
+	createdAt   time.Time
 	lastUpdate  time.Time
+	lastOnline  time.Time
 }
 
 type Users struct {

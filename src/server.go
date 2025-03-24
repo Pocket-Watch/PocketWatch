@@ -45,13 +45,15 @@ func (users *Users) create() User {
 	id := users.idCounter
 	users.idCounter += 1
 
+	now := time.Now()
 	new_user := User{
 		Id:         id,
 		Username:   fmt.Sprintf("User %v", id),
 		Avatar:     "img/default_avatar.png",
 		token:      generateToken(),
-		created:    time.Now(),
-		lastUpdate: time.Now(),
+		createdAt:  now,
+		lastUpdate: now,
+		lastOnline: now,
 	}
 
 	users.slice = append(users.slice, new_user)

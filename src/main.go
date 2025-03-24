@@ -52,6 +52,9 @@ func main() {
 		BuildTime = file.ModTime().String()
 	}
 
+	PrettyPrintConfig(config)
+	LOG_CONFIG = config.Logging
+
 	db, success := ConnectToDatabase(config.Database)
 	if !success {
 		os.Exit(1)
@@ -61,8 +64,5 @@ func main() {
 		return
 	}
 
-	PrettyPrintConfig(config)
-
-	LOG_CONFIG = config.Logging
 	StartServer(config.Server, db)
 }
