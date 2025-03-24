@@ -221,6 +221,7 @@ func DatabaseLoadUsers(db *sql.DB) (*Users, bool) {
 
 	defer rows.Close()
 
+	// NOTE(kihau): This is kind of hacky, maybe seed counter should be stored in the database?
 	var maxId uint64 = 1
 
 	for rows.Next() {
@@ -232,8 +233,8 @@ func DatabaseLoadUsers(db *sql.DB) (*Users, bool) {
 			return users, false
 		}
 
-		if user.Id > maxId {
-			maxId = user.Id
+		if user.Id >= maxId {
+			maxId = user.Id + 1
 		}
 
 		users.slice = append(users.slice, user)
