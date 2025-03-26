@@ -16,6 +16,8 @@ const TAB_PLAYLIST = 2;
 const TAB_CHAT     = 3;
 const TAB_HISTORY  = 4;
 
+const RECONNECT_AFTER = 5000;
+
 class Room {
     constructor() {
         let video0 = getById("video0");
@@ -673,6 +675,10 @@ class Room {
     }
 
     async loadUsersData() {
+        this.allUsers     = [];
+        this.allUserBoxes = [];
+        this.onlineCount = 0;
+
         this.allUsers = await api.userGetAll();
         console.log(this.allUsers);
 
@@ -702,6 +708,10 @@ class Room {
         }
 
         let userList = this.usersArea.userList;
+        while (userList.lastChild) {
+            userList.removeChild(userList.lastChild);
+        }
+
         userList.append(selfBox);
 
         for (let i = 0; i < onlineBoxes.length; i++) {
@@ -714,7 +724,7 @@ class Room {
             userList.append(box);
         }
 
-        this.usersArea.onlineCount.textContent = this.onlineCount;
+        this.usersArea.onlineCount.textContent  = this.onlineCount;
         this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
     }
 
@@ -821,6 +831,7 @@ class Room {
 
         console.log(entries);
 
+        this.playlist.clear();
         // TOOD(kihau): Performance problem when number of entries is large. Needs to be fixed at some point.
         this.playlist.loadEntries(entries, this.allUsers);
     }
@@ -924,22 +935,18 @@ class Room {
         // Send
     }
 
+
     listenToServerEvents() {
         let events = new EventSource("/watch/api/events?token=" + this.token);
-        events.onopen = () => {
-            console.info("Connection to events opened!");
-        }
+        events.onopen = _ => {
+            console.info("INFO: Connection to events opened.");
+        };
 
-        events.onerror = event => {
-            console.error("EVENTS ERROR: ", event);
-            console.info("Closing current EventSource, current readyState =", events.readyState);
-            events.close();
-            let retryAfter = 5000;
-            console.info("Attempting reconnect in", retryAfter, "ms.");
-            setTimeout(() => {
-                this.listenToServerEvents();
-            }, retryAfter);
-        }
+        events.onerror = _ => {
+            events.close()
+            console.error("ERROR: Connection to the server was lost. Attempting to reconnect in", RECONNECT_AFTER, "ms");
+            setTimeout(_ => this.connectToServer(), RECONNECT_AFTER);
+        };
 
         this.subscribeToServerEvents(events);
     }
@@ -1277,18 +1284,25 @@ class Room {
     }
 
     async connectToServer() {
-        // Temporary workaround for lack of persistent server-side account storage
-        if (!await this.authenticateAccount(true)) {
-            await this.createNewAccount();
-            await this.authenticateAccount();
+        try {
+            // Temporary workaround for lack of persistent server-side account storage
+            if (!await this.authenticateAccount(true)) {
+                await this.createNewAccount();
+                await this.authenticateAccount();
+            }
+
+            await this.loadUsersData();
+            await this.loadPlayerData();
+            await this.loadPlaylistData();
+            await this.loadChatData();
+            api.uptime().then(uptime   => this.roomContent.websiteUptime.textContent  = uptime);
+            api.version().then(version => this.roomContent.websiteVersion.textContent = version);
+        } catch (_) {
+            console.error("ERROR: Failed to load data from the server. Attempting to reconnect in", RECONNECT_AFTER, "ms.");
+            setTimeout(_ => this.connectToServer(), RECONNECT_AFTER);
+            return;
         }
 
-        await this.loadUsersData();
-        await this.loadPlayerData();
-        await this.loadPlaylistData();
-        await this.loadChatData();
-        api.uptime().then(uptime   => this.roomContent.websiteUptime.textContent  = uptime);
-        api.version().then(version => this.roomContent.websiteVersion.textContent = version);
         this.listenToServerEvents();
     }
 }
