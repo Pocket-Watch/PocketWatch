@@ -17,4 +17,5 @@ web/preview.html
 build_local.bat
 build_local.sh
 deploy.sh
+scripts/deploy.sh
 config.json

@@ -67,7 +67,7 @@
         - [x] Seek indicator value stacking
     - [ ] Custom options that include:
         - [x] Disable control auto-hide
-        - [ ] Playback speed
+        - [x] Playback speed
         - [ ] Audio source switch
         - [ ] Video source switch
         - [ ] Audio only mode
