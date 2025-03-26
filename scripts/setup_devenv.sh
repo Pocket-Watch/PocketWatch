@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 scripts_root=$(dirname "$0")
 cd "$scripts_root"
 cd ..

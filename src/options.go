@@ -58,9 +58,9 @@ func createDefaultConfig() Config {
 		Enabled:  false,
 		Address:  "localhost",
 		Port:     5432,
-		Name:     "example_db",
-		Username: "example_user",
-		Password: "my password",
+		Name:     "debug_db",
+		Username: "debug_user",
+		Password: "debugdb123",
 	}
 
 	config := Config{

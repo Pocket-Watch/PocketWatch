@@ -3,6 +3,7 @@ web/media/**
 build/**
 secret/**
 lib/**
+database/**
 
 *.exe
 web/proxy/*
@@ -19,3 +20,4 @@ build_local.sh
 deploy.sh
 scripts/deploy.sh
 config.json
+
