@@ -309,7 +309,7 @@ func DisplayHelp() {
 	fmt.Println("Options:")
 	fmt.Println("    -h,   --help                   Display this help message.")
 	fmt.Println("    -cp,  --config-path [path]     Loads config from the provided path.")
-	fmt.Println("    -gp,  --generate-config        Generates default config. Can also be use in combination with --config-path to specify output path. (default: ./config.json)")
+	fmt.Println("    -gc,  --generate-config        Generates default config. Can also be use in combination with --config-path to specify output path. (default: ./config.json)")
 	fmt.Println("    -ip,  --address [10.0.0.1]     Binds server to an address. (default: localhost)")
 	fmt.Println("    -p,   --port [443]             Set address port to bind. (values between '0-65535') (default: 1234)")
 	fmt.Println("    -dc,  --disable-color          Disables colored logging. (default: enabled)")
