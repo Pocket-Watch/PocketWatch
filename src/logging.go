@@ -32,6 +32,15 @@ const (
 	COLOR_GREEN_DARK  = "\x1b[0;92m"
 )
 
+type Logger struct {
+	enabled     bool
+	printColors bool
+	logLevel    uint32
+	logToFile   bool
+	outputPath  string
+	// outputFile os.File
+}
+
 var LOG_CONFIG LoggingConfig
 
 func LogError(format string, args ...any) {

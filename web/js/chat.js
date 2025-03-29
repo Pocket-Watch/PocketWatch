@@ -14,6 +14,12 @@ class Chat {
         this.attachListeners();
     }
 
+    clear() {
+        while (this.chatArea.lastChild) {
+            this.chatArea.removeChild(this.chatArea.lastChild);
+        }
+    }
+
     addMessage(chatMsg, allUsers) {
         let chatDiv = document.createElement("div");
         let index = allUsers.findIndex(user => user.id === chatMsg.authorId);

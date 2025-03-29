@@ -843,6 +843,7 @@ class Room {
         }
 
         console.log(messages);
+        this.chat.clear();
         this.chat.loadMessages(messages, this.allUsers);
     }
 

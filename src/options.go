@@ -255,7 +255,7 @@ func ParseInputArgs() (InputFlags, bool) {
 			flags.ShowHelp = true
 
 		default:
-			fmt.Fprintf(os.Stderr, "ERROR: Input argument '%v' is not valid. See --help for program usage.", arg)
+			fmt.Fprintf(os.Stderr, "ERROR: Input argument '%v' is not valid. See --help for program usage.\n", arg)
 			return flags, false
 		}
 
