@@ -53,7 +53,7 @@ func main() {
 	}
 
 	PrettyPrintConfig(config)
-	LOG_CONFIG = config.Logging
+	SetupGlobalLogger(config.Logging)
 
 	db, success := ConnectToDatabase(config.Database)
 	if !success {
