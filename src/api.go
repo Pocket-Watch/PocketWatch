@@ -61,7 +61,6 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("Saving uploaded media file to: %v.", outputPath)
 
-	// TODO(kihau): Copy the input file in smaller parts instead.
 	_, err = io.Copy(outputFile, inputFile)
 	if err != nil {
 		respondInternalError(w, "Server side file copy for file %v failed with: %v", outputPath, err)
