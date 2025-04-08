@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	net_url "net/url"
 	"os"
@@ -152,6 +153,14 @@ func createPlaylistEvent(action string, data any) PlaylistEventData {
 	return event
 }
 
+type ServerLogWriter struct { }
+
+func (writer *ServerLogWriter) Write(p []byte) (n int, err error) {
+	message := string(p)
+	LogError(message)
+	return len(p), nil
+}
+
 func StartServer(config ServerConfig, db *sql.DB) {
 	users, ok := DatabaseLoadUsers(db)
 	if !ok {
@@ -186,15 +195,23 @@ func StartServer(config ServerConfig, db *sql.DB) {
 
 	go server.periodicResync()
 
+	writer := &ServerLogWriter{}
+	logger := log.New(writer, "", log.Lmsgprefix)
+
+	httpServer := http.Server{
+		Addr: address,
+		ErrorLog: logger,
+	}
+
 	var server_start_error error
 	if !config.EnableSsl || missing_ssl_keys {
 		serverRootAddress = "http://" + address
 		LogWarn("Server is running in unencrypted http mode.")
-		server_start_error = http.ListenAndServe(address, nil)
+		server_start_error = httpServer.ListenAndServe()
 	} else {
 		serverRootAddress = "https://" + address
 		LogInfo("Server is running with TLS on.")
-		server_start_error = http.ListenAndServeTLS(address, CERT, PRIV_KEY, nil)
+		server_start_error = httpServer.ListenAndServeTLS(CERT, PRIV_KEY)
 	}
 
 	if server_start_error != nil {
