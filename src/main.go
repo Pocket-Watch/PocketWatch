@@ -13,6 +13,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	if !VerifyInputFlags(flags) {
+		os.Exit(1)
+	}
+
 	if flags.ShowHelp {
 		DisplayHelp()
 		return

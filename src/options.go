@@ -132,17 +132,52 @@ func SaveConfig(config Config, path string) bool {
 	return true
 }
 
+func VerifyInputFlags(flags InputFlags) bool {
+	if flags.DisableSql && flags.EnableSql {
+		fmt.Fprintf(os.Stderr, "ERROR: Both disable and enable SQL flag were provided, but you can only pick one of them.\n")
+		return false
+	}
+
+	if flags.DisableSsl && flags.EnableSsl {
+		fmt.Fprintf(os.Stderr, "ERROR: Both disable and enable SSL flag were provided, but you can only pick one of them.\n")
+		return false
+	}
+
+	if flags.DisableSubs && flags.EnableSubs {
+		fmt.Fprintf(os.Stderr, "ERROR: Both disable and enable subs flag were provided, but you can only pick one of them.\n")
+		return false
+	}
+
+	if flags.DisableColors && flags.EnableColors {
+		fmt.Fprintf(os.Stderr, "ERROR: Both disable and enable colors flag were provided, but you can only pick one of them.\n")
+		return false
+	}
+
+	const UINT16_MAX = 1<<16 - 1
+	if flags.ServerPort > UINT16_MAX || flags.ServerPort < 0 {
+
+		fmt.Fprintf(os.Stderr, "ERROR: Incorrect port number. Port number must be between values 0 and %v.\n", UINT16_MAX)
+		return false
+	}
+
+	return true
+}
+
 func ApplyInputFlags(config *Config, flags InputFlags) {
 	if flags.ServerAddress != "" {
 		config.Server.Address = flags.ServerAddress
 	}
 
 	if flags.ServerPort != 0 {
-		config.Server.Port = flags.ServerPort
+		config.Server.Port = uint16(flags.ServerPort)
 	}
 
 	if flags.ServerDomain != "" {
 		config.Server.Domain = flags.ServerDomain
+	}
+
+	if flags.EnableSql {
+		config.Database.Enabled = true
 	}
 
 	if flags.EnableSsl {
@@ -153,13 +188,26 @@ func ApplyInputFlags(config *Config, flags InputFlags) {
 		config.Server.EnableSubs = true
 	}
 
-	if flags.DisableColor {
+	if flags.EnableColors {
+		config.Logging.EnableColors = true
+	}
+
+	if flags.DisableSql {
+		config.Database.Enabled = false
+	}
+
+	if flags.DisableSsl {
+		config.Server.EnableSsl = false
+	}
+
+	if flags.DisableSubs {
+		config.Server.EnableSubs = false
+	}
+
+	if flags.DisableColors {
 		config.Logging.EnableColors = false
 	}
 
-	if flags.EnableSql {
-		config.Database.Enabled = true
-	}
 }
 
 type InputFlags struct {
@@ -167,12 +215,19 @@ type InputFlags struct {
 	GenerateConfig bool
 	ServerAddress  string
 	ServerDomain   string
-	ServerPort     uint16
-	EnableSql      bool
-	EnableSsl      bool
-	EnableSubs     bool
-	DisableColor   bool
-	ShowHelp       bool
+	ServerPort     int
+
+	EnableSql    bool
+	EnableSsl    bool
+	EnableSubs   bool
+	EnableColors bool
+
+	DisableSql    bool
+	DisableSsl    bool
+	DisableSubs   bool
+	DisableColors bool
+
+	ShowHelp bool
 }
 
 func nextArg(args *[]string) string {
@@ -244,22 +299,36 @@ func ParseInputArgs() (InputFlags, bool) {
 				return flags, false
 			}
 
-			flags.ServerPort = uint16(port)
+			flags.ServerPort = port
 
-		case "-dc", "--disable-colors":
-			flags.DisableColor = true
+		case "-h", "--help":
+			flags.ShowHelp = true
+
+		// Enable flags":
+		case "-sql", "--enable-database":
+			flags.EnableSql = true
+
+		case "-ssl", "--enable-encryption":
+			flags.EnableSsl = true
 
 		case "-es", "--enable-subs":
 			flags.EnableSubs = false
 
-		case "-sql", "--enable-sql":
-			flags.EnableSql = true
+		case "-ec", "--enable-colors":
+			flags.EnableColors = true
 
-		case "-ssl", "--enable-ssl":
-			flags.EnableSsl = true
+		// Disable flags":
+		case "-nosql", "--disable-database":
+			flags.DisableSql = true
 
-		case "-h", "--help":
-			flags.ShowHelp = true
+		case "-nossl", "--disable-encryption":
+			flags.DisableSsl = true
+
+		case "-ds", "--disable-subs":
+			flags.DisableSubs = true
+
+		case "-dc", "--disable-colors":
+			flags.DisableColors = true
 
 		default:
 			fmt.Fprintf(os.Stderr, "ERROR: Input argument '%v' is not valid. See --help for program usage.\n", arg)
@@ -314,18 +383,22 @@ func DisplayHelp() {
 	fmt.Println("    ", exe, "[OPTIONS]")
 	fmt.Println()
 	fmt.Println("Options:")
-	fmt.Println("    -h,   --help                   Display this help message.")
-	fmt.Println("    -cp,  --config-path [path]     Loads config from the provided path.")
-	fmt.Println("    -gc,  --generate-config        Generates default config. Can also be use in combination with --config-path to specify output path. (default: ./config.json)")
-	fmt.Println("    -ip,  --address [10.0.0.1]     Binds server to an address. (default: localhost)")
-	fmt.Println("    -p,   --port [443]             Set address port to bind. (values between '0-65535') (default: 1234)")
-	fmt.Println("    -dc,  --disable-color          Disables colored logging. (default: enabled)")
-	fmt.Println("    -es,  --enable-subs            Enables support for subtitle search. (default: disabled)")
-	fmt.Println("    -d,   --domain [example.com]   Domain, if any, that the server is hosted on. Serves as a hint to associate URLs with local env.")
-	fmt.Println("    -sql, --enable-sql             Enables support for the Postgres SQL database persistance. (default: disabled)")
-	fmt.Println("    -ssl, --enable-ssl             Enables SSL. Secrets are read from:")
-	fmt.Println("                                     - CERTIFICATE: ./secret/certificate.pem")
-	fmt.Println("                                     - PRIVATE KEY: ./secret/privatekey.pem")
+	fmt.Println("    -h,     --help                   Display this help message.")
+	fmt.Println("    -cp,    --config-path [path]     Loads config from the provided path.")
+	fmt.Println("    -gc,    --generate-config        Generates default config. Can also be use in combination with --config-path to specify output path. (default: ./config.json)")
+	fmt.Println("    -ip,    --address [10.0.0.1]     Binds server to an address. (default: localhost)")
+	fmt.Println("    -p,     --port [443]             Set address port to bind. (values between '0-65535') (default: 1234)")
+	fmt.Println("    -sql,   --enable-sql             Enables support for the Postgres SQL database persistance. (default: disabled)")
+	fmt.Println("    -ssl,   --enable-ssl             Enables encrypted connection between a client and the server. Secrets are read from:")
+	fmt.Println("                                       - CERTIFICATE: ./secret/certificate.pem")
+	fmt.Println("                                       - PRIVATE KEY: ./secret/privatekey.pem")
+	fmt.Println("    -es,    --enable-subs            Enables support for subtitle search. (default: disabled)")
+	fmt.Println("    -ec,    --enable-color           Enables colored logging.")
+	fmt.Println("    -nosql, --enable-sql             Disables support for the Postgres SQL database persistance.")
+	fmt.Println("    -nossl, --enable-ssl             Disables encrypted connection between a client and the server.")
+	fmt.Println("    -ds,    --enable-subs            Disables support for subtitle search.")
+	fmt.Println("    -dc,    --disable-color          Disables colored logging. (default: enabled)")
+	fmt.Println("    -d,     --domain [example.com]   Domain, if any, that the server is hosted on. Serves as a hint to associate URLs with local env.")
 	fmt.Println()
 	fmt.Println("Example usage:")
 	fmt.Println("    ", exe, "--port 8888")
