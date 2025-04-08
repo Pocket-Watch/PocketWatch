@@ -13,9 +13,9 @@ cd ..
 # Generate dummy config when one is missing.
 if test ! -f "secret/config.json"; then
     mkdir -p "secret/"
-    ./build/pocketwatch --generate-config --config-path "secret/config.json"
+    ./build/pocketwatch --generate-config --config-path "secret/config.json" "$@"
 else 
-    ./build/pocketwatch --config-path "secret/config.json"
+    ./build/pocketwatch --config-path "secret/config.json" "$@"
 fi
 
 
