@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -153,10 +154,8 @@ func VerifyInputFlags(flags InputFlags) bool {
 		return false
 	}
 
-	const UINT16_MAX = 1<<16 - 1
-	if flags.ServerPort > UINT16_MAX || flags.ServerPort < 0 {
-
-		fmt.Fprintf(os.Stderr, "ERROR: Incorrect port number. Port number must be between values 0 and %v.\n", UINT16_MAX)
+	if flags.ServerPort > math.MaxUint16 || flags.ServerPort < 1 {
+		fmt.Fprintf(os.Stderr, "ERROR: Incorrect port number. Port number must be between values 1 and %v.\n", math.MaxUint16)
 		return false
 	}
 
