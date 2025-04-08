@@ -510,6 +510,9 @@ func (server *Server) apiSubtitleShift(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiSubtitleUpload(w http.ResponseWriter, r *http.Request) {
+	// Ensure that file content doesn't exceed maximum subtitle size limit.
+	r.Body = http.MaxBytesReader(w, r.Body, SUBTITLE_SIZE_LIMIT)
+
 	networkFile, headers, err := r.FormFile("file")
 	if err != nil {
 		respondBadRequest(w, "Failed to read form data from the subtitle upload request: %v", err)
@@ -538,15 +541,14 @@ func (server *Server) apiSubtitleUpload(w http.ResponseWriter, r *http.Request) 
 
 	LogInfo("Saving uploaded subtitle file to: %v.", outputPath)
 
-	// Read the file content to ensure it doesn't exceed the limit
-	buf := make([]byte, headers.Size)
-	_, err = io.ReadFull(networkFile, buf)
+	// NOTE(kihau): Maybe instead of io.ReadAll, a writer to a file should be used?
+	data, err := io.ReadAll(networkFile)
 	if err != nil {
 		respondInternalError(w, "Failed to read downloaded subtitle file: %v", err)
 		return
 	}
 
-	_, err = outputFile.Write(buf)
+	_, err = outputFile.Write(data)
 	if err != nil {
 		respondInternalError(w, "Subtitle file write failed with: %v", err)
 		return
