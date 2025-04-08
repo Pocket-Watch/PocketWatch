@@ -416,14 +416,16 @@ func (server *Server) getAuthorizedIndex(w http.ResponseWriter, r *http.Request)
 }
 
 func (server *Server) readJsonDataFromRequest(w http.ResponseWriter, r *http.Request, data any) bool {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		respondBadRequest(w, "Failed to read request body: %v", err)
+	if r.ContentLength > BODY_LIMIT {
+		http.Error(w, "Request body too large", http.StatusRequestEntityTooLarge)
+		LogWarnSkip(1, "Request body too large")
 		return false
 	}
 
-	if len(body) > BODY_LIMIT {
-		http.Error(w, "Request body too large", http.StatusRequestEntityTooLarge)
+	r.Body = http.MaxBytesReader(w, r.Body, BODY_LIMIT)
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		respondBadRequest(w, "Failed to read request body: %v", err)
 		return false
 	}
 

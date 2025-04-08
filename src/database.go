@@ -19,7 +19,7 @@ const SQL_MIGRATIONS_DIR = "sql/"
 //         - Do not sort filenames alphabetically, instead sort by migration number
 //         - Make sure multiple migrations with the same number cannot exist at the same time (ex. 001-create_user.sql and 001-create_messages.sql)
 //         - Make sure there are no gaps between migration numbers (ex. gap between files 001-create_user.sql and 003-alter_tables.sql, 002 missing)
-//         - (Maybe) Implement system to upgrade end downgrade migrations (ex. 01-create_user.up.sql and 01-create_user.down.sql)
+//         - (Maybe) Implement system to upgrade and downgrade migrations (ex. 01-create_user.up.sql and 01-create_user.down.sql)
 //         - Add migration grouping for migrations, so fresh database setups won't need to apply all migrations sequentially 
 //           (ex. 001-create_user.migrate.sql, 002-alter_users.migrate.sql, ..., 007-create_messages.migrate.sql -> 007-create_data.init.sql which is equivalent to all migrations up to 007???)
 type DbMigration struct {
