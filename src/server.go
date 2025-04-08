@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	net_url "net/url"
 	"os"
@@ -153,14 +152,6 @@ func createPlaylistEvent(action string, data any) PlaylistEventData {
 	return event
 }
 
-type ServerLogWriter struct { }
-
-func (writer *ServerLogWriter) Write(p []byte) (n int, err error) {
-	message := string(p)
-	LogError(message)
-	return len(p), nil
-}
-
 func StartServer(config ServerConfig, db *sql.DB) {
 	users, ok := DatabaseLoadUsers(db)
 	if !ok {
@@ -195,12 +186,11 @@ func StartServer(config ServerConfig, db *sql.DB) {
 
 	go server.periodicResync()
 
-	writer := &ServerLogWriter{}
-	logger := log.New(writer, "", log.Lmsgprefix)
+	internalLogger := CreateInternalLoggerForHttpServer()
 
 	httpServer := http.Server{
 		Addr: address,
-		ErrorLog: logger,
+		ErrorLog: internalLogger,
 	}
 
 	var server_start_error error

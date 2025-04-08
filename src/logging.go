@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"runtime"
@@ -40,6 +41,19 @@ type Logger struct {
 	outputFile  os.File
 	outputDir   string
 	outputPath  string
+}
+
+func (*Logger) Write(p []byte) (n int, err error) {
+	message := string(p)
+	LogWarn(message)
+	return len(p), nil
+}
+
+// NOTE(kihau): 
+//     Golang http server requires you to create a custom log.Logger for the internal logging of the http module.
+//     This function wraps our logger in the log.Logger from the golang standard library.
+func CreateInternalLoggerForHttpServer() *log.Logger {
+	return log.New(&logger, "", log.Lmsgprefix)
 }
 
 var logger Logger
