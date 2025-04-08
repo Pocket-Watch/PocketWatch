@@ -154,8 +154,8 @@ func VerifyInputFlags(flags InputFlags) bool {
 		return false
 	}
 
-	if flags.ServerPort > math.MaxUint16 || flags.ServerPort < 1 {
-		fmt.Fprintf(os.Stderr, "ERROR: Incorrect port number. Port number must be between values 1 and %v.\n", math.MaxUint16)
+	if flags.ServerPort > math.MaxUint16 || flags.ServerPort < 0 {
+		fmt.Fprintf(os.Stderr, "ERROR: Incorrect port number. Port number must be between values 0 and %v.\n", math.MaxUint16)
 		return false
 	}
 
