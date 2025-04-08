@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -44,7 +45,7 @@ type Logger struct {
 }
 
 func (*Logger) Write(p []byte) (n int, err error) {
-	message := string(p)
+	message := strings.TrimSpace(string(p))
 	LogWarn(message)
 	return len(p), nil
 }
