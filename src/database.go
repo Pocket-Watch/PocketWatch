@@ -14,9 +14,17 @@ import (
 
 const SQL_MIGRATIONS_DIR = "sql/"
 
+// TODO(kihau): 
+//     Migration system robustness:
+//         - Do not sort filenames alphabetically, instead sort by migration number
+//         - Make sure multiple migrations with the same number cannot exist at the same time (ex. 001-create_user.sql and 001-create_messages.sql)
+//         - Make sure there are no gaps between migration numbers (ex. gap between files 001-create_user.sql and 003-alter_tables.sql, 002 missing)
+//         - (Maybe) Implement system to upgrade end downgrade migrations (ex. 01-create_user.up.sql and 01-create_user.down.sql)
 type DbMigration struct {
-	name  string
-	query string
+	// number uint
+	// downgrade bool
+	name    string
+	query   string
 }
 
 func ConnectToDatabase(config DatabaseConfig) (*sql.DB, bool) {

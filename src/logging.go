@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"runtime"
 	"time"
@@ -34,18 +35,25 @@ const (
 type Logger struct {
 	enabled     bool
 	printColors bool
-	logLevel    uint32
-	logToFile   bool
+	logLevel    uint16
+	saveToFile  bool
+	outputFile  os.File
+	outputDir   string
 	outputPath  string
-	// outputFile os.File
 }
 
 var logger Logger
-var log_config LoggingConfig
 
 // NOTE(kihau): This will construct the global logger instead, but for now only log_config is used.
-func SetupGlobalLogger(config LoggingConfig) {
-	log_config = config
+func SetupGlobalLogger(config LoggingConfig) bool {
+	logger = Logger{
+		enabled:     config.Enabled,
+		printColors: config.EnableColors,
+		logLevel:    config.LogLevel,
+		saveToFile:  config.SaveToFile,
+	}
+
+	return true
 }
 
 func logLevelString(level LogLevel) string {
@@ -123,11 +131,11 @@ func LogDebugSkip(stackDepthSkip int, format string, args ...any) {
 }
 
 func logOutput(logLevel LogLevel, stackDepthSkip int, format string, args ...any) {
-	if !log_config.Enabled {
+	if !logger.enabled {
 		return
 	}
 
-	if log_config.LogLevel < logLevel {
+	if logger.logLevel < logLevel {
 		return
 	}
 
@@ -145,7 +153,7 @@ func logOutput(logLevel LogLevel, stackDepthSkip int, format string, args ...any
 	levelString := logLevelString(logLevel)
 
 	message := fmt.Sprintf(format, args...)
-	if log_config.EnableColors {
+	if logger.printColors {
 		levelColor := logLevelColor(logLevel)
 		fmt.Printf("%v[%v] %v[%-16s] %v[%v]%v %v\n", COLOR_GREEN_LIGHT, date, COLOR_CYAN, codeLocation, levelColor, levelString, COLOR_RESET, message)
 	} else {

@@ -1,23 +1,28 @@
+# Exclusions for hidden files and directories.
 .idea
-web/media/**
-build/**
-secret/**
-lib/**
-database/**
 
-*.exe
+# Exclusions for random and auto-generated directories.
+build/*
+secret/*
+lib/*
+database/*
+scratch/*
+logs/*
+
+# Exclusions for web/ directory .
+web/media/*
 web/proxy/*
 web/users/*
 web/subs/*
-scratch/*
-web/js/ignored
-
+web/js/ignored/*
 web/injection.html
 web/fluid.html
 web/preview.html
+
+# Exclusions for random files.
 build_local.bat
 build_local.sh
 deploy.sh
 scripts/deploy.sh
 config.json
-
+*.exe
