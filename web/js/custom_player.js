@@ -719,6 +719,8 @@ class Internals {
         const progress = this.htmlControls.buttons.volumeProgress;
         progress.style.width = volume / this.options.maxVolume * 100.0 + "%";
 
+
+        // TOOD(kihau): Show volume popup not just on hover but volume change (similar to timestamp popup)?
         const popup = this.htmlControls.buttons.volumePopup;
         popup.textContent = Math.round(volume * 100.0) + "%";
 
@@ -1187,6 +1189,7 @@ class Internals {
         this.htmlPlayerRoot.style.cursor = "auto";
         this.htmlControls.root.classList.remove("hide");
         this.htmlTitleContainer.classList.remove("hide");
+        this.playerUIHideTimeout.schedule();
     }
 
     hidePlayerUI() {
@@ -1272,34 +1275,12 @@ class Internals {
     }
 
     attachPlayerRootEvents() {
-        this.htmlPlayerRoot.addEventListener("touchmove", _ => {
-            this.showPlayerUI();
-            this.playerUIHideTimeout.schedule();
-        });
-
-        this.htmlPlayerRoot.addEventListener("mousemove", _ => {
-            this.showPlayerUI();
-            this.playerUIHideTimeout.schedule();
-        });
-
-        this.htmlPlayerRoot.addEventListener("mousedown", _ => {
-            this.showPlayerUI();
-            this.playerUIHideTimeout.schedule();
-        });
-
-        this.htmlPlayerRoot.addEventListener("mouseup", _ => {
-            this.showPlayerUI();
-            this.playerUIHideTimeout.schedule();
-        });
-
-        this.htmlPlayerRoot.addEventListener("mouseenter", _ => {
-            this.showPlayerUI();
-            this.playerUIHideTimeout.schedule();
-        });
-
-        this.htmlPlayerRoot.addEventListener("mouseleave", _ => {
-            this.hidePlayerUI();
-        });
+        this.htmlPlayerRoot.addEventListener("touchmove",  _ => this.showPlayerUI());
+        this.htmlPlayerRoot.addEventListener("mousemove",  _ => this.showPlayerUI());
+        this.htmlPlayerRoot.addEventListener("mousedown",  _ => this.showPlayerUI());
+        this.htmlPlayerRoot.addEventListener("mouseup",    _ => this.showPlayerUI());
+        this.htmlPlayerRoot.addEventListener("mouseenter", _ => this.showPlayerUI());
+        this.htmlPlayerRoot.addEventListener("mouseleave", _ => this.hidePlayerUI());
 
         this.htmlPlayerRoot.addEventListener("keydown", event => {
             if (event.key === " " || event.code === "Space") {
@@ -1315,11 +1296,13 @@ class Internals {
                 consumeEvent(event);
 
             } else if (event.key === "ArrowUp") {
+                this.showPlayerUI();
                 this.setVolumeRelative(0.1);
                 consumeEvent(event);
 
             } else if (event.key === "ArrowDown") {
                 this.setVolumeRelative(-0.1);
+                this.showPlayerUI();
                 consumeEvent(event);
 
             } else if (event.key === this.options.fullscreenKeyLetter) {
