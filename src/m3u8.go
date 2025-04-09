@@ -45,7 +45,8 @@ var GENERAL_ATTRIBUTES = []string{
 	EXT_X_PREFETCH,
 }
 
-// EXT_X_ENDLIST This tag helps determine whether the list is a live playlist
+// EXT_X_ENDLIST Media playlist tag (4.3.3.4)
+// This tag helps determine whether the list is a live playlist
 const EXT_X_ENDLIST = "EXT-X-ENDLIST"
 
 // EXT_X_STREAM_INF Master playlist tag (4.3.4) - track only
@@ -76,14 +77,18 @@ type KeyValuePair struct {
 }
 
 // This function assumes the pair starts with #
+// A key is required for it to produce a valid result, value can be empty
 func getKeyValue(line string) *KeyValuePair {
 	line = line[1:]
-	// Given it's a pair, its minimal length must be at least 8
-	if len(line) < 8 {
+	// The shortest tag is 6 characters long (eg. EXTINF)
+	if len(line) < 6 {
 		return nil
 	}
 	colon := strings.Index(line, ":")
-	if colon < 6 || colon == len(line)-1 {
+	if colon == -1 || colon == len(line)-1 {
+		return &KeyValuePair{line, ""}
+	}
+	if colon < 6 {
 		return nil
 	}
 	key := line[:colon]
@@ -146,8 +151,8 @@ func parseM3U(path string) (*M3U, error) {
 			}
 			if pair.key == EXT_X_ENDLIST {
 				hasEnd = true
-				// Maybe it's wrong to assume the playlist is complete
-				break
+				// It MAY occur anywhere in the Media Playlist file.
+				continue
 			}
 
 			if slices.Contains(GENERAL_ATTRIBUTES, pair.key) {
