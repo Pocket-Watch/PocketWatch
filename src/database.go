@@ -216,6 +216,58 @@ func MigrateDatabase(db *sql.DB) bool {
 	return true
 }
 
+// Remove temporary 'dummy' accounts of users inactive for more than 1 days and without any user profile updates.
+func DatabaseRemoveDummyUsers(db *sql.DB) (bool) {
+	if db == nil {
+		return true
+	}
+
+	now := time.Now()
+	dayAgo := now.AddDate(0, 0, -1)
+
+	query := "DELETE FROM users WHERE last_online < $1 AND last_update = created_at"
+	result, err := db.Exec(query, dayAgo)
+	if err != nil {
+		LogError("Failed to execute query to remove dummy users: %v", err);
+		return false
+	}
+	
+	removed, _ := result.RowsAffected()
+	if removed > 0 {
+		LogInfo("Removed %v dummy user accounts inactive for more than 1 day.", removed)
+	}
+
+	return true
+}
+
+// TODO(kihau)
+func DatabaseArchiveInactiveUsers(db *sql.DB) (bool) {
+	if db == nil {
+		return true
+	}
+
+	now := time.Now()
+	weekAgo := now.AddDate(0, 0, -7)
+
+	query := `
+		WITH moved_users AS (
+			DELETE FROM users
+			WHERE last_online < $1
+			RETURNING *
+		)
+		INSERT INTO inactive_users
+		SELECT * FROM moved_users
+
+	`
+
+	res, err := db.Exec(query, weekAgo)
+	LogDebug("%v database archive: %v ---- %v", weekAgo, res, err)
+
+	return true
+}
+
+// TODO(kihau): 
+//     Archive users with more than 1 week of inactivity. Archived users will not appear in the user list until they open the room.
 func DatabaseLoadUsers(db *sql.DB) (*Users, bool) {
 	users := makeUsers()
 
