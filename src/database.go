@@ -225,6 +225,7 @@ func DatabaseRemoveDummyUsers(db *sql.DB) (bool) {
 	now := time.Now()
 	dayAgo := now.AddDate(0, 0, -1)
 
+	// NOTE(kihau): Maybe just move them to archive instead?
 	query := "DELETE FROM users WHERE last_online < $1 AND last_update = created_at"
 	result, err := db.Exec(query, dayAgo)
 	if err != nil {

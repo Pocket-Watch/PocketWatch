@@ -746,6 +746,10 @@ class Internals {
         return timestamp;
     }
 
+    getVolume() {
+        return Number(this.htmlControls.buttons.volumeInput.value);
+    }
+
     setVolume(volume) {
         if (volume < 0.0) {
             volume = 0.0;
@@ -772,19 +776,20 @@ class Internals {
     }
 
     toggleVolume() {
-        let slider = this.htmlControls.buttons.volumeInput;
-        if (slider.value == 0) {
+        let volume = this.getVolume();
+        if (volume === 0.0) {
             this.fireControlsVolumeSet(this.volumeBeforeMute);
             this.setVolume(this.volumeBeforeMute);
         } else {
-            this.volumeBeforeMute = slider.value;
-            this.fireControlsVolumeSet(0);
-            this.setVolume(0);
+            this.volumeBeforeMute = volume;
+            this.fireControlsVolumeSet(0.0);
+            this.setVolume(0.0);
         }
     }
 
-    setVolumeRelative(volume) {
-        this.setVolume(this.htmlVideo.volume + volume);
+    setVolumeRelative(relativeVolume) {
+        let volume = this.getVolume();
+        this.setVolume(volume + relativeVolume);
     }
 
     setTitle(title) {
@@ -1296,8 +1301,8 @@ class Internals {
                 consumeEvent(event);
 
             } else if (event.key === "ArrowUp") {
-                this.showPlayerUI();
                 this.setVolumeRelative(0.1);
+                this.showPlayerUI();
                 consumeEvent(event);
 
             } else if (event.key === "ArrowDown") {
@@ -1484,7 +1489,7 @@ class Internals {
         });
 
         this.htmlControls.buttons.volumeInput.addEventListener("input", _event => {
-            let volume = this.htmlControls.buttons.volumeInput.value;
+            let volume = this.getVolume();
             this.fireControlsVolumeSet(volume);
             this.setVolume(volume);
         });
@@ -1635,8 +1640,8 @@ class Internals {
 
     assembleProgressBar() {
         let controls = this.htmlControls;
-        let root     = this.htmlControls.root;
-        let progress = this.htmlControls.progress;
+        let root     = controls.root;
+        let progress = controls.progress;
 
         progress.popup.textContent = "00:00";
         progress.popup.classList.add("unselectable");
