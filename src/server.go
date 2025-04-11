@@ -351,7 +351,7 @@ func (server *Server) setNewEntry(newEntry *Entry) Entry {
 
 		lastSegment := strings.ToLower(lastUrlSegment(newEntry.Url))
 		lastSegmentOfParam := strings.ToLower(lastUrlSegment(paramUrl))
-		if strings.HasSuffix(lastSegment, ".m3u8") || strings.HasSuffix(lastSegmentOfParam, "m3u8") {
+		if isAnyUrlM3U(lastSegment, lastSegmentOfParam) {
 			setup := server.setupHlsProxy(newEntry.Url, newEntry.RefererUrl)
 			if setup {
 				newEntry.SourceUrl = PROXY_ROUTE + PROXY_M3U8
@@ -378,6 +378,15 @@ func (server *Server) setNewEntry(newEntry *Entry) Entry {
 	server.state.player.Playing = server.state.player.Autoplay
 
 	return prevEntry
+}
+
+func isAnyUrlM3U(urls ...string) bool {
+	for _, url := range urls {
+		if strings.HasSuffix(url, ".m3u8") || strings.HasSuffix(url, ".m3u") {
+			return true
+		}
+	}
+	return false
 }
 
 func (server *Server) isAuthorized(w http.ResponseWriter, r *http.Request) bool {
