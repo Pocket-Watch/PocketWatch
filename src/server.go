@@ -192,7 +192,7 @@ func StartServer(config ServerConfig, db *sql.DB) {
 	internalLogger := CreateInternalLoggerForHttpServer()
 
 	httpServer := http.Server{
-		Addr: address,
+		Addr:     address,
 		ErrorLog: internalLogger,
 	}
 
@@ -831,6 +831,14 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 			return
 		}
 
+		parsedUrl, err := net_url.Parse(proxy.liveUrl)
+		if err != nil {
+			LogError("This shouldn't have happened - failed to parse live url: %v", err.Error())
+			http.Error(writer, err.Error(), 500)
+			return
+		}
+		prefix := stripLastSegment(parsedUrl)
+		liveM3U.prefixRelativeSegments(prefix)
 		segmentCount := len(liveM3U.segments)
 		for i := range segmentCount {
 			segment := &liveM3U.segments[i]
