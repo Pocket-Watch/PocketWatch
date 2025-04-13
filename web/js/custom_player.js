@@ -259,6 +259,12 @@ class Player {
         }
     }
 
+    onMetadataLoad(func) {
+        if (isFunction(func)) {
+            this.internals.fireMetadataLoad = func;
+        }
+    }
+
     setVideoTrack(url) {
         this.internals.setVideoTrack(url);
     }
@@ -529,6 +535,7 @@ class Internals {
     fireSubtitleTrackLoad(_subtitle) {}
     fireSubtitleSelect(_subtitle) {}
     async fireSubtitleSearch(_search) {}
+    fireMetadataLoad() {}
 
     isVideoPlaying() {
         return !this.htmlVideo.paused && !this.htmlVideo.ended;
@@ -1434,15 +1441,8 @@ class Internals {
             this.playbackSpeed.setValue(this.htmlVideo.playbackRate)
         });
 
-        // The below events don't fire
-        this.htmlVideo.addEventListener("loadedmetadata ", e => {
-            console.log("loadedmetadata:", e)
-            console.log("RESOLUTION:", this.getResolution())
-        });
-
-        this.htmlVideo.addEventListener("loadeddata ", e => {
-            console.log("DATA LOAD:", e)
-            console.log("RESOLUTION:", this.getResolution())
+        this.htmlVideo.addEventListener("loadedmetadata", _ => {
+            this.fireMetadataLoad();
         });
     }
 

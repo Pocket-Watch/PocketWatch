@@ -1,9 +1,9 @@
-import { Options, Player } from "./custom_player.js"
-import { Playlist } from "./playlist.js"
-import { Chat } from "./chat.js"
-import { sha256 } from "./auth.js"
+import {Options, Player} from "./custom_player.js"
+import {Playlist} from "./playlist.js"
+import {Chat} from "./chat.js"
+import {sha256} from "./auth.js"
 import * as api from "./api.js";
-import { Storage, getById, div, img, svg, button, hide, show, formatTime } from "./util.js";
+import {button, div, formatTime, getById, hide, img, show, Storage, svg} from "./util.js";
 
 const SERVER_ID = 0;
 const MAX_TITLE_LENGTH = 200;
@@ -298,6 +298,10 @@ class Room {
         this.player.onSubtitleSelect(subtitle => {
             Storage.set(LAST_SELECTED_SUBTITLE, subtitle.url);
         });
+
+        this.player.onMetadataLoad(_ => {
+            this.roomContent.videoResolution.textContent = this.player.getResolution()
+        })
 
         this.player.onPlaybackError((exception, error) => {
             if (exception.name === "NotAllowedError") {
