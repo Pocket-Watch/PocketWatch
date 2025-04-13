@@ -239,6 +239,18 @@ type Track struct {
 	url        string
 }
 
+func (track *Track) getParamValue(paramKey string) string {
+	if paramKey == "" {
+		return ""
+	}
+	for _, pair := range track.streamInfo {
+		if pair.key == paramKey {
+			return pair.value
+		}
+	}
+	return ""
+}
+
 // internally modifies track
 func (track *Track) prefixUrl(prefix string) {
 	if prefix == "" {

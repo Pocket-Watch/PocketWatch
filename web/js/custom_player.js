@@ -60,6 +60,10 @@ class Player {
         return this.internals.htmlVideo.duration;
     }
 
+    getResolution() {
+        return this.internals.getResolution();
+    }
+
     setSubtitle(url, name, shift = 0.0) {
         let info = FileInfo.fromUrl(url)
         if (name) {
@@ -750,6 +754,11 @@ class Internals {
         return Number(this.htmlControls.buttons.volumeInput.value);
     }
 
+    getResolution() {
+        let video = this.htmlVideo;
+        return video.videoWidth + "x" + video.videoHeight;
+    }
+
     setVolume(volume) {
         if (volume < 0.0) {
             volume = 0.0;
@@ -1423,6 +1432,17 @@ class Internals {
 
         this.htmlVideo.addEventListener("ratechange", _ => {
             this.playbackSpeed.setValue(this.htmlVideo.playbackRate)
+        });
+
+        // The below events don't fire
+        this.htmlVideo.addEventListener("loadedmetadata ", e => {
+            console.log("loadedmetadata:", e)
+            console.log("RESOLUTION:", this.getResolution())
+        });
+
+        this.htmlVideo.addEventListener("loadeddata ", e => {
+            console.log("DATA LOAD:", e)
+            console.log("RESOLUTION:", this.getResolution())
         });
     }
 

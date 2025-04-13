@@ -652,6 +652,11 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 			bestTrack = &m3u.tracks[0]
 			url = bestTrack.url
 		}
+		resolution := bestTrack.getParamValue("RESOLUTION")
+		if resolution != "" {
+			LogDebug("The best track's resolution is %v", resolution)
+		}
+
 		m3u, err = downloadM3U(bestTrack.url, WEB_PROXY+ORIGINAL_M3U8, referer)
 		var downloadErr *DownloadError
 		if errors.As(err, &downloadErr) && downloadErr.Code == 404 {

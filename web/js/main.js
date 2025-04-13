@@ -104,6 +104,7 @@ class Room {
             subtitlesSelect:    getById("room_subtitles_select"),
             websiteUptime:      getById("room_website_uptime"),
             websiteVersion:     getById("room_website_version"),
+            videoResolution:    getById("room_video_resolution"),
         };
 
         this.chatNewMessage = getById("tab_chat_new_message_indicator");
