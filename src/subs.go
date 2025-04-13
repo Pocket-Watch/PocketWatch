@@ -310,8 +310,10 @@ func downloadSubtitle(search *Search, outputDirectory string) (string, error) {
 			firstLine = line
 		}
 
-		if strings.HasPrefix(line, "Saved to ") {
-			return line[len("Saved to "):], nil
+		if strings.HasPrefix(line, "Saved to") {
+			if scanner.Scan() {
+				return strings.Trim(scanner.Text(), " "), nil
+			}
 		}
 	}
 
