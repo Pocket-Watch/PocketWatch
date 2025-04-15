@@ -241,7 +241,7 @@ func DatabaseRemoveDummyUsers(db *sql.DB) (bool) {
 	return true
 }
 
-// TODO(kihau)
+// TODO(kihau): Run this function on server startup and once every day?
 func DatabaseArchiveInactiveUsers(db *sql.DB) (bool) {
 	if db == nil {
 		return true
@@ -283,6 +283,9 @@ func DatabaseLoadUsers(db *sql.DB) (*Users, bool) {
 	}
 
 	defer rows.Close()
+
+	// Load highest id from the archived users...
+	// Move archived users on connect...
 
 	// NOTE(kihau): This is kind of hacky, maybe seed counter should be stored in the database?
 	var maxId uint64 = 1

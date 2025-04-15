@@ -637,7 +637,7 @@ class Internals {
             return;
         }
 
-        time += this.selectedSubtitle.offset;
+        time -= this.selectedSubtitle.offset;
 
         // TODO: check if TextTrack.cues are a live list
         let cues = this.selectedSubtitle.cues;
