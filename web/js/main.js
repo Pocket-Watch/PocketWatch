@@ -28,6 +28,7 @@ class Room {
         options.hideSpeedButton    = true;
         options.hideDownloadButton = true;
         options.hlsConfig.xhrSetup = (xhr, url) => this.configureHlsRequests(xhr, url);
+        options.hlsConfig.maxBufferLength = 60;
         this.applyUserOptions(options);
 
         this.player   = new Player(video0, options);
