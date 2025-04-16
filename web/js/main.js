@@ -105,6 +105,10 @@ class Room {
             websiteUptime:      getById("room_website_uptime"),
             websiteVersion:     getById("room_website_version"),
             videoResolution:    getById("room_video_resolution"),
+
+            tokenCopyButton:   getById("room_token_copy_button"),
+            tokenSetButton:    getById("room_token_set_button"),
+            tokenSetInput:     getById("room_token_set_input"),
         };
 
         this.chatNewMessage = getById("tab_chat_new_message_indicator");
@@ -560,6 +564,16 @@ class Room {
             }
 
             api.subtitleDelete(subtitle.id)
+        };
+
+        this.roomContent.tokenCopyButton.onclick = _ => {
+            navigator.clipboard.writeText(api.getToken());
+        };
+
+        this.roomContent.tokenSetButton.onclick = _ => {
+            let newToken = this.roomContent.tokenSetInput.value
+            Storage.set("token", newToken);
+            window.location.reload();
         };
     }
 
