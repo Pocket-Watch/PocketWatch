@@ -800,7 +800,7 @@ class Room {
             //
             // Attaching events to html elements
             //
-            changeAvatarButton.onclick = () => {
+            changeAvatarButton.onclick = _ => {
                 var input = document.createElement('input');
                 input.type = "file";
 
@@ -817,15 +817,23 @@ class Room {
                 input.click();
             };
 
-            usernameInput.addEventListener("focusout", () => {
+            usernameInput.addEventListener("focusout", _ => {
                 usernameInput.readOnly = true;
-                api.userUpdateName(usernameInput.value);
+
+                let user = this.allUsers.find(user => this.currentUserId === user.id);
+                if (usernameInput.value !== user.username) {
+                    api.userUpdateName(usernameInput.value);
+                } 
             });
 
             usernameInput.addEventListener("keypress", event => {
                 if (event.key === "Enter") {
                     usernameInput.readOnly = true;
-                    api.userUpdateName(usernameInput.value);
+
+                    let user = this.allUsers.find(user => this.currentUserId === user.id);
+                    if (usernameInput.value !== user.username) {
+                        api.userUpdateName(usernameInput.value);
+                    } 
                 }
             });
 
