@@ -15,18 +15,18 @@ import (
 const SQL_MIGRATIONS_DIR = "sql/"
 
 // TODO(kihau): 
-//     Migration system robustness:
-//         - Do not sort filenames alphabetically, instead sort by migration number
-//         - Make sure multiple migrations with the same number cannot exist at the same time (ex. 001-create_user.sql and 001-create_messages.sql)
-//         - Make sure there are no gaps between migration numbers (ex. gap between files 001-create_user.sql and 003-alter_tables.sql, 002 missing)
-//         - (Maybe) Implement system to upgrade and downgrade migrations (ex. 01-create_user.up.sql and 01-create_user.down.sql)
-//         - Add migration grouping for migrations, so fresh database setups won't need to apply all migrations sequentially 
-//           (ex. 001-create_user.migrate.sql, 002-alter_users.migrate.sql, ..., 007-create_messages.migrate.sql -> 007-create_data.init.sql which is equivalent to all migrations up to 007???)
+// Migration system robustness:
+//   - Do not sort filenames alphabetically, instead sort by migration number
+//   - Make sure multiple migrations with the same number cannot exist at the same time (ex. 001-create_user.sql and 001-create_messages.sql)
+//   - Make sure there are no gaps between migration numbers (ex. gap between files 001-create_user.sql and 003-alter_tables.sql, 002 missing)
+//   - (Maybe) Implement system to upgrade and downgrade migrations (ex. 01-create_user.up.sql and 01-create_user.down.sql)
+//   - Add migration grouping for migrations, so fresh database setups won't need to apply all migrations sequentially
+//     (ex. 001-create_user.migrate.sql, 002-alter_users.migrate.sql, ..., 007-create_messages.migrate.sql -> 007-create_data.init.sql which is equivalent to all migrations up to 007???)
 type DbMigration struct {
 	// number uint
 	// downgrade bool
-	name    string
-	query   string
+	name  string
+	query string
 }
 
 func ConnectToDatabase(config DatabaseConfig) (*sql.DB, bool) {
@@ -217,7 +217,7 @@ func MigrateDatabase(db *sql.DB) bool {
 }
 
 // Remove temporary 'dummy' accounts of users inactive for more than 1 days and without any user profile updates.
-func DatabaseRemoveDummyUsers(db *sql.DB) (bool) {
+func DatabaseRemoveDummyUsers(db *sql.DB) bool {
 	if db == nil {
 		return true
 	}
@@ -229,10 +229,10 @@ func DatabaseRemoveDummyUsers(db *sql.DB) (bool) {
 	query := "DELETE FROM users WHERE last_online < $1 AND last_update = created_at"
 	result, err := db.Exec(query, dayAgo)
 	if err != nil {
-		LogError("Failed to execute query to remove dummy users: %v", err);
+		LogError("Failed to execute query to remove dummy users: %v", err)
 		return false
 	}
-	
+
 	removed, _ := result.RowsAffected()
 	if removed > 0 {
 		LogInfo("Removed %v dummy user accounts inactive for more than 1 day.", removed)
@@ -242,7 +242,7 @@ func DatabaseRemoveDummyUsers(db *sql.DB) (bool) {
 }
 
 // TODO(kihau): Run this function on server startup and once every day?
-func DatabaseArchiveInactiveUsers(db *sql.DB) (bool) {
+func DatabaseArchiveInactiveUsers(db *sql.DB) bool {
 	if db == nil {
 		return true
 	}
@@ -267,8 +267,34 @@ func DatabaseArchiveInactiveUsers(db *sql.DB) (bool) {
 	return true
 }
 
-// TODO(kihau): 
-//     Archive users with more than 1 week of inactivity. Archived users will not appear in the user list until they open the room.
+func DatabaseMoveUserToArchive(db *sql.DB, user User) bool {
+	if db == nil {
+		return true
+	}
+
+	query := `
+		WITH user AS (
+			DELETE FROM users
+			WHERE id = $1
+			RETURNING *
+		)
+		INSERT INTO inactive_users
+		SELECT * FROM user
+	`
+
+	res, err := db.Exec(query, user.Id)
+	LogDebug("%v database archive: %v ---- %v", user.Id, res, err)
+
+	if err != nil {
+		return false
+	}
+
+	return true
+}
+
+// TODO(kihau):
+//
+//	Archive users with more than 1 week of inactivity. Archived users will not appear in the user list until they open the room.
 func DatabaseLoadUsers(db *sql.DB) (*Users, bool) {
 	users := makeUsers()
 

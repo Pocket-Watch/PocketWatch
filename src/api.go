@@ -199,6 +199,12 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 	io.WriteString(w, string(jsonData))
 }
 
+func (server *Server) apiUserDelete(w http.ResponseWriter, r *http.Request) {
+	// - Remove user from users table.
+	// - Move user in database users table to archive.
+	http.Error(w, "", http.StatusNotImplemented)
+}
+
 func (server *Server) apiPlayerGet(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s requested get.", r.RemoteAddr)
 

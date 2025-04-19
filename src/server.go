@@ -48,7 +48,7 @@ func (users *Users) create() User {
 	now := time.Now()
 	new_user := User{
 		Id:         id,
-		Username:   fmt.Sprintf("User %v", id),
+		Username:   generateRandomNickname(),
 		Avatar:     "img/default_avatar.png",
 		token:      generateToken(),
 		createdAt:  now,
@@ -328,6 +328,22 @@ func (server *Server) periodicResync() {
 		}
 
 		server.writeEventToAllConnections(nil, "sync", event)
+	}
+}
+
+func (server *Server) periodicInactiveUserArchive() {
+	for {
+		time.Sleep(time.Hour * 24)
+		server.users.mutex.Lock()
+		defer server.users.mutex.Unlock()
+
+		for _, user := range server.users.slice {
+			if time.Since(user.lastOnline) > time.Hour*24*14 {
+				DatabaseMoveUserToArchive(server.db, user)
+				// TOOD(kihau): Remove user from the users list
+				// TOOD(kihau): Inform all connections that users has been removed.
+			}
+		}
 	}
 }
 

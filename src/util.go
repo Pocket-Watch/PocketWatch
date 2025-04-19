@@ -459,3 +459,60 @@ func respondInternalError(writer http.ResponseWriter, format string, args ...any
 	LogErrorSkip(1, "%v", output)
 	http.Error(writer, output, http.StatusInternalServerError)
 }
+
+func generateRandomNickname() string {
+	prefixes := []string{
+		// Positive adjectives
+		"Adaptable", "Adventurous", "Affectionate", "Altruistic", "Ambitious", "Amiable", "Amusing", "Analytical",
+		"Articulate", "Artistic", "Attentive", "Authentic", "Benevolent", "Bold", "Brilliant", "Caring", "Charismatic",
+		"Charitable", "Charming", "Cheerful", "Compassionate", "Confident", "Considerate", "Courageous", "Courteous",
+		"Creative", "Determined", "Diligent", "Dynamic", "Eloquent", "Empathetic", "Empowering", "Endearing", "Energetic",
+		"Enthusiastic", "Friendly", "Generous", "Genuine", "Gracious", "Grateful", "Happy", "Hardworking", "Honest",
+		"Humble", "Innovative", "Inspirational", "Inspiring", "Intelligent", "Jovial", "Joyful", "Kind", "Lively",
+		"Loving", "Loyal", "Modest", "Motivated", "Nurturing", "Optimistic", "Outgoing", "Passionate", "Patient", "Peaceful",
+		"Persevering", "Playful", "Positive", "Proactive", "Professional", "Radiant", "Relaxed", "Reliable", "Resilient",
+		"Resourceful", "Respectful", "Sensible", "Sincere", "Smart", "Sociable", "Steadfast", "Strong", "Supportive",
+		"Sympathetic", "Tactful", "Talented", "Tenacious", "Thoughtful", "Trusting", "Trustworthy", "Understanding",
+		"Upbeat", "Vibrant", "Visionary", "Vivacious", "Warm", "Warmhearted", "Wise", "Witty", "Zealous",
+
+		// Colors
+		"Amber", "Amethyst", "Apricot", "Aqua", "Aquamarine", "Auburn", "Azure", "Beige", "Black", "Blue", "Bronze",
+		"Brown", "Buff", "Cardinal", "Carmine", "Celadon", "Cerise", "Cerulean", "Charcoal", "Chartreuse", "Chocolate",
+		"Cinnamon", "Complementary", "Copper", "Coral", "Cream", "Crimson", "Cyan", "Dark", "Denim", "Ecru", "Emerald",
+		"Fuchsia", "Gold", "Goldenrod", "Gray", "Green", "Grey", "Hue", "Indigo", "Ivory", "Jade", "Jet", "Khaki", "Lavender",
+		"Lemon", "Light", "Lilac", "Lime", "Magenta", "Mahogany", "Maroon", "Mauve", "Mustard", "Ocher", "Olive", "Orange",
+		"Orchid", "Pale", "Pastel", "Peach", "Periwinkle", "Persimmon", "Pewter", "Pink", "Puce", "Pumpkin", "Purple",
+		"Rainbow", "Red", "Rose", "Ruby", "Russet", "Rusty", "Saffron", "Salmon", "Sapphire", "Scarlet", "Secondary",
+		"Sepia", "Shade", "Shamrock", "Sienna", "Silver", "Slate", "Spectrum", "Tan", "Tangerine", "Taupe", "Teal",
+		"Terracotta", "Thistle", "Tint", "Tomato", "Topaz", "Turquoise", "Ultramarine", "Umber", "Vermilion", "Violet",
+		"Viridian", "Wheat", "White", "Wisteria", "Yellow",
+	}
+
+	sufixes := []string{
+		// Fruits
+		"Apple", "Apricot", "Avocado", "Banana", "Blackberry", "Blueberry", "Carambola", "Cherry", "Clementine",
+		"Cloudberry", "Coconut", "Cranberry", "Cucumber", "Currant", "Eggplant", "Grapes", "Grapefruit", "Jackfruit",
+		"Java Plum", "Jujube", "Kiwi", "Kumquat", "Lemon", "Lime", "Lychee", "Mammee", "Mandarin", "Mango", "Mangosteen",
+		"Mulberry", "Nance", "Nectarine", "Noni", "Olive", "Orange", "Papaya", "Pawpaw", "Peach", "Pear", "Persimmon",
+		"Pineapple", "Plantain", "Plum", "Pomegranate", "Pomelo", "Pulasan", "Quine", "Rambutan", "Raspberries",
+		"Rhubarb", "Rose Apple", "Sapodilla", "Satsuma", "Soursop", "Strawberry", "Sugar Apple", "Tamarillo", "Tamarind",
+		"Tangelo", "Tangerine", "Ugli", "Watermelon",
+
+		// Animals
+		"Dog", "Cow", "Cat", "Horse", "Donkey", "Tiger", "Lion", "Panther", "Leopard", "Cheetah", "Bear", "Elephant",
+		"Polar", "bear", "Turtle", "Tortoise", "Crocodile", "Rabbit", "Porcupine", "Hare", "Hen", "Pigeon", "Albatross",
+		"Crow", "Fish", "Dolphin", "Frog", "Whale", "Alligator", "Eagle", "Flying", "squirrel", "Ostrich", "Fox", "Goat",
+		"Jackal", "Emu", "Armadillo", "Eel", "Goose", "Arctic", "fox", "Wolf", "Beagle", "Gorilla", "Chimpanzee", "Monkey",
+		"Beaver", "Orangutan", "Antelope", "Bat", "Badger", "Giraffe", "Hermit", "Crab", "Giant", "Panda", "Hamster",
+		"Cobra", "Hammerhead", "shark", "Camel", "Hawk", "Deer", "Chameleon", "Hippopotamus", "Jaguar", "Chihuahua",
+		"King", "Cobra", "Ibex", "Lizard", "Koala", "Kangaroo", "Iguana", "Llama", "Chinchillas", "Dodo", "Jellyfish",
+		"Rhinoceros", "Hedgehog", "Zebra", "Possum", "Wombat", "Bison", "Bull", "Buffalo", "Sheep", "Meerkat", "Mouse",
+		"Otter", "Sloth", "Owl", "Vulture", "Flamingo", "Racoon", "Mole", "Duck", "Swan", "Lynx", "Monitor", "Lizard",
+		"Elk", "Boar", "Lemur", "Mule", "Baboon", "Mammoth", "Blue", "Whale", "Rat", "Snake", "Peacock",
+	}
+
+	prefix := prefixes[rand.Intn(len(prefixes))]
+	suffix := sufixes[rand.Intn(len(sufixes))]
+
+	return prefix + " " + suffix
+}
