@@ -573,6 +573,10 @@ class Room {
 
         this.roomContent.tokenSetButton.onclick = _ => {
             let newToken = this.roomContent.tokenSetInput.value
+            if (!newToken || newToken === "") {
+                console.warn("Prevent empty token set!");
+                return;
+            }
             Storage.set("token", newToken);
             window.location.reload();
         };
@@ -1337,6 +1341,16 @@ async function main() {
 
     // Expose room to browser console for debugging.
     window.room = room;
+    let cat = new Cat();
+    cat.meow("", 2)
+    console.log("THE CAT", cat)
+}
+
+class Cat {
+    constructor (name, age) {
+        this.name = name;
+    }
+    meow(sound, volume) {}
 }
 
 main();
