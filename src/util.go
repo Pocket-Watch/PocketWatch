@@ -450,13 +450,13 @@ func stall(delay time.Duration, maxChecks int, checkFunc func() bool) {
 
 func respondBadRequest(writer http.ResponseWriter, format string, args ...any) {
 	output := fmt.Sprintf(format, args...)
-	LogWarnSkip(1, "%v", output)
+	LogWarnUp(1, "%v", output)
 	http.Error(writer, output, http.StatusBadRequest)
 }
 
 func respondInternalError(writer http.ResponseWriter, format string, args ...any) {
 	output := fmt.Sprintf(format, args...)
-	LogErrorSkip(1, "%v", output)
+	LogErrorUp(1, "%v", output)
 	http.Error(writer, output, http.StatusInternalServerError)
 }
 
@@ -492,7 +492,7 @@ func generateRandomNickname() string {
 		// Fruits
 		"Apple", "Apricot", "Avocado", "Banana", "Blackberry", "Blueberry", "Carambola", "Cherry", "Clementine",
 		"Cloudberry", "Coconut", "Cranberry", "Cucumber", "Currant", "Eggplant", "Grapes", "Grapefruit", "Jackfruit",
-		"Java Plum", "Jujube", "Kiwi", "Kumquat", "Lemon", "Lime", "Lychee", "Mammee", "Mandarin", "Mango", "Mangosteen",
+		"Jujube", "Kiwi", "Kumquat", "Lemon", "Lime", "Lychee", "Mammee", "Mandarin", "Mango", "Mangosteen",
 		"Mulberry", "Nance", "Nectarine", "Noni", "Olive", "Orange", "Papaya", "Pawpaw", "Peach", "Pear", "Persimmon",
 		"Pineapple", "Plantain", "Plum", "Pomegranate", "Pomelo", "Pulasan", "Quine", "Rambutan", "Raspberries",
 		"Rhubarb", "Rose Apple", "Sapodilla", "Satsuma", "Soursop", "Strawberry", "Sugar Apple", "Tamarillo", "Tamarind",
@@ -500,11 +500,11 @@ func generateRandomNickname() string {
 
 		// Animals
 		"Dog", "Cow", "Cat", "Horse", "Donkey", "Tiger", "Lion", "Panther", "Leopard", "Cheetah", "Bear", "Elephant",
-		"Polar", "bear", "Turtle", "Tortoise", "Crocodile", "Rabbit", "Porcupine", "Hare", "Hen", "Pigeon", "Albatross",
+		"Polar", "Turtle", "Tortoise", "Crocodile", "Rabbit", "Porcupine", "Hare", "Hen", "Pigeon", "Albatross",
 		"Crow", "Fish", "Dolphin", "Frog", "Whale", "Alligator", "Eagle", "Flying", "squirrel", "Ostrich", "Fox", "Goat",
 		"Jackal", "Emu", "Armadillo", "Eel", "Goose", "Arctic", "fox", "Wolf", "Beagle", "Gorilla", "Chimpanzee", "Monkey",
 		"Beaver", "Orangutan", "Antelope", "Bat", "Badger", "Giraffe", "Hermit", "Crab", "Giant", "Panda", "Hamster",
-		"Cobra", "Hammerhead", "shark", "Camel", "Hawk", "Deer", "Chameleon", "Hippopotamus", "Jaguar", "Chihuahua",
+		"Cobra", "Hammerhead", "Shark", "Camel", "Hawk", "Deer", "Chameleon", "Hippopotamus", "Jaguar", "Chihuahua",
 		"King", "Cobra", "Ibex", "Lizard", "Koala", "Kangaroo", "Iguana", "Llama", "Chinchillas", "Dodo", "Jellyfish",
 		"Rhinoceros", "Hedgehog", "Zebra", "Possum", "Wombat", "Bison", "Bull", "Buffalo", "Sheep", "Meerkat", "Mouse",
 		"Otter", "Sloth", "Owl", "Vulture", "Flamingo", "Racoon", "Mole", "Duck", "Swan", "Lynx", "Monitor", "Lizard",

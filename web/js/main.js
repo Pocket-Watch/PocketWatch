@@ -821,9 +821,12 @@ class Room {
                 usernameInput.readOnly = true;
 
                 let user = this.allUsers.find(user => this.currentUserId === user.id);
-                if (usernameInput.value !== user.username) {
-                    api.userUpdateName(usernameInput.value);
-                } 
+                let newUsername = usernameInput.value.trim()
+                if (newUsername && newUsername !== user.username) {
+                    api.userUpdateName(newUsername);
+                } else {
+                    usernameInput.value = user.username
+                }
             });
 
             usernameInput.addEventListener("keypress", event => {
@@ -831,9 +834,12 @@ class Room {
                     usernameInput.readOnly = true;
 
                     let user = this.allUsers.find(user => this.currentUserId === user.id);
-                    if (usernameInput.value !== user.username) {
-                        api.userUpdateName(usernameInput.value);
-                    } 
+                    let newUsername = usernameInput.value.trim()
+                    if (newUsername && newUsername !== user.username) {
+                        api.userUpdateName(newUsername);
+                    } else {
+                        usernameInput.value = user.username
+                    }
                 }
             });
 

@@ -125,27 +125,27 @@ func LogDebug(format string, args ...any) {
 	logOutput(LOG_DEBUG, 0, format, args...)
 }
 
-func LogFatalSkip(stackDepthSkip int, format string, args ...any) {
-	logOutput(LOG_FATAL, stackDepthSkip, format, args...)
+func LogFatalUp(stackUp int, format string, args ...any) {
+	logOutput(LOG_FATAL, stackUp, format, args...)
 }
 
-func LogErrorSkip(stackDepthSkip int, format string, args ...any) {
-	logOutput(LOG_ERROR, stackDepthSkip, format, args...)
+func LogErrorUp(stackUp int, format string, args ...any) {
+	logOutput(LOG_ERROR, stackUp, format, args...)
 }
 
-func LogWarnSkip(stackDepthSkip int, format string, args ...any) {
-	logOutput(LOG_WARN, stackDepthSkip, format, args...)
+func LogWarnUp(stackUp int, format string, args ...any) {
+	logOutput(LOG_WARN, stackUp, format, args...)
 }
 
-func LogInfoSkip(stackDepthSkip int, format string, args ...any) {
-	logOutput(LOG_INFO, stackDepthSkip, format, args...)
+func LogInfoUp(stackUp int, format string, args ...any) {
+	logOutput(LOG_INFO, stackUp, format, args...)
 }
 
-func LogDebugSkip(stackDepthSkip int, format string, args ...any) {
-	logOutput(LOG_DEBUG, stackDepthSkip, format, args...)
+func LbgDebugUp(stackUp int, format string, args ...any) {
+	logOutput(LOG_DEBUG, stackUp, format, args...)
 }
 
-func logOutput(logLevel LogLevel, stackDepthSkip int, format string, args ...any) {
+func logOutput(logLevel LogLevel, stackUp int, format string, args ...any) {
 	if !logger.enabled {
 		return
 	}
@@ -154,7 +154,7 @@ func logOutput(logLevel LogLevel, stackDepthSkip int, format string, args ...any
 		return
 	}
 
-	_, file, line, ok := runtime.Caller(stackDepthSkip + 2)
+	_, file, line, ok := runtime.Caller(stackUp + 2)
 
 	if !ok {
 		file = "unknown"

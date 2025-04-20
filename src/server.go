@@ -446,7 +446,7 @@ func (server *Server) getAuthorizedIndex(w http.ResponseWriter, r *http.Request)
 func (server *Server) readJsonDataFromRequest(w http.ResponseWriter, r *http.Request, data any) bool {
 	if r.ContentLength > BODY_LIMIT {
 		http.Error(w, "Request body too large", http.StatusRequestEntityTooLarge)
-		LogWarnSkip(1, "Request body too large")
+		LogWarnUp(1, "Request body too large")
 		return false
 	}
 
