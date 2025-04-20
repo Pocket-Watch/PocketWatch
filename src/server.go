@@ -340,8 +340,8 @@ func (server *Server) periodicInactiveUserArchive() {
 		for _, user := range server.users.slice {
 			if time.Since(user.lastOnline) > time.Hour*24*14 {
 				DatabaseMoveUserToArchive(server.db, user)
-				// TOOD(kihau): Remove user from the users list
-				// TOOD(kihau): Inform all connections that users has been removed.
+				// TODO(kihau): Remove user from the users list
+				// TODO(kihau): Inform all connections that users has been removed.
 			}
 		}
 	}

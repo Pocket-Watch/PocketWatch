@@ -864,7 +864,7 @@ class Room {
         console.log(entries);
 
         this.playlist.clear();
-        // TOOD(kihau): Performance problem when number of entries is large. Needs to be fixed at some point.
+        // TODO(kihau): Performance problem when number of entries is large. Needs to be fixed at some point.
         this.playlist.loadEntries(entries, this.allUsers);
     }
 
@@ -1349,16 +1349,6 @@ async function main() {
 
     // Expose room to browser console for debugging.
     window.room = room;
-    let cat = new Cat();
-    cat.meow("", 2)
-    console.log("THE CAT", cat)
-}
-
-class Cat {
-    constructor (name, age) {
-        this.name = name;
-    }
-    meow(sound, volume) {}
 }
 
 main();
