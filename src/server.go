@@ -188,6 +188,7 @@ func StartServer(config ServerConfig, db *sql.DB) {
 	}
 
 	go server.periodicResync()
+	go server.periodicInactiveUserCleanup()
 
 	internalLogger := CreateInternalLoggerForHttpServer()
 
@@ -331,19 +332,28 @@ func (server *Server) periodicResync() {
 	}
 }
 
-func (server *Server) periodicInactiveUserArchive() {
+func (server *Server) periodicInactiveUserCleanup() {
 	for {
-		time.Sleep(time.Hour * 24)
 		server.users.mutex.Lock()
-		defer server.users.mutex.Unlock()
 
 		for _, user := range server.users.slice {
+			// Remove users that are not active and that have not updated their user profile.
+			if user.lastUpdate == user.createdAt && time.Since(user.lastOnline) > time.Hour * 24 {
+				// TODO(kihau): Remove user from the database.
+				// TODO(kihau): Remove user from the users list
+				// TODO(kihau): Inform all connections that users has been removed.
+			}
+			
+			// Archive users that were not active for more than two weeks.
 			if time.Since(user.lastOnline) > time.Hour*24*14 {
-				DatabaseMoveUserToArchive(server.db, user)
+				// DatabaseMoveUserToArchive(server.db, user)
 				// TODO(kihau): Remove user from the users list
 				// TODO(kihau): Inform all connections that users has been removed.
 			}
 		}
+
+		server.users.mutex.Unlock()
+		time.Sleep(time.Hour * 24)
 	}
 }
 

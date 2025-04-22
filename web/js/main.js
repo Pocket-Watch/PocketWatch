@@ -1314,8 +1314,11 @@ class Room {
             console.info("INFO: New message received from server");
 
             if (this.selected_tab !== this.rightPanel.tabs.chat) {
-                this.newMessageAudio.play();
                 show(this.chatNewMessage);
+            }
+
+            if (this.selected_tab !== this.rightPanel.tabs.chat || this.player.isFullscreen()) {
+                this.newMessageAudio.play();
             }
 
             this.chat.addMessage(data, this.allUsers);

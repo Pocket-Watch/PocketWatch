@@ -12,6 +12,10 @@ class Player {
         this.internals = new Internals(videoElement, options);
     }
 
+    isFullscreen() {
+        return this.internals.isFullscreen();
+    }
+
     isPlaying() {
         return this.internals.isVideoPlaying();
     }
@@ -857,8 +861,12 @@ class Internals {
         return this.htmlVideo.src;
     }
 
+    isFullscreen() {
+        return document.fullscreenElement !== null;
+    }
+
     toggleFullscreen() {
-        if (document.fullscreenElement) {
+        if (this.isFullscreen()) {
             document.exitFullscreen();
             this.svgs.fullscreen.setHref(this.icons.fullscreen_enter);
             this.fireFullscreenChange(false)
