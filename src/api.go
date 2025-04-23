@@ -95,6 +95,50 @@ func (server *Server) apiUserCreate(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(tokenJson))
 }
 
+func (server *Server) apiUserVerify(w http.ResponseWriter, r *http.Request) {
+	var token string
+	if !server.readJsonDataFromRequest(w, r, &token) {
+		return
+	}
+
+	user := server.findUser(token)
+	if user == nil {
+		respondBadRequest(w, "User with specified token was not found")
+		return
+	}
+
+	LogInfo("Connection requested %s user verification.", r.RemoteAddr)
+
+	jsonData, err := json.Marshal(user.Id)
+	if err != nil {
+		respondInternalError(w, "Serialization of the user id failed with: %v", err)
+		return
+	}
+
+	io.WriteString(w, string(jsonData))
+}
+
+func (server *Server) apiUserDelete(w http.ResponseWriter, r *http.Request) {
+	LogInfo("Connection requested %s user deletion.", r.RemoteAddr)
+
+	var token string
+	if !server.readJsonDataFromRequest(w, r, &token) {
+		return
+	}
+
+	server.users.mutex.Lock()
+	user := server.users.removeByToken(token)
+	server.users.mutex.Unlock()
+
+	if user == nil {
+		respondBadRequest(w, "User with specified token not found")
+		return
+	}
+
+	DatabaseDeleteUser(server.db, *user)
+	server.writeEventToAllConnections(w, "userdelete", user)
+}
+
 func (server *Server) apiUserGetAll(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection requested %s user get all.", r.RemoteAddr)
 
@@ -108,23 +152,6 @@ func (server *Server) apiUserGetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	io.WriteString(w, string(usersJson))
-}
-
-func (server *Server) apiUserVerify(w http.ResponseWriter, r *http.Request) {
-	user := server.getAuthorized(w, r)
-	if user == nil {
-		return
-	}
-
-	LogInfo("Connection requested %s user verification.", r.RemoteAddr)
-
-	jsonData, err := json.Marshal(user.Id)
-	if err != nil {
-		respondInternalError(w, "Serialization of the user id failed with: %v", err)
-		return
-	}
-
-	io.WriteString(w, string(jsonData))
 }
 
 func (server *Server) apiUserUpdateName(w http.ResponseWriter, r *http.Request) {
@@ -197,12 +224,6 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 
 	server.writeEventToAllConnections(w, "userupdate", user)
 	io.WriteString(w, string(jsonData))
-}
-
-func (server *Server) apiUserDelete(w http.ResponseWriter, r *http.Request) {
-	// - Remove user from users table.
-	// - Move user in database users table to archive.
-	http.Error(w, "", http.StatusNotImplemented)
 }
 
 func (server *Server) apiPlayerGet(w http.ResponseWriter, r *http.Request) {

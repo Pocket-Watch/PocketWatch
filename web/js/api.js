@@ -223,20 +223,27 @@ export async function userGetAll() {
     return data;
 }
 
-export async function userVerify() {
-    let postVerify = httpPost("/watch/api/user/verify");
+export async function userVerify(token) {
+    let postVerify = httpPost("/watch/api/user/verify", token);
     return await postVerify;
 }
 
 export async function userUpdateName(username) {
     console.info("INFO: Sending update username request.");
-    httpPost("/watch/api/user/updatename", username);
+    let result = httpPost("/watch/api/user/updatename", username);
+	return result
 }
 
 export async function userUpdateAvatar(file) {
     console.info("INFO: Uploading avatar file to the server.");
     let avatarUrl = await httpPostFile("/watch/api/user/updateavatar", file);
     return avatarUrl;
+}
+
+export async function userDelete(token) {
+    console.info("INFO: Requesting user deletion.");
+    let result = await httpPost("/watch/api/user/delete", token);
+    return result;
 }
 
 export async function playerGet() {

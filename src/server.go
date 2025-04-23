@@ -60,6 +60,19 @@ func (users *Users) create() User {
 	return new_user
 }
 
+func (users *Users) removeByToken(token string) *User {
+	for i, user := range users.slice {
+		if user.token == token {
+			users.slice[i] = users.slice[len(users.slice)-1]
+			users.slice = users.slice[:len(users.slice)-1]
+			LogDebug("%v", user)
+			return &user
+		}
+	}
+
+	return nil
+}
+
 func (users *Users) findByToken(token string) int {
 	for i, user := range users.slice {
 		if user.token == token {
@@ -238,8 +251,9 @@ func registerEndpoints(server *Server) {
 
 	// User related API calls.
 	server.HandleEndpoint("/watch/api/user/create", server.apiUserCreate, "GET", false)
+	server.HandleEndpoint("/watch/api/user/verify", server.apiUserVerify, "POST", false)
+	server.HandleEndpoint("/watch/api/user/delete", server.apiUserDelete, "POST", false)
 	server.HandleEndpoint("/watch/api/user/getall", server.apiUserGetAll, "GET", true)
-	server.HandleEndpoint("/watch/api/user/verify", server.apiUserVerify, "POST", true)
 	server.HandleEndpoint("/watch/api/user/updatename", server.apiUserUpdateName, "POST", true)
 	server.HandleEndpoint("/watch/api/user/updateavatar", server.apiUserUpdateAvatar, "POST", true)
 
@@ -451,6 +465,27 @@ func (server *Server) getAuthorizedIndex(w http.ResponseWriter, r *http.Request)
 
 	respondBadRequest(w, "User with the specified token is not in the user list")
 	return -1
+}
+
+
+func (server *Server) findUser(token string) *User {
+	server.users.mutex.Lock()
+	defer server.users.mutex.Unlock()
+
+	index := -1
+	for i, user := range server.users.slice {
+		if user.token == token {
+			index = i
+			break
+		}
+	}
+
+	if index == -1 {
+		return nil
+	}
+
+	user := &server.users.slice[index]
+	return user
 }
 
 func (server *Server) readJsonDataFromRequest(w http.ResponseWriter, r *http.Request, data any) bool {

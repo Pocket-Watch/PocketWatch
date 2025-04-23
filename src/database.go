@@ -356,6 +356,21 @@ func DatabaseAddUser(db *sql.DB, user User) bool {
 	return true
 }
 
+func DatabaseDeleteUser(db *sql.DB, user User) bool {
+	if db == nil {
+		return true
+	}
+
+	// NOTE(kihau): Instead of removing the users, move them to deleted_users table?
+	_, err := db.Exec("DELETE FROM users WHERE id = $1", user.Id)
+	if err != nil {
+		LogError("Failed to delete user id:%v in the database: %v", user.Id, err)
+		return false
+	}
+
+	return true
+}
+
 func DatabaseUpdateUser(db *sql.DB, user User) bool {
 	if db == nil {
 		return true

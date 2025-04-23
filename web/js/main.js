@@ -571,12 +571,22 @@ class Room {
             navigator.clipboard.writeText(api.getToken());
         };
 
-        this.roomContent.tokenSetButton.onclick = _ => {
+        this.roomContent.tokenSetButton.onclick = async _ => {
             let newToken = this.roomContent.tokenSetInput.value
             if (!newToken || newToken === "") {
-                console.warn("Prevent empty token set!");
+                console.warn("WARN: Provided token is empty.");
                 return;
             }
+
+            let result = await api.userVerify(newToken);
+            if (!result.ok) {
+                console.warn("WARN: User with provided token does not exist.");
+                return;
+            }
+
+            let currToken = api.getToken();
+            await api.userDelete(currToken);
+
             Storage.set("token", newToken);
             window.location.reload();
         };
@@ -675,7 +685,7 @@ class Room {
         this.token = Storage.get("token");
         api.setToken(this.token);
 
-        let verification = await api.userVerify();
+        let verification = await api.userVerify(this.token);
         if (firstTry && !verification.ok) {
             return false;
         }
@@ -1130,6 +1140,21 @@ class Room {
             userBox.classList.add("user_box_offline");
             this.allUserBoxes.push(userBox);
             this.usersArea.userList.appendChild(userBox);
+
+            this.usersArea.onlineCount.textContent = this.onlineCount;
+            this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
+        });
+
+        events.addEventListener("userdelete", event => {
+            let target = JSON.parse(event.data)
+            let index = this.allUsers.findIndex(user => user.id === target.id);
+            let user = this.allUsers.splice(index, 1)[0];
+            let userBox = this.allUserBoxes.splice(index, 1)[0];
+
+            console.info("Removing user:", user, "with its user box", userBox);
+            this.usersArea.userList.removeChild(userBox);
+            
+            this.onlineCount -= 1;
 
             this.usersArea.onlineCount.textContent = this.onlineCount;
             this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
