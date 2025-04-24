@@ -332,26 +332,26 @@ func (server *Server) periodicInactiveUserCleanup() {
 	for {
 		server.users.mutex.Lock()
 
-		toDelete := make([]int, 0)
-		for i, user := range server.users.slice {
+		toDelete := make([]User, 0)
+		for _, user := range server.users.slice {
 			if user.lastUpdate == user.createdAt && time.Since(user.lastOnline) > time.Hour*24 && !user.Online{
 				// Remove users that are not active and that have not updated their user profile.
 				LogInfo("Removing dummy temp user with id = %v due to 24h of inactivity.", user.Id)
 
 				DatabaseDeleteUser(server.db, user)
-				toDelete = append(toDelete, i)
+				toDelete = append(toDelete, user)
 			} else if time.Since(user.lastOnline) > time.Hour*24*14 && !user.Online {
 				// Archive users that were not active for more than two weeks.
 				LogInfo("Archiving user with id = %v due to 2 weeks of inactivity.", user.Id)
 
 				server.inactiveUsers.add(user)
 				DatabaseArchiveUser(server.db, user)
-				toDelete = append(toDelete, i)
+				toDelete = append(toDelete, user)
 			}
 		}
 
-		for index := range toDelete {
-			user := server.users.removeAt(index)
+		for _, user := range toDelete {
+			user := server.users.removeByToken(user.token)
 			server.writeEventToAllConnections(nil, "userdelete", user)
 		}
 
