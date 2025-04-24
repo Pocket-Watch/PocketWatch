@@ -173,7 +173,7 @@ func (server *Server) apiUserUpdateName(w http.ResponseWriter, r *http.Request) 
 	}
 
 	server.users.slice[userIndex].Username = newUsername
-	server.users.slice[userIndex].lastUpdate = time.Now()
+	server.users.slice[userIndex].LastUpdate = time.Now()
 	user := server.users.slice[userIndex]
 	DatabaseUpdateUser(server.db, user)
 	server.users.mutex.Unlock()
@@ -217,7 +217,7 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 
 	server.users.mutex.Lock()
 	server.users.slice[userIndex].Avatar = avatarUrl
-	server.users.slice[userIndex].lastUpdate = time.Now()
+	server.users.slice[userIndex].LastUpdate = time.Now()
 	user = server.users.slice[userIndex]
 	DatabaseUpdateUser(server.db, user)
 	server.users.mutex.Unlock()
@@ -1071,7 +1071,7 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 
 		if went_offline {
 			now := time.Now()
-			user.lastOnline = now
+			user.LastOnline = now
 			DatabaseUpdateUserLastOnline(server.db, user.Id, now)
 		}
 	}

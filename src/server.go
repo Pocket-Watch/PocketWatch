@@ -50,10 +50,11 @@ func (users *Users) create() User {
 		Id:         id,
 		Username:   generateRandomNickname(),
 		Avatar:     "img/default_avatar.png",
+		Online:     false,
+		CreatedAt:  now,
+		LastUpdate: now,
+		LastOnline: now,
 		token:      generateToken(),
-		createdAt:  now,
-		lastUpdate: now,
-		lastOnline: now,
 	}
 
 	users.slice = append(users.slice, new_user)
@@ -145,23 +146,17 @@ func createPlaylistEvent(action string, data any) PlaylistEventData {
 }
 
 func StartServer(config ServerConfig, db *sql.DB) {
-	users, ok := DatabaseLoadUsers(db, TABLE_USERS)
-	if !ok {
-		return
-	}
-
-	inactive, ok := DatabaseLoadUsers(db, TABLE_INACTIVE_USERS)
+	users, ok := DatabaseLoadUsers(db)
 	if !ok {
 		return
 	}
 
 	server := Server{
-		config:        config,
-		state:         ServerState{},
-		users:         users,
-		inactiveUsers: inactive,
-		conns:         makeConnections(),
-		db:            db,
+		config: config,
+		state:  ServerState{},
+		users:  users,
+		conns:  makeConnections(),
+		db:     db,
 	}
 
 	server.state.lastUpdate = time.Now()
@@ -334,20 +329,23 @@ func (server *Server) periodicInactiveUserCleanup() {
 
 		toDelete := make([]User, 0)
 		for _, user := range server.users.slice {
-			if user.lastUpdate == user.createdAt && time.Since(user.lastOnline) > time.Hour*24 && !user.Online{
+			if user.LastUpdate == user.CreatedAt && time.Since(user.LastOnline) > time.Hour*24 && !user.Online {
 				// Remove users that are not active and that have not updated their user profile.
 				LogInfo("Removing dummy temp user with id = %v due to 24h of inactivity.", user.Id)
 
 				DatabaseDeleteUser(server.db, user)
 				toDelete = append(toDelete, user)
-			} else if time.Since(user.lastOnline) > time.Hour*24*14 && !user.Online {
-				// Archive users that were not active for more than two weeks.
-				LogInfo("Archiving user with id = %v due to 2 weeks of inactivity.", user.Id)
-
-				server.inactiveUsers.add(user)
-				DatabaseArchiveUser(server.db, user)
-				toDelete = append(toDelete, user)
 			}
+
+			// TODO(kihau): Instead of deleting, notify everyone that user is inactive?
+			// else if time.Since(user.lastOnline) > time.Hour*24*14 && !user.Online {
+			// 	// Archive users that were not active for more than two weeks.
+			// 	LogInfo("Archiving user with id = %v due to 2 weeks of inactivity.", user.Id)
+			//
+			// 	server.inactiveUsers.add(user)
+			// 	DatabaseArchiveUser(server.db, user)
+			// 	toDelete = append(toDelete, user)
+			// }
 		}
 
 		for _, user := range toDelete {
@@ -458,22 +456,11 @@ func (server *Server) getAuthorizedIndex(w http.ResponseWriter, r *http.Request)
 
 func (server *Server) findUser(token string) *User {
 	index := server.users.findByToken(token)
-	if index != -1 {
-		return &server.users.slice[index]
-	}
-
-	index = server.inactiveUsers.findByToken(token)
 	if index == -1 {
 		return nil
 	}
 
-	user := server.inactiveUsers.removeAt(index)
-	last := server.users.add(*user)
-
-	DatabaseUnarchiveUser(server.db, *user)
-	server.writeEventToAllConnections(nil, "usercreate", user)
-
-	return &server.users.slice[last]
+	return &server.users.slice[index]
 }
 
 func (server *Server) readJsonDataFromRequest(w http.ResponseWriter, r *http.Request, data any) bool {

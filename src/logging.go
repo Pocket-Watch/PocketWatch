@@ -50,9 +50,10 @@ func (*Logger) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// NOTE(kihau): 
-//     Golang http server requires you to create a custom log.Logger for the internal logging of the http module.
-//     This function wraps our logger in the log.Logger from the golang standard library.
+// NOTE(kihau):
+//
+//	Golang http server requires you to create a custom log.Logger for the internal logging of the http module.
+//	This function wraps our logger in the log.Logger from the golang standard library.
 func CreateInternalLoggerForHttpServer() *log.Logger {
 	return log.New(&logger, "", log.Lmsgprefix)
 }

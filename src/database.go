@@ -14,9 +14,8 @@ import (
 
 const SQL_MIGRATIONS_DIR = "sql/"
 const TABLE_USERS = "users"
-const TABLE_INACTIVE_USERS = "inactive_users"
 
-// TODO(kihau): 
+// TODO(kihau):
 // Migration system robustness:
 //   - Do not sort filenames alphabetically, instead sort by migration number
 //   - Make sure multiple migrations with the same number cannot exist at the same time (ex. 001-create_user.sql and 001-create_messages.sql)
@@ -243,27 +242,14 @@ func databaseMoveUserToTable(db *sql.DB, fromTable string, toTable string, user 
 	return true
 }
 
-func DatabaseArchiveUser(db *sql.DB, user User) bool {
-	return databaseMoveUserToTable(db, TABLE_USERS, TABLE_INACTIVE_USERS, user)
-}
-
-func DatabaseUnarchiveUser(db *sql.DB, user User) bool {
-	return databaseMoveUserToTable(db, TABLE_INACTIVE_USERS, TABLE_USERS, user)
-}
-
-// TODO(kihau): Do this instead?
-// func DatabaseDeleteUser(db *sql.DB, user User) bool {
-// 	return databaseMoveUserToTable(db, TABLE_USERS, TABLE_DELETED_USERS, user)
-// }
-
-func DatabaseLoadUsers(db *sql.DB, tableName string) (*Users, bool) {
+func DatabaseLoadUsers(db *sql.DB) (*Users, bool) {
 	users := makeUsers()
 
 	if db == nil {
 		return users, true
 	}
 
-	query := fmt.Sprintf("SELECT * FROM %v", tableName)
+	query := fmt.Sprintf("SELECT * FROM users")
 	rows, err := db.Query(query)
 	if err != nil {
 		LogError("Failed to load users from the database. An error occurred while querying database 'users' table: %v", err)
@@ -278,9 +264,9 @@ func DatabaseLoadUsers(db *sql.DB, tableName string) (*Users, bool) {
 	for rows.Next() {
 		var user User
 
-		err := rows.Scan(&user.Id, &user.Username, &user.Avatar, &user.token, &user.createdAt, &user.lastUpdate, &user.lastOnline)
+		err := rows.Scan(&user.Id, &user.Username, &user.Avatar, &user.token, &user.CreatedAt, &user.LastUpdate, &user.LastOnline)
 		if err != nil {
-			LogError("Failed to load users from the database. An error occurred while reading a user from the database '%v' row: %v", tableName, err)
+			LogError("Failed to load users from the database. An error occurred while reading a user from the database 'users' row: %v", err)
 			return users, false
 		}
 
@@ -293,7 +279,7 @@ func DatabaseLoadUsers(db *sql.DB, tableName string) (*Users, bool) {
 
 	err = rows.Err()
 	if err != nil {
-		LogError("Failed to load users from the database. An error occurred while iterating '%v' rows: %v", tableName, err)
+		LogError("Failed to load users from the database. An error occurred while iterating 'users' rows: %v", err)
 		return users, false
 	}
 
@@ -306,7 +292,7 @@ func DatabaseAddUser(db *sql.DB, user User) bool {
 		return true
 	}
 
-	_, err := db.Exec("INSERT INTO users VALUES ($1, $2, $3, $4, $5, $6, $7)", user.Id, user.Username, user.Avatar, user.token, user.createdAt, user.lastUpdate, user.lastOnline)
+	_, err := db.Exec("INSERT INTO users VALUES ($1, $2, $3, $4, $5, $6, $7)", user.Id, user.Username, user.Avatar, user.token, user.CreatedAt, user.LastUpdate, user.LastOnline)
 	if err != nil {
 		LogError("Failed to save user id:%v to the database: %v", user.Id, err)
 		return false
@@ -335,7 +321,7 @@ func DatabaseUpdateUser(db *sql.DB, user User) bool {
 		return true
 	}
 
-	_, err := db.Exec("UPDATE users SET username = $1, avatar_path = $2, last_update = $3 WHERE id = $4", user.Username, user.Avatar, user.lastUpdate, user.Id)
+	_, err := db.Exec("UPDATE users SET username = $1, avatar_path = $2, last_update = $3 WHERE id = $4", user.Username, user.Avatar, user.LastUpdate, user.Id)
 	if err != nil {
 		LogError("Failed to update user id:%v in the database: %v", user.Id, err)
 		return false

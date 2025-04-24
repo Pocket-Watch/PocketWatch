@@ -39,12 +39,11 @@ var serverRootAddress string
 var startTime = time.Now()
 
 type Server struct {
-	config        ServerConfig
-	state         ServerState
-	users         *Users
-	inactiveUsers *Users
-	conns         *Connections
-	db            *sql.DB
+	config ServerConfig
+	state  ServerState
+	users  *Users
+	conns  *Connections
+	db     *sql.DB
 }
 
 type PlayerState struct {
@@ -145,15 +144,16 @@ type Connections struct {
 }
 
 type User struct {
-	Id          uint64 `json:"id"`
-	Username    string `json:"username"`
-	Avatar      string `json:"avatar"`
-	Online      bool   `json:"online"`
+	Id         uint64    `json:"id"`
+	Username   string    `json:"username"`
+	Avatar     string    `json:"avatar"`
+	Online     bool      `json:"online"`
+	CreatedAt  time.Time `json:"created_at"`
+	LastUpdate time.Time `json:"last_update"`
+	LastOnline time.Time `json:"last_online"`
+
 	connections uint64
 	token       string
-	createdAt   time.Time
-	lastUpdate  time.Time
-	lastOnline  time.Time
 }
 
 type Users struct {
