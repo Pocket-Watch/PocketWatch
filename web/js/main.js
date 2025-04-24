@@ -35,26 +35,26 @@ class Room {
         this.playlist = new Playlist();
         this.chat     = new Chat();
 
-        this.urlArea = {
-            root:          getById("url_area"),
-            urlInput:      getById("url_input_box"),
-            titleInput:    getById("url_title_input"),
-            refererInput:  getById("url_dropdown_referer_input"),
-            subtitleInput: getById("url_subtitle_name_input"),
+        this.inputArea = {
+            root:          getById("input_area"),
+            urlInput:      getById("input_input_box"),
+            titleInput:    getById("input_title_input"),
+            refererInput:  getById("input_dropdown_referer_input"),
+            subtitleInput: getById("input_subtitle_name_input"),
             ytCountInput:  getById("youtube_video_count_input"),
 
-            dropdownButton:       getById("url_dropdown_button"),
-            resetButton:          getById("url_reset_button"),
-            setButton:            getById("url_set_button"),
-            addPlaylistButton:    getById("url_add_playlist_button"),
-            selectSubtitleButton: getById("url_select_subtitle_button"),
+            dropdownButton:       getById("input_dropdown_button"),
+            resetButton:          getById("input_reset_button"),
+            setButton:            getById("input_set_button"),
+            addPlaylistButton:    getById("input_add_playlist_button"),
+            selectSubtitleButton: getById("input_select_subtitle_button"),
 
             youtubeSearchToggle: getById("youtube_search_toggle"),
             asPlaylistToggle:    getById("as_playlist_toggle"),
             addToTopToggle:      getById("add_to_top_toggle"),
             proxyToggle:         getById("proxy_toggle"),
 
-            dropdownContainer: getById("url_dropdown_container"),
+            dropdownContainer: getById("input_dropdown_container"),
         };
 
         this.usersArea = {
@@ -358,47 +358,49 @@ class Room {
         });
     }
 
-    resetUrlAreaElements() {
-        this.urlArea.urlInput.value = "";
-        this.urlArea.titleInput.value = "";
-        this.urlArea.refererInput.value = "";
-        this.urlArea.subtitleInput.value = "";
-        this.urlArea.ytCountInput.value = "";
+    resetInputAreaElements() {
+        const input = this.inputArea;
+
+        input.urlInput.value = "";
+        input.titleInput.value = "";
+        input.refererInput.value = "";
+        input.subtitleInput.value = "";
+        input.ytCountInput.value = "";
 
         this.subtitleFile = null;
 
         this.youtubeSearchEnabled = false;
-        this.urlArea.youtubeSearchToggle.classList.remove("toggle_active");
+        input.youtubeSearchToggle.classList.remove("toggle_active");
 
         this.asPlaylistEnabled = false;
-        this.urlArea.asPlaylistToggle.classList.remove("toggle_active");
+        input.asPlaylistToggle.classList.remove("toggle_active");
 
         this.addToTopEnabled = false;
-        this.urlArea.addToTopToggle.classList.remove("toggle_active");
+        input.addToTopToggle.classList.remove("toggle_active");
 
         this.proxyEnabled = false;
-        this.urlArea.proxyToggle.classList.remove("toggle_active");
+        input.proxyToggle.classList.remove("toggle_active");
     }
 
     async createNewRequestEntry() {
         let subtitles = [];
         if (this.subtitleFile) {
-            let filename = this.urlArea.subtitleInput.value;
+            let filename = this.inputArea.subtitleInput.value;
             let sub = await api.subtitleUpload(this.subtitleFile, filename);
             subtitles.push(sub);
         }
 
-        let countString = this.urlArea.ytCountInput.value.trim();
+        let countString = this.inputArea.ytCountInput.value.trim();
         let count = Number(countString)
         if (!count || count <= 0) {
             count = 20
         }
 
         const requestEntry = {
-            url:          this.urlArea.urlInput.value.trim(),
-            title:        this.urlArea.titleInput.value.trim(),
+            url:          this.inputArea.urlInput.value.trim(),
+            title:        this.inputArea.titleInput.value.trim(),
             use_proxy:    this.proxyEnabled,
-            referer_url:  this.urlArea.refererInput.value.trim(),
+            referer_url:  this.inputArea.refererInput.value.trim(),
             search_video: this.youtubeSearchEnabled,
             is_playlist:  this.asPlaylistEnabled,
             add_to_top:   this.addToTopEnabled,
@@ -506,21 +508,21 @@ class Room {
                     return;
                 }
 
-                this.urlArea.urlInput.value = response.json;
+                this.inputArea.urlInput.value = response.json;
             });
         };
 
         this.roomContent.copyToInputButton.onclick = _ => {
-            this.urlArea.urlInput.value     = this.currentEntry.url;
-            this.urlArea.titleInput.value   = this.currentEntry.title;
-            this.urlArea.refererInput.value = this.currentEntry.referer_url;
+            this.inputArea.urlInput.value     = this.currentEntry.url;
+            this.inputArea.titleInput.value   = this.currentEntry.title;
+            this.inputArea.refererInput.value = this.currentEntry.referer_url;
 
             if (this.currentEntry.use_proxy) {
                 this.proxyEnabled = true;
-                this.urlArea.proxyToggle.classList.add("toggle_active");
+                this.inputArea.proxyToggle.classList.add("toggle_active");
             } else {
                 this.proxyEnabled = false;
-                this.urlArea.proxyToggle.classList.remove("toggle_active");
+                this.inputArea.proxyToggle.classList.remove("toggle_active");
             }
         };
 
@@ -593,15 +595,15 @@ class Room {
     }
 
     attachUrlAreaEvents() {
-        this.urlArea.dropdownButton.onclick = _ => {
-            this.urlArea.root.classList.toggle("url_area_expand");
+        this.inputArea.dropdownButton.onclick = _ => {
+            this.inputArea.root.classList.toggle("input_area_expand");
         }
 
-        this.urlArea.resetButton.onclick = _ => {
-            this.resetUrlAreaElements();
+        this.inputArea.resetButton.onclick = _ => {
+            this.resetInputAreaElements();
         }
 
-        this.urlArea.setButton.onclick = async _ => {
+        this.inputArea.setButton.onclick = async _ => {
             let entry = await this.createNewRequestEntry();
             api.playerSet(entry).then(jsonResponse => {
                 if (jsonResponse.checkError()) {
@@ -609,19 +611,19 @@ class Room {
                 }
 
                 // Only reset if request was successful
-                this.resetUrlAreaElements();
+                this.resetInputAreaElements();
             });
         }
 
-        this.urlArea.addPlaylistButton.onclick = async _ => {
+        this.inputArea.addPlaylistButton.onclick = async _ => {
             let entry = await this.createNewRequestEntry();
             if (entry.url) {
                 api.playlistAdd(entry);
-                this.resetUrlAreaElements();
+                this.resetInputAreaElements();
             }
         }
 
-        this.urlArea.selectSubtitleButton.onclick = _ => {
+        this.inputArea.selectSubtitleButton.onclick = _ => {
             let input = document.createElement('input');
             input.type = "file";
             input.accept = ".srt,.vtt";
@@ -634,28 +636,28 @@ class Room {
 
                 console.log("File selected: ", files[0]);
                 this.subtitleFile = files[0];
-                this.urlArea.subtitleInput.value = this.subtitleFile.name;
+                this.inputArea.subtitleInput.value = this.subtitleFile.name;
             }
             input.click();
         }
 
-        this.urlArea.youtubeSearchToggle.onclick = _ => {
-            this.urlArea.youtubeSearchToggle.classList.toggle("toggle_active");
+        this.inputArea.youtubeSearchToggle.onclick = _ => {
+            this.inputArea.youtubeSearchToggle.classList.toggle("toggle_active");
             this.youtubeSearchEnabled = !this.youtubeSearchEnabled;
         }
 
-        this.urlArea.asPlaylistToggle.onclick = _ => {
-            this.urlArea.asPlaylistToggle.classList.toggle("toggle_active");
+        this.inputArea.asPlaylistToggle.onclick = _ => {
+            this.inputArea.asPlaylistToggle.classList.toggle("toggle_active");
             this.asPlaylistEnabled = !this.asPlaylistEnabled;
         }
 
-        this.urlArea.addToTopToggle.onclick = _ => {
-            this.urlArea.addToTopToggle.classList.toggle("toggle_active");
+        this.inputArea.addToTopToggle.onclick = _ => {
+            this.inputArea.addToTopToggle.classList.toggle("toggle_active");
             this.addToTopEnabled = !this.addToTopEnabled;
         }
 
-        this.urlArea.proxyToggle.onclick = _ => {
-            this.urlArea.proxyToggle.classList.toggle("toggle_active");
+        this.inputArea.proxyToggle.onclick = _ => {
+            this.inputArea.proxyToggle.classList.toggle("toggle_active");
             this.proxyEnabled = !this.proxyEnabled;
         }
     }

@@ -19,31 +19,31 @@
                 <video id="video0"></video>
             </div>
 
-            <div id="url_area">
-                <div id="url_controls_container"> 
-                    <button id="url_dropdown_button" title="Show more options">
+            <div id="input_area">
+                <div id="input_controls_container"> 
+                    <button id="input_dropdown_button" title="Show more options">
                         <svg>
                             <use href="svg/main_icons.svg#dropdown"/>
                         </svg>
                     </button>
-                    <button id="url_reset_button" title="Reset all fields">
+                    <button id="input_reset_button" title="Reset all fields">
                         <svg>
                             <use href="svg/main_icons.svg#delete"/>
                         </svg>
                     </button>
 
-                    <div class="input_widget" id="url_input_container">
+                    <div class="widget_input" id="input_input_container">
                         <span>Media URL:</span>
-                        <input type="url" id="url_input_box" placeholder="Enter video or audio URL here. Could be a YouTube link or any other media URL."/>
+                        <input type="url" id="input_input_box" placeholder="Enter video or audio URL here. Could be a YouTube link or any other media URL."/>
                     </div>
 
-                    <div id="url_right_buttons_container">
-                        <button id="url_set_button" title="Play Now">
+                    <div id="input_right_buttons_container">
+                        <button id="input_set_button" title="Play Now">
                             <svg>
                                 <use href="svg/main_icons.svg#play"/>
                             </svg>
                         </button>
-                        <button id="url_add_playlist_button" title="Add to playlist">
+                        <button id="input_add_playlist_button" title="Add to playlist">
                             <svg>
                                 <use href="svg/main_icons.svg#playlist"/>
                             </svg>
@@ -51,26 +51,26 @@
                     </div>
                 </div>
 
-                <div id="url_dropdown_container"> 
-                    <div id="url_dropdown_top"> 
-                        <div class="input_widget">
+                <div id="input_dropdown_container"> 
+                    <div id="input_dropdown_top"> 
+                        <div class="widget_input">
                             <span>Media Title:</span>
-                            <input id="url_title_input" placeholder="Enter your custom media title."/>
+                            <input id="input_title_input" placeholder="Enter your custom media title."/>
                         </div>
 
-                        <button id="url_select_subtitle_button">
+                        <button id="input_select_subtitle_button">
                             <svg>
                                 <use href="svg/main_icons.svg#upload"/>
                             </svg>
                         </button>
 
-                        <div class="input_widget">
+                        <div class="widget_input">
                             <span>Subtitle name:</span>
-                            <input id="url_subtitle_name_input" placeholder="Uploaded subtitle name."/>
+                            <input id="input_subtitle_name_input" placeholder="Uploaded subtitle name."/>
                         </div>
                     </div>
 
-                    <div id="url_dropdown_middle"> 
+                    <div id="input_dropdown_middle"> 
                         <div class="toggle_root">
                             <div id="youtube_search_toggle" class="toggle_switch">
                                 <div class="toggle_circle"></div>
@@ -85,13 +85,13 @@
                             <span class="toggle_text">Add as Playlist</span>
                         </div>
 
-                        <div class="input_widget" id="youtube_video_count_container">
+                        <div class="widget_input" id="youtube_video_count_container">
                             <span>Max video count:</span>
                             <input type="text" id="youtube_video_count_input" placeholder="Maximum number of videos to add."/>
                         </div>
                     </div>
 
-                    <div id="url_dropdown_bottom"> 
+                    <div id="input_dropdown_bottom"> 
                         <div class="toggle_root">
                             <div id="add_to_top_toggle" class="toggle_switch">
                                 <div class="toggle_circle"></div>
@@ -106,9 +106,9 @@
                             <span class="toggle_text">Create Proxy</span>
                         </div>
 
-                        <div class="input_widget" id="referer_container">
+                        <div class="widget_input" id="referer_container">
                             <span>Media Referer:</span>
-                            <input type="url" id="url_dropdown_referer_input" placeholder="Enter media referer URL. This field is optional."/>
+                            <input type="url" id="input_dropdown_referer_input" placeholder="Enter media referer URL. This field is optional."/>
                         </div>
                     </div>
                 </div>
@@ -164,7 +164,7 @@
 
             <div id="right_panel_content">
                 <div id="content_room" class="content_view">
-                    <div class="input_widget" id="room_now_playing"> 
+                    <div class="widget_input" id="room_now_playing"> 
                         <span>Now playing:</span>
                         <input readonly id="room_current_url_input" placeholder="Nothing is playing..."/>
                     </div>
@@ -371,7 +371,7 @@
 
                 </div>
                 <div id="content_chat" class="content_view">
-                    <div class="input_widget" id="chat_input_container">
+                    <div class="widget_input" id="chat_input_container">
                         <span>Message:</span>
                         <input id="chat_input_box" placeholder="Send a message."/>
                         <button id="chat_send_button">Send</button>

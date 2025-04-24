@@ -13,6 +13,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime/debug"
 	"slices"
 	"strconv"
 	"strings"
@@ -61,11 +62,6 @@ func (users *Users) create() User {
 	return new_user
 }
 
-func (users *Users) add(user User) int {
-	users.slice = append(users.slice, user)
-	return len(users.slice) - 1
-}
-
 func (users *Users) removeByToken(token string) *User {
 	for i, user := range users.slice {
 		if user.token == token {
@@ -77,19 +73,6 @@ func (users *Users) removeByToken(token string) *User {
 	}
 
 	return nil
-}
-
-func (users *Users) removeAt(index int) *User {
-	if index < 0 || index >= len(users.slice) {
-		return nil
-	}
-
-	user := users.slice[index]
-	last := len(users.slice) - 1
-	users.slice[index] = users.slice[last]
-	users.slice = users.slice[:last]
-
-	return &user
 }
 
 func (users *Users) findByToken(token string) int {
@@ -282,6 +265,14 @@ func registerEndpoints(server *Server) {
 
 func (server *Server) HandleEndpoint(endpoint string, endpointHandler func(w http.ResponseWriter, r *http.Request), method string, requireAuth bool) {
 	genericHandler := func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				// NOTE(kihau): A custom stack trace format could be interesting.
+				stack := strings.TrimSpace(string(debug.Stack()))
+				LogFatal("Panic in endpoint handler for %v serving %v: %v\n%v", endpoint, r.RemoteAddr, err, stack)
+			}
+		}()
+
 		if r.Method != method {
 			errMsg := fmt.Sprintf("Method not allowed. %v was expected.", method)
 			http.Error(w, errMsg, http.StatusMethodNotAllowed)
