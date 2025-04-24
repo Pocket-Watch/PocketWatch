@@ -471,6 +471,7 @@ func (server *Server) findUser(token string) *User {
 	last := server.users.add(*user)
 
 	DatabaseUnarchiveUser(server.db, *user)
+	server.writeEventToAllConnections(nil, "usercreate", user)
 
 	return &server.users.slice[last]
 }
