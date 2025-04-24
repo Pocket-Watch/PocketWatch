@@ -1070,7 +1070,9 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 		user.Online = !went_offline
 
 		if went_offline {
-			DatabaseUpdateUserLastOnline(server.db, user.Id, time.Now())
+			now := time.Now()
+			user.lastOnline = now
+			DatabaseUpdateUserLastOnline(server.db, user.Id, now)
 		}
 	}
 

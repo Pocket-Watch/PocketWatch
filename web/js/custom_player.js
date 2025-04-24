@@ -496,6 +496,9 @@ class Internals {
         this.htmlPlayerRoot.appendChild(this.subtitleContainer);
         this.subtitleContainer.appendChild(this.subtitleText);
 
+        this.playerUIHideTimeout    = new Timeout(_ => this.hidePlayerUI(), this.options.inactivityTime);
+        this.volumePopupHideTimeout = new Timeout(_ => this.hideVolumePopup(), 300);
+
         this.createHtmlControls();
         this.attachPlayerEvents();
 
@@ -512,8 +515,6 @@ class Internals {
         if (isSafari) {
             this.rebindFullscreenAPIFromWebkit();
         }
-
-        this.playerUIHideTimeout = new Timeout(_ => this.hidePlayerUI(), this.options.inactivityTime);
 
         let end = performance.now();
         console.debug("Internals constructor finished in", end-initStart, "ms")
@@ -717,6 +718,17 @@ class Internals {
         popup.style.left = position + "px";
     }
 
+    hideVolumePopup() {
+        const popup = this.htmlControls.buttons.volumePopup;
+        popup.classList.remove("show");
+    }
+
+    showVolumePopup() {
+        const popup = this.htmlControls.buttons.volumePopup;
+        popup.classList.add("show");
+        this.volumePopupHideTimeout.schedule();
+    }
+
     updateHtmlVolume(volume) {
         if (volume == 0.0) {
             this.svgs.volume.setHref(this.icons.volume_muted);
@@ -751,6 +763,8 @@ class Internals {
         }
 
         popup.style.left = position + "px";
+
+        this.showVolumePopup();
     }
 
     getNewTime(timeOffset) {

@@ -454,10 +454,14 @@
 /* TODO(kihau): Show volume popup not just on hover but volume change (similar to timestamp popup)? */
 #player_volume_root:hover #player_volume_popup {
     visibility: visible;
+    opacity: 1.0;
+    transition: none;
 }
 
 #player_volume_root:active #player_volume_popup {
     visibility: visible;
+    opacity: 1.0;
+    transition: none;
 }
 
 #player_volume_popup {
@@ -469,10 +473,18 @@
     font-size: 16px;
     position: absolute;
     pointer-events: none;
-    visibility: hidden;
     align-items: center;
     color: var(--player_color_fg1);
     background-color: rgba(var(--player_color_bg1), var(--player_opacity_bg1));
+    visibility: hidden;
+    opacity: 0;
+    transition: visibility 0.3s, opacity 0.3s;
+}
+
+#player_volume_popup.show {
+    visibility: visible;
+    opacity: 1.0;
+    transition: none;
 }
 
 #player_live_indicator {
