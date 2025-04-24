@@ -44,18 +44,6 @@ func isYoutubeSourceExpired(sourceUrl string) bool {
 	return now_unix > expire_unix
 }
 
-func getYoutubeAudioSource(url string) string {
-	cmd := exec.Command("yt-dlp", "--get-url", "--extract-audio", "--no-playlist", url)
-	output, err := cmd.Output()
-	if err != nil {
-		LogError("Youtube audio source load failed for url %v with: %v", url, err)
-		return ""
-	}
-
-	source := string(output)
-	return strings.TrimSpace(source)
-}
-
 type YoutubeVideo struct {
 	Id          string `json:"id"`
 	Title       string `json:"title"`

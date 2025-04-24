@@ -12,8 +12,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -36,15 +34,6 @@ func constructTitleWhenMissing(entry *Entry) string {
 	base := path.Base(parsed.Path)
 	title := strings.TrimSuffix(base, filepath.Ext(base))
 	return title
-}
-
-func stripSuffix(url string) string {
-	lastSlash := strings.LastIndex(url, "/")
-	if lastSlash == -1 {
-		// this could be more robust
-		return url
-	}
-	return url[:lastSlash]
 }
 
 func inferOrigin(referer string) string {
@@ -79,10 +68,6 @@ func lastUrlSegment(url string) string {
 		return url
 	}
 	return url[:questionMark]
-}
-
-func hasScheme(url string) bool {
-	return strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://")
 }
 
 func getRootDomain(url *net_url.URL) string {
@@ -358,28 +343,6 @@ func (r *Range) length() int64 {
 	return r.end - r.start + 1
 }
 
-type Barrier struct {
-	blocked atomic.Bool
-	wg      sync.WaitGroup
-	result  bool
-}
-
-func (barrier *Barrier) block() {
-	if !barrier.blocked.Swap(true) {
-		barrier.wg.Add(1)
-	}
-}
-
-func (barrier *Barrier) wait() {
-	barrier.wg.Wait()
-}
-
-// Might throw  "sync: negative WaitGroup counter" ?
-func (barrier *Barrier) releaseWithResult(result bool) {
-	barrier.result = result
-	barrier.wg.Done()
-}
-
 func getMediaType(extension string) string {
 	extension = strings.TrimSpace(extension)
 	extension = strings.ToLower(extension)
@@ -437,15 +400,6 @@ func safeJoin(segments ...string) (string, bool) {
 
 func isSlash(char uint8) bool {
 	return char == '/' || char == '\\'
-}
-
-func stall(delay time.Duration, maxChecks int, checkFunc func() bool) {
-	for range maxChecks {
-		time.Sleep(delay)
-		if checkFunc() {
-			return
-		}
-	}
 }
 
 func respondBadRequest(writer http.ResponseWriter, format string, args ...any) {
