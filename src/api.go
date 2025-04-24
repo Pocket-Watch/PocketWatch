@@ -101,7 +101,9 @@ func (server *Server) apiUserVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	server.users.mutex.Lock()
 	user := server.findUser(token)
+	server.users.mutex.Unlock()
 	if user == nil {
 		respondBadRequest(w, "User with specified token was not found")
 		return
@@ -1004,18 +1006,16 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	server.users.mutex.Lock()
-	userIndex := server.users.findByToken(token)
-	if userIndex == -1 {
+	user := server.findUser(token)
+	if user == nil {
 		respondBadRequest(w, "Failed to connect to event stream. User with specified token not found.")
 		server.users.mutex.Unlock()
 		return
 	}
 
-	userId := server.users.slice[userIndex].Id
-	went_online := server.users.addConnection(userId)
-	if went_online {
-		DatabaseUpdateUserLastOnline(server.db, userId, time.Now())
-	}
+	went_online := !user.Online
+	user.connections += 1
+	user.Online = true
 	server.users.mutex.Unlock()
 
 	w.Header().Set("Content-Type", "text/event-stream")
@@ -1023,11 +1023,11 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 
 	server.conns.mutex.Lock()
-	conn := server.conns.add(userId)
+	conn := server.conns.add(user.Id)
 	connectionCount := len(server.conns.slice)
 	server.conns.mutex.Unlock()
 
-	LogInfo("New connection id:%v established with user id:%v on %s. Current connection count: %d", conn.id, userId, r.RemoteAddr, connectionCount)
+	LogInfo("New connection id:%v established with user id:%v on %s. Current connection count: %d", conn.id, user.Id, r.RemoteAddr, connectionCount)
 
 	welcomeErr := server.writeEvent(w, "userwelcome", conn.id)
 	if welcomeErr != nil {
@@ -1035,8 +1035,8 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if went_online {
-		server.writeEventToAllConnectionsExceptSelf(w, "userconnected", userId, userId, conn.id)
-		DatabaseUpdateUserLastOnline(server.db, userId, time.Now())
+		server.writeEventToAllConnectionsExceptSelf(w, "userconnected", user.Id, user.Id, conn.id)
+		DatabaseUpdateUserLastOnline(server.db, user.Id, time.Now())
 	}
 
 	for {
@@ -1062,7 +1062,18 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 	server.conns.mutex.Unlock()
 
 	server.users.mutex.Lock()
-	went_offline := server.users.removeConnection(conn.userId)
+	user = server.findUser(token)
+	went_offline := false
+	if user != nil {
+		user.connections -= 1
+		went_offline = user.connections == 0
+		user.Online = !went_offline
+
+		if went_offline {
+			DatabaseUpdateUserLastOnline(server.db, user.Id, time.Now())
+		}
+	}
+
 	server.users.mutex.Unlock()
 
 	if went_offline {

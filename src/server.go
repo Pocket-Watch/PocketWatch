@@ -60,6 +60,11 @@ func (users *Users) create() User {
 	return new_user
 }
 
+func (users *Users) add(user User) int {
+	users.slice = append(users.slice, user)
+	return len(users.slice) - 1
+}
+
 func (users *Users) removeByToken(token string) *User {
 	for i, user := range users.slice {
 		if user.token == token {
@@ -73,6 +78,19 @@ func (users *Users) removeByToken(token string) *User {
 	return nil
 }
 
+func (users *Users) removeAt(index int) *User {
+	if index < 0 || index >= len(users.slice) {
+		return nil
+	}
+
+	user := users.slice[index]
+	last := len(users.slice) - 1
+	users.slice[index] = users.slice[last]
+	users.slice = users.slice[:last]
+
+	return &user
+}
+
 func (users *Users) findByToken(token string) int {
 	for i, user := range users.slice {
 		if user.token == token {
@@ -81,45 +99,6 @@ func (users *Users) findByToken(token string) int {
 	}
 
 	return -1
-}
-
-func (users *Users) findById(id uint64) int {
-	for i, user := range users.slice {
-		if user.Id == id {
-			return i
-		}
-	}
-
-	return -1
-}
-
-func (users *Users) addConnection(userId uint64) bool {
-	for i, user := range users.slice {
-		if user.Id == userId {
-			was_online_before := users.slice[i].Online
-
-			users.slice[i].connections += 1
-			users.slice[i].Online = true
-
-			return !was_online_before
-		}
-	}
-
-	return false
-}
-
-func (users *Users) removeConnection(userId uint64) bool {
-	for i, user := range users.slice {
-		if user.Id == userId {
-			users.slice[i].connections -= 1
-			is_offline := users.slice[i].connections == 0
-			users.slice[i].Online = !is_offline
-
-			return is_offline
-		}
-	}
-
-	return false
 }
 
 func makeConnections() *Connections {
@@ -166,20 +145,23 @@ func createPlaylistEvent(action string, data any) PlaylistEventData {
 }
 
 func StartServer(config ServerConfig, db *sql.DB) {
-	DatabaseRemoveDummyUsers(db)
-	// DatabaseArchiveInactiveUsers(db)
+	users, ok := DatabaseLoadUsers(db, TABLE_USERS)
+	if !ok {
+		return
+	}
 
-	users, ok := DatabaseLoadUsers(db)
+	inactive, ok := DatabaseLoadUsers(db, TABLE_INACTIVE_USERS)
 	if !ok {
 		return
 	}
 
 	server := Server{
-		config: config,
-		state:  ServerState{},
-		users:  users,
-		conns:  makeConnections(),
-		db:     db,
+		config:        config,
+		state:         ServerState{},
+		users:         users,
+		inactiveUsers: inactive,
+		conns:         makeConnections(),
+		db:            db,
 	}
 
 	server.state.lastUpdate = time.Now()
@@ -350,20 +332,27 @@ func (server *Server) periodicInactiveUserCleanup() {
 	for {
 		server.users.mutex.Lock()
 
-		for _, user := range server.users.slice {
-			// Remove users that are not active and that have not updated their user profile.
-			if user.lastUpdate == user.createdAt && time.Since(user.lastOnline) > time.Hour * 24 {
-				// TODO(kihau): Remove user from the database.
-				// TODO(kihau): Remove user from the users list
-				// TODO(kihau): Inform all connections that users has been removed.
+		toDelete := make([]int, 0)
+		for i, user := range server.users.slice {
+			if user.lastUpdate == user.createdAt && time.Since(user.lastOnline) > time.Hour*24 && !user.Online{
+				// Remove users that are not active and that have not updated their user profile.
+				LogInfo("Removing dummy temp user with id = %v due to 24h of inactivity.", user.Id)
+
+				DatabaseDeleteUser(server.db, user)
+				toDelete = append(toDelete, i)
+			} else if time.Since(user.lastOnline) > time.Hour*24*14 && !user.Online {
+				// Archive users that were not active for more than two weeks.
+				LogInfo("Archiving user with id = %v due to 2 weeks of inactivity.", user.Id)
+
+				server.inactiveUsers.add(user)
+				DatabaseArchiveUser(server.db, user)
+				toDelete = append(toDelete, i)
 			}
-			
-			// Archive users that were not active for more than two weeks.
-			if time.Since(user.lastOnline) > time.Hour*24*14 {
-				// DatabaseMoveUserToArchive(server.db, user)
-				// TODO(kihau): Remove user from the users list
-				// TODO(kihau): Inform all connections that users has been removed.
-			}
+		}
+
+		for index := range toDelete {
+			user := server.users.removeAt(index)
+			server.writeEventToAllConnections(nil, "userdelete", user)
 		}
 
 		server.users.mutex.Unlock()
@@ -467,25 +456,23 @@ func (server *Server) getAuthorizedIndex(w http.ResponseWriter, r *http.Request)
 	return -1
 }
 
-
 func (server *Server) findUser(token string) *User {
-	server.users.mutex.Lock()
-	defer server.users.mutex.Unlock()
-
-	index := -1
-	for i, user := range server.users.slice {
-		if user.token == token {
-			index = i
-			break
-		}
+	index := server.users.findByToken(token)
+	if index != -1 {
+		return &server.users.slice[index]
 	}
 
+	index = server.inactiveUsers.findByToken(token)
 	if index == -1 {
 		return nil
 	}
 
-	user := &server.users.slice[index]
-	return user
+	user := server.inactiveUsers.removeAt(index)
+	last := server.users.add(*user)
+
+	DatabaseUnarchiveUser(server.db, *user)
+
+	return &server.users.slice[last]
 }
 
 func (server *Server) readJsonDataFromRequest(w http.ResponseWriter, r *http.Request, data any) bool {

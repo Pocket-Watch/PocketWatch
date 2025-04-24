@@ -39,11 +39,12 @@ var serverRootAddress string
 var startTime = time.Now()
 
 type Server struct {
-	config ServerConfig
-	state  ServerState
-	users  *Users
-	conns  *Connections
-	db     *sql.DB
+	config        ServerConfig
+	state         ServerState
+	users         *Users
+	inactiveUsers *Users
+	conns         *Connections
+	db            *sql.DB
 }
 
 type PlayerState struct {

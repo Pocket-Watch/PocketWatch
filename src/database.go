@@ -13,6 +13,8 @@ import (
 )
 
 const SQL_MIGRATIONS_DIR = "sql/"
+const TABLE_USERS = "users"
+const TABLE_INACTIVE_USERS = "inactive_users"
 
 // TODO(kihau): 
 // Migration system robustness:
@@ -216,74 +218,23 @@ func MigrateDatabase(db *sql.DB) bool {
 	return true
 }
 
-// Remove temporary 'dummy' accounts of users inactive for more than 1 days and without any user profile updates.
-func DatabaseRemoveDummyUsers(db *sql.DB) bool {
+func databaseMoveUserToTable(db *sql.DB, fromTable string, toTable string, user User) bool {
 	if db == nil {
 		return true
 	}
 
-	now := time.Now()
-	dayAgo := now.AddDate(0, 0, -1)
-
-	// NOTE(kihau): Maybe just move them to archive instead?
-	query := "DELETE FROM users WHERE last_online < $1 AND last_update = created_at"
-	result, err := db.Exec(query, dayAgo)
-	if err != nil {
-		LogError("Failed to execute query to remove dummy users: %v", err)
-		return false
-	}
-
-	removed, _ := result.RowsAffected()
-	if removed > 0 {
-		LogInfo("Removed %v dummy user accounts inactive for more than 1 day.", removed)
-	}
-
-	return true
-}
-
-// TODO(kihau): Run this function on server startup and once every day?
-func DatabaseArchiveInactiveUsers(db *sql.DB) bool {
-	if db == nil {
-		return true
-	}
-
-	now := time.Now()
-	weekAgo := now.AddDate(0, 0, -7)
-
-	query := `
+	query := fmt.Sprintf(`
 		WITH moved_users AS (
-			DELETE FROM users
-			WHERE last_online < $1
-			RETURNING *
-		)
-		INSERT INTO inactive_users
-		SELECT * FROM moved_users
-
-	`
-
-	res, err := db.Exec(query, weekAgo)
-	LogDebug("%v database archive: %v ---- %v", weekAgo, res, err)
-
-	return true
-}
-
-func DatabaseMoveUserToArchive(db *sql.DB, user User) bool {
-	if db == nil {
-		return true
-	}
-
-	query := `
-		WITH user AS (
-			DELETE FROM users
+			DELETE FROM %v
 			WHERE id = $1
 			RETURNING *
 		)
-		INSERT INTO inactive_users
-		SELECT * FROM user
-	`
+		INSERT INTO %v
+		SELECT * FROM moved_users
+	`, fromTable, toTable)
 
 	res, err := db.Exec(query, user.Id)
-	LogDebug("%v database archive: %v ---- %v", user.Id, res, err)
+	LogDebug("%v database user move from %v to %v: %v ---- %v", user.Id, fromTable, toTable, res, err)
 
 	if err != nil {
 		return false
@@ -292,26 +243,34 @@ func DatabaseMoveUserToArchive(db *sql.DB, user User) bool {
 	return true
 }
 
-// TODO(kihau):
-//
-//	Archive users with more than 1 week of inactivity. Archived users will not appear in the user list until they open the room.
-func DatabaseLoadUsers(db *sql.DB) (*Users, bool) {
+func DatabaseArchiveUser(db *sql.DB, user User) bool {
+	return databaseMoveUserToTable(db, TABLE_USERS, TABLE_INACTIVE_USERS, user)
+}
+
+func DatabaseUnarchiveUser(db *sql.DB, user User) bool {
+	return databaseMoveUserToTable(db, TABLE_INACTIVE_USERS, TABLE_USERS, user)
+}
+
+// TODO(kihau): Do this instead?
+// func DatabaseDeleteUser(db *sql.DB, user User) bool {
+// 	return databaseMoveUserToTable(db, TABLE_USERS, TABLE_DELETED_USERS, user)
+// }
+
+func DatabaseLoadUsers(db *sql.DB, tableName string) (*Users, bool) {
 	users := makeUsers()
 
 	if db == nil {
 		return users, true
 	}
 
-	rows, err := db.Query("SELECT * FROM users")
+	query := fmt.Sprintf("SELECT * FROM %v", tableName)
+	rows, err := db.Query(query)
 	if err != nil {
 		LogError("Failed to load users from the database. An error occurred while querying database 'users' table: %v", err)
 		return users, false
 	}
 
 	defer rows.Close()
-
-	// Load highest id from the archived users...
-	// Move archived users on connect...
 
 	// NOTE(kihau): This is kind of hacky, maybe seed counter should be stored in the database?
 	var maxId uint64 = 1
@@ -321,7 +280,7 @@ func DatabaseLoadUsers(db *sql.DB) (*Users, bool) {
 
 		err := rows.Scan(&user.Id, &user.Username, &user.Avatar, &user.token, &user.createdAt, &user.lastUpdate, &user.lastOnline)
 		if err != nil {
-			LogError("Failed to load users from the database. An error occurred while reading a user from the database 'users' row: %v", err)
+			LogError("Failed to load users from the database. An error occurred while reading a user from the database '%v' row: %v", tableName, err)
 			return users, false
 		}
 
@@ -334,7 +293,7 @@ func DatabaseLoadUsers(db *sql.DB) (*Users, bool) {
 
 	err = rows.Err()
 	if err != nil {
-		LogError("Failed to load users from the database. An error occurred while iterating 'users' rows: %v", err)
+		LogError("Failed to load users from the database. An error occurred while iterating '%v' rows: %v", tableName, err)
 		return users, false
 	}
 
