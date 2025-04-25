@@ -395,13 +395,13 @@ html * {
     margin-left: 24px;
 }
 
-.toggle_root {
+.widget_toggle_root {
     display: flex;
     justify-content: center;
     align-items: center;
 }
 
-.toggle_text {
+.widget_toggle_text {
     width: 130px;
     user-select: none;
     margin-left: 8px;
@@ -410,7 +410,7 @@ html * {
     white-space: nowrap;
 }
 
-.toggle_switch {
+.widget_toggle_switch {
     width: 60px;
     height: 30px;
     border: 2px solid var(--fg_3);
@@ -422,7 +422,7 @@ html * {
     background-color: var(--bg_4);
 }
 
-.toggle_circle {
+.widget_toggle_circle {
     height: calc(100% - 4px);
     aspect-ratio: 1.0;
     border-radius: 100px;
@@ -433,13 +433,13 @@ html * {
     transition: 250ms ease-out;
 }
 
-.toggle_active .toggle_circle {
+.widget_toggle_active .widget_toggle_circle {
     left: calc(100% - 4px);
     transform: translateX(-100%);
     transition: 250ms ease-out;
 }
 
-.toggle_active {
+.widget_toggle_active {
     background-color: var(--green_1);
     transition: 250ms ease-out;
 }

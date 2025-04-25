@@ -519,10 +519,10 @@ class Room {
 
             if (this.currentEntry.use_proxy) {
                 this.proxyEnabled = true;
-                this.inputArea.proxyToggle.classList.add("toggle_active");
+                this.inputArea.proxyToggle.classList.add("widget_toggle_active");
             } else {
                 this.proxyEnabled = false;
-                this.inputArea.proxyToggle.classList.remove("toggle_active");
+                this.inputArea.proxyToggle.classList.remove("widget_toggle_active");
             }
         };
 
@@ -642,22 +642,22 @@ class Room {
         }
 
         this.inputArea.youtubeSearchToggle.onclick = _ => {
-            this.inputArea.youtubeSearchToggle.classList.toggle("toggle_active");
+            this.inputArea.youtubeSearchToggle.classList.toggle("widget_toggle_active");
             this.youtubeSearchEnabled = !this.youtubeSearchEnabled;
         }
 
         this.inputArea.asPlaylistToggle.onclick = _ => {
-            this.inputArea.asPlaylistToggle.classList.toggle("toggle_active");
+            this.inputArea.asPlaylistToggle.classList.toggle("widget_toggle_active");
             this.asPlaylistEnabled = !this.asPlaylistEnabled;
         }
 
         this.inputArea.addToTopToggle.onclick = _ => {
-            this.inputArea.addToTopToggle.classList.toggle("toggle_active");
+            this.inputArea.addToTopToggle.classList.toggle("widget_toggle_active");
             this.addToTopEnabled = !this.addToTopEnabled;
         }
 
         this.inputArea.proxyToggle.onclick = _ => {
-            this.inputArea.proxyToggle.classList.toggle("toggle_active");
+            this.inputArea.proxyToggle.classList.toggle("widget_toggle_active");
             this.proxyEnabled = !this.proxyEnabled;
         }
     }
@@ -710,13 +710,18 @@ class Room {
         this.player.seek(state.player.timestamp)
     }
 
-    async loadUsersData() {
-        this.allUsers     = [];
-        this.allUserBoxes = [];
+    clearUsersArea() {
         this.onlineCount = 0;
+        this.allUserBoxes = [];
 
-        this.allUsers = await api.userGetAll();
-        console.log(this.allUsers);
+        const userList = this.usersArea.userList;
+        while (userList.lastChild) {
+            userList.removeChild(userList.lastChild);
+        }
+    }
+
+    updateUsersArea() {
+        const userList = this.usersArea.userList;
 
         let onlineBoxes = [];
         let offlineBoxes = [];
@@ -726,26 +731,22 @@ class Room {
             let user = this.allUsers[i];
             let userBox = this.createUserBox(user);
 
-            if (user.id == this.currentUserId) {
-                user.online = true;
-                this.onlineCount += 1;
-                userBox.classList.add("user_box_online");
+            if (user.id === this.currentUserId) {
                 selfBox = userBox;
             } else if (user.online) {
-                this.onlineCount += 1;
-                userBox.classList.add("user_box_online");
                 onlineBoxes.push(userBox);
             } else {
-                userBox.classList.add("user_box_offline");
                 offlineBoxes.push(userBox);
             }
 
-            this.allUserBoxes.push(userBox);
-        }
+            if (user.online) {
+                this.onlineCount += 1;
+                userBox.classList.add("user_box_online");
+            } else {
+                userBox.classList.add("user_box_offline");
+            }
 
-        let userList = this.usersArea.userList;
-        while (userList.lastChild) {
-            userList.removeChild(userList.lastChild);
+            this.allUserBoxes.push(userBox);
         }
 
         userList.append(selfBox);
@@ -762,6 +763,20 @@ class Room {
 
         this.usersArea.onlineCount.textContent  = this.onlineCount;
         this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
+    }
+
+    markAllUsersOffline() {
+        for (let i = 0; i < this.allUsers.length; i++) {
+            this.allUsers[i].online = false;
+        }
+    }
+
+    async loadUsersData() {
+        this.allUsers = await api.userGetAll();
+        console.log(this.allUsers);
+
+        this.clearUsersArea();
+        this.updateUsersArea();
     }
 
     createUserBox(user) {
@@ -989,14 +1004,21 @@ class Room {
 
     listenToServerEvents() {
         let events = new EventSource("/watch/api/events?token=" + this.token);
-        events.onopen = _ => {
+        events.onopen = async _ => {
             console.info("INFO: Connection to events opened.");
+
+            await this.loadUsersData();
+            await this.loadPlayerData();
+            await this.loadPlaylistData();
+            await this.loadChatData();
+            api.uptime().then(uptime   => this.roomContent.websiteUptime.textContent  = uptime);
+            api.version().then(version => this.roomContent.websiteVersion.textContent = version);
         };
 
         events.onerror = _ => {
             events.close()
             console.error("ERROR: Connection to the server was lost. Attempting to reconnect in", RECONNECT_AFTER, "ms");
-            setTimeout(_ => this.connectToServer(), RECONNECT_AFTER);
+            this.handleDisconnect();
         };
 
         this.subscribeToServerEvents(events);
@@ -1352,6 +1374,14 @@ class Room {
         });
     }
 
+    handleDisconnect() {
+        this.markAllUsersOffline();
+        this.clearUsersArea();
+        this.updateUsersArea();
+        // TODO(kihau): Disconnected notification goes here...
+        setTimeout(_ => this.connectToServer(), RECONNECT_AFTER);
+    }
+
     async connectToServer() {
         try {
             // Temporary workaround for lack of persistent server-side account storage
@@ -1359,18 +1389,7 @@ class Room {
                 await this.createNewAccount();
                 await this.authenticateAccount();
             }
-
-            await this.loadUsersData();
-            await this.loadPlayerData();
-            await this.loadPlaylistData();
-            await this.loadChatData();
-            api.uptime().then(uptime   => this.roomContent.websiteUptime.textContent  = uptime);
-            api.version().then(version => this.roomContent.websiteVersion.textContent = version);
-        } catch (_) {
-            console.error("ERROR: Failed to load data from the server. Attempting to reconnect in", RECONNECT_AFTER, "ms.");
-            setTimeout(_ => this.connectToServer(), RECONNECT_AFTER);
-            return;
-        }
+        } catch (_) {}
 
         this.listenToServerEvents();
     }
