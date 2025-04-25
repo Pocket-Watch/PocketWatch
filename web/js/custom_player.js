@@ -746,8 +746,6 @@ class Internals {
         const progress = this.htmlControls.buttons.volumeProgress;
         progress.style.width = volume / this.options.maxVolume * 100.0 + "%";
 
-
-        // TODO(kihau): Show volume popup not just on hover but volume change (similar to timestamp popup)?
         const popup = this.htmlControls.buttons.volumePopup;
         popup.textContent = Math.round(volume * 100.0) + "%";
 

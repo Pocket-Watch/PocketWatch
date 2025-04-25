@@ -451,7 +451,6 @@
     background-color: var(--player_color_fg1);
 }
 
-/* TODO(kihau): Show volume popup not just on hover but volume change (similar to timestamp popup)? */
 #player_volume_root:hover #player_volume_popup {
     visibility: visible;
     opacity: 1.0;

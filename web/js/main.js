@@ -112,6 +112,8 @@ class Room {
             tokenSetInput:     getById("room_token_set_input"),
         };
 
+        this.connectionLostPopup = getById("connection_lost_popup");
+
         this.chatNewMessage = getById("tab_chat_new_message_indicator");
         hide(this.chatNewMessage);
 
@@ -1007,6 +1009,8 @@ class Room {
         events.onopen = async _ => {
             console.info("INFO: Connection to events opened.");
 
+            this.connectionLostPopup.classList.remove("show")
+
             await this.loadUsersData();
             await this.loadPlayerData();
             await this.loadPlaylistData();
@@ -1378,7 +1382,7 @@ class Room {
         this.markAllUsersOffline();
         this.clearUsersArea();
         this.updateUsersArea();
-        // TODO(kihau): Disconnected notification goes here...
+        this.connectionLostPopup.classList.add("show")
         setTimeout(_ => this.connectToServer(), RECONNECT_AFTER);
     }
 

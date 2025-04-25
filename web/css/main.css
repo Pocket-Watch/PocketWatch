@@ -14,6 +14,10 @@ html * {
     font-family: Rubik, sans-serif;
 }
 
+body {
+    overflow: hidden;
+}
+
 :root {
     /* Standard gruvbox palette. */
     --red_0:    #9d0006;
@@ -782,6 +786,33 @@ html * {
 
 .placeholder {
     color: var(--fg_4);
+}
+
+#connection_lost_popup {
+    width: 99%;
+    height: 16px;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: 6px 6px 0 0;
+    background-color: var(--red_2);
+    color: var(--bg_0);
+    font-size: 14px;
+    font-weight: bold;
+    justify-content: center;
+    text-align: center;
+    display: none;
+}
+
+#connection_lost_popup.show {
+    display: block
+}
+
+#connection_lost_emote {
+    font-size: 11px;
 }
 
 @keyframes sway {
