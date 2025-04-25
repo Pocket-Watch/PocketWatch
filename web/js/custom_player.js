@@ -965,6 +965,7 @@ class Internals {
         this.htmlVideo.src = "";
         this.htmlVideo.removeAttribute("src");
         this.htmlVideo.load();
+        this.updateTimestamps(0.0);
         hide(this.htmlControls.buttons.liveIndicator);
     }
 
