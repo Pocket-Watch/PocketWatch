@@ -14,10 +14,6 @@ html * {
     font-family: Rubik, sans-serif;
 }
 
-body {
-    overflow: hidden;
-}
-
 :root {
     /* Standard gruvbox palette. */
     --red_0:    #9d0006;
@@ -599,7 +595,6 @@ body {
     display: block;
 }
 
-/* TODO(kihau): Maybe catch focus on user_box instead of just input box from user_box_bottom? */
 .user_box_bottom input:focus+.user_box_edit_name_button {
     display: block;
 }
@@ -791,7 +786,8 @@ body {
 #connection_lost_popup {
     width: 99%;
     height: 16px;
-    position: absolute;
+    position: fixed;
+    z-index: 999;
     bottom: 0;
     left: 0;
     right: 0;
