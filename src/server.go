@@ -282,6 +282,10 @@ func (server *Server) HandleEndpoint(endpoint string, endpointHandler func(w htt
 		if requireAuth && !server.isAuthorized(w, r) {
 			return
 		}
+
+		endpointTrim := strings.TrimPrefix(endpoint, "/watch/api/")
+		requested    := strings.ReplaceAll(endpointTrim, "/", " ")
+		LogInfo("Connection %s requested %v.", r.RemoteAddr, requested)
 		endpointHandler(w, r)
 	}
 	http.HandleFunc(endpoint, genericHandler)

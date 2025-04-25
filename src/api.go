@@ -15,14 +15,12 @@ import (
 )
 
 func (server *Server) apiVersion(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection %s requested server version.", r.RemoteAddr)
 	uptimeString := fmt.Sprintf("%v_%v", VERSION, BuildTime)
 	response, _ := json.Marshal(uptimeString)
 	io.WriteString(w, string(response))
 }
 
 func (server *Server) apiUptime(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection %s requested server version.", r.RemoteAddr)
 	uptime := time.Now().Sub(startTime)
 	uptimeString := fmt.Sprintf("%v", uptime)
 	response, _ := json.Marshal(uptimeString)
@@ -78,8 +76,6 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiUserCreate(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection requested %s user creation.", r.RemoteAddr)
-
 	server.users.mutex.Lock()
 	user := server.users.create()
 	DatabaseAddUser(server.db, user)
@@ -109,8 +105,6 @@ func (server *Server) apiUserVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	LogInfo("Connection requested %s user verification.", r.RemoteAddr)
-
 	jsonData, err := json.Marshal(user.Id)
 	if err != nil {
 		respondInternalError(w, "Serialization of the user id failed with: %v", err)
@@ -121,8 +115,6 @@ func (server *Server) apiUserVerify(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiUserDelete(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection requested %s user deletion.", r.RemoteAddr)
-
 	var token string
 	if !server.readJsonDataFromRequest(w, r, &token) {
 		return
@@ -142,8 +134,6 @@ func (server *Server) apiUserDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiUserGetAll(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection requested %s user get all.", r.RemoteAddr)
-
 	server.users.mutex.Lock()
 	usersJson, err := json.Marshal(server.users.slice)
 	server.users.mutex.Unlock()
@@ -157,8 +147,6 @@ func (server *Server) apiUserGetAll(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiUserUpdateName(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection requested %s user name change.", r.RemoteAddr)
-
 	var newUsername string
 	if !server.readJsonDataFromRequest(w, r, &newUsername) {
 		return
@@ -182,8 +170,6 @@ func (server *Server) apiUserUpdateName(w http.ResponseWriter, r *http.Request) 
 }
 
 func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection requested %s user avatar change.", r.RemoteAddr)
-
 	server.users.mutex.Lock()
 	userIndex := server.getAuthorizedIndex(w, r)
 	if userIndex == -1 {
@@ -229,8 +215,6 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 }
 
 func (server *Server) apiPlayerGet(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection %s requested get.", r.RemoteAddr)
-
 	server.state.mutex.Lock()
 	getEvent := PlayerGetResponseData{
 		Player: server.state.player,
@@ -253,8 +237,6 @@ func (server *Server) apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 	if user == nil {
 		return
 	}
-
-	LogInfo("Connection %s requested media url change.", r.RemoteAddr)
 
 	var data PlayerSetRequestData
 	if !server.readJsonDataFromRequest(w, r, &data) {
@@ -316,8 +298,6 @@ func (server *Server) apiPlayerEnd(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection %s requested playlist next.", r.RemoteAddr)
-
 	var data PlayerNextRequestData
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
@@ -362,8 +342,6 @@ func (server *Server) apiPlayerPlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	LogInfo("Connection %s requested player start.", r.RemoteAddr)
-
 	var data SyncRequestData
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
@@ -380,8 +358,6 @@ func (server *Server) apiPlayerPause(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	LogInfo("Connection %s requested player pause.", r.RemoteAddr)
-
 	var data SyncRequestData
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
@@ -397,8 +373,6 @@ func (server *Server) apiPlayerSeek(w http.ResponseWriter, r *http.Request) {
 	if user == nil {
 		return
 	}
-
-	LogInfo("Connection %s requested player seek.", r.RemoteAddr)
 
 	var data SyncRequestData
 	if !server.readJsonDataFromRequest(w, r, &data) {
@@ -417,8 +391,6 @@ func (server *Server) apiPlayerSeek(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiPlayerAutoplay(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection %s requested playlist autoplay.", r.RemoteAddr)
-
 	var autoplay bool
 	if !server.readJsonDataFromRequest(w, r, &autoplay) {
 		return
@@ -434,8 +406,6 @@ func (server *Server) apiPlayerAutoplay(w http.ResponseWriter, r *http.Request) 
 }
 
 func (server *Server) apiPlayerLooping(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection %s requested playlist looping.", r.RemoteAddr)
-
 	var looping bool
 	if !server.readJsonDataFromRequest(w, r, &looping) {
 		return
@@ -451,8 +421,6 @@ func (server *Server) apiPlayerLooping(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiPlayerUpdateTitle(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection %s requested title update.", r.RemoteAddr)
-
 	var title string
 	if !server.readJsonDataFromRequest(w, r, &title) {
 		return
@@ -503,8 +471,6 @@ func (server *Server) apiSubtitleUpdate(w http.ResponseWriter, r *http.Request) 
 }
 
 func (server *Server) apiSubtitleAttach(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection %s requested attach sub.", r.RemoteAddr)
-
 	var subtitle Subtitle
 	if !server.readJsonDataFromRequest(w, r, &subtitle) {
 		return
@@ -518,8 +484,6 @@ func (server *Server) apiSubtitleAttach(w http.ResponseWriter, r *http.Request) 
 }
 
 func (server *Server) apiSubtitleShift(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection %s requested attach sub.", r.RemoteAddr)
-
 	var data SubtitleShiftRequestData
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
@@ -659,8 +623,6 @@ func (server *Server) apiSubtitleSearch(w http.ResponseWriter, r *http.Request) 
 }
 
 func (server *Server) apiPlaylistGet(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection %s requested playlist get.", r.RemoteAddr)
-
 	server.state.mutex.Lock()
 	jsonData, err := json.Marshal(server.state.playlist)
 	server.state.mutex.Unlock()
@@ -678,8 +640,6 @@ func (server *Server) apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
-
-	LogInfo("Connection %s requested playlist play.", r.RemoteAddr)
 
 	server.state.mutex.Lock()
 	if data.Index < 0 || data.Index >= len(server.state.playlist) {
@@ -720,8 +680,6 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 	if user == nil {
 		return
 	}
-
-	LogInfo("Connection %s requested playlist add.", r.RemoteAddr)
 
 	var data PlaylistAddRequestData
 	if !server.readJsonDataFromRequest(w, r, &data) {
@@ -773,8 +731,6 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection %s requested playlist clear.", r.RemoteAddr)
-
 	var connectionId uint64
 	if !server.readJsonDataFromRequest(w, r, &connectionId) {
 		return
@@ -789,8 +745,6 @@ func (server *Server) apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection %s requested playlist remove.", r.RemoteAddr)
-
 	var data PlaylistRemoveRequestData
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
@@ -818,8 +772,6 @@ func (server *Server) apiPlaylistRemove(w http.ResponseWriter, r *http.Request) 
 }
 
 func (server *Server) apiPlaylistShuffle(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection %s requested playlist shuffle.", r.RemoteAddr)
-
 	server.state.mutex.Lock()
 	for i := range server.state.playlist {
 		j := rand.Intn(i + 1)
@@ -837,8 +789,6 @@ func (server *Server) apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 	if user == nil {
 		return
 	}
-
-	LogInfo("Connection %s requested playlist move.", r.RemoteAddr)
 
 	var move PlaylistMoveRequestData
 	if !server.readJsonDataFromRequest(w, r, &move) {
@@ -895,8 +845,6 @@ func (server *Server) apiPlaylistUpdate(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	LogInfo("Connection %s requested playlist update.", r.RemoteAddr)
-
 	var data PlaylistUpdateRequestData
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
@@ -928,8 +876,6 @@ func (server *Server) apiPlaylistUpdate(w http.ResponseWriter, r *http.Request) 
 }
 
 func (server *Server) apiHistoryGet(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection %s requested history get.", r.RemoteAddr)
-
 	server.state.mutex.Lock()
 	jsonData, err := json.Marshal(server.state.history)
 	server.state.mutex.Unlock()
@@ -943,8 +889,6 @@ func (server *Server) apiHistoryGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiHistoryClear(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection %s requested history clear.", r.RemoteAddr)
-
 	server.state.mutex.Lock()
 	server.state.history = server.state.history[:0]
 	server.state.mutex.Unlock()
@@ -953,8 +897,6 @@ func (server *Server) apiHistoryClear(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiChatGet(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection %s requested messages.", r.RemoteAddr)
-
 	server.state.mutex.Lock()
 	jsonData, err := json.Marshal(server.state.messages)
 	server.state.mutex.Unlock()
