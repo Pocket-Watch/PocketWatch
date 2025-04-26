@@ -60,7 +60,6 @@ func CreateInternalLoggerForHttpServer() *log.Logger {
 
 var logger Logger
 
-// NOTE(kihau): This will construct the global logger instead, but for now only log_config is used.
 func SetupGlobalLogger(config LoggingConfig) bool {
 	logger = Logger{
 		enabled:     config.Enabled,

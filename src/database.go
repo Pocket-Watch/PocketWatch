@@ -330,7 +330,6 @@ func DatabaseUpdateUser(db *sql.DB, user User) bool {
 	return true
 }
 
-// NOTE(kihau): User last online is a little bit faulty due to how connect and disconnect works.
 func DatabaseUpdateUserLastOnline(db *sql.DB, id uint64, lastOnline time.Time) bool {
 	if db == nil {
 		return true
