@@ -36,25 +36,26 @@ class Room {
         this.chat     = new Chat();
 
         this.inputArea = {
-            root:          getById("input_area"),
-            urlInput:      getById("input_entry_url_box"),
-            titleInput:    getById("input_title_input"),
-            refererInput:  getById("input_dropdown_referer_input"),
-            subtitleInput: getById("input_subtitle_name_input"),
+            root:          getById("entry_area"),
+
+            urlInput:      getById("entry_url_input"),
+            titleInput:    getById("entry_title_input"),
+            refererInput:  getById("entry_dropdown_referer_input"),
+            subtitleInput: getById("entry_subtitle_name_input"),
             ytCountInput:  getById("youtube_video_count_input"),
 
-            dropdownButton:       getById("input_dropdown_button"),
-            resetButton:          getById("input_reset_button"),
-            setButton:            getById("input_set_button"),
-            addPlaylistButton:    getById("input_add_playlist_button"),
-            selectSubtitleButton: getById("input_select_subtitle_button"),
+            dropdownButton:       getById("entry_dropdown_button"),
+            resetButton:          getById("entry_reset_button"),
+            setButton:            getById("entry_set_button"),
+            addPlaylistButton:    getById("entry_add_playlist_button"),
+            selectSubtitleButton: getById("entry_select_subtitle_button"),
 
-            youtubeSearchToggle: getById("youtube_search_toggle"),
-            asPlaylistToggle:    getById("as_playlist_toggle"),
-            addToTopToggle:      getById("add_to_top_toggle"),
-            proxyToggle:         getById("proxy_toggle"),
+            youtubeSearchToggle: getById("entry_youtube_search_toggle"),
+            asPlaylistToggle:    getById("entry_as_playlist_toggle"),
+            addToTopToggle:      getById("entry_add_to_top_toggle"),
+            proxyToggle:         getById("entry_proxy_toggle"),
 
-            dropdownContainer: getById("input_dropdown_container"),
+            dropdownContainer: getById("entry_dropdown_container"),
         };
 
         this.usersArea = {
@@ -83,7 +84,7 @@ class Room {
 
         this.roomContent = {
             currentUrlInput: getById("room_current_url_input"),
-            titleInput:      getById("room_title_input"),
+            titleInput:      getById("room_entry_title_input"),
             refererInput:    getById("room_referer_input"),
             uploadSubInput:  getById("room_upload_subtitle_input"),
             uploadFileInput: getById("room_upload_file_input"),
@@ -602,7 +603,7 @@ class Room {
 
     attachUrlAreaEvents() {
         this.inputArea.dropdownButton.onclick = _ => {
-            this.inputArea.root.classList.toggle("input_area_expand");
+            this.inputArea.root.classList.toggle("entry_area_expand");
         }
 
         this.inputArea.resetButton.onclick = _ => {
