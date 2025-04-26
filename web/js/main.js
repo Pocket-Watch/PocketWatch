@@ -18,6 +18,8 @@ const TAB_HISTORY  = 4;
 
 const RECONNECT_AFTER = 5000;
 
+const WIDGET_TOGGLE = "widget_toggle_active"
+
 class Room {
     constructor() {
         let video0 = getById("video0");
@@ -35,7 +37,7 @@ class Room {
         this.playlist = new Playlist();
         this.chat     = new Chat();
 
-        this.inputArea = {
+        this.entryArea = {
             root:          getById("entry_area"),
 
             urlInput:      getById("entry_url_input"),
@@ -123,10 +125,10 @@ class Room {
         this.selected_tab     = this.rightPanel.tabs.room;
         this.selected_content = this.rightPanel.content.room;
 
-        this.youtubeSearchEnabled = false;
-        this.asPlaylistEnabled    = false;
-        this.addToTopEnabled      = false;
-        this.proxyEnabled         = false;
+        // this.youtubeSearchEnabled = false;
+        // this.asPlaylistEnabled    = false;
+        // this.addToTopEnabled      = false;
+        // this.proxyEnabled         = false;
 
         this.roomSelectedSubId = -1;
 
@@ -362,7 +364,7 @@ class Room {
     }
 
     resetInputAreaElements() {
-        const input = this.inputArea;
+        const input = this.entryArea;
 
         input.urlInput.value = "";
         input.titleInput.value = "";
@@ -372,41 +374,34 @@ class Room {
 
         this.subtitleFile = null;
 
-        this.youtubeSearchEnabled = false;
-        input.youtubeSearchToggle.classList.remove("toggle_active");
-
-        this.asPlaylistEnabled = false;
-        input.asPlaylistToggle.classList.remove("toggle_active");
-
-        this.addToTopEnabled = false;
-        input.addToTopToggle.classList.remove("toggle_active");
-
-        this.proxyEnabled = false;
-        input.proxyToggle.classList.remove("toggle_active");
+        input.youtubeSearchToggle.classList.remove(WIDGET_TOGGLE);
+        input.asPlaylistToggle.classList.remove(WIDGET_TOGGLE);
+        input.addToTopToggle.classList.remove(WIDGET_TOGGLE);
+        input.proxyToggle.classList.remove(WIDGET_TOGGLE);
     }
 
     async createNewRequestEntry() {
         let subtitles = [];
         if (this.subtitleFile) {
-            let filename = this.inputArea.subtitleInput.value;
+            let filename = this.entryArea.subtitleInput.value;
             let sub = await api.subtitleUpload(this.subtitleFile, filename);
             subtitles.push(sub);
         }
 
-        let countString = this.inputArea.ytCountInput.value.trim();
+        let countString = this.entryArea.ytCountInput.value.trim();
         let count = Number(countString)
         if (!count || count <= 0) {
             count = 20
         }
 
         const requestEntry = {
-            url:          this.inputArea.urlInput.value.trim(),
-            title:        this.inputArea.titleInput.value.trim(),
-            use_proxy:    this.proxyEnabled,
-            referer_url:  this.inputArea.refererInput.value.trim(),
-            search_video: this.youtubeSearchEnabled,
-            is_playlist:  this.asPlaylistEnabled,
-            add_to_top:   this.addToTopEnabled,
+            url:          this.entryArea.urlInput.value.trim(),
+            title:        this.entryArea.titleInput.value.trim(),
+            referer_url:  this.entryArea.refererInput.value.trim(),
+            use_proxy:    this.entryArea.proxyToggle.classList.contains(WIDGET_TOGGLE),
+            search_video: this.entryArea.youtubeSearchToggle.classList.contains(WIDGET_TOGGLE),
+            is_playlist:  this.entryArea.asPlaylistToggle.classList.contains(WIDGET_TOGGLE),
+            add_to_top:   this.entryArea.addToTopToggle.classList.contains(WIDGET_TOGGLE),
             subtitles:    subtitles,
             playlist_skip_count: 0,
             playlist_max_size:   count,
@@ -511,21 +506,19 @@ class Room {
                     return;
                 }
 
-                this.inputArea.urlInput.value = response.json;
+                this.entryArea.urlInput.value = response.json;
             });
         };
 
         this.roomContent.copyToInputButton.onclick = _ => {
-            this.inputArea.urlInput.value     = this.currentEntry.url;
-            this.inputArea.titleInput.value   = this.currentEntry.title;
-            this.inputArea.refererInput.value = this.currentEntry.referer_url;
+            this.entryArea.urlInput.value     = this.currentEntry.url;
+            this.entryArea.titleInput.value   = this.currentEntry.title;
+            this.entryArea.refererInput.value = this.currentEntry.referer_url;
 
             if (this.currentEntry.use_proxy) {
-                this.proxyEnabled = true;
-                this.inputArea.proxyToggle.classList.add("widget_toggle_active");
+                this.entryArea.proxyToggle.classList.add(WIDGET_TOGGLE);
             } else {
-                this.proxyEnabled = false;
-                this.inputArea.proxyToggle.classList.remove("widget_toggle_active");
+                this.entryArea.proxyToggle.classList.remove(WIDGET_TOGGLE);
             }
         };
 
@@ -602,15 +595,15 @@ class Room {
     }
 
     attachUrlAreaEvents() {
-        this.inputArea.dropdownButton.onclick = _ => {
-            this.inputArea.root.classList.toggle("entry_area_expand");
+        this.entryArea.dropdownButton.onclick = _ => {
+            this.entryArea.root.classList.toggle("entry_area_expand");
         }
 
-        this.inputArea.resetButton.onclick = _ => {
+        this.entryArea.resetButton.onclick = _ => {
             this.resetInputAreaElements();
         }
 
-        this.inputArea.setButton.onclick = async _ => {
+        this.entryArea.setButton.onclick = async _ => {
             let entry = await this.createNewRequestEntry();
             api.playerSet(entry).then(jsonResponse => {
                 if (jsonResponse.checkError()) {
@@ -622,7 +615,7 @@ class Room {
             });
         }
 
-        this.inputArea.addPlaylistButton.onclick = async _ => {
+        this.entryArea.addPlaylistButton.onclick = async _ => {
             let entry = await this.createNewRequestEntry();
             if (entry.url) {
                 api.playlistAdd(entry);
@@ -630,7 +623,7 @@ class Room {
             }
         }
 
-        this.inputArea.selectSubtitleButton.onclick = _ => {
+        this.entryArea.selectSubtitleButton.onclick = _ => {
             let input = document.createElement('input');
             input.type = "file";
             input.accept = ".srt,.vtt";
@@ -643,30 +636,15 @@ class Room {
 
                 console.log("File selected: ", files[0]);
                 this.subtitleFile = files[0];
-                this.inputArea.subtitleInput.value = this.subtitleFile.name;
+                this.entryArea.subtitleInput.value = this.subtitleFile.name;
             }
             input.click();
         }
 
-        this.inputArea.youtubeSearchToggle.onclick = _ => {
-            this.inputArea.youtubeSearchToggle.classList.toggle("widget_toggle_active");
-            this.youtubeSearchEnabled = !this.youtubeSearchEnabled;
-        }
-
-        this.inputArea.asPlaylistToggle.onclick = _ => {
-            this.inputArea.asPlaylistToggle.classList.toggle("widget_toggle_active");
-            this.asPlaylistEnabled = !this.asPlaylistEnabled;
-        }
-
-        this.inputArea.addToTopToggle.onclick = _ => {
-            this.inputArea.addToTopToggle.classList.toggle("widget_toggle_active");
-            this.addToTopEnabled = !this.addToTopEnabled;
-        }
-
-        this.inputArea.proxyToggle.onclick = _ => {
-            this.inputArea.proxyToggle.classList.toggle("widget_toggle_active");
-            this.proxyEnabled = !this.proxyEnabled;
-        }
+        this.entryArea.youtubeSearchToggle.onclick = _ => this.entryArea.youtubeSearchToggle.classList.toggle(WIDGET_TOGGLE);
+        this.entryArea.asPlaylistToggle.onclick    = _ => this.entryArea.asPlaylistToggle.classList.toggle(WIDGET_TOGGLE);
+        this.entryArea.addToTopToggle.onclick      = _ => this.entryArea.addToTopToggle.classList.toggle(WIDGET_TOGGLE);
+        this.entryArea.proxyToggle.onclick         = _ => this.entryArea.proxyToggle.classList.toggle(WIDGET_TOGGLE);
     }
 
     attachHtmlEvents() {
