@@ -37,9 +37,9 @@
                         </svg>
                     </button>
 
-                    <div class="widget_input" id="input_input_container">
-                        <span>Media URL:</span>
-                        <input type="url" id="input_input_box" placeholder="Enter video or audio URL here. Could be a YouTube link or any other media URL."/>
+                    <div class="widget_input" id="input_entry_url_container">
+                        <input type="url" id="input_entry_url_box" placeholder="" title="Enter video or audio URL here. Could be a YouTube link or any other media URL."/>
+                        <label>Entry URL</label>
                     </div>
 
                     <div id="input_right_buttons_container">
@@ -59,8 +59,8 @@
                 <div id="input_dropdown_container"> 
                     <div id="input_dropdown_top"> 
                         <div class="widget_input">
-                            <span>Media Title:</span>
-                            <input id="input_title_input" placeholder="Enter your custom media title."/>
+                            <input id="input_title_input" placeholder="" title="Enter your custom entry title."/>
+                            <label>Entry Title</label>
                         </div>
 
                         <button id="input_select_subtitle_button">
@@ -70,8 +70,8 @@
                         </button>
 
                         <div class="widget_input">
-                            <span>Subtitle name:</span>
-                            <input id="input_subtitle_name_input" placeholder="Uploaded subtitle name."/>
+                            <input id="input_subtitle_name_input" placeholder="" title="Uploaded subtitle name."/>
+                            <label>Subtitle name:</label>
                         </div>
                     </div>
 
@@ -91,8 +91,8 @@
                         </div>
 
                         <div class="widget_input" id="youtube_video_count_container">
-                            <span>Max video count:</span>
-                            <input type="text" id="youtube_video_count_input" placeholder="Maximum number of videos to add."/>
+                            <input type="text" id="youtube_video_count_input" placeholder="" title="Maximum number of videos to add to the playlist."/>
+                            <label>Max video count:</label>
                         </div>
                     </div>
 
@@ -112,8 +112,8 @@
                         </div>
 
                         <div class="widget_input" id="referer_container">
-                            <span>Media Referer:</span>
-                            <input type="url" id="input_dropdown_referer_input" placeholder="Enter media referer URL. This field is optional."/>
+                            <input type="url" id="input_dropdown_referer_input" placeholder="" title="Enter URL referer for the proxy. This field is optional."/>
+                            <label>Media Referer:</label>
                         </div>
                     </div>
                 </div>
@@ -169,16 +169,16 @@
 
             <div id="right_panel_content">
                 <div id="content_room" class="content_view">
-                    <div class="widget_input" id="room_now_playing"> 
-                        <span>Now playing:</span>
-                        <input readonly id="room_current_url_input" placeholder="Nothing is playing..."/>
+                    <div id="room_now_playing" class="widget_input"> 
+                        <input readonly id="room_current_url_input" placeholder=" " title="Currently playing video / audio"/>
+                        <label>Now playing</label>
                     </div>
 
                     <br/>
 
-                    <div id="room_entry_title"> 
-                        <span class="placeholder">Title:</span>
-                        <input id="room_title_input" placeholder="Title"/>
+                    <div id="room_entry_title" class="widget_input"> 
+                        <input placeholder=" " title="Change the currently set title"/>
+                        <label>Current Title</label>
                         <button id="room_title_update_button" type="button">Update</button>
                     </div>
 
@@ -260,9 +260,9 @@
                         <button id="room_token_copy_button" type="button">Copy to clipboard</button>
                     </div>
 
-                    <div id="room_token_update">
-                        <span class="placeholder">Set your token:</span>
-                        <input id="room_token_set_input"/>
+                    <div id="room_token_update" class="widget_input">
+                        <input id="room_token_set_input" placeholder="" title="Update your token to login to a different account."/>
+                        <label>Set your token</label>
                         <button id="room_token_set_button" type="button">Set</button>
                     </div>
 
@@ -377,8 +377,8 @@
                 </div>
                 <div id="content_chat" class="content_view">
                     <div class="widget_input" id="chat_input_container">
-                        <span>Message:</span>
-                        <input id="chat_input_box" placeholder="Send a message."/>
+                        <input id="chat_input_box" placeholder="" title="Send a chat message."/>
+                        <label>Chat Message</label>
                         <button id="chat_send_button">Send</button>
                     </div>
                     <div id="chat_text_content">

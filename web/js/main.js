@@ -37,7 +37,7 @@ class Room {
 
         this.inputArea = {
             root:          getById("input_area"),
-            urlInput:      getById("input_input_box"),
+            urlInput:      getById("input_entry_url_box"),
             titleInput:    getById("input_title_input"),
             refererInput:  getById("input_dropdown_referer_input"),
             subtitleInput: getById("input_subtitle_name_input"),

@@ -104,12 +104,12 @@ html * {
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    box-shadow: 2px 2px 4px 0px var(--bg_0);
 }
 
 #input_area {
     width: 100%;
     height: auto;
-    border: 2px solid var(--fg_6);
     border-radius: 6px;
     box-sizing: border-box;
     display: flex;
@@ -117,6 +117,7 @@ html * {
     flex-direction: column;
     background-color: var(--bg_3);
     padding: 6px;
+    box-shadow: 2px 2px 4px 0px var(--bg_0);
 }
 
 #input_controls_container {
@@ -198,7 +199,7 @@ html * {
     box-sizing: border-box;
 }
 
-#input_input_container {
+#input_entry_url_container {
     width: 100%;
     height: 100%;
     margin-left: 6px;
@@ -210,30 +211,75 @@ html * {
     height: 100%;
     display: flex;
     z-index: 2;
-}
-
-.widget_input span {
-    border-radius: 6px 0px 0px 6px;
-    display: flex;
-    box-sizing: border-box;
-    white-space: nowrap;
-    padding:  0 16px 0 16px;
-    background-color: var(--fg_3);
+    position: relative;
     align-items: center;
 }
 
 .widget_input input {
     width: 100%;
     height: 100%;
-    border: none;
-    border-radius: 0px 6px 6px 0px;
+    padding: 16px;
+    font-size: 14px;
+    border-radius: 8px;
+    border: 2px solid var(--fg_6);
     box-sizing: border-box;
-    padding:  0 16px 0 16px;
-    background-color: var(--fg_1);
+    background-color: var(--bg_2);
+    color: var(--fg_1);
+    transition: all 0.2s ease;
+}
+
+.widget_input input:hover {
+    border: 2px solid var(--fg_4);
+    background-color: var(--bg_3);
 }
 
 .widget_input input:focus {
-    outline: 2px solid var(--gray_2);
+    outline: none;
+    border-color: var(--blue_2);
+    background-color: var(--bg_3);
+    box-shadow: 0 0 0 2px var(--blue_1);
+}
+
+.widget_input input:not(:placeholder-shown) {
+    background-color: var(--bg_3);
+}
+
+.widget_input label {
+    left: 16px;
+    top: 50%;
+    font-size: 14px;
+    padding: 0 4px;
+    position: absolute;
+    pointer-events: none;
+    background-color: var(--bg_2);
+    color: var(--fg_4);
+    transform: translateY(-50%);
+    transition: all 0.2s ease;
+}
+
+.widget_input input:hover + label {
+    background-color: var(--bg_3);
+    color: var(--fg_3);
+}
+
+.widget_input input:focus + label {
+    background-color: var(--bg_3);
+}
+
+.widget_input input:focus + label,
+.widget_input input:not(:placeholder-shown) + label {
+    top: 0;
+    transform: translateY(-50%) scale(0.90);
+    font-weight: bold;
+    background-color: var(--bg_3);
+}
+
+.widget_input input:not(:placeholder-shown) + label {
+    color: var(--fg_6);
+}
+
+.widget_input input:focus + label {
+    color: var(--blue_2);
 }
 
 #input_right_buttons_container {
@@ -333,7 +379,7 @@ html * {
 }
 
 #input_dropdown_top {
-    height: 33.333%;
+    height: 30%;
     width: 100%;
     column-gap: 6px;
     display: flex;
@@ -375,13 +421,13 @@ html * {
 }
 
 #input_dropdown_middle {
-    height: 33.333%;
+    height: 30%;
     display: flex;
     column-gap: 8px;
 }
 
 #input_dropdown_bottom {
-    height: 33.333%;
+    height: 30%;
     width: 100%;
     display: flex;
     box-sizing: border-box;
@@ -771,6 +817,10 @@ html * {
 }
 
 #room_entry_title {
+    height: 30px;
+}
+
+#room_token_update {
     height: 30px;
 }
 
