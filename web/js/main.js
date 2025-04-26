@@ -582,15 +582,19 @@ class Room {
                 return;
             }
 
+            let currToken = api.getToken();
+            if (newToken === currToken) {
+                console.warn("WARN: Provided token is the same as currently set token.");
+                return;
+            }
+
             let result = await api.userVerify(newToken);
             if (!result.ok) {
                 console.warn("WARN: User with provided token does not exist.");
                 return;
             }
 
-            let currToken = api.getToken();
             await api.userDelete(currToken);
-
             Storage.set("token", newToken);
             window.location.reload();
         };
