@@ -1,9 +1,9 @@
-import {Options, Player} from "./custom_player.js"
-import {Playlist} from "./playlist.js"
-import {Chat} from "./chat.js"
-import {sha256} from "./auth.js"
+import { Options, Player } from "./custom_player.js"
+import { Playlist } from "./playlist.js"
+import { Chat } from "./chat.js"
+import { sha256 } from "./auth.js"
 import * as api from "./api.js";
-import {button, div, formatTime, getById, hide, img, show, Storage, svg} from "./util.js";
+import { Storage, button, div, formatTime, getById, hide, img, show, svg } from "./util.js";
 
 const SERVER_ID = 0;
 const MAX_TITLE_LENGTH = 200;
@@ -34,7 +34,6 @@ class Room {
         this.player   = new Player(video0, options);
         this.playlist = new Playlist();
         this.chat     = new Chat();
-
 
         this.settingsMenuModal       = getById("settings_menu_modal");
         this.settingsMenuCloseButton = getById("settings_menu_close_button");
@@ -127,11 +126,6 @@ class Room {
 
         this.selected_tab     = this.rightPanel.tabs.room;
         this.selected_content = this.rightPanel.content.room;
-
-        // this.youtubeSearchEnabled = false;
-        // this.asPlaylistEnabled    = false;
-        // this.addToTopEnabled      = false;
-        // this.proxyEnabled         = false;
 
         this.roomSelectedSubId = -1;
 
@@ -367,20 +361,20 @@ class Room {
     }
 
     resetInputAreaElements() {
-        const input = this.entryArea;
+        const entry = this.entryArea;
 
-        input.urlInput.value = "";
-        input.titleInput.value = "";
-        input.refererInput.value = "";
-        input.subtitleInput.value = "";
-        input.ytCountInput.value = "";
+        entry.urlInput.value = "";
+        entry.titleInput.value = "";
+        entry.refererInput.value = "";
+        entry.subtitleInput.value = "";
+        entry.ytCountInput.value = "";
 
         this.subtitleFile = null;
 
-        input.youtubeSearchToggle.classList.remove("active");
-        input.asPlaylistToggle.classList.remove("active");
-        input.addToTopToggle.classList.remove("active");
-        input.proxyToggle.classList.remove("active");
+        entry.youtubeSearchToggle.classList.remove("active");
+        entry.asPlaylistToggle.classList.remove("active");
+        entry.addToTopToggle.classList.remove("active");
+        entry.proxyToggle.classList.remove("active");
     }
 
     async createNewRequestEntry() {

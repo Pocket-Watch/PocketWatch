@@ -535,12 +535,12 @@ html * {
     transition: 250ms ease-out;
 }
 
-.widget_toggle.active .widget_toggle_circle {
+.widget_toggle_root.active .widget_toggle_circle {
     left: calc(100% - 4px);
     transform: translateX(-100%);
 }
 
-.widget_toggle.active .widget_toggle_switch {
+.widget_toggle_root.active .widget_toggle_switch {
     background-color: var(--green_1);
     border-color: var(--green_1);
 }
