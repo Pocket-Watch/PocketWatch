@@ -71,6 +71,8 @@ class Room {
 
             onlineCount:  getById("users_online_count"),
             offlineCount: getById("users_offline_count"),
+
+            settingsButton: getById("users_settings_button"),
         };
 
         this.rightPanel = {
@@ -158,6 +160,14 @@ class Room {
 
         this.currentEntry = {};
     }
+
+    showSettingsMenu(settingsTab) {
+        this.settingsMenu.modal.classList.add("show");
+        this.settingsMenu.root.focus();
+    }
+
+    hideSettingsMenu() {
+        this.settingsMenu.modal.classList.remove("show"); }
 
     configureHlsRequests(xhr, url) {
         /*if (proxying) {
@@ -565,10 +575,7 @@ class Room {
             api.subtitleDelete(subtitle.id)
         };
 
-        this.roomContent.openSettingsButton.onclick = _ => {
-            this.settingsMenu.modal.classList.add("show");
-            this.settingsMenu.root.focus();
-        };
+        this.roomContent.openSettingsButton.onclick = _ => this.showSettingsMenu();
 
         this.roomContent.tokenCopyButton.onclick = _ => {
             navigator.clipboard.writeText(api.getToken());
@@ -654,29 +661,23 @@ class Room {
 
     attachSettingsMenuEvents() {
         const menu = this.settingsMenu;
-        menu.modal.onclick = _ => { 
-            menu.modal.classList.remove("show");
-        };
-
-        menu.root.onclick = event => { 
-            event.stopPropagation();
-        };
+        menu.modal.onclick = _ => this.hideSettingsMenu();
+        menu.root.onclick  = event => event.stopPropagation();
 
         menu.root.onkeydown = event => { 
             if (event.key === "Escape") {
-                menu.modal.classList.remove("show");
+                this.hideSettingsMenu();
             }
         };
 
-        menu.closeButton.onclick = _ => { 
-            menu.modal.classList.remove("show");
-        };
+        menu.closeButton.onclick = _ => this.hideSettingsMenu();
     }
 
     attachHtmlEvents() {
         this.playlist.attachPlaylistEvents();
         this.attachSettingsMenuEvents();
         this.attachUrlAreaEvents();
+        this.usersArea.settingsButton.onclick = _ => this.showSettingsMenu();
         this.attachRightPanelEvents();
     }
 
