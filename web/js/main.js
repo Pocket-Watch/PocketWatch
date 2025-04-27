@@ -35,8 +35,11 @@ class Room {
         this.playlist = new Playlist();
         this.chat     = new Chat();
 
-        this.settingsMenuModal       = getById("settings_menu_modal");
-        this.settingsMenuCloseButton = getById("settings_menu_close_button");
+        this.settingsMenu = {
+            modal:       getById("settings_menu_modal"),
+            root:        getById("settings_menu_root"),
+            closeButton: getById("settings_menu_close_button"),
+        };
 
         this.connectionLostPopup = getById("connection_lost_popup");
 
@@ -563,7 +566,8 @@ class Room {
         };
 
         this.roomContent.openSettingsButton.onclick = _ => {
-            this.settingsMenuModal.classList.add("show");
+            this.settingsMenu.modal.classList.add("show");
+            this.settingsMenu.root.focus();
         };
 
         this.roomContent.tokenCopyButton.onclick = _ => {
@@ -648,12 +652,30 @@ class Room {
         this.entryArea.proxyToggle.onclick         = _ => this.entryArea.proxyToggle.classList.toggle("active");
     }
 
-    attachHtmlEvents() {
-        this.settingsMenuCloseButton.onclick = _ => { 
-            this.settingsMenuModal.classList.remove("show");
+    attachSettingsMenuEvents() {
+        const menu = this.settingsMenu;
+        menu.modal.onclick = _ => { 
+            menu.modal.classList.remove("show");
         };
 
+        menu.root.onclick = event => { 
+            event.stopPropagation();
+        };
+
+        menu.root.onkeydown = event => { 
+            if (event.key === "Escape") {
+                menu.modal.classList.remove("show");
+            }
+        };
+
+        menu.closeButton.onclick = _ => { 
+            menu.modal.classList.remove("show");
+        };
+    }
+
+    attachHtmlEvents() {
         this.playlist.attachPlaylistEvents();
+        this.attachSettingsMenuEvents();
         this.attachUrlAreaEvents();
         this.attachRightPanelEvents();
     }
