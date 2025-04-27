@@ -167,7 +167,8 @@ class Room {
     }
 
     hideSettingsMenu() {
-        this.settingsMenu.modal.classList.remove("show"); }
+        this.settingsMenu.modal.classList.remove("show"); 
+    }
 
     configureHlsRequests(xhr, url) {
         /*if (proxying) {
@@ -1413,6 +1414,7 @@ class Room {
 async function main() {
     let room = new Room();
     room.attachPlayerEvents();
+    room.playlist.onSettingsClick = _ => room.showSettingsMenu();
     room.attachHtmlEvents();
     await room.connectToServer();
     room.applyUserPreferences();

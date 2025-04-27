@@ -84,6 +84,10 @@ class Playlist {
         hide(this.contextMenu);
     }
 
+    // NOTE(kihau): Attachable playlist events (similar to the custom player)
+    onSettingsClick() {}
+    onPlaylistEntryPlay() {}
+
     setAutoplay(enabled) {
         if (enabled) {
             this.controlsAutoplayButton.classList.add("active");
@@ -125,7 +129,7 @@ class Playlist {
 
         this.controlsShuffleButton.onclick  = _ => api.playlistShuffle();
         this.controlsClearButton.onclick    = _ => api.playlistClear();
-        this.controlsSettingsButton.onclick = _ => console.debug("TODO: settings button");
+        this.controlsSettingsButton.onclick = _ => this.onSettingsClick();
 
         document.addEventListener("click", _ => this.hideContextMenu());
 
