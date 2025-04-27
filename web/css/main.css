@@ -71,6 +71,58 @@ html * {
     --aqua_custom_2: #9dd389;
 }
 
+#settings_menu_modal {
+    height: 100%;
+    width: 100%;
+    position: fixed;
+    z-index: 9999;
+    background-color: #00000077;
+    align-items: center;
+    justify-content: center;
+    display: none;
+}
+
+#settings_menu_modal.show {
+    display: flex;
+}
+
+#settings_menu_root {
+    width: 50%;
+    height: 70%;
+    background-color: var(--bg_2);
+    border-radius: 12px;
+    border: 1px solid var(--bg_4);
+    padding: 16px;
+}
+
+#connection_lost_popup {
+    width: 99%;
+    height: 16px;
+    position: fixed;
+    z-index: 999;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: 6px 6px 0 0;
+    background-color: var(--red_2);
+    color: var(--bg_0);
+    font-size: 14px;
+    font-weight: bold;
+    justify-content: center;
+    text-align: center;
+    display: none;
+}
+
+#connection_lost_popup.show {
+    display: block
+}
+
+#connection_lost_emote {
+    font-size: 11px;
+}
+
 #root_panel {
     height: 100vh;
     column-gap: 6px;
@@ -483,12 +535,12 @@ html * {
     transition: 250ms ease-out;
 }
 
-.widget_toggle_active .widget_toggle_circle {
+.widget_toggle.active .widget_toggle_circle {
     left: calc(100% - 4px);
     transform: translateX(-100%);
 }
 
-.widget_toggle_active .widget_toggle_switch {
+.widget_toggle.active .widget_toggle_switch {
     background-color: var(--green_1);
     border-color: var(--green_1);
 }
@@ -834,34 +886,6 @@ html * {
 
 .placeholder {
     color: var(--fg_4);
-}
-
-#connection_lost_popup {
-    width: 99%;
-    height: 16px;
-    position: fixed;
-    z-index: 999;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    margin-left: auto;
-    margin-right: auto;
-    border-radius: 6px 6px 0 0;
-    background-color: var(--red_2);
-    color: var(--bg_0);
-    font-size: 14px;
-    font-weight: bold;
-    justify-content: center;
-    text-align: center;
-    display: none;
-}
-
-#connection_lost_popup.show {
-    display: block
-}
-
-#connection_lost_emote {
-    font-size: 11px;
 }
 
 @keyframes sway {

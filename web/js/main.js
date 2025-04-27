@@ -18,8 +18,6 @@ const TAB_HISTORY  = 4;
 
 const RECONNECT_AFTER = 5000;
 
-const WIDGET_TOGGLE = "widget_toggle_active"
-
 class Room {
     constructor() {
         let video0 = getById("video0");
@@ -36,6 +34,12 @@ class Room {
         this.player   = new Player(video0, options);
         this.playlist = new Playlist();
         this.chat     = new Chat();
+
+
+        this.settingsMenuModal       = getById("settings_menu_modal");
+        this.settingsMenuCloseButton = getById("settings_menu_close_button");
+
+        this.connectionLostPopup = getById("connection_lost_popup");
 
         this.entryArea = {
             root:          getById("entry_area"),
@@ -92,13 +96,14 @@ class Room {
             uploadFileInput: getById("room_upload_file_input"),
             subsEditInput:   getById("room_subtitle_edit_input"),
 
-            titleUpdateButton: getById("room_title_update_button"),
-            uploadSubButton:   getById("room_upload_subtitle_button"),
-            uploadFileButton:  getById("room_upload_file_button"),
-            copyToInputButton: getById("room_copy_to_input_button"),
-            setShiftButton:    getById("room_set_shift_button"),
-            subsUpdateButton:  getById("room_subtitle_update_button"),
-            subsDeleteButton:  getById("room_subtitle_delete_button"),
+            titleUpdateButton:  getById("room_title_update_button"),
+            uploadSubButton:    getById("room_upload_subtitle_button"),
+            uploadFileButton:   getById("room_upload_file_button"),
+            copyToInputButton:  getById("room_copy_to_input_button"),
+            setShiftButton:     getById("room_set_shift_button"),
+            subsUpdateButton:   getById("room_subtitle_update_button"),
+            subsDeleteButton:   getById("room_subtitle_delete_button"),
+            openSettingsButton: getById("room_open_settings_button"),
 
             usingProxyCheckbox: getById("room_using_proxy_checkbox"),
             uploadFileProgress: getById("room_upload_file_progress"),
@@ -114,8 +119,6 @@ class Room {
             tokenSetButton:    getById("room_token_set_button"),
             tokenSetInput:     getById("room_token_set_input"),
         };
-
-        this.connectionLostPopup = getById("connection_lost_popup");
 
         this.chatNewMessage = getById("tab_chat_new_message_indicator");
         hide(this.chatNewMessage);
@@ -374,10 +377,10 @@ class Room {
 
         this.subtitleFile = null;
 
-        input.youtubeSearchToggle.classList.remove(WIDGET_TOGGLE);
-        input.asPlaylistToggle.classList.remove(WIDGET_TOGGLE);
-        input.addToTopToggle.classList.remove(WIDGET_TOGGLE);
-        input.proxyToggle.classList.remove(WIDGET_TOGGLE);
+        input.youtubeSearchToggle.classList.remove("active");
+        input.asPlaylistToggle.classList.remove("active");
+        input.addToTopToggle.classList.remove("active");
+        input.proxyToggle.classList.remove("active");
     }
 
     async createNewRequestEntry() {
@@ -398,10 +401,10 @@ class Room {
             url:          this.entryArea.urlInput.value.trim(),
             title:        this.entryArea.titleInput.value.trim(),
             referer_url:  this.entryArea.refererInput.value.trim(),
-            use_proxy:    this.entryArea.proxyToggle.classList.contains(WIDGET_TOGGLE),
-            search_video: this.entryArea.youtubeSearchToggle.classList.contains(WIDGET_TOGGLE),
-            is_playlist:  this.entryArea.asPlaylistToggle.classList.contains(WIDGET_TOGGLE),
-            add_to_top:   this.entryArea.addToTopToggle.classList.contains(WIDGET_TOGGLE),
+            use_proxy:    this.entryArea.proxyToggle.classList.contains("active"),
+            search_video: this.entryArea.youtubeSearchToggle.classList.contains("active"),
+            is_playlist:  this.entryArea.asPlaylistToggle.classList.contains("active"),
+            add_to_top:   this.entryArea.addToTopToggle.classList.contains("active"),
             subtitles:    subtitles,
             playlist_skip_count: 0,
             playlist_max_size:   count,
@@ -516,9 +519,9 @@ class Room {
             this.entryArea.refererInput.value = this.currentEntry.referer_url;
 
             if (this.currentEntry.use_proxy) {
-                this.entryArea.proxyToggle.classList.add(WIDGET_TOGGLE);
+                this.entryArea.proxyToggle.classList.add("active");
             } else {
-                this.entryArea.proxyToggle.classList.remove(WIDGET_TOGGLE);
+                this.entryArea.proxyToggle.classList.remove("active");
             }
         };
 
@@ -563,6 +566,10 @@ class Room {
             }
 
             api.subtitleDelete(subtitle.id)
+        };
+
+        this.roomContent.openSettingsButton.onclick = _ => {
+            this.settingsMenuModal.classList.add("show");
         };
 
         this.roomContent.tokenCopyButton.onclick = _ => {
@@ -641,13 +648,17 @@ class Room {
             input.click();
         }
 
-        this.entryArea.youtubeSearchToggle.onclick = _ => this.entryArea.youtubeSearchToggle.classList.toggle(WIDGET_TOGGLE);
-        this.entryArea.asPlaylistToggle.onclick    = _ => this.entryArea.asPlaylistToggle.classList.toggle(WIDGET_TOGGLE);
-        this.entryArea.addToTopToggle.onclick      = _ => this.entryArea.addToTopToggle.classList.toggle(WIDGET_TOGGLE);
-        this.entryArea.proxyToggle.onclick         = _ => this.entryArea.proxyToggle.classList.toggle(WIDGET_TOGGLE);
+        this.entryArea.youtubeSearchToggle.onclick = _ => this.entryArea.youtubeSearchToggle.classList.toggle("active");
+        this.entryArea.asPlaylistToggle.onclick    = _ => this.entryArea.asPlaylistToggle.classList.toggle("active");
+        this.entryArea.addToTopToggle.onclick      = _ => this.entryArea.addToTopToggle.classList.toggle("active");
+        this.entryArea.proxyToggle.onclick         = _ => this.entryArea.proxyToggle.classList.toggle("active");
     }
 
     attachHtmlEvents() {
+        this.settingsMenuCloseButton.onclick = _ => { 
+            this.settingsMenuModal.classList.remove("show");
+        };
+
         this.playlist.attachPlaylistEvents();
         this.attachUrlAreaEvents();
         this.attachRightPanelEvents();

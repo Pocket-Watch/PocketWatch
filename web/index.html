@@ -1,387 +1,393 @@
 <!DOCTYPE html>
 <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Pocket Watch</title>
+        <link rel="stylesheet" href="css/reset.css">
+        <link rel="stylesheet" href="css/player.css">
+        <link rel="stylesheet" href="css/main.css">
+        <link rel="stylesheet" href="css/playlist.css">
+        <link rel="stylesheet" href="css/chat.css">
+    </head>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pocket Watch</title>
-    <link rel="stylesheet" href="css/reset.css">
-    <link rel="stylesheet" href="css/player.css">
-    <link rel="stylesheet" href="css/main.css">
-    <link rel="stylesheet" href="css/playlist.css">
-    <link rel="stylesheet" href="css/chat.css">
-</head>
-
-<body>
-    <div id="connection_lost_popup">
-        <span id="connection_lost_emote">⚠️</span> 
-        <span id="connection_lost_text">Connection to the server was lost. Trying to reconnect...</span>
-    </div>
-
-    <div id="root_panel">
-        <div id="left_panel">
-            <div id="player_area">
-                <video id="video0"></video>
-            </div>
-
-            <div id="entry_area">
-                <div id="entry_controls_container"> 
-                    <button id="entry_dropdown_button" title="Show more options">
-                        <svg><use href="svg/main_icons.svg#dropdown"/></svg>
-                    </button>
-                    <button id="entry_reset_button" title="Reset all fields">
-                        <svg><use href="svg/main_icons.svg#delete"/></svg>
-                    </button>
-
-                    <div class="widget_input" id="entry_entry_url_container">
-                        <input type="url" id="entry_url_input" placeholder="" title="Enter video or audio URL here. Could be a YouTube link or any other media URL."/>
-                        <label>Entry URL</label>
-                    </div>
-
-                    <div id="entry_right_buttons_container">
-                        <button id="entry_set_button" title="Play Now">
-                            <svg><use href="svg/main_icons.svg#play"/></svg>
-                        </button>
-                        <button id="entry_add_playlist_button" title="Add to playlist">
-                            <svg><use href="svg/main_icons.svg#playlist"/></svg>
-                        </button>
-                    </div>
-                </div>
-
-                <div id="entry_dropdown_container"> 
-                    <div id="entry_dropdown_top"> 
-                        <div class="widget_input">
-                            <input id="entry_title_input" placeholder="" title="Enter your custom entry title."/>
-                            <label>Entry Title</label>
-                        </div>
-
-                        <button id="entry_select_subtitle_button">
-                            <svg><use href="svg/main_icons.svg#upload"/></svg>
-                        </button>
-
-                        <div class="widget_input">
-                            <input id="entry_subtitle_name_input" placeholder="" title="Uploaded subtitle name."/>
-                            <label>Subtitle name</label>
-                        </div>
-                    </div>
-
-                    <div id="entry_dropdown_middle"> 
-                        <div id="entry_youtube_search_toggle" class="widget_toggle_root">
-                            <div class="widget_toggle_switch">
-                                <div class="widget_toggle_circle"></div>
-                            </div>
-                            <span class="widget_toggle_text">Search for Video</span>
-                        </div>
-
-                        <div id="entry_as_playlist_toggle" class="widget_toggle_root">
-                            <div class="widget_toggle_switch">
-                                <div class="widget_toggle_circle"></div>
-                            </div>
-                            <span class="widget_toggle_text">Add as Playlist</span>
-                        </div>
-
-                        <div class="widget_input" id="youtube_video_count_container">
-                            <input type="text" id="youtube_video_count_input" placeholder="" title="Maximum number of videos to add to the playlist."/>
-                            <label>Max video count</label>
-                        </div>
-                    </div>
-
-                    <div id="entry_dropdown_bottom"> 
-                        <div id="entry_add_to_top_toggle" class="widget_toggle_root">
-                            <div class="widget_toggle_switch">
-                                <div class="widget_toggle_circle"></div>
-                            </div>
-                            <span class="widget_toggle_text">Add to playlist top</span>
-                        </div>
-
-                        <div id="entry_proxy_toggle" class="widget_toggle_root">
-                            <div class="widget_toggle_switch">
-                                <div class="widget_toggle_circle"></div>
-                            </div>
-                            <span class="widget_toggle_text">Create Proxy</span>
-                        </div>
-
-                        <div class="widget_input" id="referer_container">
-                            <input type="url" id="entry_dropdown_referer_input" placeholder="" title="Enter URL referer for the proxy. This field is optional."/>
-                            <label>Media Referer</label>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="users_area">
-                <div id="users_list">
-                    <!-- NOTE(kihau): Content of this list is dynamically generated in JavaScript -->
-                </div>
-                <div id="users_right_panel">
-                    <div id="users_online" class="users_indicator" title="Number users online.">
-                        <svg>
-                            <use href="svg/main_icons.svg#user"/>
-                        </svg>
-                        <span id="users_online_count">0</span>
-                    </div>
-
-                    <div id="users_offline" class="users_indicator" title="Number users offline.">
-                        <svg>
-                            <use href="svg/main_icons.svg#user"/>
-                        </svg>
-                        <span id="users_offline_count">0</span>
-                    </div>
-                    <button id="users_settings_button" title="This button will open your user profile menu, but for now it does nothing.">
-                        <svg>
-                            <use href="svg/main_icons.svg#settings"/>
-                        </svg>
-                    </button>
-                </div>
+    <body>
+        <div id="settings_menu_modal">
+            <div id="settings_menu_root">
+                <button id="settings_menu_close_button">Close</button>
             </div>
         </div>
 
-        <div id="right_panel">
-            <div id="right_panel_tabs">
-                <div id="tab_room" class="right_panel_tab">
-                    <svg><use href="svg/main_icons.svg#tv"/></svg>
-                    <span>Room</span>
+        <div id="connection_lost_popup">
+            <span id="connection_lost_emote">⚠️</span> 
+            <span id="connection_lost_text">Connection to the server was lost. Trying to reconnect...</span>
+        </div>
+
+        <div id="root_panel">
+            <div id="left_panel">
+                <div id="player_area">
+                    <video id="video0"></video>
                 </div>
-                <div id="tab_playlist" class="right_panel_tab">
-                    <svg><use href="svg/main_icons.svg#playlist2"/></svg>
-                    <span>Playlist</span>
-                </div>
-                <div id="tab_chat" class="right_panel_tab">
-                    <svg><use href="svg/main_icons.svg#chat"/></svg>
-                    <span>Chat</span>
-                    <div id="tab_chat_new_message_indicator"></div>
-                </div>
-                <div id="tab_history" class="right_panel_tab">
-                    <svg><use href="svg/main_icons.svg#history"/></svg>
-                    <span>History</span>
-                </div>
-            </div>
 
-            <div id="right_panel_content">
-                <div id="content_room" class="content_view">
-                    <div id="room_now_playing" class="widget_input"> 
-                        <input readonly id="room_current_url_input" placeholder=" " title="Currently playing video / audio"/>
-                        <label>Now playing</label>
-                    </div>
-
-                    <br/>
-
-                    <div id="room_entry_title" class="widget_input"> 
-                        <input id="room_entry_title_input" placeholder=" " title="Change the currently set title"/>
-                        <label>Current Title</label>
-                        <button id="room_title_update_button" type="button">Update</button>
-                    </div>
-
-                    <br/>
-
-                    <div>
-                        <select id="room_subtitles_select"></select>
-                        <button id="room_subtitle_delete_button">Delete</button>
-                    </div>
-
-                    <div>
-                        <input id="room_subtitle_edit_input"/>
-                        <button id="room_subtitle_update_button">Update</button>
-                    </div>
-
-                    <div id="room_set_shift"> 
-                        <span class="placeholder">Set shift for everyone:</span>
-                        <button id="room_set_shift_button" type="button">Set Shift</button>
-                    </div>
-
-                    <div id="room_upload_subtitle"> 
-                        <span class="placeholder">Upload subtitle for everyone:</span>
-                        <input type="file" id="room_upload_subtitle_input" accept=".srt,.vtt" style="display:none"/>
-                        <button id="room_upload_subtitle_button" type="button">Upload</button>
-                    </div>
-
-                    <br/>
-
-                    <label class="placeholder">
-                        <span>Using proxy:</span>
-                        <input readonly type="checkbox" id="room_using_proxy_checkbox"/>
-                    </label>
-
-                    <div id="room_entry_referer"> 
-                        <span class="placeholder">Proxy referer:</span>
-                        <input readonly id="room_referer_input" placeholder="Referer"/>
-                    </div>
-
-                    <br/>
-
-                    <div id="room_created_by"> 
-                        <span class="placeholder">Created by:</span>
-                        <span id="room_created_by_username" class="placeholder"></span>
-                    </div>
-
-                    <div>
-                        <span class="placeholder">Current resolution:</span>
-                        <span id="room_video_resolution" class="placeholder"></span>
-                    </div>
-
-                    <div id="room_last_action"> 
-                        <span class="placeholder">Last action:</span>
-                        <span id="room_last_action_text" class="placeholder"></span>
-                    </div>
-
-                    <br/>
-
-                    <div>
-                        <span class="placeholder">Upload file:</span>
-                        <input type="file" id="room_upload_file_input" style="display:none"/>
-                        <progress id="room_upload_file_progress" value="0" max="100"></progress>
-                        <button id="room_upload_file_button">Upload</button>
-                    </div>
-
-                    <div id="room_browser_media"> 
-                        <span class="placeholder">Browse media files:</span>
-                        <a href="/watch/media">Browse</a>
-                    </div>
-
-                    <div id="room_copy_to_input"> 
-                        <span class="placeholder">Copy to input area:</span>
-                        <button id="room_copy_to_input_button" type="button">Copy</button>
-                    </div>
-
-                    <br/>
-
-                    <div>
-                        <span class="placeholder">Get your token:</span>
-                        <button id="room_token_copy_button" type="button">Copy to clipboard</button>
-                    </div>
-
-                    <div id="room_token_update" class="widget_input">
-                        <input id="room_token_set_input" placeholder="" title="Update your token to login to a different account."/>
-                        <label>Set your token</label>
-                        <button id="room_token_set_button" type="button">Set</button>
-                    </div>
-
-                    <br/>
-
-                    <div> 
-                        <span class="placeholder">Website uptime:</span>
-                        <span id="room_website_uptime" class="placeholder"></span>
-                    </div>
-
-                    <div> 
-                        <span class="placeholder">Website version:</span>
-                        <span id="room_website_version" class="placeholder"></span>
-                    </div>
-
-                    <div id="room_created_at">
-                        <span class="placeholder">Created at:</span>
-                        <span id="room_created_at_date" class="placeholder"></span>
-                    </div>
-
-                    <br/>
-
-                    <span class="placeholder">Add more info items here...</span>
-                    <img class="construction_anim" src="img/under_construction.png">
-                </div>
-                <div id="content_playlist" class="content_view">
-                    <div id="playlist_controls_root">
-                        <button id="playlist_controls_next" class="playlist_controls_button" title="Play next track from the playlist">
-                            <svg><use href="svg/main_icons.svg#next"/></svg>
+                <div id="entry_area">
+                    <div id="entry_controls_container"> 
+                        <button id="entry_dropdown_button" title="Show more options">
+                            <svg><use href="svg/main_icons.svg#dropdown"/></svg>
                         </button>
-
-                        <button id="playlist_controls_looping" class="playlist_controls_button" title="Toggle playlist looping">
-                            <svg><use href="svg/main_icons.svg#loop"/></svg>
-                        </button>
-
-                        <button id="playlist_controls_autoplay" class="playlist_controls_button" title="Toggle playlist autoplay">
-                            <svg><use href="svg/main_icons.svg#autoplay"/></svg>
-                        </button>
-
-                        <div id="playlist_controls_search_root">
-                            <div id="playlist_controls_search_icon">
-                                <svg><use href="svg/main_icons.svg#search"/></svg>
-                            </div>
-                            <input id="playlist_controls_search_input" type="text" placeholder="Search for track."/>
-                        </div>
-
-                        <button id="playlist_controls_shuffle" class="playlist_controls_button" title="Shuffle the playlist">
-                            <svg><use href="svg/main_icons.svg#shuffle"/></svg>
-                        </button>
-
-                        <button id="playlist_controls_clear" class="playlist_controls_button" title="Clear the playlist">
+                        <button id="entry_reset_button" title="Reset all fields">
                             <svg><use href="svg/main_icons.svg#delete"/></svg>
                         </button>
 
-                        <button id="playlist_controls_settings" class="playlist_controls_button" title="Open playlist settings">
-                            <svg><use href="svg/main_icons.svg#settings"/></svg>
-                        </button>
-
-                    </div>
-
-                    <div id="playlist_entry_list_root">
-                        <div id="playlist_entry_list">
-                            <!-- NOTE(kihau): Content of this list is dynamically generated in JavaScript -->
-
-                            <!-- <div id="playlist_context_menu"> -->
-                            <!-- </div> -->
+                        <div class="widget_input" id="entry_entry_url_container">
+                            <input type="url" id="entry_url_input" placeholder="" title="Enter video or audio URL here. Could be a YouTube link or any other media URL."/>
+                            <label>Entry URL</label>
                         </div>
 
-                        <div id="playlist_context_menu">
-                            <div id="context_menu_play_now" class="context_menu_item">
-                                <span>Play Now</span>
+                        <div id="entry_right_buttons_container">
+                            <button id="entry_set_button" title="Play Now">
                                 <svg><use href="svg/main_icons.svg#play"/></svg>
-                            </div>
-
-                            <hr class="context_menu_separator">
-
-                            <div id="context_menu_move_to_top" class="context_menu_item">
-                                <span>Move to Top</span>
-                                <svg><use href="svg/main_icons.svg#arrow_up"/></svg>
-                            </div>
-
-                            <div id="context_menu_move_to_bottom" class="context_menu_item">
-                                <span>Move to Bottom</span>
-                                <svg><use href="svg/main_icons.svg#arrow_down"/></svg>
-                            </div>
-
-                            <div id="context_menu_expand_entry" class="context_menu_item">
-                                <span>Expand</span>
-                                <svg><use href="svg/main_icons.svg#dropdown"/></svg>
-                            </div>
-
-                            <hr class="context_menu_separator">
-
-                            <div id="context_menu_edit" class="context_menu_item">
-                                <span>Edit</span>
-                                <svg><use href="svg/main_icons.svg#edit"/></svg>
-                            </div>
-
-                            <div id="context_menu_delete" class="context_menu_item">
-                                <span>Delete</span>
-                                <svg><use href="svg/main_icons.svg#delete"/></svg>
-                            </div>
+                            </button>
+                            <button id="entry_add_playlist_button" title="Add to playlist">
+                                <svg><use href="svg/main_icons.svg#playlist"/></svg>
+                            </button>
                         </div>
                     </div>
 
-                    <div id="playlist_entry_list_footer">
-                        <span>Currently</span>
-                        <span id="playlist_footer_entry_count">0</span>
-                        <span>tracks in the playlist</span>
-                    </div>
+                    <div id="entry_dropdown_container"> 
+                        <div id="entry_dropdown_top"> 
+                            <div class="widget_input">
+                                <input id="entry_title_input" placeholder="" title="Enter your custom entry title."/>
+                                <label>Entry Title</label>
+                            </div>
 
-                </div>
-                <div id="content_chat" class="content_view">
-                    <div class="widget_input" id="chat_input_container">
-                        <input id="chat_input_box" placeholder="" title="Send a chat message."/>
-                        <label>Chat Message</label>
-                        <button id="chat_send_button">Send</button>
+                            <button id="entry_select_subtitle_button">
+                                <svg><use href="svg/main_icons.svg#upload"/></svg>
+                            </button>
+
+                            <div class="widget_input">
+                                <input id="entry_subtitle_name_input" placeholder="" title="Uploaded subtitle name."/>
+                                <label>Subtitle name</label>
+                            </div>
+                        </div>
+
+                        <div id="entry_dropdown_middle"> 
+                            <div id="entry_youtube_search_toggle" class="widget_toggle_root">
+                                <div class="widget_toggle_switch">
+                                    <div class="widget_toggle_circle"></div>
+                                </div>
+                                <span class="widget_toggle_text">Search for Video</span>
+                            </div>
+
+                            <div id="entry_as_playlist_toggle" class="widget_toggle_root">
+                                <div class="widget_toggle_switch">
+                                    <div class="widget_toggle_circle"></div>
+                                </div>
+                                <span class="widget_toggle_text">Add as Playlist</span>
+                            </div>
+
+                            <div class="widget_input" id="youtube_video_count_container">
+                                <input type="text" id="youtube_video_count_input" placeholder="" title="Maximum number of videos to add to the playlist."/>
+                                <label>Max video count</label>
+                            </div>
+                        </div>
+
+                        <div id="entry_dropdown_bottom"> 
+                            <div id="entry_add_to_top_toggle" class="widget_toggle_root">
+                                <div class="widget_toggle_switch">
+                                    <div class="widget_toggle_circle"></div>
+                                </div>
+                                <span class="widget_toggle_text">Add to playlist top</span>
+                            </div>
+
+                            <div id="entry_proxy_toggle" class="widget_toggle_root">
+                                <div class="widget_toggle_switch">
+                                    <div class="widget_toggle_circle"></div>
+                                </div>
+                                <span class="widget_toggle_text">Create Proxy</span>
+                            </div>
+
+                            <div class="widget_input" id="referer_container">
+                                <input type="url" id="entry_dropdown_referer_input" placeholder="" title="Enter URL referer for the proxy. This field is optional."/>
+                                <label>Media Referer</label>
+                            </div>
+                        </div>
                     </div>
-                    <div id="chat_text_content">
+                </div>
+
+                <div id="users_area">
+                    <div id="users_list">
                         <!-- NOTE(kihau): Content of this list is dynamically generated in JavaScript -->
                     </div>
+                    <div id="users_right_panel">
+                        <div id="users_online" class="users_indicator" title="Number users online.">
+                            <svg>
+                                <use href="svg/main_icons.svg#user"/>
+                            </svg>
+                            <span id="users_online_count">0</span>
+                        </div>
+
+                        <div id="users_offline" class="users_indicator" title="Number users offline.">
+                            <svg>
+                                <use href="svg/main_icons.svg#user"/>
+                            </svg>
+                            <span id="users_offline_count">0</span>
+                        </div>
+                        <button id="users_settings_button" title="This button will open your user profile menu, but for now it does nothing.">
+                            <svg>
+                                <use href="svg/main_icons.svg#settings"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
-                <div id="content_history" class="content_view">HISTORY</div>
+            </div>
+
+            <div id="right_panel">
+                <div id="right_panel_tabs">
+                    <div id="tab_room" class="right_panel_tab">
+                        <svg><use href="svg/main_icons.svg#tv"/></svg>
+                        <span>Room</span>
+                    </div>
+                    <div id="tab_playlist" class="right_panel_tab">
+                        <svg><use href="svg/main_icons.svg#playlist2"/></svg>
+                        <span>Playlist</span>
+                    </div>
+                    <div id="tab_chat" class="right_panel_tab">
+                        <svg><use href="svg/main_icons.svg#chat"/></svg>
+                        <span>Chat</span>
+                        <div id="tab_chat_new_message_indicator"></div>
+                    </div>
+                    <div id="tab_history" class="right_panel_tab">
+                        <svg><use href="svg/main_icons.svg#history"/></svg>
+                        <span>History</span>
+                    </div>
+                </div>
+
+                <div id="right_panel_content">
+                    <div id="content_room" class="content_view">
+                        <div id="room_now_playing" class="widget_input"> 
+                            <input readonly id="room_current_url_input" placeholder=" " title="Currently playing video / audio"/>
+                            <label>Now playing</label>
+                        </div>
+
+                        <br/>
+
+                        <div id="room_entry_title" class="widget_input"> 
+                            <input id="room_entry_title_input" placeholder=" " title="Change the currently set title"/>
+                            <label>Current Title</label>
+                            <button id="room_title_update_button" type="button">Update</button>
+                        </div>
+
+                        <br/>
+
+                        <div>
+                            <select id="room_subtitles_select"></select>
+                            <button id="room_subtitle_delete_button">Delete</button>
+                        </div>
+
+                        <div>
+                            <input id="room_subtitle_edit_input"/>
+                            <button id="room_subtitle_update_button">Update</button>
+                        </div>
+
+                        <div id="room_set_shift"> 
+                            <span class="placeholder">Set shift for everyone:</span>
+                            <button id="room_set_shift_button" type="button">Set Shift</button>
+                        </div>
+
+                        <div id="room_upload_subtitle"> 
+                            <span class="placeholder">Upload subtitle for everyone:</span>
+                            <input type="file" id="room_upload_subtitle_input" accept=".srt,.vtt" style="display:none"/>
+                            <button id="room_upload_subtitle_button" type="button">Upload</button>
+                        </div>
+
+                        <br/>
+
+                        <label class="placeholder">
+                            <span>Using proxy:</span>
+                            <input readonly type="checkbox" id="room_using_proxy_checkbox"/>
+                        </label>
+
+                        <div id="room_entry_referer"> 
+                            <span class="placeholder">Proxy referer:</span>
+                            <input readonly id="room_referer_input" placeholder="Referer"/>
+                        </div>
+
+                        <br/>
+
+                        <div id="room_created_by"> 
+                            <span class="placeholder">Created by:</span>
+                            <span id="room_created_by_username" class="placeholder"></span>
+                        </div>
+
+                        <div>
+                            <span class="placeholder">Current resolution:</span>
+                            <span id="room_video_resolution" class="placeholder"></span>
+                        </div>
+
+                        <div id="room_last_action"> 
+                            <span class="placeholder">Last action:</span>
+                            <span id="room_last_action_text" class="placeholder"></span>
+                        </div>
+
+                        <br/>
+
+                        <div>
+                            <span class="placeholder">Upload file:</span>
+                            <input type="file" id="room_upload_file_input" style="display:none"/>
+                            <progress id="room_upload_file_progress" value="0" max="100"></progress>
+                            <button id="room_upload_file_button">Upload</button>
+                        </div>
+
+                        <div id="room_browser_media"> 
+                            <span class="placeholder">Browse media files:</span>
+                            <a href="/watch/media">Browse</a>
+                        </div>
+
+                        <div id="room_copy_to_input"> 
+                            <span class="placeholder">Copy to input area:</span>
+                            <button id="room_copy_to_input_button" type="button">Copy</button>
+                        </div>
+
+                        <br/>
+
+                        <div>
+                            <span class="placeholder">Get your token:</span>
+                            <button id="room_token_copy_button" type="button">Copy to clipboard</button>
+                        </div>
+
+                        <div id="room_token_update" class="widget_input">
+                            <input id="room_token_set_input" placeholder="" title="Update your token to login to a different account."/>
+                            <label>Set your token</label>
+                            <button id="room_token_set_button" type="button">Set</button>
+                        </div>
+
+                        <br/>
+
+                        <button id="room_open_settings_button">Open settings</button>
+
+                        <div> 
+                            <span class="placeholder">Website uptime:</span>
+                            <span id="room_website_uptime" class="placeholder"></span>
+                        </div>
+
+                        <div> 
+                            <span class="placeholder">Website version:</span>
+                            <span id="room_website_version" class="placeholder"></span>
+                        </div>
+
+                        <div id="room_created_at">
+                            <span class="placeholder">Created at:</span>
+                            <span id="room_created_at_date" class="placeholder"></span>
+                        </div>
+
+                        <br/>
+
+                        <span class="placeholder">Add more info items here...</span>
+                        <img class="construction_anim" src="img/under_construction.png">
+                    </div>
+                    <div id="content_playlist" class="content_view">
+                        <div id="playlist_controls_root">
+                            <button id="playlist_controls_next" class="playlist_controls_button" title="Play next track from the playlist">
+                                <svg><use href="svg/main_icons.svg#next"/></svg>
+                            </button>
+
+                            <button id="playlist_controls_looping" class="playlist_controls_button" title="Toggle playlist looping">
+                                <svg><use href="svg/main_icons.svg#loop"/></svg>
+                            </button>
+
+                            <button id="playlist_controls_autoplay" class="playlist_controls_button" title="Toggle playlist autoplay">
+                                <svg><use href="svg/main_icons.svg#autoplay"/></svg>
+                            </button>
+
+                            <div id="playlist_controls_search_root">
+                                <div id="playlist_controls_search_icon">
+                                    <svg><use href="svg/main_icons.svg#search"/></svg>
+                                </div>
+                                <input id="playlist_controls_search_input" type="text" placeholder="Search for track."/>
+                            </div>
+
+                            <button id="playlist_controls_shuffle" class="playlist_controls_button" title="Shuffle the playlist">
+                                <svg><use href="svg/main_icons.svg#shuffle"/></svg>
+                            </button>
+
+                            <button id="playlist_controls_clear" class="playlist_controls_button" title="Clear the playlist">
+                                <svg><use href="svg/main_icons.svg#delete"/></svg>
+                            </button>
+
+                            <button id="playlist_controls_settings" class="playlist_controls_button" title="Open playlist settings">
+                                <svg><use href="svg/main_icons.svg#settings"/></svg>
+                            </button>
+
+                        </div>
+
+                        <div id="playlist_entry_list_root">
+                            <div id="playlist_entry_list">
+                                <!-- NOTE(kihau): Content of this list is dynamically generated in JavaScript -->
+
+                                <!-- <div id="playlist_context_menu"> -->
+                                <!-- </div> -->
+                            </div>
+
+                            <div id="playlist_context_menu">
+                                <div id="context_menu_play_now" class="context_menu_item">
+                                    <span>Play Now</span>
+                                    <svg><use href="svg/main_icons.svg#play"/></svg>
+                                </div>
+
+                                <hr class="context_menu_separator">
+
+                                <div id="context_menu_move_to_top" class="context_menu_item">
+                                    <span>Move to Top</span>
+                                    <svg><use href="svg/main_icons.svg#arrow_up"/></svg>
+                                </div>
+
+                                <div id="context_menu_move_to_bottom" class="context_menu_item">
+                                    <span>Move to Bottom</span>
+                                    <svg><use href="svg/main_icons.svg#arrow_down"/></svg>
+                                </div>
+
+                                <div id="context_menu_expand_entry" class="context_menu_item">
+                                    <span>Expand</span>
+                                    <svg><use href="svg/main_icons.svg#dropdown"/></svg>
+                                </div>
+
+                                <hr class="context_menu_separator">
+
+                                <div id="context_menu_edit" class="context_menu_item">
+                                    <span>Edit</span>
+                                    <svg><use href="svg/main_icons.svg#edit"/></svg>
+                                </div>
+
+                                <div id="context_menu_delete" class="context_menu_item">
+                                    <span>Delete</span>
+                                    <svg><use href="svg/main_icons.svg#delete"/></svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="playlist_entry_list_footer">
+                            <span>Currently</span>
+                            <span id="playlist_footer_entry_count">0</span>
+                            <span>tracks in the playlist</span>
+                        </div>
+
+                    </div>
+                    <div id="content_chat" class="content_view">
+                        <div class="widget_input" id="chat_input_container">
+                            <input id="chat_input_box" placeholder="" title="Send a chat message."/>
+                            <label>Chat Message</label>
+                            <button id="chat_send_button">Send</button>
+                        </div>
+                        <div id="chat_text_content">
+                            <!-- NOTE(kihau): Content of this list is dynamically generated in JavaScript -->
+                        </div>
+                    </div>
+                    <div id="content_history" class="content_view">HISTORY</div>
+                </div>
             </div>
         </div>
-    </div>
 
-    <script type="module" src="js/main.js"></script>
-    <script src="js/debug.js"></script>
-</body>
-
+        <script type="module" src="js/main.js"></script>
+        <script src="js/debug.js"></script>
+    </body>
 </html>
