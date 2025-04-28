@@ -143,7 +143,7 @@ func StartServer(config ServerConfig, db *sql.DB) {
 	}
 
 	server.state.lastUpdate = time.Now()
-	registerEndpoints(&server)
+	handler := registerEndpoints(&server)
 
 	var address = config.Address + ":" + strconv.Itoa(int(config.Port))
 	LogInfo("Starting server on address: %s", address)
@@ -168,6 +168,11 @@ func StartServer(config ServerConfig, db *sql.DB) {
 	httpServer := http.Server{
 		Addr:     address,
 		ErrorLog: internalLogger,
+		Handler:  handler,
+	}
+
+	if config.RedirectPort != 0 {
+		go createRedirectionServer(config)
 	}
 
 	var server_start_error error
@@ -186,6 +191,26 @@ func StartServer(config ServerConfig, db *sql.DB) {
 	}
 }
 
+func createRedirectionServer(config ServerConfig) {
+	LogInfo("Creating a redirect server to '%v'.",  config.RedirectTo)
+
+	redirectFunc := func(w http.ResponseWriter, r *http.Request) {
+		var redirect = config.RedirectTo + r.RequestURI
+		http.Redirect(w, r, redirect, http.StatusMovedPermanently)
+	}
+
+	var address = config.Address + ":" + strconv.Itoa(int(config.RedirectPort))
+	redirectServer := http.Server{
+		Addr:    address,
+		Handler: http.HandlerFunc(redirectFunc),
+	}
+
+	err := redirectServer.ListenAndServe()
+	if err != nil {
+		LogError("Failed to start the redirect server: %v", err)
+	}
+}
+
 func handleUnknownEndpoint(w http.ResponseWriter, r *http.Request) {
 	LogWarn("User %v requested unknown endpoint: %v", r.RemoteAddr, r.RequestURI)
 	http.Error(w, "¯\\_(ツ)_/¯", http.StatusTeapot)
@@ -195,75 +220,79 @@ func serveFavicon(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "web/img/favicon.ico")
 }
 
-func registerEndpoints(server *Server) {
+func registerEndpoints(server *Server) *http.ServeMux {
+	mux := http.NewServeMux()
+
 	fileserver := http.FileServer(http.Dir("./web"))
-	http.Handle("/watch/", http.StripPrefix("/watch/", fileserver))
+	mux.Handle("/watch/", http.StripPrefix("/watch/", fileserver))
 
-	http.HandleFunc("/", handleUnknownEndpoint)
+	mux.HandleFunc("/", handleUnknownEndpoint)
 
-	http.HandleFunc("/favicon.ico", serveFavicon)
+	mux.HandleFunc("/favicon.ico", serveFavicon)
 
 	// Unrelated API calls.
-	server.HandleEndpoint("/watch/api/version", server.apiVersion, "GET", false)
-	server.HandleEndpoint("/watch/api/uptime", server.apiUptime, "GET", false)
-	server.HandleEndpoint("/watch/api/login", server.apiLogin, "GET", false)
-	server.HandleEndpoint("/watch/api/uploadmedia", server.apiUploadMedia, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/version", server.apiVersion, "GET", false)
+	server.HandleEndpoint(mux, "/watch/api/uptime", server.apiUptime, "GET", false)
+	server.HandleEndpoint(mux, "/watch/api/login", server.apiLogin, "GET", false)
+	server.HandleEndpoint(mux, "/watch/api/uploadmedia", server.apiUploadMedia, "POST", true)
 
 	// User related API calls.
-	server.HandleEndpoint("/watch/api/user/create", server.apiUserCreate, "GET", false)
-	server.HandleEndpoint("/watch/api/user/verify", server.apiUserVerify, "POST", false)
-	server.HandleEndpoint("/watch/api/user/delete", server.apiUserDelete, "POST", false)
-	server.HandleEndpoint("/watch/api/user/getall", server.apiUserGetAll, "GET", true)
-	server.HandleEndpoint("/watch/api/user/updatename", server.apiUserUpdateName, "POST", true)
-	server.HandleEndpoint("/watch/api/user/updateavatar", server.apiUserUpdateAvatar, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/user/create", server.apiUserCreate, "GET", false)
+	server.HandleEndpoint(mux, "/watch/api/user/verify", server.apiUserVerify, "POST", false)
+	server.HandleEndpoint(mux, "/watch/api/user/delete", server.apiUserDelete, "POST", false)
+	server.HandleEndpoint(mux, "/watch/api/user/getall", server.apiUserGetAll, "GET", true)
+	server.HandleEndpoint(mux, "/watch/api/user/updatename", server.apiUserUpdateName, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/user/updateavatar", server.apiUserUpdateAvatar, "POST", true)
 
 	// API calls that change state of the player.
-	server.HandleEndpoint("/watch/api/player/get", server.apiPlayerGet, "GET", true)
-	server.HandleEndpoint("/watch/api/player/set", server.apiPlayerSet, "POST", true)
-	server.HandleEndpoint("/watch/api/player/end", server.apiPlayerEnd, "POST", true)
-	server.HandleEndpoint("/watch/api/player/next", server.apiPlayerNext, "POST", true)
-	server.HandleEndpoint("/watch/api/player/play", server.apiPlayerPlay, "POST", true)
-	server.HandleEndpoint("/watch/api/player/pause", server.apiPlayerPause, "POST", true)
-	server.HandleEndpoint("/watch/api/player/seek", server.apiPlayerSeek, "POST", true)
-	server.HandleEndpoint("/watch/api/player/autoplay", server.apiPlayerAutoplay, "POST", true)
-	server.HandleEndpoint("/watch/api/player/looping", server.apiPlayerLooping, "POST", true)
-	server.HandleEndpoint("/watch/api/player/updatetitle", server.apiPlayerUpdateTitle, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/player/get", server.apiPlayerGet, "GET", true)
+	server.HandleEndpoint(mux, "/watch/api/player/set", server.apiPlayerSet, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/player/end", server.apiPlayerEnd, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/player/next", server.apiPlayerNext, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/player/play", server.apiPlayerPlay, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/player/pause", server.apiPlayerPause, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/player/seek", server.apiPlayerSeek, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/player/autoplay", server.apiPlayerAutoplay, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/player/looping", server.apiPlayerLooping, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/player/updatetitle", server.apiPlayerUpdateTitle, "POST", true)
 
 	// Subtitle API calls.
-	server.HandleEndpoint("/watch/api/subtitle/delete", server.apiSubtitleDelete, "POST", true)
-	server.HandleEndpoint("/watch/api/subtitle/update", server.apiSubtitleUpdate, "POST", true)
-	server.HandleEndpoint("/watch/api/subtitle/attach", server.apiSubtitleAttach, "POST", true)
-	server.HandleEndpoint("/watch/api/subtitle/shift", server.apiSubtitleShift, "POST", true)
-	server.HandleEndpoint("/watch/api/subtitle/upload", server.apiSubtitleUpload, "POST", true)
-	server.HandleEndpoint("/watch/api/subtitle/search", server.apiSubtitleSearch, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/subtitle/delete", server.apiSubtitleDelete, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/subtitle/update", server.apiSubtitleUpdate, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/subtitle/attach", server.apiSubtitleAttach, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/subtitle/shift", server.apiSubtitleShift, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/subtitle/upload", server.apiSubtitleUpload, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/subtitle/search", server.apiSubtitleSearch, "POST", true)
 
 	// API calls that change state of the playlist.
-	server.HandleEndpoint("/watch/api/playlist/get", server.apiPlaylistGet, "GET", true)
-	server.HandleEndpoint("/watch/api/playlist/play", server.apiPlaylistPlay, "POST", true)
-	server.HandleEndpoint("/watch/api/playlist/add", server.apiPlaylistAdd, "POST", true)
-	server.HandleEndpoint("/watch/api/playlist/clear", server.apiPlaylistClear, "POST", true)
-	server.HandleEndpoint("/watch/api/playlist/remove", server.apiPlaylistRemove, "POST", true)
-	server.HandleEndpoint("/watch/api/playlist/shuffle", server.apiPlaylistShuffle, "POST", true)
-	server.HandleEndpoint("/watch/api/playlist/move", server.apiPlaylistMove, "POST", true)
-	server.HandleEndpoint("/watch/api/playlist/update", server.apiPlaylistUpdate, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/playlist/get", server.apiPlaylistGet, "GET", true)
+	server.HandleEndpoint(mux, "/watch/api/playlist/play", server.apiPlaylistPlay, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/playlist/add", server.apiPlaylistAdd, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/playlist/clear", server.apiPlaylistClear, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/playlist/remove", server.apiPlaylistRemove, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/playlist/shuffle", server.apiPlaylistShuffle, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/playlist/move", server.apiPlaylistMove, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/playlist/update", server.apiPlaylistUpdate, "POST", true)
 
 	// API calls that change state of the history.
-	server.HandleEndpoint("/watch/api/history/get", server.apiHistoryGet, "GET", true)
-	server.HandleEndpoint("/watch/api/history/clear", server.apiHistoryClear, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/history/get", server.apiHistoryGet, "GET", true)
+	server.HandleEndpoint(mux, "/watch/api/history/clear", server.apiHistoryClear, "POST", true)
 
-	server.HandleEndpoint("/watch/api/chat/send", server.apiChatSend, "POST", true)
-	server.HandleEndpoint("/watch/api/chat/get", server.apiChatGet, "GET", true)
+	server.HandleEndpoint(mux, "/watch/api/chat/send", server.apiChatSend, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/chat/get", server.apiChatGet, "GET", true)
 
 	// Server events and proxy.
-	server.HandleEndpoint("/watch/api/events", server.apiEvents, "GET", false)
+	server.HandleEndpoint(mux, "/watch/api/events", server.apiEvents, "GET", false)
 
-	server.HandleEndpoint(PROXY_ROUTE, server.watchProxy, "GET", false)
+	server.HandleEndpoint(mux, PROXY_ROUTE, server.watchProxy, "GET", false)
 
 	// Voice chat
-	server.HandleEndpoint("/watch/vc", voiceChat, "GET", false)
+	server.HandleEndpoint(mux, "/watch/vc", voiceChat, "GET", false)
+
+	return mux
 }
 
-func (server *Server) HandleEndpoint(endpoint string, endpointHandler func(w http.ResponseWriter, r *http.Request), method string, requireAuth bool) {
+func (server *Server) HandleEndpoint(mux *http.ServeMux, endpoint string, endpointHandler func(w http.ResponseWriter, r *http.Request), method string, requireAuth bool) {
 	genericHandler := func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
@@ -284,11 +313,12 @@ func (server *Server) HandleEndpoint(endpoint string, endpointHandler func(w htt
 		}
 
 		endpointTrim := strings.TrimPrefix(endpoint, "/watch/api/")
-		requested    := strings.ReplaceAll(endpointTrim, "/", " ")
+		requested := strings.ReplaceAll(endpointTrim, "/", " ")
 		LogInfo("Connection %s requested %v.", r.RemoteAddr, requested)
 		endpointHandler(w, r)
 	}
-	http.HandleFunc(endpoint, genericHandler)
+
+	mux.HandleFunc(endpoint, genericHandler)
 }
 
 func (server *Server) periodicResync() {

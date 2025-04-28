@@ -86,7 +86,11 @@ class Playlist {
 
     // NOTE(kihau): Attachable playlist events (similar to the custom player)
     onSettingsClick() {}
-    onPlaylistEntryPlay() {}
+    // onClearClick() {}
+    // onShuffleClick() {}
+    // onLoopingClick() {}
+    // onAutoplayClick() {}
+    // onPlaylistEntryPlay() {}
 
     setAutoplay(enabled) {
         if (enabled) {
