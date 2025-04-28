@@ -39,6 +39,12 @@ class Room {
             modal:       getById("settings_menu_modal"),
             root:        getById("settings_menu_root"),
             closeButton: getById("settings_menu_close_button"),
+
+            websiteUptime:   getById("settings_website_uptime"),
+            websiteVersion:  getById("settings_website_version"),
+            tokenCopyButton: getById("settings_token_copy_button"),
+            tokenSetButton:  getById("settings_token_set_button"),
+            tokenSetInput:   getById("settings_token_set_input"),
         };
 
         this.connectionLostPopup = getById("connection_lost_popup");
@@ -112,16 +118,11 @@ class Room {
             usingProxyCheckbox: getById("room_using_proxy_checkbox"),
             uploadFileProgress: getById("room_upload_file_progress"),
             createdByUsername:  getById("room_created_by_username"),
-            createdAtDate:      getById("room_created_at_date"),
             lastActionText:     getById("room_last_action_text"),
             subtitlesSelect:    getById("room_subtitles_select"),
-            websiteUptime:      getById("room_website_uptime"),
-            websiteVersion:     getById("room_website_version"),
             videoResolution:    getById("room_video_resolution"),
+            createdAtDate:      getById("room_created_at_date"),
 
-            tokenCopyButton:   getById("room_token_copy_button"),
-            tokenSetButton:    getById("room_token_set_button"),
-            tokenSetInput:     getById("room_token_set_input"),
         };
 
         this.chatNewMessage = getById("tab_chat_new_message_indicator");
@@ -577,34 +578,6 @@ class Room {
         };
 
         this.roomContent.openSettingsButton.onclick = _ => this.showSettingsMenu();
-
-        this.roomContent.tokenCopyButton.onclick = _ => {
-            navigator.clipboard.writeText(api.getToken());
-        };
-
-        this.roomContent.tokenSetButton.onclick = async _ => {
-            let newToken = this.roomContent.tokenSetInput.value
-            if (!newToken || newToken === "") {
-                console.warn("WARN: Provided token is empty.");
-                return;
-            }
-
-            let currToken = api.getToken();
-            if (newToken === currToken) {
-                console.warn("WARN: Provided token is the same as currently set token.");
-                return;
-            }
-
-            let result = await api.userVerify(newToken);
-            if (!result.ok) {
-                console.warn("WARN: User with provided token does not exist.");
-                return;
-            }
-
-            await api.userDelete(currToken);
-            Storage.set("token", newToken);
-            window.location.reload();
-        };
     }
 
     attachUrlAreaEvents() {
@@ -672,6 +645,35 @@ class Room {
         };
 
         menu.closeButton.onclick = _ => this.hideSettingsMenu();
+
+        menu.tokenCopyButton.onclick = _ => {
+            navigator.clipboard.writeText(api.getToken());
+        };
+
+        menu.tokenSetButton.onclick = async _ => {
+            let newToken = menu.tokenSetInput.value
+            if (!newToken || newToken === "") {
+                console.warn("WARN: Provided token is empty.");
+                return;
+            }
+
+            let currToken = api.getToken();
+            if (newToken === currToken) {
+                console.warn("WARN: Provided token is the same as currently set token.");
+                return;
+            }
+
+            let result = await api.userVerify(newToken);
+            if (!result.ok) {
+                console.warn("WARN: User with provided token does not exist.");
+                return;
+            }
+
+            await api.userDelete(currToken);
+            Storage.set("token", newToken);
+            menu.tokenSetInput.value = "";
+            window.location.reload();
+        };
     }
 
     attachHtmlEvents() {
@@ -1027,8 +1029,8 @@ class Room {
             await this.loadPlayerData();
             await this.loadPlaylistData();
             await this.loadChatData();
-            api.uptime().then(uptime   => this.roomContent.websiteUptime.textContent  = uptime);
-            api.version().then(version => this.roomContent.websiteVersion.textContent = version);
+            api.uptime().then(uptime   => this.settingsMenu.websiteUptime.textContent  = uptime);
+            api.version().then(version => this.settingsMenu.websiteVersion.textContent = version);
         };
 
         events.onerror = _ => {

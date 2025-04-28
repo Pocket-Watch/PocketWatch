@@ -15,6 +15,27 @@
         <div id="settings_menu_modal">
             <div id="settings_menu_root" tabindex="0">
                 <button id="settings_menu_close_button">Close</button>
+
+                <div>
+                    <span class="placeholder">Get your token:</span>
+                    <button id="settings_token_copy_button" type="button">Copy to clipboard</button>
+                </div>
+
+                <div id="settings_token_update" class="widget_input">
+                    <input id="settings_token_set_input" placeholder="" title="Update your token to login to a different account."/>
+                    <label>Set your token</label>
+                    <button id="settings_token_set_button" type="button">Set</button>
+                </div>
+
+                <div> 
+                    <span class="placeholder">Website uptime:</span>
+                    <span id="settings_website_uptime" class="placeholder"></span>
+                </div>
+
+                <div> 
+                    <span class="placeholder">Website version:</span>
+                    <span id="settings_website_version" class="placeholder"></span>
+                </div>
             </div>
         </div>
 
@@ -248,39 +269,12 @@
                             <button id="room_copy_to_input_button" type="button">Copy</button>
                         </div>
 
-                        <br/>
-
-                        <div>
-                            <span class="placeholder">Get your token:</span>
-                            <button id="room_token_copy_button" type="button">Copy to clipboard</button>
-                        </div>
-
-                        <div id="room_token_update" class="widget_input">
-                            <input id="room_token_set_input" placeholder="" title="Update your token to login to a different account."/>
-                            <label>Set your token</label>
-                            <button id="room_token_set_button" type="button">Set</button>
-                        </div>
-
-                        <br/>
-
-                        <button id="room_open_settings_button">Open settings</button>
-
-                        <div> 
-                            <span class="placeholder">Website uptime:</span>
-                            <span id="room_website_uptime" class="placeholder"></span>
-                        </div>
-
-                        <div> 
-                            <span class="placeholder">Website version:</span>
-                            <span id="room_website_version" class="placeholder"></span>
-                        </div>
-
                         <div id="room_created_at">
                             <span class="placeholder">Created at:</span>
                             <span id="room_created_at_date" class="placeholder"></span>
                         </div>
 
-                        <br/>
+                        <button id="room_open_settings_button">Open settings</button>
 
                         <span class="placeholder">Add more info items here...</span>
                         <img class="construction_anim" src="img/under_construction.png">

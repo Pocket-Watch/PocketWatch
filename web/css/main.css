@@ -93,6 +93,13 @@ html * {
     border-radius: 12px;
     border: 1px solid var(--bg_4);
     padding: 16px;
+    display: flex;
+    flex-direction: column;
+    row-gap: 12px;
+}
+
+#settings_token_update {
+    height: 30px;
 }
 
 #connection_lost_popup {
@@ -873,10 +880,6 @@ html * {
 }
 
 #room_entry_title {
-    height: 30px;
-}
-
-#room_token_update {
     height: 30px;
 }
 

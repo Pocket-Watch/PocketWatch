@@ -172,7 +172,7 @@ func StartServer(config ServerConfig, db *sql.DB) {
 	}
 
 	if config.RedirectPort != 0 {
-		go createRedirectionServer(config)
+		go createRedirectServer(config)
 	}
 
 	var server_start_error error
@@ -191,7 +191,7 @@ func StartServer(config ServerConfig, db *sql.DB) {
 	}
 }
 
-func createRedirectionServer(config ServerConfig) {
+func createRedirectServer(config ServerConfig) {
 	LogInfo("Creating a redirect server to '%v'.",  config.RedirectTo)
 
 	redirectFunc := func(w http.ResponseWriter, r *http.Request) {
