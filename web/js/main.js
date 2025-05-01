@@ -45,6 +45,8 @@ class Room {
             tokenCopyButton: getById("settings_token_copy_button"),
             tokenSetButton:  getById("settings_token_set_button"),
             tokenSetInput:   getById("settings_token_set_input"),
+
+            animatedAvatarsToggle: getById("animated_avatars_toggle"),
         };
 
         this.connectionLostPopup = getById("connection_lost_popup");
@@ -673,6 +675,10 @@ class Room {
             Storage.set("token", newToken);
             menu.tokenSetInput.value = "";
             window.location.reload();
+        };
+
+        menu.animatedAvatarsToggle.onclick = _ => {
+            menu.animatedAvatarsToggle.classList.toggle("active")
         };
     }
 

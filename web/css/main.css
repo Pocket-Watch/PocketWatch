@@ -130,6 +130,10 @@ html * {
     font-size: 11px;
 }
 
+#animated_avatars_toggle {
+    width: 200px;
+}
+
 #root_panel {
     height: 100vh;
     column-gap: 6px;

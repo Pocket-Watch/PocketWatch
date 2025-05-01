@@ -9,6 +9,9 @@
         <link rel="stylesheet" href="css/main.css">
         <link rel="stylesheet" href="css/playlist.css">
         <link rel="stylesheet" href="css/chat.css">
+
+        <!-- NOTE(kihau): CSS stying for testing -->
+        <link rel="stylesheet" href="css/dummy.css">
     </head>
 
     <body>
@@ -36,6 +39,13 @@
                     <span class="placeholder">Website version:</span>
                     <span id="settings_website_version" class="placeholder"></span>
                 </div>
+
+                <div id="animated_avatars_toggle" class="widget_toggle_root">
+                    <div class="widget_toggle_switch">
+                        <div class="widget_toggle_circle"></div>
+                    </div>
+                    <span class="widget_toggle_text">User avatar animations</span>
+                </div>
             </div>
         </div>
 
@@ -49,6 +59,56 @@
                 <div id="player_area">
                     <video id="video0"></video>
                 </div>
+
+                <!--
+                <div id="dummy_area">
+                    <div id="dummy_left_container"> 
+                        <div id="dummy_dropdown_button_container"> 
+                            <div id="dummy_dropdown_button"></div>
+                        </div>
+
+                        <div id="dummy_tabs"> 
+                            <div class="dummy_tab" id="dummy_tab_general"> 
+                            </div>
+
+                            <div class="dummy_tab" id="dummy_tab_subtitles"> 
+                            </div>
+
+                            <div class="dummy_tab" id="dummy_tab_youtube"> 
+                            </div>
+
+                            <div class="dummy_tab" id="dummy_tab_playlist"> 
+                            </div>
+
+                            <button id="entry_reset_button" title="Reset all fields">
+                                <svg><use href="svg/main_icons.svg#delete"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="dummy_right_container"> 
+                        <div id="dummy_controls_container"> 
+
+                            <div class="widget_input" id="entry_entry_url_container">
+                                <input type="url" id="entry_url_input" placeholder="" title="Enter video or audio URL here. Could be a YouTube link or any other media URL."/>
+                                <label>Entry URL</label>
+                            </div>
+
+                            <div id="entry_right_buttons_container">
+                                <button id="entry_set_button" title="Play Now">
+                                    <svg><use href="svg/main_icons.svg#play"/></svg>
+                                </button>
+                                <button id="entry_add_playlist_button" title="Add to playlist">
+                                    <svg><use href="svg/main_icons.svg#playlist"/></svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="dummy_dropdown_container"> 
+                        </div>
+                    </div>
+                </div>
+                -->
 
                 <div id="entry_area">
                     <div id="entry_controls_container"> 
