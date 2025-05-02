@@ -53,6 +53,7 @@ class Room {
 
         this.entryArea = {
             root:          getById("entry_area"),
+            urlLabel:      getById("entry_url_label"),
 
             urlInput:      getById("entry_url_input"),
             titleInput:    getById("entry_title_input"),
@@ -66,10 +67,10 @@ class Room {
             addPlaylistButton:    getById("entry_add_playlist_button"),
             selectSubtitleButton: getById("entry_select_subtitle_button"),
 
-            youtubeSearchToggle: getById("entry_youtube_search_toggle"),
-            asPlaylistToggle:    getById("entry_as_playlist_toggle"),
-            addToTopToggle:      getById("entry_add_to_top_toggle"),
-            proxyToggle:         getById("entry_proxy_toggle"),
+            youtubeSearchToggle:   getById("entry_youtube_search_toggle"),
+            youtubePlaylistToggle: getById("entry_youtube_playlist_toggle"),
+            addToTopToggle:        getById("entry_add_to_top_toggle"),
+            proxyToggle:           getById("entry_proxy_toggle"),
 
             dropdownContainer: getById("entry_dropdown_container"),
         };
@@ -389,9 +390,11 @@ class Room {
         this.subtitleFile = null;
 
         entry.youtubeSearchToggle.classList.remove("active");
-        entry.asPlaylistToggle.classList.remove("active");
+        entry.youtubePlaylistToggle.classList.remove("active");
         entry.addToTopToggle.classList.remove("active");
         entry.proxyToggle.classList.remove("active");
+
+        entry.urlLabel.textContent = "Entry URL";
     }
 
     async createNewRequestEntry() {
@@ -414,7 +417,7 @@ class Room {
             referer_url:  this.entryArea.refererInput.value.trim(),
             use_proxy:    this.entryArea.proxyToggle.classList.contains("active"),
             search_video: this.entryArea.youtubeSearchToggle.classList.contains("active"),
-            is_playlist:  this.entryArea.asPlaylistToggle.classList.contains("active"),
+            is_playlist:  this.entryArea.youtubePlaylistToggle.classList.contains("active"),
             add_to_top:   this.entryArea.addToTopToggle.classList.contains("active"),
             subtitles:    subtitles,
             playlist_skip_count: 0,
@@ -585,11 +588,11 @@ class Room {
     attachUrlAreaEvents() {
         this.entryArea.dropdownButton.onclick = _ => {
             this.entryArea.root.classList.toggle("entry_area_expand");
-        }
+        };
 
         this.entryArea.resetButton.onclick = _ => {
             this.resetInputAreaElements();
-        }
+        };
 
         this.entryArea.setButton.onclick = async _ => {
             let entry = await this.createNewRequestEntry();
@@ -601,7 +604,7 @@ class Room {
                 // Only reset if request was successful
                 this.resetInputAreaElements();
             });
-        }
+        };
 
         this.entryArea.addPlaylistButton.onclick = async _ => {
             let entry = await this.createNewRequestEntry();
@@ -609,7 +612,7 @@ class Room {
                 api.playlistAdd(entry);
                 this.resetInputAreaElements();
             }
-        }
+        };
 
         this.entryArea.selectSubtitleButton.onclick = _ => {
             let input = document.createElement('input');
@@ -626,13 +629,24 @@ class Room {
                 this.subtitleFile = files[0];
                 this.entryArea.subtitleInput.value = this.subtitleFile.name;
             }
-            input.click();
-        }
 
-        this.entryArea.youtubeSearchToggle.onclick = _ => this.entryArea.youtubeSearchToggle.classList.toggle("active");
-        this.entryArea.asPlaylistToggle.onclick    = _ => this.entryArea.asPlaylistToggle.classList.toggle("active");
-        this.entryArea.addToTopToggle.onclick      = _ => this.entryArea.addToTopToggle.classList.toggle("active");
-        this.entryArea.proxyToggle.onclick         = _ => this.entryArea.proxyToggle.classList.toggle("active");
+            input.click();
+        };
+
+        this.entryArea.youtubeSearchToggle.onclick   = _ => {
+            const toggle = this.entryArea.youtubeSearchToggle;
+            toggle.classList.toggle("active");
+
+            if (toggle.classList.contains("active")) {
+                this.entryArea.urlLabel.textContent = "YouTube video name";
+            } else {
+                this.entryArea.urlLabel.textContent = "Entry URL";
+            }
+        };
+
+        this.entryArea.youtubePlaylistToggle.onclick = _ => this.entryArea.youtubePlaylistToggle.classList.toggle("active");
+        this.entryArea.addToTopToggle.onclick        = _ => this.entryArea.addToTopToggle.classList.toggle("active");
+        this.entryArea.proxyToggle.onclick           = _ => this.entryArea.proxyToggle.classList.toggle("active");
     }
 
     attachSettingsMenuEvents() {
