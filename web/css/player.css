@@ -160,8 +160,8 @@
 }
 
 #player_playback_popup {
-    width: 150px;
-    height: 150px;
+    width: 16%;
+    height: 16%;
     pointer-events: none;
     filter: drop-shadow(3px 3px 6px rgba(var(--player_color_bg1), var(--player_opacity_shadow)));
     top: 0;
@@ -871,8 +871,8 @@
 }
 
 #player_buffering {
-    width: 150px;
-    height: 150px;
+    width: 20%; 
+    height: 20%;
     filter: drop-shadow(3px 3px 6px rgba(var(--player_color_bg1), var(--player_opacity_shadow)));
     top: 0;
     left: 0;

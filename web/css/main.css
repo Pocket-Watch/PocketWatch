@@ -209,15 +209,14 @@ html * {
 }
 
 #entry_dropdown_button svg {
-    height: 12px;
-    width: 12px;
+    height: 15px;
+    width: 15px;
     fill: var(--bg_0);
-    transform: rotate(180deg);
     transition: transform 100ms;
 }
 
 .entry_area_expand #entry_dropdown_button svg {
-    transform: rotate(0deg);
+    transform: rotate(180deg);
 }
 
 #entry_reset_button {
@@ -996,12 +995,13 @@ html * {
     #player_area {
         height: 340px;
         min-height: 340px;
-
-        /* height: auto; */
-        /* min-height: auto; */
     }
 
     #left_panel {
+        padding: 6px;
+    }
+
+    #entry_area {
         padding: 6px;
     }
 
