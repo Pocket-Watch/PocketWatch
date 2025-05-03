@@ -238,6 +238,11 @@ type SubtitleShiftRequestData struct {
 	Shift float64 `json:"shift"`
 }
 
+type SubtitleDownloadRequestData struct {
+	Url  string `json:"url"`
+	Name string `json:"name"`
+}
+
 type PlaylistEventData struct {
 	Action string `json:"action"`
 	Data   any    `json:"data"`

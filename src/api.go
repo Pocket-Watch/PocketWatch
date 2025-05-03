@@ -558,6 +558,63 @@ func (server *Server) apiSubtitleUpload(w http.ResponseWriter, r *http.Request) 
 	io.WriteString(w, string(jsonData))
 }
 
+func (server *Server) apiSubtitleDownload(w http.ResponseWriter, r *http.Request) {
+	var data SubtitleDownloadRequestData
+	if !server.readJsonDataFromRequest(w, r, &data) {
+		return
+	}
+
+	filename := filepath.Base(data.Url)
+	extension := path.Ext(filename)
+	subId := server.state.subsId.Add(1)
+
+	outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
+	outputPath := path.Join("web", "subs", outputName)
+	os.MkdirAll("web/subs/", 0750)
+
+	outputFile, err := os.Create(outputPath)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer outputFile.Close()
+
+	// TODO(kihau): Limit download length add add timeout.
+	response, err := http.Get(data.Url)
+	if err != nil {
+		respondBadRequest(w, "Failed to download subtitle for url %v; %v", data.Url, err)
+		return
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		respondBadRequest(w, "Failed to download subtitle for url %v; %v", data.Url, err)
+		return
+	}
+
+	_, err = io.Copy(outputFile, response.Body)
+	if err != nil {
+		respondInternalError(w, "Failed to save downloaded subtitle %v: %v", data.Url, err)
+		return
+	}
+
+	name := data.Name
+	if name == "" {
+		name = strings.TrimSuffix(filename, extension)
+	}
+
+	networkUrl := path.Join("subs", outputName)
+	subtitle := Subtitle{
+		Id:    subId,
+		Name:  name,
+		Url:   networkUrl,
+		Shift: 0.0,
+	}
+
+	jsonData, _ := json.Marshal(subtitle)
+	io.WriteString(w, string(jsonData))
+}
+
 func (server *Server) apiSubtitleSearch(w http.ResponseWriter, r *http.Request) {
 	if !server.config.EnableSubs {
 		http.Error(w, "Feature unavailable", http.StatusServiceUnavailable)

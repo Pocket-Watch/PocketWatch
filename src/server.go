@@ -262,6 +262,7 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	server.HandleEndpoint(mux, "/watch/api/subtitle/attach", server.apiSubtitleAttach, "POST", true)
 	server.HandleEndpoint(mux, "/watch/api/subtitle/shift", server.apiSubtitleShift, "POST", true)
 	server.HandleEndpoint(mux, "/watch/api/subtitle/upload", server.apiSubtitleUpload, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/subtitle/download", server.apiSubtitleDownload, "POST", true)
 	server.HandleEndpoint(mux, "/watch/api/subtitle/search", server.apiSubtitleSearch, "POST", true)
 
 	// API calls that change state of the playlist.

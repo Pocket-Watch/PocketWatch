@@ -52,27 +52,33 @@ class Room {
         this.connectionLostPopup = getById("connection_lost_popup");
 
         this.entryArea = {
-            root:          getById("entry_area"),
-            urlLabel:      getById("entry_url_label"),
+            root:              getById("entry_area"),
+            dropdownContainer: getById("entry_dropdown_container"),
 
-            urlInput:      getById("entry_url_input"),
-            titleInput:    getById("entry_title_input"),
-            refererInput:  getById("entry_dropdown_referer_input"),
-            subtitleInput: getById("entry_subtitle_name_input"),
-            ytCountInput:  getById("youtube_video_count_input"),
+            // Top Controls 
+            dropdownButton:    getById("entry_dropdown_button"),
+            resetButton:       getById("entry_reset_button"),
+            urlInput:          getById("entry_url_input"),
+            urlLabel:          getById("entry_url_label"),
+            setButton:         getById("entry_set_button"),
+            addPlaylistButton: getById("entry_add_playlist_button"),
 
-            dropdownButton:       getById("entry_dropdown_button"),
-            resetButton:          getById("entry_reset_button"),
-            setButton:            getById("entry_set_button"),
-            addPlaylistButton:    getById("entry_add_playlist_button"),
+            // General
+            titleInput:     getById("entry_title_input"),
+            addToTopToggle: getById("entry_add_to_top_toggle"),
+            proxyToggle:    getById("entry_proxy_toggle"),
+            refererInput:   getById("entry_dropdown_referer_input"),
+
+            // Subtitles
             selectSubtitleButton: getById("entry_select_subtitle_button"),
+            subtitleNameInput:    getById("entry_subtitle_name_input"),
+            subtitleUrlInput:     getById("entry_subtitle_url_input"),
 
+            // Youtube
             youtubeSearchToggle:   getById("entry_youtube_search_toggle"),
             youtubePlaylistToggle: getById("entry_youtube_playlist_toggle"),
-            addToTopToggle:        getById("entry_add_to_top_toggle"),
-            proxyToggle:           getById("entry_proxy_toggle"),
-
-            dropdownContainer: getById("entry_dropdown_container"),
+            ytCountInput:          getById("youtube_video_count_input"),
+            ytSkipCountInput:      getById("youtube_video_skip_count_input"),
         };
 
         this.usersArea = {
@@ -384,8 +390,10 @@ class Room {
         entry.urlInput.value = "";
         entry.titleInput.value = "";
         entry.refererInput.value = "";
-        entry.subtitleInput.value = "";
+        entry.subtitleNameInput.value = "";
+        entry.subtitleUrlInput.value = "";
         entry.ytCountInput.value = "";
+        entry.ytSkipCountInput.value = "";
 
         this.subtitleFile = null;
 
@@ -398,10 +406,20 @@ class Room {
     }
 
     async createNewRequestEntry() {
+        let subname = this.entryArea.subtitleNameInput.value;
+        let suburl  = this.entryArea.subtitleUrlInput.value;
+
         let subtitles = [];
+
+        let sub;
         if (this.subtitleFile) {
-            let filename = this.entryArea.subtitleInput.value;
-            let sub = await api.subtitleUpload(this.subtitleFile, filename);
+            sub = await api.subtitleUpload(this.subtitleFile, subname);
+        } else if (suburl) {
+            let response = await api.subtitleDownload(suburl, subname);
+            sub = response.json;
+        }
+
+        if (sub) {
             subtitles.push(sub);
         }
 
@@ -409,6 +427,12 @@ class Room {
         let count = Number(countString)
         if (!count || count <= 0) {
             count = 20
+        }
+
+        let skipCountString = this.entryArea.ytSkipCountInput.value.trim();
+        let skipCount = Number(skipCountString)
+        if (!skipCount || skipCount <= 0) {
+            skipCount = 0
         }
 
         const requestEntry = {
@@ -420,7 +444,7 @@ class Room {
             is_playlist:  this.entryArea.youtubePlaylistToggle.classList.contains("active"),
             add_to_top:   this.entryArea.addToTopToggle.classList.contains("active"),
             subtitles:    subtitles,
-            playlist_skip_count: 0,
+            playlist_skip_count: skipCount,
             playlist_max_size:   count,
         };
 
@@ -627,7 +651,7 @@ class Room {
 
                 console.log("File selected: ", files[0]);
                 this.subtitleFile = files[0];
-                this.entryArea.subtitleInput.value = this.subtitleFile.name;
+                this.entryArea.subtitleNameInput.value = this.subtitleFile.name;
             }
 
             input.click();

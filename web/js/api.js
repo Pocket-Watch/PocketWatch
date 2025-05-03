@@ -357,6 +357,16 @@ export async function subtitleUpload(file, filename) {
     return subtitle;
 }
 
+export async function subtitleDownload(url, name) {
+    let data = {
+        url:  url,
+        name: name,
+    }
+
+    console.info("INFO: Sending subtitle download for url", url);
+    return await httpPost("/watch/api/subtitle/download", data);
+}
+
 export async function playlistGet() {
     console.info("INFO: Sending playlist get request.");
     return await httpGet("/watch/api/playlist/get");
