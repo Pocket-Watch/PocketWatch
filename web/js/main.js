@@ -609,28 +609,38 @@ class Room {
         this.roomContent.openSettingsButton.onclick = _ => this.showSettingsMenu();
     }
 
+    async sendSetRequest() {
+        let entry = await this.createNewRequestEntry();
+        api.playerSet(entry).then(jsonResponse => {
+            if (jsonResponse.checkError()) {
+                return;
+            }
+
+            // Only reset if request was successful
+            this.resetInputAreaElements();
+        });
+    }
+
     attachUrlAreaEvents() {
-        this.entryArea.dropdownButton.onclick = _ => {
-            this.entryArea.root.classList.toggle("entry_area_expand");
+        let area = this.entryArea;
+
+        area.dropdownButton.onclick = _ => {
+            area.root.classList.toggle("entry_area_expand");
         };
 
-        this.entryArea.resetButton.onclick = _ => {
+        area.resetButton.onclick = _ => {
             this.resetInputAreaElements();
         };
 
-        this.entryArea.setButton.onclick = async _ => {
-            let entry = await this.createNewRequestEntry();
-            api.playerSet(entry).then(jsonResponse => {
-                if (jsonResponse.checkError()) {
-                    return;
-                }
-
-                // Only reset if request was successful
-                this.resetInputAreaElements();
-            });
+        area.urlInput.onkeypress = event => {
+            if (event.key == "Enter") {
+                this.sendSetRequest();
+            }
         };
 
-        this.entryArea.addPlaylistButton.onclick = async _ => {
+        area.setButton.onclick = _ =>  this.sendSetRequest();
+
+        area.addPlaylistButton.onclick = async _ => {
             let entry = await this.createNewRequestEntry();
             if (entry.url) {
                 api.playlistAdd(entry);
@@ -638,7 +648,7 @@ class Room {
             }
         };
 
-        this.entryArea.selectSubtitleButton.onclick = _ => {
+        area.selectSubtitleButton.onclick = _ => {
             let input = document.createElement('input');
             input.type = "file";
             input.accept = ".srt,.vtt";
@@ -651,20 +661,20 @@ class Room {
 
                 console.log("File selected: ", files[0]);
                 this.subtitleFile = files[0];
-                this.entryArea.subtitleNameInput.value = this.subtitleFile.name;
+                area.subtitleNameInput.value = this.subtitleFile.name;
             }
 
             input.click();
         };
 
-        this.entryArea.youtubeSearchToggle.onclick   = _ => {
-            const toggle = this.entryArea.youtubeSearchToggle;
+        area.youtubeSearchToggle.onclick   = _ => {
+            const toggle = area.youtubeSearchToggle;
             toggle.classList.toggle("active");
 
             if (toggle.classList.contains("active")) {
-                this.entryArea.urlLabel.textContent = "YouTube video name";
+                area.urlLabel.textContent = "YouTube video name";
             } else {
-                this.entryArea.urlLabel.textContent = "Entry URL";
+                area.urlLabel.textContent = "Entry URL";
             }
         };
 
