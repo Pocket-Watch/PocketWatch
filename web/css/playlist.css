@@ -464,6 +464,11 @@
     scrollbar-width: none;
 }
 
+.playlist_entry_title:-webkit-scrollbar {
+    background: transparent;
+    width: 0px;
+}
+
 .playlist_entry_url {
     height: 50%;
     /* width: 100%; */
@@ -476,6 +481,11 @@
     white-space: nowrap;
     overflow-x: auto;
     scrollbar-width: none;
+}
+
+.playlist_entry_url:-webkit-scrollbar {
+    background: transparent;
+    width: 0px;
 }
 
 .playlist_entry_buttons {

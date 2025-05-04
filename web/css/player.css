@@ -683,6 +683,11 @@
     font-size: 17px;
 }
 
+.subtitle_track_text::-webkit-scrollbar {
+    background: transparent;
+    width: 0px;
+}
+
 .player_toggle_root {
     width: calc(100% - 16px);
     height: 36px;
