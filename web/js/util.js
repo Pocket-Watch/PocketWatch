@@ -101,6 +101,32 @@ export function formatTime(seconds) {
     return time;
 }
 
+const PB = 1024 ** 5;
+const TB = 1024 ** 4;
+const GB = 1024 ** 3;
+const MB = 1024 ** 2;
+const KB = 1024;
+
+export function formatByteCount(byteCount) {
+    if (byteCount > PB) {
+        let size = Math.round(byteCount / PB * 10) / 10;
+        return size + " PB";
+    } else if (byteCount > TB) {
+        let size = Math.round(byteCount / TB * 10) / 10;
+        return size + " TB";
+    } else if (byteCount > GB) {
+        let size = Math.round(byteCount / GB * 10) / 10;
+        return size + " GB";
+    } else if (byteCount > MB) {
+        let size = Math.round(byteCount / MB * 10) / 10;
+        return size + " MB";
+    } else if (byteCount > KB) {
+        let size = Math.round(byteCount / KB * 10) / 10;
+        return size + " KB";
+    } else {
+        return byteCount + " B";
+    }
+}
 
 // This is a wrapper for localStorage (which has only string <-> string mappings)
 export class Storage {

@@ -80,14 +80,7 @@ async function httpPostFileWithProgress(endpoint, file, onprogress) {
         var formdata = new FormData();
         formdata.append("file", file);
 
-        request.upload.onprogress = event => {
-            let progress = 0.0;
-            if (event.lengthComputable) {
-                progress = (event.loaded / event.total) * 100;
-            }
-
-            onprogress(progress);
-        };
+        request.upload.onprogress = onprogress;
 
         request.onreadystatechange = _ => {
             if (request.readyState === XMLHttpRequest.DONE) {

@@ -3,7 +3,7 @@ import { Playlist } from "./playlist.js"
 import { Chat } from "./chat.js"
 import { sha256 } from "./auth.js"
 import * as api from "./api.js";
-import { Storage, button, div, formatTime, getById, hide, img, show, svg } from "./util.js";
+import { Storage, button, div, formatTime, formatByteCount, getById, hide, img, show, svg } from "./util.js";
 
 const SERVER_ID = 0;
 const MAX_TITLE_LENGTH = 200;
@@ -112,12 +112,10 @@ class Room {
             titleInput:      getById("room_entry_title_input"),
             refererInput:    getById("room_referer_input"),
             uploadSubInput:  getById("room_upload_subtitle_input"),
-            uploadFileInput: getById("room_upload_file_input"),
             subsEditInput:   getById("room_subtitle_edit_input"),
 
             titleUpdateButton:  getById("room_title_update_button"),
             uploadSubButton:    getById("room_upload_subtitle_button"),
-            uploadFileButton:   getById("room_upload_file_button"),
             copyToInputButton:  getById("room_copy_to_input_button"),
             setShiftButton:     getById("room_set_shift_button"),
             subsUpdateButton:   getById("room_subtitle_update_button"),
@@ -132,6 +130,15 @@ class Room {
             videoResolution:    getById("room_video_resolution"),
             createdAtDate:      getById("room_created_at_date"),
 
+            upload: {
+                placeholderRoot: getById("room_upload_media_placeholder"),
+                progressRoot:    getById("room_upload_media_progress"),
+                filepicker:      getById("room_upload_media_filepicker"),
+                percent:         getById("room_upload_media_progress_percent"),
+                barCurrent:      getById("room_upload_media_progress_bar_current"),
+                uploaded:        getById("room_upload_media_progress_uploaded"),
+                transfer:        getById("room_upload_media_progress_transfer"),
+            },
         };
 
         this.chatNewMessage = getById("tab_chat_new_message_indicator");
@@ -495,25 +502,80 @@ class Room {
         Storage.set(LAST_SELECTED_TAB, tab_type);
     }
 
+    startMediaFileUpload(file) {
+        const room = this.roomContent;
+
+        let timeRate = new Date().getTime();
+        // Byte size accumulated after each second.
+        let accumulated = 0;
+
+        let bytesPrev = 0;
+
+        room.upload.percent.textContent = "0%";
+        room.upload.barCurrent.style.width = "0%";
+        room.upload.uploaded.textContent = "0 B / 0 B";
+        room.upload.transfer.textContent = "0 B/s";
+
+        room.upload.placeholderRoot.classList.add("hide");
+        room.upload.progressRoot.classList.remove("hide");
+
+        let upload = api.uploadMediaWithProgress(file, event => {
+            let progress = (event.loaded / event.total) * 100;
+
+            room.upload.percent.textContent = Math.floor(progress) + "%";
+            room.upload.barCurrent.style.width =  progress + "%";
+
+            let bytes = event.loaded - bytesPrev;
+            accumulated += bytes;
+            bytesPrev = event.loaded;
+
+            let now     = new Date().getTime();
+            let elapsed = (now - timeRate) / 1000.0;
+
+            let loaded = formatByteCount(event.loaded);
+            let total  = formatByteCount(event.total);
+            room.upload.uploaded.textContent = loaded + " / " + total;
+
+            if (elapsed > 1.0) {
+                let rate = accumulated / elapsed;
+                room.upload.transfer.textContent = formatByteCount(rate) + "/s";
+
+                timeRate = now;
+                accumulated = 0;
+            }
+        });
+
+        upload.then(response => {
+            if (response.checkError()) {
+                return;
+            }
+
+            room.upload.placeholderRoot.classList.remove("hide");
+            room.upload.progressRoot.classList.add("hide");
+            this.entryArea.urlInput.value = response.json;
+        });
+    }
+
     attachRightPanelEvents() {
-        let tabs = this.rightPanel.tabs;
+        const tabs = this.rightPanel.tabs;
 
         tabs.room.onclick     = _ => this.selectRightPanelTab(TAB_ROOM);
         tabs.playlist.onclick = _ => this.selectRightPanelTab(TAB_PLAYLIST);
         tabs.chat.onclick     = _ => this.selectRightPanelTab(TAB_CHAT);
         tabs.history.onclick  = _ => this.selectRightPanelTab(TAB_HISTORY);
 
+        const room = this.roomContent;
 
-        this.roomContent.titleUpdateButton.onclick = _ => {
-            let title = this.roomContent.titleInput.value;
+        room.titleUpdateButton.onclick = _ => {
+            let title = room.titleInput.value;
             api.playerUpdateTitle(title);
         };
 
-        this.roomContent.uploadSubButton.onclick = _ => {
-            this.roomContent.uploadSubInput.click();
+        room.uploadSubButton.onclick = _ => {
+            room.uploadSubInput.click();
         };
 
-        this.roomContent.uploadSubInput.onchange = async event => {
+        room.uploadSubInput.onchange = async event => {
             let files = event.target.files;
 
             if (files.length === 0) {
@@ -524,34 +586,39 @@ class Room {
             api.subtitleAttach(subtitle);
         };
 
-        this.roomContent.usingProxyCheckbox.onclick = _ => { return false };
+        room.usingProxyCheckbox.onclick = _ => { return false };
 
-        this.roomContent.uploadFileButton.onclick = _ => {
-            this.roomContent.uploadFileProgress.value = "0";
-            this.roomContent.uploadFileInput.click();
+        room.upload.placeholderRoot.onclick = _ => {
+            room.upload.filepicker.click();
         };
 
-        this.roomContent.uploadFileInput.onchange = event => {
-            let files = event.target.files;
+        room.upload.placeholderRoot.ondragover = event => {
+            event.preventDefault();
+        };
 
-            if (files.length === 0) {
+        room.upload.placeholderRoot.ondrop = event => {
+            event.preventDefault();
+
+            let files = event.dataTransfer.files
+            if (!files) {
                 return;
             }
 
-            let upload = api.uploadMediaWithProgress(files[0], progress => {
-                this.roomContent.uploadFileProgress.value = progress;
-            });
-
-            upload.then(response => {
-                if (response.checkError()) {
-                    return;
-                }
-
-                this.entryArea.urlInput.value = response.json;
-            });
+            for (let i = 0; i < files.length; i++) {
+                this.startMediaFileUpload(files[i])
+                break;
+            }
         };
 
-        this.roomContent.copyToInputButton.onclick = _ => {
+        room.upload.filepicker.onchange = event => {
+            if (event.target.files.length === 0) {
+                return;
+            }
+
+            this.startMediaFileUpload(event.target.files[0])
+        };
+
+        room.copyToInputButton.onclick = _ => {
             this.entryArea.urlInput.value     = this.currentEntry.url;
             this.entryArea.titleInput.value   = this.currentEntry.title;
             this.entryArea.refererInput.value = this.currentEntry.referer_url;
@@ -563,7 +630,7 @@ class Room {
             }
         };
 
-        this.roomContent.setShiftButton.onclick = _ => {
+        room.setShiftButton.onclick = _ => {
             let subs = this.currentEntry.subtitles;
             if (!subs) {
                 return;
@@ -579,25 +646,25 @@ class Room {
             }
         };
 
-        this.roomContent.subtitlesSelect.onchange = event => {
+        room.subtitlesSelect.onchange = event => {
             let id  = Number(event.target.value)
             let sub = this.currentEntry.subtitles.find(sub => sub.id === id);
 
-            this.roomContent.subsEditInput.value = sub.name;
+            room.subsEditInput.value = sub.name;
             this.roomSelectedSubId = sub.id;
         };
 
-        this.roomContent.subsUpdateButton.onclick = _ => {
+        room.subsUpdateButton.onclick = _ => {
             let subtitle = this.currentEntry.subtitles.find(sub => sub.id === this.roomSelectedSubId);
             if (!subtitle) {
                 return
             }
 
-            let newName = this.roomContent.subsEditInput.value.trim();
+            let newName = room.subsEditInput.value.trim();
             api.subtitleUpdate(subtitle.id, newName)
         };
 
-        this.roomContent.subsDeleteButton.onclick = _ => {
+        room.subsDeleteButton.onclick = _ => {
             let subtitle = this.currentEntry.subtitles.find(sub => sub.id === this.roomSelectedSubId);
             if (!subtitle) {
                 return
@@ -606,7 +673,7 @@ class Room {
             api.subtitleDelete(subtitle.id)
         };
 
-        this.roomContent.openSettingsButton.onclick = _ => this.showSettingsMenu();
+        room.openSettingsButton.onclick = _ => this.showSettingsMenu();
     }
 
     async sendSetRequest() {
@@ -632,7 +699,7 @@ class Room {
             this.resetInputAreaElements();
         };
 
-        area.urlInput.onkeypress = event => {
+        area.urlInput.onkeydown = event => {
             if (event.key == "Enter") {
                 this.sendSetRequest();
             }

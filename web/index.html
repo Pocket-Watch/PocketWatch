@@ -288,12 +288,39 @@
 
                         <br/>
 
-                        <div>
-                            <span class="placeholder">Upload file:</span>
-                            <input type="file" id="room_upload_file_input" style="display:none"/>
-                            <progress id="room_upload_file_progress" value="0" max="100"></progress>
-                            <button id="room_upload_file_button">Upload</button>
+                        <div id="room_upload_media_root">
+                            <div id="room_upload_media_placeholder">
+                                <div id="room_upload_media_icon">
+                                    <svg><use href="svg/main_icons.svg#upload"/></svg>
+                                </div>
+
+                                <div id="room_upload_media_text">
+                                    <span id="room_upload_media_text_drag">Drag and drop file</span>
+                                    <span id="room_upload_media_text_or">or</span>
+                                    <span id="room_upload_media_text_click">Click to browse</span>
+                                </div>
+
+                                <input type="file" id="room_upload_media_filepicker" style="display:none"/>
+                            </div>
+
+                            <div id="room_upload_media_progress" class="hide">
+                                <div id="room_upload_media_progress_top">
+                                    <span id="room_upload_media_progress_text">Uploading file</span>
+                                    <span id="room_upload_media_progress_percent">0%</span>
+                                </div>
+
+                                <div id="room_upload_media_progress_bar">
+                                    <div id="room_upload_media_progress_bar_current"></div>
+                                </div>
+
+                                <div id="room_upload_media_progress_bottom">
+                                    <span id="room_upload_media_progress_uploaded">0 B / 0 B</span>
+                                    <span id="room_upload_media_progress_transfer">0 B/s</span>
+                                </div>
+                            </div>
                         </div>
+
+                        <br/>
 
                         <div id="room_browser_media"> 
                             <span class="placeholder">Browse media files:</span>
