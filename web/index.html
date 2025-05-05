@@ -59,24 +59,24 @@
 
                 <div id="entry_area">
                     <div id="entry_controls_container"> 
-                        <button id="entry_dropdown_button" title="Show more options">
+                        <button id="entry_dropdown_button" class="widget_button" title="Show more options">
                             <svg><use href="svg/main_icons.svg#dropdown2"/></svg>
                         </button>
 
-                        <button id="entry_reset_button" title="Reset all fields">
+                        <button id="entry_reset_button" class="widget_button" title="Reset all fields">
                             <svg><use href="svg/main_icons.svg#clear"/></svg>
                         </button>
 
-                        <div class="widget_input" id="entry_url_container">
-                            <input type="url" id="entry_url_input" placeholder="" title="Enter video or audio URL here. Could be a YouTube link or any other media URL."/>
+                        <div id="entry_url_container" class="widget_input">
+                            <input id="entry_url_input" type="url" placeholder="" title="Enter video or audio URL here. Could be a YouTube link or any other media URL."/>
                             <label id="entry_url_label">Entry URL</label>
                         </div>
 
                         <div id="entry_right_buttons_container">
-                            <button id="entry_set_button" title="Play Now">
+                            <button id="entry_set_button" class="widget_button" title="Play Now">
                                 <svg><use href="svg/main_icons.svg#play"/></svg>
                             </button>
-                            <button id="entry_add_playlist_button" title="Add to playlist">
+                            <button id="entry_add_playlist_button" class="widget_button" title="Add to playlist">
                                 <svg><use href="svg/main_icons.svg#playlist"/></svg>
                             </button>
                         </div>
@@ -88,7 +88,7 @@
 
                             <div class="entry_section_group">
                                 <div class="widget_input">
-                                    <input id="entry_title_input" placeholder="" title="Enter your custom entry title."/>
+                                    <input id="entry_title_input" placeholder="" title="Enter your custom title for the entry."/>
                                     <label>Entry Title</label>
                                 </div>
 
@@ -101,7 +101,7 @@
                             </div>
 
                             <div class="entry_section_group">
-                                <div id="entry_proxy_toggle" class="widget_toggle_root">
+                                <div id="entry_proxy_toggle" class="widget_toggle_root" title="Enables media proxy. That means that provided resource (ex. link to a youtube video) will be fetched by the server and relayed to all online memebers in the given room.">
                                     <div class="widget_toggle_switch">
                                         <div class="widget_toggle_circle"></div>
                                     </div>
@@ -109,7 +109,7 @@
                                 </div>
 
                                 <div class="widget_input" id="referer_container">
-                                    <input type="url" id="entry_dropdown_referer_input" placeholder="" title="Enter URL referer for the proxy. This field is optional."/>
+                                    <input type="url" id="entry_dropdown_referer_input" placeholder="" title="Enter URL referer for the proxy. Sometimes needed for the proxy to work. Usually set automatically by the PocketPicker extension."/>
                                     <label>Media Referer</label>
                                 </div>
                             </div>
@@ -118,8 +118,8 @@
                         <fieldset class="entry_section">
                             <legend>Subtitles</legend>
 
-                            <div class="entry_section_group">
-                                <button id="entry_select_subtitle_button">
+                            <div class="entry_section_group" title="Select subtitle file from your local computer disk.">
+                                <button id="entry_select_subtitle_button" class="widget_button">
                                     <svg><use href="svg/main_icons.svg#upload"/></svg>
                                 </button>
 
@@ -288,44 +288,70 @@
 
                         <br/>
 
-                        <div id="room_upload_media_root">
-                            <div id="room_upload_media_placeholder">
-                                <div id="room_upload_media_icon">
-                                    <svg><use href="svg/main_icons.svg#upload"/></svg>
+                        <div id="room_media_section">
+                            <div id="room_upload_media_root">
+                                <div id="room_upload_media_placeholder">
+                                    <div id="room_upload_media_icon">
+                                        <svg><use href="svg/main_icons.svg#upload"/></svg>
+                                    </div>
+
+                                    <div id="room_upload_media_text">
+                                        <span id="room_upload_media_text_drag">Drag and drop file</span>
+                                        <span id="room_upload_media_text_or">or</span>
+                                        <span id="room_upload_media_text_click">Click to browse</span>
+                                    </div>
+
+                                    <input type="file" id="room_upload_media_filepicker" style="display:none"/>
                                 </div>
 
-                                <div id="room_upload_media_text">
-                                    <span id="room_upload_media_text_drag">Drag and drop file</span>
-                                    <span id="room_upload_media_text_or">or</span>
-                                    <span id="room_upload_media_text_click">Click to browse</span>
-                                </div>
+                                <div id="room_upload_media_progress" class="hide">
+                                    <div id="room_upload_media_progress_top">
+                                        <span id="room_upload_media_progress_text">Uploading file</span>
+                                        <span id="room_upload_media_progress_percent">0%</span>
+                                    </div>
 
-                                <input type="file" id="room_upload_media_filepicker" style="display:none"/>
+                                    <div id="room_upload_media_progress_bar">
+                                        <div id="room_upload_media_progress_bar_current"></div>
+                                    </div>
+
+                                    <div id="room_upload_media_progress_bottom">
+                                        <span id="room_upload_media_progress_uploaded">0 B / 0 B</span>
+                                        <span id="room_upload_media_progress_transfer">0 B/s</span>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div id="room_upload_media_progress" class="hide">
-                                <div id="room_upload_media_progress_top">
-                                    <span id="room_upload_media_progress_text">Uploading file</span>
-                                    <span id="room_upload_media_progress_percent">0%</span>
+                            <div id="room_media_browse">
+                                <div>
+                                    <a href="/watch/media">Browse</a>
+                                    <span>uploaded files</span>
                                 </div>
+                                <div id="room_media_browse_separator"></div>
+                                <div id="room_media_browse_buttons">
+                                    <button id="room_media_browse_button_video" class="widget_button">
+                                        <svg><use href="svg/main_icons.svg#video"/></svg>
+                                        <span>Vidoes</span>
+                                    </button>
 
-                                <div id="room_upload_media_progress_bar">
-                                    <div id="room_upload_media_progress_bar_current"></div>
-                                </div>
+                                    <button id="room_media_browse_button_audio" class="widget_button">
+                                        <svg><use href="svg/main_icons.svg#audio"/></svg>
+                                        <span>Audio</span>
+                                    </button>
 
-                                <div id="room_upload_media_progress_bottom">
-                                    <span id="room_upload_media_progress_uploaded">0 B / 0 B</span>
-                                    <span id="room_upload_media_progress_transfer">0 B/s</span>
+                                    <button id="room_media_browse_button_subtitles" class="widget_button">
+                                        <svg><use href="svg/main_icons.svg#subtitles"/></svg>
+                                        <span>Subtitles</span>
+                                    </button>
+
+                                    <button id="room_media_browse_button_images" class="widget_button">
+                                        <svg><use href="svg/main_icons.svg#image"/></svg>
+                                        <span>Images</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
 
                         <br/>
-
-                        <div id="room_browser_media"> 
-                            <span class="placeholder">Browse media files:</span>
-                            <a href="/watch/media">Browse</a>
-                        </div>
 
                         <div id="room_copy_to_input"> 
                             <span class="placeholder">Copy to input area:</span>

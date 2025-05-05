@@ -138,7 +138,15 @@ class Room {
                 barCurrent:      getById("room_upload_media_progress_bar_current"),
                 uploaded:        getById("room_upload_media_progress_uploaded"),
                 transfer:        getById("room_upload_media_progress_transfer"),
+
             },
+
+            browse: {
+                videoButton:     getById("room_media_browse_button_video"),
+                audioButton:     getById("room_media_browse_button_audio"),
+                subtitlesButton: getById("room_media_browse_button_subtitles"),
+                imagesButton:    getById("room_media_browse_button_images"),
+            }
         };
 
         this.chatNewMessage = getById("tab_chat_new_message_indicator");
@@ -617,6 +625,11 @@ class Room {
 
             this.startMediaFileUpload(event.target.files[0])
         };
+
+        room.browse.videoButton.onclick    = _ => window.open("media/video/", '_blank').focus();
+        room.browse.audioButton.onclick     = _ => window.open("media/audio/", '_blank').focus();
+        room.browse.subtitlesButton.onclick = _ => window.open("media/subs/",  '_blank').focus();
+        room.browse.imagesButton.onclick    = _ => window.open("media/image/", '_blank').focus();
 
         room.copyToInputButton.onclick = _ => {
             this.entryArea.urlInput.value     = this.currentEntry.url;

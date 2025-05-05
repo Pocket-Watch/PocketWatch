@@ -191,27 +191,23 @@ html * {
 #entry_controls_container {
     width: 100%;
     height: 42px;
-    box-sizing: border-box;
     display: flex;
+    column-gap: 6px;
+    box-sizing: border-box;
 }
 
 #entry_dropdown_button {
     width: 24px;
     height: 100%;
-    border: none;
-    border-radius: 6px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background-color: var(--bg_5);
-}
-
-#entry_dropdown_button:hover {
     background-color: var(--bg_6);
 }
 
+#entry_dropdown_button:hover {
+    background-color: var(--bg_5);
+}
+
 #entry_dropdown_button:active {
-    background-color: var(--gray_2);
+    background-color: var(--bg_4);
 }
 
 #entry_dropdown_button svg {
@@ -229,13 +225,6 @@ html * {
     width: 50px;
     height: 100%;
     border: none;
-    border-radius: 6px;
-    box-shadow: 1px 3px 0px 0px var(--bg_0);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-left: 6px;
-    transition: transform 80ms;
     background-color: var(--red_2);
 }
 
@@ -244,9 +233,6 @@ html * {
 }
 
 #entry_reset_button:active {
-    box-shadow: none;
-    transform: translate(1px, 2px);
-    transition: transform 80ms;
     background-color: var(--red_0);
 }
 
@@ -274,8 +260,6 @@ html * {
 #entry_url_container {
     width: 100%;
     height: 100%;
-    margin-left: 6px;
-    margin-right: 6px;
 }
 
 #entry_youtube_toggles_group {
@@ -297,6 +281,135 @@ html * {
 #entry_youtube_playlist_toggle {
     min-width: 146px;
 }
+
+#entry_right_buttons_container {
+    width: 130px;
+    height: 100%;
+    border-radius: 6px;
+    display: flex;
+    overflow: visible;
+}
+
+#entry_set_button {
+    width: 100%;
+    height: 100%;
+    border-radius: 6px 0 0 6px;
+    z-index: 1;
+    background-color: var(--aqua_2);
+}
+
+#entry_set_button:hover {
+    background-color: var(--aqua_1);
+}
+
+#entry_set_button:active {
+    box-shadow: none;
+    background-color: var(--aqua_0);
+}
+
+#entry_set_button svg {
+    height: 24px;
+    width: 24px;
+    fill: var(--bg_3);
+}
+
+#entry_set_button:active svg {
+    fill: var(--bg_1);
+}
+
+#entry_add_playlist_button {
+    width: 100%;
+    height: 100%;
+    border-radius: 0 6px 6px 0;
+    z-index: 2;
+    background-color: var(--blue_2);
+}
+
+#entry_add_playlist_button:hover {
+    background-color: var(--blue_1);
+}
+
+#entry_add_playlist_button:active {
+    background-color: var(--blue_0);
+}
+
+#entry_add_playlist_button svg {
+    height: 26px;
+    width: 26px;
+    fill: var(--bg_3);
+}
+
+#entry_add_playlist_button:active svg {
+    fill: var(--bg_1);
+}
+
+#entry_dropdown_container {
+    width: 100%;
+    height: 0;
+    row-gap: 6px;
+    display: flex;
+    box-sizing: border-box;
+    transition: height 200ms ease-out, padding-top 200ms;
+    overflow: hidden;
+    flex-direction: column;
+}
+
+.entry_area_expand #entry_dropdown_container {
+    height: 308px;
+    padding-top: 6px;
+}
+
+.entry_section {
+    width: 100%;
+    height: auto;
+    box-sizing: border-box;
+    border: 1px solid var(--bg_5);
+    display: flex;
+    padding: 8px;
+    border-radius: 4px;
+    flex-direction: column;
+    row-gap: 8px;
+}
+
+.entry_section legend {
+    color: var(--fg_5);
+    padding: 0 6px;
+    font-size: 14px;
+}
+
+.entry_section_group {
+    width: 100%;
+    height: 46px;
+    display: flex;
+    box-sizing: border-box;
+    column-gap: 6px;
+}
+
+#entry_select_subtitle_button  {
+    height: 100%;
+    aspect-ratio: 1.0;
+    background-color: var(--green_2);
+}
+
+#entry_select_subtitle_button:hover {
+    background-color: var(--green_1);
+}
+
+#entry_select_subtitle_button:active {
+    background-color: var(--green_0);
+}
+
+#entry_select_subtitle_button svg {
+    height: 20px;
+    width: 20px;
+    fill: var(--bg_1);
+}
+
+#entry_select_subtitle_button:active svg {
+    fill: var(--bg_0);
+}
+
+/* Toggle widget -------------------------------------------------------------------------- */
 
 .widget_input {
     width: 100%;
@@ -380,161 +493,7 @@ html * {
     color: var(--blue_2);
 }
 
-#entry_right_buttons_container {
-    width: 130px;
-    height: 100%;
-    border-radius: 6px;
-    display: flex;
-    overflow: visible;
-}
-
-#entry_set_button {
-    width: 100%;
-    height: 100%;
-    border: none;
-    box-shadow: 1px 3px 0px 0px var(--bg_0);
-    border-radius: 6px 0 0 6px;
-    box-sizing: border-box;
-    z-index: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background-color: var(--aqua_2);
-    transition: transform 80ms;
-}
-
-#entry_set_button:hover {
-    background-color: var(--aqua_1);
-}
-
-#entry_set_button:active {
-    box-shadow: none;
-    transform: translate(1px, 2px);
-    transition: transform 80ms;
-    background-color: var(--aqua_0);
-}
-
-#entry_set_button svg {
-    height: 24px;
-    width: 24px;
-    fill: var(--bg_3);
-}
-
-#entry_set_button:active svg {
-    fill: var(--bg_1);
-}
-
-#entry_add_playlist_button {
-    width: 100%;
-    height: 100%;
-    border: none;
-    box-shadow: 1px 3px 0px 0px var(--bg_0);
-    border-radius: 0 6px 6px 0;
-    box-sizing: border-box;
-    z-index: 2;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background-color: var(--blue_2);
-    transition: transform 80ms;
-}
-
-#entry_add_playlist_button:hover {
-    background-color: var(--blue_1);
-}
-
-#entry_add_playlist_button:active {
-    box-shadow: none;
-    transform: translate(1px, 2px);
-    background-color: var(--blue_0);
-    transition: transform 80ms;
-}
-
-#entry_add_playlist_button svg {
-    height: 26px;
-    width: 26px;
-    fill: var(--bg_3);
-}
-
-#entry_add_playlist_button:active svg {
-    fill: var(--bg_1);
-}
-
-#entry_dropdown_container {
-    width: 100%;
-    height: 0;
-    row-gap: 6px;
-    display: flex;
-    box-sizing: border-box;
-    transition: height 200ms ease-out, padding-top 200ms;
-    overflow: hidden;
-    flex-direction: column;
-}
-
-.entry_area_expand #entry_dropdown_container {
-    height: 308px;
-    padding-top: 6px;
-}
-
-.entry_section {
-    width: 100%;
-    height: auto;
-    box-sizing: border-box;
-    border: 1px solid var(--bg_5);
-    display: flex;
-    padding: 8px;
-    border-radius: 4px;
-    flex-direction: column;
-    row-gap: 8px;
-}
-
-.entry_section legend {
-    color: var(--fg_5);
-    padding: 0 6px;
-    font-size: 14px;
-}
-
-.entry_section_group {
-    width: 100%;
-    height: 46px;
-    display: flex;
-    box-sizing: border-box;
-    column-gap: 6px;
-}
-
-#entry_select_subtitle_button  {
-    height: 100%;
-    aspect-ratio: 1.0;
-    border-radius: 6px;
-    box-shadow: 1px 3px 0px 0px var(--bg_0);
-    box-sizing: border-box;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    transition: transform 80ms;
-    background-color: var(--green_2);
-}
-
-#entry_select_subtitle_button:hover {
-    background-color: var(--green_1);
-}
-
-#entry_select_subtitle_button:active {
-    box-shadow: none;
-    transform: translate(1px, 2px);
-    transition: transform 80ms;
-    background-color: var(--green_0);
-}
-
-#entry_select_subtitle_button svg {
-    height: 20px;
-    width: 20px;
-    fill: var(--bg_1);
-}
-
-#entry_select_subtitle_button:active svg {
-    fill: var(--bg_0);
-}
+/* Toggle widget -------------------------------------------------------------------------- */
 
 .widget_toggle_root {
     display: flex;
@@ -590,6 +549,38 @@ html * {
 .widget_toggle_root.active .widget_toggle_switch {
     background-color: var(--green_1);
     border-color: var(--green_1);
+}
+
+/* Button widget -------------------------------------------------------------------------- */
+
+.widget_button {
+    box-shadow: 1px 3px 0px 0px var(--bg_0);
+    border: none;
+    border-radius: 6px;
+    display: flex;
+    box-sizing: border-box;
+    cursor: pointer;
+    justify-content: center;
+    align-items: center;
+    transition: transform 80ms;
+    background-color: var(--red_2);
+}
+
+.widget_button:hover {
+    background-color: var(--red_1);
+}
+
+.widget_button:active {
+    box-shadow: none;
+    transform: translate(1px, 2px);
+    transition: transform 80ms;
+    background-color: var(--red_0);
+}
+
+.widget_button svg {
+    height: 27px;
+    width: 27px;
+    fill: var(--fg_0);
 }
 
 #users_area {
@@ -915,9 +906,16 @@ html * {
     flex-direction: column;
 }
 
+#room_media_section {
+    height: 120px;
+    width: 100%;
+    display: flex;
+    box-sizing: border-box;
+}
+
 #room_upload_media_root {
     width: 50%;
-    height: 120px;
+    height: 100%;
 }
 
 #room_upload_media_placeholder {
@@ -1044,6 +1042,106 @@ html * {
 
 #room_upload_media_placeholder.hide {
     display: none;
+}
+
+#room_media_browse {
+    height: 100%;
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+    row-gap: 6px;
+    text-align: center;
+    align-items: center;
+    color: var(--fg_4);
+    font-weight: bold;
+}
+
+#room_media_browse_separator {
+    height: 1px;
+    width: 90%;
+    background-color: var(--bg_5);
+}
+
+#room_media_browse_buttons {
+    width: 100%;
+    flex-grow: 1.0;
+    display: grid;
+    box-sizing: border-box;
+    padding: 0 22px;
+    row-gap: 8px;
+    column-gap: 8px;
+}
+
+#room_media_browse_buttons button {
+    display: flex;
+    column-gap: 8px;
+}
+
+#room_media_browse_buttons span {
+    color: var(--bg_0);
+    font-weight: bold;
+}
+
+#room_media_browse_buttons svg {
+    height: 20px;
+    width: 20px;
+    fill: var(--bg_0);
+}
+
+#room_media_browse_button_video {
+    grid-row: 1;
+    grid-column: 1;
+    background-color: var(--blue_2);
+}
+
+#room_media_browse_button_video:hover {
+    background-color: var(--blue_1);
+}
+
+#room_media_browse_button_video:active {
+    background-color: var(--blue_0);
+}
+
+#room_media_browse_button_audio {
+    grid-row: 1;
+    grid-column: 2;
+    background-color: var(--green_2);
+}
+
+#room_media_browse_button_audio:hover {
+    background-color: var(--green_1);
+}
+
+#room_media_browse_button_audio:active {
+    background-color: var(--green_0);
+}
+
+#room_media_browse_button_subtitles {
+    grid-row: 2;
+    grid-column: 1;
+    background-color: var(--yellow_2);
+}
+
+#room_media_browse_button_subtitles:hover {
+    background-color: var(--yellow_1);
+}
+
+#room_media_browse_button_subtitles:active {
+    background-color: var(--yellow_0);
+}
+
+#room_media_browse_button_images {
+    grid-row: 2;
+    grid-column: 2;
+    background-color: var(--orange_2);
+}
+
+#room_media_browse_button_images:hover {
+    background-color: var(--orange_1);
+}
+
+#room_media_browse_button_images:active {
+    background-color: var(--orange_0);
 }
 
 #room_now_playing {
