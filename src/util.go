@@ -302,6 +302,20 @@ type DownloadError struct {
 	Message string
 }
 
+// Returns true if is DownloadError and any of the error codes
+func isErrorStatus(err error, codes ...int) bool {
+	var downloadErr *DownloadError
+	if !errors.As(err, &downloadErr) {
+		return false
+	}
+	for i := range codes {
+		if downloadErr.Code == codes[i] {
+			return true
+		}
+	}
+	return false
+}
+
 // Implements the error interface
 func (e *DownloadError) Error() string {
 	return fmt.Sprintf("NetworkError: Code=%d, Message=%s", e.Code, e.Message)

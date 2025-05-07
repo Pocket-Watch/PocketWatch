@@ -192,7 +192,7 @@ func StartServer(config ServerConfig, db *sql.DB) {
 }
 
 func createRedirectServer(config ServerConfig) {
-	LogInfo("Creating a redirect server to '%v'.",  config.RedirectTo)
+	LogInfo("Creating a redirect server to '%v'.", config.RedirectTo)
 
 	redirectFunc := func(w http.ResponseWriter, r *http.Request) {
 		var redirect = config.RedirectTo + r.RequestURI
@@ -673,6 +673,63 @@ func (server *Server) isTrustedUrl(url string, parsedUrl *net_url.URL) bool {
 	return false
 }
 
+type MasterPlaylistSetup struct {
+	m3u    *M3U
+	url    string
+	prefix string
+}
+
+func (server *Server) setupMasterPlaylist(m3u *M3U, prefix string, referer string, parsedUrl *net_url.URL) *MasterPlaylistSetup {
+	if len(m3u.tracks) == 0 {
+		LogError("Master playlist contains 0 tracks!")
+		return nil
+	}
+
+	// Rarely tracks are not fully qualified
+	originalMasterPlaylist := m3u.copy()
+	m3u.prefixRelativeTracks(prefix)
+	LogInfo("A master playlist was provided. The best track will be chosen based on quality.")
+	bestTrack := m3u.getBestTrack()
+	var url string
+	if bestTrack == nil {
+		bestTrack = &m3u.tracks[0]
+		url = bestTrack.url
+	}
+	resolution := bestTrack.getParamValue("RESOLUTION")
+	if resolution != "" {
+		LogDebug("The best track's resolution is %v", resolution)
+	}
+
+	var err error = nil
+	m3u, err = downloadM3U(bestTrack.url, WEB_PROXY+ORIGINAL_M3U8, referer)
+
+	if isErrorStatus(err, 404) {
+		// Hacky trick for relative non-compliant m3u8's 💩
+		domain := getRootDomain(parsedUrl)
+		originalMasterPlaylist.prefixRelativeTracks(domain)
+		bestTrack = originalMasterPlaylist.getBestTrack()
+		if bestTrack == nil {
+			bestTrack = &originalMasterPlaylist.tracks[0]
+		}
+		m3u, err = downloadM3U(bestTrack.url, WEB_PROXY+ORIGINAL_M3U8, referer)
+		if err != nil {
+			LogError("Fallback failed: %v", err.Error())
+			return nil
+		}
+	} else if err != nil {
+		LogError("Failed to fetch track from master playlist: %v", err.Error())
+		return nil
+	}
+	// Refreshing the prefix in case the newly assembled track consists of 2 or more components
+	parsedUrl, err = net_url.Parse(bestTrack.url)
+	if err != nil {
+		LogError("Failed to parse URL from the best track, likely the segment is invalid: %v", err.Error())
+		return nil
+	}
+	prefix = stripLastSegment(parsedUrl)
+	return &MasterPlaylistSetup{m3u, url, prefix}
+}
+
 func (server *Server) setupHlsProxy(url string, referer string) bool {
 	parsedUrl, err := net_url.Parse(url)
 	if err != nil {
@@ -700,53 +757,14 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 
 	prefix := stripLastSegment(parsedUrl)
 	if m3u.isMasterPlaylist {
-		if len(m3u.tracks) == 0 {
-			LogError("Master playlist contains 0 tracks!")
+		setupResult := server.setupMasterPlaylist(m3u, prefix, referer, parsedUrl)
+		if setupResult == nil {
 			return false
 		}
-
-		// Rarely tracks are not fully qualified
-		originalMasterPlaylist := m3u.copy()
-		m3u.prefixRelativeTracks(prefix)
-		LogInfo("User provided a master playlist. The best track will be chosen based on quality.")
-		bestTrack := m3u.getBestTrack()
-		if bestTrack == nil {
-			bestTrack = &m3u.tracks[0]
-			url = bestTrack.url
-		}
-		resolution := bestTrack.getParamValue("RESOLUTION")
-		if resolution != "" {
-			LogDebug("The best track's resolution is %v", resolution)
-		}
-
-		m3u, err = downloadM3U(bestTrack.url, WEB_PROXY+ORIGINAL_M3U8, referer)
-		var downloadErr *DownloadError
-		if errors.As(err, &downloadErr) && downloadErr.Code == 404 {
-			// Hacky trick for relative non-compliant m3u8's 💩
-			domain := getRootDomain(parsedUrl)
-			originalMasterPlaylist.prefixRelativeTracks(domain)
-			bestTrack = originalMasterPlaylist.getBestTrack()
-			if bestTrack == nil {
-				bestTrack = &originalMasterPlaylist.tracks[0]
-			}
-			m3u, err = downloadM3U(bestTrack.url, WEB_PROXY+ORIGINAL_M3U8, referer)
-			if err != nil {
-				LogError("Fallback failed :( %v", err.Error())
-				return false
-			}
-		} else if err != nil {
-			LogError("Failed to fetch track from master playlist: %v", err.Error())
-			return false
-		}
-		// Refreshing the prefix in case the newly assembled track consists of 2 or more components
-		parsedUrl, err := net_url.Parse(bestTrack.url)
-		if err != nil {
-			LogError("Failed to parse URL from the best track, likely the segment is invalid: %v", err.Error())
-			return false
-		}
-		prefix = stripLastSegment(parsedUrl)
+		m3u = setupResult.m3u
+		url = setupResult.url
+		prefix = setupResult.prefix
 	}
-	// At this point it either succeeded or it already returned
 
 	segmentCount := len(m3u.segments)
 	if segmentCount == 0 {
@@ -1042,6 +1060,8 @@ func (server *Server) serveHlsVod(writer http.ResponseWriter, request *http.Requ
 		code := 500
 		if isTimeoutError(fetchErr) {
 			code = 504
+		} else {
+
 		}
 		http.Error(writer, "Failed to fetch vod chunk", code)
 		return
