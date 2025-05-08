@@ -25,7 +25,7 @@ class Chat {
         let user = allUsers[index];
 
         let username = "Deleted user"
-        if (!user) {
+        if (user) {
             username = user.username;
         }
 
