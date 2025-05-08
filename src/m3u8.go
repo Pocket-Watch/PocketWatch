@@ -369,7 +369,7 @@ func (m3u *M3U) getBestTrack() *Track {
 // This method will only prefix relative URLs
 func (m3u *M3U) prefixRelativeTracks(prefix string) {
 	for i := range m3u.tracks {
-		if !strings.HasPrefix(m3u.tracks[i].url, "http") {
+		if !isAbsolute(m3u.tracks[i].url) {
 			m3u.tracks[i].prefixUrl(prefix)
 		}
 	}
@@ -401,7 +401,7 @@ func (m3u *M3U) copy() M3U {
 func (m3u *M3U) prefixRelativeSegments(prefix string) {
 	// if a range loop is used the track url is effectively not reassigned
 	for i := range m3u.segments {
-		if !strings.HasPrefix(m3u.segments[i].url, "http") {
+		if !isAbsolute(m3u.segments[i].url) {
 			m3u.segments[i].prefixUrl(prefix)
 		}
 	}

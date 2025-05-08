@@ -779,8 +779,13 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 	LogDebug("Max segment length: %vs", m3u.getAttribute(EXT_X_TARGETDURATION))
 	LogDebug("isLive: %v", m3u.isLive)
 	LogDebug("segments: %v", segmentCount)
-	LogDebug("total duration: %v", m3u.totalDuration())
+	LogDebug("total duration: %vs", int(m3u.totalDuration()))
 
+	// Test if the first chunk is available and the source operates as intended (prevents broadcasting broken entries)
+	if !server.confirmSegment0Available(m3u, prefix, referer) {
+		LogError("Chunk 0 was not available!")
+		return false
+	}
 	// Sometimes m3u8 chunks are not fully qualified
 	m3u.prefixRelativeSegments(prefix)
 
@@ -824,6 +829,18 @@ func (server *Server) setupVodProxy(m3u *M3U) bool {
 	m3u.serialize(WEB_PROXY + PROXY_M3U8)
 	LogDebug("Prepared proxy file %v", PROXY_M3U8)
 	return true
+}
+
+func (server *Server) confirmSegment0Available(m3u *M3U, prefix, referer string) bool {
+	// VODs are expected
+	if m3u.isMasterPlaylist {
+		return false
+	}
+	segment0 := m3u.segments[0]
+	if !isAbsolute(segment0.url) {
+		segment0.prefixUrl(prefix)
+	}
+	return testGetResponse(segment0.url, referer)
 }
 
 var voiceClients = make(map[*websocket.Conn]bool)
@@ -1075,7 +1092,7 @@ func (server *Server) serveHlsVod(writer http.ResponseWriter, request *http.Requ
 func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFile string) {
 	proxy := &server.state.genericProxy
 	if path.Ext(pathFile) != proxy.extensionWithDot {
-		http.Error(writer, "Failed to fetch chunk", 404)
+		http.Error(writer, "Failed to fetch generic chunk", 404)
 		return
 	}
 

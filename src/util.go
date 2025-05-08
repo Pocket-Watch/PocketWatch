@@ -107,6 +107,10 @@ func downloadFileChunk(url string, r *Range, referer string) ([]byte, error) {
 	return buffer, nil
 }
 
+func isAbsolute(url string) bool {
+	return strings.HasPrefix(url, "https://") || strings.HasPrefix(url, "http://")
+}
+
 // Maybe there's some specification for proxied URLs
 func getParamUrl(url string) string {
 	parsedUrl, err := net_url.Parse(url)
@@ -119,7 +123,7 @@ func getParamUrl(url string) string {
 			continue
 		}
 		paramUrl := values[0]
-		if !strings.HasPrefix(paramUrl, "http") {
+		if !isAbsolute(paramUrl) {
 			continue
 		}
 		// Ensure that param url is a valid url
@@ -162,6 +166,24 @@ func pullBytesFromResponse(response *http.Response, byteCount int) ([]byte, erro
 		return nil, &DownloadError{Code: response.StatusCode, Message: "Failed to read response body."}
 	}
 	return buffer, nil
+}
+
+// This function only tests the server's intent and exits immediately
+// Returns true if test status code is successful, false otherwise
+func testGetResponse(url string, referer string) bool {
+	request, _ := http.NewRequest("GET", url, nil)
+	request.Header.Set("User-Agent", userAgent)
+	if referer != "" {
+		request.Header.Set("Referer", referer)
+		request.Header.Set("Origin", inferOrigin(referer))
+	}
+
+	response, err := client.Do(request)
+	if err != nil {
+		return false
+	}
+	defer response.Body.Close()
+	return response.StatusCode >= 200 && response.StatusCode < 300
 }
 
 func downloadFile(url string, filename string, referer string) error {
