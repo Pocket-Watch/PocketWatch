@@ -108,21 +108,21 @@ class Room {
         };
 
         this.roomContent = {
-            currentUrlInput: getById("room_current_url_input"),
+            urlInput:        getById("room_entry_url_input"),
             titleInput:      getById("room_entry_title_input"),
-            refererInput:    getById("room_referer_input"),
+            refererInput:    getById("room_entry_referer_input"),
             uploadSubInput:  getById("room_upload_subtitle_input"),
             subsEditInput:   getById("room_subtitle_edit_input"),
 
             titleUpdateButton:  getById("room_title_update_button"),
             uploadSubButton:    getById("room_upload_subtitle_button"),
-            copyToInputButton:  getById("room_copy_to_input_button"),
+            copyEntryButton:    getById("room_copy_entry_button"),
             setShiftButton:     getById("room_set_shift_button"),
             subsUpdateButton:   getById("room_subtitle_update_button"),
             subsDeleteButton:   getById("room_subtitle_delete_button"),
             openSettingsButton: getById("room_open_settings_button"),
 
-            usingProxyCheckbox: getById("room_using_proxy_checkbox"),
+            usingProxyCheckbox: getById("room_entry_proxy_enabled"),
             uploadFileProgress: getById("room_upload_file_progress"),
             createdByUsername:  getById("room_created_by_username"),
             lastActionText:     getById("room_last_action_text"),
@@ -564,14 +564,7 @@ class Room {
         });
     }
 
-    attachRightPanelEvents() {
-        const tabs = this.rightPanel.tabs;
-
-        tabs.room.onclick     = _ => this.selectRightPanelTab(TAB_ROOM);
-        tabs.playlist.onclick = _ => this.selectRightPanelTab(TAB_PLAYLIST);
-        tabs.chat.onclick     = _ => this.selectRightPanelTab(TAB_CHAT);
-        tabs.history.onclick  = _ => this.selectRightPanelTab(TAB_HISTORY);
-
+    attachRoomTabEvents() {
         const room = this.roomContent;
 
         room.titleUpdateButton.onclick = _ => {
@@ -593,8 +586,6 @@ class Room {
             let subtitle = await api.subtitleUpload(files[0], files[0].name);
             api.subtitleAttach(subtitle);
         };
-
-        room.usingProxyCheckbox.onclick = _ => { return false };
 
         room.upload.placeholderRoot.onclick = _ => {
             room.upload.filepicker.click();
@@ -631,7 +622,7 @@ class Room {
         room.browse.subtitlesButton.onclick = _ => window.open("media/subs/",  '_blank').focus();
         room.browse.imagesButton.onclick    = _ => window.open("media/image/", '_blank').focus();
 
-        room.copyToInputButton.onclick = _ => {
+        room.copyEntryButton.onclick = _ => {
             this.entryArea.urlInput.value     = this.currentEntry.url;
             this.entryArea.titleInput.value   = this.currentEntry.title;
             this.entryArea.refererInput.value = this.currentEntry.referer_url;
@@ -689,6 +680,18 @@ class Room {
         room.openSettingsButton.onclick = _ => this.showSettingsMenu();
     }
 
+    attachRightPanelEvents() {
+        const tabs = this.rightPanel.tabs;
+
+        tabs.room.onclick     = _ => this.selectRightPanelTab(TAB_ROOM);
+        tabs.playlist.onclick = _ => this.selectRightPanelTab(TAB_PLAYLIST);
+        tabs.chat.onclick     = _ => this.selectRightPanelTab(TAB_CHAT);
+        tabs.history.onclick  = _ => this.selectRightPanelTab(TAB_HISTORY);
+
+        this.attachRoomTabEvents();
+        this.playlist.attachPlaylistEvents();
+    }
+
     async sendSetRequest() {
         let entry = await this.createNewRequestEntry();
         api.playerSet(entry).then(jsonResponse => {
@@ -701,7 +704,7 @@ class Room {
         });
     }
 
-    attachUrlAreaEvents() {
+    attachEntryAreaEvents() {
         let area = this.entryArea;
 
         area.dropdownButton.onclick = _ => {
@@ -811,9 +814,8 @@ class Room {
     }
 
     attachHtmlEvents() {
-        this.playlist.attachPlaylistEvents();
         this.attachSettingsMenuEvents();
-        this.attachUrlAreaEvents();
+        this.attachEntryAreaEvents();
         this.usersArea.settingsButton.onclick = _ => this.showSettingsMenu();
         this.attachRightPanelEvents();
     }
@@ -1063,9 +1065,14 @@ class Room {
     }
 
     updateRoomContent(entry) {
-        this.roomContent.currentUrlInput.value         = entry.url;
-        this.roomContent.titleInput.value              = entry.title;
-        this.roomContent.usingProxyCheckbox.checked    = entry.use_proxy;
+        this.roomContent.urlInput.value = entry.url;
+        this.roomContent.titleInput.value      = entry.title;
+        if (entry.use_proxy) {
+            this.roomContent.usingProxyCheckbox.classList.add("active");
+        } else {
+            this.roomContent.usingProxyCheckbox.classList.remove("active");
+        }
+
         this.roomContent.refererInput.value            = entry.referer_url;
         this.roomContent.createdByUsername.textContent = this.getUsernameByUserId(entry.user_id);
         this.roomContent.createdAtDate.textContent     = new Date(entry.created);

@@ -22,9 +22,14 @@ class Chat {
     addMessage(chatMsg, allUsers) {
         let chatDiv = document.createElement("div");
         let index = allUsers.findIndex(user => user.id === chatMsg.authorId);
-        let userName = allUsers[index].username;
+        let user = allUsers[index];
 
-        chatDiv.innerText = "[" + userName + "] " + chatMsg.message;
+        let username = "Deleted user"
+        if (!user) {
+            username = user.username;
+        }
+
+        chatDiv.innerText = "[" + username + "] " + chatMsg.message;
         this.chatArea.appendChild(chatDiv);
     }
 

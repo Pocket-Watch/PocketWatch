@@ -411,6 +411,7 @@ html * {
 
 /* Toggle widget -------------------------------------------------------------------------- */
 
+.widget_readonly_input,
 .widget_input {
     width: 100%;
     height: 100%;
@@ -420,6 +421,7 @@ html * {
     align-items: center;
 }
 
+.widget_readonly_input input,
 .widget_input input {
     width: 100%;
     height: 100%;
@@ -431,6 +433,7 @@ html * {
     background-color: var(--bg_2);
     color: var(--fg_1);
     transition: all 0.2s ease;
+    caret-color: transparent;
 }
 
 .widget_input input:hover {
@@ -443,12 +446,15 @@ html * {
     border-color: var(--blue_2);
     background-color: var(--bg_3);
     box-shadow: 0 0 0 2px var(--blue_1);
+    caret-color: auto;
 }
 
+.widget_readonly_input input:not(:placeholder-shown),
 .widget_input input:not(:placeholder-shown) {
     background-color: var(--bg_3);
 }
 
+.widget_readonly_input label,
 .widget_input label {
     max-width: 80%;
     left: 16px;
@@ -472,6 +478,7 @@ html * {
     background-color: var(--bg_3);
 }
 
+.widget_readonly_input input:not(:placeholder-shown) + label,
 .widget_input input:focus + label,
 .widget_input input:not(:placeholder-shown) + label {
     max-width: 100%;
@@ -481,6 +488,7 @@ html * {
     background-color: var(--bg_3);
 }
 
+.widget_readonly_input input:not(:placeholder-shown) + label,
 .widget_input input:not(:placeholder-shown) + label {
     color: var(--fg_6);
 }
@@ -495,7 +503,8 @@ html * {
 
 /* Toggle widget -------------------------------------------------------------------------- */
 
-.widget_toggle_root {
+.widget_readonly_toggle,
+.widget_toggle {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -507,18 +516,29 @@ html * {
     cursor: pointer;
 }
 
-.widget_toggle_root:hover {
+.widget_readonly_toggle {
+    cursor: auto;
+}
+
+.widget_toggle:hover {
     background-color: var(--bg_5);
 }
 
-.widget_toggle_text {
-    color: var(--fg_0);
+.widget_readonly_toggle,
+.widget_toggle span {
+    color: var(--fg_3);
     font-weight: normal;
     font-size: 14px;
     user-select: none;
 }
 
-.widget_toggle_switch {
+.widget_toggle:active span {
+    color: var(--fg_1);
+}
+
+/* Toggle circle container */
+.widget_readonly_toggle > div,
+.widget_toggle > div {
     width: 56px;
     height: 24px;
     border: 2px solid var(--fg_3);
@@ -530,7 +550,25 @@ html * {
     transition: all 0.3s ease;
 }
 
-.widget_toggle_circle {
+.widget_toggle:active > div {
+    border: 2px solid var(--fg_1);
+    background-color: var(--bg_5);
+}
+
+.widget_readonly_toggle.active > div,
+.widget_toggle.active > div {
+    background-color: var(--green_1);
+    border-color: var(--green_1);
+}
+
+.widget_toggle.active:active > div {
+    background-color: var(--green_2);
+    border-color: var(--green_2);
+}
+
+/* Toggle circle */
+.widget_readonly_toggle > div div,
+.widget_toggle > div div {
     height: calc(100% - 4px);
     aspect-ratio: 1.0;
     border-radius: 8px;
@@ -541,14 +579,14 @@ html * {
     transition: 250ms ease-out;
 }
 
-.widget_toggle_root.active .widget_toggle_circle {
-    left: calc(100% - 4px);
-    transform: translateX(-100%);
+.widget_toggle:active > div div {
+    background-color: var(--fg_1);
 }
 
-.widget_toggle_root.active .widget_toggle_switch {
-    background-color: var(--green_1);
-    border-color: var(--green_1);
+.widget_readonly_toggle.active > div div,
+.widget_toggle.active > div div {
+    left: calc(100% - 4px);
+    transform: translateX(-100%);
 }
 
 /* Button widget -------------------------------------------------------------------------- */
@@ -800,20 +838,26 @@ html * {
     align-items: center;
     justify-content: center;
     background-color: var(--bg_3);
+    cursor: pointer;
 }
 
 #users_settings_button svg {
-    width: 100%;
-    height: 100%;
-    fill: var(--fg_1);
+    width: 90%;
+    height: 90%;
+    fill: var(--fg_2);
 }
 
 #users_settings_button:hover {
     background-color: var(--bg_4);
 }
 
+#users_settings_button:hover svg {
+    fill: var(--fg_1);
+}
+
 #users_settings_button:active {
     border: 2px solid var(--fg_6);
+    background-color: var(--bg_4);
 }
 
 #right_panel {
@@ -848,6 +892,7 @@ html * {
     background-color: var(--bg_2);
     color: var(--fg_4);
     transition: height 100ms ease;
+    cursor: pointer;
 }
 
 .right_panel_tab:hover {
@@ -906,15 +951,28 @@ html * {
     flex-direction: column;
 }
 
+#room_entry_proxy {
+    height: 40px;
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    column-gap: 6px;
+}
+
+#room_entry_proxy_enabled {
+    width: 180px;
+}
+
 #room_media_section {
     height: 120px;
     width: 100%;
     display: flex;
     box-sizing: border-box;
+    column-gap: 12px;
 }
 
 #room_upload_media_root {
-    width: 50%;
+    width: 56%;
     height: 100%;
 }
 
@@ -1046,7 +1104,7 @@ html * {
 
 #room_media_browse {
     height: 100%;
-    width: 50%;
+    flex-grow: 1;
     display: flex;
     flex-direction: column;
     row-gap: 6px;
@@ -1058,7 +1116,7 @@ html * {
 
 #room_media_browse_separator {
     height: 1px;
-    width: 90%;
+    width: 100%;
     background-color: var(--bg_5);
 }
 
@@ -1067,7 +1125,7 @@ html * {
     flex-grow: 1.0;
     display: grid;
     box-sizing: border-box;
-    padding: 0 22px;
+    /* padding: 0 22px; */
     row-gap: 8px;
     column-gap: 8px;
 }
@@ -1144,7 +1202,7 @@ html * {
     background-color: var(--orange_0);
 }
 
-#room_now_playing {
+#room_entry_url {
     height: 30px;
 }
 
@@ -1155,6 +1213,38 @@ html * {
 #room_upload_file {
     color: var(--fg_4);
 }
+
+#room_random_buttons_group {
+    display: flex;
+    column-gap: 12px;
+}
+
+#room_random_buttons_group button {
+    width: 140px;
+    height: 36px;
+    column-gap: 6px;
+    background-color: var(--fg_6);
+}
+
+#room_random_buttons_group button:hover {
+    background-color: var(--fg_5);
+}
+
+#room_random_buttons_group button:active {
+    background-color: var(--fg_4);
+}
+
+#room_random_buttons_group button svg {
+    width: 20px;
+    height: 20px;
+    fill: var(--bg_0);
+}
+
+#room_random_buttons_group button span {
+    font-weight: bold;
+    color: var(--bg_0);
+}
+
 
 .placeholder {
     color: var(--fg_4);
@@ -1234,6 +1324,7 @@ html * {
 
     #left_panel {
         padding: 6px;
+        row-gap: 8px;
     }
 
     #entry_area {
@@ -1275,5 +1366,10 @@ html * {
 
     .content_view {
         padding: 8px;
+    }
+
+
+    #room_media_section {
+        column-gap: 6px;
     }
 }

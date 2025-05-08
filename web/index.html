@@ -37,11 +37,9 @@
                     <span id="settings_website_version" class="placeholder"></span>
                 </div>
 
-                <div id="animated_avatars_toggle" class="widget_toggle_root">
-                    <div class="widget_toggle_switch">
-                        <div class="widget_toggle_circle"></div>
-                    </div>
-                    <span class="widget_toggle_text">User avatar animations</span>
+                <div id="animated_avatars_toggle" class="widget_toggle">
+                    <div><div></div></div>
+                    <span>User avatar animations</span>
                 </div>
             </div>
         </div>
@@ -92,24 +90,20 @@
                                     <label>Entry Title</label>
                                 </div>
 
-                                <div id="entry_add_to_top_toggle" class="widget_toggle_root">
-                                    <div class="widget_toggle_switch">
-                                        <div class="widget_toggle_circle"></div>
-                                    </div>
-                                    <span class="widget_toggle_text">Add to playlist top</span>
+                                <div id="entry_add_to_top_toggle" class="widget_toggle">
+                                    <div><div></div></div>
+                                    <span>Add to playlist top</span>
                                 </div>
                             </div>
 
                             <div class="entry_section_group">
-                                <div id="entry_proxy_toggle" class="widget_toggle_root" title="Enables media proxy. That means that provided resource (ex. link to a youtube video) will be fetched by the server and relayed to all online memebers in the given room.">
-                                    <div class="widget_toggle_switch">
-                                        <div class="widget_toggle_circle"></div>
-                                    </div>
-                                    <span class="widget_toggle_text">Create Proxy</span>
+                                <div id="entry_proxy_toggle" class="widget_toggle" title="Enables media proxy. That means that provided resource (ex. link to a youtube video) will be fetched by the server and relayed to all online memebers in the given room.">
+                                    <div><div></div></div>
+                                    <span>Create Proxy</span>
                                 </div>
 
-                                <div class="widget_input" id="referer_container">
-                                    <input type="url" id="entry_dropdown_referer_input" placeholder="" title="Enter URL referer for the proxy. Sometimes needed for the proxy to work. Usually set automatically by the PocketPicker extension."/>
+                                <div id="referer_container" class="widget_input">
+                                    <input id="entry_dropdown_referer_input" type="url" placeholder="" title="Enter URL referer for the proxy. Sometimes needed for the proxy to work. Usually set automatically by the PocketPicker extension."/>
                                     <label>Media Referer</label>
                                 </div>
                             </div>
@@ -140,18 +134,14 @@
 
                             <div id="entry_youtube_section" class="entry_section_group">
                                 <div id="entry_youtube_toggles_group">
-                                    <div id="entry_youtube_search_toggle" class="widget_toggle_root">
-                                        <div class="widget_toggle_switch">
-                                            <div class="widget_toggle_circle"></div>
-                                        </div>
-                                        <span class="widget_toggle_text">Search for Video</span>
+                                    <div id="entry_youtube_search_toggle" class="widget_toggle">
+                                        <div><div></div></div>
+                                        <span>Search for Video</span>
                                     </div>
 
-                                    <div id="entry_youtube_playlist_toggle" class="widget_toggle_root">
-                                        <div class="widget_toggle_switch">
-                                            <div class="widget_toggle_circle"></div>
-                                        </div>
-                                        <span class="widget_toggle_text">YouTube Playlist</span>
+                                    <div id="entry_youtube_playlist_toggle" class="widget_toggle">
+                                        <div><div></div></div>
+                                        <span>YouTube Playlist</span>
                                     </div>
                                 </div>
 
@@ -177,22 +167,16 @@
                     </div>
                     <div id="users_right_panel">
                         <div id="users_online" class="users_indicator" title="Number users online.">
-                            <svg>
-                                <use href="svg/main_icons.svg#user"/>
-                            </svg>
+                            <svg><use href="svg/main_icons.svg#user"/></svg>
                             <span id="users_online_count">0</span>
                         </div>
 
                         <div id="users_offline" class="users_indicator" title="Number users offline.">
-                            <svg>
-                                <use href="svg/main_icons.svg#user"/>
-                            </svg>
+                            <svg><use href="svg/main_icons.svg#user"/></svg>
                             <span id="users_offline_count">0</span>
                         </div>
                         <button id="users_settings_button" title="This button will open your user profile menu, but for now it does nothing.">
-                            <svg>
-                                <use href="svg/main_icons.svg#settings"/>
-                            </svg>
+                            <svg><use href="svg/main_icons.svg#settings"/></svg>
                         </button>
                     </div>
                 </div>
@@ -221,20 +205,31 @@
 
                 <div id="right_panel_content">
                     <div id="content_room" class="content_view">
-                        <div id="room_now_playing" class="widget_input"> 
-                            <input readonly id="room_current_url_input" placeholder=" " title="Currently playing video / audio"/>
-                            <label>Now playing</label>
-                        </div>
+                        <div id="room_random_buttons_group">
+                            <button id="room_copy_entry_button" class="widget_button">
+                                <svg><use href="svg/main_icons.svg#copy"/></svg>
+                                <span>Copy entry</span>
+                            </button>
 
-                        <br/>
+                            <button id="room_open_settings_button" class="widget_button">
+                                <svg><use href="svg/main_icons.svg#settings"/></svg>
+                                <span>Room settings</span>
+                            </button>
+                        </div>
 
                         <div id="room_entry_title" class="widget_input"> 
-                            <input id="room_entry_title_input" placeholder=" " title="Change the currently set title"/>
+                            <input id="room_entry_title_input" placeholder="" title="Change the currently set title"/>
                             <label>Current Title</label>
-                            <button id="room_title_update_button" type="button">Update</button>
+
+                            <button id="room_title_update_button">
+                                Update
+                            </button>
                         </div>
 
-                        <br/>
+                        <div id="room_entry_url" class="widget_readonly_input"> 
+                            <input readonly id="room_entry_url_input" placeholder="" title="ULR of the currently playing video / audio"/>
+                            <label>Current URL</label>
+                        </div>
 
                         <div>
                             <select id="room_subtitles_select"></select>
@@ -257,23 +252,26 @@
                             <button id="room_upload_subtitle_button" type="button">Upload</button>
                         </div>
 
-                        <br/>
+                        <div id="room_entry_proxy">
+                            <div id="room_entry_proxy_enabled" class="widget_readonly_toggle">
+                                <div><div></div></div>
+                                <span>Using proxy</span>
+                            </div>
 
-                        <label class="placeholder">
-                            <span>Using proxy:</span>
-                            <input readonly type="checkbox" id="room_using_proxy_checkbox"/>
-                        </label>
-
-                        <div id="room_entry_referer"> 
-                            <span class="placeholder">Proxy referer:</span>
-                            <input readonly id="room_referer_input" placeholder="Referer"/>
+                            <div id="room_entry_referer" class="widget_readonly_input"> 
+                                <input readonly id="room_entry_referer_input" placeholder=" "/>
+                                <label>Proxy Referer</label>
+                            </div>
                         </div>
-
-                        <br/>
 
                         <div id="room_created_by"> 
                             <span class="placeholder">Created by:</span>
                             <span id="room_created_by_username" class="placeholder"></span>
+                        </div>
+
+                        <div id="room_created_at">
+                            <span class="placeholder">Created at:</span>
+                            <span id="room_created_at_date" class="placeholder"></span>
                         </div>
 
                         <div>
@@ -285,8 +283,6 @@
                             <span class="placeholder">Last action:</span>
                             <span id="room_last_action_text" class="placeholder"></span>
                         </div>
-
-                        <br/>
 
                         <div id="room_media_section">
                             <div id="room_upload_media_root">
@@ -351,23 +347,9 @@
                             </div>
                         </div>
 
-                        <br/>
-
-                        <div id="room_copy_to_input"> 
-                            <span class="placeholder">Copy to input area:</span>
-                            <button id="room_copy_to_input_button" type="button">Copy</button>
-                        </div>
-
-                        <div id="room_created_at">
-                            <span class="placeholder">Created at:</span>
-                            <span id="room_created_at_date" class="placeholder"></span>
-                        </div>
-
-                        <button id="room_open_settings_button">Open settings</button>
-
-                        <span class="placeholder">Add more info items here...</span>
                         <img class="construction_anim" src="img/under_construction.png">
                     </div>
+
                     <div id="content_playlist" class="content_view">
                         <div id="playlist_controls_root">
                             <button id="playlist_controls_next" class="playlist_controls_button" title="Play next track from the playlist">
