@@ -567,6 +567,13 @@ class Room {
     attachRoomTabEvents() {
         const room = this.roomContent;
 
+        room.titleInput.onkeydown = event => {
+            if (event.key == "Enter") {
+                let title = room.titleInput.value;
+                api.playerUpdateTitle(title);
+            }
+        };
+
         room.titleUpdateButton.onclick = _ => {
             let title = room.titleInput.value;
             api.playerUpdateTitle(title);
@@ -1065,8 +1072,8 @@ class Room {
     }
 
     updateRoomContent(entry) {
-        this.roomContent.urlInput.value = entry.url;
-        this.roomContent.titleInput.value      = entry.title;
+        this.roomContent.urlInput.value   = entry.url;
+        this.roomContent.titleInput.value = entry.title;
         if (entry.use_proxy) {
             this.roomContent.usingProxyCheckbox.classList.add("active");
         } else {

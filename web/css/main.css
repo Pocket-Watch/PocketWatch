@@ -416,6 +416,7 @@ html * {
     width: 100%;
     height: 100%;
     display: flex;
+    box-sizing: border-box;
     z-index: 2;
     position: relative;
     align-items: center;
@@ -600,7 +601,7 @@ html * {
     cursor: pointer;
     justify-content: center;
     align-items: center;
-    transition: transform 80ms;
+    transition: all 80ms ease;
     background-color: var(--red_2);
 }
 
@@ -611,7 +612,6 @@ html * {
 .widget_button:active {
     box-shadow: none;
     transform: translate(1px, 2px);
-    transition: transform 80ms;
     background-color: var(--red_0);
 }
 
@@ -1207,7 +1207,67 @@ html * {
 }
 
 #room_entry_title {
-    height: 30px;
+    height: 36px;
+    display: flex;
+    box-sizing: border-box;
+}
+
+#room_entry_title input {
+    border-radius: 8px 0 0 8px;
+    z-index: 1;
+}
+
+#room_entry_title input:hover {
+    z-index: 1;
+}
+
+#room_entry_title input:focus {
+    z-index: 2;
+}
+
+#room_entry_title label {
+    border-radius: 8px 0 0 8px;
+    z-index: 2;
+}
+
+#room_entry_title button {
+    height: 100%;
+    width: 32px;
+    border: 2px solid var(--fg_6);
+    background-color: var(--bg_2);
+    border-radius: 0 8px 8px 0;
+    margin-left: -2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+#room_entry_title button svg {
+    height: 16px;
+    width: 16px;
+    fill: var(--fg_5);
+}
+
+#room_entry_title button:hover {
+    border: 2px solid var(--fg_4);
+    background-color: var(--bg_3);
+    z-index: 1;
+}
+
+#room_entry_title button:hover svg {
+    fill: var(--fg_4);
+}
+
+#room_entry_title button:active {
+    border-color: var(--blue_2);
+    background-color: var(--bg_4);
+    box-shadow: 0 0 0 2px var(--blue_1);
+    z-index: 1;
+}
+
+#room_entry_title button:active svg {
+    fill: var(--green_2);
 }
 
 #room_upload_file {
