@@ -220,11 +220,24 @@ func serveFavicon(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "web/img/favicon.ico")
 }
 
+type CacheHandler struct {
+	fsHandler http.Handler
+}
+
+func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// The no-cache directive does not prevent the storing of responses
+	// but instead prevents the reuse of responses without revalidation.
+	w.Header().Add("Cache-Control", "no-cache")
+	cache.fsHandler.ServeHTTP(w, r)
+}
+
 func registerEndpoints(server *Server) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	fileserver := http.FileServer(http.Dir("./web"))
-	mux.Handle("/watch/", http.StripPrefix("/watch/", fileserver))
+	fsHandler := http.StripPrefix("/watch/", fileserver)
+	cacheableFs := CacheHandler{fsHandler}
+	mux.Handle("/watch/", cacheableFs)
 
 	mux.HandleFunc("/", handleUnknownEndpoint)
 
