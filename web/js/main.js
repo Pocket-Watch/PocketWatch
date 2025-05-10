@@ -47,6 +47,8 @@ class Room {
             tokenSetInput:   getById("settings_token_set_input"),
 
             animatedAvatarsToggle: getById("animated_avatars_toggle"),
+            deleteYourAccountButton: getById("delete_your_account"),
+            confirmAccountDelete: getById("confirm_deletion_phrase"),
         };
 
         this.connectionLostPopup = getById("connection_lost_popup");
@@ -816,6 +818,14 @@ class Room {
         menu.animatedAvatarsToggle.onclick = _ => {
             menu.animatedAvatarsToggle.classList.toggle("active")
         };
+
+        menu.deleteYourAccountButton.onclick = _ => {
+            if (menu.confirmAccountDelete.value === "I confirm") {
+                api.userDelete(api.getToken());
+                // Refresh?
+            }
+        };
+
     }
 
     attachHtmlEvents() {
