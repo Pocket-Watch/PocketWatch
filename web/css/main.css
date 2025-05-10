@@ -87,8 +87,8 @@ html * {
 }
 
 #settings_menu_root {
-    width: 50%;
-    height: 70%;
+    width: 1000px;
+    height: 700px;
     background-color: var(--bg_2);
     border-radius: 12px;
     border: 1px solid var(--bg_4);
@@ -98,8 +98,88 @@ html * {
     row-gap: 12px;
 }
 
+#settings_menu_header {
+    height: 28px;
+    padding-left: 8px;
+    display: flex;
+    color: var(--fg_3);
+    font-weight: bold;
+    font-size: 20px;
+    justify-content: center;
+    align-items: center;
+}
+
+#settings_menu_close_button {
+    width: 32px;
+    height: 100%;
+    margin-left: auto;
+    margin-right: 0;
+    background-color: var(--bg_5);
+}
+
+#settings_menu_close_button:hover {
+    background-color: var(--bg_4);
+}
+
+#settings_menu_close_button:active {
+    background-color: var(--bg_3);
+}
+
+#settings_menu_close_button svg {
+    height: 16px;
+    width: 16px;
+    fill: var(--fg_2);
+}
+
+#settings_menu_close_button:hover svg {
+    fill: var(--red_1);
+}
+
+#settings_menu_close_button:active svg {
+    fill: var(--red_2);
+}
+
+#settings_menu_header_separator {
+    width: 100%;
+    height: 1px;
+    background-color: var(--bg_5);
+}
+
+#settings_token_area {
+    display: flex;
+    column-gap: 6px;
+}
+
+#settings_token_copy_button {
+    display: flex;
+    box-sizing: border-box;
+    justify-content: center;
+    padding: 0 6px;
+    align-items: center;
+    background-color: var(--fg_6);
+}
+
+#settings_token_copy_button:hover {
+    background-color: var(--fg_5);
+}
+
+#settings_token_copy_button:active {
+    background-color: var(--fg_4);
+}
+
+#settings_token_copy_button svg {
+    width: 24px;
+    height: 24px;
+    fill: var(--bg_0);
+}
+
+#settings_token_copy_button span {
+    font-weight: bold;
+    color: var(--bg_0);
+}
+
 #settings_token_update {
-    height: 30px;
+    height: 36px;
 }
 
 #connection_lost_popup {
@@ -500,6 +580,63 @@ html * {
 
 .widget_input input:focus + label {
     color: var(--blue_2);
+}
+
+.widget_input_extra_button input {
+    border-radius: 8px 0 0 8px;
+    z-index: 1;
+}
+
+.widget_input_extra_button input:focus {
+    z-index: 2;
+}
+
+.widget_input_extra_button label {
+    z-index: 2;
+}
+
+.widget_input_extra_button button {
+    height: 100%;
+    width: 36px;
+    border: 2px solid var(--fg_6);
+    background-color: var(--bg_2);
+    border-radius: 0 8px 8px 0;
+    margin-left: -2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    color: var(--fg_5);
+    font-weight: bold;
+}
+
+.widget_input_extra_button button svg {
+    height: 16px;
+    width: 16px;
+    fill: var(--fg_5);
+}
+
+.widget_input_extra_button button:hover {
+    border: 2px solid var(--fg_4);
+    background-color: var(--bg_3);
+    z-index: 1;
+    color: var(--fg_4);
+}
+
+.widget_input_extra_button button:hover svg {
+    fill: var(--fg_4);
+}
+
+.widget_input_extra_button button:active {
+    border-color: var(--blue_2);
+    background-color: var(--bg_4);
+    box-shadow: 0 0 0 2px var(--blue_1);
+    z-index: 1;
+    color: var(--green_2);
+}
+
+.widget_input_extra_button button:active svg {
+    fill: var(--green_2);
 }
 
 /* Toggle widget -------------------------------------------------------------------------- */
@@ -1208,66 +1345,6 @@ html * {
 
 #room_entry_title {
     height: 36px;
-    display: flex;
-    box-sizing: border-box;
-}
-
-#room_entry_title input {
-    border-radius: 8px 0 0 8px;
-    z-index: 1;
-}
-
-#room_entry_title input:hover {
-    z-index: 1;
-}
-
-#room_entry_title input:focus {
-    z-index: 2;
-}
-
-#room_entry_title label {
-    border-radius: 8px 0 0 8px;
-    z-index: 2;
-}
-
-#room_entry_title button {
-    height: 100%;
-    width: 32px;
-    border: 2px solid var(--fg_6);
-    background-color: var(--bg_2);
-    border-radius: 0 8px 8px 0;
-    margin-left: -2px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-}
-
-#room_entry_title button svg {
-    height: 16px;
-    width: 16px;
-    fill: var(--fg_5);
-}
-
-#room_entry_title button:hover {
-    border: 2px solid var(--fg_4);
-    background-color: var(--bg_3);
-    z-index: 1;
-}
-
-#room_entry_title button:hover svg {
-    fill: var(--fg_4);
-}
-
-#room_entry_title button:active {
-    border-color: var(--blue_2);
-    background-color: var(--bg_4);
-    box-shadow: 0 0 0 2px var(--blue_1);
-    z-index: 1;
-}
-
-#room_entry_title button:active svg {
-    fill: var(--green_2);
 }
 
 #room_upload_file {

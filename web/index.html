@@ -14,17 +14,28 @@
     <body>
         <div id="settings_menu_modal">
             <div id="settings_menu_root" tabindex="0">
-                <button id="settings_menu_close_button">Close</button>
-
-                <div>
-                    <span class="placeholder">Get your token:</span>
-                    <button id="settings_token_copy_button" type="button">Copy to clipboard</button>
+                <div id="settings_menu_header">
+                    <span>Settings Menu</span>
+                    <button id="settings_menu_close_button" class="widget_button">
+                        <svg><use href="svg/main_icons.svg#clear"/></svg>
+                    </button>
                 </div>
 
-                <div id="settings_token_update" class="widget_input">
-                    <input id="settings_token_set_input" placeholder="" title="Update your token to login to a different account."/>
-                    <label>Set your token</label>
-                    <button id="settings_token_set_button" type="button">Set</button>
+                <div id="settings_menu_header_separator"></div>
+
+                <div id="settings_token_area">
+                    <button id="settings_token_copy_button" class="widget_button" type="button">
+                        <svg><use href="svg/main_icons.svg#copy"/></svg>
+                        <span>Copy your token</span>
+                    </button>
+
+                    <div id="settings_token_update" class="widget_input widget_input_extra_button">
+                        <input id="settings_token_set_input" placeholder="" title="Update your token to login to a different account."/>
+                        <label>Set your token</label>
+                        <button id="settings_token_set_button" type="button">
+                            <svg><use href="svg/main_icons.svg#accept"/></svg>
+                        </button>
+                    </div>
                 </div>
 
                 <div> 
@@ -217,7 +228,7 @@
                             </button>
                         </div>
 
-                        <div id="room_entry_title" class="widget_input"> 
+                        <div id="room_entry_title" class="widget_input widget_input_extra_button"> 
                             <input id="room_entry_title_input" placeholder="" title="Change the currently set title"/>
                             <label>Current Title</label>
 
