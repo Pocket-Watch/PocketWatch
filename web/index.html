@@ -38,6 +38,11 @@
                     </div>
                 </div>
 
+                <div id="animated_avatars_toggle" class="widget_toggle">
+                    <div><div></div></div>
+                    <span>User avatar animations</span>
+                </div>
+
                 <div> 
                     <span class="placeholder">Website uptime:</span>
                     <span id="settings_website_uptime" class="placeholder"></span>
@@ -53,19 +58,19 @@
                     <span>User avatar animations</span>
                 </div>
 
-                <div>
-                    <span class="placeholder">DANGER ZONE</span>
-                </div>
+                <div id="settings_delete_account">
+                    <label>Delete Account</label>
 
-                <div>
-                    <button id="delete_your_account" class="widget_button" title="Delete your account">
-                        <svg><use href="svg/main_icons.svg#delete"/></svg>
-                    </button>
-                </div>
+                    <div id="settings_delete_account_inner">
+                        <div class="widget_input">
+                            <input id="confirm_deletion_phrase" placeholder="" title="Confirm by typing the phrase: I confirm"/>
+                            <label>Type: I confirm</label>
+                        </div>
 
-                <div class="widget_input">
-                    <input id="confirm_deletion_phrase" placeholder="" title="Confirm by typing the phrase: I confirm"/>
-                    <label>Type: I confirm</label>
+                        <button id="delete_your_account" class="widget_button" title="Delete your account">
+                            <svg><use href="svg/main_icons.svg#delete"/></svg>
+                        </button>
+                    </div>
                 </div>
 
             </div>

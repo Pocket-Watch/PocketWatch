@@ -60,7 +60,7 @@
         - [x] Add support for touchscreen devices
         - [x] Do not hide player elements when playback is paused?
         - [x] ~Do not hide elements when mouse cursor is hovering over player controls?~
-    - [ ] Seek arrow and double click indicator:
+    - [x] Seek arrow and double click indicator:
         - [x] Display seek +10/-10 on keyboard arrow click
         - [x] Perform seeks screen double tap
         - [x] Display variable seek indicator number on arrow press or screen double tap
@@ -122,6 +122,8 @@
     - [x] Reduce horizontal player size for mobile (portrait)
     - [ ] Custom website layout for mobile devices
 - [ ] Server hardening and rate-limiting
+- [ ] Voice chat support
+- [ ] Screen sharing support
 - [ ] Add server side and client side authentication and store cookies
 - [ ] Add option to upload media file to the server and stream it to all connected clients (streaming proxy)
 - [ ] Add rooms with individual player states
