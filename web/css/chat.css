@@ -1,9 +1,14 @@
 #tab_chat_new_message_indicator {
     width: 6px;
     height: 6px;
+    display: none;
     border-radius: 20px;
     background-color: var(--red_2);
     /* margin-left: 2px; */
+}
+
+#tab_chat_new_message_indicator.show {
+    display: flex;
 }
 
 #content_chat {

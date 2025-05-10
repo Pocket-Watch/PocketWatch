@@ -3,7 +3,7 @@ import { Playlist } from "./playlist.js"
 import { Chat } from "./chat.js"
 import { sha256 } from "./auth.js"
 import * as api from "./api.js";
-import { Storage, button, div, formatTime, formatByteCount, getById, hide, img, show, svg } from "./util.js";
+import { Storage, button, div, formatTime, formatByteCount, getById, img, svg } from "./util.js";
 
 const SERVER_ID = 0;
 const MAX_TITLE_LENGTH = 200;
@@ -16,7 +16,7 @@ const TAB_PLAYLIST = 2;
 const TAB_CHAT     = 3;
 const TAB_HISTORY  = 4;
 
-const RECONNECT_AFTER = 5000;
+const RECONNECT_AFTER = 1500;
 
 class Room {
     constructor() {
@@ -149,9 +149,7 @@ class Room {
             }
         };
 
-        this.chatNewMessage = getById("tab_chat_new_message_indicator");
-        hide(this.chatNewMessage);
-
+        this.chatNewMessage  = getById("tab_chat_new_message_indicator");
         this.newMessageAudio = new Audio('audio/new_message.mp3');
 
         this.selected_tab     = this.rightPanel.tabs.room;
@@ -186,7 +184,7 @@ class Room {
         this.currentEntry = {};
     }
 
-    showSettingsMenu(settingsTab) {
+    showSettingsMenu(_settingsTab) {
         this.settingsMenu.modal.classList.add("show");
         this.settingsMenu.root.focus();
     }
@@ -487,7 +485,7 @@ class Room {
                 tab     = this.rightPanel.tabs.chat;
                 content = this.rightPanel.content.chat;
 
-                hide(this.chatNewMessage);
+                this.chatNewMessage.classList.remove("show");
             } break;
 
             case TAB_HISTORY: {
@@ -1165,7 +1163,6 @@ class Room {
         // Send
     }
 
-
     listenToServerEvents() {
         let events = new EventSource("/watch/api/events?token=" + this.token);
         events.onopen = async _ => {
@@ -1181,13 +1178,17 @@ class Room {
             api.version().then(version => this.settingsMenu.websiteVersion.textContent = version);
         };
 
-        events.onerror = _ => {
+        events.onerror = event => {
             events.close()
             console.error("ERROR: Connection to the server was lost. Attempting to reconnect in", RECONNECT_AFTER, "ms");
             this.handleDisconnect();
         };
 
         this.subscribeToServerEvents(events);
+
+        window.addEventListener("beforeunload", _ => {
+            events.close();
+        });
     }
 
     updateRoomSubtitlesHtml(entry) {
@@ -1529,7 +1530,7 @@ class Room {
             console.info("INFO: New message received from server");
 
             if (this.selected_tab !== this.rightPanel.tabs.chat) {
-                show(this.chatNewMessage);
+                this.chatNewMessage.classList.add("show");
             }
 
             if (this.selected_tab !== this.rightPanel.tabs.chat || this.player.isFullscreen()) {
