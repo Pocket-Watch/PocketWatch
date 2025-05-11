@@ -568,7 +568,7 @@ class Room {
         const room = this.roomContent;
 
         room.titleInput.onkeydown = event => {
-            if (event.key == "Enter") {
+            if (event.key === "Enter") {
                 let title = room.titleInput.value.trim();
                 room.titleInput.value = title;
                 api.playerUpdateTitle(title);
@@ -725,7 +725,7 @@ class Room {
         };
 
         area.urlInput.onkeydown = event => {
-            if (event.key == "Enter") {
+            if (event.key === "Enter") {
                 this.sendSetRequest();
             }
         };
@@ -896,7 +896,14 @@ class Room {
         let offlineBoxes = [];
         let selfBox = null;
 
-        for (var i = 0; i < this.allUsers.length; i++) {
+        // Sorting dates in descending order
+        this.allUsers.sort((a, b) => {
+            let aDate = new Date(a.last_online);
+            let bDate = new Date(b.last_online);
+            return bDate.getTime() - aDate.getTime();
+        });
+
+        for (let i = 0; i < this.allUsers.length; i++) {
             let user = this.allUsers[i];
             let userBox = this.createUserBox(user);
 
@@ -1156,7 +1163,7 @@ class Room {
         const MAX_DESYNC = 1.5;
         let desync = timestamp - this.player.getCurrentTime();
 
-        if (userId == 0) {
+        if (userId === 0) {
             console.info("INFO: Received resync event from SERVER at", timestamp, "with desync:", desync);
         } else {
             console.info("INFO: Received resync event from USER id", userId, "at", timestamp, "with desync:", desync);
@@ -1494,7 +1501,7 @@ class Room {
 
             switch (data.action) {
                 case "play": {
-                    if (userId != SERVER_ID) {
+                    if (userId !== SERVER_ID) {
                         this.player.setToast(username + " clicked play.");
                         this.roomContent.lastActionText.textContent = username + " clicked play.";
                     }
@@ -1504,7 +1511,7 @@ class Room {
                 } break;
 
                 case "pause": {
-                    if (userId != SERVER_ID) {
+                    if (userId !== SERVER_ID) {
                         this.player.setToast(username + " clicked pause.");
                         this.roomContent.lastActionText.textContent = username + " clicked pause.";
                     }
@@ -1514,7 +1521,7 @@ class Room {
                 } break;
 
                 case "seek": {
-                    if (userId != SERVER_ID) {
+                    if (userId !== SERVER_ID) {
                         let time = formatTime(timestamp);
                         this.player.setToast(username + " seeked to " + time);
                         this.roomContent.lastActionText.textContent = username + " seeked to " + time;
