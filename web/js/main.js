@@ -421,8 +421,8 @@ class Room {
     }
 
     async createNewRequestEntry() {
-        let subname = this.entryArea.subtitleNameInput.value;
-        let suburl  = this.entryArea.subtitleUrlInput.value;
+        let subname = this.entryArea.subtitleNameInput.value.trim();
+        let suburl  = this.entryArea.subtitleUrlInput.value.trim();
 
         let subtitles = [];
 
@@ -569,13 +569,15 @@ class Room {
 
         room.titleInput.onkeydown = event => {
             if (event.key == "Enter") {
-                let title = room.titleInput.value;
+                let title = room.titleInput.value.trim();
+                room.titleInput.value = title;
                 api.playerUpdateTitle(title);
             }
         };
 
         room.titleUpdateButton.onclick = _ => {
-            let title = room.titleInput.value;
+            let title = room.titleInput.value.trim();
+            room.titleInput.value = title;
             api.playerUpdateTitle(title);
         };
 

@@ -212,7 +212,11 @@ html * {
 }
 
 #settings_delete_account_inner button svg {
-    fill: var(--bg_1);
+    fill: var(--red_1);
+}
+
+#settings_delete_account_inner button:hover svg {
+    fill: var(--red_2);
 }
 
 #connection_lost_popup {
