@@ -46,11 +46,11 @@ class Playlist {
         this.contextMenuUserRefactorMe = null;
         this.contextMenuEntryRefactorMe = null;
 
-        /// Currently expanded entry. Only one entry is allowed to be expanded at a time.
+        // Currently expanded entry. Only one entry is allowed to be expanded at a time.
         this.expandedEntry = null;
 
-        /// State of the entry before the editition started.
-        // this.editEntryBefore = null;
+        /// State of the entry before the edit began.
+            // this.editEntryBefore = null;
         /// Entry that currently is being edited. Only one entry can be edited at a time.
         // this.editEntryNow = null;
 
@@ -62,10 +62,10 @@ class Playlist {
             url:   null,
         };
 
-        /// Corresponds to the actual playlist entries on the server.
+        // Corresponds to the actual playlist entries on the server.
         this.entries = [];
 
-        /// Represents the structure of the htmlEntryList post transition while entries are still mid transition.
+        // Represents the structure of the htmlEntryList post transition while entries are still mid transition.
         this.htmlEntries = [];
 
         this.draggableEntry    = null;

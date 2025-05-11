@@ -179,6 +179,13 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 	user := server.users.slice[userIndex]
 	server.users.mutex.Unlock()
 
+	if r.ContentLength > AVATAR_SIZE_LIMIT {
+		http.Error(w, "The avatar is too large in size.", http.StatusRequestEntityTooLarge)
+		LogWarn("User wanted to upload an avatar %v bytes in size", r.ContentLength)
+		return
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, AVATAR_SIZE_LIMIT)
 	formfile, _, err := r.FormFile("file")
 	if err != nil {
 		respondBadRequest(w, "Failed to read form data from the user avatar change request: %v", err)
@@ -194,8 +201,8 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 		respondInternalError(w, "File creation for the user avatar file failed with: %v", err)
 		return
 	}
-
 	defer file.Close()
+
 	io.Copy(file, formfile)
 
 	now := time.Now()

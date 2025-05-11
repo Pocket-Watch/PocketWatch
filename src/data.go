@@ -18,6 +18,7 @@ const TOKEN_LENGTH = 32
 const BROADCAST_INTERVAL = 2 * time.Second
 
 const SUBTITLE_SIZE_LIMIT = 512 * KB
+const AVATAR_SIZE_LIMIT = 16 * MB
 const PROXY_FILE_SIZE_LIMIT = 4 * GB
 const BODY_LIMIT = 8 * KB
 
