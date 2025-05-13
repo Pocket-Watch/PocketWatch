@@ -45,7 +45,7 @@ function calculateOffset(e) {
     if (offsetX < 0) offsetX = 0;
     if (offsetX > rect.width) offsetX = rect.width;
 
-    slider.style.left = offsetX + 'px';
+    slider.style.left = offsetX + "px";
 
     // Calculate the slider value as a percentage
     let percentage = Math.round((offsetX / rect.width) * 100);

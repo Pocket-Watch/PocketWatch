@@ -373,8 +373,8 @@ class Internals {
             settings:   Svg.new(this.icons.settings),
             fullscreen: Svg.new(this.icons.fullscreen_enter),
 
-            seekForward:   SeekIcon.newForward(options.seekBy + 's', 100, 100),
-            seekBackward:  SeekIcon.newBackward(options.seekBy + 's', 100, 100),
+            seekForward:   SeekIcon.newForward(options.seekBy + "s", 100, 100),
+            seekBackward:  SeekIcon.newBackward(options.seekBy + "s", 100, 100),
             playbackPopup: Svg.new(this.icons.play_popup, 70, 70),
 
             arrowLeft:  Svg.new(this.icons.arrow_left, 20, 20),
@@ -682,7 +682,7 @@ class Internals {
         let captionText = "";
         if (this.options.allowCueOverlap) {
             for (let i = 0; i < freshCues.length; i++) {
-                captionText += freshCues[i].text + '\n';
+                captionText += freshCues[i].text + "\n";
             }
         } else {
             captionText = freshCues[freshCues.length - 1];
@@ -1482,7 +1482,7 @@ class Internals {
 
         // This roughly simulates a click on an invisible anchor as there's no practical way to trigger "Save As" dialog
         this.htmlControls.buttons.downloadButton.addEventListener("click", _ => {
-            const anchor = document.createElement('a');
+            const anchor = document.createElement("a");
             anchor.href = this.getCurrentUrl();
             let fileInfo = FileInfo.fromUrl(anchor.href);
             anchor.download = fileInfo.filename;
@@ -1574,8 +1574,8 @@ class Internals {
                 this.isDraggingProgressBar = false;
                 this.playerUIHideTimeout.schedule();
 
-                document.removeEventListener('touchmove', onProgressBarTouchMove);
-                document.removeEventListener('touchend', onProgressBarTouchStop);
+                document.removeEventListener("touchmove", onProgressBarTouchMove);
+                document.removeEventListener("touchend", onProgressBarTouchStop);
 
                 const progressRoot = this.htmlControls.progress.root;
                 progressRoot.classList.remove("active");
@@ -1588,8 +1588,8 @@ class Internals {
             }
 
             this.isDraggingProgressBar = true;
-            document.addEventListener('touchmove', onProgressBarTouchMove, { passive: false });
-            document.addEventListener('touchend', onProgressBarTouchStop);
+            document.addEventListener("touchmove", onProgressBarTouchMove, { passive: false });
+            document.addEventListener("touchend", onProgressBarTouchStop);
         });
 
         this.htmlControls.progress.root.addEventListener("mousedown", _event => {
@@ -1604,8 +1604,8 @@ class Internals {
                 this.isDraggingProgressBar = false;
                 this.playerUIHideTimeout.schedule();
 
-                document.removeEventListener('mousemove', onProgressBarMouseMove);
-                document.removeEventListener('mouseup', onProgressBarMouseUp);
+                document.removeEventListener("mousemove", onProgressBarMouseMove);
+                document.removeEventListener("mouseup", onProgressBarMouseUp);
 
                 const progressRoot = this.htmlControls.progress.root;
                 const progress = calculateProgress(event, progressRoot);
@@ -1616,8 +1616,8 @@ class Internals {
             }
 
             this.isDraggingProgressBar = true;
-            document.addEventListener('mousemove', onProgressBarMouseMove);
-            document.addEventListener('mouseup', onProgressBarMouseUp);
+            document.addEventListener("mousemove", onProgressBarMouseMove);
+            document.addEventListener("mouseup", onProgressBarMouseUp);
         });
 
         this.htmlControls.progress.root.addEventListener("mouseenter", _ => {
@@ -1666,11 +1666,11 @@ class Internals {
             document.exitFullscreen = document.webkitExitFullscreen;
         }
 
-        if (Object.getOwnPropertyDescriptor(Document.prototype, 'fullscreenElement')) {
+        if (Object.getOwnPropertyDescriptor(Document.prototype, "fullscreenElement")) {
             this.setToast("getOwnPropertyDescriptor determined fullscreenElement already exists")
             return;
         }
-        Object.defineProperty(Document.prototype, 'fullscreenElement', {
+        Object.defineProperty(Document.prototype, "fullscreenElement", {
             get: () => {
                 console.debug("Returning document.webkitFullscreenElement", document.webkitFullscreenElement)
                 this.setToast("fullscreenElement rebound getter was called " + document.webkitFullscreenElement)
@@ -2424,7 +2424,7 @@ function createTimestampString(timestamp) {
 
 // Receives [subtitle file text, decimal separator ('.' = VTT ',' = SRT), skipCounter is true for SRT
 function parseSubtitles(subtitleText, decimalMark, skipCounter, skipHeader) {
-    let lines = subtitleText.split('\n');
+    let lines = subtitleText.split("\n");
     let cues = []
     let i = 0;
     if (skipHeader) i = 2;
@@ -2445,7 +2445,7 @@ function parseSubtitles(subtitleText, decimalMark, skipCounter, skipHeader) {
             if (text.length === 0) {
                 break;
             }
-            content += '\n';
+            content += "\n";
             content += text;
         }
         if (content !== "") {
@@ -2457,11 +2457,11 @@ function parseSubtitles(subtitleText, decimalMark, skipCounter, skipHeader) {
 }
 
 function parseSrt(srtText) {
-    return parseSubtitles(srtText, ',', true, false);
+    return parseSubtitles(srtText, ",", true, false);
 }
 
 function parseVtt(vttText) {
-    return parseSubtitles(vttText, '.', false, true);
+    return parseSubtitles(vttText, ".", false, true);
 }
 
 // Returns [seconds start, seconds end, success]
@@ -2484,7 +2484,7 @@ function parseStamp(stamp, decimalMark) {
     if (twoSplit.length !== 2) {
         return null;
     }
-    let hms = twoSplit[0].split(':');
+    let hms = twoSplit[0].split(":");
     switch (hms.length) {
         case 3:
             return hms[0] * 3600 + hms[1] * 60 + Number(hms[2]) + twoSplit[1] / 1000;
@@ -2678,7 +2678,7 @@ class Options {
         this.enableDoubleTapSeek = isMobile;
         this.sanitizeSubtitles = true;
         this.allowCueOverlap = true;
-        this.fullscreenKeyLetter = 'f';
+        this.fullscreenKeyLetter = "f";
         // Max volume will be respected only if audio gain is enabled
         this.useAudioGain = false;
         this.maxVolume = 1;

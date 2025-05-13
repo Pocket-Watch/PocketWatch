@@ -144,11 +144,15 @@
     /* row-gap: 3px; */
     position: absolute;
     z-index: 3;
-    display: flex;
+    display: none;
     box-sizing: border-box;
     padding: 4px;
     flex-direction: column;
     background-color: var(--bg_3);
+}
+
+#playlist_context_menu.show {
+    display: flex;
 }
 
 .context_menu_separator {

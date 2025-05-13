@@ -334,7 +334,7 @@ html * {
     transition: transform 100ms;
 }
 
-.entry_area_expand #entry_dropdown_button svg {
+#entry_area.expand #entry_dropdown_button svg {
     transform: rotate(180deg);
 }
 
@@ -471,7 +471,7 @@ html * {
     flex-direction: column;
 }
 
-.entry_area_expand #entry_dropdown_container {
+#entry_area.expand #entry_dropdown_container {
     height: 308px;
     padding-top: 6px;
 }
@@ -892,42 +892,25 @@ html * {
     font-size: 16px;
     font-weight: 600;
     color: var(--fg_1);
-}
-
-.user_box_online .user_box_bottom input {
-    background-color: var(--green_0);
-}
-
-.user_box_offline .user_box_bottom input {
     background-color: var(--bg_5);
 }
 
-.user_box_online .user_box_edit_name_button {
+.user_box.online .user_box_bottom input {
     background-color: var(--green_0);
 }
 
-.user_box_online .user_box_edit_name_button:hover {
+.user_box.online .user_box_edit_name_button {
+    background-color: var(--green_0);
+}
+
+.user_box.online .user_box_edit_name_button:hover {
     display: block;
     background-color: var(--green_1);
 }
 
-.user_box_online .user_box_edit_name_button:active {
+.user_box.online .user_box_edit_name_button:active {
     border: 1px solid var(--green_2);
     background-color: var(--green_2);
-}
-
-.user_box_offline .user_box_edit_name_button {
-    background-color: var(--bg_5);
-}
-
-.user_box_offline .user_box_edit_name_button:hover {
-    display: block;
-    background-color: var(--bg_6);
-}
-
-.user_box_offline .user_box_edit_name_button:active {
-    border: 1px solid var(--gray_2);
-    background-color: var(--gray_2);
 }
 
 .user_box_edit_name_button {
@@ -940,8 +923,18 @@ html * {
     position: absolute;
     display: none;
     margin: 3px;
+    background-color: var(--bg_5);
 }
 
+.user_box_edit_name_button:hover {
+    display: block;
+    background-color: var(--bg_6);
+}
+
+.user_box_edit_name_button:active {
+    border: 1px solid var(--gray_2);
+    background-color: var(--gray_2);
+}
 .user_box:hover .user_box_edit_name_button {
     display: block;
 }
@@ -1463,7 +1456,7 @@ html * {
         overflow-y: visible;
     }
 
-    .entry_area_expand #entry_dropdown_container {
+    #entry_area.expand #entry_dropdown_container {
         height: 358px;
         padding-top: 6px;
     }

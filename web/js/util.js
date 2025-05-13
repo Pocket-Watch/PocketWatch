@@ -2,16 +2,16 @@ export function getById(id) {
     return document.getElementById(id);
 }
 
-export function hide(element) {
-    element.style.display = "none";
+export function show(element) {
+    element.classList.add("show");
 }
 
-export function show(element) {
-    element.style.display = "";
+export function hide(element) {
+    element.classList.remove("show");
 }
 
 export function isHidden(element) {
-    return element.style.display === "none";
+    element.classList.contains("show")
 }
 
 export function div(className) {
@@ -67,6 +67,17 @@ export function input(className, text, placeholder = null) {
 
     if (placeholder) {
         element.placeholder = placeholder
+    }
+
+    return element;
+}
+
+export function fileInput(className, formats) {
+    let element = document.createElement("input");
+    element.type = "file";
+
+    if (formats) {
+        element.accept = formats;
     }
 
     return element;

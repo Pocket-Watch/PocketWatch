@@ -136,10 +136,14 @@ func StartServer(config ServerConfig, db *sql.DB) {
 
 	server := Server{
 		config: config,
-		state:  ServerState{},
-		users:  users,
-		conns:  makeConnections(),
-		db:     db,
+		state: ServerState{
+			playlist: make([]Entry, 0),
+			history:  make([]Entry, 0),
+			messages: make([]ChatMessage, 0),
+		},
+		users: users,
+		conns: makeConnections(),
+		db:    db,
 	}
 
 	server.state.lastUpdate = time.Now()

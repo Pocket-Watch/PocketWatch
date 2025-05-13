@@ -3,7 +3,7 @@ import { Playlist } from "./playlist.js"
 import { Chat } from "./chat.js"
 import { sha256 } from "./auth.js"
 import * as api from "./api.js";
-import { Storage, button, div, formatTime, formatByteCount, getById, img, svg } from "./util.js";
+import { Storage, button, div, formatTime, formatByteCount, getById, img, svg, show, hide, fileInput } from "./util.js";
 
 const SERVER_ID = 0;
 const MAX_TITLE_LENGTH = 200;
@@ -152,7 +152,7 @@ class Room {
         };
 
         this.chatNewMessage  = getById("tab_chat_new_message_indicator");
-        this.newMessageAudio = new Audio('audio/new_message.mp3');
+        this.newMessageAudio = new Audio("audio/new_message.mp3");
 
         this.selected_tab     = this.rightPanel.tabs.room;
         this.selected_content = this.rightPanel.content.room;
@@ -187,12 +187,12 @@ class Room {
     }
 
     showSettingsMenu(_settingsTab) {
-        this.settingsMenu.modal.classList.add("show");
+        show(this.settingsMenu.modal);
         this.settingsMenu.root.focus();
     }
 
     hideSettingsMenu() {
-        this.settingsMenu.modal.classList.remove("show"); 
+        hide(this.settingsMenu.modal);
     }
 
     configureHlsRequests(xhr, url) {
@@ -337,7 +337,7 @@ class Room {
                 }
 
                 this.ended = true;
-                api.playerPause(endTime)
+                api.playerPause(endTime);
             }
         });
 
@@ -392,7 +392,7 @@ class Room {
                     this.player.setToast("Unsupported src: '" + this.player.getCurrentUrl() + "' " + error.message);
                 }
 
-                api.playerPause(this.player.getCurrentTime())
+                api.playerPause(this.player.getCurrentTime());
                 return;
             }
 
@@ -487,7 +487,7 @@ class Room {
                 tab     = this.rightPanel.tabs.chat;
                 content = this.rightPanel.content.chat;
 
-                this.chatNewMessage.classList.remove("show");
+                hide(this.chatNewMessage);
             } break;
 
             case TAB_HISTORY: {
@@ -607,13 +607,13 @@ class Room {
         room.upload.placeholderRoot.ondrop = event => {
             event.preventDefault();
 
-            let files = event.dataTransfer.files
+            let files = event.dataTransfer.files;
             if (!files) {
                 return;
             }
 
             for (let i = 0; i < files.length; i++) {
-                this.startMediaFileUpload(files[i])
+                this.startMediaFileUpload(files[i]);
                 break;
             }
         };
@@ -626,10 +626,10 @@ class Room {
             this.startMediaFileUpload(event.target.files[0])
         };
 
-        room.browse.videoButton.onclick    = _ => window.open("media/video/", '_blank').focus();
-        room.browse.audioButton.onclick     = _ => window.open("media/audio/", '_blank').focus();
-        room.browse.subtitlesButton.onclick = _ => window.open("media/subs/",  '_blank').focus();
-        room.browse.imagesButton.onclick    = _ => window.open("media/image/", '_blank').focus();
+        room.browse.videoButton.onclick    = _ => window.open("media/video/", "_blank").focus();
+        room.browse.audioButton.onclick     = _ => window.open("media/audio/", "_blank").focus();
+        room.browse.subtitlesButton.onclick = _ => window.open("media/subs/",  "_blank").focus();
+        room.browse.imagesButton.onclick    = _ => window.open("media/image/", "_blank").focus();
 
         room.copyEntryButton.onclick = _ => {
             this.entryArea.urlInput.value     = this.currentEntry.url;
@@ -674,7 +674,7 @@ class Room {
             }
 
             let newName = room.subsEditInput.value.trim();
-            api.subtitleUpdate(subtitle.id, newName)
+            api.subtitleUpdate(subtitle.id, newName);
         };
 
         room.subsDeleteButton.onclick = _ => {
@@ -683,7 +683,7 @@ class Room {
                 return
             }
 
-            api.subtitleDelete(subtitle.id)
+            api.subtitleDelete(subtitle.id);
         };
 
         room.openSettingsButton.onclick = _ => this.showSettingsMenu();
@@ -717,7 +717,7 @@ class Room {
         let area = this.entryArea;
 
         area.dropdownButton.onclick = _ => {
-            area.root.classList.toggle("entry_area_expand");
+            area.root.classList.toggle("expand");
         };
 
         area.resetButton.onclick = _ => {
@@ -741,9 +741,8 @@ class Room {
         };
 
         area.selectSubtitleButton.onclick = _ => {
-            let input = document.createElement('input');
-            input.type = "file";
-            input.accept = ".srt,.vtt";
+            let input = fileInput(".srt,.vtt");
+
             input.onchange = event => {
                 let files = event.target.files;
 
@@ -818,7 +817,7 @@ class Room {
         };
 
         menu.animatedAvatarsToggle.onclick = _ => {
-            menu.animatedAvatarsToggle.classList.toggle("active")
+            menu.animatedAvatarsToggle.classList.toggle("active");
         };
 
         menu.deleteYourAccountButton.onclick = _ => {
@@ -917,10 +916,8 @@ class Room {
 
             if (user.online) {
                 this.onlineCount += 1;
-                userBox.classList.add("user_box_online");
-            } else {
-                userBox.classList.add("user_box_offline");
-            }
+                userBox.classList.add("online");
+            } 
 
             this.allUserBoxes.push(userBox);
         }
@@ -949,7 +946,7 @@ class Room {
 
     async loadUsersData() {
         this.allUsers = await api.userGetAll();
-        console.log(this.allUsers);
+        console.info("INFO: Loaded users:", this.allUsers);
 
         this.clearUsersArea();
         this.updateUsersArea();
@@ -1004,11 +1001,10 @@ class Room {
             // Attaching events to html elements
             //
             changeAvatarButton.onclick = _ => {
-                var input = document.createElement('input');
-                input.type = "file";
+                let input = fileInput(".png,.jpg,.jpeg,.gif")
 
                 input.onchange = event => {
-                    var file = event.target.files[0];
+                    let file = event.target.files[0];
                     console.log("Picked file:", file);
                     api.userUpdateAvatar(file).then(newAvatar => {
                         if (newAvatar) {
@@ -1024,11 +1020,11 @@ class Room {
                 usernameInput.readOnly = true;
 
                 let user = this.allUsers.find(user => this.currentUserId === user.id);
-                let newUsername = usernameInput.value.trim()
+                let newUsername = usernameInput.value.trim();
                 if (newUsername && newUsername !== user.username) {
                     api.userUpdateName(newUsername);
                 } else {
-                    usernameInput.value = user.username
+                    usernameInput.value = user.username;
                 }
             });
 
@@ -1041,7 +1037,7 @@ class Room {
                     if (newUsername && newUsername !== user.username) {
                         api.userUpdateName(newUsername);
                     } else {
-                        usernameInput.value = user.username
+                        usernameInput.value = user.username;
                     }
                 }
             });
@@ -1066,11 +1062,7 @@ class Room {
 
     async loadPlaylistData() {
         let entries = await api.playlistGet();
-        if (!entries) {
-            return;
-        }
-
-        console.log(entries);
+        console.info("INFO: Loaded playlist:", entries);
 
         this.playlist.clear();
         // TODO(kihau): Performance problem when number of entries is large. Needs to be fixed at some point.
@@ -1083,7 +1075,7 @@ class Room {
             return;
         }
 
-        console.log(messages);
+        console.info("INFO: Loaded chat messages:", messages);
         this.chat.clear();
         this.chat.loadMessages(messages, this.allUsers);
     }
@@ -1111,7 +1103,7 @@ class Room {
         this.currentEntryId          = entry.id;
         this.playlist.currentEntryId = entry.id;
 
-        let url = entry.url
+        let url = entry.url;
         if (!url) {
             this.setNothing();
             return;
@@ -1187,7 +1179,7 @@ class Room {
         events.onopen = async _ => {
             console.info("INFO: Connection to events opened.");
 
-            this.connectionLostPopup.classList.remove("show")
+            hide(this.connectionLostPopup);
 
             await this.loadUsersData();
             await this.loadPlayerData();
@@ -1347,7 +1339,6 @@ class Room {
             console.info("INFO: New user has been created: ", user)
 
             let userBox = this.createUserBox(user);
-            userBox.classList.add("user_box_offline");
             this.allUserBoxes.push(userBox);
             this.usersArea.userList.appendChild(userBox);
 
@@ -1377,14 +1368,13 @@ class Room {
             console.info("INFO: User connected, ID: ", userId)
 
             let userBoxes = this.usersArea.userList;
-            let onlineBoxes = userBoxes.getElementsByClassName("user_box_online");
+            let onlineBoxes = userBoxes.getElementsByClassName("online");
             let lastOnlineBox = onlineBoxes[onlineBoxes.length - 1];
 
             let i = this.allUsers.findIndex(user => user.id === userId);
             this.allUsers[i].online = true;
 
-            this.allUserBoxes[i].classList.remove("user_box_offline");
-            this.allUserBoxes[i].classList.add("user_box_online");
+            this.allUserBoxes[i].classList.add("online");
 
             let connectedNow = this.allUserBoxes[i];
             if (lastOnlineBox) {
@@ -1404,18 +1394,18 @@ class Room {
             console.info("INFO: User disconnected, ID: ", userId)
 
             let userBoxes = this.usersArea.userList;
-            let offlineBoxes = userBoxes.getElementsByClassName("user_box_offline");
-            let firstOfflineBox = offlineBoxes[0];
+            let offlineBoxes = userBoxes.getElementsByClassName("user_box.online");
+
+            // let firstOfflineBox = offlineBoxes[offlineBoxes.length - 1].nextElementSibling;
+            let lastOnlineBox   = offlineBoxes[offlineBoxes.length - 1];
 
             let i = this.allUsers.findIndex(user => user.id === userId);
             this.allUsers[i].online = false;
-
-            this.allUserBoxes[i].classList.remove("user_box_online");
-            this.allUserBoxes[i].classList.add("user_box_offline");
+            this.allUserBoxes[i].classList.remove("online");
 
             let disconnectedNow = this.allUserBoxes[i];
-            if (firstOfflineBox) {
-                userBoxes.insertBefore(disconnectedNow, firstOfflineBox);
+            if (lastOnlineBox && lastOnlineBox.nextElementSibling) {
+                userBoxes.insertBefore(disconnectedNow, lastOnlineBox.nextElementSibling);
             } else {
                 userBoxes.appendChild(disconnectedNow);
             }
@@ -1433,12 +1423,12 @@ class Room {
             let i = this.allUsers.findIndex(x => x.id == user.id);
             this.allUsers[i] = user; // emplace the user
 
-            let input = this.allUserBoxes[i].querySelectorAll('input')[0];
+            let input = this.allUserBoxes[i].querySelectorAll("input")[0];
             input.value = user.username;
 
             let img = document.createElement("img");
             img.src = user.avatar;
-            this.allUserBoxes[i].querySelectorAll('img')[0].replaceWith(img);
+            this.allUserBoxes[i].querySelectorAll("img")[0].replaceWith(img);
 
             this.playlist.handleUserUpdate(user);
         });
@@ -1549,7 +1539,7 @@ class Room {
             console.info("INFO: New message received from server");
 
             if (this.selected_tab !== this.rightPanel.tabs.chat) {
-                this.chatNewMessage.classList.add("show");
+                show(this.chatNewMessage);
             }
 
             if (this.selected_tab !== this.rightPanel.tabs.chat || this.player.isFullscreen()) {
@@ -1564,7 +1554,8 @@ class Room {
         this.markAllUsersOffline();
         this.clearUsersArea();
         this.updateUsersArea();
-        this.connectionLostPopup.classList.add("show")
+        this.player.setToast("Connection to the server was lost...");
+        show(this.connectionLostPopup);
         setTimeout(_ => this.connectToServer(), RECONNECT_AFTER);
     }
 

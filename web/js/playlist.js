@@ -160,7 +160,7 @@ class Playlist {
                 const oldHtmlEntry = this.htmlEntries[i];
 
                 let newHtmlEntry = this.createHtmlEntry(entry, user);
-                newHtmlEntry.classList.add('show');
+                show(newHtmlEntry);
 
                 this.setEntryPosition(newHtmlEntry, i);
                 this.htmlEntries[i] = newHtmlEntry;
@@ -200,7 +200,7 @@ class Playlist {
         this.htmlEntryList.appendChild(htmlEntry);
 
         window.getComputedStyle(htmlEntry).marginLeft;
-        htmlEntry.classList.add('show');
+        show(htmlEntry);
 
         this.updateFooter();
     }
@@ -222,7 +222,7 @@ class Playlist {
         let htmlEntry = this.htmlEntries[index];
         this.htmlEntries.splice(index, 1);
 
-        htmlEntry.classList.remove("show");
+        hide(htmlEntry);
         setTimeout(_ => this.htmlEntryList.removeChild(htmlEntry), TRANSITION_TIME);
 
         for (let i = index; i < this.htmlEntries.length; i++) {
@@ -266,7 +266,7 @@ class Playlist {
                 const htmlEntry = this.createHtmlEntry(entry, user);
                 this.setEntryPosition(htmlEntry, i);
 
-                htmlEntry.classList.add('show');
+                show(htmlEntry);
 
                 if (this.isEditingEntry && entry.id === this.editEntry.entry.id) {
                     this.stopEntryEdit();
@@ -283,7 +283,7 @@ class Playlist {
     }
 
     loadEntries(entries, users) {
-        if (!entries) {
+        if (entries === null) {
             console.warn("WARN: Failed to load entries, function input argument is null.");
             return;
         }
@@ -301,7 +301,7 @@ class Playlist {
 
             setTimeout(_ => {
                 window.getComputedStyle(htmlEntry).marginLeft;
-                htmlEntry.classList.add('show');
+                show(htmlEntry);
             }, i * BULK_ACTION_DELAY);
         }
 
@@ -317,7 +317,7 @@ class Playlist {
             const htmlEntry = children[i];
 
             setTimeout(_ => {
-                htmlEntry.classList.remove('show');
+                hide(htmlEntry);
                 setTimeout(_ => this.htmlEntryList.removeChild(htmlEntry), TRANSITION_TIME);
             }, i * BULK_ACTION_DELAY);
         }
