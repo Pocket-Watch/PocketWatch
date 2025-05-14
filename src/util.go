@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -505,4 +506,63 @@ func generateRandomNickname() string {
 	suffix := sufixes[rand.Intn(len(sufixes))]
 
 	return prefix + " " + suffix
+}
+
+type RateLimiter struct {
+	// hits store timestamps
+	hits  []int64
+	perMs int64
+	index int
+	mutex sync.Mutex
+}
+
+// NewLimiter creates a new instance of RateLimiter based on:
+//
+//	hits - number of allowed hits per given time period
+//	per  - time period in seconds
+func NewLimiter(hits int, per int) *RateLimiter {
+	return &RateLimiter{
+		make([]int64, hits),
+		int64(per) * 1000,
+		0,
+		sync.Mutex{},
+	}
+}
+
+// Returns true if call is allowed, false otherwise
+func (limiter *RateLimiter) hit() bool {
+	limiter.mutex.Lock()
+	defer limiter.mutex.Unlock()
+
+	nowMs := time.Now().UnixMilli()
+	if limiter.index < len(limiter.hits) {
+		limiter.hits[limiter.index] = nowMs
+		limiter.index++
+		return true
+	}
+
+	removableIndex := -1
+	for i, hitAt := range limiter.hits {
+		msAgo := nowMs - hitAt
+		// Look for the earliest hit that can be removed
+		if msAgo >= limiter.perMs {
+			removableIndex = i
+		} else {
+			break
+		}
+	}
+	if removableIndex == -1 {
+		// none can be removed, the call is denied
+		return false
+	}
+	// move hits to make space
+	length := len(limiter.hits)
+	for from, to := removableIndex+1, 0; from < length; from, to = from+1, to+1 {
+		limiter.hits[to] = limiter.hits[from]
+	}
+
+	limiter.index = length - 1 - removableIndex
+	limiter.hits[limiter.index] = nowMs
+	limiter.index++
+	return true
 }

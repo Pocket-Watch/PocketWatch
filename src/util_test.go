@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Range: <unit>=<range-start>-
@@ -197,4 +198,31 @@ func getPathSeparator() string {
 		sep = "\\"
 	}
 	return sep
+}
+
+// Rate limiter tests
+func TestRateLimiter(t *testing.T) {
+	hits := 20
+	rateLimiter := NewLimiter(hits, 1)
+	for h := range hits {
+		if rateLimiter.hit() {
+			continue
+		}
+		t.Errorf("Limiter blocked when it shouldn't - hit %v", h)
+		return
+	}
+	// Block subsequent calls
+	for h := range hits {
+		if rateLimiter.hit() {
+			t.Errorf("Limiter passed when it shouldn't - hit %v", h)
+			return
+		}
+	}
+	time.Sleep(1 * time.Second)
+	for h := range hits {
+		if !rateLimiter.hit() {
+			t.Errorf("Limiter blocked when it shouldn't - hit %v", h)
+			return
+		}
+	}
 }
