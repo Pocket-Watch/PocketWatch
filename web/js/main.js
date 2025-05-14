@@ -46,9 +46,9 @@ class Room {
             tokenSetButton:  getById("settings_token_set_button"),
             tokenSetInput:   getById("settings_token_set_input"),
 
-            animatedAvatarsToggle: getById("animated_avatars_toggle"),
+            animatedAvatarsToggle:   getById("animated_avatars_toggle"),
             deleteYourAccountButton: getById("delete_your_account"),
-            confirmAccountDelete: getById("confirm_deletion_phrase"),
+            confirmAccountDelete:    getById("confirm_deletion_phrase"),
         };
 
         this.connectionLostPopup = getById("connection_lost_popup");

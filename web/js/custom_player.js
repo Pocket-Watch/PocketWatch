@@ -1363,8 +1363,9 @@ class Internals {
         }, this.options.doubleClickThresholdMs);
         this.lastAreaIndex = -1;
 
-
         this.htmlPlayerRoot.addEventListener("click", event => {
+            this.htmlVideo.focus();
+
             if ((event.pointerType === "touch" || event.pointerType === "pen") && !this.isUIVisible) {
                 return;
                 // We don't allow double tap seeking without the UI shown
@@ -1468,6 +1469,10 @@ class Internals {
     }
 
     attachPlayerControlsEvents() {
+        this.htmlControls.root.addEventListener("click", event => {
+            this.htmlVideo.focus();
+        });
+
         this.htmlControls.buttons.playbackButton.addEventListener("click", _ => {
             this.togglePlayback();
         });
@@ -2508,8 +2513,9 @@ export class Search {
 
 function newDiv(id, className) {
     let div = document.createElement("div")
-    // tabIndex makes divs focusable so that they can receive and bubble key events
-    div.tabIndex = -1
+    // NOTE(kihau): 
+    //   Tab index causes the page to jump to the top when player focus is lost, that's why htmlVideo focus is used instead.
+    // div.tabIndex = -1
     if (id) {
         div.id = id;
     }
