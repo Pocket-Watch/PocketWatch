@@ -470,7 +470,7 @@ class Internals {
         this.activeCues = [];
 
         this.htmlSeekForward = newDiv("player_forward_container", "hide", "unselectable");
-        this.htmlSeekForward.addEventListener("focusout", _ => this.htmlPlayerRoot.focus());
+        this.htmlSeekForward.addEventListener("focusout", event => this.regainPlayerFocus(event));
         this.htmlSeekForward.appendChild(this.svgs.seekForward.svg);
         this.htmlPlayerRoot.appendChild(this.htmlSeekForward);
         this.forwardStack = this.options.seekBy;
@@ -480,7 +480,7 @@ class Internals {
         }, this.options.seekStackingThresholdMs);
 
         this.htmlSeekBackward = newDiv("player_backward_container", "hide", "unselectable");
-        this.htmlSeekBackward.addEventListener("focusout", _ => this.htmlPlayerRoot.focus());
+        this.htmlSeekBackward.addEventListener("focusout", event => this.regainPlayerFocus(event));
         this.htmlSeekBackward.appendChild(this.svgs.seekBackward.svg);
         this.htmlPlayerRoot.appendChild(this.htmlSeekBackward);
         this.backwardStack = this.options.seekBy;
@@ -1364,8 +1364,6 @@ class Internals {
         this.lastAreaIndex = -1;
 
         this.htmlPlayerRoot.addEventListener("click", event => {
-            this.htmlVideo.focus();
-
             if ((event.pointerType === "touch" || event.pointerType === "pen") && !this.isUIVisible) {
                 return;
                 // We don't allow double tap seeking without the UI shown
@@ -1469,10 +1467,6 @@ class Internals {
     }
 
     attachPlayerControlsEvents() {
-        this.htmlControls.root.addEventListener("click", event => {
-            this.htmlVideo.focus();
-        });
-
         this.htmlControls.buttons.playbackButton.addEventListener("click", _ => {
             this.togglePlayback();
         });
@@ -1809,13 +1803,17 @@ class Internals {
         }
     }
 
+    regainPlayerFocus(event) {
+        console.log(event.relatedTarget);
+        if (!event.relatedTarget) {
+            this.htmlPlayerRoot.focus({ preventScroll: true });
+        }
+    }
+
     createHtmlControls() {
         let playerControls = this.htmlControls.root;
         playerControls.addEventListener("click", stopPropagation);
-        playerControls.addEventListener("focusout", _ => {
-            // Otherwise document.body will receive focus
-            this.htmlPlayerRoot.focus();
-        });
+        playerControls.addEventListener("focusout", event => this.regainPlayerFocus(event));
 
         this.htmlPlayerRoot.appendChild(playerControls);
 
@@ -2513,9 +2511,8 @@ export class Search {
 
 function newDiv(id, className) {
     let div = document.createElement("div")
-    // NOTE(kihau): 
-    //   Tab index causes the page to jump to the top when player focus is lost, that's why htmlVideo focus is used instead.
-    // div.tabIndex = -1
+    // The tabIndex makes divs focusable so that they can receive and bubble key events.
+    div.tabIndex = -1
     if (id) {
         div.id = id;
     }
