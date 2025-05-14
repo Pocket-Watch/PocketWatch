@@ -36,7 +36,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: var(--bg_custom_1); 
+    background-color: var(--bg_custom_1);
 }
 
 #playlist_controls_search_icon svg {
@@ -53,7 +53,7 @@
     flex-grow: 1;
     padding-left: 6px;
     padding-right: 6px;
-    background-color: var(--bg_3); 
+    background-color: var(--bg_3);
     color: var(--fg_5);
 }
 
@@ -455,7 +455,7 @@
     scrollbar-width: none;
 }
 
-.playlist_entry_title:-webkit-scrollbar {
+.playlist_entry_title::-webkit-scrollbar {
     background: transparent;
     width: 0px;
 }
@@ -474,7 +474,7 @@
     scrollbar-width: none;
 }
 
-.playlist_entry_url:-webkit-scrollbar {
+.playlist_entry_url::-webkit-scrollbar {
     background: transparent;
     width: 0px;
 }
