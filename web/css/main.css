@@ -69,6 +69,8 @@ html * {
     --aqua_custom_0: #57684d;
     --aqua_custom_1: #494e41;
     --aqua_custom_2: #9dd389;
+
+    --dim_0: #00000077;
 }
 
 #settings_menu_modal {
@@ -76,7 +78,7 @@ html * {
     width: 100%;
     position: fixed;
     z-index: 9999;
-    background-color: #00000077;
+    background-color: var(--dim_0);
     align-items: center;
     justify-content: center;
     display: none;
