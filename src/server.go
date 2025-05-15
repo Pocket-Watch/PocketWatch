@@ -232,6 +232,9 @@ func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// The no-cache directive does not prevent the storing of responses
 	// but instead prevents the reuse of responses without revalidation.
 	w.Header().Add("Cache-Control", "no-cache")
+
+	resource := strings.TrimPrefix(r.RequestURI, "/watch")
+	LogDebug("Connection %s requested resource %v", r.RemoteAddr, resource)
 	cache.fsHandler.ServeHTTP(w, r)
 }
 
