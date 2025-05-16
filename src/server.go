@@ -913,10 +913,6 @@ func voiceChat(writer http.ResponseWriter, request *http.Request) {
 //   - 0-indexed string[] for original chunk URLs
 //   - 0-indexed mutex[] to ensure the same chunk is not requested while it's being fetched
 func (server *Server) watchProxy(writer http.ResponseWriter, request *http.Request) {
-	if request.Method != "GET" {
-		LogWarn("HlsProxy not called with GET, received: %v", request.Method)
-		return
-	}
 	urlPath := request.URL.Path
 	chunk := path.Base(urlPath)
 
@@ -932,6 +928,7 @@ func (server *Server) watchProxy(writer http.ResponseWriter, request *http.Reque
 }
 
 func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Request, chunk string) {
+	writer.Header().Add("Cache-Control", "no-cache")
 	server.state.setupLock.Lock()
 	proxy := server.state.proxy
 	server.state.setupLock.Unlock()
@@ -1053,6 +1050,7 @@ func cleanupSegmentMap(segmentMap *sync.Map) {
 }
 
 func (server *Server) serveHlsVod(writer http.ResponseWriter, request *http.Request, chunk string) {
+	writer.Header().Add("Cache-Control", "no-cache")
 	if chunk == PROXY_M3U8 {
 		LogDebug("Serving %v", PROXY_M3U8)
 		http.ServeFile(writer, request, WEB_PROXY+PROXY_M3U8)
