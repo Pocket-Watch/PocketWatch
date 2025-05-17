@@ -1438,6 +1438,10 @@ class Internals {
             this.bufferingTimeout.cancel();
             hide(this.bufferingSvg);
 
+            if (this.options.showControlsOnPause) {
+                this.showPlayerUI();
+            }
+
             this.svgs.playback.setHref(this.icons.replay)
             this.firePlaybackEnd();
         });
