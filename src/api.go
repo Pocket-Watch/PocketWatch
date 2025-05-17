@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -170,6 +171,7 @@ func (server *Server) apiUserUpdateName(w http.ResponseWriter, r *http.Request) 
 }
 
 func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request) {
+	LogDebug("BUG?: CALLED apiUserUpdateAvatar")
 	server.users.mutex.Lock()
 	userIndex := server.getAuthorizedIndex(w, r)
 	if userIndex == -1 {
@@ -192,6 +194,29 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	var fileContents [512]byte
+	n, err := formfile.Read(fileContents[:])
+	if err != nil && err != io.EOF {
+		respondInternalError(w, "Error reading from disk")
+		return
+	}
+
+	contentType := http.DetectContentType(fileContents[:n])
+	var ext string
+	switch contentType {
+	case "image/png":
+		ext = "png"
+	case "image/jpeg":
+		ext = "jpg"
+	case "image/gif":
+		ext = "gif"
+	case "image/webp":
+		ext = "webp"
+	default:
+		respondBadRequest(w, "Invalid image type, detected: %v", contentType)
+		return
+	}
+
 	os.Mkdir("web/users/", os.ModePerm)
 	avatarUrl := fmt.Sprintf("web/users/avatar%v", user.Id)
 
@@ -203,10 +228,12 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 	}
 	defer file.Close()
 
+	io.Copy(file, bytes.NewReader(fileContents[:n]))
 	io.Copy(file, formfile)
 
 	now := time.Now()
-	avatarUrl = fmt.Sprintf("users/avatar%v?%v", user.Id, now.UnixMilli())
+	// Unix randomizer is used because of DOM url caching
+	avatarUrl = fmt.Sprintf("users/avatar%v?ext=%v&%v", user.Id, ext, now.UnixMilli())
 
 	server.users.mutex.Lock()
 	server.users.slice[userIndex].Avatar = avatarUrl
