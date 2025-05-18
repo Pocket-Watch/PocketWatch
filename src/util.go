@@ -566,3 +566,43 @@ func (limiter *RateLimiter) hit() bool {
 	limiter.index++
 	return true
 }
+
+type RingBuffer struct {
+	st, end int
+	buffer  []int64
+	size    int
+}
+
+// NewRingBuffer
+// st is inclusive, end is exclusive
+func NewRingBuffer(size int) *RingBuffer {
+	return &RingBuffer{
+		st:     0,
+		end:    size,
+		size:   size,
+		buffer: make([]int64, size),
+	}
+}
+
+func (ring *RingBuffer) Len() int {
+	if ring.end < ring.st {
+		return ring.size - ring.st + ring.end
+	}
+	return ring.end - ring.st
+}
+
+func (ring *RingBuffer) Push(element int64) bool {
+	if ring.Len() == 0 {
+		return false
+	}
+	if ring.st == ring.size {
+		ring.st = 0
+	}
+	ring.buffer[ring.st] = element
+	ring.st++
+	return true
+}
+
+func (ring *RingBuffer) SetEnd(end int) {
+	ring.end = end
+}

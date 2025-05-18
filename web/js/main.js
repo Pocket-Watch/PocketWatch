@@ -1004,15 +1004,18 @@ class Room {
             // Attaching events to html elements
             //
             changeAvatarButton.onclick = _ => {
-                let input = fileInput(".png,.jpg,.jpeg,.gif")
+                let input = fileInput(".png,.jpg,.jpeg,.gif,.webp")
 
                 input.onchange = event => {
                     let file = event.target.files[0];
                     console.log("Picked file:", file);
-                    api.userUpdateAvatar(file).then(newAvatar => {
-                        if (newAvatar) {
-                            userAvatar.src = newAvatar;
+                    api.userUpdateAvatar(file).then(newAvatarUrl => {
+                        if (!newAvatarUrl) {
+                            return
                         }
+                        let newAvatar = animatedImg(newAvatarUrl);
+                        userAvatar.replaceWith(newAvatar);
+                        // userAvatar.src = newAvatarUrl;
                     });
                 }
 
@@ -1429,9 +1432,8 @@ class Room {
             let input = this.allUserBoxes[i].querySelectorAll("input")[0];
             input.value = user.username;
 
-            let img = document.createElement("img");
-            img.src = user.avatar;
-            this.allUserBoxes[i].querySelectorAll("img")[0].replaceWith(img);
+            let newAvatar = animatedImg(user.avatar);
+            this.allUserBoxes[i].querySelectorAll("img")[0].replaceWith(newAvatar);
 
             this.playlist.handleUserUpdate(user);
         });
