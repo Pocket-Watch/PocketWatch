@@ -89,7 +89,7 @@ html * {
 }
 
 #settings_menu_root {
-    width: 1000px;
+    width: 900px;
     height: 700px;
     background-color: var(--bg_2);
     border-radius: 12px;
