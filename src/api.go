@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -171,7 +170,6 @@ func (server *Server) apiUserUpdateName(w http.ResponseWriter, r *http.Request) 
 }
 
 func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request) {
-	LogDebug("BUG?: CALLED apiUserUpdateAvatar")
 	server.users.mutex.Lock()
 	userIndex := server.getAuthorizedIndex(w, r)
 	if userIndex == -1 {
@@ -228,11 +226,11 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 	}
 	defer file.Close()
 
-	io.Copy(file, bytes.NewReader(fileContents[:n]))
+	file.Write(fileContents[:n])
 	io.Copy(file, formfile)
 
+	// Unix timestamp is added because of HTML DOM URL caching.
 	now := time.Now()
-	// Unix randomizer is used because of DOM url caching
 	avatarUrl = fmt.Sprintf("users/avatar%v?ext=%v&%v", user.Id, ext, now.UnixMilli())
 
 	server.users.mutex.Lock()

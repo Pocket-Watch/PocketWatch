@@ -45,6 +45,47 @@ export function img(src) {
     return element;
 }
 
+export function isAnimated(url) {
+    if (!URL.canParse(url)) {
+        return false;
+    }
+
+    let params = new URLSearchParams(url);
+    if (!params.has("ext")) {
+        return false;
+    }
+
+    let ext = params.get("ext")
+    if (ext == "gif") {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+export function animatedImg(src) {
+    let container  = document.createElement("div");
+    let dynamicImg = document.createElement("img");
+    let staticImg  = document.createElement("canvas");
+
+    container.className = "animated_image";
+    dynamicImg.src = src;
+
+    dynamicImg.onload = event => {
+        console.log(event);
+        staticImg.width = dynamicImg.width;
+        staticImg.height = dynamicImg.height;
+
+        const ctx = staticImg.getContext("2d");
+        ctx.drawImage(dynamicImg, 0, 0, dynamicImg.width, dynamicImg.height);
+    };
+
+    container.appendChild(dynamicImg);
+    container.appendChild(staticImg);
+
+    return container;
+}
+
 export function svg(href) {
     let svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     let use = document.createElementNS("http://www.w3.org/2000/svg", "use");
@@ -72,7 +113,7 @@ export function input(className, text, placeholder = null) {
     return element;
 }
 
-export function fileInput(className, formats) {
+export function fileInput(formats) {
     let element = document.createElement("input");
     element.type = "file";
 

@@ -253,6 +253,36 @@ html * {
     width: 200px;
 }
 
+.disable_image_animations .animated_image img {
+    visibility: hidden;
+}
+
+.disable_image_animations .animated_image canvas {
+    visibility: visible;
+}
+
+.animated_image {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.animated_image img {
+    width: 100%;
+    height: 100%;
+    /* NOTE(kihau): Maybe object-fit should be used instead (just like before)? */
+    /* object-fit: cover; */
+    position: absolute;
+    visibility: visible;
+}
+
+.animated_image canvas {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    visibility: hidden;
+}
+
 #root_panel {
     height: 100vh;
     column-gap: 6px;
@@ -838,12 +868,6 @@ html * {
     height: 80%;
     border-bottom: 2px solid var(--fg_6);
     position: relative;
-}
-
-.user_box_top img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
 }
 
 .user_box_change_avatar {

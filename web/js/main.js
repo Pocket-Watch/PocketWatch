@@ -3,7 +3,7 @@ import { Playlist } from "./playlist.js"
 import { Chat } from "./chat.js"
 import { sha256 } from "./auth.js"
 import * as api from "./api.js";
-import { Storage, button, div, formatTime, formatByteCount, getById, img, svg, show, hide, fileInput } from "./util.js";
+import { Storage, button, div, formatTime, formatByteCount, getById, animatedImg, svg, show, hide, fileInput } from "./util.js";
 
 const SERVER_ID = 0;
 const MAX_TITLE_LENGTH = 200;
@@ -34,6 +34,8 @@ class Room {
         this.player   = new Player(video0, options);
         this.playlist = new Playlist();
         this.chat     = new Chat();
+
+        this.pageRoot = getById("page_root");
 
         this.settingsMenu = {
             modal:       getById("settings_menu_modal"),
@@ -817,6 +819,7 @@ class Room {
         };
 
         menu.animatedAvatarsToggle.onclick = _ => {
+            this.pageRoot.classList.toggle("disable_image_animations");
             menu.animatedAvatarsToggle.classList.toggle("active");
         };
 
@@ -955,7 +958,7 @@ class Room {
     createUserBox(user) {
         let userBox       = div("user_box");
         let userBoxTop    = div("user_box_top");
-        let userAvatar    = img(user.avatar);
+        let userAvatar    = animatedImg(user.avatar);
         let userBoxBottom = div("user_box_bottom");
         let usernameInput = document.createElement("input");
 
