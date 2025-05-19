@@ -1,11 +1,38 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"os/signal"
+	"strings"
 )
 
 var BuildTime string
+
+func CaptureCtrlC() {
+	channel := make(chan os.Signal, 1)
+	signal.Notify(channel, os.Interrupt)
+
+	go func(){
+		for {
+			<-channel
+			// TODO(kihau): Instead of displaying this prompt enter the CLI mode.
+			fmt.Print("> Are you sure you want to exit (y / n): ")
+
+			reader := bufio.NewReader(os.Stdin)
+			response, _ := reader.ReadString('\n')
+
+			response = strings.TrimSpace(response)
+			response = strings.ToLower(response)
+
+			if response == "y" || response == "yes" {
+				// TODO(kihau): Cleanup here if necessary.
+				os.Exit(0);
+			}
+		}
+	}()
+}
 
 func main() {
 	flags, success := ParseInputArgs()
@@ -68,5 +95,6 @@ func main() {
 		return
 	}
 
+	CaptureCtrlC()
 	StartServer(config.Server, db)
 }
