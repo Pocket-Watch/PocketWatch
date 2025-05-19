@@ -236,7 +236,10 @@ func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ip := strings.Split(r.RemoteAddr, ":")[0]
 	rateLimiter, exists := cache.ipToLimiters[ip]
 	if exists {
+		now := time.Now().UnixMilli()
 		if rateLimiter.block() {
+			rateLimiter.hits.PopEnd()
+			rateLimiter.hits.Push(now)
 			respondTooManyRequests(w, rateLimiter.getRetryAfter())
 			return
 		}
