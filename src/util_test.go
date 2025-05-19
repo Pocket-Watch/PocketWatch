@@ -208,21 +208,101 @@ func TestRateLimiter(t *testing.T) {
 		if rateLimiter.hit() {
 			continue
 		}
-		t.Errorf("Limiter blocked when it shouldn't - hit %v", h)
+		t.Errorf("Limiter blocked when it shouldn't - at hit: %v", h)
 		return
 	}
 	// Block subsequent calls
 	for h := range hits {
 		if rateLimiter.hit() {
-			t.Errorf("Limiter passed when it shouldn't - hit %v", h)
+			t.Errorf("Limiter passed when it shouldn't - at hit: %v", h)
 			return
 		}
 	}
+	// Wait to unblock
 	time.Sleep(1 * time.Second)
 	for h := range hits {
 		if !rateLimiter.hit() {
-			t.Errorf("Limiter blocked when it shouldn't - hit %v", h)
+			t.Errorf("Limiter blocked when it shouldn't - at hit: %v", h)
+		}
+	}
+}
+
+// Ring buffer tests
+func TestRingBufferPushAndLen(t *testing.T) {
+	size := 5
+	buffer := NewRingBuffer(size)
+	if buffer.Len() != 0 {
+		t.Errorf("Free buffer length is not 0")
+		return
+	}
+	for i := range size {
+		buffer.Push(0)
+		expectedLen := i + 1
+		if buffer.Len() != expectedLen {
+			t.Errorf("Free buffer length is not %v", expectedLen)
 			return
 		}
+	}
+	if buffer.Push(int64(size + 1)) {
+		t.Errorf("%vth push should have failed", size+1)
+		return
+	}
+	if buffer.Len() != size {
+		t.Errorf("Buffer length should still be %v. Actual: %v", size, buffer.Len())
+		return
+	}
+}
+
+func TestRingBufferFillAndDrain(t *testing.T) {
+	size := 4
+	buffer := NewRingBuffer(size)
+	for i := range size {
+		buffer.Push(int64(i))
+	}
+
+	for range size {
+		buffer.PopEnd()
+	}
+
+	if buffer.Len() != 0 {
+		t.Errorf("Buffer should be empty but length is %v", buffer.Len())
+	}
+}
+
+func TestRingBufferPeekAndPop(t *testing.T) {
+	size := 5
+	buffer := NewRingBuffer(size)
+	for i := range size {
+		buffer.Push(int64(i))
+	}
+
+	for i := range size {
+		last := buffer.PeekEnd()
+		if last != int64(i) {
+			t.Errorf("Peek end should be %v. Actual: %v", i, last)
+			return
+		}
+		buffer.PopEnd()
+	}
+	buffer.Push(100)
+	if buffer.PeekEnd() != 100 {
+		t.Errorf("Peek end should be 100. Actual: %v", buffer.PeekEnd())
+	}
+}
+
+func TestSingleElementRing(t *testing.T) {
+	buffer := NewRingBuffer(1)
+	for i := range 5 {
+		buffer.Push(int64(i))
+	}
+	if buffer.PeekEnd() != 0 {
+		t.Errorf("Peek end should be 0. Actual: %v", buffer.PeekEnd())
+	}
+	for range 5 {
+		buffer.PopEnd()
+	}
+	buffer.Push(100)
+	if buffer.PeekEnd() != 100 {
+		t.Errorf("Peek end should be 100. Actual: %v", buffer.PeekEnd())
 	}
 }

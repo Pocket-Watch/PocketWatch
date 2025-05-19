@@ -510,21 +510,19 @@ func generateRandomNickname() string {
 
 type RateLimiter struct {
 	// hits store timestamps
-	hits  []int64
+	hits  *RingBuffer
 	perMs int64
-	index int
 	mutex sync.Mutex
 }
 
 // NewLimiter creates a new instance of RateLimiter based on:
 //
 //	hits - number of allowed hits per given time period
-//	per  - time period in seconds
-func NewLimiter(hits int, per int) *RateLimiter {
+//	perSeconds  - time period in seconds
+func NewLimiter(hits int, perSeconds int) *RateLimiter {
 	return &RateLimiter{
-		make([]int64, hits),
-		int64(per) * 1000,
-		0,
+		NewRingBuffer(hits),
+		int64(perSeconds) * 1000,
 		sync.Mutex{},
 	}
 }
@@ -535,74 +533,87 @@ func (limiter *RateLimiter) hit() bool {
 	defer limiter.mutex.Unlock()
 
 	nowMs := time.Now().UnixMilli()
-	if limiter.index < len(limiter.hits) {
-		limiter.hits[limiter.index] = nowMs
-		limiter.index++
+	if limiter.hits.Push(nowMs) {
 		return true
 	}
 
-	removableIndex := -1
-	for i, hitAt := range limiter.hits {
-		msAgo := nowMs - hitAt
-		// Look for the earliest hit that can be removed
+	madeSpace := false
+	hits := limiter.hits
+	for hits.Len() > 0 {
+		msAgo := nowMs - hits.PeekEnd()
+		// Remove the oldest hit, one at a time
 		if msAgo >= limiter.perMs {
-			removableIndex = i
+			hits.PopEnd()
+			madeSpace = true
 		} else {
 			break
 		}
 	}
-	if removableIndex == -1 {
+
+	if !madeSpace {
 		// none can be removed, the call is denied
 		return false
 	}
-	// move hits to make space
-	length := len(limiter.hits)
-	for from, to := removableIndex+1, 0; from < length; from, to = from+1, to+1 {
-		limiter.hits[to] = limiter.hits[from]
-	}
-
-	limiter.index = length - 1 - removableIndex
-	limiter.hits[limiter.index] = nowMs
-	limiter.index++
-	return true
+	return hits.Push(nowMs)
 }
 
 type RingBuffer struct {
-	st, end int
-	buffer  []int64
-	size    int
+	head, length, capacity int
+	buffer                 []int64
 }
 
-// NewRingBuffer
-// st is inclusive, end is exclusive
 func NewRingBuffer(size int) *RingBuffer {
+	if size < 1 {
+		panic("ring buffer size must be at least 1")
+	}
+
 	return &RingBuffer{
-		st:     0,
-		end:    size,
-		size:   size,
-		buffer: make([]int64, size),
+		head:     0,
+		length:   0,
+		capacity: size,
+		buffer:   make([]int64, size),
 	}
 }
 
+// Len returns the number of elements currently in the buffer
 func (ring *RingBuffer) Len() int {
-	if ring.end < ring.st {
-		return ring.size - ring.st + ring.end
-	}
-	return ring.end - ring.st
+	return ring.length
 }
 
+// Push returns true if the element was successfully added to the underlying buffer,
+// false if the operation was unsuccessful, indicating the buffer may be full
 func (ring *RingBuffer) Push(element int64) bool {
-	if ring.Len() == 0 {
+	if ring.length == ring.capacity {
 		return false
 	}
-	if ring.st == ring.size {
-		ring.st = 0
+	ring.buffer[ring.head] = element
+	ring.length++
+
+	if ring.head == ring.capacity-1 {
+		ring.head = 0
+	} else {
+		ring.head++
 	}
-	ring.buffer[ring.st] = element
-	ring.st++
 	return true
 }
 
-func (ring *RingBuffer) SetEnd(end int) {
-	ring.end = end
+// PeekEnd returns the tail value.
+// For Len() == 0 it returns the head value
+func (ring *RingBuffer) PeekEnd() int64 {
+	end := ring.getEndIndex()
+	return ring.buffer[end]
+}
+
+func (ring *RingBuffer) getEndIndex() int {
+	end := ring.head - ring.length
+	if end < 0 {
+		end = ring.capacity + end
+	}
+	return end
+}
+
+func (ring *RingBuffer) PopEnd() {
+	if ring.length > 0 {
+		ring.length--
+	}
 }
