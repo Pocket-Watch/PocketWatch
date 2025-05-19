@@ -225,16 +225,28 @@ func serveFavicon(w http.ResponseWriter, r *http.Request) {
 }
 
 type CacheHandler struct {
-	fsHandler http.Handler
+	fsHandler    http.Handler
+	ipToLimiters map[string]*RateLimiter
 }
 
 func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	resource := strings.TrimPrefix(r.RequestURI, "/watch")
+	LogDebug("Connection %s requested resource %v", r.RemoteAddr, resource)
+
+	ip := strings.Split(r.RemoteAddr, ":")[0]
+	rateLimiter, exists := cache.ipToLimiters[ip]
+	if exists {
+		if rateLimiter.block() {
+			respondTooManyRequests(w, rateLimiter.getRetryAfter())
+			return
+		}
+	} else {
+		cache.ipToLimiters[ip] = NewLimiter(50, 5)
+	}
+
 	// The no-cache directive does not prevent the storing of responses
 	// but instead prevents the reuse of responses without revalidation.
 	w.Header().Add("Cache-Control", "no-cache")
-
-	resource := strings.TrimPrefix(r.RequestURI, "/watch")
-	LogDebug("Connection %s requested resource %v", r.RemoteAddr, resource)
 	cache.fsHandler.ServeHTTP(w, r)
 }
 
@@ -243,7 +255,7 @@ func registerEndpoints(server *Server) *http.ServeMux {
 
 	fileserver := http.FileServer(http.Dir("./web"))
 	fsHandler := http.StripPrefix("/watch/", fileserver)
-	cacheableFs := CacheHandler{fsHandler}
+	cacheableFs := CacheHandler{fsHandler, make(map[string]*RateLimiter)}
 	mux.Handle("/watch/", cacheableFs)
 
 	mux.HandleFunc("/", handleUnknownEndpoint)

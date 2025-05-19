@@ -205,23 +205,23 @@ func TestRateLimiter(t *testing.T) {
 	hits := 20
 	rateLimiter := NewLimiter(hits, 1)
 	for h := range hits {
-		if rateLimiter.hit() {
-			continue
+		if rateLimiter.block() {
+			t.Errorf("Limiter blocked when it shouldn't - at hit: %v", h)
+			return
 		}
-		t.Errorf("Limiter blocked when it shouldn't - at hit: %v", h)
-		return
 	}
 	// Block subsequent calls
 	for h := range hits {
-		if rateLimiter.hit() {
-			t.Errorf("Limiter passed when it shouldn't - at hit: %v", h)
-			return
+		if rateLimiter.block() {
+			continue
 		}
+		t.Errorf("Limiter passed when it shouldn't - at hit: %v", h)
+		return
 	}
 	// Wait to unblock
 	time.Sleep(1 * time.Second)
 	for h := range hits {
-		if !rateLimiter.hit() {
+		if rateLimiter.block() {
 			t.Errorf("Limiter blocked when it shouldn't - at hit: %v", h)
 		}
 	}

@@ -58,8 +58,7 @@ export function animatedImg(src) {
     container.className = "animated_image";
     gif.src = src;
 
-    gif.onload = event => {
-        console.log(event);
+    gif.onload = _ => {
         canvas.width = gif.width;
         canvas.height = gif.height;
 

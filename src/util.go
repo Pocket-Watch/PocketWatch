@@ -451,6 +451,13 @@ func respondInternalError(writer http.ResponseWriter, format string, args ...any
 	http.Error(writer, output, http.StatusInternalServerError)
 }
 
+func respondTooManyRequests(writer http.ResponseWriter, retryAfter int) {
+	output := fmt.Sprintf("Too many requests, retry-after: %v", retryAfter)
+	LogErrorUp(1, "%v", output)
+	writer.Header().Add("Retry-After", toString(retryAfter))
+	http.Error(writer, output, http.StatusTooManyRequests)
+}
+
 func generateRandomNickname() string {
 	prefixes := []string{
 		// Positive adjectives
@@ -527,21 +534,21 @@ func NewLimiter(hits int, perSeconds int) *RateLimiter {
 	}
 }
 
-// Returns true if call is allowed, false otherwise
-func (limiter *RateLimiter) hit() bool {
+// Returns true if the call should be blocked, false otherwise
+func (limiter *RateLimiter) block() bool {
 	limiter.mutex.Lock()
 	defer limiter.mutex.Unlock()
 
 	nowMs := time.Now().UnixMilli()
 	if limiter.hits.Push(nowMs) {
-		return true
+		return false
 	}
 
 	madeSpace := false
 	hits := limiter.hits
 	for hits.Len() > 0 {
 		msAgo := nowMs - hits.PeekEnd()
-		// Remove the oldest hit, one at a time
+		// Remove the oldest block, one at a time
 		if msAgo >= limiter.perMs {
 			hits.PopEnd()
 			madeSpace = true
@@ -552,9 +559,21 @@ func (limiter *RateLimiter) hit() bool {
 
 	if !madeSpace {
 		// none can be removed, the call is denied
-		return false
+		return true
 	}
-	return hits.Push(nowMs)
+	return !hits.Push(nowMs)
+}
+
+// Returns the number of seconds that must elapse before the next request can be made.
+// This method could be more precise
+func (limiter *RateLimiter) getRetryAfter() int {
+	nowMs := time.Now().UnixMilli()
+	msAgo := nowMs - limiter.hits.PeekEnd()
+	if msAgo >= limiter.perMs {
+		return 0
+	}
+	remainingSeconds := (limiter.perMs - msAgo) / 1000
+	return int(remainingSeconds + 1)
 }
 
 type RingBuffer struct {
