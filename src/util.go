@@ -451,9 +451,9 @@ func respondInternalError(writer http.ResponseWriter, format string, args ...any
 	http.Error(writer, output, http.StatusInternalServerError)
 }
 
-func respondTooManyRequests(writer http.ResponseWriter, retryAfter int) {
-	output := fmt.Sprintf("Too many requests, retry-after: %v", retryAfter)
-	LogErrorUp(1, "%v", output)
+func respondTooManyRequests(writer http.ResponseWriter, ip string, retryAfter int) {
+	output := fmt.Sprintf("Too many requests triggered by %v, retry-after: %v", ip, retryAfter)
+	LogWarnUp(1, "%v", output)
 	writer.Header().Add("Retry-After", toString(retryAfter))
 	http.Error(writer, output, http.StatusTooManyRequests)
 }

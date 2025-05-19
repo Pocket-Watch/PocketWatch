@@ -240,11 +240,11 @@ func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if rateLimiter.block() {
 			rateLimiter.hits.PopEnd()
 			rateLimiter.hits.Push(now)
-			respondTooManyRequests(w, rateLimiter.getRetryAfter())
+			respondTooManyRequests(w, ip, rateLimiter.getRetryAfter())
 			return
 		}
 	} else {
-		cache.ipToLimiters[ip] = NewLimiter(50, 5)
+		cache.ipToLimiters[ip] = NewLimiter(80, 5)
 	}
 
 	// The no-cache directive does not prevent the storing of responses
