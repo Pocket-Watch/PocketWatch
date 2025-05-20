@@ -907,34 +907,34 @@ class Room {
 
         for (let i = 0; i < this.allUsers.length; i++) {
             let user = this.allUsers[i];
-            let userBox = this.createUserBox(user);
+            let userbox = this.createUserBox(user);
 
             if (user.id === this.currentUserId) {
-                selfBox = userBox;
+                selfBox = userbox;
             } else if (user.online) {
-                onlineBoxes.push(userBox);
+                onlineBoxes.push(userbox);
             } else {
-                offlineBoxes.push(userBox);
+                offlineBoxes.push(userbox);
             }
 
             if (user.online) {
                 this.onlineCount += 1;
-                userBox.classList.add("online");
+                userbox.root.classList.add("online");
             } 
 
-            this.allUserBoxes.push(userBox);
+            this.allUserBoxes.push(userbox);
         }
 
-        userList.append(selfBox);
+        userList.appendChild(selfBox.root);
 
         for (let i = 0; i < onlineBoxes.length; i++) {
-            let box = onlineBoxes[i];
-            userList.append(box);
+            let box = onlineBoxes[i].root;
+            userList.appendChild(box);
         }
 
         for (let i = 0; i < offlineBoxes.length; i++) {
-            let box = offlineBoxes[i];
-            userList.append(box);
+            let box = offlineBoxes[i].root;
+            userList.appendChild(box);
         }
 
         this.usersArea.onlineCount.textContent  = this.onlineCount;
@@ -955,116 +955,114 @@ class Room {
         this.updateUsersArea();
     }
 
-    createUserBox(user) {
-        let userBox       = div("user_box");
-        let userBoxTop    = div("user_box_top");
-        let userAvatar    = animatedImg(user.avatar);
-        let userBoxBottom = div("user_box_bottom");
-        let usernameInput = document.createElement("input");
+    appendSelfUserContent(userbox) {
+        let changeAvatarButton = button("user_box_change_avatar",    "Update your avatar");
+        let uploadAvaterSvg    = svg("svg/main_icons.svg#upload");
+        let editNameButton     = button("user_box_edit_name_button", "Change your username");
+        let editNameSvg        = svg("svg/main_icons.svg#edit2");
 
         //
         // Configuring parameters for html elements.
         //
-        usernameInput.readOnly = true;
-        usernameInput.value = user.username;
+        // changeAvatarButton.textContent = "E";
+        userbox.root.classList.add("selfbox");
+
+        //
+        // Attaching events to html elements
+        //
+        changeAvatarButton.onclick = _ => {
+            let input = fileInput(".png,.jpg,.jpeg,.gif,.webp")
+
+            input.onchange = event => {
+                let file = event.target.files[0];
+                console.log("Picked file:", file);
+                api.userUpdateAvatar(file) 
+            }
+
+            input.click();
+        };
+        userbox.nameInput.addEventListener("focusout", _ => {
+            userbox.nameInput.readOnly = true;
+
+            let user = this.allUsers.find(user => this.currentUserId === user.id);
+            let newUsername = userbox.nameInput.value.trim();
+            if (newUsername && newUsername !== user.username) {
+                api.userUpdateName(newUsername);
+            } else {
+                userbox.nameInput.value = user.username;
+            }
+        });
+
+        userbox.nameInput.addEventListener("keypress", event => {
+            if (event.key === "Enter") {
+                userbox.nameInput.readOnly = true;
+
+                let user = this.allUsers.find(user => this.currentUserId === user.id);
+                let newUsername = userbox.nameInput.value.trim()
+                if (newUsername && newUsername !== user.username) {
+                    api.userUpdateName(newUsername);
+                } else {
+                    userbox.nameInput.value = user.username;
+                }
+            }
+        });
+
+        // TODO(kihau): 
+        //   Current edit behaviour is still pretty confusing. 
+        //   Instead clicking edit name button should switch edit mode on and off (similar to the playlist entries)
+        editNameButton.onclick = _ => {
+            userbox.nameInput.readOnly = false;
+            userbox.nameInput.focus();
+        };
+
+        //
+        // Constructing html element structure
+        //
+        userbox.top.append(changeAvatarButton); {
+            changeAvatarButton.appendChild(uploadAvaterSvg);
+        }
+        userbox.bottom.append(editNameButton); {
+            editNameButton.appendChild(editNameSvg);
+        }
+    }
+
+    createUserBox(user) {
+        let root      = div("user_box");
+        let top       = div("user_box_top");
+        let avatar    = animatedImg(user.avatar);
+        let bottom    = div("user_box_bottom");
+        let nameInput = document.createElement("input");
+
+        let userbox = {
+            root:      root,
+            top:       top,
+            bottom:    bottom,
+            avatar:    avatar,
+            nameInput: nameInput,
+        }
+
+        //
+        // Configuring parameters for html elements.
+        //
+        nameInput.readOnly = true;
+        nameInput.value = user.username;
 
         //
         // Constructing html element structure.
         //
-        userBox.append(userBoxTop); {
-            userBoxTop.append(userAvatar);
+        root.append(top); {
+            top.append(avatar);
         }
-        userBox.append(userBoxBottom); {
-            userBoxBottom.append(usernameInput);
+        root.append(bottom); {
+            bottom.append(nameInput);
         }
 
         if (user.id == this.currentUserId) {
-            // NOTE(kihau): Temporary. The user box CSS styling and code logic will be slightly refactored.
-            // userBox.style.borderColor    = "#ebdbb2";
-            // userBoxTop.style.borderColor = "#ebdbb2";
-
-            // userBox.style.borderColor    = "#b8bb26";
-            // userBoxTop.style.borderColor = "#b8bb26";
-
-            userBox.style.borderColor    = "#d5c4a1";
-            userBoxTop.style.borderColor = "#d5c4a1";
-            userBox.style.boxShadow      = "0px 0px 4px #fbf1cf inset";
-
-
-            let changeAvatarButton = button("user_box_change_avatar", "Update your avatar");
-            let editNameButton = button("user_box_edit_name_button", "Change your username");
-            let editSvg = svg("svg/main_icons.svg#edit2");
-
-            //
-            // Configuring parameters for html elements.
-            //
-            changeAvatarButton.textContent = "E";
-
-            //
-            // Attaching events to html elements
-            //
-            changeAvatarButton.onclick = _ => {
-                let input = fileInput(".png,.jpg,.jpeg,.gif,.webp")
-
-                input.onchange = event => {
-                    let file = event.target.files[0];
-                    console.log("Picked file:", file);
-                    api.userUpdateAvatar(file).then(newAvatarUrl => {
-                        if (!newAvatarUrl) {
-                            return
-                        }
-                        let newAvatar = animatedImg(newAvatarUrl);
-                        userAvatar.replaceWith(newAvatar);
-                        // userAvatar.src = newAvatarUrl;
-                    });
-                }
-
-                input.click();
-            };
-
-            usernameInput.addEventListener("focusout", _ => {
-                usernameInput.readOnly = true;
-
-                let user = this.allUsers.find(user => this.currentUserId === user.id);
-                let newUsername = usernameInput.value.trim();
-                if (newUsername && newUsername !== user.username) {
-                    api.userUpdateName(newUsername);
-                } else {
-                    usernameInput.value = user.username;
-                }
-            });
-
-            usernameInput.addEventListener("keypress", event => {
-                if (event.key === "Enter") {
-                    usernameInput.readOnly = true;
-
-                    let user = this.allUsers.find(user => this.currentUserId === user.id);
-                    let newUsername = usernameInput.value.trim()
-                    if (newUsername && newUsername !== user.username) {
-                        api.userUpdateName(newUsername);
-                    } else {
-                        usernameInput.value = user.username;
-                    }
-                }
-            });
-
-            editNameButton.onclick = () => {
-                usernameInput.readOnly = false;
-                usernameInput.focus();
-            };
-
-            //
-            // Constructing html element structure
-            //
-            userBoxTop.append(changeAvatarButton);
-            userBoxBottom.append(editNameButton); {
-                editNameButton.append(editSvg);
-            }
+            this.appendSelfUserContent(userbox, user);
         }
 
-        return userBox;
+        return userbox;
     }
-
 
     async loadPlaylistData() {
         let entries = await api.playlistGet();
@@ -1344,9 +1342,9 @@ class Room {
             this.allUsers.push(user)
             console.info("INFO: New user has been created: ", user)
 
-            let userBox = this.createUserBox(user);
-            this.allUserBoxes.push(userBox);
-            this.usersArea.userList.appendChild(userBox);
+            let userbox = this.createUserBox(user);
+            this.allUserBoxes.push(userbox);
+            this.usersArea.userList.appendChild(userbox.root);
 
             this.usersArea.onlineCount.textContent = this.onlineCount;
             this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
@@ -1359,7 +1357,7 @@ class Room {
             let userBox = this.allUserBoxes.splice(index, 1)[0];
 
             console.info("Removing user:", user, "with its user box", userBox);
-            this.usersArea.userList.removeChild(userBox);
+            this.usersArea.userList.removeChild(userBox.root);
             
             this.onlineCount -= 1;
 
@@ -1380,9 +1378,9 @@ class Room {
             let i = this.allUsers.findIndex(user => user.id === userId);
             this.allUsers[i].online = true;
 
-            this.allUserBoxes[i].classList.add("online");
+            this.allUserBoxes[i].root.classList.add("online");
 
-            let connectedNow = this.allUserBoxes[i];
+            let connectedNow = this.allUserBoxes[i].root;
             if (lastOnlineBox) {
                 userBoxes.insertBefore(connectedNow, lastOnlineBox.nextSibling);
             } else {
@@ -1403,13 +1401,13 @@ class Room {
             let offlineBoxes = userBoxes.getElementsByClassName("user_box.online");
 
             // let firstOfflineBox = offlineBoxes[offlineBoxes.length - 1].nextElementSibling;
-            let lastOnlineBox   = offlineBoxes[offlineBoxes.length - 1];
+            let lastOnlineBox = offlineBoxes[offlineBoxes.length - 1];
 
             let i = this.allUsers.findIndex(user => user.id === userId);
             this.allUsers[i].online = false;
-            this.allUserBoxes[i].classList.remove("online");
+            this.allUserBoxes[i].root.classList.remove("online");
 
-            let disconnectedNow = this.allUserBoxes[i];
+            let disconnectedNow = this.allUserBoxes[i].root;
             if (lastOnlineBox && lastOnlineBox.nextElementSibling) {
                 userBoxes.insertBefore(disconnectedNow, lastOnlineBox.nextElementSibling);
             } else {
@@ -1427,13 +1425,16 @@ class Room {
             console.info("INFO: Update user name event for: ", user)
 
             let i = this.allUsers.findIndex(x => x.id == user.id);
-            this.allUsers[i] = user; // emplace the user
+            this.allUsers[i] = user;
 
-            let input = this.allUserBoxes[i].querySelectorAll("input")[0];
+            let userbox = this.allUserBoxes[i]; 
+
+            let input = userbox.nameInput;
             input.value = user.username;
-
+           
             let newAvatar = animatedImg(user.avatar);
-            this.allUserBoxes[i].querySelectorAll("img")[0].replaceWith(newAvatar);
+            userbox.avatar.replaceWith(newAvatar);
+            userbox.avatar = newAvatar;
 
             this.playlist.handleUserUpdate(user);
         });
