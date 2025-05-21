@@ -955,6 +955,7 @@ html * {
     width: 100%;
     height: 100%;
     box-shadow: 0 0 4px var(--fg_1) inset;
+    pointer-events: none;
 }
 
 .user_box.selfbox user_box_bottom input {

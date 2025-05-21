@@ -66,11 +66,21 @@ export function dynamicImg(src) {
     image.src = src;
 
     image.onload = _ => {
-        canvas.width = image.width;
+        let w = image.naturalWidth;
+        let h = image.naturalHeight;
+
+        canvas.width  = image.width;
         canvas.height = image.height;
 
+        let scaleX = canvas.width / w;
+        let scaleY = canvas.height / h;
+        let ratio  = Math.max(scaleX, scaleY)
+
+        let offsetX = (canvas.width - w * ratio) / 2.0;
+        let offsetY = (canvas.height - h * ratio) / 2.0;
+
         const ctx = canvas.getContext("2d");
-        ctx.drawImage(image, 0, 0, image.width, image.height);
+        ctx.drawImage(image, 0, 0, w, h, offsetX, offsetY, w * ratio, h * ratio);
     };
 
     container.appendChild(image);
