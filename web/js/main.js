@@ -274,8 +274,7 @@ class Room {
                 return;
             }
 
-            if (this.player.getCurrentUrl() === document.baseURI) {
-                console.warn("Nothing is set");
+            if (!this.player.getCurrentUrl()) {
                 return;
             }
 

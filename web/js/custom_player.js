@@ -576,7 +576,7 @@ class Internals {
     }
 
     seek(timestamp) {
-        if (isNaN(timestamp)) {
+        if (isNaN(timestamp) || !this.getCurrentUrl()) {
             return;
         }
 
@@ -870,6 +870,7 @@ class Internals {
         if (this.playingHls) {
             return this.hls.url;
         }
+
         return this.htmlVideo.src;
     }
 
@@ -1808,7 +1809,6 @@ class Internals {
     }
 
     regainPlayerFocus(event) {
-        console.log(event.relatedTarget);
         if (!event.relatedTarget) {
             this.htmlPlayerRoot.focus({ preventScroll: true });
         }

@@ -80,7 +80,7 @@ export function dynamicImg(src) {
         let offsetY = (canvas.height - h * ratio) / 2.0;
 
         const ctx = canvas.getContext("2d");
-        ctx.drawImage(image, 0, 0, w, h, offsetX, offsetY, w * ratio, h * ratio);
+        ctx.drawImage(image, offsetX, offsetY, w * ratio, h * ratio);
     };
 
     container.appendChild(image);

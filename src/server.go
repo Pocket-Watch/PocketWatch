@@ -372,6 +372,12 @@ func (server *Server) periodicResync() {
 		var event SyncEventData
 		server.state.mutex.Lock()
 		playing := server.state.player.Playing
+
+		if (server.state.entry.Url == "") {
+			server.state.mutex.Unlock()
+			continue;
+		}
+
 		server.state.mutex.Unlock()
 
 		if playing {
