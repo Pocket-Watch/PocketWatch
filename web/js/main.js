@@ -3,7 +3,7 @@ import { Playlist } from "./playlist.js"
 import { Chat } from "./chat.js"
 import { sha256 } from "./auth.js"
 import * as api from "./api.js";
-import { Storage, button, div, formatTime, formatByteCount, getById, animatedImg, svg, show, hide, fileInput } from "./util.js";
+import { Storage, button, div, formatTime, formatByteCount, getById, dynamicImg, svg, show, hide, fileInput } from "./util.js";
 
 const SERVER_ID = 0;
 const MAX_TITLE_LENGTH = 200;
@@ -1031,7 +1031,7 @@ class Room {
     createUserBox(user) {
         let root      = div("user_box");
         let top       = div("user_box_top");
-        let avatar    = animatedImg(user.avatar);
+        let avatar    = dynamicImg(user.avatar);
         let bottom    = div("user_box_bottom");
         let nameInput = document.createElement("input");
 
@@ -1434,7 +1434,7 @@ class Room {
             let input = userbox.nameInput;
             input.value = user.username;
            
-            let newAvatar = animatedImg(user.avatar);
+            let newAvatar = dynamicImg(user.avatar);
             userbox.avatar.replaceWith(newAvatar);
             userbox.avatar = newAvatar;
 

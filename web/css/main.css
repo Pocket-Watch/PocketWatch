@@ -253,21 +253,30 @@ html * {
     width: 200px;
 }
 
-.disable_image_animations .animated_image img {
+.disable_image_animations .dynamic_image img {
     visibility: hidden;
 }
 
-.disable_image_animations .animated_image canvas {
+.disable_image_animations .dynamic_image canvas {
     visibility: visible;
 }
 
-.animated_image {
+.disable_image_animations .dynamic_image:hover img {
+    visibility: visible;
+}
+
+.disable_image_animations .dynamic_image:hover canvas {
+    visibility: hidden;
+}
+
+.dynamic_image {
     width: 100%;
     height: 100%;
     position: relative;
+    object-fit: cover;
 }
 
-.animated_image img {
+.dynamic_image img {
     width: 100%;
     height: 100%;
     /* NOTE(kihau): Maybe object-fit should be used instead (just like before)? */
@@ -276,7 +285,7 @@ html * {
     visibility: visible;
 }
 
-.animated_image canvas {
+.dynamic_image canvas {
     width: 100%;
     height: 100%;
     position: absolute;

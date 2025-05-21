@@ -45,28 +45,35 @@ export function img(src) {
     return element;
 }
 
-export function isAnimated(url) {
-    let params = new URLSearchParams(url);
-    return params.get("ext") === "gif";
+export function isAnimated(url_string) {
+    let url = new URL(url_string, window.location.href)
+    return url.searchParams.get("ext") === "gif";
 }
 
-export function animatedImg(src) {
+export function dynamicImg(src) {
+    if (!isAnimated(src)) {
+        let image = document.createElement("img");
+        image.className = "dynamic_image";
+        image.src = src;
+        return image
+    }
+
     let container  = document.createElement("div");
-    let gif = document.createElement("img");
-    let canvas  = document.createElement("canvas");
+    let image      = document.createElement("img");
+    let canvas     = document.createElement("canvas");
 
-    container.className = "animated_image";
-    gif.src = src;
+    container.className = "dynamic_image";
+    image.src = src;
 
-    gif.onload = _ => {
-        canvas.width = gif.width;
-        canvas.height = gif.height;
+    image.onload = _ => {
+        canvas.width = image.width;
+        canvas.height = image.height;
 
         const ctx = canvas.getContext("2d");
-        ctx.drawImage(gif, 0, 0, gif.width, gif.height);
+        ctx.drawImage(image, 0, 0, image.width, image.height);
     };
 
-    container.appendChild(gif);
+    container.appendChild(image);
     container.appendChild(canvas);
 
     return container;
