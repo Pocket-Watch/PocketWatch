@@ -900,7 +900,6 @@ html * {
 }
 
 .user_box:hover .user_box_change_avatar {
-    /* display: flex; */
     opacity: 0.8;
     transition: opacity 0.2s ease-out;
 }
@@ -920,22 +919,37 @@ html * {
 .user_box_bottom input {
     width: 100%;
     height: 100%;
-    padding-left: 8px;
     box-sizing: border-box;
     text-align: center;
     font-size: 16px;
     font-weight: 600;
     color: var(--fg_1);
     background-color: var(--bg_5);
+    cursor: pointer;
+}
+
+.user_box_bottom input::selection {
+    background-color: var(--fg_6);
 }
 
 .user_box.selfbox {
     border-color: var(--fg_4);
-    box-shadow: 0 0 4px var(--fg_1) inset;
 }
 
 .user_box.selfbox .user_box_top {
     border-color: var(--fg_4);
+}
+
+.user_box.selfbox .user_box_shadow {
+    position: absolute;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    box-shadow: 0 0 4px var(--fg_1) inset;
+}
+
+.user_box.selfbox user_box_bottom input {
+    padding-left: 8px;
 }
 
 .user_box.online .user_box_bottom input {
@@ -947,7 +961,6 @@ html * {
 }
 
 .user_box.online .user_box_edit_name_button:hover {
-    display: block;
     background-color: var(--green_1);
 }
 

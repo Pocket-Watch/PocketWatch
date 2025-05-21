@@ -956,8 +956,9 @@ class Room {
     }
 
     appendSelfUserContent(userbox) {
-        let changeAvatarButton = button("user_box_change_avatar",    "Update your avatar");
+        let changeAvatarButton = button("user_box_change_avatar","Update your avatar");
         let uploadAvaterSvg    = svg("svg/main_icons.svg#upload");
+        let shadowContainer    = div("user_box_shadow");
         let editNameButton     = button("user_box_edit_name_button", "Change your username");
         let editNameSvg        = svg("svg/main_icons.svg#edit2");
 
@@ -1018,10 +1019,11 @@ class Room {
         //
         // Constructing html element structure
         //
-        userbox.top.append(changeAvatarButton); {
+        userbox.top.appendChild(shadowContainer);
+        userbox.top.appendChild(changeAvatarButton); {
             changeAvatarButton.appendChild(uploadAvaterSvg);
         }
-        userbox.bottom.append(editNameButton); {
+        userbox.bottom.appendChild(editNameButton); {
             editNameButton.appendChild(editNameSvg);
         }
     }
