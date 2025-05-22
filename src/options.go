@@ -19,12 +19,13 @@ type ServerConfig struct {
 	Domain       string `json:"domain"`
 	EnableSsl    bool   `json:"enable_ssl"`
 	EnableSubs   bool   `json:"enable_subs"`
+	EnableShell  bool   `json:"enable_shell"`
 }
 
 type LoggingConfig struct {
 	Enabled      bool   `json:"enabled"`
 	EnableColors bool   `json:"enable_colors"`
-	LogLevel     uint16 `json:"log_level"`
+	LogLevel     uint32 `json:"log_level"`
 	// NOTE(kihau): Placeholders, also log archiving will be added.
 	SaveToFile   bool   `json:"save_to_file"`
 	LogFile      string `json:"logfile"`
@@ -54,6 +55,7 @@ func createDefaultConfig() Config {
 		Domain:       "example.com",
 		EnableSsl:    false,
 		EnableSubs:   false,
+		EnableShell:  true,
 	}
 
 	logging := LoggingConfig{
@@ -157,6 +159,11 @@ func VerifyInputFlags(flags InputFlags) bool {
 		return false
 	}
 
+	if flags.DisableShell && flags.EnableShell {
+		fmt.Fprintf(os.Stderr, "ERROR: Both disable and enable interactive shell flags were provided, but you can only pick one of them.\n")
+		return false
+	}
+
 	if flags.ServerPort > math.MaxUint16 || flags.ServerPort < 0 {
 		fmt.Fprintf(os.Stderr, "ERROR: Incorrect port number. Port number must be between values 0 and %v.\n", math.MaxUint16)
 		return false
@@ -194,6 +201,10 @@ func ApplyInputFlags(config *Config, flags InputFlags) {
 		config.Logging.EnableColors = true
 	}
 
+	if flags.EnableShell {
+		config.Server.EnableShell = true
+	}
+
 	if flags.DisableSql {
 		config.Database.Enabled = false
 	}
@@ -210,6 +221,10 @@ func ApplyInputFlags(config *Config, flags InputFlags) {
 		config.Logging.EnableColors = false
 	}
 
+	if flags.DisableShell {
+		config.Server.EnableShell = false
+	}
+
 }
 
 type InputFlags struct {
@@ -223,11 +238,13 @@ type InputFlags struct {
 	EnableSsl    bool
 	EnableSubs   bool
 	EnableColors bool
+	EnableShell  bool
 
 	DisableSql    bool
 	DisableSsl    bool
 	DisableSubs   bool
 	DisableColors bool
+	DisableShell  bool
 
 	ShowHelp bool
 }
@@ -319,6 +336,9 @@ func ParseInputArgs() (InputFlags, bool) {
 		case "-ec", "--enable-colors":
 			flags.EnableColors = true
 
+		case "-eis", "--enable-shell":
+			flags.EnableShell = true
+
 		// Disable flags":
 		case "-nosql", "--disable-database":
 			flags.DisableSql = true
@@ -331,6 +351,9 @@ func ParseInputArgs() (InputFlags, bool) {
 
 		case "-dc", "--disable-colors":
 			flags.DisableColors = true
+
+		case "-dis", "--disable-shell":
+			flags.DisableShell = true
 
 		default:
 			fmt.Fprintf(os.Stderr, "ERROR: Input argument '%v' is not valid. See --help for program usage.\n", arg)
@@ -396,11 +419,13 @@ func DisplayHelp() {
 	fmt.Println("                                       - PRIVATE KEY: ./secret/privatekey.pem")
 	fmt.Println("    -es,    --enable-subs            Enables support for subtitle search. (default: disabled)")
 	fmt.Println("    -ec,    --enable-color           Enables colored logging.")
+	fmt.Println("    -eis,   --enable-shell           Enables interactive shell during server runtime.")
 	fmt.Println("    -nosql, --disable-sql            Disables support for the Postgres SQL database persistance.")
 	fmt.Println("    -nossl, --disable-encryption     Disables encrypted connection between a client and the server.")
 	fmt.Println("    -ds,    --disable-subs           Disables support for subtitle search.")
 	fmt.Println("    -dc,    --disable-color          Disables colored logging. (default: enabled)")
 	fmt.Println("    -d,     --domain [example.com]   Domain, if any, that the server is hosted on. Serves as a hint to associate URLs with local env.")
+	fmt.Println("    -dis,   --diable-shell           Disable interactive shell during server runtime.")
 	fmt.Println()
 	fmt.Println("Example usage:")
 	fmt.Println("    ", exe, "--port 8888")

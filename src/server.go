@@ -373,9 +373,9 @@ func (server *Server) periodicResync() {
 		server.state.mutex.Lock()
 		playing := server.state.player.Playing
 
-		if (server.state.entry.Url == "") {
+		if server.state.entry.Url == "" {
 			server.state.mutex.Unlock()
-			continue;
+			continue
 		}
 
 		server.state.mutex.Unlock()

@@ -7,10 +7,11 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
-type LogLevel = uint16
+type LogLevel = uint32
 
 const (
 	LOG_FATAL LogLevel = iota
@@ -19,6 +20,23 @@ const (
 	LOG_INFO
 	LOG_DEBUG
 )
+
+func LogLevelToString(loglevel LogLevel) string {
+	switch loglevel {
+	case LOG_FATAL:
+		return "FATAL"
+	case LOG_ERROR:
+		return "ERROR"
+	case LOG_WARN:
+		return "WARN"
+	case LOG_INFO:
+		return "INFO"
+	case LOG_DEBUG:
+		return "DEBUG"
+	default:
+		return "DEBUG"
+	}
+}
 
 const (
 	COLOR_RESET  = "\x1b[0m"
@@ -35,13 +53,14 @@ const (
 )
 
 type Logger struct {
-	enabled     bool
-	printColors bool
-	logLevel    uint16
-	saveToFile  bool
-	outputFile  os.File
-	outputDir   string
-	outputPath  string
+	enabled      bool
+	logToConsole atomic.Bool
+	printColors  bool
+	logLevel     atomic.Uint32
+	saveToFile   bool
+	outputFile   os.File
+	outputDir    string
+	outputPath   string
 }
 
 func (*Logger) Write(p []byte) (n int, err error) {
@@ -64,11 +83,24 @@ func SetupGlobalLogger(config LoggingConfig) bool {
 	logger = Logger{
 		enabled:     config.Enabled,
 		printColors: config.EnableColors,
-		logLevel:    config.LogLevel,
 		saveToFile:  config.SaveToFile,
 	}
 
+	logger.logLevel.Store(uint32(config.LogLevel))
+	logger.logToConsole.Store(true)
 	return true
+}
+
+func SetLogLevel(level LogLevel) {
+	logger.logLevel.Store(level)
+}
+
+func DisableConsoleLogging() {
+	logger.logToConsole.Store(false)
+}
+
+func EnableConsoleLogging() {
+	logger.logToConsole.Store(true)
 }
 
 func logLevelString(level LogLevel) string {
@@ -150,7 +182,13 @@ func logOutput(logLevel LogLevel, stackUp int, format string, args ...any) {
 		return
 	}
 
-	if logger.logLevel < logLevel {
+	if logger.logLevel.Load() < logLevel {
+		return
+	}
+
+	// TODO(kihau): Log to a file if file logging is enabled.
+
+	if !logger.logToConsole.Load() {
 		return
 	}
 

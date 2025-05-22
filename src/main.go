@@ -15,12 +15,7 @@ func CaptureCtrlC() {
 	go func() {
 		for {
 			<-channel
-			RunInteractiveCli(channel)
-
-			select {
-			case <-channel:
-			default:
-			}
+			RunInteractiveShell(channel)
 		}
 	}()
 }
@@ -86,6 +81,9 @@ func main() {
 		return
 	}
 
-	CaptureCtrlC()
+	if config.Server.EnableShell {
+		CaptureCtrlC()
+	}
+
 	StartServer(config.Server, db)
 }

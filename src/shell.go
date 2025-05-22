@@ -4,18 +4,32 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
 
-func readCliCommand() string {
+func readShellCommand() (string, string) {
 	reader := bufio.NewReader(os.Stdin)
-	command, _ := reader.ReadString('\n')
+	input, _ := reader.ReadString('\n')
 
-	command = strings.TrimSpace(command)
-	command = strings.ToLower(command)
+	input = strings.TrimSpace(input)
+	input = strings.ToLower(input)
 
-	return command
+	fields := strings.Fields(input)
+
+	var command string
+	var argument string
+
+	if len(fields) > 0 {
+		command = fields[0]
+	}
+
+	if len(fields) > 1 {
+		argument = strings.Join(fields[1:], " ")
+	}
+
+	return command, argument
 }
 
 func handleCtrlC(ctrlcChan chan os.Signal, exit chan bool) {
@@ -30,10 +44,13 @@ func handleCtrlC(ctrlcChan chan os.Signal, exit chan bool) {
 	}
 }
 
-func RunInteractiveCli(ctrlcChan chan os.Signal) {
+func RunInteractiveShell(ctrlcChan chan os.Signal) {
 	fmt.Println()
+	LogInfo("Opening interactive shell. Console logging paused.")
+	DisableConsoleLogging()
+
 	fmt.Println()
-	fmt.Println("PocketWatch Interactive CLI:")
+	fmt.Println("PocketWatch Interactive Shell:")
 	fmt.Println("  type 'help' to show available command.")
 	fmt.Println()
 
@@ -43,18 +60,23 @@ func RunInteractiveCli(ctrlcChan chan os.Signal) {
 
 	for {
 		fmt.Print("> ")
-		command := readCliCommand()
+		command, argument := readShellCommand()
+		fmt.Printf("%v %v\n", command, argument)
 
 		switch command {
 		case "shutdown":
+			EnableConsoleLogging()
+			LogInfo("Shutting down the server.")
 			os.Exit(0)
 
 		case "exit":
+			EnableConsoleLogging()
+			LogInfo("Exiting interactive shell.")
 			return
 
 		case "help":
 			fmt.Println("  shutdown - Exit the server")
-			fmt.Println("  exit     - Exit the interactive CLI")
+			fmt.Println("  exit     - Exit the interactive shell")
 			fmt.Println("  help     - Display this help prompt")
 			fmt.Println("  version  - Print server version")
 			fmt.Println("  uptime   - Print server uptime")
@@ -72,7 +94,14 @@ func RunInteractiveCli(ctrlcChan chan os.Signal) {
 			fmt.Println()
 
 		case "loglevel", "ll":
-			fmt.Println("Not implemented yet")
+			loglevel, err := strconv.Atoi(argument)
+			if err != nil {
+				fmt.Printf("'%v' is not a valid log level", argument)
+			} else {
+				SetLogLevel(uint32(loglevel))
+				fmt.Printf("Log level is now set to '%v'", LogLevelToString(uint32(loglevel)))
+			}
+
 			fmt.Println()
 
 		case "sqlquery", "sql":
