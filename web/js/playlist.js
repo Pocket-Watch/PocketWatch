@@ -80,8 +80,6 @@ class Playlist {
         this.scrollingStep = 0;
 
         this.currentEntryId = 0;
-
-        hide(this.contextMenu);
     }
 
     // NOTE(kihau): Attachable playlist events (similar to the custom player)

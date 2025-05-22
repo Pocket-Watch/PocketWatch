@@ -459,7 +459,7 @@ class Internals {
         this.subtitleFgOpacity = new Slider("Foreground opacity", 0, 100, 1.0, DEFAULT_SUBTITLE_FOREGROUND_OPACITY, "%");
         this.subtitleBgColor   = new ColorPicker("Background color", DEFAULT_SUBTITLE_BACKGROUND_COLOR);
         this.subtitleBgOpacity = new Slider("Background opacity", 0, 100, 1.0, DEFAULT_SUBTITLE_BACKGROUND_OPACITY, "%");
-        this.playbackSpeed = new Slider("Playback speed", 0.25, 5.0, 0.25, 1.0, "x");
+        this.playbackSpeed     = new Slider("Playback speed", 0.25, 5.0, 0.25, 1.0, "x");
 
         this.isDraggingProgressBar = false;
         this.isUIVisible = true;
@@ -1999,20 +1999,22 @@ class Internals {
     }
 
     createSettingsMenu() {
-        let playerRoot     = this.htmlPlayerRoot;
-        let menu           = this.htmlControls.settings;
-        let menuRoot       = menu.root;
-        let menuSeparator  = newDiv(null, "player_menu_separator");
-        let menuTabs       = newDiv(null, "player_menu_tabs");
-        let menuViews      = newDiv(null, "player_menu_views");
-        let generalTab     = newDiv(null, "player_menu_tab");
-        let appearanceTab  = newDiv(null, "player_menu_tab");
-        let generalView    = newDiv("player_submenu_select_view");
-        let appearanceView = newDiv("player_submenu_select_view");
-        let alwaysShow     = new Switcher("Always show controls");
-        let showOnPause    = new Switcher("Show controls on pause");
-        let playbackSpeed  = this.playbackSpeed;
-        let brightness     = new Slider("Brightness", 0.2, 2, 0.05, 1.0);
+        let playerRoot      = this.htmlPlayerRoot;
+        let menu            = this.htmlControls.settings;
+        let menuRoot        = menu.root;
+        let menuSeparator   = newDiv(null, "player_menu_separator");
+        let menuTabs        = newDiv(null, "player_menu_tabs");
+        let menuViews       = newDiv(null, "player_menu_views");
+        let generalTab      = newDiv(null, "player_menu_tab");
+        let appearanceTab   = newDiv(null, "player_menu_tab");
+        let generalView     = newDiv("player_submenu_select_view");
+        let appearanceView  = newDiv("player_submenu_select_view");
+        let alwaysShow      = new Switcher("Always show controls");
+        let showOnPause     = new Switcher("Show controls on pause");
+        let playbackSpeed   = this.playbackSpeed;
+        let brightness      = new Slider("Brightness", 0.2, 2, 0.05, 1.0);
+        let fitToScreen     = new Switcher("Fit video to screen");
+        let stretchToScreen = new Switcher("Stretch video to screen");
 
         hide(menuRoot);
         alwaysShow.setState(this.options.alwaysShowControls);
@@ -2041,8 +2043,8 @@ class Internals {
             show(selected.view);
         }
 
-        generalTab.onclick     = () => select(generalTab, generalView);
-        appearanceTab.onclick  = () => select(appearanceTab, appearanceView);
+        generalTab.onclick     = _ => select(generalTab, generalView);
+        appearanceTab.onclick  = _ => select(appearanceTab, appearanceView);
 
         menuRoot.onclick = stopPropagation;
 
@@ -2066,6 +2068,18 @@ class Internals {
             this.fireSettingsChange(Options.BRIGHTNESS, value);
         };
 
+        fitToScreen.onAction = state => {
+            stretchToScreen.setState(false);
+            this.htmlVideo.classList.remove("stretch");
+            this.htmlVideo.classList.toggle("fit");
+        };
+
+        stretchToScreen.onAction = state => {
+            fitToScreen.setState(false);
+            this.htmlVideo.classList.remove("fit");
+            this.htmlVideo.classList.toggle("stretch");
+        };
+
         playerRoot.append(menuRoot); {
             menuRoot.append(menuTabs); {
                 menuTabs.append(generalTab);
@@ -2078,6 +2092,8 @@ class Internals {
                     generalView.append(showOnPause.toggleRoot);
                     generalView.append(playbackSpeed.root);
                     generalView.append(brightness.root);
+                    generalView.append(fitToScreen.toggleRoot);
+                    generalView.append(stretchToScreen.toggleRoot);
                 }
                 menuViews.append(appearanceView);
             }

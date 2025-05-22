@@ -58,6 +58,14 @@
     height: 100%;
 }
 
+#player_container video.fit {
+    object-fit: cover;
+}
+
+#player_container video.stretch {
+    object-fit: fill;
+}
+
 #player_title_container {
     width: auto;
     max-width: 46%;
