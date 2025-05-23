@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"database/sql"
 	"fmt"
 	"os"
 	"strconv"
@@ -44,7 +45,7 @@ func handleCtrlC(ctrlcChan chan os.Signal, exit chan bool) {
 	}
 }
 
-func RunInteractiveShell(ctrlcChan chan os.Signal) {
+func RunInteractiveShell(ctrlcChan chan os.Signal, db *sql.DB) {
 	fmt.Println()
 	LogInfo("Opening interactive shell. Console logging paused.")
 	DisableConsoleLogging()
@@ -58,10 +59,9 @@ func RunInteractiveShell(ctrlcChan chan os.Signal) {
 	go handleCtrlC(ctrlcChan, exitChan)
 	defer func() { exitChan <- true }()
 
-	for {
+	outer: for {
 		fmt.Print("> ")
 		command, argument := readShellCommand()
-		fmt.Printf("%v %v\n", command, argument)
 
 		switch command {
 		case "shutdown":
@@ -81,17 +81,14 @@ func RunInteractiveShell(ctrlcChan chan os.Signal) {
 			fmt.Println("  version  - Print server version")
 			fmt.Println("  uptime   - Print server uptime")
 			fmt.Println("  loglevel - Set log level")
-			fmt.Println("  sql      - Execute SQL query")
-			fmt.Println()
+			fmt.Println("  sqlquery - Execute SQL query")
 
 		case "version", "v":
 			fmt.Printf("Server version: %v_%v\n", VERSION, BuildTime)
-			fmt.Println()
 
 		case "uptime", "up":
 			uptime := time.Now().Sub(startTime)
 			fmt.Printf("Server uptime: %v\n", uptime)
-			fmt.Println()
 
 		case "loglevel", "ll":
 			loglevel, err := strconv.Atoi(argument)
@@ -102,17 +99,17 @@ func RunInteractiveShell(ctrlcChan chan os.Signal) {
 				fmt.Printf("Log level is now set to '%v'", LogLevelToString(uint32(loglevel)))
 			}
 
-			fmt.Println()
-
 		case "sqlquery", "sql":
-			fmt.Println("Not implemented yet")
-			fmt.Println()
+			DatabaseSqlQuery(db, argument)
 
 		default:
 			if command != "" {
 				fmt.Printf("'%s' is not a valid command. Type help to see available command.\n", command)
-				fmt.Println()
+			} else {
+				continue outer
 			}
 		}
+
+		fmt.Println()
 	}
 }

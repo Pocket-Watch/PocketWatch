@@ -343,3 +343,36 @@ func DatabaseUpdateUserLastOnline(db *sql.DB, id uint64, lastOnline time.Time) b
 
 	return true
 }
+
+func DatabaseSqlQuery(db *sql.DB, query string) {
+	if db == nil {
+		fmt.Printf("Database is not running\n")
+		return
+	}
+
+	rows, err := db.Query(query)
+	if err != nil {
+		fmt.Printf("Failed to execute SQL query: %v\n", err)
+		return
+	}
+	defer rows.Close()
+
+	columnNames, _ := rows.Columns()
+	columns := make([]any, len(columnNames))
+	for i := range columns {
+		columns[i] = new(string)
+	}
+
+	for rows.Next() {
+		err = rows.Scan(columns...)
+		if err != nil {
+			fmt.Printf("Failed to read row query: %v\n", err)
+			return
+		}
+
+		for _, column := range columns {
+			fmt.Printf("%s ", *column.(*string))
+		}
+		fmt.Println()
+	}
+}

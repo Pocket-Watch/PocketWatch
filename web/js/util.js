@@ -51,12 +51,12 @@ export function isAnimated(url_string) {
 }
 
 export function dynamicImg(src) {
-    if (!isAnimated(src)) {
-        let image = document.createElement("img");
-        image.className = "dynamic_image";
-        image.src = src;
-        return image
-    }
+    // if (!isAnimated(src)) {
+    //     let image = document.createElement("img");
+    //     image.className = "dynamic_image";
+    //     image.src = src;
+    //     return image
+    // }
 
     let container  = document.createElement("div");
     let image      = document.createElement("img");
