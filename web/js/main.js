@@ -8,6 +8,7 @@ import { Storage, button, div, formatTime, formatByteCount, getById, dynamicImg,
 const SERVER_ID = 0;
 const MAX_TITLE_LENGTH = 200;
 
+const USER_AVATAR_ANIMATIONS = "user_avatar_animations"
 const LAST_SELECTED_TAB = "last_selected_tab"
 const LAST_SELECTED_SUBTITLE = "last_selected_subtitle"
 
@@ -29,7 +30,7 @@ class Room {
         options.hideDownloadButton = true;
         options.hlsConfig.xhrSetup = (xhr, url) => this.configureHlsRequests(xhr, url);
         options.hlsConfig.maxBufferLength = 60;
-        this.applyUserOptions(options);
+        this.applyPlayerOptions(options);
 
         this.player   = new Player(video0, options);
         this.playlist = new Playlist();
@@ -203,7 +204,7 @@ class Room {
         }*/
     }
 
-    applyUserOptions(options) {
+    applyPlayerOptions(options) {
         let alwaysShow = Storage.getBool(Options.ALWAYS_SHOW_CONTROLS);
         if (alwaysShow != null) {
             options.alwaysShowControls = alwaysShow;
@@ -216,9 +217,20 @@ class Room {
     }
 
     applyUserPreferences() {
+        // Room settings
         let last_tab = Storage.getNum(LAST_SELECTED_TAB);
         this.selectRightPanelTab(last_tab);
 
+        let animation = Storage.get(USER_AVATAR_ANIMATIONS);
+        if (!animation || Storage.isTrue(animation)) {
+            this.settingsMenu.animatedAvatarsToggle.classList.add("active");
+            this.pageRoot.classList.remove("disable_image_animations");
+        } else {
+            this.settingsMenu.animatedAvatarsToggle.classList.remove("active");
+            this.pageRoot.classList.add("disable_image_animations");
+        }
+
+        // Player settings
         let volume = Storage.get("volume");
         if (volume != null) {
             this.player.setVolume(volume);
@@ -819,7 +831,8 @@ class Room {
 
         menu.animatedAvatarsToggle.onclick = _ => {
             this.pageRoot.classList.toggle("disable_image_animations");
-            menu.animatedAvatarsToggle.classList.toggle("active");
+            let isToggled = menu.animatedAvatarsToggle.classList.toggle("active");
+            Storage.setBool(USER_AVATAR_ANIMATIONS, isToggled);
         };
 
         menu.deleteYourAccountButton.onclick = _ => {

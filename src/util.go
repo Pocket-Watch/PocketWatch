@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/rand"
 	"net/http"
 	net_url "net/url"
@@ -565,15 +566,14 @@ func (limiter *RateLimiter) block() bool {
 }
 
 // Returns the number of seconds that must elapse before the next request can be made.
-// This method could be more precise
 func (limiter *RateLimiter) getRetryAfter() int {
 	nowMs := time.Now().UnixMilli()
 	msAgo := nowMs - limiter.hits.PeekEnd()
 	if msAgo >= limiter.perMs {
 		return 0
 	}
-	remainingSeconds := (limiter.perMs - msAgo) / 1000
-	return int(remainingSeconds + 1)
+	remainingSeconds := float64(limiter.perMs-msAgo) / 1000
+	return int(math.Ceil(remainingSeconds))
 }
 
 type RingBuffer struct {

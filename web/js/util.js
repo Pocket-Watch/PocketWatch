@@ -222,4 +222,8 @@ export class Storage {
 
         return Number(value);
     }
+
+    static isTrue(value) {
+        return value === "1";
+    }
 }
