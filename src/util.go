@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"slices"
 )
 
 var client = http.Client{
@@ -332,12 +333,8 @@ func isErrorStatus(err error, codes ...int) bool {
 	if !errors.As(err, &downloadErr) {
 		return false
 	}
-	for i := range codes {
-		if downloadErr.Code == codes[i] {
-			return true
-		}
-	}
-	return false
+
+	return slices.Contains(codes, downloadErr.Code)
 }
 
 // Implements the error interface

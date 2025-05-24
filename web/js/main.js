@@ -573,7 +573,19 @@ class Room {
 
             room.upload.placeholderRoot.classList.remove("hide");
             room.upload.progressRoot.classList.add("hide");
-            this.entryArea.urlInput.value = response.json;
+
+            let data = response.json;
+            switch (data.category) {
+                case "audio":
+                case "video": {
+                    this.entryArea.urlInput.value   = data.url;
+                    this.entryArea.titleInput.value = data.filename;
+                } break;
+
+                case "subs": {
+                    // TODO(kihau): Insert subtitle into the subtitle segment of inputArea.
+                } break;
+            }
         });
     }
 
@@ -1207,7 +1219,7 @@ class Room {
             api.version().then(version => this.settingsMenu.websiteVersion.textContent = version);
         };
 
-        events.onerror = event => {
+        events.onerror = _ => {
             events.close()
             console.error("ERROR: Connection to the server was lost. Attempting to reconnect in", RECONNECT_AFTER, "ms");
             this.handleDisconnect();

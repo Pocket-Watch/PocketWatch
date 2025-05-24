@@ -39,9 +39,10 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	extension := path.Ext(headers.Filename)
-	directory := getMediaType(extension)
 	filename := headers.Filename
+	// TODO(kihau): Actually check file format by doing http.DetectContentType().
+	extension := path.Ext(filename)
+	directory := getMediaType(extension)
 
 	outputPath, isSafe := safeJoin("web", "media", directory, filename)
 	if !isSafe {
@@ -71,7 +72,14 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jsonData, _ := json.Marshal(networkPath)
+	response := MediaUploadResponseData {
+		Url:      networkPath,
+		Filename: strings.TrimSuffix(filename, extension),
+		Format:   extension,
+		Category: directory,
+	}
+
+	jsonData, _ := json.Marshal(response)
 	io.WriteString(w, string(jsonData))
 }
 

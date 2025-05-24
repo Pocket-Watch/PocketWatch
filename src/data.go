@@ -305,3 +305,10 @@ type PlaylistUpdateRequestData struct {
 	Entry        Entry  `json:"entry"`
 	Index        int    `json:"index"`
 }
+
+type MediaUploadResponseData struct {
+	Url      string `json:"url"`
+	Filename string `json:"filename"`
+	Format   string `json:"format"`
+	Category string `json:"category"`
+}
