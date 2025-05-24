@@ -49,6 +49,18 @@ build.bat
 ./build.sh
 ```
 
+## PostgreSQL database installation & setup [OPTIONAL]:
+1. Install PostgreSQL
+ - Via an installer:
+   - installers for Windows & MacOS can be found at [enterprisedb](https://www.enterprisedb.com/downloads/postgres-postgresql-downloads).
+   - for other systems navigate to [postgresql](https://www.postgresql.org/download) and select your platform.
+
+ - Manually:
+   - download binaries: https://www.enterprisedb.com/download-postgresql-binaries
+   - ensure `postgres` is in PATH, if not add `.../PostgreSQL/bin` directory to PATH
+2. Run setup script [setup_database.bat](scripts/setup_database.bat) or [setup_database.sh](scripts/setup_database.sh)
+3. Toggle database with [toggle_database.bat](scripts/toggle_database.bat) or [toggle_database.sh](scripts/toggle_database.sh)
+
 ## https - How to generate SSL keys
 In order to secure incoming and outgoing traffic **TLS** is crucial
 ```bash
