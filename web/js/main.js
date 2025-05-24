@@ -412,7 +412,7 @@ class Room {
         });
     }
 
-    resetInputAreaElements() {
+    resetEntryAreaElements() {
         const entry = this.entryArea;
 
         entry.urlInput.value = "";
@@ -658,14 +658,22 @@ class Room {
         room.browse.imagesButton.onclick    = _ => window.open("media/image/", "_blank").focus();
 
         room.copyEntryButton.onclick = _ => {
-            this.entryArea.urlInput.value     = this.currentEntry.url;
-            this.entryArea.titleInput.value   = this.currentEntry.title;
-            this.entryArea.refererInput.value = this.currentEntry.referer_url;
+            let area = this.entryArea;
+            area.urlInput.value     = this.currentEntry.url;
+            area.titleInput.value   = this.currentEntry.title;
+            area.refererInput.value = this.currentEntry.referer_url;
 
             if (this.currentEntry.use_proxy) {
-                this.entryArea.proxyToggle.classList.add("active");
+                area.proxyToggle.classList.add("active");
             } else {
-                this.entryArea.proxyToggle.classList.remove("active");
+                area.proxyToggle.classList.remove("active");
+            }
+
+
+            if (this.currentEntry.subtitles.length > 0) {
+                let sub = this.currentEntry.subtitles[0];
+                area.subtitleUrlInput.value  = sub.url;
+                area.subtitleNameInput.value = sub.name;
             }
         };
 
@@ -735,7 +743,7 @@ class Room {
             }
 
             // Only reset if request was successful
-            this.resetInputAreaElements();
+            this.resetEntryAreaElements();
         });
     }
 
@@ -747,7 +755,7 @@ class Room {
         };
 
         area.resetButton.onclick = _ => {
-            this.resetInputAreaElements();
+            this.resetEntryAreaElements();
         };
 
         area.urlInput.onkeydown = event => {
@@ -762,7 +770,7 @@ class Room {
             let entry = await this.createNewRequestEntry();
             if (entry.url) {
                 api.playlistAdd(entry);
-                this.resetInputAreaElements();
+                this.resetEntryAreaElements();
             }
         };
 

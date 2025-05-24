@@ -592,9 +592,12 @@ func (server *Server) apiSubtitleUpload(w http.ResponseWriter, r *http.Request) 
 	}
 
 	networkUrl := path.Join("subs", outputName)
+	name := strings.TrimSuffix(filename, extension)
+	name = cleanupResourceName(name)
+
 	subtitle := Subtitle{
 		Id:    subId,
-		Name:  strings.TrimSuffix(filename, extension),
+		Name:  name,
 		Url:   networkUrl,
 		Shift: 0.0,
 	}
@@ -621,18 +624,6 @@ func (server *Server) apiSubtitleDownload(w http.ResponseWriter, r *http.Request
 	serverUrl := data.Url
 
 	if url.IsAbs() {
-		outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
-		outputPath := path.Join("web", "subs", outputName)
-		os.MkdirAll("web/subs/", 0750)
-
-		outputFile, err := os.Create(outputPath)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		defer outputFile.Close()
-
-		// TODO(kihau): Limit download length add add timeout.
 		response, err := http.Get(data.Url)
 		if err != nil {
 			respondBadRequest(w, "Failed to download subtitle for url %v; %v", data.Url, err)
@@ -645,13 +636,29 @@ func (server *Server) apiSubtitleDownload(w http.ResponseWriter, r *http.Request
 			return
 		}
 
+		response.Body = http.MaxBytesReader(w, response.Body, SUBTITLE_SIZE_LIMIT)
+		if response.ContentLength > SUBTITLE_SIZE_LIMIT {
+			http.Error(w, "Subtitle file is too large", http.StatusRequestEntityTooLarge)
+			return
+		}
+
+		outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
+		outputPath := path.Join("web", "subs", outputName)
+		serverUrl = path.Join("subs", outputName)
+		os.MkdirAll("web/subs/", 0750)
+
+		outputFile, err := os.Create(outputPath)
+		if err != nil {
+			respondInternalError(w, "Failed to created file for the subtitle file '%v': %v", data.Url, err)
+			return
+		}
+		defer outputFile.Close()
+
 		_, err = io.Copy(outputFile, response.Body)
 		if err != nil {
 			respondInternalError(w, "Failed to save downloaded subtitle %v: %v", data.Url, err)
 			return
 		}
-
-		serverUrl = path.Join("subs", outputName)
 	}
 
 	name := data.Name

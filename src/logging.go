@@ -21,20 +21,56 @@ const (
 	LOG_DEBUG
 )
 
-func LogLevelToString(loglevel LogLevel) string {
-	switch loglevel {
+func LogLevelToString(level LogLevel) string {
+	switch level {
 	case LOG_FATAL:
 		return "FATAL"
 	case LOG_ERROR:
 		return "ERROR"
 	case LOG_WARN:
-		return "WARN"
+		return "WARN "
 	case LOG_INFO:
-		return "INFO"
+		return "INFO "
 	case LOG_DEBUG:
 		return "DEBUG"
 	default:
 		return "DEBUG"
+	}
+}
+
+func LogLevelFromString(levelString string) (LogLevel, bool) {
+	level := strings.ToLower(levelString)
+
+	switch level {
+	case "fatal":
+		return LOG_FATAL, true
+	case "error":
+		return LOG_ERROR, true
+	case "warn":
+		return LOG_WARN, true 
+	case "info":
+		return LOG_INFO, true 
+	case "debug":
+		return LOG_DEBUG, true
+	default:
+		return 0, false
+	}
+}
+
+func LogLevelColor(level LogLevel) string {
+	switch level {
+	case LOG_FATAL:
+		return COLOR_FATAL
+	case LOG_ERROR:
+		return COLOR_RED
+	case LOG_WARN:
+		return COLOR_YELLOW
+	case LOG_INFO:
+		return COLOR_BLUE
+	case LOG_DEBUG:
+		return COLOR_PURPLE
+	default:
+		return COLOR_PURPLE
 	}
 }
 
@@ -95,46 +131,16 @@ func SetLogLevel(level LogLevel) {
 	logger.logLevel.Store(level)
 }
 
+func GetLogLevel() LogLevel {
+	return logger.logLevel.Load()
+}
+
 func DisableConsoleLogging() {
 	logger.logToConsole.Store(false)
 }
 
 func EnableConsoleLogging() {
 	logger.logToConsole.Store(true)
-}
-
-func logLevelString(level LogLevel) string {
-	switch level {
-	case LOG_FATAL:
-		return "FATAL"
-	case LOG_ERROR:
-		return "ERROR"
-	case LOG_WARN:
-		return "WARN "
-	case LOG_INFO:
-		return "INFO "
-	case LOG_DEBUG:
-		return "DEBUG"
-	}
-
-	panic("Unreachable code detected.")
-}
-
-func logLevelColor(level LogLevel) string {
-	switch level {
-	case LOG_FATAL:
-		return COLOR_FATAL
-	case LOG_ERROR:
-		return COLOR_RED
-	case LOG_WARN:
-		return COLOR_YELLOW
-	case LOG_INFO:
-		return COLOR_BLUE
-	case LOG_DEBUG:
-		return COLOR_PURPLE
-	}
-
-	panic("Unreachable code detected.")
 }
 
 func LogFatal(format string, args ...any) {
@@ -203,11 +209,11 @@ func logOutput(logLevel LogLevel, stackUp int, format string, args ...any) {
 	codeLocation := fmt.Sprintf("%v:%v", filename, line)
 
 	date := time.Now().Format("02 Jan 2006 15:04:05.00")
-	levelString := logLevelString(logLevel)
+	levelString := LogLevelToString(logLevel)
 
 	message := fmt.Sprintf(format, args...)
 	if logger.printColors {
-		levelColor := logLevelColor(logLevel)
+		levelColor := LogLevelColor(logLevel)
 		fmt.Printf("%v[%v] %v[%-16s] %v[%v]%v %v\n", COLOR_GREEN_LIGHT, date, COLOR_CYAN, codeLocation, levelColor, levelString, COLOR_RESET, message)
 	} else {
 		fmt.Printf("[%v] [%-16s] [%v] %v\n", date, codeLocation, levelString, message)

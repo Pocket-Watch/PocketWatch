@@ -69,8 +69,9 @@ export function dynamicImg(src) {
         let w = image.naturalWidth;
         let h = image.naturalHeight;
 
-        canvas.width  = image.width;
-        canvas.height = image.height;
+        // NOTE(kihau): Increasing the canvas size by x3 makes the image scaling a little bit nicer.
+        canvas.width  = image.width * 3.0;
+        canvas.height = image.height * 3.0;
 
         let scaleX = canvas.width / w;
         let scaleY = canvas.height / h;
@@ -80,6 +81,8 @@ export function dynamicImg(src) {
         let offsetY = (canvas.height - h * ratio) / 2.0;
 
         const ctx = canvas.getContext("2d");
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high"
         ctx.drawImage(image, offsetX, offsetY, w * ratio, h * ratio);
     };
 
