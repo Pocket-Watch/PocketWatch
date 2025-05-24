@@ -36,6 +36,7 @@ func constructTitleWhenMissing(entry *Entry) string {
 
 	base := path.Base(parsed.Path)
 	title := strings.TrimSuffix(base, filepath.Ext(base))
+	title = cleanupResourceName(title)
 	return title
 }
 
@@ -54,6 +55,13 @@ func stripLastSegment(url *net_url.URL) string {
 	}
 	stripped := url.Scheme + "://" + url.Host + url.Path[:lastSlash+1]
 	return stripped
+}
+
+func cleanupResourceName(oldName string) string {
+	newName := strings.ReplaceAll(oldName, ".", " ")
+	newName = strings.ReplaceAll(newName, "-", " ")
+	newName = strings.ReplaceAll(newName, "_", " ")
+	return newName
 }
 
 func toString(num int) string {

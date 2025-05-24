@@ -579,11 +579,12 @@ class Room {
                 case "audio":
                 case "video": {
                     this.entryArea.urlInput.value   = data.url;
-                    this.entryArea.titleInput.value = data.filename;
+                    this.entryArea.titleInput.value = data.name;
                 } break;
 
                 case "subs": {
-                    // TODO(kihau): Insert subtitle into the subtitle segment of inputArea.
+                    this.entryArea.subtitleUrlInput.value  = data.url;
+                    this.entryArea.subtitleNameInput.value = data.name;
                 } break;
             }
         });

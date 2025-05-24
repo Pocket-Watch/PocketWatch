@@ -6,6 +6,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -72,9 +73,13 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	filename = strings.TrimSuffix(filename, extension)
+	name := cleanupResourceName(filename)
+
 	response := MediaUploadResponseData {
 		Url:      networkPath,
-		Filename: strings.TrimSuffix(filename, extension),
+		Name:     name,
+		Filename: filename,
 		Format:   extension,
 		Category: directory,
 	}
@@ -604,50 +609,61 @@ func (server *Server) apiSubtitleDownload(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	filename := filepath.Base(data.Url)
+	url, err := url.Parse(data.Url)
+	if err != nil {
+		respondBadRequest(w, "Provieded url '%v' is not valid: %v", data.Url, err)
+		return
+	}
+
+	subId     := server.state.subsId.Add(1)
+	filename  := filepath.Base(data.Url)
 	extension := path.Ext(filename)
-	subId := server.state.subsId.Add(1)
+	serverUrl := data.Url
 
-	outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
-	outputPath := path.Join("web", "subs", outputName)
-	os.MkdirAll("web/subs/", 0750)
+	if url.IsAbs() {
+		outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
+		outputPath := path.Join("web", "subs", outputName)
+		os.MkdirAll("web/subs/", 0750)
 
-	outputFile, err := os.Create(outputPath)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer outputFile.Close()
+		outputFile, err := os.Create(outputPath)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer outputFile.Close()
 
-	// TODO(kihau): Limit download length add add timeout.
-	response, err := http.Get(data.Url)
-	if err != nil {
-		respondBadRequest(w, "Failed to download subtitle for url %v; %v", data.Url, err)
-		return
-	}
-	defer response.Body.Close()
+		// TODO(kihau): Limit download length add add timeout.
+		response, err := http.Get(data.Url)
+		if err != nil {
+			respondBadRequest(w, "Failed to download subtitle for url %v; %v", data.Url, err)
+			return
+		}
+		defer response.Body.Close()
 
-	if response.StatusCode != http.StatusOK {
-		respondBadRequest(w, "Failed to download subtitle for url %v; %v", data.Url, err)
-		return
-	}
+		if response.StatusCode != http.StatusOK {
+			respondBadRequest(w, "Failed to download subtitle for url %v; %v", data.Url, err)
+			return
+		}
 
-	_, err = io.Copy(outputFile, response.Body)
-	if err != nil {
-		respondInternalError(w, "Failed to save downloaded subtitle %v: %v", data.Url, err)
-		return
+		_, err = io.Copy(outputFile, response.Body)
+		if err != nil {
+			respondInternalError(w, "Failed to save downloaded subtitle %v: %v", data.Url, err)
+			return
+		}
+
+		serverUrl = path.Join("subs", outputName)
 	}
 
 	name := data.Name
 	if name == "" {
 		name = strings.TrimSuffix(filename, extension)
 	}
+	name = cleanupResourceName(name)
 
-	networkUrl := path.Join("subs", outputName)
 	subtitle := Subtitle{
 		Id:    subId,
 		Name:  name,
-		Url:   networkUrl,
+		Url:   serverUrl,
 		Shift: 0.0,
 	}
 
@@ -704,6 +720,7 @@ func (server *Server) apiSubtitleSearch(w http.ResponseWriter, r *http.Request) 
 	outputUrl := path.Join("subs", outputName)
 	baseName := filepath.Base(downloadPath)
 	subtitleName := strings.TrimSuffix(baseName, extension)
+	subtitleName = cleanupResourceName(subtitleName)
 
 	subtitle := Subtitle{
 		Id:    subId,
