@@ -525,7 +525,7 @@ type RateLimiter struct {
 	// hits store timestamps
 	hits  *RingBuffer
 	perMs int64
-	mutex sync.Mutex
+	mutex *sync.Mutex
 }
 
 // NewLimiter creates a new instance of RateLimiter based on:
@@ -536,15 +536,12 @@ func NewLimiter(hits int, perSeconds int) *RateLimiter {
 	return &RateLimiter{
 		NewRingBuffer(hits),
 		int64(perSeconds) * 1000,
-		sync.Mutex{},
+		&sync.Mutex{},
 	}
 }
 
 // Returns true if the call should be blocked, false otherwise
 func (limiter *RateLimiter) block() bool {
-	limiter.mutex.Lock()
-	defer limiter.mutex.Unlock()
-
 	nowMs := time.Now().UnixMilli()
 	if limiter.hits.Push(nowMs) {
 		return false
@@ -572,9 +569,6 @@ func (limiter *RateLimiter) block() bool {
 
 // Update hits with the latest unix timestamp to keep blocking when requests continue to arrive
 func (limiter *RateLimiter) update() {
-	limiter.mutex.Lock()
-	defer limiter.mutex.Unlock()
-
 	now := time.Now().UnixMilli()
 	limiter.hits.PopEnd()
 	limiter.hits.Push(now)

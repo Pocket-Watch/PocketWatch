@@ -240,6 +240,10 @@ func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rateLimiter, exists := cache.ipToLimiters[ip]
 	if exists {
 		cache.mapMutex.Unlock()
+
+		rateLimiter.mutex.Lock()
+		defer rateLimiter.mutex.Unlock()
+
 		if rateLimiter.block() {
 			rateLimiter.update()
 			respondTooManyRequests(w, ip, rateLimiter.getRetryAfter())
@@ -1100,21 +1104,21 @@ func (server *Server) serveHlsVod(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 
+	mutex := &proxy.chunkLocks[chunkId]
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	if proxy.fetchedChunks[chunkId] {
 		http.ServeFile(writer, request, WEB_PROXY+chunk)
 		return
 	}
 
-	mutex := &proxy.chunkLocks[chunkId]
-	mutex.Lock()
 	if proxy.fetchedChunks[chunkId] {
-		mutex.Unlock()
 		http.ServeFile(writer, request, WEB_PROXY+chunk)
 		return
 	}
 	fetchErr := downloadFile(proxy.originalChunks[chunkId], WEB_PROXY+chunk, server.state.entry.RefererUrl)
 	if fetchErr != nil {
-		mutex.Unlock()
 		LogError("Failed to fetch chunk %v", fetchErr)
 		code := 500
 		if isTimeoutError(fetchErr) {
@@ -1122,11 +1126,11 @@ func (server *Server) serveHlsVod(writer http.ResponseWriter, request *http.Requ
 		} else {
 
 		}
+
 		http.Error(writer, "Failed to fetch vod chunk", code)
 		return
 	}
 	proxy.fetchedChunks[chunkId] = true
-	mutex.Unlock()
 
 	http.ServeFile(writer, request, WEB_PROXY+chunk)
 }
