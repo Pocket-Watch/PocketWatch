@@ -240,15 +240,14 @@ func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rateLimiter, exists := cache.ipToLimiters[ip]
 	if exists {
 		cache.mapMutex.Unlock()
-
 		rateLimiter.mutex.Lock()
-		defer rateLimiter.mutex.Unlock()
-
 		if rateLimiter.block() {
 			rateLimiter.update()
+			rateLimiter.mutex.Unlock()
 			respondTooManyRequests(w, ip, rateLimiter.getRetryAfter())
 			return
 		}
+		rateLimiter.mutex.Unlock()
 	} else {
 		cache.ipToLimiters[ip] = NewLimiter(80, 5)
 		cache.mapMutex.Unlock()
