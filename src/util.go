@@ -11,11 +11,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-	"slices"
 )
 
 var client = http.Client{
@@ -568,6 +568,16 @@ func (limiter *RateLimiter) block() bool {
 		return true
 	}
 	return !hits.Push(nowMs)
+}
+
+// Update hits with the latest unix timestamp to keep blocking when requests continue to arrive
+func (limiter *RateLimiter) update() {
+	limiter.mutex.Lock()
+	defer limiter.mutex.Unlock()
+
+	now := time.Now().UnixMilli()
+	limiter.hits.PopEnd()
+	limiter.hits.Push(now)
 }
 
 // Returns the number of seconds that must elapse before the next request can be made.
