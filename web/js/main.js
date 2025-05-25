@@ -6,7 +6,6 @@ import * as api from "./api.js";
 import { Storage, button, div, formatTime, formatByteCount, getById, dynamicImg, svg, show, hide, fileInput } from "./util.js";
 
 const SERVER_ID = 0;
-const MAX_TITLE_LENGTH = 200;
 
 const USER_AVATAR_ANIMATIONS = "user_avatar_animations"
 const LAST_SELECTED_TAB = "last_selected_tab"
@@ -75,9 +74,10 @@ class Room {
             refererInput:   getById("entry_dropdown_referer_input"),
 
             // Subtitles
-            selectSubtitleButton: getById("entry_select_subtitle_button"),
-            subtitleNameInput:    getById("entry_subtitle_name_input"),
-            subtitleUrlInput:     getById("entry_subtitle_url_input"),
+            selectSubtitleButton:   getById("entry_select_subtitle_button"),
+            subtitleNameInput:      getById("entry_subtitle_name_input"),
+            subtitleUrlInput:       getById("entry_subtitle_url_input"),
+            subtitleReattachToggle: getById("entry_subtitle_reattach_toggle"),
 
             // Youtube
             youtubeSearchToggle:   getById("entry_youtube_search_toggle"),
@@ -429,13 +429,16 @@ class Room {
         entry.youtubePlaylistToggle.classList.remove("active");
         entry.addToTopToggle.classList.remove("active");
         entry.proxyToggle.classList.remove("active");
+        entry.subtitleReattachToggle.classList.remove("active");
 
         entry.urlLabel.textContent = "Entry URL";
     }
 
     async createNewRequestEntry() {
-        let subname = this.entryArea.subtitleNameInput.value.trim();
-        let suburl  = this.entryArea.subtitleUrlInput.value.trim();
+        let area = this.entryArea;
+
+        let subname = area.subtitleNameInput.value.trim();
+        let suburl  = area.subtitleUrlInput.value.trim();
 
         let subtitles = [];
 
@@ -451,26 +454,30 @@ class Room {
             subtitles.push(sub);
         }
 
-        let countString = this.entryArea.ytCountInput.value.trim();
+        if (area.subtitleReattachToggle.classList.contains("active")) {
+            subtitles = subtitles.concat(this.currentEntry.subtitles);
+        }
+
+        let countString = area.ytCountInput.value.trim();
         let count = Number(countString)
         if (!count || count <= 0) {
             count = 20
         }
 
-        let skipCountString = this.entryArea.ytSkipCountInput.value.trim();
+        let skipCountString = area.ytSkipCountInput.value.trim();
         let skipCount = Number(skipCountString)
         if (!skipCount || skipCount <= 0) {
             skipCount = 0
         }
 
         const requestEntry = {
-            url:          this.entryArea.urlInput.value.trim(),
-            title:        this.entryArea.titleInput.value.trim(),
-            referer_url:  this.entryArea.refererInput.value.trim(),
-            use_proxy:    this.entryArea.proxyToggle.classList.contains("active"),
-            search_video: this.entryArea.youtubeSearchToggle.classList.contains("active"),
-            is_playlist:  this.entryArea.youtubePlaylistToggle.classList.contains("active"),
-            add_to_top:   this.entryArea.addToTopToggle.classList.contains("active"),
+            url:          area.urlInput.value.trim(),
+            title:        area.titleInput.value.trim(),
+            referer_url:  area.refererInput.value.trim(),
+            use_proxy:    area.proxyToggle.classList.contains("active"),
+            search_video: area.youtubeSearchToggle.classList.contains("active"),
+            is_playlist:  area.youtubePlaylistToggle.classList.contains("active"),
+            add_to_top:   area.addToTopToggle.classList.contains("active"),
             subtitles:    subtitles,
             playlist_skip_count: skipCount,
             playlist_max_size:   count,
@@ -803,9 +810,10 @@ class Room {
             }
         };
 
-        this.entryArea.youtubePlaylistToggle.onclick = _ => this.entryArea.youtubePlaylistToggle.classList.toggle("active");
-        this.entryArea.addToTopToggle.onclick        = _ => this.entryArea.addToTopToggle.classList.toggle("active");
-        this.entryArea.proxyToggle.onclick           = _ => this.entryArea.proxyToggle.classList.toggle("active");
+        area.youtubePlaylistToggle.onclick  = _ => area.youtubePlaylistToggle.classList.toggle("active");
+        area.addToTopToggle.onclick         = _ => area.addToTopToggle.classList.toggle("active");
+        area.proxyToggle.onclick            = _ => area.proxyToggle.classList.toggle("active");
+        area.subtitleReattachToggle.onclick = _ => area.subtitleReattachToggle.classList.toggle("active");
     }
 
     attachSettingsMenuEvents() {
@@ -1155,15 +1163,11 @@ class Room {
         this.player.setVideoTrack(url);
 
         if (entry.title) {
-            if (entry.title.length > MAX_TITLE_LENGTH) {
-                entry.title = entry.title.substring(0, MAX_TITLE_LENGTH);
-            }
             this.player.setTitle(entry.title);
         }
 
-        if (entry.subtitles && entry.subtitles.length > 0) {
-            // Clear subtitles if there's a replacement
-            this.player.clearAllSubtitleTracks();
+        this.player.clearAllSubtitleTracks();
+        if (entry.subtitles) {
             for (let i = 0; i < entry.subtitles.length; i++) {
                 let sub = entry.subtitles[i];
                 this.player.addSubtitle(sub.url, sub.name, sub.shift);

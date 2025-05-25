@@ -1,5 +1,7 @@
 export { Player, Options };
 
+const MAX_TITLE_LENGTH = 200;
+
 class Player {
     constructor(videoElement, options) {
         if (!videoElement || videoElement.tagName.toLowerCase() !== "video") {
@@ -828,6 +830,10 @@ class Internals {
         if (!title) {
             hide(this.htmlTitleContainer);
         } else {
+            if (title.length > MAX_TITLE_LENGTH) {
+                title = entry.title.substring(0, MAX_TITLE_LENGTH);
+            }
+
             show(this.htmlTitleContainer);
             this.htmlTitle.textContent = title;
         }
