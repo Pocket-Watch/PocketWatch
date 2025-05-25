@@ -203,6 +203,27 @@ class Playlist {
         this.updateFooter();
     }
 
+    addEntryTop(entry, users) {
+        this.entries.unshift(entry);
+
+        for (let i = 0; i < this.htmlEntries.length; i++) {
+            const entry = this.htmlEntries[i];
+            this.setEntryPosition(entry, i + 1);
+        }
+
+        const user = this.findUser(users, entry.user_id);
+        const htmlEntry = this.createHtmlEntry(entry, user);
+        this.setEntryPosition(htmlEntry, 0);
+
+        this.htmlEntries.unshift(htmlEntry);
+        this.htmlEntryList.appendChild(htmlEntry);
+
+        window.getComputedStyle(htmlEntry).marginLeft;
+        show(htmlEntry);
+
+        this.updateFooter();
+    }
+
     removeAt(index) {
         if (typeof index !== "number") {
             console.error("ERROR: Playlist::removeAt failed. The input index:", index, "is invalid.");
@@ -305,6 +326,38 @@ class Playlist {
 
         this.updateFooter();
     }
+
+    loadEntriesTop(entries, users) {
+        if (entries === null) {
+            console.warn("WARN: Failed to load entries, function input argument is null.");
+            return;
+        }
+
+        for (let i = 0; i < this.htmlEntries.length; i++) {
+            const entry = this.htmlEntries[i];
+            this.setEntryPosition(entry, entries.length + i);
+        }
+
+        for (let i = entries.length - 1; i >= 0; i--) {
+            this.entries.unshift(entries[i]);
+
+            const entry = entries[i];
+            const user = this.findUser(users, entry.user_id);
+            const htmlEntry = this.createHtmlEntry(entry, user);
+            this.setEntryPosition(htmlEntry, i);
+
+            this.htmlEntries.unshift(htmlEntry);
+            this.htmlEntryList.appendChild(htmlEntry);
+
+            setTimeout(_ => {
+                window.getComputedStyle(htmlEntry).marginLeft;
+                show(htmlEntry);
+            }, i * BULK_ACTION_DELAY);
+        }
+
+        this.updateFooter();
+    }
+
 
     clear() {
         // NOTE(kihau): 
@@ -865,8 +918,16 @@ class Playlist {
                 this.addEntry(data, users);
             } break;
 
+            case "addtop": {
+                this.addEntryTop(data, users);
+            } break;
+
             case "addmany": {
                 this.loadEntries(data, users);
+            } break;
+
+            case "addmanytop": {
+                this.loadEntriesTop(data, users);
             } break;
 
             case "clear": {

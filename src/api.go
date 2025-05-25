@@ -807,16 +807,24 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	localDir, path := server.isLocalDirectory(data.RequestEntry.Url)
-	if data.RequestEntry.IsPlaylist && localDir {
+	localDirectory, path := server.isLocalDirectory(data.RequestEntry.Url)
+	if localDirectory {
 		LogInfo("Adding directory '%s' to the playlist.", path)
 		localEntries := server.getEntriesFromDirectory(path, user.Id)
 
+		var eventType string
+
 		server.state.mutex.Lock()
-		server.state.playlist = append(server.state.playlist, localEntries...)
+		if (data.RequestEntry.AddToTop) {
+			server.state.playlist = append(localEntries, server.state.playlist...)
+			eventType = "addmanytop"
+		} else {
+			server.state.playlist = append(server.state.playlist, localEntries...)
+			eventType = "addmany"
+		}
 		server.state.mutex.Unlock()
 
-		event := createPlaylistEvent("addmany", localEntries)
+		event := createPlaylistEvent(eventType, localEntries)
 		server.writeEventToAllConnections(w, "playlist", event)
 	} else {
 		LogInfo("Adding '%s' url to the playlist.", data.RequestEntry.Url)
@@ -842,11 +850,21 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 
 		server.loadYoutubeEntry(&newEntry, data.RequestEntry)
 
+		var eventType string
+
 		server.state.mutex.Lock()
-		server.state.playlist = append(server.state.playlist, newEntry)
+		if (data.RequestEntry.AddToTop) {
+			playlist := make([]Entry, 0)
+			playlist = append(playlist, newEntry)
+			server.state.playlist = append(playlist, server.state.playlist...)
+			eventType = "addtop"
+		} else {
+			server.state.playlist = append(server.state.playlist, newEntry)
+			eventType = "add"
+		}
 		server.state.mutex.Unlock()
 
-		event := createPlaylistEvent("add", newEntry)
+		event := createPlaylistEvent(eventType, newEntry)
 		server.writeEventToAllConnections(w, "playlist", event)
 	}
 }

@@ -420,6 +420,22 @@ html * {
     height: 100%;
 }
 
+#entry_subtitle_section {
+    row-gap: inherit;
+}
+
+#entry_subtitle_group_left {
+    width: 40%;
+    display: flex;
+    column-gap: inherit;
+}
+
+#entry_subtitle_group_right {
+    width: 60%;
+    display: flex;
+    column-gap: inherit;
+}
+
 #entry_youtube_toggles_group {
     width: auto;
     display: flex;
@@ -565,6 +581,10 @@ html * {
 
 #entry_select_subtitle_button:active svg {
     fill: var(--bg_0);
+}
+
+#entry_subtitle_reattach_toggle {
+    width: 270px;
 }
 
 /* Toggle widget -------------------------------------------------------------------------- */
@@ -1539,7 +1559,7 @@ html * {
     }
 
     #entry_youtube_inputs_group {
-        height: 44px;
+        height: 46px;
         flex-direction: column;
         box-sizing: border-box;
         row-gap: 8px;
@@ -1563,6 +1583,25 @@ html * {
 
     #entry_area {
         padding: 6px;
+    }
+
+    #entry_area.expand #entry_dropdown_container {
+        height: 412px;
+    }
+
+    #entry_subtitle_section {
+        height: 100%;
+        flex-direction: column;
+    }
+
+    #entry_subtitle_group_left {
+        width: 100%;
+        height: 46px;
+    }
+
+    #entry_subtitle_group_right {
+        width: 100%;
+        height: 46px;
     }
 
     #users_area {
@@ -1601,7 +1640,6 @@ html * {
     .content_view {
         padding: 8px;
     }
-
 
     #room_media_section {
         column-gap: 6px;

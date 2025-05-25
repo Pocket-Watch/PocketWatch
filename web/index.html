@@ -131,7 +131,7 @@
                             </div>
 
                             <div class="entry_section_group">
-                                <div id="entry_proxy_toggle" class="widget_toggle" title="Enables media proxy. That means that provided resource (ex. link to a youtube video) will be fetched by the server and relayed to all online memebers in the given room.">
+                                <div id="entry_proxy_toggle" class="widget_toggle" title="Enables media proxy. That means that provided resource (ex. link to a youtube video) will be fetched by the server and relayed to all online memebers in your room.">
                                     <div><div></div></div>
                                     <span>Create Proxy</span>
                                 </div>
@@ -146,19 +146,28 @@
                         <fieldset class="entry_section">
                             <legend>Subtitles</legend>
 
-                            <div class="entry_section_group" title="Select subtitle file from your local computer disk.">
-                                <button id="entry_select_subtitle_button" class="widget_button">
-                                    <svg><use href="svg/main_icons.svg#upload"/></svg>
-                                </button>
+                            <div id="entry_subtitle_section" class="entry_section_group" title="Select subtitle file from your local computer disk.">
+                                <div id="entry_subtitle_group_left">
+                                    <button id="entry_select_subtitle_button" class="widget_button">
+                                        <svg><use href="svg/main_icons.svg#upload"/></svg>
+                                    </button>
 
-                                <div class="widget_input">
-                                    <input id="entry_subtitle_name_input" placeholder="" title="Specify subtitle name."/>
-                                    <label>Subtitle name</label>
+                                    <div class="widget_input">
+                                        <input id="entry_subtitle_name_input" placeholder="" title="Specify subtitle name."/>
+                                        <label>Subtitle name</label>
+                                    </div>
                                 </div>
 
-                                <div class="widget_input">
-                                    <input id="entry_subtitle_url_input" placeholder="" title="Specify subtitle URL."/>
-                                    <label>Subtitle URL</label>
+                                <div id="entry_subtitle_group_right">
+                                    <div class="widget_input">
+                                        <input id="entry_subtitle_url_input" placeholder="" title="Specify subtitle URL."/>
+                                        <label>Subtitle URL</label>
+                                    </div>
+
+                                    <div id="entry_subtitle_reattach_toggle" class="widget_toggle" title="Reattch subtitles that are attached in the player right now.">
+                                        <div><div></div></div>
+                                        <span>Reattach subtitles</span>
+                                    </div>
                                 </div>
                             </div>
                         </fieldset>
@@ -168,12 +177,12 @@
 
                             <div id="entry_youtube_section" class="entry_section_group">
                                 <div id="entry_youtube_toggles_group">
-                                    <div id="entry_youtube_search_toggle" class="widget_toggle">
+                                    <div id="entry_youtube_search_toggle" class="widget_toggle" title="Search for video in youtube. First result is selected from the youtube search.">
                                         <div><div></div></div>
                                         <span>Search for Video</span>
                                     </div>
 
-                                    <div id="entry_youtube_playlist_toggle" class="widget_toggle">
+                                    <div id="entry_youtube_playlist_toggle" class="widget_toggle" title="Add videos for a youtube playlist to a playlist section in your room. If provided link is not a youtube playlist, one will be automatically generated for you.">
                                         <div><div></div></div>
                                         <span>YouTube Playlist</span>
                                     </div>
