@@ -1394,10 +1394,12 @@ class Room {
             let user = this.allUsers.splice(index, 1)[0];
             let userBox = this.allUserBoxes.splice(index, 1)[0];
 
-            console.info("Removing user:", user, "with its user box", userBox);
+            console.info("INFO: Removing user:", user, "with its user box", userBox);
             this.usersArea.userList.removeChild(userBox.root);
             
-            this.onlineCount -= 1;
+            if (this.onlineCount > 0) {
+                this.onlineCount -= 1;
+            }
 
             this.usersArea.onlineCount.textContent = this.onlineCount;
             this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;

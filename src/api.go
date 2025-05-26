@@ -1136,12 +1136,12 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 
 			if err != nil {
 				LogDebug("Connection write fail: %v", err)
-				break
+				break outer
 			}
 
 			flusher, success := w.(http.Flusher)
 			if !success {
-				break
+				break outer
 			}
 
 			flusher.Flush()
