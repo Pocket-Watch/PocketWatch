@@ -847,21 +847,36 @@
 
 .player_color_picker_root {
     width: 100%;
-    height: 40px;
+    height: 60px;
     display: flex;
     box-sizing: border-box;
     align-items: center;
     padding-right: 8px;
     padding-left: 8px;
+    column-gap: 10px;
+}
+
+.player_color_picker_left {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1.0;
+    row-gap: 4px;
 }
 
 .player_color_picker_text {
     color: var(--player_color_fg1);
 }
 
-.player_color_picker_color {
-    height: 80%;
+.player_color_picker_right {
+    height: 100%;
     width: 56px;
+    box-sizing: border-box;
+    padding: 10px 0;
+}
+
+.player_color_picker_color {
+    height: 100%;
+    width: 100%;
     border-radius: 6px;
     border: 3px solid var(--player_color_fg1);
     outline: none;

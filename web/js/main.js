@@ -257,23 +257,15 @@ class Room {
         }
 
         let fgColor = Storage.get(Options.SUBTITLE_FOREGROUND_COLOR);
-        if (fgColor != null) {
-            this.player.setSubtitleForegroundColor(fgColor);
-        }
-
         let fgOpacity = Storage.get(Options.SUBTITLE_FOREGROUND_OPACITY);
-        if (fgOpacity != null) {
-            this.player.setSubtitleForegroundOpacity(fgOpacity);
+        if (fgColor != null && fgOpacity != null) {
+            this.player.setSubtitleForegroundColor(fgColor, fgOpacity);
         }
         
         let bgColor = Storage.get(Options.SUBTITLE_BACKGROUND_COLOR);
-        if (bgColor != null) {
-            this.player.setSubtitleBackgroundColor(bgColor);
-        }
-
         let bgOpacity = Storage.get(Options.SUBTITLE_BACKGROUND_OPACITY);
-        if (bgOpacity != null) {
-            this.player.setSubtitleBackgroundOpacity(bgOpacity);
+        if (bgColor != null, bgOpacity != null) {
+            this.player.setSubtitleBackgroundColor(bgColor, bgOpacity);
         }
     }
 
@@ -675,7 +667,6 @@ class Room {
             } else {
                 area.proxyToggle.classList.remove("active");
             }
-
 
             if (this.currentEntry.subtitles.length > 0) {
                 let sub = this.currentEntry.subtitles[0];
@@ -1520,6 +1511,7 @@ class Room {
         events.addEventListener("playerupdatetitle", event => {
             let title = JSON.parse(event.data);
             this.player.setTitle(title);
+            this.currentEntry.title = title;
             this.roomContent.titleInput.value = title;
         });
 

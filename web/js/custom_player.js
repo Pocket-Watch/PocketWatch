@@ -121,20 +121,12 @@ class Player {
         this.internals.setSubtitleVerticalPosition(percentage);
     }
 
-    setSubtitleForegroundColor(hexColor) {
-        this.internals.setSubtitleForegroundColor(hexColor);
+    setSubtitleForegroundColor(rgbColor, opacity) {
+        this.internals.setSubtitleForegroundColor(rgbColor, opacity);
     }
 
-    setSubtitleForegroundOpacity(opacity) {
-        this.internals.setSubtitleForegroundOpacity(opacity);
-    }
-
-    setSubtitleBackgroundColor(hexColor) {
-        this.internals.setSubtitleBackgroundColor(hexColor);
-    }
-
-    setSubtitleBackgroundOpacity(opacity) {
-        this.internals.setSubtitleBackgroundOpacity(opacity);
+    setSubtitleBackgroundColor(rgbColor, opacity) {
+        this.internals.setSubtitleBackgroundColor(rgbColor, opacity);
     }
 
     enableSubtitles() {
@@ -454,14 +446,12 @@ class Internals {
         };
 
         Slider.iconsPath = iconsPath;
-        this.subtitleShift     = new Slider("Subtitle shift",    -20,  20, 0.1,  0, "s", true);
-        this.subtitleSize      = new Slider("Subtitle size",      10, 100, 1.0, 30, "px");
-        this.subtitlePos       = new Slider("Vertical position",   0, 100, 1.0, 16, "%");
-        this.subtitleFgColor   = new ColorPicker("Foreground color", DEFAULT_SUBTITLE_FOREGROUND_COLOR);
-        this.subtitleFgOpacity = new Slider("Foreground opacity", 0, 100, 1.0, DEFAULT_SUBTITLE_FOREGROUND_OPACITY, "%");
-        this.subtitleBgColor   = new ColorPicker("Background color", DEFAULT_SUBTITLE_BACKGROUND_COLOR);
-        this.subtitleBgOpacity = new Slider("Background opacity", 0, 100, 1.0, DEFAULT_SUBTITLE_BACKGROUND_OPACITY, "%");
-        this.playbackSpeed     = new Slider("Playback speed", 0.25, 5.0, 0.25, 1.0, "x");
+        this.subtitleShift   = new Slider("Subtitle shift",    -20,  20, 0.1,  0, "s", true);
+        this.subtitleSize    = new Slider("Subtitle size",      10, 100, 1.0, 30, "px");
+        this.subtitlePos     = new Slider("Vertical position",   0, 100, 1.0, 16, "%");
+        this.subtitleFgColor = new ColorPicker("Foreground color", DEFAULT_SUBTITLE_FOREGROUND_COLOR, DEFAULT_SUBTITLE_FOREGROUND_OPACITY);
+        this.subtitleBgColor = new ColorPicker("Background color", DEFAULT_SUBTITLE_BACKGROUND_COLOR, DEFAULT_SUBTITLE_BACKGROUND_OPACITY);
+        this.playbackSpeed   = new Slider("Playback speed", 0.25, 5.0, 0.25, 1.0, "x");
 
         this.isDraggingProgressBar = false;
         this.isUIVisible = true;
@@ -968,6 +958,7 @@ class Internals {
             this.isLive = false;
         }
 
+        this.svgs.playback.setHref(this.icons.play);
         this.htmlVideo.currentTime = 0;
         this.htmlVideo.src = "";
         this.htmlVideo.removeAttribute("src");
@@ -1188,31 +1179,17 @@ class Internals {
         this.updateSubtitleHtmlPosition(position);
     }
 
-    setSubtitleForegroundColor(hexColor) {
-        let opacity = this.subtitleFgOpacity.getValue();
-        this.subtitleText.style.color = makeRgba(hexColor, opacity);
-        this.subtitleFgColor.setValue(hexColor);
-        this.fireSettingsChange(Options.SUBTITLE_FOREGROUND_COLOR, hexColor);
-    }
-
-    setSubtitleForegroundOpacity(opacity) {
-        let hexColor = this.subtitleFgColor.getValue();
-        this.subtitleText.style.color = makeRgba(hexColor, opacity);
-        this.subtitleFgOpacity.setValue(opacity);
+    setSubtitleForegroundColor(rgbColor, opacity) {
+        this.subtitleText.style.color = makeRgba(rgbColor, opacity);
+        this.subtitleFgColor.setValue(rgbColor, opacity);
+        this.fireSettingsChange(Options.SUBTITLE_FOREGROUND_COLOR, rgbColor);
         this.fireSettingsChange(Options.SUBTITLE_FOREGROUND_OPACITY, opacity);
     }
 
-    setSubtitleBackgroundColor(hexColor) {
-        let opacity = this.subtitleBgOpacity.getValue();
-        this.subtitleText.style.backgroundColor = makeRgba(hexColor, opacity);
-        this.subtitleBgColor.setValue(hexColor);
-        this.fireSettingsChange(Options.SUBTITLE_BACKGROUND_COLOR, hexColor);
-    }
-
-    setSubtitleBackgroundOpacity(opacity) {
-        let hexColor = this.subtitleBgColor.getValue();
-        this.subtitleText.style.backgroundColor = makeRgba(hexColor, opacity);
-        this.subtitleBgOpacity.setValue(opacity);
+    setSubtitleBackgroundColor(rgbColor, opacity) {
+        this.subtitleText.style.backgroundColor = makeRgba(rgbColor, opacity);
+        this.subtitleBgColor.setValue(rgbColor, opacity);
+        this.fireSettingsChange(Options.SUBTITLE_BACKGROUND_COLOR, rgbColor);
         this.fireSettingsChange(Options.SUBTITLE_BACKGROUND_OPACITY, opacity);
     }
 
@@ -1870,9 +1847,7 @@ class Internals {
         let subsSize         = this.subtitleSize;
         let subsPos          = this.subtitlePos;
         let subsFgColor      = this.subtitleFgColor;
-        let subsFgOpacity    = this.subtitleFgOpacity;
         let subsBgColor      = this.subtitleBgColor;
-        let subsBgOpacity    = this.subtitleBgOpacity;
 
         hide(menuRoot);
         hide(selectView);
@@ -1962,13 +1937,11 @@ class Internals {
             console.debug("Search", success ? "was successful" : "failed");
         });
 
-        subsShift.onInput     = value    => this.setCurrentSubtitleShift(value);
-        subsSize.onInput      = size     => this.setSubtitleFontSize(size);
-        subsPos.onInput       = position => this.setSubtitleVerticalPosition(position);
-        subsFgColor.onInput   = hexColor => this.setSubtitleForegroundColor(hexColor);
-        subsFgOpacity.onInput = opacity  => this.setSubtitleForegroundOpacity(opacity);
-        subsBgColor.onInput   = hexColor => this.setSubtitleBackgroundColor(hexColor);
-        subsBgOpacity.onInput = opacity  => this.setSubtitleBackgroundOpacity(opacity);
+        subsShift.onInput   = value    => this.setCurrentSubtitleShift(value);
+        subsSize.onInput    = size     => this.setSubtitleFontSize(size);
+        subsPos.onInput     = position => this.setSubtitleVerticalPosition(position);
+        subsFgColor.onInput = (rgb, opacity) => this.setSubtitleForegroundColor(rgb, opacity);
+        subsBgColor.onInput = (rgb, opacity) => this.setSubtitleBackgroundColor(rgb, opacity);
 
         playerRoot.append(menuRoot); {
             menuRoot.append(menuTabs); {
@@ -1996,9 +1969,7 @@ class Internals {
                     optionsView.append(subsSize.root);
                     optionsView.append(subsPos.root);
                     optionsView.append(subsFgColor.root);
-                    optionsView.append(subsFgOpacity.root);
                     optionsView.append(subsBgColor.root);
-                    optionsView.append(subsBgOpacity.root);
                 }
             }
         }
@@ -2074,13 +2045,13 @@ class Internals {
             this.fireSettingsChange(Options.BRIGHTNESS, value);
         };
 
-        fitToScreen.onAction = state => {
+        fitToScreen.onAction = _ => {
             stretchToScreen.setState(false);
             this.htmlVideo.classList.remove("stretch");
             this.htmlVideo.classList.toggle("fit");
         };
 
-        stretchToScreen.onAction = state => {
+        stretchToScreen.onAction = _ => {
             fitToScreen.setState(false);
             this.htmlVideo.classList.remove("fit");
             this.htmlVideo.classList.toggle("stretch");
@@ -2108,45 +2079,73 @@ class Internals {
 }
 
 class ColorPicker {
-    constructor(textContent, hexColor = "#FFFFFF") {
+    constructor(textContent, rgbColor = "#FFFFFF", opacity = 100) {
         let root   = newDiv(null, "player_color_picker_root");
+        let left   = newDiv(null, "player_color_picker_left");
         let text   = newDiv(null, "player_color_picker_text");
+        let slider = newElement("input",  null, "player_shifter_slider");
+        let right  = newDiv(null, "player_color_picker_right");
         let picker = newElement("button", null, "player_color_picker_color");
         let input  = newElement("input", null, "player_color_picker_input");
 
+        let rgba = makeRgba(rgbColor, opacity);
+
         text.textContent = textContent;
 
-        input.type  = "color";
-        input.value = hexColor;
+        slider.type = "range";
+        slider.min = 0.0;
+        slider.max = 100.0;
+        slider.step = 1.0;
 
-        picker.style.backgroundColor = hexColor;
+        input.type  = "color";
+        input.value = rgbColor;
+
+        picker.style.backgroundColor = rgba;
+
+        slider.oninput = _ => {
+            let opacity = Number(this.slider.value);
+            let rgba    = makeRgba(this.input.value, opacity);
+            this.picker.style.backgroundColor = rgba;
+            this.onInput(this.input.value, opacity);
+        };
 
         picker.onclick = _ => input.click();
         input.oninput  = _ => {
-            this.picker.style.backgroundColor = this.input.value;
-            this.onInput(this.input.value);
-        }
+            let opacity = Number(this.slider.value);
+            let rgba    = makeRgba(this.input.value, opacity);
+            this.picker.style.backgroundColor = rgba;
+            this.onInput(this.input.value, opacity);
+        };
 
-        root.appendChild(text);
-        root.appendChild(picker); {
-            picker.appendChild(input);
+        root.appendChild(left); {
+            left.appendChild(text);
+            left.appendChild(slider);
+        }
+        root.appendChild(right); {
+            right.appendChild(picker);
+            right.appendChild(input);
         }
 
         this.root   = root;
+        this.slider = slider;
         this.input  = input;
         this.picker = picker;
     }
 
-    onInput(_hexColor) {}
+    onInput(_rgbaColor, _opacity) {}
 
-    setValue(value) {
-        this.input.value = value;
-        this.picker.style.backgroundColor = value;
+    setValue(rgbColor, opacity) {
+        let rgba = makeRgba(rgbColor, opacity);
+        this.slider.value = opacity;
+        this.input.value = rgbColor;
+        this.picker.style.backgroundColor = rgba;
     }
 
-    getValue() {
-        return this.input.value;
-    }
+    // getValue() {
+    //     let opacity = Number(this.slider.value);
+    //     let rgba    = makeRgba(this.input.value, opacity);
+    //     return rgba;
+    // }
 }
 
 export class FileInfo {
