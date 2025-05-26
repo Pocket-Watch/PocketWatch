@@ -295,44 +295,26 @@ const DEFAULT_SUBTITLE_FOREGROUND_OPACITY = 100;
 
 class Internals {
     constructor(videoElement, options) {
-        let initStart = performance.now();
-        this.options = options;
+        //
+        // Player internal state.
+        //
 
-        this.hls = null;
-        this.playingHls = false;
-        this.isLive = false;
+        this.options               = options;
+        this.hls                   = null;
+        this.playingHls            = false;
+        this.isLive                = false;
+        this.isDraggingProgressBar = false;
+        this.isUIVisible           = true;
+        this.volumeBeforeMute      = 0.0;
+        this.subtitles             = [];
+        this.selectedSubtitle      = null;
+        this.activeCues            = [];
+        this.forwardStack          = this.options.seekBy;
+        this.backwardStack         = this.options.seekBy;
 
-        this.htmlVideo = videoElement;
-        this.htmlVideo.disablePictureInPicture = true;
-        this.htmlVideo.controls = false;
-        // Prevents auto-fullscreen on iPhone but perhaps this could render entering fullscreen impossible?
-        this.htmlVideo.playsinline = true;
-
-        // Prevents selecting the video element along with the rest of the page
-        this.htmlVideo.classList.add("unselectable");
-
-        // Div container where either the player or the placeholder resides.
-        this.htmlPlayerRoot = newDiv("player_container");
-
-        // We actually need to append the <div> to document.body (or <video>'s parent)
-        // otherwise the <video> tag will disappear entirely!
-        let videoParent = this.htmlVideo.parentNode;
-        videoParent.insertBefore(this.htmlPlayerRoot, this.htmlVideo);
-        this.htmlPlayerRoot.appendChild(this.htmlVideo);
-
-        this.htmlTitleContainer = newDiv("player_title_container");
-        hide(this.htmlTitleContainer);
-        this.htmlPlayerRoot.appendChild(this.htmlTitleContainer);
-
-        this.htmlTitle = newElement("span", "player_title_text");
-        this.htmlTitleContainer.appendChild(this.htmlTitle);
-
-        this.htmlToastContainer = newDiv("player_toast_container");
-        hide(this.htmlToastContainer);
-        this.htmlPlayerRoot.appendChild(this.htmlToastContainer);
-        this.htmlToast = newElement("span", "player_toast_text");
-        this.htmlToastContainer.appendChild(this.htmlToast);
-        this.playerHideToastTimeout = new Timeout(_ => this.htmlToastContainer.classList.add("hide"), 3000);
+        // 
+        // Player icons paths.
+        //
 
         let iconsPath = options.iconsPath;
         this.icons = {
@@ -357,6 +339,10 @@ class Internals {
             buffering:        iconsPath + "#buffering",
         };
 
+        // 
+        // Creating SVG icons.
+        //
+
         this.svgs = {
             playback:   Svg.new(this.icons.play),
             next:       Svg.new(this.icons.next),
@@ -377,20 +363,27 @@ class Internals {
             buffering: Svg.new(this.icons.buffering, 70, 70),
         };
 
-        this.bufferingSvg = this.svgs.buffering.svg;
-        this.bufferingSvg.id = "player_buffering";
-        hide(this.bufferingSvg);
-        this.htmlPlayerRoot.appendChild(this.bufferingSvg);
-        this.bufferingTimeout = new Timeout(_ => show(this.bufferingSvg), 200);
+        // 
+        // Creating HTML DOM elements.
+        //
 
-        this.playbackPopupSvg = this.svgs.playbackPopup.svg;
-        this.playbackPopupSvg.id = "player_playback_popup";
-        hide(this.playbackPopupSvg);
-        this.htmlPlayerRoot.appendChild(this.playbackPopupSvg);
-        this.playbackPopupTimeout = new Timeout(_ => this.playbackPopupSvg.classList.add("hide"), 200);
+        // Div container where either the player or the placeholder resides.
+        this.htmlPlayerRoot     = newDiv("player_container");
+        this.htmlVideo          = videoElement;
+        this.htmlTitleContainer = newDiv("player_title_container");
+        this.htmlTitleText      = newElement("span", "player_title_text");
+        this.htmlToastContainer = newDiv("player_toast_container");
+        this.htmlToastText      = newElement("span", "player_toast_text");
+        this.bufferingSvg       = this.svgs.buffering.svg;
+        this.playbackPopupSvg   = this.svgs.playbackPopup.svg;
+        this.htmlSeekForward    = newDiv("player_forward_container", "hide", "unselectable");
+        this.htmlSeekBackward   = newDiv("player_backward_container", "hide", "unselectable");
+        this.subtitleContainer  = newDiv("player_subtitle_container");
+        this.subtitleText       = newDiv("player_subtitle_text");
 
         this.htmlControls = {
             root: newDiv("player_controls"),
+
             progress: {
                 root:     newDiv("player_progress_root"),
                 current:  newDiv("player_progress_current", "player_progress_bar"),
@@ -417,82 +410,111 @@ class Internals {
                 liveIndicator:  newDiv("player_live_indicator"),
                 timestamp:      newElement("span",  "player_timestamp"),
             },
-
-            subMenu: {
-                root: newDiv(null, "player_menu_root"),
-
-                selected: {
-                    tab:    null,
-                    view:   null,
-                    track:  null,
-                },
-
-                // Part of the select view. Switch widget indicating whether subtitles are enabled or not.
-                subsSwitcher: new Switcher("Enable subtitles"),
-
-                // Part of the select view, html track elements are appended here.
-                trackList: newDiv("subtitle_track_list"),
-            },
-
-            settings: {
-                root: newDiv(null, "player_menu_root"),
-
-                selected: {
-                    tab:    null,
-                    view:   null,
-                    track:  null,
-                },
-            }
         };
 
+        this.htmlSubtitleMenu = newDiv(null, "player_menu_root");
+        this.htmlSubtitleList = newDiv("subtitle_track_list");
+        this.htmlSettingsMenu = newDiv(null, "player_menu_root"),
+
+        // 
+        // Constructing player widgets.
+        //
+
         Slider.iconsPath = iconsPath;
-        this.subtitleShift   = new Slider("Subtitle shift",    -20,  20, 0.1,  0, "s", true);
-        this.subtitleSize    = new Slider("Subtitle size",      10, 100, 1.0, 30, "px");
+
+        this.subtitleToggle  = new Switcher("Enable subtitles"),
+        this.subtitleShift   = new Slider("Subtitle shift", -20,  20, 0.1,  0, "s", true);
+        this.subtitleSize    = new Slider("Subtitle size",   10, 100, 1.0, 30, "px");
         this.subtitlePos     = new Slider("Vertical position",   0, 100, 1.0, 16, "%");
         this.subtitleFgColor = new ColorPicker("Foreground color", DEFAULT_SUBTITLE_FOREGROUND_COLOR, DEFAULT_SUBTITLE_FOREGROUND_OPACITY);
         this.subtitleBgColor = new ColorPicker("Background color", DEFAULT_SUBTITLE_BACKGROUND_COLOR, DEFAULT_SUBTITLE_BACKGROUND_OPACITY);
         this.playbackSpeed   = new Slider("Playback speed", 0.25, 5.0, 0.25, 1.0, "x");
 
-        this.isDraggingProgressBar = false;
-        this.isUIVisible = true;
-        this.volumeBeforeMute = 0.0;
+        // 
+        // Adjusting the HTML elements.
+        //
 
-        this.subtitles = [];
-        this.selectedSubtitle = null;
-        this.activeCues = [];
+        // Prevents auto-fullscreen on iPhone but perhaps this could render entering fullscreen impossible?
+        this.htmlVideo.playsinline             = true;
+        this.htmlVideo.disablePictureInPicture = true;
+        this.htmlVideo.controls                = false;
+        // Prevents selecting the video element along with the rest of the page
+        this.htmlVideo.classList.add("unselectable");
 
-        this.htmlSeekForward = newDiv("player_forward_container", "hide", "unselectable");
-        this.htmlSeekForward.addEventListener("focusout", event => this.regainPlayerFocus(event));
-        this.htmlSeekForward.appendChild(this.svgs.seekForward.svg);
-        this.htmlPlayerRoot.appendChild(this.htmlSeekForward);
-        this.forwardStack = this.options.seekBy;
+        this.bufferingSvg.id     = "player_buffering";
+        this.playbackPopupSvg.id = "player_playback_popup";
+
+        hide(this.htmlTitleContainer);
+        hide(this.htmlToastContainer);
+        hide(this.bufferingSvg);
+        hide(this.playbackPopupSvg);
+        hide(this.subtitleContainer);
+
+        // 
+        // Attaching events to the HTML elements.
+        //
+
+        this.attachPlayerEvents();
+
+        // 
+        // Constructing individual elements of the player.
+        //
+
+        this.createHtmlControls();
+        this.createSubtitleMenu();
+        this.createSettingsMenu();
+
+        // 
+        // Assembling DOM structure.
+        //
+
+        // We actually need to append the <div> to document.body (or <video>'s parent)
+        // otherwise the <video> tag will disappear entirely!
+        let videoParent = this.htmlVideo.parentNode;
+        videoParent.insertBefore(this.htmlPlayerRoot, this.htmlVideo);
+
+        this.htmlPlayerRoot.appendChild(this.htmlVideo);
+        this.htmlPlayerRoot.appendChild(this.htmlTitleContainer); {
+            this.htmlTitleContainer.appendChild(this.htmlTitleText);
+        }
+        this.htmlPlayerRoot.appendChild(this.subtitleContainer); {
+            this.subtitleContainer.appendChild(this.subtitleText);
+        }
+        this.htmlPlayerRoot.appendChild(this.htmlToastContainer); {
+            this.htmlToastContainer.appendChild(this.htmlToastText);
+        }
+        this.htmlPlayerRoot.appendChild(this.bufferingSvg);
+        this.htmlPlayerRoot.appendChild(this.playbackPopupSvg);
+        this.htmlPlayerRoot.appendChild(this.htmlSeekForward); {
+            this.htmlSeekForward.appendChild(this.svgs.seekForward.svg);
+        }
+        this.htmlPlayerRoot.appendChild(this.htmlSeekBackward); {
+            this.htmlSeekBackward.appendChild(this.svgs.seekBackward.svg);
+        }
+        this.htmlPlayerRoot.appendChild(this.htmlControls.root);
+        this.htmlPlayerRoot.appendChild(this.htmlSubtitleMenu);
+        this.htmlPlayerRoot.appendChild(this.htmlSettingsMenu);
+
+        //
+        // Player timeouts.
+        //
+
+        this.playerHideToastTimeout = new Timeout(_ => this.htmlToastContainer.classList.add("hide"), 3000);
+        this.bufferingTimeout       = new Timeout(_ => show(this.bufferingSvg), 200);
+        this.playbackPopupTimeout   = new Timeout(_ => this.playbackPopupSvg.classList.add("hide"), 200);
+
         this.seekForwardTimeout = new Timeout(_ => {
             this.htmlSeekForward.classList.add("hide");
             this.forwardStack = this.options.seekBy;
         }, this.options.seekStackingThresholdMs);
 
-        this.htmlSeekBackward = newDiv("player_backward_container", "hide", "unselectable");
-        this.htmlSeekBackward.addEventListener("focusout", event => this.regainPlayerFocus(event));
-        this.htmlSeekBackward.appendChild(this.svgs.seekBackward.svg);
-        this.htmlPlayerRoot.appendChild(this.htmlSeekBackward);
-        this.backwardStack = this.options.seekBy;
         this.seekBackwardTimeout = new Timeout(_ => {
             this.htmlSeekBackward.classList.add("hide");
             this.backwardStack = this.options.seekBy;
         }, this.options.seekStackingThresholdMs);
 
-        this.subtitleContainer = newDiv("player_subtitle_container");
-        this.subtitleText      = newDiv("player_subtitle_text");
-        hide(this.subtitleContainer);
-
-        this.htmlPlayerRoot.appendChild(this.subtitleContainer);
-        this.subtitleContainer.appendChild(this.subtitleText);
-
         this.playerUIHideTimeout    = new Timeout(_ => this.hidePlayerUI(), this.options.inactivityTime);
         this.volumePopupHideTimeout = new Timeout(_ => this.hideVolumePopup(), 300);
-
-        this.createHtmlControls();
-        this.attachPlayerEvents();
 
         setInterval(_ => this.redrawBufferedBars(), this.options.bufferingRedrawInterval);
 
@@ -500,6 +522,7 @@ class Internals {
         if (this.options.useAudioGain) {
             this.gainNode = this.createAudioGain();
         }
+
         this.setVolume(1.0);
 
         let userAgent = navigator.userAgent;
@@ -507,9 +530,6 @@ class Internals {
         if (isSafari) {
             this.rebindFullscreenAPIFromWebkit();
         }
-
-        let end = performance.now();
-        console.debug("Internals constructor finished in", end-initStart, "ms")
     }
 
     destroyPlayer() {
@@ -683,7 +703,7 @@ class Internals {
         this.activeCues = freshCues;
         this.subtitleText.innerHTML = captionText;
 
-        if (this.htmlControls.subMenu.subsSwitcher.enabled) {
+        if (this.subtitleToggle.enabled) {
             show(this.subtitleContainer);
         }
 
@@ -825,7 +845,7 @@ class Internals {
             }
 
             show(this.htmlTitleContainer);
-            this.htmlTitle.textContent = title;
+            this.htmlTitleText.textContent = title;
         }
     }
 
@@ -851,7 +871,7 @@ class Internals {
     }
 
     setToast(toast) {
-        this.htmlToast.textContent = toast;
+        this.htmlToastText.textContent = toast;
         this.htmlToastContainer.classList.remove("hide");
         show(this.htmlToastContainer);
 
@@ -1007,13 +1027,13 @@ class Internals {
             let subtitle = new Subtitle(cues, info.filename, info.extension, url, shift);
             subtitle.htmlTrack.onclick = _ => this.switchSubtitleTrack(subtitle);
 
-            if (this.htmlControls.subMenu.subsSwitcher.enabled && !this.selectedSubtitle || show) {
+            if (this.subtitleToggle.enabled && !this.selectedSubtitle || show) {
                 this.enableSubtitleTrack(subtitle);
             }
 
             URL.revokeObjectURL(url)
 
-            let trackList = this.htmlControls.subMenu.trackList;
+            let trackList = this.htmlSubtitleList;
             trackList.appendChild(subtitle.htmlTrack);
             this.subtitles.push(subtitle);
 
@@ -1022,7 +1042,7 @@ class Internals {
     }
 
     enableSubtitles() {
-        this.htmlControls.subMenu.subsSwitcher.setState(true);
+        this.subtitleToggle.setState(true);
         if (this.subtitles.length !== 0 && !this.selectedSubtitle) {
             this.switchSubtitleTrack(this.subtitles[0])
         } else {
@@ -1035,7 +1055,7 @@ class Internals {
     }
 
     disableSubtitles() {
-        this.htmlControls.subMenu.subsSwitcher.setState(false);
+        this.subtitleToggle.setState(false);
         hide(this.subtitleContainer);
     }
 
@@ -1044,11 +1064,15 @@ class Internals {
             return;
         }
 
-        this.htmlControls.subMenu.subsSwitcher.setState(true);
+        this.subtitleToggle.setState(true);
         this.fireSubtitleSelect(subtitle)
 
+        if (this.selectedSubtitle) {
+            this.selectedSubtitle.htmlTrack.classList.remove("subtitle_track_selected");;
+        }
+
         this.selectedSubtitle = subtitle;
-        this.markSubtitleSelected(subtitle);
+        this.selectedSubtitle.htmlTrack.classList.add("subtitle_track_selected");;
 
         this.subtitleShift.setValue(this.selectedSubtitle.offset);
         this.updateSubtitles(this.getCurrentTime());
@@ -1061,8 +1085,12 @@ class Internals {
 
         this.fireSubtitleSelect(subtitle)
 
+        if (this.selectedSubtitle) {
+            this.selectedSubtitle.htmlTrack.classList.remove("subtitle_track_selected");;
+        }
+
         this.selectedSubtitle = subtitle;
-        this.markSubtitleSelected(subtitle);
+        this.selectedSubtitle.htmlTrack.classList.add("subtitle_track_selected");;
 
         this.subtitleShift.setValue(this.selectedSubtitle.offset);
         this.updateSubtitles(this.getCurrentTime());
@@ -1147,7 +1175,7 @@ class Internals {
     }
 
     removeSubtitleTrackAt(index) {
-        let list = this.htmlControls.subMenu.trackList;
+        let list = this.htmlSubtitleList;
         let track = list.children[index];
         if (this.selectedSubtitle != null && track === this.selectedSubtitle.htmlTrack) {
             this.selectedSubtitle = null;
@@ -1162,7 +1190,7 @@ class Internals {
         this.selectedSubtitle = null;
         this.activeCues = [];
 
-        let list = this.htmlControls.subMenu.trackList;
+        let list = this.htmlSubtitleList;
         while (list.lastChild) {
             list.removeChild(list.lastChild);
         }
@@ -1411,7 +1439,7 @@ class Internals {
 
         this.htmlVideo.addEventListener("timeupdate", _ => {
             let timestamp = this.getCurrentTime();
-            if (this.htmlControls.subMenu.subsSwitcher.enabled && this.selectedSubtitle) {
+            if (this.subtitleToggle.enabled && this.selectedSubtitle) {
                 this.updateSubtitles(timestamp);
             }
 
@@ -1455,6 +1483,9 @@ class Internals {
     }
 
     attachPlayerControlsEvents() {
+        this.htmlControls.root.addEventListener("click", stopPropagation);
+        this.htmlControls.root.addEventListener("focusout", event => this.regainPlayerFocus(event));
+
         this.htmlControls.buttons.playbackButton.addEventListener("click", _ => {
             this.togglePlayback();
         });
@@ -1491,24 +1522,24 @@ class Internals {
         });
 
         this.htmlControls.buttons.subsButton.addEventListener("click", _ => {
-            hide(this.htmlControls.settings.root);
+            hide(this.htmlSettingsMenu);
 
-            let root = this.htmlControls.subMenu.root;
-            if (isHidden(root)) {
-                show(root);
+            let menu = this.htmlSubtitleMenu;
+            if (isHidden(menu)) {
+                show(menu);
             } else {
-                hide(root);
+                hide(menu);
             }
         });
 
         this.htmlControls.buttons.settingsButton.addEventListener("click", _ => {
-            hide(this.htmlControls.subMenu.root);
+            hide(this.htmlSubtitleMenu);
 
-            let root = this.htmlControls.settings.root;
-            if (isHidden(root)) {
-                show(root);
+            let menu = this.htmlSettingsMenu
+            if (isHidden(menu)) {
+                show(menu);
             } else {
-                hide(root);
+                hide(menu);
             }
         });
 
@@ -1633,6 +1664,9 @@ class Internals {
             this.svgs.fullscreen.setHref(href);
             this.fireFullscreenChange(document.fullscreenElement != null)
         });
+
+        this.htmlSeekForward.addEventListener("focusout",  event => this.regainPlayerFocus(event));
+        this.htmlSeekBackward.addEventListener("focusout", event => this.regainPlayerFocus(event));
     }
 
     attachPlayerEvents() {
@@ -1798,34 +1832,24 @@ class Internals {
     }
 
     createHtmlControls() {
-        let playerControls = this.htmlControls.root;
-        playerControls.addEventListener("click", stopPropagation);
-        playerControls.addEventListener("focusout", event => this.regainPlayerFocus(event));
-
-        this.htmlPlayerRoot.appendChild(playerControls);
-
         this.assembleProgressBar();
         this.assembleControlButtons();
-        this.createSubtitleMenu();
-        this.createSettingsMenu();
     }
 
-    markSubtitleSelected(subtitle) {
-        let menu = this.htmlControls.subMenu;
-        let track = subtitle.htmlTrack;
-
-        if (menu.selected.track) {
-            menu.selected.track.classList.remove("subtitle_track_selected");
-        }
-
-        track.classList.add("subtitle_track_selected");
-        menu.selected.track = track;
-    }
+    // markSubtitleSelected(subtitle) {
+    //     let menu = this.htmlControls.subMenu;
+    //     let track = subtitle.htmlTrack;
+    //
+    //     if (menu.selected.track) {
+    //         menu.selected.track.classList.remove("subtitle_track_selected");
+    //     }
+    //
+    //     track.classList.add("subtitle_track_selected");
+    //     menu.selected.track = track;
+    // }
 
     createSubtitleMenu() {
-        let playerRoot       = this.htmlPlayerRoot;
-        let menu             = this.htmlControls.subMenu;
-        let menuRoot         = menu.root;
+        let menuRoot         = this.htmlSubtitleMenu;
         let menuTabs         = newDiv(null, "player_menu_tabs");
         let menuSeparator    = newDiv(null, "player_menu_separator");
         let menuViews        = newDiv(null, "player_menu_views");
@@ -1833,7 +1857,7 @@ class Internals {
         let searchTab        = newDiv(null, "player_menu_tab");
         let optionsTab       = newDiv(null, "player_menu_tab");
         let selectView       = newDiv("player_submenu_select_view");
-        let subsSwitch       = menu.subsSwitcher;
+        let subsSwitch       = this.subtitleToggle;
         let searchView       = newDiv("player_submenu_search_view");
         let subtitleImport   = newElement("input", "player_submenu_import");
         let subtitleName     = newElement("input", null, "player_input_box");
@@ -1849,6 +1873,9 @@ class Internals {
         let subsFgColor      = this.subtitleFgColor;
         let subsBgColor      = this.subtitleBgColor;
 
+        let selectedTab  = selectTab;
+        let selectedView = selectView;
+
         hide(menuRoot);
         hide(selectView);
         hide(searchView);
@@ -1861,36 +1888,30 @@ class Internals {
         optionsTab.textContent = "Options";
 
         subtitleImport.textContent = "Import subtitle";
-        subtitleImport.type = "file";
-        subtitleImport.accept = ".vtt,.srt";
+        subtitleImport.type        = "file";
+        subtitleImport.accept      = ".vtt,.srt";
 
-        subtitleName.style.marginTop = "10px";
-        subtitleName.placeholder = "Title";
+        subtitleName.placeholder     = "Title";
         subtitleLanguage.placeholder = "Language";
-        subtitleYear.placeholder = "Year";
-        subtitleSeason.placeholder = "Season";
-        subtitleEpisode.placeholder = "Episode";
+        subtitleYear.placeholder     = "Year";
+        subtitleSeason.placeholder   = "Season";
+        subtitleEpisode.placeholder  = "Episode";
+        searchSubtitle.textContent   = "Search sub";
 
-        searchSubtitle.textContent = "Search sub";
-
-        menu.selected.tab  = selectTab;
-        menu.selected.view = selectView;
-
-        menu.selected.tab.classList.add("player_menu_tab_selected");
-        show(menu.selected.view);
+        selectedTab.classList.add("player_menu_tab_selected");
+        show(selectedView);
 
         menuRoot.onclick = stopPropagation;
 
         let select = (tab, view) => {
-            let selected = menu.selected;
-            selected.tab.classList.remove("player_menu_tab_selected");
-            hide(selected.view);
+            selectedTab.classList.remove("player_menu_tab_selected");
+            hide(selectedView);
 
-            selected.tab = tab;
-            selected.view = view;
+            selectedTab  = tab;
+            selectedView = view;
 
-            selected.tab.classList.add("player_menu_tab_selected");
-            show(selected.view);
+            selectedTab.classList.add("player_menu_tab_selected");
+            show(selectedView);
         }
 
         selectTab.onclick  = _ => select(selectTab,  selectView);
@@ -1943,42 +1964,38 @@ class Internals {
         subsFgColor.onInput = (rgb, opacity) => this.setSubtitleForegroundColor(rgb, opacity);
         subsBgColor.onInput = (rgb, opacity) => this.setSubtitleBackgroundColor(rgb, opacity);
 
-        playerRoot.append(menuRoot); {
-            menuRoot.append(menuTabs); {
-                menuTabs.append(selectTab);
-                menuTabs.append(searchTab);
-                menuTabs.append(optionsTab);
+        menuRoot.append(menuTabs); {
+            menuTabs.append(selectTab);
+            menuTabs.append(searchTab);
+            menuTabs.append(optionsTab);
+        }
+        menuRoot.append(menuSeparator);
+        menuRoot.append(menuViews); {
+            menuViews.append(selectView); {
+                selectView.append(subsSwitch.toggleRoot);
+                selectView.append(this.htmlSubtitleList);
             }
-            menuRoot.append(menuSeparator);
-            menuRoot.append(menuViews); {
-                menuViews.append(selectView); {
-                    selectView.append(subsSwitch.toggleRoot);
-                    selectView.append(menu.trackList);
-                }
-                menuViews.append(searchView); {
-                    searchView.append(subtitleImport)
-                    searchView.append(subtitleName)
-                    searchView.append(subtitleLanguage)
-                    searchView.append(subtitleYear)
-                    searchView.append(subtitleSeason)
-                    searchView.append(subtitleEpisode)
-                    searchView.append(searchSubtitle)
-                }
-                menuViews.append(optionsView); {
-                    optionsView.append(subsShift.root);
-                    optionsView.append(subsSize.root);
-                    optionsView.append(subsPos.root);
-                    optionsView.append(subsFgColor.root);
-                    optionsView.append(subsBgColor.root);
-                }
+            menuViews.append(searchView); {
+                searchView.append(subtitleImport)
+                searchView.append(subtitleName)
+                searchView.append(subtitleLanguage)
+                searchView.append(subtitleYear)
+                searchView.append(subtitleSeason)
+                searchView.append(subtitleEpisode)
+                searchView.append(searchSubtitle)
+            }
+            menuViews.append(optionsView); {
+                optionsView.append(subsShift.root);
+                optionsView.append(subsSize.root);
+                optionsView.append(subsPos.root);
+                optionsView.append(subsFgColor.root);
+                optionsView.append(subsBgColor.root);
             }
         }
     }
 
     createSettingsMenu() {
-        let playerRoot      = this.htmlPlayerRoot;
-        let menu            = this.htmlControls.settings;
-        let menuRoot        = menu.root;
+        let menuRoot        = this.htmlSettingsMenu;
         let menuSeparator   = newDiv(null, "player_menu_separator");
         let menuTabs        = newDiv(null, "player_menu_tabs");
         let menuViews       = newDiv(null, "player_menu_views");
@@ -1993,6 +2010,9 @@ class Internals {
         let fitToScreen     = new Switcher("Fit video to screen");
         let stretchToScreen = new Switcher("Stretch video to screen");
 
+        let selectedTab  = generalTab;
+        let selectedView = generalView;
+
         hide(menuRoot);
         alwaysShow.setState(this.options.alwaysShowControls);
         showOnPause.setState(this.options.showControlsOnPause);
@@ -2000,27 +2020,23 @@ class Internals {
         generalTab.textContent    = "General";
         appearanceTab.textContent = "Appearance";
 
-        menu.selected.tab  = generalTab;
-        menu.selected.view = generalView;
-
-        menu.selected.tab.classList.add("player_menu_tab_selected");
-        show(menu.selected.view);
+        selectedTab.classList.add("player_menu_tab_selected");
+        show(selectedView);
 
         menuRoot.onclick = stopPropagation;
 
         let select = (tab, view) => {
-            let selected = menu.selected;
-            selected.tab.classList.remove("player_menu_tab_selected");
-            hide(selected.view);
+            selectedTab.classList.remove("player_menu_tab_selected");
+            hide(selectedView);
 
-            selected.tab = tab;
-            selected.view = view;
+            selectedTab  = tab;
+            selectedView = view;
 
-            selected.tab.classList.add("player_menu_tab_selected");
-            show(selected.view);
+            selectedTab.classList.add("player_menu_tab_selected");
+            show(selectedView);
         }
 
-        generalTab.onclick     = _ => select(generalTab, generalView);
+        generalTab.onclick     = _ => select(generalTab,    generalView);
         appearanceTab.onclick  = _ => select(appearanceTab, appearanceView);
 
         menuRoot.onclick = stopPropagation;
@@ -2057,23 +2073,21 @@ class Internals {
             this.htmlVideo.classList.toggle("stretch");
         };
 
-        playerRoot.append(menuRoot); {
-            menuRoot.append(menuTabs); {
-                menuTabs.append(generalTab);
-                menuTabs.append(appearanceTab);
+        menuRoot.append(menuTabs); {
+            menuTabs.append(generalTab);
+            menuTabs.append(appearanceTab);
+        }
+        menuRoot.append(menuSeparator);
+        menuRoot.append(menuViews); {
+            menuViews.append(generalView); {
+                generalView.append(alwaysShow.toggleRoot);
+                generalView.append(showOnPause.toggleRoot);
+                generalView.append(playbackSpeed.root);
+                generalView.append(brightness.root);
+                generalView.append(fitToScreen.toggleRoot);
+                generalView.append(stretchToScreen.toggleRoot);
             }
-            menuRoot.append(menuSeparator);
-            menuRoot.append(menuViews); {
-                menuViews.append(generalView); {
-                    generalView.append(alwaysShow.toggleRoot);
-                    generalView.append(showOnPause.toggleRoot);
-                    generalView.append(playbackSpeed.root);
-                    generalView.append(brightness.root);
-                    generalView.append(fitToScreen.toggleRoot);
-                    generalView.append(stretchToScreen.toggleRoot);
-                }
-                menuViews.append(appearanceView);
-            }
+            menuViews.append(appearanceView);
         }
     }
 }
@@ -2164,6 +2178,7 @@ export class FileInfo {
 
 class Slider {
     static iconsPath;
+
     constructor(textContent, min, max, step, initialValue, valueSuffix = "", includeSign = false) {
         let root        = newDiv(null, "player_shifter_root");
         let top         = newDiv(null, "player_shifter_top");
