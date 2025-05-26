@@ -1383,6 +1383,14 @@ class Room {
         events.addEventListener("userdelete", event => {
             let target = JSON.parse(event.data)
             let index = this.allUsers.findIndex(user => user.id === target.id);
+
+            if (this.currentUserId == target.id) {
+                events.close();
+                this.markAllUsersOffline();
+                this.clearUsersArea();
+                this.updateUsersArea();
+            }
+
             let user = this.allUsers.splice(index, 1)[0];
             let userBox = this.allUserBoxes.splice(index, 1)[0];
 

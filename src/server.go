@@ -100,6 +100,7 @@ func (conns *Connections) add(userId uint64) Connection {
 		id:     id,
 		userId: userId,
 		events: make(chan string, 100),
+		close:  make(chan bool, 1),
 	}
 	conns.slice = append(conns.slice, conn)
 

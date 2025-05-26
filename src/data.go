@@ -136,6 +136,7 @@ type Connection struct {
 	id     uint64
 	userId uint64
 	events chan string
+	close  chan bool
 }
 
 type Connections struct {

@@ -135,6 +135,7 @@ func (server *Server) apiUserDelete(w http.ResponseWriter, r *http.Request) {
 
 	server.users.mutex.Lock()
 	user := server.users.removeByToken(token)
+	userId := user.Id
 	server.users.mutex.Unlock()
 
 	if user == nil {
@@ -144,6 +145,14 @@ func (server *Server) apiUserDelete(w http.ResponseWriter, r *http.Request) {
 
 	DatabaseDeleteUser(server.db, *user)
 	server.writeEventToAllConnections(w, "userdelete", user)
+
+	server.conns.mutex.Lock()
+	for _, conn := range server.conns.slice {
+		if conn.userId == userId {
+			conn.close <- true
+		}
+	}
+	server.conns.mutex.Unlock()
 }
 
 func (server *Server) apiUserGetAll(w http.ResponseWriter, r *http.Request) {
@@ -1120,21 +1129,26 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 		DatabaseUpdateUserLastOnline(server.db, user.Id, time.Now())
 	}
 
-	for {
-		event := <-conn.events
-		_, err := fmt.Fprint(w, event)
+	outer: for {
+		select {
+		case event := <-conn.events:
+			_, err := fmt.Fprint(w, event)
 
-		if err != nil {
-			LogDebug("Connection write fail: %v", err)
-			break
+			if err != nil {
+				LogDebug("Connection write fail: %v", err)
+				break
+			}
+
+			flusher, success := w.(http.Flusher)
+			if !success {
+				break
+			}
+
+			flusher.Flush()
+		case <- conn.close:
+			break outer
 		}
 
-		flusher, success := w.(http.Flusher)
-		if !success {
-			break
-		}
-
-		flusher.Flush()
 	}
 
 	server.conns.mutex.Lock()
