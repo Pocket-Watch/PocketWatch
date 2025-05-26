@@ -215,7 +215,10 @@ func downloadFile(url string, filename string, referer string) error {
 		if err == nil {
 			bodyError = string(errBody)
 		}
-		return &DownloadError{Code: response.StatusCode, Message: "Failed to download file. " + bodyError}
+		return &DownloadError{
+			Code:    response.StatusCode,
+			Message: "Failed to download file. " + bodyError,
+		}
 	}
 	defer response.Body.Close()
 
@@ -269,6 +272,14 @@ func isTimeoutError(err error) bool {
 		return urlErr.Timeout()
 	}
 	return false
+}
+
+func getDownloadErrorCode(err error) int {
+	var downloadErr *DownloadError
+	if errors.As(err, &downloadErr) {
+		return downloadErr.Code
+	}
+	return -1
 }
 
 // This will parse only the first range, given header and max (content-length) of the whole resource

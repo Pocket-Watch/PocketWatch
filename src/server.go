@@ -249,6 +249,7 @@ func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		rateLimiter.mutex.Unlock()
 	} else {
+
 		cache.ipToLimiters[ip] = NewLimiter(80, 5)
 		cache.mapMutex.Unlock()
 	}
@@ -1105,31 +1106,30 @@ func (server *Server) serveHlsVod(writer http.ResponseWriter, request *http.Requ
 
 	mutex := &proxy.chunkLocks[chunkId]
 	mutex.Lock()
-	defer mutex.Unlock()
 
 	if proxy.fetchedChunks[chunkId] {
+		mutex.Unlock()
 		http.ServeFile(writer, request, WEB_PROXY+chunk)
 		return
 	}
 
-	if proxy.fetchedChunks[chunkId] {
-		http.ServeFile(writer, request, WEB_PROXY+chunk)
-		return
-	}
 	fetchErr := downloadFile(proxy.originalChunks[chunkId], WEB_PROXY+chunk, server.state.entry.RefererUrl)
 	if fetchErr != nil {
+		mutex.Unlock()
 		LogError("Failed to fetch chunk %v", fetchErr)
 		code := 500
 		if isTimeoutError(fetchErr) {
 			code = 504
 		} else {
-
+			if downloadCode := getDownloadErrorCode(fetchErr); downloadCode != -1 {
+				code = downloadCode
+			}
 		}
-
 		http.Error(writer, "Failed to fetch vod chunk", code)
 		return
 	}
 	proxy.fetchedChunks[chunkId] = true
+	mutex.Unlock()
 
 	http.ServeFile(writer, request, WEB_PROXY+chunk)
 }
