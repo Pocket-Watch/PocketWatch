@@ -656,3 +656,7 @@ func (ring *RingBuffer) PopEnd() {
 		ring.length--
 	}
 }
+
+func (ring *RingBuffer) Clear() {
+	ring.length = 0
+}

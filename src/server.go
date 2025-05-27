@@ -250,8 +250,7 @@ func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		rateLimiter.mutex.Unlock()
 	} else {
-
-		cache.ipToLimiters[ip] = NewLimiter(80, 5)
+		cache.ipToLimiters[ip] = NewLimiter(LIMITER_HITS, LIMITER_PER_SECOND)
 		cache.mapMutex.Unlock()
 	}
 
