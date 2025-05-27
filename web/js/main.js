@@ -905,12 +905,14 @@ class Room {
 
     async loadPlayerData() {
         let state = await api.playerGet();
+
         this.playlist.setAutoplay(state.player.autoplay);
         this.playlist.setLooping(state.player.looping);
 
         let entry = state.entry;
         this.setEntryEvent(entry);
         this.player.seek(state.player.timestamp)
+        this.player.setAutoplay(state.player.autoplay)
     }
 
     clearUsersArea() {
@@ -1168,10 +1170,6 @@ class Room {
         this.player.setPoster(null)
         if (entry.thumbnail) {
             this.player.setPoster(entry.thumbnail);
-        }
-
-        if (this.playlist.autoplayEnabled) {
-            this.player.play();
         }
     }
 
@@ -1516,6 +1514,7 @@ class Room {
         events.addEventListener("playerautoplay", event => {
             let autoplay = JSON.parse(event.data);
             this.playlist.setAutoplay(autoplay)
+            this.player.setAutoplay(autoplay)
         });
 
         events.addEventListener("playerupdatetitle", event => {

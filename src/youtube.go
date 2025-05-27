@@ -22,7 +22,7 @@ func isYoutubeUrl(url string) bool {
 	return strings.HasSuffix(host, "youtube.com") || strings.HasSuffix(host, "youtu.be")
 }
 
-func isYoutubeSourceExpired(sourceUrl string) bool {
+func isYoutubeSourceExpiredFile(sourceUrl string) bool {
 	if sourceUrl == "" {
 		return true
 	}
@@ -42,6 +42,48 @@ func isYoutubeSourceExpired(sourceUrl string) bool {
 
 	now_unix := time.Now().Unix()
 	return now_unix > expire_unix
+}
+
+func isYoutubeSourceExpiredM3U(sourceUrl string) bool {
+	if sourceUrl == "" {
+		return true
+	}
+
+	parsedUrl, err := neturl.Parse(sourceUrl)
+	if err != nil {
+		LogError("Failed to parse youtube source url: %v", err)
+		return true
+	}
+
+	LogDebug("Checking expiration for source url: %v", sourceUrl)
+	segments := strings.Split(parsedUrl.Path, "/")
+
+	index := -1
+	for i, segment := range segments {
+		if segment == "expire" {
+			index = i + 1
+			break
+		}
+	}
+
+	if index == -1 || len(segments) <= index {
+		LogError("Failed to find expiration time within the YouTube m3u8_native source URL: %v", sourceUrl)
+		return true
+	}
+
+	expire := segments[index]
+	expire_unix, err := strconv.ParseInt(expire, 10, 64)
+	if err != nil {
+		LogError("Failed to parse expiration time from youtube source url: %v", err)
+		return true
+	}
+
+	now_unix := time.Now().Unix()
+	return now_unix > expire_unix
+}
+
+func isYoutubeSourceExpired(sourceUrl string) bool {
+	return isYoutubeSourceExpiredM3U(sourceUrl)
 }
 
 type YoutubeVideo struct {
@@ -91,7 +133,7 @@ func (server *Server) preloadYoutubeSourceOnNextEntry() {
 	}
 
 	LogInfo("Preloading youtube source for an entry with an ID: %v", nextEntry.Id)
-	command := exec.Command("yt-dlp", nextEntry.Url, "--playlist-items", "1", "--extract-audio", "--print", "%(.{id,title,thumbnail,original_url,url})j")
+	command := exec.Command("yt-dlp", nextEntry.Url, "--playlist-items", "1", "--format", "234", "--print", "%(.{id,title,thumbnail,original_url,url})j")
 	output, err := command.Output()
 
 	if err != nil {
@@ -144,7 +186,7 @@ func (server *Server) loadYoutubePlaylist(query string, videoId string, userId u
 		query.Add("list", "RD"+videoId)
 		url.RawQuery = query.Encode()
 
-		LogDebug("%v", url)
+		LogDebug("Url was not a playlist. Constructed youtube playlist url is now: %v", url)
 	}
 
 	if size > 1000 {
@@ -222,9 +264,13 @@ func (server *Server) loadYoutubeEntry(entry *Entry, requested RequestEntry) {
 	query := entry.Url
 	if requested.SearchVideo {
 		query = "ytsearch:" + query
+		LogInfo("Searching for youtube video with query: %v.", entry.Url)
+	} else {
+		LogInfo("Loading youtube entry with url: %v.", entry.Url)
 	}
 
-	command := exec.Command("yt-dlp", query, "--playlist-items", "1", "--extract-audio", "--print", "%(.{id,title,thumbnail,original_url,url})j")
+	// NOTE(kihau): Format 234 is m3u8_native audio-only source which can be used in combination with HLS proxy.
+	command := exec.Command("yt-dlp", query, "--playlist-items", "1", "--format", "234", "--print", "%(.{id,title,thumbnail,original_url,url})j")
 	output, err := command.Output()
 
 	if err != nil {

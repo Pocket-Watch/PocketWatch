@@ -18,6 +18,10 @@ class Player {
         return this.internals.isFullscreen();
     }
 
+    setAutoplay(state) {
+        this.internals.setAutoplay(state);
+    }
+
     isPlaying() {
         return this.internals.isVideoPlaying();
     }
@@ -553,6 +557,10 @@ class Internals {
     fireSubtitleSelect(_subtitle) {}
     async fireSubtitleSearch(_search) {}
     fireMetadataLoad() {}
+
+    setAutoplay(state) {
+        this.htmlVideo.autoplay = state;
+    }
 
     isVideoPlaying() {
         return !this.htmlVideo.paused && !this.htmlVideo.ended;

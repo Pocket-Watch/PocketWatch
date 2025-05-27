@@ -439,9 +439,15 @@ func (server *Server) setNewEntry(newEntry *Entry) Entry {
 		server.state.history = append(server.state.history, prevEntry)
 	}
 
-	// TODO(kihau): Proper proxy setup for youtube entries.
-
-	if newEntry.UseProxy {
+	if isYoutubeUrl(newEntry.Url) {
+		success := server.setupHlsProxy(newEntry.SourceUrl, "")
+		if success {
+			newEntry.SourceUrl = PROXY_ROUTE + PROXY_M3U8
+			LogInfo("HLS proxy setup for youtube was successful.")
+		} else {
+			LogWarn("HLS proxy setup for youtube failed!")
+		}
+	} else if newEntry.UseProxy {
 		paramUrl := ""
 		if SCAN_QUERY_PARAMS {
 			paramUrl = getParamUrl(newEntry.Url)
@@ -1224,7 +1230,6 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 			offset += GENERIC_CHUNK_SIZE
 		}
 	}
-
 }
 
 func (server *Server) downloadProxyFilePeriodically() {
