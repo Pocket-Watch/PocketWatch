@@ -57,7 +57,8 @@ func RunInteractiveShell(ctrlcChan chan os.Signal, db *sql.DB) {
 	go handleCtrlC(ctrlcChan, exitChan)
 	defer func() { exitChan <- true }()
 
-	outer: for {
+outer:
+	for {
 		fmt.Print("> ")
 		command, argument := readShellCommand()
 
@@ -90,7 +91,7 @@ func RunInteractiveShell(ctrlcChan chan os.Signal, db *sql.DB) {
 			fmt.Printf("Server uptime: %v\n", uptime)
 
 		case "loglevel", "log":
-			if argument == ""  {
+			if argument == "" {
 				loglevel := GetLogLevel()
 				fmt.Printf("Log level is currently set to %v\n", LogLevelToString(loglevel))
 			} else {

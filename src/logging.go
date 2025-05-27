@@ -47,9 +47,9 @@ func LogLevelFromString(levelString string) (LogLevel, bool) {
 	case "error":
 		return LOG_ERROR, true
 	case "warn":
-		return LOG_WARN, true 
+		return LOG_WARN, true
 	case "info":
-		return LOG_INFO, true 
+		return LOG_INFO, true
 	case "debug":
 		return LOG_DEBUG, true
 	default:

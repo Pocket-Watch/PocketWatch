@@ -336,7 +336,7 @@ func ParseInputArgs() (InputFlags, bool) {
 		case "-ec", "--enable-colors":
 			flags.EnableColors = true
 
-		case "-eis", "--enable-shell":
+		case "-esh", "--enable-shell":
 			flags.EnableShell = true
 
 		// Disable flags":
@@ -352,7 +352,7 @@ func ParseInputArgs() (InputFlags, bool) {
 		case "-dc", "--disable-colors":
 			flags.DisableColors = true
 
-		case "-dis", "--disable-shell":
+		case "-dsh", "--disable-shell":
 			flags.DisableShell = true
 
 		default:
@@ -413,19 +413,19 @@ func DisplayHelp() {
 	fmt.Println("    -gc,    --generate-config        Generates default config. Can also be use in combination with --config-path to specify output path. (default: ./config.json)")
 	fmt.Println("    -ip,    --address [10.0.0.1]     Binds server to an address. (default: localhost)")
 	fmt.Println("    -p,     --port [443]             Set address port to bind. (values between '0-65535') (default: 1234)")
-	fmt.Println("    -sql,   --enable-sql             Enables support for the Postgres SQL database persistance. (default: disabled)")
+	fmt.Println("    -sql,   --enable-database        Enables support for the Postgres SQL database persistance. (default: disabled)")
 	fmt.Println("    -ssl,   --enable-encryption      Enables encrypted connection between a client and the server. Secrets are read from:")
 	fmt.Println("                                       - CERTIFICATE: ./secret/certificate.pem")
 	fmt.Println("                                       - PRIVATE KEY: ./secret/privatekey.pem")
 	fmt.Println("    -es,    --enable-subs            Enables support for subtitle search. (default: disabled)")
 	fmt.Println("    -ec,    --enable-color           Enables colored logging.")
-	fmt.Println("    -eis,   --enable-shell           Enables interactive shell during server runtime.")
-	fmt.Println("    -nosql, --disable-sql            Disables support for the Postgres SQL database persistance.")
+	fmt.Println("    -esh,   --enable-shell           Enables interactive shell during server runtime.")
+	fmt.Println("    -nosql, --disable-database       Disables support for the Postgres SQL database persistance.")
 	fmt.Println("    -nossl, --disable-encryption     Disables encrypted connection between a client and the server.")
 	fmt.Println("    -ds,    --disable-subs           Disables support for subtitle search.")
 	fmt.Println("    -dc,    --disable-color          Disables colored logging. (default: enabled)")
 	fmt.Println("    -d,     --domain [example.com]   Domain, if any, that the server is hosted on. Serves as a hint to associate URLs with local env.")
-	fmt.Println("    -dis,   --diable-shell           Disable interactive shell during server runtime.")
+	fmt.Println("    -dsh,   --diable-shell           Disable interactive shell during server runtime.")
 	fmt.Println()
 	fmt.Println("Example usage:")
 	fmt.Println("    ", exe, "--port 8888")

@@ -76,7 +76,7 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request) {
 	filename = strings.TrimSuffix(filename, extension)
 	name := cleanupResourceName(filename)
 
-	response := MediaUploadResponseData {
+	response := MediaUploadResponseData{
 		Url:      networkPath,
 		Name:     name,
 		Filename: filename,
@@ -627,8 +627,8 @@ func (server *Server) apiSubtitleDownload(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	subId     := server.state.subsId.Add(1)
-	filename  := filepath.Base(data.Url)
+	subId := server.state.subsId.Add(1)
+	filename := filepath.Base(data.Url)
 	extension := path.Ext(filename)
 	serverUrl := data.Url
 
@@ -824,7 +824,7 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 		var eventType string
 
 		server.state.mutex.Lock()
-		if (data.RequestEntry.AddToTop) {
+		if data.RequestEntry.AddToTop {
 			server.state.playlist = append(localEntries, server.state.playlist...)
 			eventType = "addmanytop"
 		} else {
@@ -862,7 +862,7 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 		var eventType string
 
 		server.state.mutex.Lock()
-		if (data.RequestEntry.AddToTop) {
+		if data.RequestEntry.AddToTop {
 			playlist := make([]Entry, 0)
 			playlist = append(playlist, newEntry)
 			server.state.playlist = append(playlist, server.state.playlist...)
@@ -1129,11 +1129,11 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 		DatabaseUpdateUserLastOnline(server.db, user.Id, time.Now())
 	}
 
-	outer: for {
+outer:
+	for {
 		select {
 		case event := <-conn.events:
 			_, err := fmt.Fprint(w, event)
-
 			if err != nil {
 				LogDebug("Connection write fail: %v", err)
 				break outer
@@ -1145,8 +1145,22 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 			}
 
 			flusher.Flush()
-		case <- conn.close:
+		case <-conn.close:
 			break outer
+
+		case <-time.After(2 * time.Second):
+			// NOTE(kihau): Send a heartbeat event to verify that the connection is still active.
+			_, err := fmt.Fprint(w, ":\n\n")
+			if err != nil {
+				break outer
+			}
+
+			flusher, success := w.(http.Flusher)
+			if !success {
+				break outer
+			}
+
+			flusher.Flush()
 		}
 
 	}
