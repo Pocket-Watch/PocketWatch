@@ -841,7 +841,7 @@ class Internals {
             hide(this.htmlTitleContainer);
         } else {
             if (title.length > MAX_TITLE_LENGTH) {
-                title = entry.title.substring(0, MAX_TITLE_LENGTH);
+                title = title.substring(0, MAX_TITLE_LENGTH);
             }
 
             show(this.htmlTitleContainer);
@@ -1752,7 +1752,7 @@ class Internals {
         volumePopup.textContent = "0%";
         volumePopup.classList.add("unselectable");
 
-        liveText.textContent = "LIVE";
+        liveText.textContent  = "LIVE";
         timestamp.textContent = "00:00 / 00:00";
 
         downloadButton.title   = "Download";
@@ -1836,18 +1836,6 @@ class Internals {
         this.assembleControlButtons();
     }
 
-    // markSubtitleSelected(subtitle) {
-    //     let menu = this.htmlControls.subMenu;
-    //     let track = subtitle.htmlTrack;
-    //
-    //     if (menu.selected.track) {
-    //         menu.selected.track.classList.remove("subtitle_track_selected");
-    //     }
-    //
-    //     track.classList.add("subtitle_track_selected");
-    //     menu.selected.track = track;
-    // }
-
     createSubtitleMenu() {
         let menuRoot         = this.htmlSubtitleMenu;
         let menuTabs         = newDiv(null, "player_menu_tabs");
@@ -1857,7 +1845,8 @@ class Internals {
         let searchTab        = newDiv(null, "player_menu_tab");
         let optionsTab       = newDiv(null, "player_menu_tab");
         let selectView       = newDiv("player_submenu_select_view");
-        let subsSwitch       = this.subtitleToggle;
+        let subtitleSwitch   = this.subtitleToggle;
+        let subtitleList     = this.htmlSubtitleList;
         let searchView       = newDiv("player_submenu_search_view");
         let subtitleImport   = newElement("input", "player_submenu_import");
         let subtitleName     = newElement("input", null, "player_input_box");
@@ -1918,7 +1907,7 @@ class Internals {
         searchTab.onclick  = _ => select(searchTab,  searchView);
         optionsTab.onclick = _ => select(optionsTab, optionsView);
 
-        subsSwitch.onAction = enabled => {
+        subtitleSwitch.onAction = enabled => {
             this.fireSettingsChange(Options.SUBTITLES_ENABLED, enabled);
 
             if (enabled) {
@@ -1972,8 +1961,8 @@ class Internals {
         menuRoot.append(menuSeparator);
         menuRoot.append(menuViews); {
             menuViews.append(selectView); {
-                selectView.append(subsSwitch.toggleRoot);
-                selectView.append(this.htmlSubtitleList);
+                selectView.append(subtitleSwitch.root);
+                selectView.append(subtitleList);
             }
             menuViews.append(searchView); {
                 searchView.append(subtitleImport)
@@ -2080,12 +2069,12 @@ class Internals {
         menuRoot.append(menuSeparator);
         menuRoot.append(menuViews); {
             menuViews.append(generalView); {
-                generalView.append(alwaysShow.toggleRoot);
-                generalView.append(showOnPause.toggleRoot);
+                generalView.append(alwaysShow.root);
+                generalView.append(showOnPause.root);
                 generalView.append(playbackSpeed.root);
                 generalView.append(brightness.root);
-                generalView.append(fitToScreen.toggleRoot);
-                generalView.append(stretchToScreen.toggleRoot);
+                generalView.append(fitToScreen.root);
+                generalView.append(stretchToScreen.root);
             }
             menuViews.append(appearanceView);
         }
@@ -2294,8 +2283,7 @@ class Switcher {
             toggleSwitch.appendChild(toggleCircle);
         }
 
-        this.toggleRoot   = toggleRoot;
-        this.toggleSwitch = toggleSwitch;
+        this.root = toggleRoot;
         this.setState(initialState);
     }
 
@@ -2303,10 +2291,10 @@ class Switcher {
     setState(state) {
         if (state) {
             this.enabled = true;
-            this.toggleRoot.classList.add("player_toggle_on");
+            this.root.classList.add("player_toggle_on");
         } else {
             this.enabled = false;
-            this.toggleRoot.classList.remove("player_toggle_on");
+            this.root.classList.remove("player_toggle_on");
         }
     }
 
@@ -2316,8 +2304,8 @@ class Switcher {
 class Cue {
     constructor(start, end, text) {
         this.startTime = start;
-        this.endTime = end;
-        this.text = text;
+        this.endTime   = end;
+        this.text      = text;
     }
     // if (!cue.sanitized) { cue.text = sanitizeHTMLForDisplay(cue.text); cue.sanitized = true; }
 }
@@ -2512,10 +2500,12 @@ function parseTimestamps(timestamps, decimalMark) {
     if (timestamps.length < 23) {
         return [null, null, false];
     }
+
     let splitter = timestamps.indexOf(" --> ", 8);
     if (splitter === -1) {
         return [null, null, false];
     }
+
     let startStamp = parseStamp(timestamps.substring(0, splitter), decimalMark);
     let endStamp = parseStamp(timestamps.substring(splitter+5), decimalMark);
     return [startStamp, endStamp, startStamp != null && endStamp != null];
@@ -2527,6 +2517,7 @@ function parseStamp(stamp, decimalMark) {
     if (twoSplit.length !== 2) {
         return null;
     }
+
     let hms = twoSplit[0].split(":");
     switch (hms.length) {
         case 3:
@@ -2582,17 +2573,21 @@ class SeekIcon {
         this.text = children[1];
         this.setText(textContent)
     }
+
     static newForward(textContent = "", width, height) {
         return new SeekIcon(textContent, width, height);
     }
+
     static newBackward(textContent = "", width, height) {
         let seekBackward = new SeekIcon(textContent, width, height);
         seekBackward.path.setAttribute("transform", "scale(-1, 1) translate(-48, 0)");
         return seekBackward;
     }
+
     setText(text) {
         this.text.textContent = text;
     }
+
     getText() {
         return this.text.textContent;
     }
@@ -2794,6 +2789,7 @@ export class Timeout {
         this.delay = delayMs;
         this.timeoutId = 0;
     }
+
     schedule() {
         this.cancel();
         this.timeoutId = setTimeout(() => {
@@ -2801,18 +2797,22 @@ export class Timeout {
             this.timeoutId = 0;
         }, this.delay);
     }
+
     cancel() {
         if (this.timeoutId > 0) {
             clearTimeout(this.timeoutId);
             this.timeoutId = 0;
         }
     }
+
     inProgress() {
         return this.timeoutId > 0;
     }
+
     setAction(action) {
         this.action = action;
     }
+
     setDelay(ms) {
         this.delay = ms;
     }

@@ -1139,30 +1139,23 @@ outer:
 				break outer
 			}
 
-			flusher, success := w.(http.Flusher)
-			if !success {
-				break outer
-			}
-
-			flusher.Flush()
 		case <-conn.close:
 			break outer
 
 		case <-time.After(2 * time.Second):
 			// NOTE(kihau): Send a heartbeat event to verify that the connection is still active.
-			_, err := fmt.Fprint(w, ":\n\n")
+			_, err := w.Write([]byte(":\n\n"))
 			if err != nil {
 				break outer
 			}
-
-			flusher, success := w.(http.Flusher)
-			if !success {
-				break outer
-			}
-
-			flusher.Flush()
 		}
 
+		flusher, success := w.(http.Flusher)
+		if !success {
+			break
+		}
+
+		flusher.Flush()
 	}
 
 	server.conns.mutex.Lock()
