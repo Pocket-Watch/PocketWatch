@@ -402,6 +402,12 @@ class Room {
             }
 
         });
+
+        this.player.onSourceLoaded(_ => {
+            if (this.playlist.autoplayEnabled) {
+                this.player.play();
+            }
+        });
     }
 
     resetEntryAreaElements() {
@@ -912,7 +918,6 @@ class Room {
         let entry = state.entry;
         this.setEntryEvent(entry);
         this.player.seek(state.player.timestamp)
-        this.player.setAutoplay(state.player.autoplay)
     }
 
     clearUsersArea() {
@@ -1514,7 +1519,6 @@ class Room {
         events.addEventListener("playerautoplay", event => {
             let autoplay = JSON.parse(event.data);
             this.playlist.setAutoplay(autoplay)
-            this.player.setAutoplay(autoplay)
         });
 
         events.addEventListener("playerupdatetitle", event => {

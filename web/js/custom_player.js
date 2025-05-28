@@ -18,10 +18,6 @@ class Player {
         return this.internals.isFullscreen();
     }
 
-    setAutoplay(state) {
-        this.internals.setAutoplay(state);
-    }
-
     isPlaying() {
         return this.internals.isVideoPlaying();
     }
@@ -264,6 +260,12 @@ class Player {
     onMetadataLoad(func) {
         if (isFunction(func)) {
             this.internals.fireMetadataLoad = func;
+        }
+    }
+
+    onSourceLoaded(func) {
+        if (isFunction(func)) {
+            this.internals.fireSourceLoaded = func;
         }
     }
 
@@ -557,10 +559,7 @@ class Internals {
     fireSubtitleSelect(_subtitle) {}
     async fireSubtitleSearch(_search) {}
     fireMetadataLoad() {}
-
-    setAutoplay(state) {
-        this.htmlVideo.autoplay = state;
-    }
+    fireSourceLoaded() {}
 
     isVideoPlaying() {
         return !this.htmlVideo.paused && !this.htmlVideo.ended;
@@ -1424,6 +1423,7 @@ class Internals {
         });
 
         this.htmlVideo.addEventListener("canplay", _ => {
+            this.fireSourceLoaded();
             this.bufferingTimeout.cancel();
             hide(this.bufferingSvg);
         });

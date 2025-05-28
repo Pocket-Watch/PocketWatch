@@ -362,12 +362,13 @@ func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 	//     This check is necessary because multiple clients can send "playlist next" request on video end,
 	//     resulting in multiple playlist skips, which is not an intended behaviour.
 
+	server.state.mutex.Lock()
 	if server.state.entry.Id != data.EntryId {
+		server.state.mutex.Unlock()
 		respondBadRequest(w, "Entry ID provided in the request is not equal to the current entry ID on the server")
 		return
 	}
 
-	server.state.mutex.Lock()
 	if server.state.entry.Url != "" && server.state.player.Looping {
 		server.state.playlist = append(server.state.playlist, server.state.entry)
 	}
