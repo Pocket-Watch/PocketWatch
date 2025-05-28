@@ -240,7 +240,11 @@ func (server *Server) loadYoutubePlaylist(query string, videoId string, userId u
 	}
 
 	server.state.mutex.Lock()
-	server.state.playlist = append(server.state.playlist, entries...)
+	if addToTop {
+		server.state.playlist = append(entries, server.state.playlist...)
+	} else {
+		server.state.playlist = append(server.state.playlist, entries...)
+	}
 	server.state.mutex.Unlock()
 
 	var event PlaylistEventData

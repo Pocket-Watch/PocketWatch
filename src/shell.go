@@ -81,6 +81,7 @@ outer:
 			fmt.Println("  uptime,   up  - Print server uptime")
 			fmt.Println("  loglevel, log - Print or set the log level")
 			fmt.Println("  sqlquery, sql - Execute SQL query")
+			fmt.Println("  sqltable, tlb - Print layout a SQL table")
 			fmt.Println("  users,    usr - Show number of active users")
 
 		case "version", "v":
@@ -114,6 +115,9 @@ outer:
 
 		case "sqlquery", "sql":
 			DatabaseSqlQuery(db, argument)
+
+		case "sqltable", "tbl":
+			DatabasePrintTableLayout(db, argument)
 
 		case "users", "usr":
 			fmt.Println("Command users it not implemented yet!")

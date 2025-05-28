@@ -358,10 +358,17 @@ func DatabaseSqlQuery(db *sql.DB, query string) {
 	defer rows.Close()
 
 	columnNames, _ := rows.Columns()
-	columns := make([]any, len(columnNames))
-	for i := range columns {
-		columns[i] = new(string)
+	columnCount := len(columnNames)
+	columns := make([]any, columnCount)
+
+	minSizes := make([]int, columnCount)
+
+	for i, name := range columnNames {
+		columns[i]  = new(string)
+		minSizes[i] = len(name) 
 	}
+
+	data := make([]string, 0)
 
 	for rows.Next() {
 		err = rows.Scan(columns...)
@@ -370,9 +377,53 @@ func DatabaseSqlQuery(db *sql.DB, query string) {
 			return
 		}
 
-		for _, column := range columns {
-			fmt.Printf("%s ", *column.(*string))
+		for i, column := range columns {
+			value :=  *column.(*string)
+			data = append(data, value)
+
+			if len(value) > minSizes[i] {
+				minSizes[i] = len(value)
+			}
 		}
+	}
+
+
+	for i, name := range columnNames {
+		fmt.Printf(" %*s ", minSizes[i], name)
+	}
+
+	fmt.Println()
+
+	rowCount := len(data) / columnCount
+	for row := 0; row < rowCount; row += 1 {
+		for column := 0; column < columnCount; column += 1 {
+			value := data[row * columnCount + column]
+			fmt.Printf(" %*s ", minSizes[column], value)
+		}
+
 		fmt.Println()
 	}
+}
+
+func DatabasePrintTableLayout(db *sql.DB, tableName string) {
+	if db == nil {
+		fmt.Printf("Database is not running\n")
+		return
+	}
+
+	query := fmt.Sprintf("SELECT * from %v;", tableName)
+	rows, err := db.Query(query)
+	if err != nil {
+		fmt.Printf("Failed to find table: %v\n", err)
+		return
+	}
+	defer rows.Close()
+
+	columnNames, _ := rows.Columns()
+
+	fmt.Printf("Layout for table '%v'\n", tableName)
+	for _, name := range columnNames {
+		fmt.Printf("%v ", name)
+	}
+	fmt.Println()
 }
