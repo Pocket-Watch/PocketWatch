@@ -24,6 +24,167 @@ var client = http.Client{
 
 var userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; rv:115.0) Gecko/20100101 Firefox/115.0"
 
+func GeneratePrettyTableStandard(headers []string, data []string) string {
+	if len(headers) == 0 {
+		return ""
+	}
+
+	columnCount := len(headers)
+	rowCount := len(data) / columnCount
+
+	// Find max size of each column.
+
+	paddings := make([]int, columnCount)
+	for i, header := range headers {
+		paddings[i] = len(header)
+	}
+
+	for row := 0; row < rowCount; row += 1 {
+		for column := 0; column < columnCount; column += 1 {
+			value := data[row*columnCount+column]
+
+			if len(value) > paddings[column] {
+				paddings[column] = len(value)
+			}
+		}
+	}
+
+	// Generate separator.
+
+	build := strings.Builder{}
+	for _, pad := range paddings {
+		build.WriteString("+")
+		for range pad + 2 {
+			build.WriteString("-")
+		}
+	}
+	build.WriteString("+\n")
+
+	separator := build.String()
+
+	// Pretty print the table.
+
+	table := strings.Builder{}
+
+	table.WriteString(separator)
+	for i, name := range headers {
+		string := fmt.Sprintf("| %*s ", paddings[i], name)
+		table.WriteString(string)
+	}
+	table.WriteString("|\n")
+	table.WriteString(separator)
+
+	if rowCount == 0 {
+		return table.String()
+	}
+
+	for row := 0; row < rowCount; row += 1 {
+		for column := 0; column < columnCount; column += 1 {
+			value := data[row*columnCount+column]
+			string := fmt.Sprintf("| %*s ", paddings[column], value)
+			table.WriteString(string)
+		}
+
+		table.WriteString("|\n")
+	}
+	table.WriteString(separator)
+
+	return table.String()
+}
+
+func GeneratePrettyTableAsciiExtended(headers []string, data []string) string {
+	if len(headers) == 0 {
+		return ""
+	}
+
+	columnCount := len(headers)
+	rowCount := len(data) / columnCount
+
+	// Find max size of each column.
+
+	paddings := make([]int, columnCount)
+	for i, header := range headers {
+		paddings[i] = len(header)
+	}
+
+	for row := 0; row < rowCount; row += 1 {
+		for column := 0; column < columnCount; column += 1 {
+			value := data[row*columnCount+column]
+
+			if len(value) > paddings[column] {
+				paddings[column] = len(value)
+			}
+		}
+	}
+
+	buildTop := strings.Builder{}
+	buildMid := strings.Builder{}
+	buildBot := strings.Builder{}
+
+	buildTop.WriteString("┌")
+	buildMid.WriteString("├")
+	buildBot.WriteString("└")
+
+	for i, pad := range paddings {
+		for range pad + 2 {
+			buildTop.WriteString("─")
+			buildMid.WriteString("─")
+			buildBot.WriteString("─")
+		}
+
+		if i == len(paddings)-1 {
+			break
+		}
+
+		buildTop.WriteString("┬")
+		buildMid.WriteString("┼")
+		buildBot.WriteString("┴")
+	}
+
+	buildTop.WriteString("┐\n")
+	buildMid.WriteString("┤\n")
+	buildBot.WriteString("┘\n")
+
+	separatorTop := buildTop.String()
+	separatorMid := buildMid.String()
+	separatorBot := buildBot.String()
+
+	// Pretty print the table.
+
+	table := strings.Builder{}
+
+	table.WriteString(separatorTop)
+	for i, name := range headers {
+		string := fmt.Sprintf("│ %*s ", paddings[i], name)
+		table.WriteString(string)
+	}
+	table.WriteString("│\n")
+
+	if rowCount == 0 {
+		table.WriteString(separatorBot)
+		return table.String()
+	}
+
+	table.WriteString(separatorMid)
+
+	for row := 0; row < rowCount; row += 1 {
+		for column := 0; column < columnCount; column += 1 {
+			value := data[row*columnCount+column]
+			string := fmt.Sprintf("│ %*s ", paddings[column], value)
+			table.WriteString(string)
+		}
+
+		table.WriteString("│\n")
+	}
+	table.WriteString(separatorBot)
+
+	return table.String()
+}
+
+func GeneratePrettyTable(headers []string, data []string) string {
+	return GeneratePrettyTableAsciiExtended(headers, data)
+}
+
 func constructTitleWhenMissing(entry *Entry) string {
 	if entry.Title != "" {
 		return entry.Title

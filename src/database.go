@@ -361,11 +361,8 @@ func DatabaseSqlQuery(db *sql.DB, query string) {
 	columnCount := len(columnNames)
 	columns := make([]any, columnCount)
 
-	minSizes := make([]int, columnCount)
-
-	for i, name := range columnNames {
-		columns[i]  = new(string)
-		minSizes[i] = len(name) 
+	for i := range columnNames {
+		columns[i] = new(string)
 	}
 
 	data := make([]string, 0)
@@ -377,32 +374,14 @@ func DatabaseSqlQuery(db *sql.DB, query string) {
 			return
 		}
 
-		for i, column := range columns {
-			value :=  *column.(*string)
+		for _, column := range columns {
+			value := *column.(*string)
 			data = append(data, value)
-
-			if len(value) > minSizes[i] {
-				minSizes[i] = len(value)
-			}
 		}
 	}
 
-
-	for i, name := range columnNames {
-		fmt.Printf(" %*s ", minSizes[i], name)
-	}
-
-	fmt.Println()
-
-	rowCount := len(data) / columnCount
-	for row := 0; row < rowCount; row += 1 {
-		for column := 0; column < columnCount; column += 1 {
-			value := data[row * columnCount + column]
-			fmt.Printf(" %*s ", minSizes[column], value)
-		}
-
-		fmt.Println()
-	}
+	prettyTable := GeneratePrettyTable(columnNames, data)
+	fmt.Println(prettyTable)
 }
 
 func DatabasePrintTableLayout(db *sql.DB, tableName string) {
@@ -420,10 +399,8 @@ func DatabasePrintTableLayout(db *sql.DB, tableName string) {
 	defer rows.Close()
 
 	columnNames, _ := rows.Columns()
-
 	fmt.Printf("Layout for table '%v'\n", tableName)
-	for _, name := range columnNames {
-		fmt.Printf("%v ", name)
-	}
-	fmt.Println()
+
+	prettyTable := GeneratePrettyTable(columnNames, nil)
+	fmt.Println(prettyTable)
 }
