@@ -405,6 +405,7 @@ class Room {
 
         this.player.onSourceLoaded(_ => {
             if (this.playlist.autoplayEnabled) {
+                console.debug("fired onSourceLoaded with autoplay enabled.")
                 this.player.play();
             }
         });
