@@ -153,11 +153,23 @@ func parseM3U(path string) (*M3U, error) {
 				if len(params) == 0 {
 					continue
 				}
-				// byterange is rare so ignoring for now
-				if params[0].key == "URI" {
-					segment.uri = params[0].value
+				// BYTERANGE is rare so ignoring for now
+				segment.mapUri = getParamValue("URI", params)
+				parsingSegment = true
+			case EXT_X_KEY:
+				params := parseParams(pair.value)
+				if len(params) == 0 {
+					continue
 				}
-			case EXT_X_PROGRAM_DATE_TIME, EXT_X_BITRATE, EXT_X_DATERANGE, EXT_X_BYTERANGE, EXT_X_DISCONTINUITY, EXT_X_KEY:
+				// ignoring KEYFORMAT for now
+
+				key := &segment.key
+				key.uri = getParamValue("URI", params)
+				key.method = getParamValue("METHOD", params)
+				key.initVec = getParamValue("IV", params)
+				segment.hasKey = true
+				parsingSegment = true
+			case EXT_X_PROGRAM_DATE_TIME, EXT_X_BITRATE, EXT_X_DATERANGE, EXT_X_BYTERANGE, EXT_X_DISCONTINUITY:
 				segment.addPair(*pair)
 				parsingSegment = true
 			case EXT_X_ENDLIST:
@@ -204,8 +216,11 @@ func parseFirstFloat(values string) (float64, error) {
 	return strconv.ParseFloat(values[:end], 64)
 }
 
-func replaceParamValue(key string, value string, params []Param) {
-
+// Key - Media Segments MAY be encrypted
+type Key struct {
+	method  string // NONE, AES-128, and SAMPLE-AES, SAMPLE-AES-CTR
+	uri     string // URI where the key can be obtained
+	initVec string // hexadecimal-sequence that specifies a 128-bit Initialization Vector
 }
 
 func parseParams(line string) []Param {
@@ -269,11 +284,12 @@ type Track struct {
 	streamInfo []Param
 }
 
-func (track *Track) getParamValue(paramKey string) string {
+// getParamValue searches params and returns the value associated with the given key, or empty if not found
+func getParamValue(paramKey string, params []Param) string {
 	if paramKey == "" {
 		return ""
 	}
-	for _, pair := range track.streamInfo {
+	for _, pair := range params {
 		if pair.key == paramKey {
 			return pair.value
 		}
@@ -293,7 +309,9 @@ type M3U struct {
 type Segment struct {
 	url            string
 	length         float64
-	uri            string // [optional] Media Initialization Section
+	mapUri         string // [optional] Media Initialization Section
+	hasKey         bool
+	key            Key
 	attributePairs []KeyValue
 }
 
@@ -313,7 +331,7 @@ func (segment *Segment) getAttribute(key string) string {
 
 func newEmptySegment() Segment {
 	return Segment{
-		url: "", length: 0, attributePairs: make([]KeyValue, 0), uri: "",
+		url: "", length: 0, attributePairs: make([]KeyValue, 0), mapUri: "",
 	}
 }
 
@@ -377,27 +395,34 @@ func (m3u *M3U) totalDuration() float64 {
 // Fetches highest resolution from m3u.tracks
 // this method should only be used if the m3u is a master playlist
 func (m3u *M3U) getBestTrack() *Track {
+	if len(m3u.tracks) == 0 {
+		return nil
+	}
 	var bestTrack *Track = nil
 	var bestWidth int64 = 0
 	for _, track := range m3u.tracks {
-		for _, param := range track.streamInfo {
-			if param.key != "RESOLUTION" {
-				continue
-			}
-			res := strings.ToLower(param.value)
-			x := strings.Index(res, "x")
-			if x == -1 {
-				continue
-			}
-			vidWidth, err := strconv.ParseInt(res[:x], 10, 32)
-			if err != nil {
-				continue
-			}
-			if vidWidth > bestWidth {
-				bestWidth = vidWidth
-				bestTrack = &track
-			}
+		res := getParamValue("RESOLUTION", track.streamInfo)
+		if res == "" {
+			continue
 		}
+		res = strings.ToLower(res)
+		x := strings.Index(res, "x")
+		if x == -1 {
+			continue
+		}
+		vidWidth, err := strconv.ParseInt(res[:x], 10, 32)
+		if err != nil {
+			continue
+		}
+		if vidWidth > bestWidth {
+			bestWidth = vidWidth
+			bestTrack = &track
+		}
+	}
+	if bestTrack == nil {
+		// If none match return the last
+		length := len(m3u.tracks)
+		return &m3u.tracks[length-1]
 	}
 	return bestTrack
 }
@@ -436,7 +461,7 @@ func (m3u *M3U) copy() M3U {
 }
 
 // This will only prefix URLs which are not fully qualified
-// As well as map uri
+// As well as map mapUri
 func (m3u *M3U) prefixRelativeSegments(prefix string) {
 	// if a range loop is used the track url is effectively not reassigned
 	for i := range m3u.segments {
@@ -444,8 +469,11 @@ func (m3u *M3U) prefixRelativeSegments(prefix string) {
 		if !isAbsolute(segment.url) {
 			segment.url = prefixUrl(prefix, segment.url)
 		}
-		if segment.uri != "" && !isAbsolute(segment.uri) {
-			segment.uri = prefixUrl(prefix, segment.uri)
+		if segment.mapUri != "" && !isAbsolute(segment.mapUri) {
+			segment.mapUri = prefixUrl(prefix, segment.mapUri)
+		}
+		if segment.hasKey && !isAbsolute(segment.key.uri) {
+			segment.key.uri = prefixUrl(prefix, segment.key.uri)
 		}
 	}
 }
@@ -503,8 +531,22 @@ func (m3u *M3U) serializePlaylist(file *os.File) {
 		}
 	}
 	for _, seg := range m3u.segments {
-		if seg.uri != "" {
-			output.WriteString("#EXT-X-MAP:URI=\"" + seg.uri + "\"\n")
+		if seg.mapUri != "" {
+			output.WriteString("#EXT-X-MAP:URI=\"" + seg.mapUri + "\"\n")
+		}
+		// #EXT-X-KEY:METHOD=AES-128,URI="key4.json?f=1041&s=0&p=1822770&m=1506045858",IV=0x000000000000000000000000001BD032
+		if seg.hasKey {
+			output.WriteString("#EXT-X-KEY:")
+			if seg.key.method != "" {
+				output.WriteString("METHOD=" + seg.key.method + ",")
+			}
+			if seg.key.uri != "" {
+				output.WriteString("URI=" + seg.key.uri + ",")
+			}
+			if seg.key.initVec != "" {
+				output.WriteString("IV=" + seg.key.initVec + ",")
+			}
+			output.WriteString("\n")
 		}
 		for _, segPair := range seg.attributePairs {
 			if segPair.value == "" {

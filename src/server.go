@@ -744,12 +744,8 @@ func (server *Server) setupMasterPlaylist(m3u *M3U, prefix string, referer strin
 	m3u.prefixRelativeTracks(prefix)
 	LogInfo("A master playlist was provided. The best track will be chosen based on quality.")
 	bestTrack := m3u.getBestTrack()
-	var url string
-	if bestTrack == nil {
-		bestTrack = &m3u.tracks[0]
-		url = bestTrack.url
-	}
-	resolution := bestTrack.getParamValue("RESOLUTION")
+
+	resolution := getParamValue("RESOLUTION", bestTrack.streamInfo)
 	if resolution != "" {
 		LogDebug("The best track's resolution is %v", resolution)
 	}
@@ -758,13 +754,10 @@ func (server *Server) setupMasterPlaylist(m3u *M3U, prefix string, referer strin
 	m3u, err = downloadM3U(bestTrack.url, WEB_PROXY+ORIGINAL_M3U8, referer)
 
 	if isErrorStatus(err, 404) {
-		// Hacky trick for relative non-compliant m3u8's 💩
+		// Hacky trick for domain relative (non-compliant m3u8's 💩)
 		domain := getRootDomain(parsedUrl)
 		originalMasterPlaylist.prefixRelativeTracks(domain)
 		bestTrack = originalMasterPlaylist.getBestTrack()
-		if bestTrack == nil {
-			bestTrack = &originalMasterPlaylist.tracks[0]
-		}
 		m3u, err = downloadM3U(bestTrack.url, WEB_PROXY+ORIGINAL_M3U8, referer)
 		if err != nil {
 			LogError("Fallback failed: %v", err.Error())
@@ -781,7 +774,7 @@ func (server *Server) setupMasterPlaylist(m3u *M3U, prefix string, referer strin
 		return nil
 	}
 	prefix = stripLastSegment(parsedUrl)
-	return &MasterPlaylistSetup{m3u, url, prefix}
+	return &MasterPlaylistSetup{m3u, bestTrack.url, prefix}
 }
 
 func (server *Server) setupHlsProxy(url string, referer string) bool {
@@ -897,7 +890,7 @@ func (server *Server) confirmSegment0Available(m3u *M3U, prefix, referer string)
 	if !isAbsolute(segment0.url) {
 		segment0.url = prefixUrl(prefix, segment0.url)
 	}
-	if segment0.uri != "" && !isAbsolute(segment0.uri) {
+	if segment0.mapUri != "" && !isAbsolute(segment0.mapUri) {
 		segment0.url = prefixUrl(prefix, segment0.url)
 	}
 	return testGetResponse(segment0.url, referer)
