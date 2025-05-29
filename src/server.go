@@ -874,10 +874,13 @@ func (server *Server) setupVodProxy(m3u *M3U) bool {
 	proxy.originalChunks = make([]string, 0, segmentCount)
 	proxy.fetchedChunks = make([]bool, 0, segmentCount)
 	for i := range segmentCount {
+		segment := &m3u.segments[i]
 		proxy.chunkLocks = append(proxy.chunkLocks, sync.Mutex{})
-		proxy.originalChunks = append(proxy.originalChunks, m3u.segments[i].url)
+		proxy.originalChunks = append(proxy.originalChunks, segment.url)
 		proxy.fetchedChunks = append(proxy.fetchedChunks, false)
-		m3u.segments[i].url = "ch-" + toString(i)
+
+		chunkName := "ch-" + toString(i)
+		segment.url = chunkName
 	}
 
 	m3u.serialize(WEB_PROXY + PROXY_M3U8)
@@ -892,7 +895,10 @@ func (server *Server) confirmSegment0Available(m3u *M3U, prefix, referer string)
 	}
 	segment0 := m3u.segments[0]
 	if !isAbsolute(segment0.url) {
-		segment0.prefixUrl(prefix)
+		segment0.url = prefixUrl(prefix, segment0.url)
+	}
+	if segment0.uri != "" && !isAbsolute(segment0.uri) {
+		segment0.url = prefixUrl(prefix, segment0.url)
 	}
 	return testGetResponse(segment0.url, referer)
 }
