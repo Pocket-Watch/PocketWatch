@@ -403,7 +403,8 @@ class Room {
 
         });
 
-        this.player.onSourceLoaded(_ => {
+        // NOTE(kihau): This is a hack to fix autoplay issue with HLS sources.
+        this.player.onDataLoad(_ => {
             if (this.playlist.autoplayEnabled) {
                 console.debug("fired onSourceLoaded with autoplay enabled.")
                 this.player.play();
@@ -1201,7 +1202,7 @@ class Room {
 
         if (Math.abs(desync) > MAX_DESYNC && !this.player.isLive()) {
             let diff = Math.abs(desync) - MAX_DESYNC
-            console.warn("You are desynced! MAX_DESYNC(" + MAX_DESYNC + ") exceeded by:", diff, "Trying to resync now!");
+            console.warn("WARN: You are desynced! MAX_DESYNC(" + MAX_DESYNC + ") exceeded by:", diff, "Trying to resync now!");
             this.player.seek(timestamp);
         }
     }
@@ -1269,22 +1270,22 @@ class Room {
     subscribeToSubtitleEvents(events) {
         events.addEventListener("subtitledelete", event => {
             if (!event.data) {
-                console.warn("Subtitle delete event failed, event data is null.")
+                console.warn("WARN: Subtitle delete event failed, event data is null.")
                 return;
             }
 
             let subId = JSON.parse(event.data);
-            console.info("Received subtitle delete event for subtitle with ID:", subId);
+            console.info("INFO: Received subtitle delete event for subtitle with ID:", subId);
 
             let subs = this.currentEntry.subtitles;
             if (!subs) {
-                console.warn("Subtitle delete event failed, currentEntry subtitles is null.")
+                console.warn("WARN: Subtitle delete event failed, currentEntry subtitles is null.")
                 return;
             }
 
             let index = subs.findIndex(sub => sub.id === subId);
             if (index === -1) {
-                console.warn("Subtitle delete event failed, subtitle index is -1.")
+                console.warn("WARN: Subtitle delete event failed, subtitle index is -1.")
                 return;
             }
 
@@ -1302,21 +1303,21 @@ class Room {
         events.addEventListener("subtitleupdate", event => {
             let data = JSON.parse(event.data);
             if (!data) {
-                console.warn("Subtitle update event failed, event data is null.")
+                console.warn("WARN: Subtitle update event failed, event data is null.")
                 return;
             }
 
-            console.info("Received subtitle update event with:", data);
+            console.info("INFO: Received subtitle update event with:", data);
 
             let subs = this.currentEntry.subtitles;
             if (!subs) {
-                console.warn("Subtitle update event failed, currentEntry subtitles is null.")
+                console.warn("WARN: Subtitle update event failed, currentEntry subtitles is null.")
                 return;
             }
 
             let index = subs.findIndex(sub => sub.id === data.id);
             if (index === -1) {
-                console.warn("Subtitle update event failed, subtitle index is -1.")
+                console.warn("WARN: Subtitle update event failed, subtitle index is -1.")
                 return;
             }
 

@@ -263,9 +263,9 @@ class Player {
         }
     }
 
-    onSourceLoaded(func) {
+    onDataLoad(func) {
         if (isFunction(func)) {
-            this.internals.fireSourceLoaded = func;
+            this.internals.fireDataLoad = func;
         }
     }
 
@@ -559,7 +559,7 @@ class Internals {
     fireSubtitleSelect(_subtitle) {}
     async fireSubtitleSearch(_search) {}
     fireMetadataLoad() {}
-    fireSourceLoaded() {}
+    fireDataLoad() {}
 
     isVideoPlaying() {
         return !this.htmlVideo.paused && !this.htmlVideo.ended;
@@ -573,7 +573,9 @@ class Internals {
         this.playerUIHideTimeout.schedule();
         this.svgs.playback.setHref(this.icons.pause);
 
-        this.htmlVideo.play().catch(exception => {
+        let result = this.htmlVideo.play()
+
+        result.catch(exception => {
             this.bufferingTimeout.cancel();
             hide(this.bufferingSvg);
 
@@ -1423,7 +1425,6 @@ class Internals {
         });
 
         this.htmlVideo.addEventListener("canplay", _ => {
-            this.fireSourceLoaded();
             this.bufferingTimeout.cancel();
             hide(this.bufferingSvg);
         });
@@ -1469,7 +1470,7 @@ class Internals {
         this.htmlVideo.addEventListener("play", _ => {
             if (this.options.useAudioGain && this.audioContext.state === "suspended") {
                 this.audioContext.resume().then(_ =>
-                    console.debug("Resumed AudioContext which was suspended.")
+                    console.info("INFO: Resumed AudioContext which was suspended.")
                 );
             }
             this.svgs.playbackPopup.setHref(this.icons.play_popup);
@@ -1487,6 +1488,10 @@ class Internals {
 
         this.htmlVideo.addEventListener("loadedmetadata", _ => {
             this.fireMetadataLoad();
+        });
+
+        this.htmlVideo.addEventListener("loadeddata", _ => {
+            this.fireDataLoad();
         });
     }
 

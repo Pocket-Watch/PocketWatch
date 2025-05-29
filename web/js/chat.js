@@ -50,7 +50,7 @@ class Chat {
     processMessageSendIntent() {
         let content = this.chatInput.value;
         if (content.length === 0 || content.length > CHARACTER_LIMIT) {
-            console.warn("Message is empty or exceeds", CHARACTER_LIMIT, "characters");
+            console.warn("WARN: Message is empty or exceeds", CHARACTER_LIMIT, "characters");
             // This is handled server side for length
             return;
         }
