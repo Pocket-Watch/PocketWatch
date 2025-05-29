@@ -117,6 +117,8 @@ func GeneratePrettyTableAsciiExtended(headers []string, data []string) string {
 		}
 	}
 
+	// Generate separators.
+
 	buildTop := strings.Builder{}
 	buildMid := strings.Builder{}
 	buildBot := strings.Builder{}

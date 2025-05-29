@@ -381,7 +381,7 @@ func DatabaseSqlQuery(db *sql.DB, query string) {
 	}
 
 	prettyTable := GeneratePrettyTable(columnNames, data)
-	fmt.Println(prettyTable)
+	fmt.Print(prettyTable)
 }
 
 func DatabasePrintTableLayout(db *sql.DB, tableName string) {
@@ -402,5 +402,5 @@ func DatabasePrintTableLayout(db *sql.DB, tableName string) {
 	fmt.Printf("Layout for table '%v'\n", tableName)
 
 	prettyTable := GeneratePrettyTable(columnNames, nil)
-	fmt.Println(prettyTable)
+	fmt.Print(prettyTable)
 }

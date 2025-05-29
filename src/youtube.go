@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	neturl "net/url"
 	"os/exec"
 	"strconv"
@@ -91,7 +94,7 @@ type YoutubeVideo struct {
 	Title       string `json:"title"`
 	Thumbnail   string `json:"thumbnail"`
 	OriginalUrl string `json:"original_url"`
-	SourceUrl   string `json:"url"` // NOTE(kihau): This will be replaced with youtube sources structure.
+	SourceUrl   string `json:"url"`
 }
 
 type YoutubeContent struct {
@@ -257,6 +260,53 @@ func (server *Server) loadYoutubePlaylist(query string, videoId string, userId u
 	go server.preloadYoutubeSourceOnNextEntry()
 }
 
+type InternalServerFetch struct {
+	Query string `json:"query"`
+}
+
+func fetchVideoWithInternalServer(query string) (bool, YoutubeVideo) {
+	data := InternalServerFetch {
+		Query: query,
+	}
+
+	request, err := json.Marshal(data)
+	if err != nil {
+		LogError("Failed to marshal JSON request data for the internal server: %v", err)
+		return false, YoutubeVideo{}
+	}
+
+	response, nil := http.Post("http://localhost:2345/youtube/fetch", "application/json", bytes.NewBuffer(request))
+	if err != nil {
+		LogError("Request POST to the internal server failed: %v", err)
+		return false, YoutubeVideo{}
+	}
+	defer response.Body.Close()
+
+	var video YoutubeVideo
+	responseData, err := io.ReadAll(response.Body)
+	if err != nil {
+		LogError("Failed to unmarshal data from the internal server: %v", err)
+		return false, YoutubeVideo{}
+	}
+	json.Unmarshal(responseData, &video)
+	return true, video
+}
+
+func fetchVideoWithYtdlp(query string) (bool, YoutubeVideo) {
+	// NOTE(kihau): Format 234 is m3u8_native audio-only source which can be used in combination with HLS proxy.
+	command := exec.Command("yt-dlp", query, "--playlist-items", "1", "--format", "234", "--print", "%(.{id,title,thumbnail,original_url,url})j")
+	output, err := command.Output()
+
+	if err != nil {
+		LogError("Failed to get output from the yt-dlp command: %v", err)
+		return false, YoutubeVideo{}
+	}
+
+	var video YoutubeVideo
+	json.Unmarshal(output, &video)
+	return true, YoutubeVideo{}
+}
+
 func (server *Server) loadYoutubeEntry(entry *Entry, requested RequestEntry) {
 	if !YOUTUBE_ENABLED {
 		return
@@ -278,17 +328,14 @@ func (server *Server) loadYoutubeEntry(entry *Entry, requested RequestEntry) {
 		LogInfo("Loading youtube entry with url: %v.", entry.Url)
 	}
 
-	// NOTE(kihau): Format 234 is m3u8_native audio-only source which can be used in combination with HLS proxy.
-	command := exec.Command("yt-dlp", query, "--playlist-items", "1", "--format", "234", "--print", "%(.{id,title,thumbnail,original_url,url})j")
-	output, err := command.Output()
+	ok, video := fetchVideoWithInternalServer(query)
+	if !ok {
+		ok, video = fetchVideoWithYtdlp(query)
 
-	if err != nil {
-		LogError("Failed to get output from the yt-dlp command: %v", err)
-		return
+		if !ok {
+			return
+		}
 	}
-
-	var video YoutubeVideo
-	json.Unmarshal(output, &video)
 
 	entry.Url = video.OriginalUrl
 	entry.Title = video.Title
