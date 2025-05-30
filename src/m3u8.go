@@ -60,7 +60,6 @@ var GENERIC_TAGS = []string{
 	EXT_X_PLAYLIST_TYPE,
 	EXT_X_ALLOW_CACHE,
 
-	EXT_X_MEDIA,
 	EXT_X_SESSION_DATA,
 	EXT_X_SESSION_KEY,
 
@@ -126,13 +125,14 @@ func parseM3U(path string) (*M3U, error) {
 
 	m3u := newM3U(32)
 	parsingSegment := false
-	segment := newEmptySegment()
+
+	segment := Segment{}
 	for scanner.Scan() {
 		line := scanner.Text()
 		if len(line) == 0 {
 			continue
 		}
-		isTag := line[0] == '#'
+		isTag := strings.HasPrefix(line, "#EXT")
 		if isTag {
 			pair := getKeyValue(line)
 			if pair == nil {
@@ -185,6 +185,14 @@ func parseM3U(path string) (*M3U, error) {
 				url := scanner.Text()
 				track := Track{url: url, streamInfo: params}
 				m3u.addTrack(track)
+			case EXT_X_MEDIA:
+				m3u.isMasterPlaylist = true
+				params := parseParams(pair.value)
+				typeValue := getParamValue("TYPE", params)
+				// possible types: AUDIO, VIDEO, SUBTITLES, CLOSED-CAPTIONS
+				if typeValue == "AUDIO" {
+					m3u.audioRenditions = append(m3u.audioRenditions, params)
+				}
 			default:
 				if slices.Contains(GENERIC_TAGS, pair.key) {
 					m3u.addPair(*pair)
@@ -195,7 +203,7 @@ func parseM3U(path string) (*M3U, error) {
 			segment.url = line
 			m3u.addSegment(segment)
 			parsingSegment = false
-			segment = newEmptySegment()
+			segment = Segment{}
 		} // else Probably garbage?
 	}
 
@@ -297,13 +305,24 @@ func getParamValue(paramKey string, params []Param) string {
 	return ""
 }
 
+// getParamValue searches params and returns the param pair of the given key or nil if not found
+func getParam(paramKey string, params []Param) *Param {
+	for i := range params {
+		pair := &params[i]
+		if pair.key == paramKey {
+			return pair
+		}
+	}
+	return nil
+}
+
 type M3U struct {
 	isMasterPlaylist bool
 	isLive           bool
-	tracks           []Track // exclusive to master playlists
-
-	attributePairs []KeyValue // key:value properties which describe the playlist
-	segments       []Segment  // Segment URLs appearing in an ordered sequence
+	tracks           []Track    // exclusive to master playlists
+	audioRenditions  [][]Param  // EXT-X-MEDIA only of TYPE=AUDIO
+	attributePairs   []KeyValue // key:value properties which describe the playlist
+	segments         []Segment  // Segment URLs appearing in an ordered sequence
 }
 
 type Segment struct {
@@ -329,12 +348,6 @@ func (segment *Segment) getAttribute(key string) string {
 	return ""
 }
 
-func newEmptySegment() Segment {
-	return Segment{
-		url: "", length: 0, attributePairs: make([]KeyValue, 0), mapUri: "",
-	}
-}
-
 func prefixUrl(prefix, url string) string {
 	if prefix == "" {
 		return url
@@ -348,7 +361,6 @@ func prefixUrl(prefix, url string) string {
 func newM3U(segmentCapacity uint32) *M3U {
 	m3u := new(M3U)
 	m3u.segments = make([]Segment, 0, segmentCapacity)
-	m3u.tracks = make([]Track, 0)
 	return m3u
 }
 
@@ -429,6 +441,13 @@ func (m3u *M3U) getBestTrack() *Track {
 
 // This method will only prefix relative URLs
 func (m3u *M3U) prefixRelativeTracks(prefix string) {
+	for i := range m3u.audioRenditions {
+		rendition := &m3u.audioRenditions[i]
+		uriParam := getParam("URI", *rendition)
+		if uriParam != nil && !isAbsolute(uriParam.value) {
+			uriParam.value = prefixUrl(prefix, uriParam.value)
+		}
+	}
 	for i := range m3u.tracks {
 		track := &m3u.tracks[i]
 		if !isAbsolute(track.url) {

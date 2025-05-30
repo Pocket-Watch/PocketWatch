@@ -896,7 +896,7 @@ func (server *Server) confirmSegment0Available(m3u *M3U, prefix, referer string)
 		segment0.url = prefixUrl(prefix, segment0.url)
 	}
 	if segment0.mapUri != "" && !isAbsolute(segment0.mapUri) {
-		segment0.url = prefixUrl(prefix, segment0.url)
+		segment0.mapUri = prefixUrl(prefix, segment0.mapUri)
 	}
 	return testGetResponse(segment0.url, referer)
 }
