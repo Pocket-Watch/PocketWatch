@@ -94,7 +94,8 @@ type YoutubeVideo struct {
 	Title       string `json:"title"`
 	Thumbnail   string `json:"thumbnail"`
 	OriginalUrl string `json:"original_url"`
-	SourceUrl   string `json:"url"`
+	AudioUrl    string `json:"audio_url"`
+	VideoUrl    string `json:"video_url"`
 }
 
 type YoutubeContent struct {
@@ -140,9 +141,9 @@ func (server *Server) preloadYoutubeSourceOnNextEntry() {
 	if !ok {
 		return
 	}
-	
+
 	nextEntry.Thumbnail = video.Thumbnail
-	nextEntry.SourceUrl = video.SourceUrl
+	nextEntry.SourceUrl = video.AudioUrl
 
 	server.state.mutex.Lock()
 	if len(server.state.playlist) == 0 {
@@ -259,7 +260,7 @@ type InternalServerFetch struct {
 }
 
 func fetchVideoWithInternalServer(query string) (bool, YoutubeVideo) {
-	data := InternalServerFetch {
+	data := InternalServerFetch{
 		Query: query,
 	}
 
@@ -349,7 +350,7 @@ func (server *Server) loadYoutubeEntry(entry *Entry, requested RequestEntry) {
 
 	entry.Url = video.OriginalUrl
 	entry.Title = video.Title
-	entry.SourceUrl = video.SourceUrl
+	entry.SourceUrl = video.AudioUrl
 	entry.Thumbnail = video.Thumbnail
 
 	if requested.SearchVideo {
