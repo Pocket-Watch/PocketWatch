@@ -13,7 +13,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime/debug"
 	"slices"
 	"strconv"
 	"strings"
@@ -339,11 +338,12 @@ func (server *Server) HandleEndpoint(mux *http.ServeMux, endpoint string, endpoi
 	genericHandler := func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				// NOTE(kihau): A custom stack trace format could be interesting.
-				stack := strings.TrimSpace(string(debug.Stack()))
-				LogFatal("Panic in endpoint handler for %v serving %v: %v\n%v", endpoint, r.RemoteAddr, err, stack)
+				LogFatalUp(2, "Panic in endpoint handler for %v serving %v: %v", endpoint, r.RemoteAddr, err)
+				// stack := strings.TrimSpace(string(debug.Stack()))
+				// LogFatalUp(2, "Panic in endpoint handler for %v serving %v: %v\n%v", endpoint, r.RemoteAddr, err, stack)
 			}
 		}()
+
 
 		if r.Method != method {
 			errMsg := fmt.Sprintf("Method not allowed. %v was expected.", method)

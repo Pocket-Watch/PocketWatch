@@ -143,8 +143,46 @@ func EnableConsoleLogging() {
 	logger.logToConsole.Store(true)
 }
 
+func printStackTrace(skip int) {
+	callers := [1024]uintptr{}
+	count := runtime.Callers(skip + 3, callers[:])
+
+	date := time.Now().Format("02 Jan 2006 15:04:05.00")
+	maxName := 0
+
+	for i := 0; i < count - 1; i += 1 {
+		callerFunc := runtime.FuncForPC(callers[i])
+		funcname   := callerFunc.Name()
+		if len(funcname) > maxName {
+			maxName = len(funcname)
+		}
+	}
+
+	maxName += 1
+
+	for i := 0; i < count - 1; i += 1 {
+		callerFunc := runtime.FuncForPC(callers[i])
+
+		funcname := callerFunc.Name()
+		filepath, line := callerFunc.FileLine(callerFunc.Entry())
+
+		filename := path.Base(filepath)
+		codeLocation := fmt.Sprintf("%v:%v", filename, line)
+
+		levelString := LogLevelToString(LOG_FATAL)
+
+		if logger.printColors {
+			levelColor := LogLevelColor(LOG_FATAL)
+			fmt.Printf("%v[%v] %v[%-16s] %v[%v]%v   at %-*v %v:%v\n", COLOR_GREEN_LIGHT, date, COLOR_CYAN, codeLocation, levelColor, levelString, COLOR_RESET, maxName, funcname, filepath, line)
+		} else {
+			fmt.Printf("[%v] [%-16s] [%v]   at %-*v %v:%v\n", date, codeLocation, levelString, maxName, funcname, filepath, line)
+		}
+	}
+}
+
 func LogFatal(format string, args ...any) {
 	logOutput(LOG_FATAL, 0, format, args...)
+	printStackTrace(0)
 }
 
 func LogError(format string, args ...any) {
@@ -165,6 +203,7 @@ func LogDebug(format string, args ...any) {
 
 func LogFatalUp(stackUp int, format string, args ...any) {
 	logOutput(LOG_FATAL, stackUp, format, args...)
+	printStackTrace(stackUp)
 }
 
 func LogErrorUp(stackUp int, format string, args ...any) {
@@ -179,7 +218,7 @@ func LogInfoUp(stackUp int, format string, args ...any) {
 	logOutput(LOG_INFO, stackUp, format, args...)
 }
 
-func LbgDebugUp(stackUp int, format string, args ...any) {
+func LogDebugUp(stackUp int, format string, args ...any) {
 	logOutput(LOG_DEBUG, stackUp, format, args...)
 }
 
