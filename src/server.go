@@ -950,8 +950,13 @@ func (server *Server) watchProxy(writer http.ResponseWriter, request *http.Reque
 	urlPath := request.URL.Path
 	chunk := path.Base(urlPath)
 
-	if server.state.isHls {
-		if server.state.isLive {
+	server.state.setupLock.Lock()
+	isHls := server.state.isHls
+	isLive := server.state.isLive
+	server.state.setupLock.Unlock()
+
+	if isHls {
+		if isLive {
 			server.serveHlsLive(writer, request, chunk)
 		} else {
 			server.serveHlsVod(writer, request, chunk)
