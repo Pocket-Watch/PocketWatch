@@ -842,40 +842,40 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 	m3u.prefixRelativeSegments(prefix)
 
 	server.state.isHls = true
-	server.state.proxy = &HlsProxy{}
-	var result bool
+	var newProxy *HlsProxy
 	if m3u.isLive {
 		server.state.isLive = true
-		result = server.setupLiveProxy(url, referer)
+		newProxy = server.setupLiveProxy(url, referer)
 	} else {
 		server.state.isLive = false
-		result = server.setupVodProxy(m3u, referer)
+		newProxy = server.setupVodProxy(m3u, referer)
 	}
+	server.state.proxy = newProxy
 	duration := time.Since(start)
 	LogDebug("Time taken to setup proxy: %v", duration)
-	return result
+	return true
 }
 
-func (server *Server) setupLiveProxy(liveUrl string, referer string) bool {
-	proxy := server.state.proxy
+func (server *Server) setupLiveProxy(liveUrl string, referer string) *HlsProxy {
+	proxy := HlsProxy{}
 	proxy.referer = referer
 	proxy.liveUrl = liveUrl
 	proxy.liveSegments.Clear()
 	proxy.randomizer.Store(0)
-	return true
+	return &proxy
 }
 
-func (server *Server) setupVodProxy(m3u *M3U, referer string) bool {
-	proxy := server.state.proxy
+func (server *Server) setupVodProxy(m3u *M3U, referer string) *HlsProxy {
+	proxy := HlsProxy{}
 	segmentCount := len(m3u.segments)
 
 	proxy.referer = referer
 	proxy.chunkLocks = make([]sync.Mutex, segmentCount)
 	proxy.fetchedChunks = make([]bool, segmentCount)
-	proxy.originalChunks = make([]string, 0, segmentCount)
+	proxy.originalChunks = make([]string, segmentCount)
 	for i := range segmentCount {
 		segment := &m3u.segments[i]
-		proxy.originalChunks = append(proxy.originalChunks, segment.url)
+		proxy.originalChunks[i] = segment.url
 
 		chunkName := "ch-" + toString(i)
 		segment.url = chunkName
@@ -883,7 +883,7 @@ func (server *Server) setupVodProxy(m3u *M3U, referer string) bool {
 
 	m3u.serialize(WEB_PROXY + PROXY_M3U8)
 	LogDebug("Prepared VOD proxy file.")
-	return true
+	return &proxy
 }
 
 func (server *Server) confirmSegment0Available(m3u *M3U, prefix, referer string) bool {

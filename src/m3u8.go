@@ -522,20 +522,29 @@ func (m3u *M3U) serializeMasterPlaylist(file *os.File) {
 			output.WriteString("#" + pair.key + ":" + pair.value + "\n")
 		}
 	}
-
+	output.WriteByte('\n')
+	for i := range m3u.audioRenditions {
+		output.WriteString("#EXT-X-MEDIA:")
+		writeParams(&output, m3u.audioRenditions[i])
+		output.WriteByte('\n')
+	}
 	for _, track := range m3u.tracks {
 		output.WriteString("#EXT-X-STREAM-INF:")
-		for i, param := range track.streamInfo {
-			output.WriteString(param.String())
-			if i == len(track.streamInfo)-1 {
-				break
-			}
-			output.WriteString(",")
-		}
-		output.WriteString("\n")
-		output.WriteString(track.url + "\n")
+		writeParams(&output, track.streamInfo)
+		output.WriteString("\n" + track.url + "\n")
 	}
 	file.WriteString(output.String())
+}
+
+func writeParams(output *strings.Builder, params []Param) {
+	length := len(params)
+	for i := range length {
+		output.WriteString(params[i].String())
+		if i == length-1 {
+			break
+		}
+		output.WriteString(",")
+	}
 }
 
 func (m3u *M3U) serializePlaylist(file *os.File) {
@@ -574,7 +583,7 @@ func (m3u *M3U) serializePlaylist(file *os.File) {
 				output.WriteString("#" + segPair.key + ":" + segPair.value + "\n")
 			}
 		}
-		extInf := fmt.Sprintf("#EXTINF:%v,\n", seg.length)
+		extInf := fmt.Sprintf("#EXTINF:%v\n", seg.length)
 		output.WriteString(extInf)
 		output.WriteString(seg.url + "\n")
 	}
