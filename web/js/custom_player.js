@@ -171,6 +171,14 @@ class Player {
         return this.internals.getSubtitleShiftByUrl(url);
     }
 
+    fitVideoToScreen() {
+        this.internals.fitVideoToScreen();
+    }
+
+    stretchVideoToScreen() {
+        this.internals.stretchVideoToScreen();
+    }
+
     destroyPlayer() {
         if (!this.internals) {
             return;
@@ -435,6 +443,8 @@ class Internals {
         this.subtitleFgColor = new ColorPicker("Foreground color", DEFAULT_SUBTITLE_FOREGROUND_COLOR, DEFAULT_SUBTITLE_FOREGROUND_OPACITY);
         this.subtitleBgColor = new ColorPicker("Background color", DEFAULT_SUBTITLE_BACKGROUND_COLOR, DEFAULT_SUBTITLE_BACKGROUND_OPACITY);
         this.playbackSpeed   = new Slider("Playback speed", 0.25, 5.0, 0.25, 1.0, "x");
+        this.fitToScreen     = new Switcher("Fit video to screen");
+        this.stretchToScreen = new Switcher("Stretch video to screen");
 
         // 
         // Adjusting the HTML elements.
@@ -1844,6 +1854,24 @@ class Internals {
         }
     }
 
+    fitVideoToScreen() {
+        this.stretchToScreen.setState(false);
+        this.htmlVideo.classList.remove("stretch");
+
+        this.fitToScreen.setState(true);
+        this.htmlVideo.classList.add("fit");
+        this.fireSettingsChange(Options.VIDEO_FIT, "fit");
+    }
+
+    stretchVideoToScreen() {
+        this.fitToScreen.setState(false);
+        this.htmlVideo.classList.remove("fit");
+
+        this.stretchToScreen.setState(true);
+        this.htmlVideo.classList.add("stretch");
+        this.fireSettingsChange(Options.VIDEO_FIT, "stretch");
+    }
+
     createHtmlControls() {
         this.assembleProgressBar();
         this.assembleControlButtons();
@@ -2009,8 +2037,8 @@ class Internals {
         let showOnPause     = new Switcher("Show controls on pause");
         let playbackSpeed   = this.playbackSpeed;
         let brightness      = new Slider("Brightness", 0.2, 2, 0.05, 1.0);
-        let fitToScreen     = new Switcher("Fit video to screen");
-        let stretchToScreen = new Switcher("Stretch video to screen");
+        let fitToScreen     = this.fitToScreen;
+        let stretchToScreen = this.stretchToScreen;
 
         let selectedTab  = generalTab;
         let selectedView = generalView;
@@ -2063,16 +2091,30 @@ class Internals {
             this.fireSettingsChange(Options.BRIGHTNESS, value);
         };
 
-        fitToScreen.onAction = _ => {
+        fitToScreen.onAction = enable => {
             stretchToScreen.setState(false);
             this.htmlVideo.classList.remove("stretch");
-            this.htmlVideo.classList.toggle("fit");
+
+            if (enable) {
+                this.htmlVideo.classList.add("fit");
+                this.fireSettingsChange(Options.VIDEO_FIT, "fit");
+            } else {
+                this.htmlVideo.classList.remove("fit");
+                this.fireSettingsChange(Options.VIDEO_FIT, "none");
+            }
         };
 
-        stretchToScreen.onAction = _ => {
+        stretchToScreen.onAction = enable => {
             fitToScreen.setState(false);
             this.htmlVideo.classList.remove("fit");
-            this.htmlVideo.classList.toggle("stretch");
+
+            if (enable) {
+                this.htmlVideo.classList.add("stretch");
+                this.fireSettingsChange(Options.VIDEO_FIT, "stretch");
+            } else {
+                this.htmlVideo.classList.remove("stretch");
+                this.fireSettingsChange(Options.VIDEO_FIT, "none");
+            }
         };
 
         menuRoot.append(menuTabs); {
@@ -2784,6 +2826,7 @@ class Options {
     static ALWAYS_SHOW_CONTROLS        = "always_show_controls";
     static SHOW_CONTROLS_ON_PAUSE      = "show_controls_on_pause";
     static BRIGHTNESS                  = "brightness";
+    static VIDEO_FIT                   = "video_fit";
     static PLAYBACK_SPEED              = "playback_speed";
     static SUBTITLES_ENABLED           = "subtitles_enabled";
     static SUBTITLE_FONT_SIZE          = "subtitle_font_size";

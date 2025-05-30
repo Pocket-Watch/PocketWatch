@@ -355,9 +355,13 @@ func (server *Server) HandleEndpoint(mux *http.ServeMux, endpoint string, endpoi
 			return
 		}
 
-		endpointTrim := strings.TrimPrefix(endpoint, "/watch/api/")
-		requested := strings.ReplaceAll(endpointTrim, "/", " ")
-		LogInfo("Connection %s requested %v.", r.RemoteAddr, requested)
+		// NOTE(kihau): Hack to prevent console spam on proxy.
+		if PROXY_ROUTE != endpoint {
+			endpointTrim := strings.TrimPrefix(endpoint, "/watch/api/")
+			requested := strings.ReplaceAll(endpointTrim, "/", " ")
+			LogInfo("Connection %s requested %v.", r.RemoteAddr, requested)
+		}
+
 		endpointHandler(w, r)
 	}
 

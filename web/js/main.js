@@ -264,8 +264,15 @@ class Room {
         
         let bgColor = Storage.get(Options.SUBTITLE_BACKGROUND_COLOR);
         let bgOpacity = Storage.get(Options.SUBTITLE_BACKGROUND_OPACITY);
-        if (bgColor != null, bgOpacity != null) {
+        if (bgColor != null && bgOpacity != null) {
             this.player.setSubtitleBackgroundColor(bgColor, bgOpacity);
+        }
+
+        let videoFit = Storage.get(Options.VIDEO_FIT);
+        if (videoFit === "fit") {
+            this.player.fitVideoToScreen();
+        } else if (videoFit === "stretch") {
+            this.player.stretchVideoToScreen();
         }
     }
 
@@ -315,6 +322,7 @@ class Room {
                     Storage.setBool(key, value);
                     break;
 
+                case Options.VIDEO_FIT:
                 case Options.SUBTITLE_FONT_SIZE:
                 case Options.SUBTITLE_VERTICAL_POSITION:
                 case Options.SUBTITLE_FOREGROUND_COLOR:
