@@ -136,17 +136,11 @@ func (server *Server) preloadYoutubeSourceOnNextEntry() {
 	}
 
 	LogInfo("Preloading youtube source for an entry with an ID: %v", nextEntry.Id)
-	command := exec.Command("yt-dlp", nextEntry.Url, "--playlist-items", "1", "--format", "234", "--print", "%(.{id,title,thumbnail,original_url,url})j")
-	output, err := command.Output()
-
-	if err != nil {
-		LogError("Failed to get output from the yt-dlp command: %v", err)
+	ok, video := fetchYoutubeVideo(nextEntry.Url)
+	if !ok {
 		return
 	}
-
-	var video YoutubeVideo
-	json.Unmarshal(output, &video)
-
+	
 	nextEntry.Thumbnail = video.Thumbnail
 	nextEntry.SourceUrl = video.SourceUrl
 
@@ -303,8 +297,28 @@ func fetchVideoWithYtdlp(query string) (bool, YoutubeVideo) {
 	}
 
 	var video YoutubeVideo
-	json.Unmarshal(output, &video)
-	return true, YoutubeVideo{}
+	err = json.Unmarshal(output, &video)
+	if err != nil {
+		LogError("Failed to unmarshal yt-dlp output json: %v", err)
+		return false, YoutubeVideo{}
+	}
+
+	return true, video
+}
+
+func fetchYoutubeVideo(query string) (bool, YoutubeVideo) {
+	ok, video := fetchVideoWithInternalServer(query)
+	if ok {
+		return true, video
+	}
+
+	LogWarn("Internal server video fetch failed. Falling back to yt-dlp command fetch.")
+	ok, video = fetchVideoWithYtdlp(query)
+	if ok {
+		return true, video
+	}
+
+	return false, YoutubeVideo{}
 }
 
 func (server *Server) loadYoutubeEntry(entry *Entry, requested RequestEntry) {
@@ -328,13 +342,9 @@ func (server *Server) loadYoutubeEntry(entry *Entry, requested RequestEntry) {
 		LogInfo("Loading youtube entry with url: %v.", entry.Url)
 	}
 
-	ok, video := fetchVideoWithInternalServer(query)
+	ok, video := fetchYoutubeVideo(query)
 	if !ok {
-		ok, video = fetchVideoWithYtdlp(query)
-
-		if !ok {
-			return
-		}
+		return
 	}
 
 	entry.Url = video.OriginalUrl
