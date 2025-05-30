@@ -877,6 +877,17 @@ class Playlist {
             document.addEventListener("mouseup",   onDraggingStop);
         };
 
+        entryTitle.onkeydown = event => {
+            if (event.key === "Enter" && this.isEditingEntry) {
+                this.toggleEntryEdit(entryRoot, entry)
+            }
+        };
+
+        entryUrl.onkeydown = event => {
+            if (event.key === "Enter" && this.isEditingEntry) {
+                this.toggleEntryEdit(entryRoot, entry)
+            }
+        };
 
         entryThumbnail.onclick = _ => this.requestPlaylistPlay(entryRoot);
         editButton.onclick     = _ => this.toggleEntryEdit(entryRoot, entry);

@@ -406,7 +406,6 @@ class Room {
         // NOTE(kihau): This is a hack to fix autoplay issue with HLS sources.
         this.player.onDataLoad(_ => {
             if (this.playlist.autoplayEnabled) {
-                console.debug("fired onSourceLoaded with autoplay enabled.")
                 this.player.play();
             }
         });
