@@ -846,15 +846,15 @@ class Internals {
     }
 
     setTitle(title) {
-        if (!title) {
-            hide(this.htmlTitleContainer);
-        } else {
+        if (title) {
             if (title.length > MAX_TITLE_LENGTH) {
                 title = title.substring(0, MAX_TITLE_LENGTH);
             }
 
             show(this.htmlTitleContainer);
             this.htmlTitleText.textContent = title;
+        } else {
+            hide(this.htmlTitleContainer);
         }
     }
 

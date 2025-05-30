@@ -112,6 +112,8 @@ type ServerState struct {
 }
 
 type HlsProxy struct {
+	// Common
+	referer string
 	// HLS proxy
 	chunkLocks     []sync.Mutex
 	fetchedChunks  []bool
@@ -133,6 +135,7 @@ type GenericProxy struct {
 	download            *http.Response
 	downloadMutex       sync.Mutex
 	downloadBeginOffset int64
+	referer             string
 }
 
 type Connection struct {

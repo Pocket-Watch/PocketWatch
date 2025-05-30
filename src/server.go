@@ -700,6 +700,7 @@ func (server *Server) setupGenericFileProxy(url string, referer string) bool {
 	server.state.isHls = false
 
 	proxy := &server.state.genericProxy
+	proxy.referer = referer
 	proxy.fileUrl = url
 	proxy.contentLength = size
 	proxy.extensionWithDot = path.Ext(parsedUrl.Path)
@@ -841,43 +842,43 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 	var result bool
 	if m3u.isLive {
 		server.state.isLive = true
-		result = server.setupLiveProxy(url)
+		result = server.setupLiveProxy(url, referer)
 	} else {
 		server.state.isLive = false
-		result = server.setupVodProxy(m3u)
+		result = server.setupVodProxy(m3u, referer)
 	}
 	duration := time.Since(start)
 	LogDebug("Time taken to setup proxy: %v", duration)
 	return result
 }
 
-func (server *Server) setupLiveProxy(liveUrl string) bool {
+func (server *Server) setupLiveProxy(liveUrl string, referer string) bool {
 	proxy := server.state.proxy
+	proxy.referer = referer
 	proxy.liveUrl = liveUrl
 	proxy.liveSegments.Clear()
 	proxy.randomizer.Store(0)
 	return true
 }
 
-func (server *Server) setupVodProxy(m3u *M3U) bool {
+func (server *Server) setupVodProxy(m3u *M3U, referer string) bool {
 	proxy := server.state.proxy
 	segmentCount := len(m3u.segments)
 
-	proxy.chunkLocks = make([]sync.Mutex, 0, segmentCount)
+	proxy.referer = referer
+	proxy.chunkLocks = make([]sync.Mutex, segmentCount)
+	proxy.fetchedChunks = make([]bool, segmentCount)
 	proxy.originalChunks = make([]string, 0, segmentCount)
-	proxy.fetchedChunks = make([]bool, 0, segmentCount)
 	for i := range segmentCount {
 		segment := &m3u.segments[i]
-		proxy.chunkLocks = append(proxy.chunkLocks, sync.Mutex{})
 		proxy.originalChunks = append(proxy.originalChunks, segment.url)
-		proxy.fetchedChunks = append(proxy.fetchedChunks, false)
 
 		chunkName := "ch-" + toString(i)
 		segment.url = chunkName
 	}
 
 	m3u.serialize(WEB_PROXY + PROXY_M3U8)
-	LogDebug("Prepared proxy file %v", PROXY_M3U8)
+	LogDebug("Prepared VOD proxy file.")
 	return true
 }
 
@@ -980,7 +981,7 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 			return
 		}
 
-		liveM3U, err := downloadM3U(proxy.liveUrl, WEB_PROXY+ORIGINAL_M3U8, server.state.entry.RefererUrl)
+		liveM3U, err := downloadM3U(proxy.liveUrl, WEB_PROXY+ORIGINAL_M3U8, proxy.referer)
 		var downloadErr *DownloadError
 		if errors.As(err, &downloadErr) {
 			LogError("Download error of the live url [%v] %v", proxy.liveUrl, err.Error())
@@ -1038,7 +1039,7 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 		http.ServeFile(writer, request, WEB_PROXY+chunk)
 		return
 	}
-	fetchErr := downloadFile(fetchedChunk.realUrl, WEB_PROXY+chunk, server.state.entry.RefererUrl)
+	fetchErr := downloadFile(fetchedChunk.realUrl, WEB_PROXY+chunk, proxy.referer)
 	if fetchErr != nil {
 		mutex.Unlock()
 		LogError("Failed to fetch live chunk %v", fetchErr)
@@ -1118,7 +1119,7 @@ func (server *Server) serveHlsVod(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 
-	fetchErr := downloadFile(proxy.originalChunks[chunkId], WEB_PROXY+chunk, server.state.entry.RefererUrl)
+	fetchErr := downloadFile(proxy.originalChunks[chunkId], WEB_PROXY+chunk, proxy.referer)
 	if fetchErr != nil {
 		mutex.Unlock()
 		LogError("Failed to fetch chunk %v", fetchErr)
@@ -1173,7 +1174,7 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 	proxy.downloadMutex.Lock()
 	if proxy.downloadBeginOffset != byteRange.start {
 		proxy.downloadBeginOffset = byteRange.start
-		response, err := openFileDownload(proxy.fileUrl, byteRange.start, server.state.entry.RefererUrl)
+		response, err := openFileDownload(proxy.fileUrl, byteRange.start, proxy.referer)
 		if err != nil {
 			http.Error(writer, "Unable to open file download", 500)
 			return
