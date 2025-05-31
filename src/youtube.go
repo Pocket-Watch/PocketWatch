@@ -194,20 +194,8 @@ func (server *Server) loadYoutubePlaylist(query string, videoId string, userId u
 	}
 
 	query = url.String()
-	end := fmt.Sprintf("%d", size)
-	command := exec.Command("yt-dlp", query, "--flat-playlist", "--playlist-start", "2", "--playlist-end", end, "--dump-single-json")
-	output, err := command.Output()
-
-	if err != nil {
-		LogError("Failed to get output from the yt-dlp command: %v", err)
-		return
-	}
-
-	var playlist YoutubePlaylist
-	json.Unmarshal(output, &playlist)
-
-	if len(playlist.Entries) == 0 {
-		LogError("Deserialized yt-dlp array for url '%v' is empty", query)
+	ok, playlist := fetchYoutubePlaylist(query, 2, size)
+	if !ok {
 		return
 	}
 
@@ -255,12 +243,18 @@ func (server *Server) loadYoutubePlaylist(query string, videoId string, userId u
 	go server.preloadYoutubeSourceOnNextEntry()
 }
 
-type InternalServerFetch struct {
+type InternalServerVideoFetch struct {
 	Query string `json:"query"`
 }
 
+type InternalServerPlaylistFetch struct {
+	Query string `json:"query"`
+	Start uint    `json:"start"`
+	End   uint    `json:"end"`
+}
+
 func fetchVideoWithInternalServer(query string) (bool, YoutubeVideo) {
-	data := InternalServerFetch{
+	data := InternalServerVideoFetch{
 		Query: query,
 	}
 
@@ -320,6 +314,78 @@ func fetchYoutubeVideo(query string) (bool, YoutubeVideo) {
 	}
 
 	return false, YoutubeVideo{}
+}
+
+func fetchPlaylistWithInternalServer(query string, start uint, end uint) (bool, YoutubePlaylist) {
+	data := InternalServerPlaylistFetch{
+		Query: query,
+		Start: start,
+		End: end,
+	}
+
+	request, err := json.Marshal(data)
+	if err != nil {
+		LogError("Failed to marshal JSON request data for the internal server: %v", err)
+		return false, YoutubePlaylist{}
+	}
+
+	response, nil := http.Post("http://localhost:2345/youtube/playlist", "application/json", bytes.NewBuffer(request))
+	if err != nil {
+		LogError("Request POST to the internal server failed: %v", err)
+		return false, YoutubePlaylist{}
+	}
+	defer response.Body.Close()
+
+	var playlist YoutubePlaylist
+	responseData, err := io.ReadAll(response.Body)
+	if err != nil {
+		LogError("Failed to unmarshal playlist data from the internal server: %v", err)
+		return false, YoutubePlaylist{}
+	}
+
+	json.Unmarshal(responseData, &playlist)
+	return true, playlist
+}
+
+func fetchPlaylistWithYtdlp(query string, start uint, end uint) (bool, YoutubePlaylist) {
+	startArg := fmt.Sprint(start)
+	endArg := fmt.Sprint(end)
+	command := exec.Command("yt-dlp", query, "--flat-playlist", "--playlist-start", startArg, "--playlist-end", endArg, "--dump-single-json")
+	output, err := command.Output()
+
+	if err != nil {
+		LogError("Failed to get output from the yt-dlp command: %v", err)
+		return false, YoutubePlaylist{}
+	}
+
+	var playlist YoutubePlaylist
+	err = json.Unmarshal(output, &playlist)
+	if err != nil {
+		LogError("Failed to unmarshal yt-dlp output json: %v", err)
+		return false, YoutubePlaylist{}
+	}
+
+	if len(playlist.Entries) == 0 {
+		LogError("Deserialized yt-dlp array for url '%v' is empty", query)
+		return false, YoutubePlaylist{}
+	}
+
+	return true, playlist
+}
+
+func fetchYoutubePlaylist(query string, start uint, end uint) (bool, YoutubePlaylist) {
+	ok, playlist := fetchPlaylistWithInternalServer(query, start, end)
+	if ok {
+		return true, playlist
+	}
+
+	LogWarn("Internal server playlist fetch failed. Falling back to yt-dlp command fetch.")
+	ok, playlist = fetchPlaylistWithYtdlp(query, start, end)
+	if ok {
+		return true, playlist
+	}
+
+	return false, YoutubePlaylist{}
 }
 
 func (server *Server) loadYoutubeEntry(entry *Entry, requested RequestEntry) {
