@@ -412,23 +412,19 @@ func (m3u *M3U) getBestTrack() *Track {
 	}
 	var bestTrack *Track = nil
 	var bestWidth int64 = 0
-	for _, track := range m3u.tracks {
+	for i := range m3u.tracks {
+		track := &m3u.tracks[i]
 		res := getParamValue("RESOLUTION", track.streamInfo)
 		if res == "" {
 			continue
 		}
-		res = strings.ToLower(res)
-		x := strings.Index(res, "x")
-		if x == -1 {
+		success, width, _ := parseResolution(res)
+		if !success {
 			continue
 		}
-		vidWidth, err := strconv.ParseInt(res[:x], 10, 32)
-		if err != nil {
-			continue
-		}
-		if vidWidth > bestWidth {
-			bestWidth = vidWidth
-			bestTrack = &track
+		if width > bestWidth {
+			bestWidth = width
+			bestTrack = track
 		}
 	}
 	if bestTrack == nil {
@@ -437,6 +433,59 @@ func (m3u *M3U) getBestTrack() *Track {
 		return &m3u.tracks[length-1]
 	}
 	return bestTrack
+}
+
+// Targets given height but if one is not found defaults to lower available quality.
+// this method should only be used if the m3u is a master playlist
+func (m3u *M3U) getTrackByVideoHeight(targetHeight int64) *Track {
+	if len(m3u.tracks) == 0 {
+		return nil
+	}
+	var targetTrack *Track = nil
+	var maxHeight int64
+	for i := range m3u.tracks {
+		track := &m3u.tracks[i]
+		res := getParamValue("RESOLUTION", track.streamInfo)
+		if res == "" {
+			continue
+		}
+		success, _, height := parseResolution(res)
+		if !success {
+			continue
+		}
+		if height == targetHeight {
+			return track
+		}
+		if height < targetHeight && height > maxHeight {
+			maxHeight = height
+			targetTrack = track
+		}
+	}
+	if targetTrack == nil {
+		// If none match return first
+		return &m3u.tracks[0]
+	}
+	return targetTrack
+}
+
+type Width = int64
+type Height = int64
+
+func parseResolution(res string) (bool, Width, Height) {
+	res = strings.ToLower(res)
+	x := strings.Index(res, "x")
+	if x == -1 {
+		return false, 0, 0
+	}
+	width, err := strconv.ParseInt(res[:x], 10, 32)
+	if err != nil {
+		return false, 0, 0
+	}
+	height, err := strconv.ParseInt(res[x+1:], 10, 32)
+	if err != nil {
+		return false, 0, 0
+	}
+	return true, width, height
 }
 
 // This method will only prefix relative URLs

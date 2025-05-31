@@ -743,7 +743,7 @@ type MediaPlaylist struct {
 func setupDualTrackProxy(originalM3U *M3U, referer string, masterUrl *net_url.URL) (bool, *HlsProxy, *HlsProxy) {
 	prefix := stripLastSegment(masterUrl)
 	originalM3U.prefixRelativeTracks(prefix)
-	bestTrack := originalM3U.getBestTrack()
+	bestTrack := originalM3U.getTrackByVideoHeight(1080)
 	if bestTrack == nil {
 		return false, nil, nil
 	}
