@@ -372,7 +372,7 @@ export async function playlistPlay(entryId, index) {
     };
 
     console.info("INFO: Sending playlist play request.");
-    httpPost("/watch/api/playlist/play", payload);
+    return await httpPost("/watch/api/playlist/play", payload);
 }
 
 export async function playlistAdd(requestEntry) {
@@ -382,12 +382,12 @@ export async function playlistAdd(requestEntry) {
     };
 
     console.info("INFO: Sending playlist add request for entry: ", payload);
-    httpPost("/watch/api/playlist/add", payload);
+    return await httpPost("/watch/api/playlist/add", payload);
 }
 
 export async function playlistClear() {
     console.info("INFO: Sending playlist clear request.");
-    httpPost("/watch/api/playlist/clear", connectionId);
+    return await httpPost("/watch/api/playlist/clear", connectionId);
 }
 
 export async function playlistRemove(entryId, index) {
@@ -398,12 +398,12 @@ export async function playlistRemove(entryId, index) {
     };
 
     console.info("INFO: Sending playlist remove request.");
-    httpPost("/watch/api/playlist/remove", payload);
+    return await httpPost("/watch/api/playlist/remove", payload);
 }
 
 export async function playlistShuffle() {
     console.info("INFO: Sending playlist shuffle request.");
-    httpPost("/watch/api/playlist/shuffle", null);
+    return await httpPost("/watch/api/playlist/shuffle", null);
 }
 
 export async function playlistMove(entryId, source, dest) {
@@ -415,7 +415,7 @@ export async function playlistMove(entryId, source, dest) {
     }
 
     console.info("INFO: Sending playlist move request with: ", payload);
-    httpPost("/watch/api/playlist/move", payload);
+    return await httpPost("/watch/api/playlist/move", payload);
 }
 
 export async function playlistUpdate(entry) {
@@ -426,7 +426,7 @@ export async function playlistUpdate(entry) {
     }
 
     console.info("INFO: Sending playlist update request for entry id:", entry);
-    httpPost("/watch/api/playlist/update", payload);
+    return await httpPost("/watch/api/playlist/update", payload);
 }
 
 export async function historyGet() {
@@ -436,7 +436,7 @@ export async function historyGet() {
 
 export async function historyClear() {
     console.info("INFO: Sending history clear request.");
-    httpPost("/watch/api/history/clear", null);
+    return await httpPost("/watch/api/history/clear", null);
 }
 
 // CHAT requests

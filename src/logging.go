@@ -145,14 +145,14 @@ func EnableConsoleLogging() {
 
 func printStackTrace(skip int) {
 	callers := [1024]uintptr{}
-	count := runtime.Callers(skip + 3, callers[:])
+	count := runtime.Callers(skip+3, callers[:])
 
 	date := time.Now().Format("02 Jan 2006 15:04:05.00")
 	maxName := 0
 
-	for i := 0; i < count - 1; i += 1 {
+	for i := 0; i < count-1; i += 1 {
 		callerFunc := runtime.FuncForPC(callers[i])
-		funcname   := callerFunc.Name()
+		funcname := callerFunc.Name()
 		if len(funcname) > maxName {
 			maxName = len(funcname)
 		}
@@ -160,7 +160,7 @@ func printStackTrace(skip int) {
 
 	maxName += 1
 
-	for i := 0; i < count - 1; i += 1 {
+	for i := 0; i < count-1; i += 1 {
 		callerFunc := runtime.FuncForPC(callers[i])
 
 		funcname := callerFunc.Name()

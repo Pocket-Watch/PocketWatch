@@ -249,8 +249,8 @@ type InternalServerVideoFetch struct {
 
 type InternalServerPlaylistFetch struct {
 	Query string `json:"query"`
-	Start uint    `json:"start"`
-	End   uint    `json:"end"`
+	Start uint   `json:"start"`
+	End   uint   `json:"end"`
 }
 
 func fetchVideoWithInternalServer(query string) (bool, YoutubeVideo) {
@@ -320,7 +320,7 @@ func fetchPlaylistWithInternalServer(query string, start uint, end uint) (bool, 
 	data := InternalServerPlaylistFetch{
 		Query: query,
 		Start: start,
-		End: end,
+		End:   end,
 	}
 
 	request, err := json.Marshal(data)
@@ -416,7 +416,7 @@ func (server *Server) loadYoutubeEntry(entry *Entry, requested RequestEntry) {
 
 	entry.Url = video.OriginalUrl
 	entry.Title = video.Title
-	entry.SourceUrl = video.AudioUrl
+	entry.SourceUrl = video.VideoUrl
 	entry.Thumbnail = video.Thumbnail
 
 	if requested.SearchVideo {

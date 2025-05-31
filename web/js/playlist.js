@@ -377,10 +377,6 @@ class Playlist {
         this.entries       = [];
         this.expandedEntry = null;
 
-        this.draggableEntry    = null;
-        this.dragStartIndex    = -1;
-        this.dragCurrentIndex  = -1;
-
         this.hideContextMenu();
         this.updateFooter();
     }
@@ -623,8 +619,12 @@ class Playlist {
         }
 
         let entry = this.entries[sourceIndex];
-        let _TODO_handle_this_error = api.playlistMove(entry.id, sourceIndex, destIndex);
-        this.move(sourceIndex, destIndex);
+        let response = api.playlistMove(entry.id, sourceIndex, destIndex)
+        response.then(async  result => {
+            if (result.ok) {
+                this.move(sourceIndex, destIndex);
+            }  
+        });
     }
 
     startScrollingUp() {
@@ -671,6 +671,10 @@ class Playlist {
     }
 
     moveDraggedEntry(positionY) {
+        if (!this.draggableEntry) {
+            return;
+        }
+
         let listRect   = this.htmlEntryList.getBoundingClientRect();
         let top        = positionY - listRect.top - this.draggableEntryMouseOffset;
         let maxPos     = this.indexToPosition(this.htmlEntries.length - 2);
@@ -691,16 +695,18 @@ class Playlist {
     }
 
     stopEntryDragging(htmlEntry) {
+        if (!this.draggableEntry) {
+            return;
+        }
+
         clearTimeout(this.shadowedEntryMoveTimout);
         this.moveShadowedEntry();
         this.stopScrolling();
-
 
         let entryRect = this.draggableEntry.getBoundingClientRect();
         let listRect  = this.htmlEntryList.getBoundingClientRect();
         let listScroll = this.htmlEntryList.scrollTop;
         let entryTop = entryRect.top - listRect.top + listScroll;
-
 
         this.draggableEntry.classList.remove("draggable");
         this.draggableEntry.style.top = entryTop + "px";
@@ -721,9 +727,9 @@ class Playlist {
                 htmlEntry.classList.remove("shadow");
             };
         }
+
         this.draggableEntry            = null;
         this.draggableEntryMouseOffset = 0; 
-
 
         if (this.dragStartIndex !== this.dragCurrentIndex) {
             let entry = this.entries[this.dragCurrentIndex];
@@ -731,7 +737,32 @@ class Playlist {
         }
     }
 
+    cancelEntryDragging() {
+        if (!this.draggableEntry) {
+            return;
+        }
+
+        clearTimeout(this.shadowedEntryMoveTimout);
+        this.stopScrolling();
+
+        this.htmlEntryList.removeChild(this.draggableEntry);
+
+        let htmlEntry = this.htmlEntries[this.dragCurrentIndex];
+        htmlEntry.classList.remove("shadow")
+
+        this.move(this.dragCurrentIndex, this.dragStartIndex);
+
+        this.draggableEntry    = null;
+        this.dragStartIndex    = -1;
+        this.dragCurrentIndex  = -1;
+        this.draggableEntryMouseOffset = 0; 
+    }
+
     moveShadowedEntry() {
+        if (!this.draggableEntry) {
+            return;
+        }
+
         let listScroll  = this.htmlEntryList.scrollTop;
         let dragRect = this.draggableEntry.getBoundingClientRect();
         let dragPos  = dragRect.y + listScroll + ENTRY_HEIGHT / 2.0;
@@ -770,17 +801,15 @@ class Playlist {
             return;
         }
 
-        let entry = this.htmlEntries[startIndex];
+        let htmlEntry = this.htmlEntries[startIndex];
         this.htmlEntries.splice(startIndex, 1);
-        this.htmlEntries.splice(endIndex, 0, entry);
+        this.htmlEntries.splice(endIndex, 0, htmlEntry);
 
-        { // NOTE(kihau): This will be handled differently.
-            let entry = this.entries[startIndex];
-            this.entries.splice(startIndex, 1);
-            this.entries.splice(endIndex, 0, entry);
-        }
+        let entry = this.entries[startIndex];
+        this.entries.splice(startIndex, 1);
+        this.entries.splice(endIndex, 0, entry);
 
-        this.setEntryPosition(entry, endIndex);
+        this.setEntryPosition(htmlEntry, endIndex);
         this.dragCurrentIndex = endIndex;
     }
 
@@ -924,6 +953,8 @@ class Playlist {
     }
 
     handleServerEvent(action, data, users) {
+        this.cancelEntryDragging();
+
         switch (action) {
             case "add": {
                 this.addEntry(data, users);

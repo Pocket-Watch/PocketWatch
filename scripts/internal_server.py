@@ -32,8 +32,6 @@ def get_youtube_playlist(query: str, start: int, end: int):
 
     ytplaylist = yt_dlp.YoutubeDL(ytplaylist_opts)
     info = ytplaylist.extract_info(query, download=False)
-    print(json.dumps(info, indent=4))
-
     videos = []
 
     entries = info['entries']
@@ -60,7 +58,7 @@ def get_youtube_video(query: str):
         
         'extractor_args': {
             'youtube': {
-                'player_client': ['ios']
+                'player_client': ['ios'],
             }
         },
         'playlist_items': '1',
@@ -85,12 +83,12 @@ def get_youtube_video(query: str):
     title        = entry.get("title")
     thumbnail    = entry.get("thumbnail")
     original_url = entry.get("original_url")
-    video_url    = formats[0]["url"]
-    audio_url    = formats[1]["url"]
+    video_url    = formats[0]["manifest_url"]
+    audio_url    = formats[1]["manifest_url"]
 
     return YoutubeVideo(id, title, thumbnail, original_url, audio_url, video_url)
 
-class InternalServer(http.server.SimpleHTTPRequestHandler):
+class InternalServer(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path == '/youtube/fetch':
             request = json.loads(self.rfile.read1())
@@ -118,10 +116,10 @@ class InternalServer(http.server.SimpleHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
 
-hostName = "localhost"
-serverPort = 2345
+hostname = "localhost"
+port = 2345
 
-webServer = http.server.ThreadingHTTPServer((hostName, serverPort), InternalServer)
-print("Running an internal helper server at http://%s:%s" % (hostName, serverPort))
+web_server = http.server.ThreadingHTTPServer((hostname, port), InternalServer)
+print("Running an internal helper server at http://%s:%s" % (hostname, port))
 
-webServer.serve_forever()
+web_server.serve_forever()
