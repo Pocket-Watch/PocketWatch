@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -342,9 +343,9 @@ func pullBytesFromResponse(response *http.Response, byteCount int) ([]byte, erro
 	return buffer, nil
 }
 
-// This function only tests the server's intent and exits immediately
-// Returns true if test status code is successful, false otherwise
-func testGetResponse(url string, referer string) bool {
+// This function tests the server's intent to serve and return data (at most 512 bytes)
+// Returns true if test status code is successful, false if unsuccessful or body couldn't be read
+func testGetResponse(url string, referer string) (bool, *bytes.Buffer) {
 	request, _ := http.NewRequest("GET", url, nil)
 	request.Header.Set("User-Agent", userAgent)
 	if referer != "" {
@@ -354,10 +355,23 @@ func testGetResponse(url string, referer string) bool {
 
 	response, err := client.Do(request)
 	if err != nil {
-		return false
+		return false, nil
 	}
 	defer response.Body.Close()
-	return response.StatusCode >= 200 && response.StatusCode < 300
+
+	length := 512
+	if int(response.ContentLength) < length {
+		length = int(response.ContentLength)
+	}
+
+	buffer := bytes.NewBuffer(make([]byte, 0, length))
+	limitedResponse := io.LimitReader(response.Body, int64(length))
+	_, readErr := io.Copy(buffer, limitedResponse)
+	if readErr != nil {
+		return false, nil
+	}
+	success := response.StatusCode >= 200 && response.StatusCode < 300
+	return success, buffer
 }
 
 func downloadFile(url string, filename string, referer string) error {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	cryptorand "crypto/rand"
 	"database/sql"
 	"encoding/base64"
@@ -343,7 +344,6 @@ func (server *Server) HandleEndpoint(mux *http.ServeMux, endpoint string, endpoi
 				// LogFatalUp(2, "Panic in endpoint handler for %v serving %v: %v\n%v", endpoint, r.RemoteAddr, err, stack)
 			}
 		}()
-
 
 		if r.Method != method {
 			errMsg := fmt.Sprintf("Method not allowed. %v was expected.", method)
@@ -732,23 +732,30 @@ func (server *Server) isTrustedUrl(url string, parsedUrl *net_url.URL) bool {
 	return false
 }
 
-type MasterPlaylistSetup struct {
+type MediaPlaylist struct {
 	m3u    *M3U
 	url    string
 	prefix string
 }
 
-func (server *Server) setupMasterPlaylist(m3u *M3U, prefix string, referer string, parsedUrl *net_url.URL) *MasterPlaylistSetup {
+func setupMasterPlaylist(m3u *M3U) {
+
+}
+
+func prepareMediaPlaylistFromMasterPlaylist(m3u *M3U, referer string, masterUrl *net_url.URL) *MediaPlaylist {
 	if len(m3u.tracks) == 0 {
 		LogError("Master playlist contains 0 tracks!")
 		return nil
 	}
 
-	// Rarely tracks are not fully qualified
-	originalMasterPlaylist := m3u.copy()
-	m3u.prefixRelativeTracks(prefix)
+	prefix := stripLastSegment(masterUrl)
 	LogInfo("A master playlist was provided. The best track will be chosen based on quality.")
 	bestTrack := m3u.getBestTrack()
+	bestUrl := bestTrack.url
+	isRelative := !isAbsolute(bestUrl)
+	if isRelative {
+		bestUrl = prefixUrl(prefix, bestUrl)
+	}
 
 	resolution := getParamValue("RESOLUTION", bestTrack.streamInfo)
 	if resolution != "" {
@@ -756,30 +763,31 @@ func (server *Server) setupMasterPlaylist(m3u *M3U, prefix string, referer strin
 	}
 
 	var err error = nil
-	m3u, err = downloadM3U(bestTrack.url, WEB_PROXY+ORIGINAL_M3U8, referer)
+	m3u, err = downloadM3U(bestUrl, WEB_PROXY+ORIGINAL_M3U8, referer)
 
-	if isErrorStatus(err, 404) {
-		// Hacky trick for domain relative (non-compliant m3u8's 💩)
-		domain := getRootDomain(parsedUrl)
-		originalMasterPlaylist.prefixRelativeTracks(domain)
-		bestTrack = originalMasterPlaylist.getBestTrack()
+	if isRelative && isErrorStatus(err, 404) {
+		// Sometimes non-compliant playlists contain URLs which are relative to the root domain
+		domain := getRootDomain(masterUrl)
+		bestUrl = prefixUrl(domain, bestTrack.url)
 		m3u, err = downloadM3U(bestTrack.url, WEB_PROXY+ORIGINAL_M3U8, referer)
 		if err != nil {
-			LogError("Fallback failed: %v", err.Error())
+			LogError("Root domain fallback failed: %v", err.Error())
 			return nil
 		}
 	} else if err != nil {
 		LogError("Failed to fetch track from master playlist: %v", err.Error())
 		return nil
 	}
+
 	// Refreshing the prefix in case the newly assembled track consists of 2 or more components
-	parsedUrl, err = net_url.Parse(bestTrack.url)
+	mediaUrl, err := net_url.Parse(bestUrl)
 	if err != nil {
-		LogError("Failed to parse URL from the best track, likely the segment is invalid: %v", err.Error())
+		LogError("Failed to parse URL of the best track: %v for %v", err.Error(), bestUrl)
 		return nil
 	}
-	prefix = stripLastSegment(parsedUrl)
-	return &MasterPlaylistSetup{m3u, bestTrack.url, prefix}
+	prefix = stripLastSegment(mediaUrl)
+
+	return &MediaPlaylist{m3u, bestUrl, prefix}
 }
 
 func (server *Server) setupHlsProxy(url string, referer string) bool {
@@ -807,15 +815,20 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 		return false
 	}
 
-	prefix := stripLastSegment(parsedUrl)
+	var prefix string
 	if m3u.isMasterPlaylist {
-		setupResult := server.setupMasterPlaylist(m3u, prefix, referer, parsedUrl)
-		if setupResult == nil {
+		if len(m3u.audioRenditions) > 0 {
+			// TODO
+		}
+		mediaPlaylist := prepareMediaPlaylistFromMasterPlaylist(m3u, referer, parsedUrl)
+		if mediaPlaylist == nil {
 			return false
 		}
-		m3u = setupResult.m3u
-		url = setupResult.url
-		prefix = setupResult.prefix
+		m3u = mediaPlaylist.m3u
+		url = mediaPlaylist.url
+		prefix = mediaPlaylist.prefix
+	} else {
+		prefix = stripLastSegment(parsedUrl)
 	}
 
 	segmentCount := len(m3u.segments)
@@ -824,21 +837,18 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 		return false
 	}
 
-	// state.entry.Url = url
-	// state.entry.RefererUrl = referer
-
-	LogDebug("Playlist type: %v", m3u.getAttribute(EXT_X_PLAYLIST_TYPE))
-	LogDebug("Max segment length: %vs", m3u.getAttribute(EXT_X_TARGETDURATION))
-	LogDebug("isLive: %v", m3u.isLive)
-	LogDebug("segments: %v", segmentCount)
-	LogDebug("total duration: %vs", int(m3u.totalDuration()))
+	LogDebug("[Playlist info]")
+	LogDebug("Type:     %v", m3u.getAttribute(EXT_X_PLAYLIST_TYPE))
+	LogDebug("LIVE:     %v", m3u.isLive)
+	LogDebug("Segments: %v", segmentCount)
+	LogDebug("Duration: %vs", int(m3u.totalDuration()))
 
 	// Test if the first chunk is available and the source operates as intended (prevents broadcasting broken entries)
-	if !server.confirmSegment0Available(m3u, prefix, referer) {
+	if !server.validateSegment0(m3u, prefix, referer) {
 		LogError("Chunk 0 was not available!")
 		return false
 	}
-	// Sometimes m3u8 chunks are not fully qualified
+
 	m3u.prefixRelativeSegments(prefix)
 
 	server.state.isHls = true
@@ -886,7 +896,7 @@ func (server *Server) setupVodProxy(m3u *M3U, referer string) *HlsProxy {
 	return &proxy
 }
 
-func (server *Server) confirmSegment0Available(m3u *M3U, prefix, referer string) bool {
+func (server *Server) validateSegment0(m3u *M3U, prefix, referer string) bool {
 	// VODs are expected
 	if m3u.isMasterPlaylist {
 		return false
@@ -895,10 +905,15 @@ func (server *Server) confirmSegment0Available(m3u *M3U, prefix, referer string)
 	if !isAbsolute(segment0.url) {
 		segment0.url = prefixUrl(prefix, segment0.url)
 	}
-	if segment0.mapUri != "" && !isAbsolute(segment0.mapUri) {
-		segment0.mapUri = prefixUrl(prefix, segment0.mapUri)
+	success, buffer := testGetResponse(segment0.url, referer)
+	if !success {
+		return false
 	}
-	return testGetResponse(segment0.url, referer)
+	if bytes.HasPrefix(buffer.Bytes(), []byte("#"+EXTM3U)) {
+		LogError("[RARE] Segment 0 is another media playlist")
+		return false
+	}
+	return true
 }
 
 var voiceClients = make(map[*websocket.Conn]bool)
