@@ -742,7 +742,7 @@ func setupMasterPlaylist(m3u *M3U) {
 
 }
 
-func prepareMediaPlaylistFromMasterPlaylist(m3u *M3U, referer string, masterUrl *net_url.URL) *MediaPlaylist {
+func prepareMediaPlaylistFromMasterPlaylist(m3u *M3U, referer string, masterUrl *net_url.URL, depth int) *MediaPlaylist {
 	if len(m3u.tracks) == 0 {
 		LogError("Master playlist contains 0 tracks!")
 		return nil
@@ -780,12 +780,22 @@ func prepareMediaPlaylistFromMasterPlaylist(m3u *M3U, referer string, masterUrl 
 	}
 
 	// Refreshing the prefix in case the newly assembled track consists of 2 or more components
-	mediaUrl, err := net_url.Parse(bestUrl)
+	playlistUrl, err := net_url.Parse(bestUrl)
 	if err != nil {
 		LogError("Failed to parse URL of the best track: %v for %v", err.Error(), bestUrl)
 		return nil
 	}
-	prefix = stripLastSegment(mediaUrl)
+	prefix = stripLastSegment(playlistUrl)
+
+	// Master playlists can point to other master playlists
+	if m3u.isMasterPlaylist {
+		if depth < MAX_PLAYLIST_DEPTH {
+			return prepareMediaPlaylistFromMasterPlaylist(m3u, referer, playlistUrl, depth+1)
+		} else {
+			LogError("Exceeded maximum playlist depth of %v. Failed to get media playlist.", MAX_PLAYLIST_DEPTH)
+			return nil
+		}
+	}
 
 	return &MediaPlaylist{m3u, bestUrl, prefix}
 }
@@ -820,7 +830,7 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 		if len(m3u.audioRenditions) > 0 {
 			// TODO
 		}
-		mediaPlaylist := prepareMediaPlaylistFromMasterPlaylist(m3u, referer, parsedUrl)
+		mediaPlaylist := prepareMediaPlaylistFromMasterPlaylist(m3u, referer, parsedUrl, 0)
 		if mediaPlaylist == nil {
 			return false
 		}
@@ -901,11 +911,11 @@ func (server *Server) validateSegment0(m3u *M3U, prefix, referer string) bool {
 	if m3u.isMasterPlaylist {
 		return false
 	}
-	segment0 := m3u.segments[0]
-	if !isAbsolute(segment0.url) {
-		segment0.url = prefixUrl(prefix, segment0.url)
+	url := m3u.segments[0].url
+	if !isAbsolute(url) {
+		url = prefixUrl(prefix, url)
 	}
-	success, buffer := testGetResponse(segment0.url, referer)
+	success, buffer := testGetResponse(url, referer)
 	if !success {
 		return false
 	}

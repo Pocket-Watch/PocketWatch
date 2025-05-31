@@ -33,6 +33,7 @@ const WEB_MEDIA = "web/media/"
 const MEDIA = "media/"
 const ORIGINAL_M3U8 = "original.m3u8"
 const PROXY_M3U8 = "proxy.m3u8"
+const MAX_PLAYLIST_DEPTH = 2
 
 const MAX_MESSAGE_CHARACTERS = 1000
 const GENERIC_CHUNK_SIZE = 4 * MB
