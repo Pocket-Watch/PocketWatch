@@ -221,6 +221,15 @@ func stripLastSegment(url *net_url.URL) string {
 	return stripped
 }
 
+func stripLastSegmentStr(url string) *string {
+	parsedUrl, err := net_url.Parse(url)
+	if err != nil {
+		return nil
+	}
+	reducedUrl := stripLastSegment(parsedUrl)
+	return &reducedUrl
+}
+
 func cleanupResourceName(oldName string) string {
 	newName := strings.ReplaceAll(oldName, ".", " ")
 	newName = strings.ReplaceAll(newName, "-", " ")

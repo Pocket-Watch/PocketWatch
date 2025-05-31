@@ -7,7 +7,8 @@ set "scripts_root=%~dp0"
 cd "%scripts_root%.."
 
 cd web/proxy
-del ch-*
+del vi-*
+del au-*
 del live-*
 REM cd ../../../
 

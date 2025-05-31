@@ -282,7 +282,7 @@ type Param struct {
 }
 
 func (param *Param) String() string {
-	return fmt.Sprintf("%v=%v,", param.key, param.value)
+	return fmt.Sprintf("%v=%v", param.key, param.value)
 }
 
 // Track - Variant Stream (represents a m3u8 entry along with its metadata in a master playlist)

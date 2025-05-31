@@ -738,8 +738,80 @@ type MediaPlaylist struct {
 	prefix string
 }
 
-func setupMasterPlaylist(m3u *M3U) {
+// setupDualTrackProxy for the time being will handle only 0-depth media playlists.
+// returns (success, video proxy, audio proxy)
+func setupDualTrackProxy(originalM3U *M3U, referer string, masterUrl *net_url.URL) (bool, *HlsProxy, *HlsProxy) {
+	prefix := stripLastSegment(masterUrl)
+	originalM3U.prefixRelativeTracks(prefix)
+	bestTrack := originalM3U.getBestTrack()
+	if bestTrack == nil {
+		return false, nil, nil
+	}
+	audioId := getParamValue("AUDIO", bestTrack.streamInfo)
+	if audioId == "" {
+		LogError("Best track's AUDIO param is empty, unable to match to audio.")
+		return false, nil, nil
+	}
 
+	matchedAudio := false
+	audioUrl := ""
+	var audioRendition *[]Param
+	for i := range originalM3U.audioRenditions {
+		rendition := &originalM3U.audioRenditions[i]
+		groupId := getParamValue("GROUP-ID", *rendition)
+		if groupId == audioId {
+			matchedAudio = true
+			audioUrl = getParamValue("URI", *rendition)
+			audioRendition = rendition
+			break
+		}
+	}
+
+	if !matchedAudio {
+		LogError("No corresponding audio track found for audio id: %v", audioId)
+		return false, nil, nil
+	}
+
+	videoPrefix := stripLastSegmentStr(bestTrack.url)
+	audioPrefix := stripLastSegmentStr(audioUrl)
+	if videoPrefix == nil || audioPrefix == nil {
+		LogError("Invalid segment prefix of either video or audio URL")
+		return false, nil, nil
+	}
+
+	videoM3U, err := downloadM3U(bestTrack.url, WEB_PROXY+VIDEO_M3U8, referer)
+	if err != nil {
+		LogError("Failed to download m3u8 video track: %v", err.Error())
+		return false, nil, nil
+	}
+
+	audioM3U, err := downloadM3U(audioUrl, WEB_PROXY+AUDIO_M3U8, referer)
+	if err != nil {
+		LogError("Failed to download m3u8 audio track: %v", err.Error())
+		return false, nil, nil
+	}
+
+	if videoM3U.isMasterPlaylist || audioM3U.isMasterPlaylist {
+		LogWarn("Unimplemented: Either video or audio is a master playlist")
+		return false, nil, nil
+	}
+
+	videoM3U.prefixRelativeSegments(*videoPrefix)
+	audioM3U.prefixRelativeSegments(*audioPrefix)
+
+	vidProxy := setupVodProxy(videoM3U, WEB_PROXY+VIDEO_M3U8, referer, VIDEO_PREFIX)
+	audioProxy := setupVodProxy(audioM3U, WEB_PROXY+AUDIO_M3U8, referer, AUDIO_PREFIX)
+	// Craft proxied master playlist for the client
+	originalM3U.tracks = originalM3U.tracks[:0]
+	originalM3U.audioRenditions = originalM3U.audioRenditions[:0]
+	uriParam := getParam("URI", *audioRendition)
+	uriParam.value = AUDIO_M3U8
+	bestTrack.url = VIDEO_M3U8
+	originalM3U.tracks = append(originalM3U.tracks, *bestTrack)
+	originalM3U.audioRenditions = append(originalM3U.audioRenditions, *audioRendition)
+
+	originalM3U.serialize(WEB_PROXY + PROXY_M3U8)
+	return true, vidProxy, audioProxy
 }
 
 func prepareMediaPlaylistFromMasterPlaylist(m3u *M3U, referer string, masterUrl *net_url.URL, depth int) *MediaPlaylist {
@@ -828,7 +900,16 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 	var prefix string
 	if m3u.isMasterPlaylist {
 		if len(m3u.audioRenditions) > 0 {
-			// TODO
+			success, videoProxy, audioProxy := setupDualTrackProxy(m3u, referer, parsedUrl)
+			if success {
+				server.state.isHls = true
+				server.state.isLive = false
+				server.state.proxy = videoProxy
+				server.state.audioProxy = audioProxy
+				duration := time.Since(start)
+				LogDebug("Time taken to setup proxy: %v", duration)
+			}
+			return success
 		}
 		mediaPlaylist := prepareMediaPlaylistFromMasterPlaylist(m3u, referer, parsedUrl, 0)
 		if mediaPlaylist == nil {
@@ -862,13 +943,13 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 	m3u.prefixRelativeSegments(prefix)
 
 	server.state.isHls = true
+	server.state.isLive = m3u.isLive
+
 	var newProxy *HlsProxy
 	if m3u.isLive {
-		server.state.isLive = true
-		newProxy = server.setupLiveProxy(url, referer)
+		newProxy = setupLiveProxy(url, referer)
 	} else {
-		server.state.isLive = false
-		newProxy = server.setupVodProxy(m3u, referer)
+		newProxy = setupVodProxy(m3u, WEB_PROXY+PROXY_M3U8, referer, VIDEO_PREFIX)
 	}
 	server.state.proxy = newProxy
 	duration := time.Since(start)
@@ -876,7 +957,7 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 	return true
 }
 
-func (server *Server) setupLiveProxy(liveUrl string, referer string) *HlsProxy {
+func setupLiveProxy(liveUrl string, referer string) *HlsProxy {
 	proxy := HlsProxy{}
 	proxy.referer = referer
 	proxy.liveUrl = liveUrl
@@ -885,7 +966,7 @@ func (server *Server) setupLiveProxy(liveUrl string, referer string) *HlsProxy {
 	return &proxy
 }
 
-func (server *Server) setupVodProxy(m3u *M3U, referer string) *HlsProxy {
+func setupVodProxy(m3u *M3U, osPath, referer, chunkPrefix string) *HlsProxy {
 	proxy := HlsProxy{}
 	segmentCount := len(m3u.segments)
 
@@ -897,11 +978,11 @@ func (server *Server) setupVodProxy(m3u *M3U, referer string) *HlsProxy {
 		segment := &m3u.segments[i]
 		proxy.originalChunks[i] = segment.url
 
-		chunkName := "ch-" + toString(i)
+		chunkName := chunkPrefix + toString(i)
 		segment.url = chunkName
 	}
 
-	m3u.serialize(WEB_PROXY + PROXY_M3U8)
+	m3u.serialize(osPath)
 	LogDebug("Prepared VOD proxy file.")
 	return &proxy
 }
@@ -991,7 +1072,7 @@ func (server *Server) watchProxy(writer http.ResponseWriter, request *http.Reque
 			server.serveHlsVod(writer, request, chunk)
 		}
 	} else {
-		server.serveGenericFile(writer, request, chunk)
+		//server.serveGenericFile(writer, request, chunk)
 	}
 }
 
@@ -1119,26 +1200,40 @@ func cleanupSegmentMap(segmentMap *sync.Map) {
 
 func (server *Server) serveHlsVod(writer http.ResponseWriter, request *http.Request, chunk string) {
 	writer.Header().Add("Cache-Control", "no-cache")
-	if chunk == PROXY_M3U8 {
-		LogDebug("Serving %v", PROXY_M3U8)
-		http.ServeFile(writer, request, WEB_PROXY+PROXY_M3U8)
+
+	switch chunk {
+	case PROXY_M3U8, VIDEO_M3U8, AUDIO_M3U8:
+		LogDebug("Serving %v", chunk)
+		http.ServeFile(writer, request, WEB_PROXY+chunk)
 		return
 	}
 
+	// TODO: Hardcoded start indexes of 4 and 3
 	if len(chunk) < 4 {
 		http.Error(writer, "Not found", 404)
 		return
 	}
-	// Otherwise it's likely a proxy chunk which is 0-indexed
+
 	chunkId, err := strconv.Atoi(chunk[3:])
 	if err != nil {
-		http.Error(writer, "Incorrect chunk ID", 404)
+		http.Error(writer, "Chunk ID is not a number", 404)
 		return
 	}
 
+	var proxy *HlsProxy
 	server.state.setupLock.Lock()
-	proxy := server.state.proxy
+	if strings.HasPrefix(chunk, VIDEO_PREFIX) {
+		proxy = server.state.proxy
+	} else if strings.HasPrefix(chunk, AUDIO_PREFIX) {
+		proxy = server.state.audioProxy
+	}
 	server.state.setupLock.Unlock()
+	if proxy != nil {
+		serveHlsChunk(writer, request, proxy, chunk, chunkId)
+	}
+}
+
+func serveHlsChunk(writer http.ResponseWriter, request *http.Request, proxy *HlsProxy, chunk string, chunkId int) {
 	if chunkId < 0 || chunkId >= len(proxy.fetchedChunks) {
 		http.Error(writer, "Chunk ID out of range", 404)
 		return

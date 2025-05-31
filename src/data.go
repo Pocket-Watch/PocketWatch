@@ -33,6 +33,10 @@ const WEB_MEDIA = "web/media/"
 const MEDIA = "media/"
 const ORIGINAL_M3U8 = "original.m3u8"
 const PROXY_M3U8 = "proxy.m3u8"
+const VIDEO_M3U8 = "video.m3u8"
+const AUDIO_M3U8 = "audio.m3u8"
+const VIDEO_PREFIX = "vi-"
+const AUDIO_PREFIX = "au-"
 const MAX_PLAYLIST_DEPTH = 2
 
 const MAX_MESSAGE_CHARACTERS = 1000
@@ -107,6 +111,7 @@ type ServerState struct {
 
 	setupLock    sync.Mutex
 	proxy        *HlsProxy
+	audioProxy   *HlsProxy
 	isLive       bool
 	isHls        bool
 	genericProxy GenericProxy
