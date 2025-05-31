@@ -769,7 +769,7 @@ func prepareMediaPlaylistFromMasterPlaylist(m3u *M3U, referer string, masterUrl 
 		// Sometimes non-compliant playlists contain URLs which are relative to the root domain
 		domain := getRootDomain(masterUrl)
 		bestUrl = prefixUrl(domain, bestTrack.url)
-		m3u, err = downloadM3U(bestTrack.url, WEB_PROXY+ORIGINAL_M3U8, referer)
+		m3u, err = downloadM3U(bestUrl, WEB_PROXY+ORIGINAL_M3U8, referer)
 		if err != nil {
 			LogError("Root domain fallback failed: %v", err.Error())
 			return nil

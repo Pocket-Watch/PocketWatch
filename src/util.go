@@ -364,10 +364,10 @@ func testGetResponse(url string, referer string) (bool, *bytes.Buffer) {
 		length = int(response.ContentLength)
 	}
 
-	buffer := bytes.NewBuffer(make([]byte, 0, length))
+	buffer := new(bytes.Buffer)
 	limitedResponse := io.LimitReader(response.Body, int64(length))
 	_, readErr := io.Copy(buffer, limitedResponse)
-	if readErr != nil {
+	if readErr != nil && readErr != io.EOF {
 		return false, nil
 	}
 	success := response.StatusCode >= 200 && response.StatusCode < 300
