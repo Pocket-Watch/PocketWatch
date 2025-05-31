@@ -37,6 +37,7 @@ const VIDEO_M3U8 = "video.m3u8"
 const AUDIO_M3U8 = "audio.m3u8"
 const VIDEO_PREFIX = "vi-"
 const AUDIO_PREFIX = "au-"
+const MEDIA_INIT_SECTION = "mis.key"
 const MAX_PLAYLIST_DEPTH = 2
 
 const MAX_MESSAGE_CHARACTERS = 1000

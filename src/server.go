@@ -772,6 +772,8 @@ func setupDualTrackProxy(originalM3U *M3U, referer string, masterUrl *net_url.UR
 		return false, nil, nil
 	}
 
+	LogInfo("Video URL: %v", bestTrack.url)
+	LogInfo("Audio URL: %v", audioUrl)
 	videoPrefix := stripLastSegmentStr(bestTrack.url)
 	audioPrefix := stripLastSegmentStr(audioUrl)
 	if videoPrefix == nil || audioPrefix == nil {
@@ -796,8 +798,24 @@ func setupDualTrackProxy(originalM3U *M3U, referer string, masterUrl *net_url.UR
 		return false, nil, nil
 	}
 
+	if len(videoM3U.segments) == 0 || len(audioM3U.segments) == 0 {
+		LogWarn("One of the playlists contains 0 segments")
+		return false, nil, nil
+	}
+
 	videoM3U.prefixRelativeSegments(*videoPrefix)
 	audioM3U.prefixRelativeSegments(*audioPrefix)
+
+	// Check video encryption map uri
+	segment0 := &videoM3U.segments[0]
+	if segment0.mapUri != "" {
+		err = downloadFile(segment0.mapUri, WEB_PROXY+MEDIA_INIT_SECTION, referer)
+		if err != nil {
+			LogWarn("Failed to obtain map uri key: %v", err.Error())
+			return false, nil, nil
+		}
+		segment0.mapUri = MEDIA_INIT_SECTION
+	}
 
 	vidProxy := setupVodProxy(videoM3U, WEB_PROXY+VIDEO_M3U8, referer, VIDEO_PREFIX)
 	audioProxy := setupVodProxy(audioM3U, WEB_PROXY+AUDIO_M3U8, referer, AUDIO_PREFIX)
@@ -1202,7 +1220,7 @@ func (server *Server) serveHlsVod(writer http.ResponseWriter, request *http.Requ
 	writer.Header().Add("Cache-Control", "no-cache")
 
 	switch chunk {
-	case PROXY_M3U8, VIDEO_M3U8, AUDIO_M3U8:
+	case PROXY_M3U8, VIDEO_M3U8, AUDIO_M3U8, MEDIA_INIT_SECTION:
 		LogDebug("Serving %v", chunk)
 		http.ServeFile(writer, request, WEB_PROXY+chunk)
 		return
