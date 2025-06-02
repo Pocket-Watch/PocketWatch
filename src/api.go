@@ -773,15 +773,14 @@ func (server *Server) apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
 	}
 
 	server.state.mutex.Lock()
-	if data.Index < 0 || data.Index >= len(server.state.playlist) {
-		respondBadRequest(w, "Failed to play playlist element %v. Index out of bounds.", data.Index)
-		server.state.mutex.Unlock()
-		return
+	compareFunc := func(entry Entry) bool {
+		return entry.Id == data.EntryId
 	}
 
-	if server.state.playlist[data.Index].Id != data.EntryId {
-		respondBadRequest(w, "Playlist entry ID provided in the request is not equal to the playlist entry ID on the server")
+	index := slices.IndexFunc(server.state.playlist, compareFunc)
+	if index == -1 {
 		server.state.mutex.Unlock()
+		respondBadRequest(w, "Failed to play playlist element. Entry with ID %v is not in the playlist.", data.EntryId)
 		return
 	}
 
@@ -789,13 +788,13 @@ func (server *Server) apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
 		server.state.playlist = append(server.state.playlist, server.state.entry)
 	}
 
-	newEntry := server.state.playlist[data.Index]
+	newEntry := server.state.playlist[index]
 	server.loadYoutubeEntry(&newEntry, RequestEntry{})
 	prevEntry := server.setNewEntry(&newEntry)
-	server.state.playlist = slices.Delete(server.state.playlist, data.Index, data.Index+1)
+	server.state.playlist = slices.Delete(server.state.playlist, index, index+1)
 	server.state.mutex.Unlock()
 
-	event := createPlaylistEvent("remove", data.Index)
+	event := createPlaylistEvent("remove", data.EntryId)
 	server.writeEventToAllConnections(w, "playlist", event)
 
 	setEvent := PlayerSetEventData{
@@ -900,22 +899,21 @@ func (server *Server) apiPlaylistRemove(w http.ResponseWriter, r *http.Request) 
 	}
 
 	server.state.mutex.Lock()
-	if data.Index < 0 || data.Index >= len(server.state.playlist) {
-		respondBadRequest(w, "Failed to remove playlist element %v. Index out of bounds.", data.Index)
+	compareFunc := func(entry Entry) bool {
+		return entry.Id == data.EntryId
+	}
+
+	index := slices.IndexFunc(server.state.playlist, compareFunc)
+	if index == -1 {
 		server.state.mutex.Unlock()
+		respondBadRequest(w, "Failed to remove playlist element. Entry with ID %v is not in the playlist.", data.EntryId)
 		return
 	}
 
-	if server.state.playlist[data.Index].Id != data.EntryId {
-		respondBadRequest(w, "Playlist entry ID provided in the request is not equal to the playlist entry ID on the server")
-		server.state.mutex.Unlock()
-		return
-	}
-
-	server.state.playlist = slices.Delete(server.state.playlist, data.Index, data.Index+1)
+	server.state.playlist = slices.Delete(server.state.playlist, index, index+1)
 	server.state.mutex.Unlock()
 
-	event := createPlaylistEvent("remove", data.Index)
+	event := createPlaylistEvent("remove", data.EntryId)
 	server.writeEventToAllConnections(w, "playlist", event)
 	go server.preloadYoutubeSourceOnNextEntry()
 }
@@ -945,28 +943,27 @@ func (server *Server) apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 	}
 
 	server.state.mutex.Lock()
-	if move.SourceIndex < 0 || move.SourceIndex >= len(server.state.playlist) {
-		respondBadRequest(w, "Failed to move playlist element %v. Source index out of bounds.", move.SourceIndex)
-		server.state.mutex.Unlock()
-		return
+	compareFunc := func(entry Entry) bool {
+		return entry.Id == move.EntryId
 	}
 
-	if server.state.playlist[move.SourceIndex].Id != move.EntryId {
-		respondBadRequest(w, "Playlist entry ID provided in the move request is not equal to the playlist entry ID on the server")
+	index := slices.IndexFunc(server.state.playlist, compareFunc)
+	if index == -1 {
 		server.state.mutex.Unlock()
+		respondBadRequest(w, "Failed to move playlist element. Entry with ID %v is not in the playlist.", move.EntryId)
 		return
 	}
 
 	if move.DestIndex < 0 || move.DestIndex >= len(server.state.playlist) {
-		respondBadRequest(w, "Failed to move playlist element %v. Dest index %v out of bounds.", move.SourceIndex, move.DestIndex)
+		respondBadRequest(w, "Failed to move playlist element id:%v. Dest index %v out of bounds.", move.EntryId, move.DestIndex)
 		server.state.mutex.Unlock()
 		return
 	}
 
-	entry := server.state.playlist[move.SourceIndex]
+	entry := server.state.playlist[index]
 
 	// Remove element from the slice:
-	server.state.playlist = slices.Delete(server.state.playlist, move.SourceIndex, move.SourceIndex+1)
+	server.state.playlist = slices.Delete(server.state.playlist, index, index+1)
 
 	list := make([]Entry, 0)
 
@@ -979,8 +976,8 @@ func (server *Server) apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 	server.state.mutex.Unlock()
 
 	eventData := PlaylistMoveEventData{
-		SourceIndex: move.SourceIndex,
-		DestIndex:   move.DestIndex,
+		EntryId:   move.EntryId,
+		DestIndex: move.DestIndex,
 	}
 
 	event := createPlaylistEvent("move", eventData)

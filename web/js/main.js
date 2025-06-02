@@ -8,7 +8,7 @@ import { Storage, button, div, formatTime, formatByteCount, getById, dynamicImg,
 const SERVER_ID = 0;
 
 const USER_AVATAR_ANIMATIONS = "user_avatar_animations"
-const LAST_SELECTED_TAB = "last_selected_tab"
+const LAST_SELECTED_TAB      = "last_selected_tab"
 const LAST_SELECTED_SUBTITLE = "last_selected_subtitle"
 
 const TAB_ROOM     = 1;
@@ -1516,7 +1516,7 @@ class Room {
                     this.playlist.addEntry(prevEntry, this.allUsers);
                 }
 
-                this.playlist.removeAt(0);
+                this.playlist.remove(newEntry.id);
             }
         });
 

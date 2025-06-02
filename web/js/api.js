@@ -262,7 +262,7 @@ export async function playerNext(currentEntryId) {
     };
 
     console.info("INFO: Sending player next request.");
-    httpPost("/watch/api/player/next", payload);
+    return await httpPost("/watch/api/player/next", payload);
 }
 
 export async function playerPlay(timestamp) {
@@ -365,10 +365,9 @@ export async function playlistGet() {
     return await httpGet("/watch/api/playlist/get");
 }
 
-export async function playlistPlay(entryId, index) {
+export async function playlistPlay(entryId) {
     const payload = {
         entry_id: entryId,
-        index: index,
     };
 
     console.info("INFO: Sending playlist play request.");
@@ -390,11 +389,10 @@ export async function playlistClear() {
     return await httpPost("/watch/api/playlist/clear", connectionId);
 }
 
-export async function playlistRemove(entryId, index) {
+export async function playlistRemove(entryId) {
     const payload = {
         connection_id: connectionId,
         entry_id: entryId,
-        index: index,
     };
 
     console.info("INFO: Sending playlist remove request.");
@@ -406,11 +404,10 @@ export async function playlistShuffle() {
     return await httpPost("/watch/api/playlist/shuffle", null);
 }
 
-export async function playlistMove(entryId, source, dest) {
+export async function playlistMove(entryId, dest) {
     const payload = {
         connection_id: connectionId, 
         entry_id: entryId,
-        source_index: source,
         dest_index: dest,
     }
 

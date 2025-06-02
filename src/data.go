@@ -278,7 +278,6 @@ type RequestEntry struct {
 
 type PlaylistPlayRequestData struct {
 	EntryId uint64 `json:"entry_id"`
-	Index   int    `json:"index"`
 }
 
 type PlaylistAddRequestData struct {
@@ -289,7 +288,6 @@ type PlaylistAddRequestData struct {
 type PlaylistRemoveRequestData struct {
 	ConnectionId uint64 `json:"connection_id"`
 	EntryId      uint64 `json:"entry_id"`
-	Index        int    `json:"index"`
 }
 
 type PlaylistAutoplayRequestData struct {
@@ -305,12 +303,11 @@ type PlaylistLoopingRequestData struct {
 type PlaylistMoveRequestData struct {
 	ConnectionId uint64 `json:"connection_id"`
 	EntryId      uint64 `json:"entry_id"`
-	SourceIndex  int    `json:"source_index"`
 	DestIndex    int    `json:"dest_index"`
 }
 
 type PlaylistMoveEventData struct {
-	SourceIndex int `json:"source_index"`
+	EntryId     uint64 `json:"entry_id"`
 	DestIndex   int `json:"dest_index"`
 }
 

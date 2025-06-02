@@ -29,7 +29,7 @@ class Playlist {
         this.controlsSettingsButton = getById("playlist_controls_settings");
 
         this.autoplayEnabled = false;
-        this.loopingEnabled = false;
+        this.loopingEnabled  = false;
 
         this.htmlEntryList    = getById("playlist_entry_list");
         this.footerEntryCount = getById("playlist_footer_entry_count");
@@ -42,17 +42,12 @@ class Playlist {
         this.contextMenuEdit       = getById("context_menu_edit");
         this.contextMenuDelete     = getById("context_menu_delete");
 
-        this.contextMenuEntry = null;
-        this.contextMenuUserRefactorMe = null;
-        this.contextMenuEntryRefactorMe = null;
+        this.contextMenuEntry     = null;
+        this.contextMenuUser      = null;
+        this.contextMenuHtmlEntry = null;
 
         // Currently expanded entry. Only one entry is allowed to be expanded at a time.
         this.expandedEntry = null;
-
-        /// State of the entry before the edit began.
-            // this.editEntryBefore = null;
-        /// Entry that currently is being edited. Only one entry can be edited at a time.
-        // this.editEntryNow = null;
 
         this.isEditingEntry = false;
         this.editEntry = {
@@ -84,11 +79,6 @@ class Playlist {
 
     // NOTE(kihau): Attachable playlist events (similar to the custom player)
     onSettingsClick() {}
-    // onClearClick() {}
-    // onShuffleClick() {}
-    // onLoopingClick() {}
-    // onAutoplayClick() {}
-    // onPlaylistEntryPlay() {}
 
     setAutoplay(enabled) {
         if (enabled) {
@@ -140,14 +130,23 @@ class Playlist {
             this.hideContextMenu();
         };
 
-        this.contextMenuPlayNow.onclick    = _ => this.requestPlaylistPlay(this.contextMenuEntry);
-        this.contextMenuMoveTop.onclick    = _ => this.requestEntryMove(this.contextMenuEntry, 0);
-        this.contextMenuMoveBottom.onclick = _ => this.requestEntryMove(this.contextMenuEntry, this.entries.length - 1);
-        this.contextMenuExpand.onclick     = _ => this.toggleEntryDropdown(this.contextMenuEntry, this.contextMenuEntryRefactorMe, this.contextMenuUserRefactorMe);
-        this.contextMenuEdit.onclick       = _ => this.toggleEntryEdit(this.contextMenuEntry, this.contextMenuEntryRefactorMe);
-        this.contextMenuDelete.onclick     = _ => this.deleteEntry(this.contextMenuEntry);
+        this.contextMenuPlayNow.onclick    = _ => api.playlistPlay(this.contextMenuEntry.id);
+        this.contextMenuMoveTop.onclick    = _ => this.requestEntryMove(this.contextMenuEntry.id, 0);
+        this.contextMenuMoveBottom.onclick = _ => this.requestEntryMove(this.contextMenuEntry.id, this.entries.length - 1);
+        this.contextMenuExpand.onclick     = _ => this.toggleEntryDropdown(this.contextMenuHtmlEntry, this.contextMenuEntry, this.contextMenuUser);
+        this.contextMenuEdit.onclick       = _ => this.toggleEntryEdit(this.contextMenuHtmlEntry, this.contextMenuEntry);
+        this.contextMenuDelete.onclick     = _ => api.playlistRemove(this.contextMenuEntry.id);
 
         this.htmlEntryList.oncontextmenu = _ => { return false };
+    }
+
+    requestEntryMove(entryId, destIndex) {
+        let response = api.playlistMove(entryId, destIndex);
+        response.then(async  result => {
+            if (result.ok) {
+                this.move(entryId, destIndex);
+            }  
+        });
     }
 
     handleUserUpdate(user) {
@@ -159,6 +158,10 @@ class Playlist {
 
                 let newHtmlEntry = this.createHtmlEntry(entry, user);
                 show(newHtmlEntry);
+
+                if (this.dragCurrentIndex === i) {
+                    newHtmlEntry.classList.add("shadow");
+                }
 
                 this.setEntryPosition(newHtmlEntry, i);
                 this.htmlEntries[i] = newHtmlEntry;
@@ -204,6 +207,11 @@ class Playlist {
     }
 
     addEntryTop(entry, users) {
+        if (this.draggableEntry) {
+            this.dragStartIndex += 1;
+            this.dragCurrentIndex += 1;
+        }
+
         this.entries.unshift(entry);
 
         for (let i = 0; i < this.htmlEntries.length; i++) {
@@ -224,15 +232,30 @@ class Playlist {
         this.updateFooter();
     }
 
-    removeAt(index) {
-        if (typeof index !== "number") {
-            console.error("ERROR: Playlist::removeAt failed. The input index:", index, "is invalid.");
+    remove(entryId) {
+        let index = this.entries.findIndex(item => item.id === entryId);
+        if (index === -1) {
+            console.error("ERROR: Playlist::remove failed. Entry with id", entryId, "is not in the playlist.");
             return;
         }
 
-        if (index < 0 || index >= this.entries.length) {
-            console.error("ERROR: Playlist::removeAt failed. Index:", index, "is out of bounds for array:", this.entries);
-            return;
+        if (this.contextMenuEntry && entryId === this.contextMenuEntry.id) {
+            this.hideContextMenu();
+        }
+
+        if (this.draggableEntry) {
+            if (index === this.dragCurrentIndex) {
+                index = this.dragStartIndex;
+                this.cancelEntryDragging();
+            } else  {
+                if (index < this.dragStartIndex) {
+                    this.dragStartIndex -= 1;
+                }
+
+                if (index < this.dragCurrentIndex) {
+                    this.dragCurrentIndex -= 1;
+                }
+            }
         }
 
         let entry = this.entries[index];
@@ -250,11 +273,10 @@ class Playlist {
         }
 
         this.updateFooter();
-
         return entry;
     }
 
-    move(sourceIndex, destIndex) {
+    internalMove(sourceIndex, destIndex) {
         if (sourceIndex === destIndex) {
             return;
         } else if (destIndex < sourceIndex) {
@@ -278,27 +300,86 @@ class Playlist {
         this.setEntryPosition(htmlEntry, destIndex);
     }
 
-    update(entry, users) {
-        for (let i = 0; i < this.entries.length; i++) {
-            if (this.entries[i].id === entry.id) {
-                const user = this.findUser(users, entry.user_id);
-                const htmlEntry = this.createHtmlEntry(entry, user);
-                this.setEntryPosition(htmlEntry, i);
+    swap(sourceIndex, destIndex) {
+        let entry = this.entries[sourceIndex];
+        this.entries[sourceIndex] = this.entries[destIndex];
+        this.entries[destIndex] = entry;
 
-                show(htmlEntry);
+        let htmlEntry = this.htmlEntries[sourceIndex];
+        this.htmlEntries[sourceIndex] = this.htmlEntries[destIndex];
+        this.htmlEntries[destIndex] = htmlEntry;
+    }
 
-                if (this.isEditingEntry && entry.id === this.editEntry.entry.id) {
-                    this.stopEntryEdit();
+    move(entryId, destIndex) {
+        let index = this.entries.findIndex(item => item.id === entryId);
+        if (index === -1) {
+            console.error("ERROR: Playlist::move failed. Provided entry with ID:", entryId, "is not within the playlist entry list.")
+            return;
+        }
+
+        // TOOD(kihau): This code is still faulty and needs to be investigated more.
+        if (this.draggableEntry) {
+            if (index === this.dragCurrentIndex) {
+                index = this.dragStartIndex;
+                this.cancelEntryDragging();
+            } else {
+                let start = this.dragStartIndex;
+
+                if (index < this.dragStartIndex) {
+                    start -= 1;
+                    destIndex -= 1;
                 }
 
-                const previous = this.htmlEntries[i];
+                if (index < this.dragCurrentIndex) {
+                    this.dragCurrentIndex -= 1;
+                }
 
-                this.entries[i] = entry;
-                this.htmlEntries[i] = htmlEntry;
-                this.htmlEntryList.replaceChild(htmlEntry, previous);
-                break;
+                if (destIndex <= this.dragStartIndex) {
+                    start += 1;
+                    destIndex += 1;
+                }
+
+                if (destIndex <= this.dragCurrentIndex) {
+                    this.dragCurrentIndex += 1;
+                }
+
+                this.dragStartIndex = start;
             }
+
+            // console.debug("index:", index, "dest:", destIndex, "dragstart:", this.dragStartIndex, "dragcurr:", this.dragCurrentIndex);
         }
+
+        this.internalMove(index, destIndex);
+    }
+
+    update(entry, users) {
+        let index = this.entries.findIndex(item => item.id === entry.id);
+        if (index === -1) {
+            console.error("ERROR: Playlist::update failed. Provided entry with ID:", entry.id, "is not within the playlist entry list.")
+            return;
+        }
+
+        const user = this.findUser(users, entry.user_id);
+        const htmlEntry = this.createHtmlEntry(entry, user);
+        this.setEntryPosition(htmlEntry, index);
+        show(htmlEntry);
+
+        const entryBefore = this.htmlEntries[index];
+        this.htmlEntryList.replaceChild(htmlEntry, entryBefore);
+
+        if (this.isEditingEntry && entry.id === this.editEntry.entry.id) {
+            this.stopEntryEdit();
+        }
+
+        if (this.draggableEntry && this.dragCurrentIndex == index) {
+            let draggableBefore = this.draggableEntry;
+            this.draggableEntry = this.createDraggableEntry(htmlEntry, draggableBefore.style.top);
+            this.htmlEntryList.replaceChild(this.draggableEntry, draggableBefore);
+            htmlEntry.classList.add("shadow");
+        }
+
+        this.entries[index]     = entry;
+        this.htmlEntries[index] = htmlEntry;
     }
 
     loadEntries(entries, users) {
@@ -333,6 +414,11 @@ class Playlist {
             return;
         }
 
+        if (this.draggableEntry) {
+            this.dragStartIndex += entries.length;
+            this.dragCurrentIndex += entries.length;
+        }
+
         for (let i = 0; i < this.htmlEntries.length; i++) {
             const entry = this.htmlEntries[i];
             this.setEntryPosition(entry, entries.length + i);
@@ -360,6 +446,9 @@ class Playlist {
 
 
     clear() {
+        this.cancelEntryDragging();
+        this.hideContextMenu();
+
         // NOTE(kihau): 
         //     This clears the context menu (when inside the entry list) and also the deletion order is random. 
         //     It is generally a bad way to do it!
@@ -377,12 +466,11 @@ class Playlist {
         this.entries       = [];
         this.expandedEntry = null;
 
-        this.hideContextMenu();
         this.updateFooter();
     }
 
     findEntryIndex(entry) {
-        return this.entries.findIndex(item => item === entry);
+        return this.entries.findIndex(item => item.id === entry.id);
     }
 
     findHtmlIndex(htmlEntry) {
@@ -519,26 +607,10 @@ class Playlist {
         return entryDropdown;
     }
 
-    requestPlaylistPlay(htmlEntry) {
-        let index = this.htmlEntries.findIndex(item => item === htmlEntry);
-        if (index === -1) {
-            console.error("ERROR: Failed to find entry:", htmlEntry, "Playlist is out of sync");
-            return;
-        }
-
-        if (index < 0 || index >= this.entries.length) {
-            console.error("ERROR: Delete failed for html playlist entry:", htmlEntry, "Index:", index, "is out of bounds for array:", this.entries);
-            return;
-        }
-
-        let entry = this.entries[index];
-        api.playlistPlay(entry.id, index);
-    }
-
     hideContextMenu() {
+        this.contextMenuHtmlEntry = null;
+        this.contextMenuUser  = null;
         this.contextMenuEntry = null;
-        this.contextMenuUserRefactorMe  = null;
-        this.contextMenuEntryRefactorMe = null;
         hide(this.contextMenu);
     }
 
@@ -562,9 +634,9 @@ class Playlist {
         this.contextMenu.style.top  = (contextMenuY - listRect.top) + "px";
         show(this.contextMenu);
 
-        this.contextMenuEntry = htmlEntry;
-        this.contextMenuUserRefactorMe  = user;
-        this.contextMenuEntryRefactorMe = entry;
+        this.contextMenuEntry     = entry;
+        this.contextMenuHtmlEntry = htmlEntry;
+        this.contextMenuUser      = user;
     }
 
     toggleEntryEdit(htmlEntry, entry) {
@@ -582,49 +654,12 @@ class Playlist {
         }
     }
 
-    deleteEntry(htmlEntry) {
-        let index = this.htmlEntries.findIndex(item => item === htmlEntry);
-        if (index === -1) {
-            console.error("ERROR: Failed to find entry:", htmlEntry, "Playlist is out of sync");
-            return;
-        }
-
-        if (index < 0 || index >= this.entries.length) {
-            console.error("ERROR: Delete failed for html playlist entry:", htmlEntry, "Index:", index, "is out of bounds for array:", this.entries);
-            return;
-        }
-
-        let entry = this.entries[index];
-        api.playlistRemove(entry.id, index);
-    }
-
     toggleEntryDropdown(htmlEntry, entry, user) {
         if (this.expandedEntry !== htmlEntry) {
             this.expandEntry(htmlEntry, entry, user);
         } else {
             this.collapseEntry(htmlEntry);
         }
-    }
-
-    requestEntryMove(htmlEntry, destIndex) {
-        let sourceIndex = this.htmlEntries.findIndex(item => item === htmlEntry);
-        if (sourceIndex === -1) {
-            console.error("ERROR: Failed to find entry:", htmlEntry, "Playlist is out of sync");
-            return;
-        }
-
-        if (sourceIndex < 0 || sourceIndex >= this.entries.length) {
-            console.error("ERROR: Cannot request playlist move for html playlist entry:", htmlEntry, "Index:", sourceIndex, "is out of bounds for array:", this.entries);
-            return;
-        }
-
-        let entry = this.entries[sourceIndex];
-        let response = api.playlistMove(entry.id, sourceIndex, destIndex)
-        response.then(async  result => {
-            if (result.ok) {
-                this.move(sourceIndex, destIndex);
-            }  
-        });
     }
 
     startScrollingUp() {
@@ -644,25 +679,27 @@ class Playlist {
         this.scrollIntervalId = null;
     }
 
-    startEntryDragging(htmlEntry, positionY) {
-        this.hideContextMenu();
-
-        this.dragStartIndex   = this.findHtmlIndex(htmlEntry);
-        this.dragCurrentIndex = this.dragStartIndex;
-
-        this.collapseEntry(this.expandedEntry);
-
+    createDraggableEntry(htmlEntry, positionTop) {
         let draggableEntry = htmlEntry.cloneNode(true);
         draggableEntry.classList.add("draggable");
         draggableEntry.classList.add("disable_transition");
-        this.draggableEntry = draggableEntry;
+        draggableEntry.style.top = positionTop;
+        return draggableEntry;
+    }
 
-        this.htmlEntryList.appendChild(draggableEntry);
+    startEntryDragging(htmlEntry, positionY) {
+        this.hideContextMenu();
+        this.collapseEntry(this.expandedEntry);
 
         let listRect    = this.htmlEntryList.getBoundingClientRect();
         let entryRect   = htmlEntry.getBoundingClientRect();
         let mouseOffset = positionY - entryRect.top;
         let top         = (positionY - listRect.top - mouseOffset) + "px";
+
+        this.dragStartIndex   = this.findHtmlIndex(htmlEntry);
+        this.dragCurrentIndex = this.dragStartIndex;
+        this.draggableEntry   = this.createDraggableEntry(htmlEntry, top);
+        this.htmlEntryList.appendChild(this.draggableEntry);
 
         this.draggableEntry.style.top  = top;
         this.draggableEntryMouseOffset = mouseOffset; 
@@ -694,7 +731,7 @@ class Playlist {
         this.shadowedEntryMoveTimout = setTimeout(_ => this.moveShadowedEntry(), DRAG_INACTIVITY_DELAY);
     }
 
-    stopEntryDragging(htmlEntry) {
+    stopEntryDragging() {
         if (!this.draggableEntry) {
             return;
         }
@@ -717,6 +754,8 @@ class Playlist {
         let oldPos = this.draggableEntry.style.top;
         let newPos = this.calculateEntryPosition(this.dragCurrentIndex);
 
+        let htmlEntry = this.htmlEntries[this.dragCurrentIndex];
+
         if (oldPos === newPos) {
             this.htmlEntryList.removeChild(this.draggableEntry);
             htmlEntry.classList.remove("shadow");
@@ -733,7 +772,7 @@ class Playlist {
 
         if (this.dragStartIndex !== this.dragCurrentIndex) {
             let entry = this.entries[this.dragCurrentIndex];
-            api.playlistMove(entry.id, this.dragStartIndex, this.dragCurrentIndex);
+            api.playlistMove(entry.id, this.dragCurrentIndex);
         }
     }
 
@@ -750,7 +789,7 @@ class Playlist {
         let htmlEntry = this.htmlEntries[this.dragCurrentIndex];
         htmlEntry.classList.remove("shadow")
 
-        this.move(this.dragCurrentIndex, this.dragStartIndex);
+        this.internalMove(this.dragCurrentIndex, this.dragStartIndex);
 
         this.draggableEntry    = null;
         this.dragStartIndex    = -1;
@@ -847,7 +886,7 @@ class Playlist {
         entryRoot.oncontextmenu = event => {
             event.preventDefault();
 
-            if (this.contextMenuEntry === entryRoot) {
+            if (this.contextMenuHtmlEntry === entryRoot) {
                 this.hideContextMenu();
             } else {
                 this.showContextMenu(event, entryRoot, entry, user);
@@ -873,7 +912,7 @@ class Playlist {
                 };
 
                 let onDraggingStop = _ => {
-                    this.stopEntryDragging(entryRoot);
+                    this.stopEntryDragging();
                     document.removeEventListener("touchmove", onDragging);
                     document.removeEventListener("touchend",  onDraggingStop);
                 };
@@ -896,7 +935,7 @@ class Playlist {
             };
 
             let onDraggingStop = _ => {
-                this.stopEntryDragging(entryRoot);
+                this.stopEntryDragging();
 
                 document.removeEventListener("mousemove", onDragging);
                 document.removeEventListener("mouseup",   onDraggingStop);
@@ -918,9 +957,9 @@ class Playlist {
             }
         };
 
-        entryThumbnail.onclick = _ => this.requestPlaylistPlay(entryRoot);
+        entryThumbnail.onclick = _ => api.playlistPlay(entry.id);
         editButton.onclick     = _ => this.toggleEntryEdit(entryRoot, entry);
-        deleteButton.onclick   = _ => this.deleteEntry(entryRoot);
+        deleteButton.onclick   = _ => api.playlistRemove(entry.id);
         dropdownButton.onclick = _ => this.toggleEntryDropdown(entryRoot, entry, user);
 
         //
@@ -953,8 +992,6 @@ class Playlist {
     }
 
     handleServerEvent(action, data, users) {
-        this.cancelEntryDragging();
-
         switch (action) {
             case "add": {
                 this.addEntry(data, users);
@@ -977,7 +1014,7 @@ class Playlist {
             } break;
 
             case "remove": {
-                this.removeAt(data)
+                this.remove(data)
             } break;
 
             case "shuffle": {
@@ -986,7 +1023,7 @@ class Playlist {
             } break;
 
             case "move": {
-                this.move(data.source_index, data.dest_index);
+                this.move(data.entry_id, data.dest_index);
             } break;
 
             case "update": {
