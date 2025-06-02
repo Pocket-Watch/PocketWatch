@@ -19,8 +19,12 @@ import (
 	"time"
 )
 
-var client = http.Client{
+var defaultClient = http.Client{
 	Timeout: time.Second * 35,
+}
+
+var hastyClient = http.Client{
+	Timeout: time.Second * 7,
 }
 
 var userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; rv:115.0) Gecko/20100101 Firefox/115.0"
@@ -69,8 +73,8 @@ func GeneratePrettyTableStandard(headers []string, data []string) string {
 
 	table.WriteString(separator)
 	for i, name := range headers {
-		string := fmt.Sprintf("| %*s ", paddings[i], name)
-		table.WriteString(string)
+		str := fmt.Sprintf("| %*s ", paddings[i], name)
+		table.WriteString(str)
 	}
 	table.WriteString("|\n")
 	table.WriteString(separator)
@@ -82,8 +86,8 @@ func GeneratePrettyTableStandard(headers []string, data []string) string {
 	for row := 0; row < rowCount; row += 1 {
 		for column := 0; column < columnCount; column += 1 {
 			value := data[row*columnCount+column]
-			string := fmt.Sprintf("| %*s ", paddings[column], value)
-			table.WriteString(string)
+			str := fmt.Sprintf("| %*s ", paddings[column], value)
+			table.WriteString(str)
 		}
 
 		table.WriteString("|\n")
@@ -158,8 +162,8 @@ func GeneratePrettyTableAsciiExtended(headers []string, data []string) string {
 
 	table.WriteString(separatorTop)
 	for i, name := range headers {
-		string := fmt.Sprintf("│ %*s ", paddings[i], name)
-		table.WriteString(string)
+		str := fmt.Sprintf("│ %*s ", paddings[i], name)
+		table.WriteString(str)
 	}
 	table.WriteString("│\n")
 
@@ -294,7 +298,7 @@ func downloadFileChunk(url string, r *Range, referer string) ([]byte, error) {
 
 	request.Header.Set("Range", fmt.Sprintf("bytes=%v-%v", r.start, r.end))
 
-	response, err := client.Do(request)
+	response, err := defaultClient.Do(request)
 	if err != nil {
 		return nil, err
 	}
@@ -353,7 +357,7 @@ func openFileDownload(url string, from int64, referer string) (*http.Response, e
 
 	request.Header.Set("Range", fmt.Sprintf("bytes=%v-", from))
 
-	response, err := client.Do(request)
+	response, err := defaultClient.Do(request)
 	if err != nil {
 		return nil, err
 	}
@@ -385,7 +389,7 @@ func testGetResponse(url string, referer string) (bool, *bytes.Buffer) {
 		request.Header.Set("Origin", inferOrigin(referer))
 	}
 
-	response, err := client.Do(request)
+	response, err := defaultClient.Do(request)
 	if err != nil {
 		return false, nil
 	}
@@ -406,7 +410,7 @@ func testGetResponse(url string, referer string) (bool, *bytes.Buffer) {
 	return success, buffer
 }
 
-func downloadFile(url string, filename string, referer string) error {
+func downloadFile(url string, filename string, referer string, hasty bool) error {
 	request, _ := http.NewRequest("GET", url, nil)
 	request.Header.Set("User-Agent", userAgent)
 	if referer != "" {
@@ -414,7 +418,12 @@ func downloadFile(url string, filename string, referer string) error {
 		request.Header.Set("Origin", inferOrigin(referer))
 	}
 
+	client := defaultClient
+	if hasty {
+		client = hastyClient
+	}
 	response, err := client.Do(request)
+
 	if err != nil {
 		return err
 	}
@@ -464,7 +473,7 @@ func getContentRange(url string, referer string) (int64, error) {
 		request.Header.Set("Referer", referer)
 	}
 	// Send the request
-	response, err := client.Do(request)
+	response, err := defaultClient.Do(request)
 	if err != nil {
 		return -1, err
 	}

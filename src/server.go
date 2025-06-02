@@ -809,7 +809,7 @@ func setupDualTrackProxy(originalM3U *M3U, referer string, masterUrl *net_url.UR
 	// Check video encryption map uri
 	segment0 := &videoM3U.segments[0]
 	if segment0.mapUri != "" {
-		err = downloadFile(segment0.mapUri, WEB_PROXY+MEDIA_INIT_SECTION, referer)
+		err = downloadFile(segment0.mapUri, WEB_PROXY+MEDIA_INIT_SECTION, referer, true)
 		if err != nil {
 			LogWarn("Failed to obtain map uri key: %v", err.Error())
 			return false, nil, nil
@@ -819,7 +819,7 @@ func setupDualTrackProxy(originalM3U *M3U, referer string, masterUrl *net_url.UR
 
 	vidProxy := setupVodProxy(videoM3U, WEB_PROXY+VIDEO_M3U8, referer, VIDEO_PREFIX)
 	audioProxy := setupVodProxy(audioM3U, WEB_PROXY+AUDIO_M3U8, referer, AUDIO_PREFIX)
-	// Craft proxied master playlist for the client
+	// Craft proxied master playlist for the defaultClient
 	originalM3U.tracks = originalM3U.tracks[:0]
 	originalM3U.audioRenditions = originalM3U.audioRenditions[:0]
 	uriParam := getParam("URI", *audioRendition)
@@ -1056,7 +1056,7 @@ func voiceChat(writer http.ResponseWriter, request *http.Request) {
 			if client.RemoteAddr() == conn.RemoteAddr() {
 				continue
 			}
-			// Exclude the broadcasting client
+			// Exclude the broadcasting defaultClient
 			LogDebug("Writing bytes of len: %v to %v clients", len(bytes), len(voiceClients))
 			if err := client.WriteMessage(websocket.BinaryMessage, bytes); err != nil {
 				LogError("Error while writing message: %v", err)
@@ -1172,7 +1172,7 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 		http.ServeFile(writer, request, WEB_PROXY+chunk)
 		return
 	}
-	fetchErr := downloadFile(fetchedChunk.realUrl, WEB_PROXY+chunk, proxy.referer)
+	fetchErr := downloadFile(fetchedChunk.realUrl, WEB_PROXY+chunk, proxy.referer, false)
 	if fetchErr != nil {
 		mutex.Unlock()
 		LogError("Failed to fetch live chunk %v", fetchErr)
@@ -1266,7 +1266,7 @@ func serveHlsChunk(writer http.ResponseWriter, request *http.Request, proxy *Hls
 		return
 	}
 
-	fetchErr := downloadFile(proxy.originalChunks[chunkId], WEB_PROXY+chunk, proxy.referer)
+	fetchErr := downloadFile(proxy.originalChunks[chunkId], WEB_PROXY+chunk, proxy.referer, false)
 	if fetchErr != nil {
 		mutex.Unlock()
 		LogError("Failed to fetch chunk %v", fetchErr)

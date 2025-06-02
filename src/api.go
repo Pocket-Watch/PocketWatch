@@ -358,7 +358,7 @@ func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// NOTE(kihau):
-	//     We need to check whether currently set entry ID on the client side matches current entry ID on the server side.
+	//     We need to check whether currently set entry ID on the defaultClient side matches current entry ID on the server side.
 	//     This check is necessary because multiple clients can send "playlist next" request on video end,
 	//     resulting in multiple playlist skips, which is not an intended behaviour.
 

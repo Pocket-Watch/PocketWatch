@@ -643,7 +643,7 @@ func (m3u *M3U) serializePlaylist(file *os.File) {
 }
 
 func downloadM3U(url string, filename string, referer string) (*M3U, error) {
-	err := downloadFile(url, filename, referer)
+	err := downloadFile(url, filename, referer, true)
 	if err != nil {
 		return nil, err
 	}

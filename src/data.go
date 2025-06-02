@@ -70,7 +70,7 @@ type Subtitle struct {
 	Shift float64 `json:"shift"`
 }
 
-// NOTE(kihau): Placeholder until client side source switching is implemented.
+// NOTE(kihau): Placeholder until defaultClient side source switching is implemented.
 type Source struct {
 	AudioUrl  string `json:"audio_url"`
 	VideoUrl  string `json:"video_url"`
@@ -87,7 +87,7 @@ type Entry struct {
 	UseProxy   bool   `json:"use_proxy"`
 	RefererUrl string `json:"referer_url"`
 	SourceUrl  string `json:"source_url"`
-	// NOTE(kihau): Placeholder until client side source switching is implemented.
+	// NOTE(kihau): Placeholder until defaultClient side source switching is implemented.
 	// Sources    []Source   `json:"sources"`
 	Subtitles []Subtitle `json:"subtitles"`
 	Thumbnail string     `json:"thumbnail"`
@@ -307,8 +307,8 @@ type PlaylistMoveRequestData struct {
 }
 
 type PlaylistMoveEventData struct {
-	EntryId     uint64 `json:"entry_id"`
-	DestIndex   int `json:"dest_index"`
+	EntryId   uint64 `json:"entry_id"`
+	DestIndex int    `json:"dest_index"`
 }
 
 type PlaylistUpdateRequestData struct {
