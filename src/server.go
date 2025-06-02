@@ -904,8 +904,8 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 	_ = os.Mkdir(WEB_PROXY, os.ModePerm)
 	var m3u *M3U
 	if server.isTrustedUrl(url, parsedUrl) {
-		lastSegment := lastUrlSegment(url)
-		m3u, err = parseM3U(WEB_MEDIA + lastSegment)
+		osPath := Conditional(isAbsolute(url), stripPathPrefix(parsedUrl.Path, "watch"), url)
+		m3u, err = parseM3U("web/" + osPath)
 	} else {
 		m3u, err = downloadM3U(url, WEB_PROXY+ORIGINAL_M3U8, referer)
 	}

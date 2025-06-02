@@ -230,6 +230,29 @@ func stripLastSegmentStr(url string) *string {
 	return &reducedUrl
 }
 
+func stripPathPrefix(path string, parts ...string) string {
+	segments := strings.Split(path, "/")
+
+	stIndex := 0
+	partIndex := 0
+	for i, segment := range segments {
+		if partIndex >= len(parts) {
+			break
+		}
+		if segment == "" {
+			stIndex = i + 1
+			continue
+		}
+		if segment == parts[partIndex] {
+			stIndex = i + 1
+			partIndex++
+			continue
+		}
+		break
+	}
+	return strings.Join(segments[stIndex:], "/")
+}
+
 func cleanupResourceName(oldName string) string {
 	newName := strings.ReplaceAll(oldName, ".", " ")
 	newName = strings.ReplaceAll(newName, "-", " ")
@@ -640,6 +663,14 @@ func safeJoin(segments ...string) (string, bool) {
 
 func isSlash(char uint8) bool {
 	return char == '/' || char == '\\'
+}
+
+func Conditional[T any](condition bool, trueResult, falseResult T) T {
+	if condition {
+		return trueResult
+	} else {
+		return falseResult
+	}
 }
 
 func respondBadRequest(writer http.ResponseWriter, format string, args ...any) {
