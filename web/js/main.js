@@ -1,5 +1,6 @@
 import { Options, Player } from "./custom_player.js"
 import { Playlist } from "./playlist.js"
+import { History } from "./history.js"
 import { Chat } from "./chat.js"
 import { sha256 } from "./auth.js"
 import * as api from "./api.js";
@@ -34,6 +35,7 @@ class Room {
         this.player   = new Player(video0, options);
         this.playlist = new Playlist();
         this.chat     = new Chat();
+        this.history  = new History();
 
         this.pageRoot = getById("page_root");
 

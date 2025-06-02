@@ -10,6 +10,7 @@
         <link rel="stylesheet" href="css/main.css">
         <link rel="stylesheet" href="css/playlist.css">
         <link rel="stylesheet" href="css/chat.css">
+        <link rel="stylesheet" href="css/history.css">
 
         <!-- Open Graph protocol tags. -->
         <!-- Uncomment lines below and adjust the tags for correct embeds -->
@@ -505,8 +506,8 @@
                             <span id="playlist_footer_entry_count">0</span>
                             <span>tracks in the playlist</span>
                         </div>
-
                     </div>
+
                     <div id="content_chat" class="content_view">
                         <div class="widget_input" id="chat_input_container">
                             <input id="chat_input_box" placeholder="" title="Send a chat message."/>
@@ -517,7 +518,31 @@
                             <!-- NOTE(kihau): Content of this list is dynamically generated in JavaScript -->
                         </div>
                     </div>
-                    <div id="content_history" class="content_view">HISTORY</div>
+
+                    <div id="content_history" class="content_view">
+                        <div id="history_controls_root">
+                            <button id="history_controls_clear" class="history_controls_button" title="Clear the history">
+                                <svg><use href="svg/main_icons.svg#delete"/></svg>
+                            </button>
+
+                            <div id="history_controls_search_root">
+                                <div id="history_controls_search_icon">
+                                    <svg><use href="svg/main_icons.svg#search"/></svg>
+                                </div>
+                                <input id="history_controls_search_input" type="text" placeholder="Search for track."/>
+                            </div>
+
+                            <button id="history_controls_settings" class="history_controls_button" title="Open history settings">
+                                <svg><use href="svg/main_icons.svg#settings"/></svg>
+                            </button>
+                        </div>
+
+                        <div id="history_entry_list_root">
+                            <div id="history_entry_list">
+                                <!-- NOTE(kihau): Content of this list is dynamically generated in JavaScript -->
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
