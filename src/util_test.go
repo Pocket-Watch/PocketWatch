@@ -306,3 +306,28 @@ func TestSingleElementRing(t *testing.T) {
 		t.Errorf("Peek end should be 100. Actual: %v", buffer.PeekEnd())
 	}
 }
+
+func TestPushForceRing(t *testing.T) {
+	buffer := NewRingBuffer(3)
+	for i := range 3 {
+		buffer.PushForce(int64(i))
+	}
+	// 0, 1, 2
+	if buffer.PeekEnd() != 0 {
+		t.Errorf("Peek end should be 0. Actual: %v", buffer.PeekEnd())
+	}
+	buffer.PushForce(3)
+	buffer.PushForce(4)
+	buffer.PushForce(5)
+	if buffer.PeekEnd() != 3 {
+		t.Errorf("Peek end should be 3. Actual: %v", buffer.PeekEnd())
+	}
+	buffer.PopEnd()
+	if buffer.PeekEnd() != 4 {
+		t.Errorf("Peek end should be 4. Actual: %v", buffer.PeekEnd())
+	}
+	buffer.PushForce(1)
+	if buffer.PeekEnd() != 4 {
+		t.Errorf("Peek end should be 4. Actual: %v", buffer.PeekEnd())
+	}
+}

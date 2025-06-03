@@ -862,6 +862,19 @@ func (ring *RingBuffer) Push(element int64) bool {
 	return true
 }
 
+func (ring *RingBuffer) PushForce(element int64) {
+	if ring.length != ring.capacity {
+		ring.length++
+	}
+	ring.buffer[ring.head] = element
+
+	if ring.head == ring.capacity-1 {
+		ring.head = 0
+	} else {
+		ring.head++
+	}
+}
+
 // PeekEnd returns the tail value.
 // For Len() == 0 it returns the head value
 func (ring *RingBuffer) PeekEnd() int64 {
