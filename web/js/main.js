@@ -749,6 +749,10 @@ class Room {
 
         this.attachRoomTabEvents();
         this.playlist.attachPlaylistEvents();
+        this.history.attachHistoryEvents();
+
+        this.playlist.onSettingsClick = _ => room.showSettingsMenu();
+        this.history.onSettingsClick  = _ => room.showSettingsMenu();
     }
 
     async sendSetRequest() {
@@ -1137,6 +1141,17 @@ class Room {
         this.chat.loadMessages(messages, this.allUsers);
     }
 
+    async loadHistoryData() {
+        let entries = await api.historyGet();
+        console.info("INFO: Loaded history:", entries);
+
+        this.history.clear();
+        for (let i = 0; i < entries.length; i++) {
+            const entry = entries[i];
+            this.history.add(entry);
+        }
+    }
+
     updateRoomContent(entry) {
         this.roomContent.urlInput.value   = entry.url;
         this.roomContent.titleInput.value = entry.title;
@@ -1234,6 +1249,7 @@ class Room {
             await this.loadPlayerData();
             await this.loadPlaylistData();
             await this.loadChatData();
+            await this.loadHistoryData();
             api.uptime().then(uptime   => this.settingsMenu.websiteUptime.textContent  = uptime);
             api.version().then(version => this.settingsMenu.websiteVersion.textContent = version);
         };
@@ -1505,6 +1521,10 @@ class Room {
             if (this.playlist.loopingEnabled && prevEntry.url !== "") {
                 this.playlist.addEntry(prevEntry, this.allUsers);
             }
+
+            if (prevEntry.url !== "") {
+                this.history.add(prevEntry);
+            }
         });
 
         events.addEventListener("playernext", event => {
@@ -1520,6 +1540,10 @@ class Room {
                 }
 
                 this.playlist.remove(newEntry.id);
+            }
+
+            if (prevEntry.url !== "") {
+                this.history.add(prevEntry);
             }
         });
 
@@ -1610,6 +1634,11 @@ class Room {
 
             this.chat.addMessage(data, this.allUsers);
         });
+
+        events.addEventListener("historyclear", _ => {
+            console.info("INFO: Received history clear event");
+            this.history.clear();
+        });
     }
 
     handleDisconnect() {
@@ -1637,7 +1666,6 @@ class Room {
 async function main() {
     let room = new Room();
     room.attachPlayerEvents();
-    room.playlist.onSettingsClick = _ => room.showSettingsMenu();
     room.attachHtmlEvents();
     await room.connectToServer();
     room.applyUserPreferences();

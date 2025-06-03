@@ -1038,7 +1038,6 @@ func (server *Server) apiHistoryClear(w http.ResponseWriter, r *http.Request) {
 	server.state.mutex.Lock()
 	server.state.history = server.state.history[:0]
 	server.state.mutex.Unlock()
-
 	server.writeEventToAllConnections(w, "historyclear", nil)
 }
 
