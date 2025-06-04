@@ -3,6 +3,8 @@ import { getById, div, a, span, img, svg, show } from "./util.js";
 
 export { History }
 
+const MAX_HISTORY_SIZE = 80
+
 class History {
     constructor() {
         this.controlsClearButton    = getById("history_controls_clear");
@@ -68,10 +70,22 @@ class History {
 
     add(entry) {
         this.entries.push(entry);
+
         const htmlEntry = this.createHtmlEntry(entry);
         this.htmlEntries.push(htmlEntry);
-        this.htmlEntryList.appendChild(htmlEntry);
+        // this.htmlEntryList.appendChild(htmlEntry);
+
+        let first = this.htmlEntryList.firstChild;
+        this.htmlEntryList.insertBefore(htmlEntry, first);
+
+        window.getComputedStyle(htmlEntry).marginLeft;
         show(htmlEntry);
+
+        if (this.entries.length > MAX_HISTORY_SIZE) {
+            this.entries.shift();
+            let removed = this.htmlEntries.shift();
+            this.htmlEntryList.removeChild(removed);
+        }
     }
 
     clear() {

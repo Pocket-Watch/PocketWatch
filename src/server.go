@@ -441,6 +441,10 @@ func (server *Server) setNewEntry(newEntry *Entry) Entry {
 
 	if prevEntry.Url != "" {
 		server.state.history = append(server.state.history, prevEntry)
+
+		if len(server.state.history) > MAX_HISTORY_SIZE {
+			server.state.history = server.state.history[1:]
+		}
 	}
 
 	if isYoutubeUrl(newEntry.Url) {

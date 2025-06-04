@@ -317,36 +317,34 @@ class Playlist {
             return;
         }
 
-        // TOOD(kihau): This code is still faulty and needs to be investigated more.
         if (this.draggableEntry) {
             if (index === this.dragCurrentIndex) {
                 index = this.dragStartIndex;
                 this.cancelEntryDragging();
             } else {
-                let start = this.dragStartIndex;
-
-                if (index < this.dragStartIndex) {
-                    start -= 1;
-                    destIndex -= 1;
+                // NOTE(kihau): Entry Id -> Destination approach
+                if (destIndex >= this.dragStartIndex && destIndex <= this.dragCurrentIndex) {
+                    if (destIndex !== this.dragStartIndex || index <= this.dragStartIndex) {
+                        destIndex -= 1;
+                    } 
+                } else if (destIndex <= this.dragStartIndex && destIndex >= this.dragCurrentIndex) {
+                    if (destIndex !== this.dragStartIndex || index >= this.dragStartIndex) {
+                        destIndex += 1;
+                    } 
                 }
 
-                if (index < this.dragCurrentIndex) {
+                if (index > this.dragStartIndex && destIndex <= this.dragStartIndex) {
+                    this.dragStartIndex += 1;
+                } else if (index < this.dragStartIndex && destIndex >= this.dragStartIndex) {
+                    this.dragStartIndex -= 1;
+                }
+
+                if (index > this.dragCurrentIndex && destIndex <= this.dragCurrentIndex) {
+                    this.dragCurrentIndex += 1;
+                } else if (index < this.dragCurrentIndex && destIndex >= this.dragCurrentIndex) {
                     this.dragCurrentIndex -= 1;
                 }
-
-                if (destIndex <= this.dragStartIndex) {
-                    start += 1;
-                    destIndex += 1;
-                }
-
-                if (destIndex <= this.dragCurrentIndex) {
-                    this.dragCurrentIndex += 1;
-                }
-
-                this.dragStartIndex = start;
             }
-
-            // console.debug("index:", index, "dest:", destIndex, "dragstart:", this.dragStartIndex, "dragcurr:", this.dragCurrentIndex);
         }
 
         this.internalMove(index, destIndex);
@@ -761,13 +759,16 @@ class Playlist {
             htmlEntry.classList.remove("shadow");
         } else {
             this.setEntryPosition(this.draggableEntry, this.dragCurrentIndex);
+            // TODO(kihau): Remove ontransitionend because its faulty.
             this.draggableEntry.ontransitionend = event => {
-                this.htmlEntryList.removeChild(event.target);
                 htmlEntry.classList.remove("shadow");
+                this.htmlEntryList.removeChild(event.target);
             };
         }
 
         this.draggableEntry            = null;
+        this.draggableStartIndex       = -1;
+        this.draggableCurrentIndex     = -1;
         this.draggableEntryMouseOffset = 0; 
 
         if (this.dragStartIndex !== this.dragCurrentIndex) {
