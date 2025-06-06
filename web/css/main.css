@@ -253,44 +253,6 @@ html * {
     width: 200px;
 }
 
-.disable_image_animations .dynamic_image img {
-    visibility: hidden;
-}
-
-.disable_image_animations .dynamic_image canvas {
-    visibility: visible;
-}
-
-.disable_image_animations .dynamic_image:hover img {
-    visibility: visible;
-}
-
-.disable_image_animations .dynamic_image:hover canvas {
-    visibility: hidden;
-}
-
-.dynamic_image {
-    width: 100%;
-    height: 100%;
-    position: relative;
-    object-fit: cover;
-}
-
-.dynamic_image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    position: absolute;
-    visibility: visible;
-}
-
-.dynamic_image canvas {
-    width: 100%;
-    height: 100%;
-    position: absolute;
-    visibility: hidden;
-}
-
 #root_panel {
     height: 100vh;
     column-gap: 6px;
@@ -585,276 +547,6 @@ html * {
 #entry_subtitle_reattach_toggle {
     width: 270px;
 }
-
-/* Toggle widget -------------------------------------------------------------------------- */
-
-.widget_readonly_input,
-.widget_input {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    box-sizing: border-box;
-    z-index: 2;
-    position: relative;
-    align-items: center;
-}
-
-.widget_readonly_input input,
-.widget_input input {
-    width: 100%;
-    height: 100%;
-    padding: 16px;
-    font-size: 14px;
-    border-radius: 8px;
-    border: 2px solid var(--fg_6);
-    box-sizing: border-box;
-    background-color: var(--bg_2);
-    color: var(--fg_1);
-    transition: all 0.2s ease;
-    caret-color: transparent;
-}
-
-.widget_input input:hover {
-    border: 2px solid var(--fg_4);
-    background-color: var(--bg_3);
-}
-
-.widget_input input:focus {
-    outline: none;
-    border-color: var(--blue_2);
-    background-color: var(--bg_3);
-    box-shadow: 0 0 0 2px var(--blue_1);
-    caret-color: auto;
-}
-
-.widget_readonly_input input:not(:placeholder-shown),
-.widget_input input:not(:placeholder-shown) {
-    background-color: var(--bg_3);
-}
-
-.widget_readonly_input label,
-.widget_input label {
-    max-width: 80%;
-    left: 16px;
-    top: 50%;
-    font-size: 14px;
-    padding: 0 4px;
-    position: absolute;
-    pointer-events: none;
-    background-color: var(--bg_2);
-    color: var(--fg_4);
-    transform: translateY(-50%);
-    transition: all 0.2s ease;
-}
-
-.widget_input input:hover + label {
-    background-color: var(--bg_3);
-    color: var(--fg_3);
-}
-
-.widget_input input:focus + label {
-    background-color: var(--bg_3);
-}
-
-.widget_readonly_input input:not(:placeholder-shown) + label,
-.widget_input input:focus + label,
-.widget_input input:not(:placeholder-shown) + label {
-    max-width: 100%;
-    top: 0;
-    transform: translateY(-50%) scale(0.90);
-    font-weight: bold;
-    background-color: var(--bg_3);
-}
-
-.widget_readonly_input input:not(:placeholder-shown) + label,
-.widget_input input:not(:placeholder-shown) + label {
-    color: var(--fg_6);
-}
-
-.widget_input input:hover + label {
-    color: var(--fg_3);
-}
-
-.widget_input input:focus + label {
-    color: var(--blue_2);
-}
-
-.widget_input_extra_button input {
-    border-radius: 8px 0 0 8px;
-    z-index: 1;
-}
-
-.widget_input_extra_button input:focus {
-    z-index: 2;
-}
-
-.widget_input_extra_button label {
-    z-index: 2;
-}
-
-.widget_input_extra_button button {
-    height: 100%;
-    width: 36px;
-    border: 2px solid var(--fg_6);
-    background-color: var(--bg_2);
-    border-radius: 0 8px 8px 0;
-    margin-left: -2px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    color: var(--fg_5);
-    font-weight: bold;
-}
-
-.widget_input_extra_button button svg {
-    height: 16px;
-    width: 16px;
-    fill: var(--fg_5);
-}
-
-.widget_input_extra_button button:hover {
-    border: 2px solid var(--fg_4);
-    background-color: var(--bg_3);
-    z-index: 1;
-    color: var(--fg_4);
-}
-
-.widget_input_extra_button button:hover svg {
-    fill: var(--fg_4);
-}
-
-.widget_input_extra_button button:active {
-    border-color: var(--blue_2);
-    background-color: var(--bg_4);
-    box-shadow: 0 0 0 2px var(--blue_1);
-    z-index: 1;
-    color: var(--green_2);
-}
-
-.widget_input_extra_button button:active svg {
-    fill: var(--green_2);
-}
-
-/* Toggle widget -------------------------------------------------------------------------- */
-
-.widget_readonly_toggle,
-.widget_toggle {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background-color: var(--bg_4);
-    border-radius: 6px;
-    gap: 8px;
-    padding: 8px 16px;
-    transition: all 0.2s ease;
-    cursor: pointer;
-}
-
-.widget_readonly_toggle {
-    cursor: auto;
-}
-
-.widget_toggle:hover {
-    background-color: var(--bg_5);
-}
-
-.widget_readonly_toggle,
-.widget_toggle span {
-    color: var(--fg_3);
-    font-weight: normal;
-    font-size: 14px;
-    user-select: none;
-}
-
-.widget_toggle:active span {
-    color: var(--fg_1);
-}
-
-/* Toggle circle container */
-.widget_readonly_toggle > div,
-.widget_toggle > div {
-    width: 56px;
-    height: 24px;
-    border: 2px solid var(--fg_3);
-    border-radius: 12px;
-    display: flex;
-    position: relative;
-    align-items: center;
-    background-color: var(--bg_4);
-    transition: all 0.3s ease;
-}
-
-.widget_toggle:active > div {
-    border: 2px solid var(--fg_1);
-    background-color: var(--bg_5);
-}
-
-.widget_readonly_toggle.active > div,
-.widget_toggle.active > div {
-    background-color: var(--green_1);
-    border-color: var(--green_1);
-}
-
-.widget_toggle.active:active > div {
-    background-color: var(--green_2);
-    border-color: var(--green_2);
-}
-
-/* Toggle circle */
-.widget_readonly_toggle > div div,
-.widget_toggle > div div {
-    height: calc(100% - 4px);
-    aspect-ratio: 1.0;
-    border-radius: 8px;
-    left: 0;
-    position: absolute;
-    margin-left: 2px;
-    background-color: var(--fg_3);
-    transition: 250ms ease-out;
-}
-
-.widget_toggle:active > div div {
-    background-color: var(--fg_1);
-}
-
-.widget_readonly_toggle.active > div div,
-.widget_toggle.active > div div {
-    left: calc(100% - 4px);
-    transform: translateX(-100%);
-}
-
-/* Button widget -------------------------------------------------------------------------- */
-
-.widget_button {
-    box-shadow: 1px 3px 0px 0px var(--bg_0);
-    border: none;
-    border-radius: 6px;
-    display: flex;
-    box-sizing: border-box;
-    cursor: pointer;
-    justify-content: center;
-    align-items: center;
-    transition: all 80ms ease;
-    background-color: var(--red_2);
-}
-
-.widget_button:hover {
-    background-color: var(--red_1);
-}
-
-.widget_button:active {
-    box-shadow: none;
-    transform: translate(1px, 2px);
-    background-color: var(--red_0);
-}
-
-.widget_button svg {
-    height: 27px;
-    width: 27px;
-    fill: var(--fg_0);
-}
-
 #users_area {
     width: 100%;
     height: 200px;
@@ -1643,4 +1335,388 @@ html * {
     #room_media_section {
         column-gap: 6px;
     }
+}
+
+/* Toggle widget -------------------------------------------------------------------------- */
+
+.widget_readonly_input,
+.widget_input {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    box-sizing: border-box;
+    z-index: 2;
+    position: relative;
+    align-items: center;
+}
+
+.widget_readonly_input input,
+.widget_input input {
+    width: 100%;
+    height: 100%;
+    padding: 16px;
+    font-size: 14px;
+    border-radius: 8px;
+    border: 2px solid var(--fg_6);
+    box-sizing: border-box;
+    background-color: var(--bg_2);
+    color: var(--fg_1);
+    transition: all 0.2s ease;
+    caret-color: transparent;
+}
+
+.widget_input input:hover {
+    border: 2px solid var(--fg_4);
+    background-color: var(--bg_3);
+}
+
+.widget_input input:focus {
+    outline: none;
+    border-color: var(--blue_2);
+    background-color: var(--bg_3);
+    box-shadow: 0 0 0 2px var(--blue_1);
+    caret-color: auto;
+}
+
+.widget_readonly_input input:not(:placeholder-shown),
+.widget_input input:not(:placeholder-shown) {
+    background-color: var(--bg_3);
+}
+
+.widget_readonly_input label,
+.widget_input label {
+    max-width: 80%;
+    left: 16px;
+    top: 50%;
+    font-size: 14px;
+    padding: 0 4px;
+    position: absolute;
+    pointer-events: none;
+    background-color: var(--bg_2);
+    color: var(--fg_4);
+    transform: translateY(-50%);
+    transition: all 0.2s ease;
+}
+
+.widget_input input:hover + label {
+    background-color: var(--bg_3);
+    color: var(--fg_3);
+}
+
+.widget_input input:focus + label {
+    background-color: var(--bg_3);
+}
+
+.widget_readonly_input input:not(:placeholder-shown) + label,
+.widget_input input:focus + label,
+.widget_input input:not(:placeholder-shown) + label {
+    max-width: 100%;
+    top: 0;
+    transform: translateY(-50%) scale(0.90);
+    font-weight: bold;
+    background-color: var(--bg_3);
+}
+
+.widget_readonly_input input:not(:placeholder-shown) + label,
+.widget_input input:not(:placeholder-shown) + label {
+    color: var(--fg_6);
+}
+
+.widget_input input:hover + label {
+    color: var(--fg_3);
+}
+
+.widget_input input:focus + label {
+    color: var(--blue_2);
+}
+
+.widget_input_extra_button input {
+    border-radius: 8px 0 0 8px;
+    z-index: 1;
+}
+
+.widget_input_extra_button input:focus {
+    z-index: 2;
+}
+
+.widget_input_extra_button label {
+    z-index: 2;
+}
+
+.widget_input_extra_button button {
+    height: 100%;
+    width: 36px;
+    border: 2px solid var(--fg_6);
+    background-color: var(--bg_2);
+    border-radius: 0 8px 8px 0;
+    margin-left: -2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    color: var(--fg_5);
+    font-weight: bold;
+}
+
+.widget_input_extra_button button svg {
+    height: 16px;
+    width: 16px;
+    fill: var(--fg_5);
+}
+
+.widget_input_extra_button button:hover {
+    border: 2px solid var(--fg_4);
+    background-color: var(--bg_3);
+    z-index: 1;
+    color: var(--fg_4);
+}
+
+.widget_input_extra_button button:hover svg {
+    fill: var(--fg_4);
+}
+
+.widget_input_extra_button button:active {
+    border-color: var(--blue_2);
+    background-color: var(--bg_4);
+    box-shadow: 0 0 0 2px var(--blue_1);
+    z-index: 1;
+    color: var(--green_2);
+}
+
+.widget_input_extra_button button:active svg {
+    fill: var(--green_2);
+}
+
+/* Toggle widget -------------------------------------------------------------------------- */
+
+.widget_readonly_toggle,
+.widget_toggle {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--bg_4);
+    border-radius: 6px;
+    gap: 8px;
+    padding: 8px 16px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.widget_readonly_toggle {
+    cursor: auto;
+}
+
+.widget_toggle:hover {
+    background-color: var(--bg_5);
+}
+
+.widget_readonly_toggle,
+.widget_toggle span {
+    color: var(--fg_3);
+    font-weight: normal;
+    font-size: 14px;
+    user-select: none;
+}
+
+.widget_toggle:active span {
+    color: var(--fg_1);
+}
+
+/* Toggle circle container */
+.widget_readonly_toggle > div,
+.widget_toggle > div {
+    width: 56px;
+    height: 24px;
+    border: 2px solid var(--fg_3);
+    border-radius: 12px;
+    display: flex;
+    position: relative;
+    align-items: center;
+    background-color: var(--bg_4);
+    transition: all 0.3s ease;
+}
+
+.widget_toggle:active > div {
+    border: 2px solid var(--fg_1);
+    background-color: var(--bg_5);
+}
+
+.widget_readonly_toggle.active > div,
+.widget_toggle.active > div {
+    background-color: var(--green_1);
+    border-color: var(--green_1);
+}
+
+.widget_toggle.active:active > div {
+    background-color: var(--green_2);
+    border-color: var(--green_2);
+}
+
+/* Toggle circle */
+.widget_readonly_toggle > div div,
+.widget_toggle > div div {
+    height: calc(100% - 4px);
+    aspect-ratio: 1.0;
+    border-radius: 8px;
+    left: 0;
+    position: absolute;
+    margin-left: 2px;
+    background-color: var(--fg_3);
+    transition: 250ms ease-out;
+}
+
+.widget_toggle:active > div div {
+    background-color: var(--fg_1);
+}
+
+.widget_readonly_toggle.active > div div,
+.widget_toggle.active > div div {
+    left: calc(100% - 4px);
+    transform: translateX(-100%);
+}
+
+/* Button widget -------------------------------------------------------------------------- */
+
+.widget_button {
+    box-shadow: 1px 3px 0px 0px var(--bg_0);
+    border: none;
+    border-radius: 6px;
+    display: flex;
+    box-sizing: border-box;
+    cursor: pointer;
+    justify-content: center;
+    align-items: center;
+    transition: all 80ms ease;
+    background-color: var(--red_2);
+}
+
+.widget_button:hover {
+    background-color: var(--red_1);
+}
+
+.widget_button:active {
+    box-shadow: none;
+    transform: translate(1px, 2px);
+    background-color: var(--red_0);
+}
+
+.widget_button svg {
+    height: 27px;
+    width: 27px;
+    fill: var(--fg_0);
+}
+
+/* Context menu -------------------------------------------------------------------------- */
+
+.context_menu {
+    width: 180px;
+    height: auto;
+    border-radius: 6px;
+    box-shadow: 0px 0px 12px var(--bg_0);
+    border: 2px solid var(--fg_6);
+    /* row-gap: 3px; */
+    position: absolute;
+    z-index: 3;
+    display: none;
+    box-sizing: border-box;
+    padding: 4px;
+    flex-direction: column;
+    background-color: var(--bg_3);
+}
+
+.context_menu.show {
+    display: flex;
+}
+
+.context_menu_separator {
+    width: calc(100% - 8px);
+    margin-right: 4px;
+    margin-left: 4px;
+    color: var(--fg_6);
+}
+
+.context_menu_item {
+    height: 26px;
+    width: 100%;
+    border-radius: 4px;
+    display: flex;
+    box-sizing: border-box;
+    align-items: center;
+    padding: 6px;
+}
+
+.context_menu_item span {
+    user-select: none;
+    color: var(--fg_4);
+}
+
+.context_menu_item svg {
+    width:  13px;
+    height: 13px;
+    margin-left: auto;
+    fill: var(--fg_4);
+}
+
+.context_menu_item:hover {
+    background-color: var(--bg_4);
+}
+
+.context_menu_item:hover span {
+    color: var(--fg_3);
+}
+
+.context_menu_item:hover svg {
+    fill: var(--fg_3);
+}
+
+.context_menu_item:active {
+    background-color: var(--bg_5);
+}
+
+.context_menu_item:active span {
+    color: var(--fg_1);
+}
+
+.context_menu_item:active svg {
+    fill: var(--fg_1);
+}
+
+/* Animated avatar rules -------------------------------------------------------------------------- */
+
+.disable_image_animations .dynamic_image img {
+    visibility: hidden;
+}
+
+.disable_image_animations .dynamic_image canvas {
+    visibility: visible;
+}
+
+.disable_image_animations .dynamic_image:hover img {
+    visibility: visible;
+}
+
+.disable_image_animations .dynamic_image:hover canvas {
+    visibility: hidden;
+}
+
+.dynamic_image {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    object-fit: cover;
+}
+
+.dynamic_image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    visibility: visible;
+}
+
+.dynamic_image canvas {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    visibility: hidden;
 }

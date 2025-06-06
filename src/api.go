@@ -981,7 +981,7 @@ func (server *Server) apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 	}
 
 	event := createPlaylistEvent("move", eventData)
-	server.writeEventToAllConnectionsExceptSelf(w, "playlist", event, user.Id, move.ConnectionId)
+	server.writeEventToAllConnections(w, "playlist", event)
 	go server.preloadYoutubeSourceOnNextEntry()
 }
 
@@ -1034,14 +1034,6 @@ func (server *Server) apiHistoryGet(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(jsonData))
 }
 
-func (server *Server) apiHistoryClear(w http.ResponseWriter, r *http.Request) {
-	server.state.mutex.Lock()
-	server.state.history = server.state.history[:0]
-	server.state.mutex.Unlock()
-
-	server.writeEventToAllConnections(w, "historyclear", nil)
-}
-
 func (server *Server) apiChatGet(w http.ResponseWriter, r *http.Request) {
 	server.state.mutex.Lock()
 	jsonData, err := json.Marshal(server.state.messages)
@@ -1053,6 +1045,46 @@ func (server *Server) apiChatGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	io.WriteString(w, string(jsonData))
+}
+
+func (server *Server) apiHistoryClear(w http.ResponseWriter, r *http.Request) {
+	server.state.mutex.Lock()
+	server.state.history = server.state.history[:0]
+	server.state.mutex.Unlock()
+
+	server.writeEventToAllConnections(w, "historyclear", nil)
+}
+
+func (server *Server) apiHistoryPlay(w http.ResponseWriter, r *http.Request) {
+	var entryId uint64
+	if !server.readJsonDataFromRequest(w, r, &entryId) {
+		return
+	}
+
+
+	server.state.mutex.Lock()
+	compareFunc := func(entry Entry) bool {
+		return entry.Id == entryId
+	}
+
+	index := slices.IndexFunc(server.state.history, compareFunc)
+	if index == -1 {
+		server.state.mutex.Unlock()
+		respondBadRequest(w, "Failed to play history element. Entry with ID %v is not in the history.", entryId)
+		return
+	}
+
+	newEntry := server.state.history[index]
+	server.loadYoutubeEntry(&newEntry, RequestEntry{})
+	prevEntry := server.setNewEntry(&newEntry)
+	server.state.mutex.Unlock()
+
+	setEvent := PlayerSetEventData{
+		PrevEntry: prevEntry,
+		NewEntry:  newEntry,
+	}
+	
+	server.writeEventToAllConnections(w, "playerset", setEvent)
 }
 
 func (server *Server) apiChatSend(w http.ResponseWriter, r *http.Request) {
@@ -1067,6 +1099,7 @@ func (server *Server) apiChatSend(w http.ResponseWriter, r *http.Request) {
 	if !server.readJsonDataFromRequest(w, r, &newMessage) {
 		return
 	}
+
 	if len(newMessage.Message) > MAX_MESSAGE_CHARACTERS {
 		http.Error(w, "Message exceeds 1000 chars", http.StatusForbidden)
 		return

@@ -320,6 +320,7 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	// API calls that change state of the history.
 	server.HandleEndpoint(mux, "/watch/api/history/get", server.apiHistoryGet, "GET", true)
 	server.HandleEndpoint(mux, "/watch/api/history/clear", server.apiHistoryClear, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/history/play", server.apiHistoryPlay, "POST", true)
 
 	server.HandleEndpoint(mux, "/watch/api/chat/send", server.apiChatSend, "POST", true)
 	server.HandleEndpoint(mux, "/watch/api/chat/get", server.apiChatGet, "GET", true)

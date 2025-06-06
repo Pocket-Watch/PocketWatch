@@ -5,6 +5,25 @@ export { History }
 
 const MAX_HISTORY_SIZE = 80
 
+const CONTEXT_MENU_WIDTH  = 180;
+const CONTEXT_MENU_HEIGHT = 160;
+
+function createRequestEntry(entry) {
+    const requestEntry = {
+        url:          entry.url,
+        title:        entry.title,
+        use_proxy:    entry.use_proxy,
+        referer_url:  entry.referer_url,
+        subtitles:    entry.subtitles,
+        search_video: false,
+        is_playlist:  false,
+        playlist_skip_count: 0,
+        playlist_max_size:   0,
+    };
+
+    return requestEntry;
+}
+
 class History {
     constructor() {
         this.controlsClearButton    = getById("history_controls_clear");
@@ -18,15 +37,70 @@ class History {
 
         // HTML DOM with history entries.
         this.htmlEntryList = getById("history_entry_list");
+
+        // Context menu elements.
+        this.contextMenu            = getById("history_context_menu");
+        this.contextMenuPlayNow     = getById("history_context_play_now");
+        this.contextMenuExpand      = getById("history_context_expand");
+        this.contextMenuCopyUrl     = getById("history_context_copy_url");
+        this.contextMenuCopyEntry   = getById("history_context_copy_entry");
+        this.contextMenuAddPlaylist = getById("history_context_add_to_playlist");
+
+        // Selected entry for an open context menu.
+        this.contextMenuEntry = null;
     }
 
     // NOTE(kihau): Attachable history events (similar to the custom player)
     onSettingsClick() {}
+    onContextEntryCopy(_entry) {}
 
     attachHistoryEvents() {
         this.controlsClearButton.onclick    = _ => api.historyClear();
         this.controlsSettingsButton.onclick = _ => this.onSettingsClick();
+
+        this.contextMenu.oncontextmenu = event => {
+            event.preventDefault();
+            this.hideContextMenu();
+        };
+
+        this.htmlEntryList.oncontextmenu = _ => { return false };
+        document.addEventListener("click", _ => this.hideContextMenu());
+
+        this.contextMenuPlayNow.onclick     = _ => api.historyPlay(this.contextMenuEntry.id);
+        this.contextMenuExpand.onclick      = _ => console.warn("TODO");
+        this.contextMenuCopyUrl.onclick     = _ => navigator.clipboard.writeText(this.contextMenuEntry.url);;
+        this.contextMenuCopyEntry.onclick   = _ => this.onContextEntryCopy(this.contextMenuEntry);
+        this.contextMenuAddPlaylist.onclick = _ => api.playlistAdd(createRequestEntry(this.contextMenuEntry));
     }
+
+    hideContextMenu() {
+        this.contextMenuEntry = null;
+        hide(this.contextMenu);
+    }
+
+    showContextMenu(event, entry, htmlEntry) {
+        const entryRect = htmlEntry.getBoundingClientRect();
+        const listRect = this.htmlEntryList.getBoundingClientRect();
+
+        let contextMenuX = event.clientX;
+        let protrusion = contextMenuX + CONTEXT_MENU_WIDTH - entryRect.right;
+        if (protrusion > 0) {
+            contextMenuX -= protrusion;
+        }
+
+        let contextMenuY = event.clientY;
+        protrusion = contextMenuY + CONTEXT_MENU_HEIGHT - listRect.bottom;
+        if (protrusion > 0) {
+            contextMenuY -= protrusion;
+        }
+
+        this.contextMenu.style.left = (contextMenuX - entryRect.left) + "px";
+        this.contextMenu.style.top  = (contextMenuY - listRect.top) + "px";
+        show(this.contextMenu);
+
+        this.contextMenuEntry     = entry;
+    }
+
 
     createHtmlEntry(entry) {
         let entryRoot      = div("history_entry");
@@ -45,8 +119,18 @@ class History {
         // Attaching events to html elements.
         //
 
-        entryThumbnail.onclick = _ => console.warn("TODO");
+        entryThumbnail.onclick = _ => api.historyPlay(entry.id);
         dropdownButton.onclick = _ => console.warn("TODO")
+
+        entryRoot.oncontextmenu = event => {
+            event.preventDefault();
+
+            if (this.contextMenuEntry && this.contextMenuEntry.id === entry.id) {
+                this.hideContextMenu();
+            } else {
+                this.showContextMenu(event, entry, entryRoot);
+            }
+        };
 
         //
         // Constructing html element structure.

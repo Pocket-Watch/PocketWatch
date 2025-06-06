@@ -376,7 +376,6 @@ export async function playlistPlay(entryId) {
 
 export async function playlistAdd(requestEntry) {
     const payload = {
-        connection_id: connectionId,
         request_entry: requestEntry,
     };
 
@@ -391,7 +390,6 @@ export async function playlistClear() {
 
 export async function playlistRemove(entryId) {
     const payload = {
-        connection_id: connectionId,
         entry_id: entryId,
     };
 
@@ -406,8 +404,7 @@ export async function playlistShuffle() {
 
 export async function playlistMove(entryId, dest) {
     const payload = {
-        connection_id: connectionId, 
-        entry_id: entryId,
+        entry_id:   entryId,
         dest_index: dest,
     }
 
@@ -434,6 +431,11 @@ export async function historyGet() {
 export async function historyClear() {
     console.info("INFO: Sending history clear request.");
     return await httpPost("/watch/api/history/clear", null);
+}
+
+export async function historyPlay(entryId) {
+    console.info("INFO: Sending history play request.");
+    return await httpPost("/watch/api/history/play", entryId);
 }
 
 // CHAT requests

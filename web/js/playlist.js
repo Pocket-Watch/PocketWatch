@@ -16,8 +16,8 @@ const TOUCH_HOLD_DELAY_TIME = 80;
 const DESKTOP_PLATFORM_SCROLLING_STEP = ENTRY_HEIGHT * 3.0;
 const TOY_TOUCH_DEVICE_SCROLLING_STEP = 32.0
 
-let CONTEXT_MENU_WIDTH  = 180; // hardcoded because .offsetWidth returns 0 when it's hidden
-let CONTEXT_MENU_HEIGHT = 204; // hardcoded because it's currently auto
+const CONTEXT_MENU_WIDTH  = 180; // hardcoded because .offsetWidth returns 0 when it's hidden
+const CONTEXT_MENU_HEIGHT = 256; // hardcoded because it's currently auto
 
 class Playlist {
     constructor() {
@@ -35,12 +35,13 @@ class Playlist {
         this.footerEntryCount = getById("playlist_footer_entry_count");
 
         this.contextMenu           = getById("playlist_context_menu");
-        this.contextMenuPlayNow    = getById("context_menu_play_now");
-        this.contextMenuMoveTop    = getById("context_menu_move_to_top");
-        this.contextMenuMoveBottom = getById("context_menu_move_to_bottom");
-        this.contextMenuExpand     = getById("context_menu_expand_entry");
-        this.contextMenuEdit       = getById("context_menu_edit");
-        this.contextMenuDelete     = getById("context_menu_delete");
+        this.contextMenuPlayNow    = getById("playlist_context_play_now");
+        this.contextMenuMoveTop    = getById("playlist_context_move_to_top");
+        this.contextMenuMoveBottom = getById("playlist_context_move_to_bottom");
+        this.contextMenuExpand     = getById("playlist_context_expand_entry");
+        this.contextMenuCopyUrl    = getById("playlist_context_copy_url");
+        this.contextMenuEdit       = getById("playlist_context_edit");
+        this.contextMenuDelete     = getById("playlist_context_delete");
 
         this.contextMenuEntry     = null;
         this.contextMenuUser      = null;
@@ -131,22 +132,14 @@ class Playlist {
         };
 
         this.contextMenuPlayNow.onclick    = _ => api.playlistPlay(this.contextMenuEntry.id);
-        this.contextMenuMoveTop.onclick    = _ => this.requestEntryMove(this.contextMenuEntry.id, 0);
-        this.contextMenuMoveBottom.onclick = _ => this.requestEntryMove(this.contextMenuEntry.id, this.entries.length - 1);
+        this.contextMenuMoveTop.onclick    = _ => api.playlistMove(this.contextMenuEntry.id, 0);
+        this.contextMenuMoveBottom.onclick = _ => api.playlistMove(this.contextMenuEntry.id, this.entries.length - 1);
         this.contextMenuExpand.onclick     = _ => this.toggleEntryDropdown(this.contextMenuHtmlEntry, this.contextMenuEntry, this.contextMenuUser);
+        this.contextMenuCopyUrl.onclick    = _ => navigator.clipboard.writeText(this.contextMenuEntry.url);
         this.contextMenuEdit.onclick       = _ => this.toggleEntryEdit(this.contextMenuHtmlEntry, this.contextMenuEntry);
         this.contextMenuDelete.onclick     = _ => api.playlistRemove(this.contextMenuEntry.id);
 
         this.htmlEntryList.oncontextmenu = _ => { return false };
-    }
-
-    requestEntryMove(entryId, destIndex) {
-        let response = api.playlistMove(entryId, destIndex);
-        response.then(async  result => {
-            if (result.ok) {
-                this.move(entryId, destIndex);
-            }  
-        });
     }
 
     handleUserUpdate(user) {
@@ -766,15 +759,15 @@ class Playlist {
             };
         }
 
-        this.draggableEntry            = null;
-        this.draggableStartIndex       = -1;
-        this.draggableCurrentIndex     = -1;
-        this.draggableEntryMouseOffset = 0; 
-
         if (this.dragStartIndex !== this.dragCurrentIndex) {
             let entry = this.entries[this.dragCurrentIndex];
             api.playlistMove(entry.id, this.dragCurrentIndex);
         }
+
+        this.draggableEntry            = null;
+        this.draggableStartIndex       = -1;
+        this.draggableCurrentIndex     = -1;
+        this.draggableEntryMouseOffset = 0; 
     }
 
     cancelEntryDragging() {

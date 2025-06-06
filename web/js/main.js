@@ -607,6 +607,25 @@ class Room {
         });
     }
 
+    copyEntryToEntryArea(entry) {
+        let area = this.entryArea;
+        area.urlInput.value     = entry.url;
+        area.titleInput.value   = entry.title;
+        area.refererInput.value = entry.referer_url;
+
+        if (entry.use_proxy) {
+            area.proxyToggle.classList.add("active");
+        } else {
+            area.proxyToggle.classList.remove("active");
+        }
+
+        if (entry.subtitles && entry.subtitles.length > 0) {
+            let sub = entry.subtitles[0];
+            area.subtitleUrlInput.value  = sub.url;
+            area.subtitleNameInput.value = sub.name;
+        }
+    }
+
     attachRoomTabEvents() {
         const room = this.roomContent;
 
@@ -669,29 +688,11 @@ class Room {
             this.startMediaFileUpload(event.target.files[0])
         };
 
-        room.browse.videoButton.onclick    = _ => window.open("media/video/", "_blank").focus();
+        room.browse.videoButton.onclick     = _ => window.open("media/video/", "_blank").focus();
         room.browse.audioButton.onclick     = _ => window.open("media/audio/", "_blank").focus();
         room.browse.subtitlesButton.onclick = _ => window.open("media/subs/",  "_blank").focus();
         room.browse.imagesButton.onclick    = _ => window.open("media/image/", "_blank").focus();
-
-        room.copyEntryButton.onclick = _ => {
-            let area = this.entryArea;
-            area.urlInput.value     = this.currentEntry.url;
-            area.titleInput.value   = this.currentEntry.title;
-            area.refererInput.value = this.currentEntry.referer_url;
-
-            if (this.currentEntry.use_proxy) {
-                area.proxyToggle.classList.add("active");
-            } else {
-                area.proxyToggle.classList.remove("active");
-            }
-
-            if (this.currentEntry.subtitles.length > 0) {
-                let sub = this.currentEntry.subtitles[0];
-                area.subtitleUrlInput.value  = sub.url;
-                area.subtitleNameInput.value = sub.name;
-            }
-        };
+        room.copyEntryButton.onclick        = _ => this.copyEntryToEntryArea(this.currentEntry);
 
         room.setShiftButton.onclick = _ => {
             let subs = this.currentEntry.subtitles;
@@ -751,8 +752,9 @@ class Room {
         this.playlist.attachPlaylistEvents();
         this.history.attachHistoryEvents();
 
-        this.playlist.onSettingsClick = _ => room.showSettingsMenu();
-        this.history.onSettingsClick  = _ => room.showSettingsMenu();
+        this.playlist.onSettingsClick   = _     => room.showSettingsMenu();
+        this.history.onSettingsClick    = _     => room.showSettingsMenu();
+        this.history.onContextEntryCopy = entry => this.copyEntryToEntryArea(entry);
     }
 
     async sendSetRequest() {
