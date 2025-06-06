@@ -385,7 +385,7 @@ export async function playlistAdd(requestEntry) {
 
 export async function playlistClear() {
     console.info("INFO: Sending playlist clear request.");
-    return await httpPost("/watch/api/playlist/clear", connectionId);
+    return await httpPost("/watch/api/playlist/clear");
 }
 
 export async function playlistRemove(entryId) {
@@ -414,9 +414,7 @@ export async function playlistMove(entryId, dest) {
 
 export async function playlistUpdate(entry) {
     const payload = {
-        connection_id: connectionId,
         entry: entry,
-        index: 0, // NOTE(kihau): The index is unused for now.
     }
 
     console.info("INFO: Sending playlist update request for entry id:", entry);

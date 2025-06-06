@@ -773,11 +773,7 @@ func (server *Server) apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
 	}
 
 	server.state.mutex.Lock()
-	compareFunc := func(entry Entry) bool {
-		return entry.Id == data.EntryId
-	}
-
-	index := slices.IndexFunc(server.state.playlist, compareFunc)
+	index := FindEntryIndex(server.state.playlist, data.EntryId)
 	if index == -1 {
 		server.state.mutex.Unlock()
 		respondBadRequest(w, "Failed to play playlist element. Entry with ID %v is not in the playlist.", data.EntryId)
@@ -879,11 +875,6 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
-	var connectionId uint64
-	if !server.readJsonDataFromRequest(w, r, &connectionId) {
-		return
-	}
-
 	server.state.mutex.Lock()
 	server.state.playlist = server.state.playlist[:0]
 	server.state.mutex.Unlock()
@@ -899,11 +890,7 @@ func (server *Server) apiPlaylistRemove(w http.ResponseWriter, r *http.Request) 
 	}
 
 	server.state.mutex.Lock()
-	compareFunc := func(entry Entry) bool {
-		return entry.Id == data.EntryId
-	}
-
-	index := slices.IndexFunc(server.state.playlist, compareFunc)
+	index := FindEntryIndex(server.state.playlist, data.EntryId)
 	if index == -1 {
 		server.state.mutex.Unlock()
 		respondBadRequest(w, "Failed to remove playlist element. Entry with ID %v is not in the playlist.", data.EntryId)
@@ -937,25 +924,21 @@ func (server *Server) apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var move PlaylistMoveRequestData
-	if !server.readJsonDataFromRequest(w, r, &move) {
+	var data PlaylistMoveRequestData
+	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
 	server.state.mutex.Lock()
-	compareFunc := func(entry Entry) bool {
-		return entry.Id == move.EntryId
-	}
-
-	index := slices.IndexFunc(server.state.playlist, compareFunc)
+	index := FindEntryIndex(server.state.playlist, data.EntryId)
 	if index == -1 {
 		server.state.mutex.Unlock()
-		respondBadRequest(w, "Failed to move playlist element. Entry with ID %v is not in the playlist.", move.EntryId)
+		respondBadRequest(w, "Failed to move playlist element. Entry with ID %v is not in the playlist.", data.EntryId)
 		return
 	}
 
-	if move.DestIndex < 0 || move.DestIndex >= len(server.state.playlist) {
-		respondBadRequest(w, "Failed to move playlist element id:%v. Dest index %v out of bounds.", move.EntryId, move.DestIndex)
+	if data.DestIndex < 0 || data.DestIndex >= len(server.state.playlist) {
+		respondBadRequest(w, "Failed to move playlist element id:%v. Dest index %v out of bounds.", data.EntryId, data.DestIndex)
 		server.state.mutex.Unlock()
 		return
 	}
@@ -968,16 +951,16 @@ func (server *Server) apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 	list := make([]Entry, 0)
 
 	// Appned removed element to a new list:
-	list = append(list, server.state.playlist[:move.DestIndex]...)
+	list = append(list, server.state.playlist[:data.DestIndex]...)
 	list = append(list, entry)
-	list = append(list, server.state.playlist[move.DestIndex:]...)
+	list = append(list, server.state.playlist[data.DestIndex:]...)
 
 	server.state.playlist = list
 	server.state.mutex.Unlock()
 
 	eventData := PlaylistMoveEventData{
-		EntryId:   move.EntryId,
-		DestIndex: move.DestIndex,
+		EntryId:   data.EntryId,
+		DestIndex: data.DestIndex,
 	}
 
 	event := createPlaylistEvent("move", eventData)
@@ -986,39 +969,28 @@ func (server *Server) apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiPlaylistUpdate(w http.ResponseWriter, r *http.Request) {
-	user := server.getAuthorized(w, r)
-	if user == nil {
-		return
-	}
-
 	var data PlaylistUpdateRequestData
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
-	entry := data.Entry
-
 	server.state.mutex.Lock()
-	updatedEntry := Entry{Id: 0}
-
-	for i := range server.state.playlist {
-		if server.state.playlist[i].Id == entry.Id {
-			server.state.playlist[i].Title = entry.Title
-			server.state.playlist[i].Url = entry.Url
-			updatedEntry = server.state.playlist[i]
-			break
-		}
-	}
-
-	server.state.mutex.Unlock()
-
-	if updatedEntry.Id == 0 {
-		LogWarn("Failed to find entry to update")
+	index := FindEntryIndex(server.state.playlist, data.Entry.Id)
+	if index == -1 {
+		server.state.mutex.Unlock()
+		respondBadRequest(w, "Entry with id:%v is not in the playlist.", data.Entry.Id)
 		return
 	}
 
-	event := createPlaylistEvent("update", entry)
-	server.writeEventToAllConnectionsExceptSelf(w, "playlist", event, user.Id, data.ConnectionId)
+	updated := server.state.playlist[index]
+	updated.Title = data.Entry.Title
+	updated.Url = data.Entry.Url
+	server.state.playlist[index] = updated
+
+	server.state.mutex.Unlock()
+
+	event := createPlaylistEvent("update", updated)
+	server.writeEventToAllConnections(w, "playlist", event)
 }
 
 func (server *Server) apiHistoryGet(w http.ResponseWriter, r *http.Request) {
@@ -1061,13 +1033,8 @@ func (server *Server) apiHistoryPlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	server.state.mutex.Lock()
-	compareFunc := func(entry Entry) bool {
-		return entry.Id == entryId
-	}
-
-	index := slices.IndexFunc(server.state.history, compareFunc)
+	index := FindEntryIndex(server.state.history, entryId)
 	if index == -1 {
 		server.state.mutex.Unlock()
 		respondBadRequest(w, "Failed to play history element. Entry with ID %v is not in the history.", entryId)

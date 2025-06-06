@@ -314,9 +314,7 @@ type PlaylistMoveEventData struct {
 }
 
 type PlaylistUpdateRequestData struct {
-	ConnectionId uint64 `json:"connection_id"`
-	Entry        Entry  `json:"entry"`
-	Index        int    `json:"index"`
+	Entry Entry  `json:"entry"`
 }
 
 type MediaUploadResponseData struct {

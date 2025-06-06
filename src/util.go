@@ -29,6 +29,15 @@ var hastyClient = http.Client{
 
 var userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; rv:115.0) Gecko/20100101 Firefox/115.0"
 
+func FindEntryIndex(entries []Entry, targetId uint64) int {
+	compareFunc := func(entry Entry) bool {
+		return entry.Id == targetId
+	}
+
+	index := slices.IndexFunc(entries, compareFunc)
+	return index
+}
+
 func GeneratePrettyTableStandard(headers []string, data []string) string {
 	if len(headers) == 0 {
 		return ""

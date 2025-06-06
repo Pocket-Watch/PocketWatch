@@ -45,6 +45,14 @@ export function img(src) {
     return element;
 }
 
+export function isScrollableVisible(scrollableList, element) {
+    let listTop     = scrollableList.scrollTop;
+    let listBottom  = scrollableList.offsetHeight + listTop;
+    let entryTop    = element.offsetTop
+    let entryBottom = element.offsetHeight + entryTop;
+    return (entryTop <= listBottom) && (entryBottom >= listTop);
+}
+
 export function isAnimated(url_string) {
     let url = new URL(url_string, window.location.href)
     return url.searchParams.get("ext") === "gif";

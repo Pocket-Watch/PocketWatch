@@ -5,9 +5,6 @@ export { History }
 
 const MAX_HISTORY_SIZE = 80
 
-const CONTEXT_MENU_WIDTH  = 180;
-const CONTEXT_MENU_HEIGHT = 160;
-
 function createRequestEntry(entry) {
     const requestEntry = {
         url:          entry.url,
@@ -79,28 +76,32 @@ class History {
     }
 
     showContextMenu(event, entry, htmlEntry) {
+        show(this.contextMenu);
+
         const entryRect = htmlEntry.getBoundingClientRect();
-        const listRect = this.htmlEntryList.getBoundingClientRect();
+        const listRect  = this.htmlEntryList.getBoundingClientRect();
+        const height    = this.contextMenu.offsetHeight;
+        const width     = this.contextMenu.offsetWidth;
 
         let contextMenuX = event.clientX;
-        let protrusion = contextMenuX + CONTEXT_MENU_WIDTH - entryRect.right;
+        let protrusion = contextMenuX + width - entryRect.right;
         if (protrusion > 0) {
             contextMenuX -= protrusion;
         }
 
         let contextMenuY = event.clientY;
-        protrusion = contextMenuY + CONTEXT_MENU_HEIGHT - listRect.bottom;
+        protrusion = contextMenuY + height - listRect.bottom;
         if (protrusion > 0) {
             contextMenuY -= protrusion;
         }
 
         this.contextMenu.style.left = (contextMenuX - entryRect.left) + "px";
-        this.contextMenu.style.top  = (contextMenuY - listRect.top) + "px";
-        show(this.contextMenu);
+        this.contextMenu.style.top  = (contextMenuY - listRect.top)   + "px";
 
         this.contextMenuEntry     = entry;
+        this.contextMenuHtmlEntry = htmlEntry;
+        this.contextMenuUser      = user;
     }
-
 
     createHtmlEntry(entry) {
         let entryRoot      = div("history_entry");

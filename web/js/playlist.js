@@ -1,23 +1,23 @@
 import * as api from "./api.js";
-import { getById, div, a, span, img, svg, button, hide, show } from "./util.js";
+import { getById, div, a, span, img, svg, button, hide, show, isScrollableVisible } from "./util.js";
 
 export { Playlist }
 
+// NOTE(kihau): Hardcoded size values from the playlist.css
 const ENTRY_ROW_GAP = 4;
 const ENTRY_BORDER  = 2;
 const ENTRY_HEIGHT  = 64 + ENTRY_BORDER * 2;
 
-const TRANSITION_TIME       = 240;
+// NOTE(kihau): Hardcoded transition time values from the playlist.css
+const DROPDOWN_EXPAND_TIME  = 100;
+const ENTRY_TRANSITION_TIME = 240;
+
 const BULK_ACTION_DELAY     = 32;
 const DRAG_INACTIVITY_DELAY = 32;
-const DROPDOWN_EXPAND_TIME  = 100;
 const TOUCH_HOLD_DELAY_TIME = 80;
 
 const DESKTOP_PLATFORM_SCROLLING_STEP = ENTRY_HEIGHT * 3.0;
 const TOY_TOUCH_DEVICE_SCROLLING_STEP = 32.0
-
-const CONTEXT_MENU_WIDTH  = 180; // hardcoded because .offsetWidth returns 0 when it's hidden
-const CONTEXT_MENU_HEIGHT = 256; // hardcoded because it's currently auto
 
 class Playlist {
     constructor() {
@@ -258,7 +258,7 @@ class Playlist {
         this.htmlEntries.splice(index, 1);
 
         hide(htmlEntry);
-        setTimeout(_ => this.htmlEntryList.removeChild(htmlEntry), TRANSITION_TIME);
+        setTimeout(_ => this.htmlEntryList.removeChild(htmlEntry), ENTRY_TRANSITION_TIME);
 
         for (let i = index; i < this.htmlEntries.length; i++) {
             const entry = this.htmlEntries[i];
@@ -301,6 +301,16 @@ class Playlist {
         let htmlEntry = this.htmlEntries[sourceIndex];
         this.htmlEntries[sourceIndex] = this.htmlEntries[destIndex];
         this.htmlEntries[destIndex] = htmlEntry;
+    }
+
+    revertDragging(sourceIndex, destIndex) {
+        let htmlEntry = this.htmlEntries[sourceIndex];
+        this.htmlEntries.splice(sourceIndex, 1);
+        this.htmlEntries.splice(destIndex, 0, htmlEntry);
+
+        let entry = this.entries[sourceIndex];
+        this.entries.splice(sourceIndex, 1);
+        this.entries.splice(destIndex, 0, entry);
     }
 
     move(entryId, destIndex) {
@@ -390,10 +400,14 @@ class Playlist {
             this.htmlEntries.push(htmlEntry);
             this.htmlEntryList.appendChild(htmlEntry);
 
-            setTimeout(_ => {
-                window.getComputedStyle(htmlEntry).marginLeft;
+            if (isScrollableVisible(this.htmlEntryList, htmlEntry)) {
+                setTimeout(_ => {
+                    window.getComputedStyle(htmlEntry).marginLeft;
+                    show(htmlEntry);
+                }, i * BULK_ACTION_DELAY);
+            } else {
                 show(htmlEntry);
-            }, i * BULK_ACTION_DELAY);
+            }
         }
 
         this.updateFooter();
@@ -426,31 +440,35 @@ class Playlist {
             this.htmlEntries.unshift(htmlEntry);
             this.htmlEntryList.appendChild(htmlEntry);
 
-            setTimeout(_ => {
-                window.getComputedStyle(htmlEntry).marginLeft;
+            if (isScrollableVisible(this.htmlEntryList, htmlEntry)) {
+                setTimeout(_ => {
+                    window.getComputedStyle(htmlEntry).marginLeft;
+                    show(htmlEntry);
+                }, i * BULK_ACTION_DELAY);
+            } else {
                 show(htmlEntry);
-            }, i * BULK_ACTION_DELAY);
+            }
         }
 
         this.updateFooter();
     }
 
-
     clear() {
         this.cancelEntryDragging();
         this.hideContextMenu();
 
-        // NOTE(kihau): 
-        //     This clears the context menu (when inside the entry list) and also the deletion order is random. 
-        //     It is generally a bad way to do it!
-        const children = this.htmlEntryList.children;
-        for (let i = 0; i < children.length; i++) {
-            const htmlEntry = children[i];
+        for (let i = 0; i < this.htmlEntries.length; i++) {
+            const htmlEntry = this.htmlEntries[i];
 
-            setTimeout(_ => {
-                hide(htmlEntry);
-                setTimeout(_ => this.htmlEntryList.removeChild(htmlEntry), TRANSITION_TIME);
-            }, i * BULK_ACTION_DELAY);
+            if (isScrollableVisible(this.htmlEntryList, htmlEntry)) {
+                console.log("Slow removing entry: ", i)
+                setTimeout(_ => {
+                    hide(htmlEntry);
+                    setTimeout(_ => this.htmlEntryList.removeChild(htmlEntry), ENTRY_TRANSITION_TIME);
+                }, i * BULK_ACTION_DELAY);
+            } else {
+                this.htmlEntryList.removeChild(htmlEntry)
+            }
         }
 
         this.htmlEntries   = [];
@@ -606,24 +624,27 @@ class Playlist {
     }
 
     showContextMenu(event, htmlEntry, entry, user) {
+        show(this.contextMenu);
+
         const entryRect = htmlEntry.getBoundingClientRect();
-        const listRect = this.htmlEntryList.getBoundingClientRect();
+        const listRect  = this.htmlEntryList.getBoundingClientRect();
+        const height    = this.contextMenu.offsetHeight;
+        const width     = this.contextMenu.offsetWidth;
 
         let contextMenuX = event.clientX;
-        let protrusion = contextMenuX + CONTEXT_MENU_WIDTH - entryRect.right;
+        let protrusion = contextMenuX + width - entryRect.right;
         if (protrusion > 0) {
             contextMenuX -= protrusion;
         }
 
         let contextMenuY = event.clientY;
-        protrusion = contextMenuY + CONTEXT_MENU_HEIGHT - listRect.bottom;
+        protrusion = contextMenuY + height - listRect.bottom;
         if (protrusion > 0) {
             contextMenuY -= protrusion;
         }
 
         this.contextMenu.style.left = (contextMenuX - entryRect.left) + "px";
-        this.contextMenu.style.top  = (contextMenuY - listRect.top) + "px";
-        show(this.contextMenu);
+        this.contextMenu.style.top  = (contextMenuY - listRect.top)   + "px";
 
         this.contextMenuEntry     = entry;
         this.contextMenuHtmlEntry = htmlEntry;
@@ -731,10 +752,10 @@ class Playlist {
         this.moveShadowedEntry();
         this.stopScrolling();
 
-        let entryRect = this.draggableEntry.getBoundingClientRect();
-        let listRect  = this.htmlEntryList.getBoundingClientRect();
+        let entryRect  = this.draggableEntry.getBoundingClientRect();
+        let listRect   = this.htmlEntryList.getBoundingClientRect();
         let listScroll = this.htmlEntryList.scrollTop;
-        let entryTop = entryRect.top - listRect.top + listScroll;
+        let entryTop   = entryRect.top - listRect.top + listScroll;
 
         this.draggableEntry.classList.remove("draggable");
         this.draggableEntry.style.top = entryTop + "px";
@@ -752,15 +773,19 @@ class Playlist {
             htmlEntry.classList.remove("shadow");
         } else {
             this.setEntryPosition(this.draggableEntry, this.dragCurrentIndex);
-            // TODO(kihau): Remove ontransitionend because its faulty.
-            this.draggableEntry.ontransitionend = event => {
+
+            let draggable = this.draggableEntry;
+            setTimeout(_ => {
                 htmlEntry.classList.remove("shadow");
-                this.htmlEntryList.removeChild(event.target);
-            };
+                if (this.htmlEntryList.contains(draggable)) {
+                    this.htmlEntryList.removeChild(draggable);
+                }
+            }, ENTRY_TRANSITION_TIME);
         }
 
         if (this.dragStartIndex !== this.dragCurrentIndex) {
             let entry = this.entries[this.dragCurrentIndex];
+            this.revertDragging(this.dragCurrentIndex, this.dragStartIndex)
             api.playlistMove(entry.id, this.dragCurrentIndex);
         }
 
