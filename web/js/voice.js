@@ -14,6 +14,9 @@ let audioContext = null;
 let audioSource = null;
 let audioWorkletNode = null;
 
+let MIME_TYPE = "audio/webm; codecs=vorbis";
+// let MIME_TYPE = "audio/ogg; codecs=vorbis";
+
 async function processStream() {
     if (!mediaStream) {
         console.warn("Can't execute processStream because mediaStream is", mediaStream)
@@ -161,8 +164,10 @@ let sourceBuffer;
 // When the MediaSource is open, create a SourceBuffer
 mediaSource.addEventListener('sourceopen', () => {
     // Create a SourceBuffer for the audio format
-    console.debug("Created a source buffer because media source was opened!")
-    sourceBuffer = mediaSource.addSourceBuffer("audio/webm; codecs=opus");
+    console.debug("Creating a source buffer because media source was opened!")
+    let supported = MediaSource.isTypeSupported(MIME_TYPE);
+    console.debug("Mime type ", MIME_TYPE, "is", supported ? "supported" : "not supported");
+    sourceBuffer = mediaSource.addSourceBuffer(MIME_TYPE);
 });
 
 
@@ -193,7 +198,7 @@ async function startVoiceChat() {
     webSocket.onopen = event => {
         console.log("WebSocket opened /w event:", event);
 
-        const options = { mimeType: "audio/webm; codecs=opus" };
+        const options = { mimeType: MIME_TYPE };
         let mediaRecorder = new MediaRecorder(micStream, options);
 
         mediaRecorder.ondataavailable = (event) => {
