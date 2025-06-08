@@ -140,15 +140,9 @@ async function forwardToSelf() {
     const micStream = await navigator.mediaDevices.getUserMedia({
         audio: { deviceId: inputDeviceId }
     });
-    let audioCtx = new AudioContext();
-    let source = audioCtx.createMediaStreamSource(micStream);
-    const destination = audioCtx.createMediaStreamDestination();
-
-    source.connect(destination);
-    const outputStream = destination.stream;
 
     // Create an audio element to play the output
-    selfAudio.srcObject = outputStream;
+    selfAudio.srcObject = micStream;
     selfAudio.setSinkId(outputDeviceId); // Set the output device
     selfAudio.play();
 
@@ -166,7 +160,7 @@ mediaSource.addEventListener('sourceopen', () => {
     // Create a SourceBuffer for the audio format
     console.debug("Creating a source buffer because media source was opened!")
     let supported = MediaSource.isTypeSupported(MIME_TYPE);
-    console.debug("Mime type ", MIME_TYPE, "is", supported ? "supported" : "not supported");
+    console.debug("Mime type ", MIME_TYPE, "is", supported ? "supported" : "not supported", "by MediaSource");
     sourceBuffer = mediaSource.addSourceBuffer(MIME_TYPE);
 });
 
@@ -199,6 +193,8 @@ async function startVoiceChat() {
         console.log("WebSocket opened /w event:", event);
 
         const options = { mimeType: MIME_TYPE };
+        let supported = MediaRecorder.isTypeSupported(MIME_TYPE);
+        console.debug("Mime type ", MIME_TYPE, "is", supported ? "supported" : "not supported", "by MediaRecorder");
         let mediaRecorder = new MediaRecorder(micStream, options);
 
         mediaRecorder.ondataavailable = (event) => {
@@ -207,7 +203,7 @@ async function startVoiceChat() {
             }
         };
 
-        mediaRecorder.start(500); // Send audio data every given ms
+        mediaRecorder.start(32); // Send audio data every given ms
     };
 
     webSocket.onmessage = (event) => {
