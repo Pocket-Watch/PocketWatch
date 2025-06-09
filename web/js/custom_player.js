@@ -2485,7 +2485,7 @@ function createTimestampString(timestamp) {
     timestamp = timestamp / 60.0;
     let minutes = Math.floor(timestamp % 60.0);
     timestamp = timestamp / 60.0;
-    let hours = Math.floor(timestamp % 60.0);
+    let hours = Math.floor(timestamp);
 
     let timestamp_string = "";
     if (hours > 0.0) {
