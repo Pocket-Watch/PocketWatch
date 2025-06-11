@@ -1322,7 +1322,7 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 		return
 	}
 
-	LogDebug("Serving proxied file at range [%v-%v]", byteRange.start, byteRange.end)
+	LogDebug("Serving proxied file at range [%v-%v] to %v", byteRange.start, byteRange.end, request.RemoteAddr)
 	// If download offset is different from requested it's likely due to a seek and since everyone
 	// should be in sync anyway we can terminate the existing download and create a new one.
 

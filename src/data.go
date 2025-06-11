@@ -43,7 +43,7 @@ const MEDIA_INIT_SECTION = "mis.key"
 const MAX_PLAYLIST_DEPTH = 2
 
 const MAX_MESSAGE_CHARACTERS = 1000
-const GENERIC_CHUNK_SIZE = 3 * MB
+const GENERIC_CHUNK_SIZE = 1 * MB
 const SCAN_QUERY_PARAMS = true
 
 // Constants - assignable only once!
