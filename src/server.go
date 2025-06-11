@@ -1322,110 +1322,39 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 		return
 	}
 
-	LogDebug("serveGenericFile() called with range %v-%v", byteRange.start, byteRange.end)
+	LogDebug("Serving proxied file at range [%v-%v]", byteRange.start, byteRange.end)
 	// If download offset is different from requested it's likely due to a seek and since everyone
 	// should be in sync anyway we can terminate the existing download and create a new one.
-	proxy.downloadMutex.Lock()
-	if proxy.downloadBeginOffset != byteRange.start {
-		proxy.downloadBeginOffset = byteRange.start
-		response, err := openFileDownload(proxy.fileUrl, byteRange.start, proxy.referer)
-		if err != nil {
-			http.Error(writer, "Unable to open file download", 500)
-			return
-		}
-		proxy.download = response
-		go server.downloadProxyFilePeriodically()
+
+	writer.Header().Set("Accept-Ranges", "bytes")
+	writer.Header().Set("Content-Length", int64ToString(byteRange.length()))
+	writer.Header().Set("Content-Range", byteRange.toContentRange(proxy.contentLength))
+
+	response, err := openFileDownload(proxy.fileUrl, byteRange.start, proxy.referer)
+	if err != nil {
+		http.Error(writer, "Unable to open file download", 500)
+		return
 	}
-	proxy.downloadMutex.Unlock()
 
-	wroteHeaders := false
-	offset := byteRange.start
-	i := 0
-
-	for {
-		proxy.rangesMutex.Lock()
-		if i >= len(proxy.contentRanges) {
-			proxy.rangesMutex.Unlock()
-			// Sleeps until offset becomes available
-			i = 0
-			time.Sleep(1 * time.Second)
-			continue
-		}
-		contentRange := &proxy.contentRanges[i]
-		proxy.rangesMutex.Unlock()
-		i++
-
-		if contentRange.includes(offset) && contentRange.length() >= GENERIC_CHUNK_SIZE {
-			payload := make([]byte, GENERIC_CHUNK_SIZE)
-			_, err := proxy.file.ReadAt(payload, offset)
-			if err != nil {
-				LogError("An error occurred while reading file from memory, %v", err)
-				return
-			}
-
-			if !wroteHeaders {
-				currentContentLength := proxy.contentLength - offset
-				writer.Header().Set("Accept-Ranges", "bytes")
-
-				writer.Header().Set("Content-Length", int64ToString(currentContentLength))
-				writer.Header().Set("Content-Range", byteRange.toContentRange(proxy.contentLength))
-				writer.WriteHeader(http.StatusPartialContent)
-				wroteHeaders = true
-			}
-
-			_, err = writer.Write(payload)
-			if err != nil {
-				LogError("An error occurred while writing payload to user %v", err)
-				return
-			}
-			LogInfo("Successfully wrote payload, range: %v - %v", offset, offset+GENERIC_CHUNK_SIZE)
-
-			offset += GENERIC_CHUNK_SIZE
-		}
+	if request.Method == "HEAD" {
+		writer.WriteHeader(http.StatusOK)
+		return
 	}
-}
 
-func (server *Server) downloadProxyFilePeriodically() {
-	proxy := &server.state.genericProxy
-	download := proxy.download
-	offset := proxy.downloadBeginOffset
-	id := generateUniqueId()
-	LogInfo("Starting download (id: %v)", id)
+	writer.WriteHeader(http.StatusPartialContent)
+	var totalWritten int64
 	for {
-		// Download periodically until the download is replaced pointing to a different object
-		if proxy.download != download {
-			_ = download.Body.Close()
-			LogInfo("Terminating download (id: %v)", id)
-			return
-		}
-
-		bytes, err := pullBytesFromResponse(download, GENERIC_CHUNK_SIZE)
+		chunkBytes, err := pullBytesFromResponse(response, GENERIC_CHUNK_SIZE)
 		if err != nil {
 			LogError("An error occurred while pulling from source: %v", err)
 			return
 		}
-
-		_, err = proxy.file.WriteAt(bytes, offset)
+		written, err := io.CopyN(writer, bytes.NewReader(chunkBytes), GENERIC_CHUNK_SIZE)
+		totalWritten += written
 		if err != nil {
-			LogError("Error writing to file: %v", err)
+			LogInfo("Connection %v terminated download having written %v bytes", request.RemoteAddr, totalWritten)
 			return
 		}
-
-		// The ranges should be checked before the download to avoid re-downloading
-		// Probably open a new download so the entire coroutine should be controlling opening and closing
-		proxy.rangesMutex.Lock()
-		server.insertContentRangeSequentially(newRange(offset, offset+GENERIC_CHUNK_SIZE-1))
-		server.mergeContentRanges()
-		LogInfo("RANGES %v:", len(proxy.contentRanges))
-		for i := range proxy.contentRanges {
-			rang := &proxy.contentRanges[i]
-			LogInfo("[%v] %v - %v", i, rang.start, rang.end)
-		}
-		proxy.rangesMutex.Unlock()
-
-		offset += GENERIC_CHUNK_SIZE
-
-		time.Sleep(5 * time.Second)
 	}
 }
 

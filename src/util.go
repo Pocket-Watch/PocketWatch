@@ -595,7 +595,7 @@ type Range struct {
 }
 
 func (r *Range) toContentRange(length int64) string {
-	return fmt.Sprintf("bytes %v-%v/%v", r.start, length-1, length)
+	return fmt.Sprintf("bytes %v-%v/%v", r.start, r.end, length)
 }
 
 func (r *Range) exceedsSize(size int64) bool {
