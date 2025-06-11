@@ -629,12 +629,17 @@ func (server *Server) apiSubtitleDownload(w http.ResponseWriter, r *http.Request
 	}
 
 	subId := server.state.subsId.Add(1)
+	// Cut at fragment identifier if present
+	hash := strings.Index(data.Url, "#")
+	if hash >= 0 {
+		data.Url = data.Url[:hash]
+	}
 	filename := filepath.Base(data.Url)
 	extension := path.Ext(filename)
 	serverUrl := data.Url
 
 	if url.IsAbs() {
-		response, err := http.Get(data.Url)
+		response, err := hastyClient.Get(data.Url)
 		if err != nil {
 			respondBadRequest(w, "Failed to download subtitle for url %v; %v", data.Url, err)
 			return
@@ -1050,7 +1055,7 @@ func (server *Server) apiHistoryPlay(w http.ResponseWriter, r *http.Request) {
 		PrevEntry: prevEntry,
 		NewEntry:  newEntry,
 	}
-	
+
 	server.writeEventToAllConnections(w, "playerset", setEvent)
 }
 

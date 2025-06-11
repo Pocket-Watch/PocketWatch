@@ -937,7 +937,7 @@ class Internals {
 
     setVideoTrack(url) {
         if(URL.canParse && !URL.canParse(url, document.baseURI)){
-            console.debug("Failed to set a new URL. It's not parsable.");
+            console.warn("Failed to set a new URL. It's not parsable.");
             // We should probably inform the user about the error either via debug log or return false
             return;
         }
@@ -1013,7 +1013,7 @@ class Internals {
 
         let ext = info.extension;
         if (ext !== "vtt" && ext !== "srt") {
-            console.debug("Unsupported subtitle extension:", ext)
+            console.warn("Unsupported subtitle extension:", ext)
             return
         }
 
@@ -2216,6 +2216,10 @@ export class FileInfo {
         let slash = Math.max(url.lastIndexOf("/"), url.lastIndexOf("\\"));
         let filename = url.substring(slash + 1);
         let extension = filename.substring(filename.lastIndexOf(".") + 1).toLowerCase();
+        let hash = extension.indexOf("#");
+        if (hash >= 0) {
+            extension = extension.substring(0, hash)
+        }
         return new FileInfo(filename, extension);
     }
 }
@@ -2514,7 +2518,7 @@ function parseSubtitles(subtitleText, decimalMark, skipCounter, skipHeader) {
     let cues = []
     let i = 0;
     if (skipHeader) i = 2;
-    for (; i < lines.length-2; i++) {
+    for (; i < lines.length-1; i++) {
         if (skipCounter) ++i;
 
         let timestamps = lines[i];
