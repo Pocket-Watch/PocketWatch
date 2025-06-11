@@ -257,6 +257,12 @@ func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// The no-cache directive does not prevent the storing of responses
 	// but instead prevents the reuse of responses without revalidation.
 	w.Header().Add("Cache-Control", "no-cache")
+
+	/*if resource == "/media/video/Cats.webm" {
+		LogDebug("Serving using shareFile() function")
+		shareFile(w, r, "web"+resource)
+		return
+	}*/
 	cache.fsHandler.ServeHTTP(w, r)
 }
 
@@ -476,8 +482,7 @@ func (server *Server) setNewEntry(newEntry *Entry) Entry {
 				LogWarn("HLS proxy setup failed!")
 			}
 		} else {
-			//setup := setupGenericFileProxy(newEntry.Url, newEntry.RefererUrl)
-			setup := false
+			setup := server.setupGenericFileProxy(newEntry.Url, newEntry.RefererUrl)
 			if setup {
 				newEntry.SourceUrl = PROXY_ROUTE + "proxy" + server.state.genericProxy.extensionWithDot
 				LogInfo("Generic file proxy setup was successful.")
@@ -695,7 +700,7 @@ func (server *Server) setupGenericFileProxy(url string, referer string) bool {
 		return false
 	}
 
-	size, err := getContentRange(url, referer)
+	size, err := getContentLength(url, referer)
 	if err != nil {
 		LogError("Couldn't read resource metadata: %v", err)
 		return false
@@ -707,6 +712,7 @@ func (server *Server) setupGenericFileProxy(url string, referer string) bool {
 	server.state.setupLock.Lock()
 	defer server.state.setupLock.Unlock()
 	server.state.isHls = false
+	server.state.isLive = false
 
 	proxy := &server.state.genericProxy
 	proxy.referer = referer
@@ -1095,7 +1101,7 @@ func (server *Server) watchProxy(writer http.ResponseWriter, request *http.Reque
 			server.serveHlsVod(writer, request, chunk)
 		}
 	} else {
-		//server.serveGenericFile(writer, request, chunk)
+		server.serveGenericFile(writer, request, chunk)
 	}
 }
 
@@ -1306,21 +1312,17 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 	}
 	byteRange, err := parseRangeHeader(rangeHeader, proxy.contentLength)
 	if err != nil {
-		LogError("400 after parsing header")
-		http.Error(writer, err.Error(), 400)
-		return
-	}
-	if byteRange == nil || byteRange.start < 0 || byteRange.end < 0 {
-		http.Error(writer, "Bad range", 400)
+		LogInfo("Bad request: %v", err)
+		http.Error(writer, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if byteRange.start >= proxy.contentLength || byteRange.end >= proxy.contentLength {
-		http.Error(writer, "Range out of bounds", 400)
+	if byteRange.exceedsSize(proxy.contentLength) {
+		http.Error(writer, "Range out of bounds", http.StatusRequestedRangeNotSatisfiable)
 		return
 	}
 
-	LogDebug("serveGenericFile() called at offset: %v", byteRange.start)
+	LogDebug("serveGenericFile() called with range %v-%v", byteRange.start, byteRange.end)
 	// If download offset is different from requested it's likely due to a seek and since everyone
 	// should be in sync anyway we can terminate the existing download and create a new one.
 	proxy.downloadMutex.Lock()
@@ -1364,10 +1366,9 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 			if !wroteHeaders {
 				currentContentLength := proxy.contentLength - offset
 				writer.Header().Set("Accept-Ranges", "bytes")
-				writer.Header().Set("Content-Length", strconv.FormatInt(currentContentLength, 10))
-				writer.Header().Set(
-					"Content-Range",
-					fmt.Sprintf("bytes=%v-%v/%v", offset, proxy.contentLength-1, proxy.contentLength))
+
+				writer.Header().Set("Content-Length", int64ToString(currentContentLength))
+				writer.Header().Set("Content-Range", byteRange.toContentRange(proxy.contentLength))
 				writer.WriteHeader(http.StatusPartialContent)
 				wroteHeaders = true
 			}

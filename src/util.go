@@ -472,7 +472,7 @@ func fileExists(filePath string) bool {
 	return err == nil
 }
 
-func getContentRange(url string, referer string) (int64, error) {
+func getContentLength(url string, referer string) (int64, error) {
 	// HEAD method returns metadata of a resource
 	request, err := http.NewRequest("HEAD", url, nil)
 	if err != nil {
@@ -488,9 +488,9 @@ func getContentRange(url string, referer string) (int64, error) {
 	}
 	defer response.Body.Close()
 
-	// Get the Content-Range header
-	contentRange := response.Header.Get("Content-Length")
-	return strconv.ParseInt(contentRange, 10, 64)
+	// Get the Content-Length header
+	length := response.Header.Get("Content-Length")
+	return parseInt64(length)
 }
 
 func isTimeoutError(err error) bool {
@@ -509,57 +509,56 @@ func getDownloadErrorCode(err error) int {
 	return -1
 }
 
-// This will parse only the first range, given header and max (content-length) of the whole resource
-func parseRangeHeader(headerValue string, max int64) (*Range, error) {
-	bytes := strings.Index(headerValue, "bytes=")
-	if bytes == -1 {
-		return nil, errors.New("expected 'bytes=' inside the header")
+const BYTES_UNIT = "bytes="
+
+// parseRangeHeader - parses header, returning the first available range or nil if the range is invalid
+func parseRangeHeader(header string, max int64) (*Range, error) {
+	if !strings.HasPrefix(header, BYTES_UNIT) {
+		return nil, errors.New("expected 'bytes=' to be header's prefix")
 	}
-	headerValue = headerValue[bytes+6:]
-	if len(headerValue) < 2 {
-		return nil, errors.New("the header is too short")
-	}
-	dash := strings.Index(headerValue, "-")
-	if dash == -1 {
-		return nil, errors.New("expected '-' inside the header")
-	}
-	end := strings.Index(headerValue, ",")
-	if end != -1 {
-		headerValue = headerValue[:end]
+	header = header[len(BYTES_UNIT):]
+
+	if end := strings.Index(header, ","); end != -1 {
+		header = header[:end]
 	}
 
-	leftSide := headerValue[:dash]
-	rightSide := headerValue[dash+1:]
-	if leftSide == "" && rightSide == "" {
-		return nil, errors.New("expected at least one number around '-'")
+	start, end, found := strings.Cut(header, "-")
+	if !found {
+		return nil, errors.New("invalid 'Range' header syntax")
+	}
+	start = strings.TrimSpace(start)
+	end = strings.TrimSpace(end)
+	if start == "" && end == "" {
+		return nil, errors.New("invalid 'Range' header syntax")
 	}
 
-	if leftSide == "" {
+	if start == "" {
 		// this is actually <suffix-length> and it follows different rules
-		suffixLength, err := strconv.ParseUint(rightSide, 10, 64)
+		suffixLength, err := parseInt64(end)
 		if err != nil {
 			return nil, err
 		}
-		return newRange(max-int64(suffixLength), max-1), nil
+		return newRange(max-suffixLength, max-1), nil
 	}
 
-	if rightSide == "" {
-		rangeSt, err := strconv.ParseUint(leftSide, 10, 64)
+	rangeSt, err := parseInt64(start)
+	if err != nil {
+		return nil, err
+	}
+
+	rangeEnd := max - 1
+	if end != "" {
+		rangeEnd, err = parseInt64(end)
 		if err != nil {
 			return nil, err
 		}
-		return newRange(int64(rangeSt), max-1), nil
 	}
 
-	rangeSt, err := strconv.ParseUint(leftSide, 10, 64)
-	if err != nil {
-		return nil, err
-	}
-	rangeEnd, err := strconv.ParseUint(rightSide, 10, 64)
-	if err != nil {
-		return nil, err
-	}
-	return newRange(int64(rangeSt), int64(rangeEnd)), nil
+	return newRange(rangeSt, rangeEnd), nil
+}
+
+func parseInt64(number string) (int64, error) {
+	return strconv.ParseInt(number, 10, 64)
 }
 
 func generateUniqueId() uint64 {
@@ -588,10 +587,22 @@ func (e *DownloadError) Error() string {
 	return fmt.Sprintf("NetworkError: Code=%d, Message=%s", e.Code, e.Message)
 }
 
-// Range - both start and end are inclusive
+// Range - represents http byte range:
+// start, end are inclusive and positive numbers, where start <= end
 type Range struct {
 	start int64
 	end   int64
+}
+
+func (r *Range) toContentRange(length int64) string {
+	return fmt.Sprintf("bytes %v-%v/%v", r.start, length-1, length)
+}
+
+func (r *Range) exceedsSize(size int64) bool {
+	if r.start >= size || r.end >= size {
+		return true
+	}
+	return false
 }
 
 func newRange(start, end int64) *Range {
@@ -907,4 +918,70 @@ func (ring *RingBuffer) PopEnd() {
 
 func (ring *RingBuffer) Clear() {
 	ring.length = 0
+}
+
+var zeroTime = time.Unix(0, 0)
+
+const TIME_LAYOUT = "Mon, 02 Jan 2006 15:04:05 GMT"
+
+func shareFile(w http.ResponseWriter, r *http.Request, path string) {
+	rangeHeader := r.Header.Get("Range")
+	if rangeHeader == "" {
+		respondBadRequest(w, "Range header missing")
+		return
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		respondInternalError(w, "Internal error occurred while opening file")
+		LogError("Can't open file: %v", err)
+		return
+	}
+	defer f.Close()
+
+	stats, err := f.Stat()
+	if err != nil {
+		respondInternalError(w, "Internal error occurred while retrieving file info")
+		LogError("Can't retrieve file info: %v", err)
+		return
+	}
+
+	fileSize := stats.Size()
+	// TODO: take care of empty files and respond with 200
+
+	byteRange, err := parseRangeHeader(rangeHeader, fileSize)
+	if err != nil {
+		LogInfo("Bad request: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if byteRange.exceedsSize(fileSize) {
+		LogInfo("Range %v-%v is out of bounds", byteRange.start, byteRange.end)
+		http.Error(w, "Range out of bounds", http.StatusRequestedRangeNotSatisfiable)
+		return
+	}
+
+	if _, err := f.Seek(byteRange.start, io.SeekStart); err != nil {
+		LogError("Unable to seek within file but range is satisfiable: %v", err)
+		http.Error(w, "Seek failed.", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Accept-Ranges", "bytes")
+	SetLastModified(w, stats.ModTime())
+
+	rangeLength := byteRange.length()
+	w.Header().Set("Content-Length", int64ToString(rangeLength))
+
+	w.Header().Set("Content-Range", byteRange.toContentRange(fileSize))
+
+	w.WriteHeader(http.StatusPartialContent)
+	if r.Method != "HEAD" {
+		io.CopyN(w, f, rangeLength)
+	}
+}
+
+func SetLastModified(w http.ResponseWriter, lastModified time.Time) {
+	w.Header().Set("Last-Modified", lastModified.UTC().Format(TIME_LAYOUT))
 }
