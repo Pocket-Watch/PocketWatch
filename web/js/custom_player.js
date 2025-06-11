@@ -1887,15 +1887,39 @@ class Internals {
         let optionsTab       = newDiv(null, "player_menu_tab");
         let selectView       = newDiv("player_submenu_select_view");
         let subtitleSwitch   = this.subtitleToggle;
+        let subtitleListRoot = newDiv("subtitle_track_list_root");
         let subtitleList     = this.htmlSubtitleList;
         let searchView       = newDiv("player_submenu_search_view");
-        let subtitleImport   = newElement("input", "player_submenu_import");
-        let subtitleName     = newElement("input", null, "player_input_box");
-        let subtitleLanguage = newElement("input", null, "player_input_box");
-        let subtitleYear     = newElement("input", null, "player_input_box");
-        let subtitleSeason   = newElement("input", null, "player_input_box");
-        let subtitleEpisode  = newElement("input", null, "player_input_box");
-        let searchSubtitle   = newElement("button", "player_subtitle_search");
+
+        let importRoot   = newDiv(null, "player_submenu_import_root");
+        let importInput  = newElement("input", "player_submenu_import_input");
+
+        let searchRoot = newDiv("player_subtitle_search_root");
+
+        let searchTop    = newDiv("player_subtitle_search_top");
+        let searchNameRoot  = newDiv(null, "player_input_box");
+        let searchNameInput = newElement("input");
+        let searchNameLabel = newLabel("Subtitle Name")
+        let searchButton   = newElement("button", "player_subtitle_search_button");
+
+        let searchMiddle    = newDiv("player_subtitle_search_middle");
+        let searchLangRoot  = newDiv(null, "player_input_box");
+        let searchLangInput = newElement("input");
+        let searchLangLabel = newLabel("Language");
+
+        let searchYearRoot  = newDiv(null, "player_input_box");
+        let searchYearInput = newElement("input");
+        let searchYearLabel = newLabel("Year");
+
+        let searchBottom = newDiv("player_subtitle_search_bottom");
+        let searchSeasonRoot  = newDiv(null, "player_input_box");
+        let searchSeasonInput = newElement("input");
+        let searchSeasonLabel = newLabel("Season");
+
+        let searchEpisodeRoot  = newDiv(null, "player_input_box");
+        let searchEpisodeInput = newElement("input");
+        let searchEpisodeLabel = newLabel("Episode");
+
         let optionsView      = newDiv("player_submenu_options_view");
         let subsShift        = this.subtitleShift;
         let subsSize         = this.subtitleSize;
@@ -1917,16 +1941,23 @@ class Internals {
         searchTab.textContent  = "Search";
         optionsTab.textContent = "Options";
 
-        subtitleImport.textContent = "Import subtitle";
-        subtitleImport.type        = "file";
-        subtitleImport.accept      = ".vtt,.srt";
+        importInput.textContent = "Import subtitle";
+        importInput.type        = "file";
+        importInput.accept      = ".vtt,.srt";
 
-        subtitleName.placeholder     = "Title";
-        subtitleLanguage.placeholder = "Language";
-        subtitleYear.placeholder     = "Year";
-        subtitleSeason.placeholder   = "Season";
-        subtitleEpisode.placeholder  = "Episode";
-        searchSubtitle.textContent   = "Search sub";
+        searchNameInput.placeholder    = " ";
+        searchYearInput.placeholder    = " ";
+        searchLangInput.placeholder    = " ";
+        searchSeasonInput.placeholder  = " ";
+        searchEpisodeInput.placeholder = " ";
+
+        searchNameInput.type    = "text";
+        searchYearInput.type    = "text"
+        searchLangInput.type    = "text"
+        searchSeasonInput.type  = "text"
+        searchEpisodeInput.type = "text"
+
+        searchButton.textContent   = "[S]";
 
         selectedTab.classList.add("player_menu_tab_selected");
         show(selectedView);
@@ -1958,7 +1989,7 @@ class Internals {
             }
         };
 
-        subtitleImport.onchange = event => {
+        importInput.onchange = event => {
             if (event.target.files.length === 0) {
                 return;
             }
@@ -1971,20 +2002,18 @@ class Internals {
             this.addSubtitle(objectUrl, true, trackInfo, 0.0);
         };
 
-        subtitleName.addEventListener("keydown", stopPropagation);
-        subtitleLanguage.addEventListener("keydown", stopPropagation);
-        subtitleYear.addEventListener("keydown", stopPropagation);
+        searchRoot.addEventListener("keydown", stopPropagation);
 
-        searchSubtitle.addEventListener("click", async _ => {
-            let title = subtitleName.value;
-            let lang = subtitleLanguage.value;
-            let year = subtitleYear.value;
-            let season = subtitleSeason.value;
-            let episode = subtitleEpisode.value;
-            let search = new Search(title, lang, year, season, episode);
-            searchSubtitle.disabled = true;
+        searchButton.addEventListener("click", async _ => {
+            let title   = searchNameInput.value;
+            let lang    = searchLangInput.value;
+            let year    = searchYearInput.value;
+            let season  = searchSeasonInput.value;
+            let episode = searchEpisodeInput.value;
+            let search  = new Search(title, lang, year, season, episode);
+            searchButton.disabled = true;
             let success = await this.fireSubtitleSearch(search);
-            searchSubtitle.disabled = false;
+            searchButton.disabled = false;
             console.debug("Search", success ? "was successful" : "failed");
         });
 
@@ -2003,16 +2032,45 @@ class Internals {
         menuRoot.append(menuViews); {
             menuViews.append(selectView); {
                 selectView.append(subtitleSwitch.root);
-                selectView.append(subtitleList);
+                selectView.append(subtitleListRoot); {
+                    subtitleListRoot.append(subtitleList);
+                }
             }
             menuViews.append(searchView); {
-                searchView.append(subtitleImport)
-                searchView.append(subtitleName)
-                searchView.append(subtitleLanguage)
-                searchView.append(subtitleYear)
-                searchView.append(subtitleSeason)
-                searchView.append(subtitleEpisode)
-                searchView.append(searchSubtitle)
+                searchView.append(importRoot); {
+                    importRoot.append(importInput);
+                }
+
+                searchView.append(searchRoot); {
+                    searchRoot.append(searchTop); {
+                        searchTop.append(searchNameRoot); {
+                            searchNameRoot.append(searchNameInput);
+                            searchNameRoot.append(searchNameLabel);
+                        }
+
+                        searchTop.append(searchButton);
+                    }
+                    searchRoot.append(searchMiddle); {
+                        searchMiddle.append(searchLangRoot); {
+                            searchLangRoot.append(searchLangInput);
+                            searchLangRoot.append(searchLangLabel);
+                        }
+                        searchMiddle.append(searchYearRoot); {
+                            searchYearRoot.append(searchYearInput);
+                            searchYearRoot.append(searchYearLabel);
+                        }
+                    }
+                    searchRoot.append(searchBottom); {
+                        searchBottom.append(searchSeasonRoot); {
+                            searchSeasonRoot.append(searchSeasonInput);
+                            searchSeasonRoot.append(searchSeasonLabel);
+                        }
+                        searchBottom.append(searchEpisodeRoot); {
+                            searchEpisodeRoot.append(searchEpisodeInput);
+                            searchEpisodeRoot.append(searchEpisodeLabel);
+                        }
+                    }
+                }
             }
             menuViews.append(optionsView); {
                 optionsView.append(subsShift.root);
@@ -2613,6 +2671,13 @@ function newDiv(id, className) {
 
     return div;
 }
+
+function newLabel(labelText) {
+    let label = document.createElement("label")
+    label.textContent = labelText;
+    return label;
+}
+
 
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 

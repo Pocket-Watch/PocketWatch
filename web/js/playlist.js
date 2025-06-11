@@ -461,7 +461,6 @@ class Playlist {
             const htmlEntry = this.htmlEntries[i];
 
             if (isScrollableVisible(this.htmlEntryList, htmlEntry)) {
-                console.log("Slow removing entry: ", i)
                 setTimeout(_ => {
                     hide(htmlEntry);
                     setTimeout(_ => this.htmlEntryList.removeChild(htmlEntry), ENTRY_TRANSITION_TIME);
