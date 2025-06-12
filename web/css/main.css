@@ -249,8 +249,39 @@ html * {
     font-size: 11px;
 }
 
-#animated_avatars_toggle {
+#settings_toggles_group {
+    display: flex;
+    column-gap: 6px;
+}
+
+#animated_avatars_toggle,
+#new_message_sound_toggle,
+#theater_mode_toggle {
     width: 200px;
+}
+
+.theater_mode #root_panel {
+    padding: 0;
+    height: auto;
+    flex-direction: column;
+    border-radius: 0;
+}
+
+.theater_mode #left_panel {
+    padding: 0;
+    border-radius: 0;
+    row-gap: 8px;
+}
+
+.theater_mode #player_area {
+    height: 100vh;
+    border-radius: 0;
+}
+
+.theater_mode #right_panel {
+    min-height: 100vh;
+    padding: 0;
+    border-radius: 0;
 }
 
 #root_panel {
@@ -1258,6 +1289,12 @@ html * {
 }
 
 @media (max-width: 700px) {
+    #settings_toggles_group {
+        display: flex;
+        flex-direction: column;
+        row-gap: 6px;
+    }
+
     #root_panel {
         padding: 0;
     }

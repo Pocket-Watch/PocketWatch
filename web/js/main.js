@@ -9,6 +9,8 @@ import { Storage, button, div, formatTime, formatByteCount, getById, dynamicImg,
 const SERVER_ID = 0;
 
 const USER_AVATAR_ANIMATIONS = "user_avatar_animations"
+const NEW_MESSAGE_SOUND      = "new_message_sound"
+const ROOM_THEATER_MODE      = "room_theader_mode"
 const LAST_SELECTED_TAB      = "last_selected_tab"
 const LAST_SELECTED_SUBTITLE = "last_selected_subtitle"
 
@@ -52,6 +54,8 @@ class Room {
             tokenSetInput:   getById("settings_token_set_input"),
 
             animatedAvatarsToggle:   getById("animated_avatars_toggle"),
+            newMessageSoundToggle:   getById("new_message_sound_toggle"),
+            theaterModeToggle:       getById("theater_mode_toggle"),
             deleteYourAccountButton: getById("delete_your_account"),
             confirmAccountDelete:    getById("confirm_deletion_phrase"),
         };
@@ -231,6 +235,22 @@ class Room {
         } else {
             this.settingsMenu.animatedAvatarsToggle.classList.remove("active");
             this.pageRoot.classList.add("disable_image_animations");
+        }
+
+        let newMessageSound = Storage.get(NEW_MESSAGE_SOUND);
+        if (!newMessageSound || Storage.isTrue(newMessageSound)) {
+            this.settingsMenu.newMessageSoundToggle.classList.add("active");
+        } else {
+            this.settingsMenu.newMessageSoundToggle.classList.remove("active");
+        }
+
+        let theater = Storage.get(ROOM_THEATER_MODE);
+        if (theater && Storage.isTrue(theater)) {
+            this.pageRoot.classList.add("theater_mode");
+            this.settingsMenu.theaterModeToggle.classList.add("active");
+        } else {
+            this.pageRoot.classList.remove("theater_mode");
+            this.settingsMenu.theaterModeToggle.classList.remove("active");
         }
 
         // Player settings
@@ -877,6 +897,17 @@ class Room {
             this.pageRoot.classList.toggle("disable_image_animations");
             let isToggled = menu.animatedAvatarsToggle.classList.toggle("active");
             Storage.setBool(USER_AVATAR_ANIMATIONS, isToggled);
+        };
+
+        menu.newMessageSoundToggle.onclick = _ => {
+            let isToggled = menu.newMessageSoundToggle.classList.toggle("active");
+            Storage.setBool(NEW_MESSAGE_SOUND, isToggled);
+        };
+
+        menu.theaterModeToggle.onclick = _ => {
+            let isToggled = menu.theaterModeToggle.classList.toggle("active");
+            Storage.setBool(ROOM_THEATER_MODE, isToggled);
+            this.pageRoot.classList.toggle("theater_mode");
         };
 
         menu.deleteYourAccountButton.onclick = _ => {
@@ -1630,7 +1661,8 @@ class Room {
                 show(this.chatNewMessage);
             }
 
-            if (this.selected_tab !== this.rightPanel.tabs.chat || this.player.isFullscreen()) {
+            let messageSoundEnabled = this.settingsMenu.newMessageSoundToggle.classList.contains("active");
+            if (messageSoundEnabled && (this.selected_tab !== this.rightPanel.tabs.chat || this.player.isFullscreen())) {
                 this.newMessageAudio.play();
             }
 
