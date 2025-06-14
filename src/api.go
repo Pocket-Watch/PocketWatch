@@ -1065,7 +1065,7 @@ func (server *Server) apiChatSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(newMessage.Message) > MAX_MESSAGE_CHARACTERS {
+	if len([]rune(newMessage.Message)) > MAX_MESSAGE_CHARACTERS {
 		http.Error(w, "Message exceeds 1000 chars", http.StatusForbidden)
 		return
 	}

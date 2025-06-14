@@ -176,6 +176,15 @@ func TestMixedTraversal(t *testing.T) {
 	}
 }
 
+func TestUnicodeTraversal(t *testing.T) {
+	input := "abc/..日"
+	_, isSafe := safeJoin(input)
+	if !isSafe {
+		t.Errorf("Path %v should be safe!", input)
+		return
+	}
+}
+
 func TestManySafeDots(t *testing.T) {
 	input := "./.\\ABC ../DEF/.../bin"
 	joined, isSafe := safeJoin(input)
