@@ -1004,6 +1004,9 @@ class Internals {
         this.htmlVideo.load();
         this.updateTimestamps(0.0);
         hide(this.htmlControls.buttons.liveIndicator);
+
+        this.bufferingTimeout.cancel();
+        hide(this.bufferingSvg);
     }
 
     addSubtitle(url, show, info, shift) {
