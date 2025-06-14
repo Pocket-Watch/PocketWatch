@@ -770,10 +770,20 @@ func setupDualTrackProxy(originalM3U *M3U, referer string, masterUrl *net_url.UR
 	for i := range originalM3U.audioRenditions {
 		rendition := &originalM3U.audioRenditions[i]
 		groupId := getParamValue("GROUP-ID", *rendition)
-		if groupId == audioId {
-			matchedAudio = true
-			audioUrl = getParamValue("URI", *rendition)
-			audioRendition = rendition
+		if groupId != audioId {
+			continue
+		}
+		matchedAudio = true
+		audioUrl = getParamValue("URI", *rendition)
+		audioRendition = rendition
+
+		audioDefault := getParamValue("DEFAULT", *rendition)
+		if audioDefault == "YES" {
+			break
+		}
+		// YT hack: Look for original in audio track name
+		audioName := getParamValue("NAME", *rendition)
+		if strings.Contains(audioName, "original") {
 			break
 		}
 	}
