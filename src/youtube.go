@@ -202,11 +202,8 @@ func (server *Server) loadYoutubePlaylist(query string, videoId string, userId u
 	entries := make([]Entry, 0)
 
 	for _, ytEntry := range playlist.Entries {
-		server.state.mutex.Lock()
-		server.state.entryId += 1
-
 		entry := Entry{
-			Id:         server.state.entryId,
+			Id:         server.state.entryId.Add(1),
 			Url:        ytEntry.Url,
 			Title:      ytEntry.Title,
 			UserId:     userId,
@@ -222,7 +219,6 @@ func (server *Server) loadYoutubePlaylist(query string, videoId string, userId u
 		}
 
 		entries = append(entries, entry)
-		server.state.mutex.Unlock()
 	}
 
 	server.state.mutex.Lock()

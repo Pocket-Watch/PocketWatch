@@ -1544,40 +1544,9 @@ class Room {
         });
 
         events.addEventListener("playerset", event => {
-            let response = JSON.parse(event.data);
-            console.info("INFO: Received player set event: ", response);
-
-            let newEntry = response.new_entry;
-            this.setEntryEvent(newEntry);
-
-            let prevEntry = response.prev_entry;
-            if (this.playlist.loopingEnabled && prevEntry.url !== "") {
-                this.playlist.addEntry(prevEntry, this.allUsers);
-            }
-
-            if (prevEntry.url !== "") {
-                this.history.add(prevEntry);
-            }
-        });
-
-        events.addEventListener("playernext", event => {
-            let response = JSON.parse(event.data);
-            let prevEntry = response.prev_entry;
-
-            let newEntry = response.new_entry;
-            this.setEntryEvent(newEntry);
-
-            if (this.playlist.entries.length !== 0) {
-                if (this.playlist.loopingEnabled && prevEntry.url !== "") {
-                    this.playlist.addEntry(prevEntry, this.allUsers);
-                }
-
-                this.playlist.remove(newEntry.id);
-            }
-
-            if (prevEntry.url !== "") {
-                this.history.add(prevEntry);
-            }
+            let entry = JSON.parse(event.data);
+            console.info("INFO: Received player set event: ", entry);
+            this.setEntryEvent(entry);
         });
 
         events.addEventListener("playerlooping", event => {
@@ -1672,6 +1641,12 @@ class Room {
         events.addEventListener("historyclear", _ => {
             console.info("INFO: Received history clear event");
             this.history.clear();
+        });
+
+        events.addEventListener("historyadd", _ => {
+            let entry = JSON.parse(event.data);
+            console.info("INFO: Received history addevent: ", entry);
+            this.history.add(entry);
         });
     }
 

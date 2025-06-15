@@ -101,7 +101,7 @@ type ServerState struct {
 
 	player  PlayerState
 	entry   Entry
-	entryId uint64
+	entryId atomic.Uint64
 
 	eventId    atomic.Uint64
 	lastUpdate time.Time

@@ -297,13 +297,13 @@ func (server *Server) apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server.state.mutex.Lock()
-	server.state.entryId += 1
-	id := server.state.entryId
-	server.state.mutex.Unlock()
+	for i := range data.RequestEntry.Subtitles {
+		// TODO(kihau): Validate subtitle URL
+		data.RequestEntry.Subtitles[i].Id = server.state.subsId.Add(1)
+	}
 
 	newEntry := Entry{
-		Id:         id,
+		Id:         server.state.entryId.Add(1),
 		Url:        data.RequestEntry.Url,
 		UserId:     user.Id,
 		Title:      data.RequestEntry.Title,
@@ -319,20 +319,17 @@ func (server *Server) apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 	server.loadYoutubeEntry(&newEntry, data.RequestEntry)
 
 	server.state.mutex.Lock()
-	if server.state.entry.Url != "" && server.state.player.Looping {
-		server.state.playlist = append(server.state.playlist, server.state.entry)
+
+	if server.state.player.Looping {
+		server.playlistAdd(server.state.entry)
 	}
 
-	prevEntry := server.setNewEntry(&newEntry)
+	server.setNewEntry(newEntry)
 	server.state.mutex.Unlock()
 
 	LogInfo("New url is now: '%s'.", server.state.entry.Url)
 
-	setEvent := PlayerSetEventData{
-		PrevEntry: prevEntry,
-		NewEntry:  newEntry,
-	}
-	server.writeEventToAllConnections(w, "playerset", setEvent)
+	server.writeEventToAllConnections(w, "playerset", newEntry)
 }
 
 func (server *Server) apiPlayerEnd(w http.ResponseWriter, r *http.Request) {
@@ -369,25 +366,21 @@ func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if server.state.entry.Url != "" && server.state.player.Looping {
-		server.state.playlist = append(server.state.playlist, server.state.entry)
+	if server.state.player.Looping {
+		server.playlistAdd(server.state.entry)
 	}
 
 	newEntry := Entry{}
 	if len(server.state.playlist) != 0 {
-		newEntry = server.state.playlist[0]
-		server.state.playlist = server.state.playlist[1:]
+		entry := server.playlistRemove(0)
+		newEntry = server.constructEntry(entry)
 	}
 
 	server.loadYoutubeEntry(&newEntry, RequestEntry{})
-	prevEntry := server.setNewEntry(&newEntry)
+	server.setNewEntry(newEntry)
 	server.state.mutex.Unlock()
 
-	nextEvent := PlayerNextEventData{
-		PrevEntry: prevEntry,
-		NewEntry:  newEntry,
-	}
-	server.writeEventToAllConnections(w, "playernext", nextEvent)
+	server.writeEventToAllConnections(w, "playerset", newEntry)
 	go server.preloadYoutubeSourceOnNextEntry()
 }
 
@@ -499,6 +492,7 @@ func (server *Server) apiSubtitleDelete(w http.ResponseWriter, r *http.Request) 
 		if sub.Id == subId {
 			subs := server.state.entry.Subtitles
 			server.state.entry.Subtitles = slices.Delete(subs, i, i+1)
+			DatabaseSubtitleDelete(server.db, sub.Id)
 			break
 		}
 	}
@@ -531,8 +525,12 @@ func (server *Server) apiSubtitleAttach(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// TODO(kihau): Validate subtitle URL
+	subtitle.Id = server.state.subsId.Add(1)
+
 	server.state.mutex.Lock()
 	server.state.entry.Subtitles = append(server.state.entry.Subtitles, subtitle)
+	DatabaseSubtitleAttach(server.db, server.state.entry.Id, subtitle)
 	server.state.mutex.Unlock()
 
 	server.writeEventToAllConnections(w, "subtitleattach", subtitle)
@@ -778,24 +776,19 @@ func (server *Server) apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if server.state.entry.Url != "" && server.state.player.Looping {
-		server.state.playlist = append(server.state.playlist, server.state.entry)
+	if server.state.player.Looping {
+		server.playlistAdd(server.state.entry)
 	}
 
-	newEntry := server.state.playlist[index]
+	entry := server.playlistRemove(index)
+	newEntry := server.constructEntry(entry)
+
 	server.loadYoutubeEntry(&newEntry, RequestEntry{})
-	prevEntry := server.setNewEntry(&newEntry)
-	server.state.playlist = slices.Delete(server.state.playlist, index, index+1)
+	server.setNewEntry(newEntry)
+
 	server.state.mutex.Unlock()
 
-	event := createPlaylistEvent("remove", data.EntryId)
-	server.writeEventToAllConnections(w, "playlist", event)
-
-	setEvent := PlayerSetEventData{
-		PrevEntry: prevEntry,
-		NewEntry:  newEntry,
-	}
-	server.writeEventToAllConnections(w, "playerset", setEvent)
+	server.writeEventToAllConnections(w, "playerset", newEntry)
 	go server.preloadYoutubeSourceOnNextEntry()
 }
 
@@ -832,13 +825,8 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 	} else {
 		LogInfo("Adding '%s' url to the playlist.", data.RequestEntry.Url)
 
-		server.state.mutex.Lock()
-		server.state.entryId += 1
-		id := server.state.entryId
-		server.state.mutex.Unlock()
-
 		newEntry := Entry{
-			Id:         id,
+			Id:         server.state.entryId.Add(1),
 			Url:        data.RequestEntry.Url,
 			UserId:     user.Id,
 			Title:      data.RequestEntry.Title,
@@ -865,6 +853,8 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 			server.state.playlist = append(server.state.playlist, newEntry)
 			eventType = "add"
 		}
+
+		DatabasePlaylistAdd(server.db, newEntry)
 		server.state.mutex.Unlock()
 
 		event := createPlaylistEvent(eventType, newEntry)
@@ -875,6 +865,7 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 func (server *Server) apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
 	server.state.mutex.Lock()
 	server.state.playlist = server.state.playlist[:0]
+	DatabasePlaylistClear(server.db)
 	server.state.mutex.Unlock()
 
 	event := createPlaylistEvent("clear", nil)
@@ -895,11 +886,8 @@ func (server *Server) apiPlaylistRemove(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	server.state.playlist = slices.Delete(server.state.playlist, index, index+1)
+	server.playlistRemove(index)
 	server.state.mutex.Unlock()
-
-	event := createPlaylistEvent("remove", data.EntryId)
-	server.writeEventToAllConnections(w, "playlist", event)
 	go server.preloadYoutubeSourceOnNextEntry()
 }
 
@@ -1022,6 +1010,8 @@ func (server *Server) apiHistoryClear(w http.ResponseWriter, r *http.Request) {
 	server.state.history = server.state.history[:0]
 	server.state.mutex.Unlock()
 
+	DatabaseHistoryClear(server.db)
+
 	server.writeEventToAllConnections(w, "historyclear", nil)
 }
 
@@ -1039,17 +1029,18 @@ func (server *Server) apiHistoryPlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newEntry := server.state.history[index]
-	server.loadYoutubeEntry(&newEntry, RequestEntry{})
-	prevEntry := server.setNewEntry(&newEntry)
-	server.state.mutex.Unlock()
-
-	setEvent := PlayerSetEventData{
-		PrevEntry: prevEntry,
-		NewEntry:  newEntry,
+	if server.state.player.Looping {
+		server.playlistAdd(server.state.entry)
 	}
 
-	server.writeEventToAllConnections(w, "playerset", setEvent)
+	entry := server.state.history[index]
+	newEntry := server.constructEntry(entry)
+
+	server.loadYoutubeEntry(&newEntry, RequestEntry{})
+	server.setNewEntry(newEntry)
+	server.state.mutex.Unlock()
+
+	server.writeEventToAllConnections(w, "playerset", newEntry)
 }
 
 func (server *Server) apiChatSend(w http.ResponseWriter, r *http.Request) {

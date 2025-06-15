@@ -135,17 +135,29 @@ func StartServer(config ServerConfig, db *sql.DB) {
 		return
 	}
 
+	maxEntryId := DatabaseMaxEntryId(db)
+	maxSubId := DatabaseMaxSubtitleId(db)
+
+	currentEntry, _ := DatabaseCurrentEntryGet(db)
+
+	history, _ := DatabaseHistoryGet(db)
+	playlist, _ := DatabasePlaylistGet(db)
+
 	server := Server{
 		config: config,
 		state: ServerState{
-			playlist: make([]Entry, 0),
-			history:  make([]Entry, 0),
+			entry:    currentEntry,
+			playlist: playlist,
+			history:  history,
 			messages: make([]ChatMessage, 0),
 		},
 		users: users,
 		conns: makeConnections(),
 		db:    db,
 	}
+
+	server.state.subsId.Store(maxSubId)
+	server.state.entryId.Store(maxEntryId)
 
 	server.state.lastUpdate = time.Now()
 	handler := registerEndpoints(&server)
@@ -443,48 +455,49 @@ func (server *Server) periodicInactiveUserCleanup() {
 	}
 }
 
-func (server *Server) setNewEntry(newEntry *Entry) Entry {
+func (server *Server) setNewEntry(entry Entry) {
 	prevEntry := server.state.entry
-
 	if prevEntry.Url != "" {
-		server.state.history = append(server.state.history, prevEntry)
+		server.historyAdd(prevEntry)
 
 		if len(server.state.history) > MAX_HISTORY_SIZE {
-			server.state.history = server.state.history[1:]
+			removed := server.state.history[0]
+			server.state.history = slices.Delete(server.state.history, 0, 1)
+			DatabaseHistoryRemove(server.db, removed.Id)
 		}
 	}
 
-	if isYoutubeUrl(newEntry.Url) {
-		success := server.setupHlsProxy(newEntry.SourceUrl, "")
+	if isYoutubeUrl(entry.Url) {
+		success := server.setupHlsProxy(entry.SourceUrl, "")
 		if success {
-			newEntry.SourceUrl = PROXY_ROUTE + PROXY_M3U8
+			entry.SourceUrl = PROXY_ROUTE + PROXY_M3U8
 			LogInfo("HLS proxy setup for youtube was successful.")
 		} else {
 			LogWarn("HLS proxy setup for youtube failed!")
 		}
-	} else if newEntry.UseProxy {
+	} else if entry.UseProxy {
 		paramUrl := ""
 		if SCAN_QUERY_PARAMS {
-			paramUrl = getParamUrl(newEntry.Url)
+			paramUrl = getParamUrl(entry.Url)
 			if paramUrl != "" {
 				LogDebug("Extracted param url: %v", paramUrl)
 			}
 		}
 
-		lastSegment := strings.ToLower(lastUrlSegment(newEntry.Url))
+		lastSegment := strings.ToLower(lastUrlSegment(entry.Url))
 		lastSegmentOfParam := strings.ToLower(lastUrlSegment(paramUrl))
 		if isAnyUrlM3U(lastSegment, lastSegmentOfParam) {
-			setup := server.setupHlsProxy(newEntry.Url, newEntry.RefererUrl)
+			setup := server.setupHlsProxy(entry.Url, entry.RefererUrl)
 			if setup {
-				newEntry.SourceUrl = PROXY_ROUTE + PROXY_M3U8
+				entry.SourceUrl = PROXY_ROUTE + PROXY_M3U8
 				LogInfo("HLS proxy setup was successful.")
 			} else {
 				LogWarn("HLS proxy setup failed!")
 			}
 		} else {
-			setup := server.setupGenericFileProxy(newEntry.Url, newEntry.RefererUrl)
+			setup := server.setupGenericFileProxy(entry.Url, entry.RefererUrl)
 			if setup {
-				newEntry.SourceUrl = PROXY_ROUTE + "proxy" + server.state.genericProxy.extensionWithDot
+				entry.SourceUrl = PROXY_ROUTE + "proxy" + server.state.genericProxy.extensionWithDot
 				LogInfo("Generic file proxy setup was successful.")
 			} else {
 				LogWarn("Generic file proxy setup failed!")
@@ -492,13 +505,12 @@ func (server *Server) setNewEntry(newEntry *Entry) Entry {
 		}
 	}
 
-	server.state.entry = *newEntry
+	server.state.entry = entry
+	DatabaseCurrentEntrySet(server.db, entry)
 
 	server.state.player.Timestamp = 0
 	server.state.lastUpdate = time.Now()
 	server.state.player.Playing = server.state.player.Autoplay
-
-	return prevEntry
 }
 
 func isAnyUrlM3U(urls ...string) bool {
@@ -1494,13 +1506,8 @@ func (server *Server) getEntriesFromDirectory(path string, userId uint64) []Entr
 
 			LogDebug("File URL: %v", url.String())
 
-			server.state.mutex.Lock()
-			server.state.entryId += 1
-			id := server.state.entryId
-			server.state.mutex.Unlock()
-
 			entry := Entry{
-				Id:         id,
+				Id:         server.state.entryId.Add(1),
 				Url:        url.String(),
 				UserId:     userId,
 				Title:      "",
@@ -1517,4 +1524,55 @@ func (server *Server) getEntriesFromDirectory(path string, userId uint64) []Entr
 	}
 
 	return entries
+}
+
+func (server *Server) constructEntry(entry Entry) Entry {
+	if entry.Url == "" {
+		return Entry{}
+	}
+
+	entry.Id = server.state.entryId.Add(1)
+
+	for i := range entry.Subtitles {
+		entry.Subtitles[i].Id = server.state.subsId.Add(1)
+	}
+
+	return entry
+}
+
+func (server *Server) playlistAdd(entry Entry) {
+	newEntry := server.constructEntry(entry)
+	if newEntry.Id == 0 {
+		return
+	}
+
+	server.state.playlist = append(server.state.playlist, newEntry)
+	DatabasePlaylistAdd(server.db, newEntry)
+
+	event := createPlaylistEvent("add", newEntry)
+	server.writeEventToAllConnections(nil, "playlist", event)
+}
+
+func (server *Server) playlistRemove(index int) Entry {
+	entry := server.state.playlist[index]
+
+	server.state.playlist = slices.Delete(server.state.playlist, index, index+1)
+	DatabasePlaylistRemove(server.db, entry.Id)
+
+	event := createPlaylistEvent("remove", entry.Id)
+	server.writeEventToAllConnections(nil, "playlist", event)
+
+	return entry
+}
+
+func (server *Server) historyAdd(entry Entry) {
+	newEntry := server.constructEntry(entry)
+	if newEntry.Id == 0 {
+		return
+	}
+
+	server.state.history = append(server.state.history, newEntry)
+	DatabaseHistoryAdd(server.db, newEntry)
+
+	server.writeEventToAllConnections(nil, "historyadd", newEntry)
 }
