@@ -143,6 +143,9 @@ func StartServer(config ServerConfig, db *sql.DB) {
 	history, _ := DatabaseHistoryGet(db)
 	playlist, _ := DatabasePlaylistGet(db)
 
+	autoplay := DatabaseGetAutoplay(db)
+	looping := DatabaseGetLooping(db)
+
 	server := Server{
 		config: config,
 		state: ServerState{
@@ -150,7 +153,12 @@ func StartServer(config ServerConfig, db *sql.DB) {
 			playlist: playlist,
 			history:  history,
 			messages: make([]ChatMessage, 0),
+			player: PlayerState{
+				Autoplay: autoplay,
+				Looping:  looping,
+			},
 		},
+
 		users: users,
 		conns: makeConnections(),
 		db:    db,
@@ -455,7 +463,7 @@ func (server *Server) periodicInactiveUserCleanup() {
 	}
 }
 
-func (server *Server) setNewEntry(entry Entry) {
+func (server *Server) setNewEntry(entry Entry) Entry {
 	prevEntry := server.state.entry
 	if prevEntry.Url != "" {
 		server.historyAdd(prevEntry)
@@ -511,6 +519,8 @@ func (server *Server) setNewEntry(entry Entry) {
 	server.state.player.Timestamp = 0
 	server.state.lastUpdate = time.Now()
 	server.state.player.Playing = server.state.player.Autoplay
+
+	return entry
 }
 
 func isAnyUrlM3U(urls ...string) bool {

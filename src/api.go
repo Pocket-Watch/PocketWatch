@@ -324,7 +324,7 @@ func (server *Server) apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 		server.playlistAdd(server.state.entry)
 	}
 
-	server.setNewEntry(newEntry)
+	newEntry = server.setNewEntry(newEntry)
 	server.state.mutex.Unlock()
 
 	LogInfo("New url is now: '%s'.", server.state.entry.Url)
@@ -377,7 +377,7 @@ func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 	}
 
 	server.loadYoutubeEntry(&newEntry, RequestEntry{})
-	server.setNewEntry(newEntry)
+	newEntry = server.setNewEntry(newEntry)
 	server.state.mutex.Unlock()
 
 	server.writeEventToAllConnections(w, "playerset", newEntry)
@@ -448,6 +448,7 @@ func (server *Server) apiPlayerAutoplay(w http.ResponseWriter, r *http.Request) 
 
 	server.state.mutex.Lock()
 	server.state.player.Autoplay = autoplay
+	DatabaseSetAutoplay(server.db, autoplay)
 	server.state.mutex.Unlock()
 
 	server.writeEventToAllConnections(w, "playerautoplay", autoplay)
@@ -463,6 +464,7 @@ func (server *Server) apiPlayerLooping(w http.ResponseWriter, r *http.Request) {
 
 	server.state.mutex.Lock()
 	server.state.player.Looping = looping
+	DatabaseSetLooping(server.db, looping)
 	server.state.mutex.Unlock()
 
 	server.writeEventToAllConnections(w, "playerlooping", looping)
@@ -784,7 +786,7 @@ func (server *Server) apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
 	newEntry := server.constructEntry(entry)
 
 	server.loadYoutubeEntry(&newEntry, RequestEntry{})
-	server.setNewEntry(newEntry)
+	newEntry = server.setNewEntry(newEntry)
 
 	server.state.mutex.Unlock()
 
@@ -1037,7 +1039,7 @@ func (server *Server) apiHistoryPlay(w http.ResponseWriter, r *http.Request) {
 	newEntry := server.constructEntry(entry)
 
 	server.loadYoutubeEntry(&newEntry, RequestEntry{})
-	server.setNewEntry(newEntry)
+	newEntry = server.setNewEntry(newEntry)
 	server.state.mutex.Unlock()
 
 	server.writeEventToAllConnections(w, "playerset", newEntry)

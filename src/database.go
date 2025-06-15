@@ -471,6 +471,44 @@ func DatabaseMaxSubtitleId(db *sql.DB) uint64 {
 	return databaseFindMaxId(db, "subtitles")
 }
 
+func DatabaseGetAutoplay(db *sql.DB) bool {
+	if db == nil {
+		return false
+	}
+
+	var autoplay sql.NullBool
+	db.QueryRow("SELECT autoplay FROM player_state").Scan(&autoplay)
+	return autoplay.Bool
+}
+
+func DatabaseGetLooping(db *sql.DB) bool {
+	if db == nil {
+		return false
+	}
+
+	var looping sql.NullBool
+	db.QueryRow("SELECT looping FROM player_state").Scan(&looping)
+	return looping.Bool
+}
+
+func DatabaseSetAutoplay(db *sql.DB, autoplay bool) bool {
+	if db == nil {
+		return true
+	}
+
+	_, err := db.Exec("UPDATE player_state SET autoplay = $1", autoplay)
+	return err != nil
+}
+
+func DatabaseSetLooping(db *sql.DB, looping bool) bool {
+	if db == nil {
+		return true
+	}
+
+	_, err := db.Exec("UPDATE player_state SET looping = $1", looping)
+	return err != nil
+}
+
 func DatabaseCurrentEntryGet(db *sql.DB) (Entry, bool) {
 	if db == nil {
 		return Entry{}, false
@@ -638,7 +676,6 @@ func DatabasePlaylistGet(db *sql.DB) ([]Entry, bool) {
 		var subUrl sql.NullString
 		var subShift sql.NullFloat64
 
-
 		temp := Entry{}
 		err := rows.Scan(
 			&temp.Id, &temp.Url, &temp.Title, &temp.UserId, &temp.UseProxy, &temp.RefererUrl, &temp.SourceUrl, &temp.Thumbnail, &temp.Created,
@@ -680,7 +717,7 @@ func DatabasePlaylistAdd(db *sql.DB, entry Entry) bool {
 		return true
 	}
 
-	databaseEntryAdd(db, entry);
+	databaseEntryAdd(db, entry)
 
 	_, err := db.Exec("INSERT INTO playlist (entry_id) VALUES ($1)", entry.Id)
 	if err != nil {
@@ -743,7 +780,6 @@ func DatabaseHistoryGet(db *sql.DB) ([]Entry, bool) {
 		var subUrl sql.NullString
 		var subShift sql.NullFloat64
 
-
 		temp := Entry{}
 		err := rows.Scan(
 			&temp.Id, &temp.Url, &temp.Title, &temp.UserId, &temp.UseProxy, &temp.RefererUrl, &temp.SourceUrl, &temp.Thumbnail, &temp.Created,
@@ -785,7 +821,7 @@ func DatabaseHistoryAdd(db *sql.DB, entry Entry) bool {
 		return true
 	}
 
-	databaseEntryAdd(db, entry);
+	databaseEntryAdd(db, entry)
 
 	_, err := db.Exec("INSERT INTO history (entry_id) VALUES ($1)", entry.Id)
 	if err != nil {
