@@ -648,7 +648,7 @@ func DatabaseSubtitleDelete(db *sql.DB, subId uint64) bool {
 
 func DatabasePlaylistGet(db *sql.DB) ([]Entry, bool) {
 	if db == nil {
-		return nil, true
+		return []Entry{}, true
 	}
 
 	query := `
@@ -661,7 +661,7 @@ func DatabasePlaylistGet(db *sql.DB) ([]Entry, bool) {
 	rows, err := db.Query(query)
 	if err != nil {
 		LogError("SQL query failed: %v", err)
-		return nil, false
+		return []Entry{}, false
 	}
 
 	defer rows.Close()
@@ -684,7 +684,7 @@ func DatabasePlaylistGet(db *sql.DB) ([]Entry, bool) {
 
 		if err != nil {
 			LogError("SQL query failed: %v", err)
-			return nil, false
+			return []Entry{}, false
 		}
 
 		if temp.Id != prev.Id && prev.Id != 0 {
@@ -752,7 +752,7 @@ func DatabasePlaylistClear(db *sql.DB) bool {
 
 func DatabaseHistoryGet(db *sql.DB) ([]Entry, bool) {
 	if db == nil {
-		return nil, true
+		return []Entry{}, true
 	}
 
 	query := `
@@ -765,7 +765,7 @@ func DatabaseHistoryGet(db *sql.DB) ([]Entry, bool) {
 	rows, err := db.Query(query)
 	if err != nil {
 		LogError("SQL query failed: %v", err)
-		return nil, false
+		return []Entry{}, false
 	}
 
 	defer rows.Close()
@@ -788,7 +788,7 @@ func DatabaseHistoryGet(db *sql.DB) ([]Entry, bool) {
 
 		if err != nil {
 			LogError("SQL query failed: %v", err)
-			return nil, false
+			return []Entry{}, false
 		}
 
 		if temp.Id != prev.Id && prev.Id != 0 {
