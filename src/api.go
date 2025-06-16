@@ -549,6 +549,7 @@ func (server *Server) apiSubtitleShift(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
+
 	DatabaseSubtitleShift(server.db, data.Id, data.Shift)
 	server.state.mutex.Unlock()
 

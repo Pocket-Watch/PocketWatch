@@ -769,8 +769,8 @@ class Room {
         this.playlist.attachPlaylistEvents();
         this.history.attachHistoryEvents();
 
-        this.playlist.onSettingsClick   = _     => room.showSettingsMenu();
-        this.history.onSettingsClick    = _     => room.showSettingsMenu();
+        this.playlist.onSettingsClick   = _     => this.showSettingsMenu();
+        this.history.onSettingsClick    = _     => this.showSettingsMenu();
         this.history.onContextEntryCopy = entry => this.copyEntryToEntryArea(entry);
     }
 
@@ -1462,7 +1462,7 @@ class Room {
                 this.onlineCount -= 1;
             }
 
-            this.usersArea.onlineCount.textContent = this.onlineCount;
+            this.usersArea.onlineCount.textContent  = this.onlineCount;
             this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
         });
 
@@ -1476,12 +1476,16 @@ class Room {
             let onlineBoxes = userBoxes.getElementsByClassName("online");
             let lastOnlineBox = onlineBoxes[onlineBoxes.length - 1];
 
-            let i = this.allUsers.findIndex(user => user.id === userId);
-            this.allUsers[i].online = true;
+            let index = this.allUsers.findIndex(user => user.id === userId);
+            if (index === -1) {
+                console.warn("WARN: Failed to find users with user ID =", userId);
+                return;
+            }
 
-            this.allUserBoxes[i].root.classList.add("online");
+            this.allUsers[index].online = true;
+            this.allUserBoxes[index].root.classList.add("online");
 
-            let connectedNow = this.allUserBoxes[i].root;
+            let connectedNow = this.allUserBoxes[index].root;
             if (lastOnlineBox) {
                 userBoxes.insertBefore(connectedNow, lastOnlineBox.nextSibling);
             } else {
@@ -1490,7 +1494,7 @@ class Room {
 
             this.onlineCount += 1;
 
-            this.usersArea.onlineCount.textContent = this.onlineCount;
+            this.usersArea.onlineCount.textContent  = this.onlineCount;
             this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
         });
 
@@ -1504,11 +1508,16 @@ class Room {
             // let firstOfflineBox = offlineBoxes[offlineBoxes.length - 1].nextElementSibling;
             let lastOnlineBox = offlineBoxes[offlineBoxes.length - 1];
 
-            let i = this.allUsers.findIndex(user => user.id === userId);
-            this.allUsers[i].online = false;
-            this.allUserBoxes[i].root.classList.remove("online");
+            let index = this.allUsers.findIndex(user => user.id === userId);
+            if (index === -1) {
+                console.warn("WARN: Failed to find users with user ID =", userId);
+                return
+            }
 
-            let disconnectedNow = this.allUserBoxes[i].root;
+            this.allUsers[index].online = false;
+            this.allUserBoxes[index].root.classList.remove("online");
+
+            let disconnectedNow = this.allUserBoxes[index].root;
             if (lastOnlineBox && lastOnlineBox.nextElementSibling) {
                 userBoxes.insertBefore(disconnectedNow, lastOnlineBox.nextElementSibling);
             } else {
@@ -1517,7 +1526,7 @@ class Room {
 
             this.onlineCount -= 1;
 
-            this.usersArea.onlineCount.textContent = this.onlineCount;
+            this.usersArea.onlineCount.textContent  = this.onlineCount;
             this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
         });
 
@@ -1525,10 +1534,15 @@ class Room {
             let user = JSON.parse(event.data);
             console.info("INFO: Update user name event for: ", user)
 
-            let i = this.allUsers.findIndex(x => x.id == user.id);
-            this.allUsers[i] = user;
+            let index = this.allUsers.findIndex(x => x.id == user.id);
+            if (index === -1) {
+                console.warn("WARN: Failed to find users with user ID =", user.id);
+                return;
+            }
 
-            let userbox = this.allUserBoxes[i]; 
+            this.allUsers[index] = user;
+
+            let userbox = this.allUserBoxes[index]; 
 
             let input = userbox.nameInput;
             input.value = user.username;
