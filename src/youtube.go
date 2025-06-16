@@ -239,6 +239,8 @@ func (server *Server) loadYoutubePlaylist(query string, videoId string, userId u
 	} else {
 		server.state.playlist = append(server.state.playlist, entries...)
 	}
+
+	DatabasePlaylistAddMany(server.db, entries)
 	server.state.mutex.Unlock()
 
 	var event PlaylistEventData

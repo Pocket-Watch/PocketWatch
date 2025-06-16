@@ -297,13 +297,7 @@ func (server *Server) apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for i := range data.RequestEntry.Subtitles {
-		// TODO(kihau): Validate subtitle URL
-		data.RequestEntry.Subtitles[i].Id = server.state.subsId.Add(1)
-	}
-
-	newEntry := Entry{
-		Id:         server.state.entryId.Add(1),
+	entry := Entry{
 		Url:        data.RequestEntry.Url,
 		UserId:     user.Id,
 		Title:      data.RequestEntry.Title,
@@ -314,7 +308,8 @@ func (server *Server) apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 		Created:    time.Now(),
 	}
 
-	newEntry.Title = constructTitleWhenMissing(&newEntry)
+	entry.Title = constructTitleWhenMissing(&entry)
+	newEntry := server.constructEntry(entry)
 
 	server.loadYoutubeEntry(&newEntry, data.RequestEntry)
 
@@ -478,6 +473,7 @@ func (server *Server) apiPlayerUpdateTitle(w http.ResponseWriter, r *http.Reques
 
 	server.state.mutex.Lock()
 	server.state.entry.Title = title
+	DatabaseCurrentEntryUpdateTitle(server.db, title)
 	server.state.mutex.Unlock()
 
 	server.writeEventToAllConnections(w, "playerupdatetitle", title)
@@ -516,6 +512,8 @@ func (server *Server) apiSubtitleUpdate(w http.ResponseWriter, r *http.Request) 
 			break
 		}
 	}
+
+	DatabaseSubtitleUpdate(server.db, data.Id, data.Name)
 	server.state.mutex.Unlock()
 
 	server.writeEventToAllConnections(w, "subtitleupdate", data)
@@ -551,6 +549,7 @@ func (server *Server) apiSubtitleShift(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
+	DatabaseSubtitleShift(server.db, data.Id, data.Shift)
 	server.state.mutex.Unlock()
 
 	server.writeEventToAllConnections(w, "subtitleshift", data)
@@ -820,6 +819,7 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 			server.state.playlist = append(server.state.playlist, localEntries...)
 			eventType = "addmany"
 		}
+		DatabasePlaylistAddMany(server.db, localEntries)
 		server.state.mutex.Unlock()
 
 		event := createPlaylistEvent(eventType, localEntries)
@@ -973,6 +973,7 @@ func (server *Server) apiPlaylistUpdate(w http.ResponseWriter, r *http.Request) 
 	updated := server.state.playlist[index]
 	updated.Title = data.Entry.Title
 	updated.Url = data.Entry.Url
+	DatabasePlaylistUpdate(server.db, updated.Id, updated.Title, updated.Url)
 	server.state.playlist[index] = updated
 
 	server.state.mutex.Unlock()

@@ -200,13 +200,20 @@ func StartServer(config ServerConfig, db *sql.DB) {
 		go createRedirectServer(config)
 	}
 
-	var server_start_error error
 	if !config.EnableSsl || missing_ssl_keys {
 		serverRootAddress = "http://" + address
+	} else {
+		serverRootAddress = "https://" + address
+	}
+
+	server.loadYoutubeEntry(&server.state.entry, RequestEntry{})
+	server.setupProxy(&server.state.entry)
+
+	var server_start_error error
+	if !config.EnableSsl || missing_ssl_keys {
 		LogWarn("Server is running in unencrypted http mode.")
 		server_start_error = httpServer.ListenAndServe()
 	} else {
-		serverRootAddress = "https://" + address
 		LogInfo("Server is running with TLS on.")
 		server_start_error = httpServer.ListenAndServeTLS(CERT, PRIV_KEY)
 	}
@@ -475,43 +482,7 @@ func (server *Server) setNewEntry(entry Entry) Entry {
 		}
 	}
 
-	if isYoutubeUrl(entry.Url) {
-		success := server.setupHlsProxy(entry.SourceUrl, "")
-		if success {
-			entry.SourceUrl = PROXY_ROUTE + PROXY_M3U8
-			LogInfo("HLS proxy setup for youtube was successful.")
-		} else {
-			LogWarn("HLS proxy setup for youtube failed!")
-		}
-	} else if entry.UseProxy {
-		paramUrl := ""
-		if SCAN_QUERY_PARAMS {
-			paramUrl = getParamUrl(entry.Url)
-			if paramUrl != "" {
-				LogDebug("Extracted param url: %v", paramUrl)
-			}
-		}
-
-		lastSegment := strings.ToLower(lastUrlSegment(entry.Url))
-		lastSegmentOfParam := strings.ToLower(lastUrlSegment(paramUrl))
-		if isAnyUrlM3U(lastSegment, lastSegmentOfParam) {
-			setup := server.setupHlsProxy(entry.Url, entry.RefererUrl)
-			if setup {
-				entry.SourceUrl = PROXY_ROUTE + PROXY_M3U8
-				LogInfo("HLS proxy setup was successful.")
-			} else {
-				LogWarn("HLS proxy setup failed!")
-			}
-		} else {
-			setup := server.setupGenericFileProxy(entry.Url, entry.RefererUrl)
-			if setup {
-				entry.SourceUrl = PROXY_ROUTE + "proxy" + server.state.genericProxy.extensionWithDot
-				LogInfo("Generic file proxy setup was successful.")
-			} else {
-				LogWarn("Generic file proxy setup failed!")
-			}
-		}
-	}
+	server.setupProxy(&entry)
 
 	server.state.entry = entry
 	DatabaseCurrentEntrySet(server.db, entry)
@@ -931,6 +902,46 @@ func prepareMediaPlaylistFromMasterPlaylist(m3u *M3U, referer string, masterUrl 
 	}
 
 	return &MediaPlaylist{m3u, bestUrl, prefix}
+}
+
+func (server *Server) setupProxy(entry *Entry) {
+	if isYoutubeUrl(entry.Url) {
+		success := server.setupHlsProxy(entry.SourceUrl, "")
+		if success {
+			entry.SourceUrl = PROXY_ROUTE + PROXY_M3U8
+			LogInfo("HLS proxy setup for youtube was successful.")
+		} else {
+			LogWarn("HLS proxy setup for youtube failed!")
+		}
+	} else if entry.UseProxy {
+		paramUrl := ""
+		if SCAN_QUERY_PARAMS {
+			paramUrl = getParamUrl(entry.Url)
+			if paramUrl != "" {
+				LogDebug("Extracted param url: %v", paramUrl)
+			}
+		}
+
+		lastSegment := strings.ToLower(lastUrlSegment(entry.Url))
+		lastSegmentOfParam := strings.ToLower(lastUrlSegment(paramUrl))
+		if isAnyUrlM3U(lastSegment, lastSegmentOfParam) {
+			setup := server.setupHlsProxy(entry.Url, entry.RefererUrl)
+			if setup {
+				entry.SourceUrl = PROXY_ROUTE + PROXY_M3U8
+				LogInfo("HLS proxy setup was successful.")
+			} else {
+				LogWarn("HLS proxy setup failed!")
+			}
+		} else {
+			setup := server.setupGenericFileProxy(entry.Url, entry.RefererUrl)
+			if setup {
+				entry.SourceUrl = PROXY_ROUTE + "proxy" + server.state.genericProxy.extensionWithDot
+				LogInfo("Generic file proxy setup was successful.")
+			} else {
+				LogWarn("Generic file proxy setup failed!")
+			}
+		}
+	}
 }
 
 func (server *Server) setupHlsProxy(url string, referer string) bool {

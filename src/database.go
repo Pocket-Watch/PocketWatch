@@ -614,6 +614,48 @@ func DatabaseCurrentEntrySet(db *sql.DB, entry Entry) bool {
 	return true
 }
 
+func DatabaseCurrentEntryUpdateTitle(db *sql.DB, title string) bool {
+	if db == nil {
+		return true
+	}
+
+	_, err := db.Exec("UPDATE entries SET title = $1 WHERE id = (SELECT entry_id FROM current_entry LIMIT 1)", title)
+	if err != nil {
+		LogError("SQL query failed: %v", err)
+		return false
+	}
+
+	return true
+}
+
+func DatabaseSubtitleDelete(db *sql.DB, subId uint64) bool {
+	if db == nil {
+		return true
+	}
+
+	_, err := db.Exec("DELETE FROM subtitles WHERE id = $1", subId)
+	if err != nil {
+		LogError("SQL query failed: %v", err)
+		return false
+	}
+
+	return true
+}
+
+func DatabaseSubtitleUpdate(db *sql.DB, id uint64, name string) bool {
+	if db == nil {
+		return true
+	}
+
+	_, err := db.Exec("UPDATE subtitles SET name = $1 WHERE id = $2", name, id)
+	if err != nil {
+		LogError("SQL query failed: %v", err)
+		return false
+	}
+
+	return true
+}
+
 func DatabaseSubtitleAttach(db *sql.DB, entryId uint64, sub Subtitle) bool {
 	if db == nil {
 		return true
@@ -632,12 +674,12 @@ func DatabaseSubtitleAttach(db *sql.DB, entryId uint64, sub Subtitle) bool {
 	return true
 }
 
-func DatabaseSubtitleDelete(db *sql.DB, subId uint64) bool {
+func DatabaseSubtitleShift(db *sql.DB, id uint64, shift float64) bool {
 	if db == nil {
 		return true
 	}
 
-	_, err := db.Exec("DELETE FROM subtitles WHERE id = $1", subId)
+	_, err := db.Exec("UPDATE subtitles SET shift = $1 WHERE id = $2", shift, id)
 	if err != nil {
 		LogError("SQL query failed: %v", err)
 		return false
@@ -728,6 +770,20 @@ func DatabasePlaylistAdd(db *sql.DB, entry Entry) bool {
 	return true
 }
 
+func DatabasePlaylistAddMany(db *sql.DB, entries []Entry) bool {
+	if db == nil {
+		return true
+	}
+
+	for _, entry := range entries {
+		if !DatabasePlaylistAdd(db, entry) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func DatabasePlaylistRemove(db *sql.DB, entryId uint64) bool {
 	if db == nil {
 		return true
@@ -742,6 +798,20 @@ func DatabasePlaylistClear(db *sql.DB) bool {
 	}
 
 	_, err := db.Exec("DELETE FROM entries WHERE id IN (SELECT entry_id FROM playlist)")
+	if err != nil {
+		LogError("SQL query failed: %v", err)
+		return false
+	}
+
+	return true
+}
+
+func DatabasePlaylistUpdate(db *sql.DB, id uint64, title string, url string) bool {
+	if db == nil {
+		return true
+	}
+
+	_, err := db.Exec("UPDATE entries SET title = $1, url = $2 WHERE id = $3", title, url, id)
 	if err != nil {
 		LogError("SQL query failed: %v", err)
 		return false
