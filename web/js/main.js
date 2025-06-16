@@ -302,17 +302,16 @@ class Room {
     attachPlayerEvents() {
         // We have to know if anything is currently playing or whether something is set
         this.player.onControlsPlay(_ => {
-            if (this.ended) {
-                this.ended = false;
-                api.playerPlay(0);
-                return;
-            }
-
             if (!this.player.getCurrentUrl()) {
                 return;
             }
 
-            api.playerPlay(this.player.getCurrentTime());
+            if (this.player.getCurrentTime() >= this.player.getDuration()) {
+                api.playerPlay(0);
+            } else {
+                api.playerPlay(this.player.getCurrentTime());
+            }
+
         });
 
         this.player.onControlsPause(_ => {
@@ -320,7 +319,6 @@ class Room {
         });
 
         this.player.onControlsSeeked(timestamp => {
-            this.ended = false;
             api.playerSeek(timestamp);
         });
 
@@ -372,7 +370,6 @@ class Room {
                     endTime = 0;
                 }
 
-                this.ended = true;
                 api.playerPause(endTime);
             }
         });
