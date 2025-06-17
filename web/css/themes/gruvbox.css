@@ -1,0 +1,59 @@
+:root {
+    /* Standard gruvbox palette. */
+    --red_0:    #9d0006;
+    --green_0:  #79740e;
+    --yellow_0: #b57614;
+    --blue_0:   #076678;
+    --purple_0: #8f3f71;
+    --aqua_0:   #427b58;
+    --orange_0: #af3a03;
+    --gray_0:   #7c6f64;
+
+    --red_1:    #cc241d;
+    --green_1:  #98971a;
+    --yellow_1: #d79921;
+    --blue_1:   #458588;
+    --purple_1: #b16286;
+    --aqua_1:   #689d6a;
+    --orange_1: #d65d0e;
+    --gray_1:   #a89984;
+
+    --red_2:    #fb4934;
+    --green_2:  #b8bb26;
+    --yellow_2: #fabd2f;
+    --blue_2:   #83a598;
+    --purple_2: #d3869b;
+    --aqua_2:   #8ec07c;
+    --orange_2: #fe8019;
+    --gray_2:   #928374;
+
+    --bg_0: #1d2021;
+    --bg_1: #282828;
+    --bg_2: #32302f;
+    --bg_3: #3c3836;
+    --bg_4: #504945;
+    --bg_5: #665c54;
+    --bg_6: #7c6f64;
+
+    --fg_0: #f9f5d7;
+    --fg_1: #fbf1c7;
+    --fg_2: #f2e5bc;
+    --fg_3: #ebdbb2;
+    --fg_4: #d5c4a1;
+    --fg_5: #bdae93;
+    --fg_6: #a89984;
+
+    /* Custom colors that extend gruvbox. */
+    --bg_custom_0: #5a534f;
+    --bg_custom_1: #363331;
+
+    --red_custom_0: #5a3a36;
+    --red_custom_1: #7c3d35;
+
+    --aqua_custom_0: #57684d;
+    --aqua_custom_1: #494e41;
+    --aqua_custom_2: #9dd389;
+
+    --dim_0: #00000077;
+}
+

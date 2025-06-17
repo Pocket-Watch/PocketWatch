@@ -8,6 +8,7 @@ import { Storage, button, div, formatTime, formatByteCount, getById, dynamicImg,
 
 const SERVER_ID = 0;
 
+const SELECTED_THEME         = "selected_theme"
 const USER_AVATAR_ANIMATIONS = "user_avatar_animations"
 const NEW_MESSAGE_SOUND      = "new_message_sound"
 const ROOM_THEATER_MODE      = "room_theader_mode"
@@ -40,7 +41,8 @@ class Room {
         this.chat     = new Chat();
         this.history  = new History();
 
-        this.pageRoot = getById("page_root");
+        this.pageRoot      = getById("page_root");
+        this.selectedTheme = getById("selected_theme");
 
         this.settingsMenu = {
             modal:       getById("settings_menu_modal"),
@@ -56,6 +58,7 @@ class Room {
             animatedAvatarsToggle:   getById("animated_avatars_toggle"),
             newMessageSoundToggle:   getById("new_message_sound_toggle"),
             theaterModeToggle:       getById("theater_mode_toggle"),
+            themeSwitcherSelect:     getById("settings_switch_theme"),
             deleteYourAccountButton: getById("delete_your_account"),
             confirmAccountDelete:    getById("confirm_deletion_phrase"),
         };
@@ -253,6 +256,12 @@ class Room {
             this.settingsMenu.theaterModeToggle.classList.remove("active");
         }
 
+        let theme = Storage.get(SELECTED_THEME);
+        if (theme) {
+            this.selectedTheme.href = `css/themes/${theme}.css`
+            this.settingsMenu.themeSwitcherSelect.value = theme;
+        } 
+
         // Player settings
         let volume = Storage.get("volume");
         if (volume != null) {
@@ -300,7 +309,6 @@ class Room {
     }
 
     attachPlayerEvents() {
-        // We have to know if anything is currently playing or whether something is set
         this.player.onControlsPlay(_ => {
             if (!this.player.getCurrentUrl()) {
                 return;
@@ -311,7 +319,6 @@ class Room {
             } else {
                 api.playerPlay(this.player.getCurrentTime());
             }
-
         });
 
         this.player.onControlsPause(_ => {
@@ -907,13 +914,17 @@ class Room {
             this.pageRoot.classList.toggle("theater_mode");
         };
 
+        menu.themeSwitcherSelect.onchange = event => {
+            let theme = event.target.value;
+            this.selectedTheme.href = `css/themes/${theme}.css`
+            Storage.set(SELECTED_THEME, theme)
+        }
+
         menu.deleteYourAccountButton.onclick = _ => {
             if (menu.confirmAccountDelete.value === "I confirm") {
                 api.userDelete(api.getToken());
-                // Refresh?
             }
         };
-
     }
 
     attachHtmlEvents() {

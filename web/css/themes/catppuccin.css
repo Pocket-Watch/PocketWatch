@@ -1,0 +1,68 @@
+/* NOTE(kihau): Theme not fully integrated */
+:root {
+    --red_0:    #d20f39;
+    --green_0:  #40a02b;
+    --yellow_0: #df8e1d;
+    --blue_0:   #1e66f5;
+    --purple_0: #8839ef;
+    --aqua_0:   #179299;
+    --orange_0: #fe640b;
+    --gray_0:   #7c6f64;
+
+    --red_1:    #d20f39;
+    --green_1:  #a6da95;
+    --yellow_1: #df8e1d;
+    --blue_1:   #1e66f5;
+    --purple_1: #b16286;
+    --aqua_1:   #689d6a;
+    --orange_1: #d65d0e;
+    --gray_1:   #a89984;
+
+    --red_2:    #e64553;
+    --green_2:  #a6e3a1;
+    --yellow_2: #fabd2f;
+    --blue_2:   #7287fd;
+    --purple_2: #d3869b;
+    --aqua_2:   #8ec07c;
+    --orange_2: #fe8019;
+    --gray_2:   #928374;
+
+    --bg_0: #11111b;
+    --bg_1: #181926;
+    --bg_2: #1e1e2e;
+    --bg_3: #313244;
+    --bg_4: #45475a;
+    --bg_5: #494d64;
+    --bg_6: #5b6078;
+    /* --bg_6: #6e738d; */
+
+    /* --fg_0: #cad3f5; */
+    /* --fg_1: #b8c0e0; */
+    /* --fg_2: #a5adcb; */
+    /* --fg_3: #939ab7; */
+    /* --fg_4: #8087a2; */
+    /**/
+    /* --fg_5: #bdae93; */
+    /* --fg_6: #a89984; */
+
+    --fg_0: #cad3f5;
+    --fg_1: #cad3f5;
+    --fg_2: #b8c0e0;
+    --fg_3: #b8c0e0;
+    --fg_4: #a5adcb;
+    --fg_5: #a5adcb;
+    --fg_6: #939ab7;
+
+    --bg_custom_0: #5a534f;
+    --bg_custom_1: #363331;
+
+    --red_custom_0: #5a3a36;
+    --red_custom_1: #7c3d35;
+
+    --aqua_custom_0: #57684d;
+    --aqua_custom_1: #494e41;
+    --aqua_custom_2: #9dd389;
+
+    --dim_0: #00000077;
+}
+
