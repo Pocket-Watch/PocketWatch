@@ -354,6 +354,7 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	server.HandleEndpoint(mux, "/watch/api/history/get", server.apiHistoryGet, "GET", true)
 	server.HandleEndpoint(mux, "/watch/api/history/clear", server.apiHistoryClear, "POST", true)
 	server.HandleEndpoint(mux, "/watch/api/history/play", server.apiHistoryPlay, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/history/remove", server.apiHistoryRemove, "POST", true)
 
 	server.HandleEndpoint(mux, "/watch/api/chat/send", server.apiChatSend, "POST", true)
 	server.HandleEndpoint(mux, "/watch/api/chat/get", server.apiChatGet, "GET", true)
@@ -1596,4 +1597,14 @@ func (server *Server) historyAdd(entry Entry) {
 	DatabaseHistoryAdd(server.db, newEntry)
 
 	server.writeEventToAllConnections(nil, "historyadd", newEntry)
+}
+
+func (server *Server) historyRemove(index int) Entry {
+	entry := server.state.history[index]
+
+	server.state.history = slices.Delete(server.state.history, index, index+1)
+	DatabasePlaylistRemove(server.db, entry.Id)
+	server.writeEventToAllConnections(nil, "historyremove", entry.Id)
+
+	return entry
 }

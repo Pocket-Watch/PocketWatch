@@ -432,8 +432,13 @@ export async function historyClear() {
 }
 
 export async function historyPlay(entryId) {
-    console.info("INFO: Sending history play request.");
+    console.info("INFO: Sending history play request for entry id =", entryId);
     return await httpPost("/watch/api/history/play", entryId);
+}
+
+export async function historyRemove(entryId) {
+    console.info("INFO: Sending history remove request for entry id =", entryId);
+    return await httpPost("/watch/api/history/remove", entryId);
 }
 
 // CHAT requests

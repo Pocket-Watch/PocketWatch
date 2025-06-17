@@ -42,6 +42,7 @@ class History {
         this.contextMenuCopyUrl     = getById("history_context_copy_url");
         this.contextMenuCopyEntry   = getById("history_context_copy_entry");
         this.contextMenuAddPlaylist = getById("history_context_add_to_playlist");
+        this.contextMenuDelete      = getById("history_context_delete");
 
         // Selected entry for an open context menu.
         this.contextMenuEntry = null;
@@ -68,6 +69,7 @@ class History {
         this.contextMenuCopyUrl.onclick     = _ => navigator.clipboard.writeText(this.contextMenuEntry.url);;
         this.contextMenuCopyEntry.onclick   = _ => this.onContextEntryCopy(this.contextMenuEntry);
         this.contextMenuAddPlaylist.onclick = _ => api.playlistAdd(createRequestEntry(this.contextMenuEntry));
+        this.contextMenuDelete.onclick      = _ => api.historyRemove(this.contextMenuEntry.id);
     }
 
     hideContextMenu() {
@@ -98,9 +100,7 @@ class History {
         this.contextMenu.style.left = (contextMenuX - entryRect.left) + "px";
         this.contextMenu.style.top  = (contextMenuY - listRect.top)   + "px";
 
-        this.contextMenuEntry     = entry;
-        this.contextMenuHtmlEntry = htmlEntry;
-        this.contextMenuUser      = user;
+        this.contextMenuEntry = entry;
     }
 
     createHtmlEntry(entry) {
@@ -171,6 +171,24 @@ class History {
             let removed = this.htmlEntries.shift();
             this.htmlEntryList.removeChild(removed);
         }
+    }
+
+    remove(entryId) {
+        let index = this.entries.findIndex(item => item.id === entryId);
+        if (index === -1) {
+            console.error("ERROR: History::remove failed. Entry with id", entryId, "is not in the history.");
+            return;
+        }
+
+        if (this.contextMenuEntry && entryId === this.contextMenuEntry.id) {
+            this.hideContextMenu();
+        }
+
+        let htmlEntry = this.htmlEntries[index];
+
+        this.entries.splice(index, 1);
+        this.htmlEntries.splice(index, 1);
+        this.htmlEntryList.removeChild(htmlEntry);
     }
 
     clear() {

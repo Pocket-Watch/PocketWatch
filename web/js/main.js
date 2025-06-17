@@ -1670,6 +1670,12 @@ class Room {
             console.info("INFO: Received history addevent: ", entry);
             this.history.add(entry);
         });
+
+        events.addEventListener("historyremove", _ => {
+            let entryId = JSON.parse(event.data);
+            console.info("INFO: Received history addremove: ", entryId);
+            this.history.remove(entryId);
+        });
     }
 
     handleDisconnect() {

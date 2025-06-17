@@ -891,6 +891,7 @@ func (server *Server) apiPlaylistRemove(w http.ResponseWriter, r *http.Request) 
 
 	server.playlistRemove(index)
 	server.state.mutex.Unlock()
+
 	go server.preloadYoutubeSourceOnNextEntry()
 }
 
@@ -1045,6 +1046,24 @@ func (server *Server) apiHistoryPlay(w http.ResponseWriter, r *http.Request) {
 	server.state.mutex.Unlock()
 
 	server.writeEventToAllConnections(w, "playerset", newEntry)
+}
+
+func (server *Server) apiHistoryRemove(w http.ResponseWriter, r *http.Request) {
+	var entryId uint64
+	if !server.readJsonDataFromRequest(w, r, &entryId) {
+		return
+	}
+
+	server.state.mutex.Lock()
+	index := FindEntryIndex(server.state.history, entryId)
+	if index == -1 {
+		server.state.mutex.Unlock()
+		respondBadRequest(w, "Failed to remove history element. Entry with ID %v is not in the history.", entryId)
+		return
+	}
+
+	server.historyRemove(index)
+	server.state.mutex.Unlock()
 }
 
 func (server *Server) apiChatSend(w http.ResponseWriter, r *http.Request) {

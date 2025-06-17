@@ -343,3 +343,22 @@
     box-sizing: border-box;
     transition: height 100ms ease;
 }
+
+#history_context_delete span {
+    color: var(--red_2);
+}
+
+#history_context_delete svg {
+    height: 14px;
+    width: 14px;
+    fill: var(--red_2);
+}
+
+#history_context_delete:hover {
+    background-color: var(--red_custom_0);
+}
+
+#history_context_delete:active {
+    background-color: var(--red_custom_1);
+}
+
