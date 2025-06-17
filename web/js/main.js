@@ -1665,13 +1665,13 @@ class Room {
             this.history.clear();
         });
 
-        events.addEventListener("historyadd", _ => {
+        events.addEventListener("historyadd", event => {
             let entry = JSON.parse(event.data);
             console.info("INFO: Received history addevent: ", entry);
             this.history.add(entry);
         });
 
-        events.addEventListener("historyremove", _ => {
+        events.addEventListener("historyremove", event => {
             let entryId = JSON.parse(event.data);
             console.info("INFO: Received history addremove: ", entryId);
             this.history.remove(entryId);

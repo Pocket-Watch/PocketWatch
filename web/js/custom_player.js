@@ -1881,54 +1881,46 @@ class Internals {
     }
 
     createSubtitleMenu() {
-        let menuRoot         = this.htmlSubtitleMenu;
-        let menuTabs         = newDiv(null, "player_menu_tabs");
-        let menuSeparator    = newDiv(null, "player_menu_separator");
-        let menuViews        = newDiv(null, "player_menu_views");
-        let selectTab        = newDiv(null, "player_menu_tab");
-        let searchTab        = newDiv(null, "player_menu_tab");
-        let optionsTab       = newDiv(null, "player_menu_tab");
-        let selectView       = newDiv("player_submenu_select_view");
-        let subtitleSwitch   = this.subtitleToggle;
-        let subtitleListRoot = newDiv("subtitle_track_list_root");
-        let subtitleList     = this.htmlSubtitleList;
-        let searchView       = newDiv("player_submenu_search_view");
-
-        let importRoot   = newDiv(null, "player_submenu_import_root");
-        let importInput  = newElement("input", "player_submenu_import_input");
-
-        let searchRoot = newDiv("player_subtitle_search_root");
-
-        let searchTop    = newDiv("player_subtitle_search_top");
-        let searchNameRoot  = newDiv(null, "player_input_box");
-        let searchNameInput = newElement("input");
-        let searchNameLabel = newLabel("Subtitle Name")
-        let searchButton   = newElement("button", "player_subtitle_search_button");
-
-        let searchMiddle    = newDiv("player_subtitle_search_middle");
-        let searchLangRoot  = newDiv(null, "player_input_box");
-        let searchLangInput = newElement("input");
-        let searchLangLabel = newLabel("Language");
-
-        let searchYearRoot  = newDiv(null, "player_input_box");
-        let searchYearInput = newElement("input");
-        let searchYearLabel = newLabel("Year");
-
-        let searchBottom = newDiv("player_subtitle_search_bottom");
-        let searchSeasonRoot  = newDiv(null, "player_input_box");
-        let searchSeasonInput = newElement("input");
-        let searchSeasonLabel = newLabel("Season");
-
+        let menuRoot           = this.htmlSubtitleMenu;
+        let menuTabs           = newDiv(null, "player_menu_tabs");
+        let menuSeparator      = newDiv(null, "player_menu_separator");
+        let menuViews          = newDiv(null, "player_menu_views");
+        let selectTab          = newDiv(null, "player_menu_tab");
+        let searchTab          = newDiv(null, "player_menu_tab");
+        let optionsTab         = newDiv(null, "player_menu_tab");
+        let selectView         = newDiv("player_submenu_select_view");
+        let subtitleSwitch     = this.subtitleToggle;
+        let subtitleListRoot   = newDiv("subtitle_track_list_root");
+        let subtitleList       = this.htmlSubtitleList;
+        let searchView         = newDiv("player_submenu_search_view");
+        let importRoot         = newDiv(null, "player_submenu_import_root");
+        let importInput        = newElement("input", "player_submenu_import_input");
+        let searchRoot         = newDiv("player_subtitle_search_root");
+        let searchTop          = newDiv("player_subtitle_search_top");
+        let searchNameRoot     = newDiv(null, "player_input_box");
+        let searchNameInput    = newElement("input");
+        let searchNameLabel    = newLabel("Subtitle Name")
+        let searchButton       = newElement("button", "player_subtitle_search_button");
+        let searchMiddle       = newDiv("player_subtitle_search_middle");
+        let searchLangRoot     = newDiv(null, "player_input_box");
+        let searchLangInput    = newElement("input");
+        let searchLangLabel    = newLabel("Language");
+        let searchYearRoot     = newDiv(null, "player_input_box");
+        let searchYearInput    = newElement("input");
+        let searchYearLabel    = newLabel("Year");
+        let searchBottom       = newDiv("player_subtitle_search_bottom");
+        let searchSeasonRoot   = newDiv(null, "player_input_box");
+        let searchSeasonInput  = newElement("input");
+        let searchSeasonLabel  = newLabel("Season");
         let searchEpisodeRoot  = newDiv(null, "player_input_box");
         let searchEpisodeInput = newElement("input");
         let searchEpisodeLabel = newLabel("Episode");
-
-        let optionsView      = newDiv("player_submenu_options_view");
-        let subsShift        = this.subtitleShift;
-        let subsSize         = this.subtitleSize;
-        let subsPos          = this.subtitlePos;
-        let subsFgColor      = this.subtitleFgColor;
-        let subsBgColor      = this.subtitleBgColor;
+        let optionsView        = newDiv("player_submenu_options_view");
+        let subsShift          = this.subtitleShift;
+        let subsSize           = this.subtitleSize;
+        let subsPos            = this.subtitlePos;
+        let subsFgColor        = this.subtitleFgColor;
+        let subsBgColor        = this.subtitleBgColor;
 
         let selectedTab  = selectTab;
         let selectedView = selectView;
@@ -2092,8 +2084,8 @@ class Internals {
         let menuViews       = newDiv(null, "player_menu_views");
         let generalTab      = newDiv(null, "player_menu_tab");
         let appearanceTab   = newDiv(null, "player_menu_tab");
-        let generalView     = newDiv("player_submenu_select_view");
-        let appearanceView  = newDiv("player_submenu_select_view");
+        let generalView     = newDiv("player_settings_menu_general_view");
+        let appearanceView  = newDiv("player_settings_menu_appearance_view");
         let alwaysShow      = new Switcher("Always show controls");
         let showOnPause     = new Switcher("Show controls on pause");
         let playbackSpeed   = this.playbackSpeed;

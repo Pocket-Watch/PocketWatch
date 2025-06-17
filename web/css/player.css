@@ -751,6 +751,15 @@
     padding-bottom: 8px;
 }
 
+#player_settings_menu_general_view {
+    row-gap: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: scroll;
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
 .player_shifter_root {
     width: 100%;
     /* margin: 4px; */
