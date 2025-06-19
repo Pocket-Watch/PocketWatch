@@ -998,16 +998,40 @@ func (server *Server) apiHistoryGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiChatGet(w http.ResponseWriter, r *http.Request) {
+	var data MessageHistoryRequestData
+	if !server.readJsonDataFromRequest(w, r, &data) {
+		return
+	}
+
+	if MAX_CHAT_LOAD < data.Count {
+		respondBadRequest(w, "Too many messages were requested.")
+		return
+	}
+
+	backwardOffset := int(data.BackwardOffset)
 	server.state.mutex.Lock()
-	jsonData, err := json.Marshal(server.state.messages)
+	availableCount := len(server.state.messages) - backwardOffset
+	servedCount := minOf(availableCount, int(data.Count))
+	if servedCount <= 0 {
+		server.state.mutex.Unlock()
+		io.WriteString(w, "[]")
+		return
+	}
+	endOffset := len(server.state.messages) - backwardOffset
+	startOffset := endOffset - servedCount
+	jsonData, err := json.Marshal(server.state.messages[startOffset:endOffset])
 	server.state.mutex.Unlock()
 
 	if err != nil {
-		respondInternalError(w, "Serialization of the chat get event failed with: %v", err)
+		respondInternalError(w, "Serialization failed during chat retrieval: %v", err)
 		return
 	}
 
 	io.WriteString(w, string(jsonData))
+}
+
+func (server *Server) apiChatDelete(w http.ResponseWriter, r *http.Request) {
+	io.WriteString(w, "{}")
 }
 
 func (server *Server) apiHistoryClear(w http.ResponseWriter, r *http.Request) {

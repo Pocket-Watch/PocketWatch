@@ -21,6 +21,7 @@ const TAB_CHAT     = 3;
 const TAB_HISTORY  = 4;
 
 const RECONNECT_AFTER = 1500;
+const MAX_CHAT_LOAD = 100;
 
 class Room {
     constructor() {
@@ -769,7 +770,10 @@ class Room {
 
         tabs.room.onclick     = _ => this.selectRightPanelTab(TAB_ROOM);
         tabs.playlist.onclick = _ => this.selectRightPanelTab(TAB_PLAYLIST);
-        tabs.chat.onclick     = _ => this.selectRightPanelTab(TAB_CHAT);
+        tabs.chat.onclick     = _ => {
+            this.selectRightPanelTab(TAB_CHAT);
+            this.scrollChatToBottom()
+        }
         tabs.history.onclick  = _ => this.selectRightPanelTab(TAB_HISTORY);
 
         this.attachRoomTabEvents();
@@ -1172,14 +1176,19 @@ class Room {
     }
 
     async loadChatData() {
-        let messages = await api.chatGet();
-        if (!messages) {
+        let messages = await api.chatGet(MAX_CHAT_LOAD, 0);
+        if (messages.checkError()) {
             return;
         }
 
-        console.info("INFO: Loaded chat messages:", messages);
+        console.info("INFO: Loaded chat messages:", messages.json);
         this.chat.clear();
-        this.chat.loadMessages(messages, this.allUsers);
+        this.chat.loadMessages(messages.json, this.allUsers);
+        this.scrollChatToBottom()
+    }
+
+    scrollChatToBottom() {
+        this.chat.chatArea.scrollTo(0, this.chat.chatArea.clientHeight)
     }
 
     async loadHistoryData() {

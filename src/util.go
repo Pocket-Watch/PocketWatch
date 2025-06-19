@@ -985,3 +985,10 @@ func shareFile(w http.ResponseWriter, r *http.Request, path string) {
 func SetLastModified(w http.ResponseWriter, lastModified time.Time) {
 	w.Header().Set("Last-Modified", lastModified.UTC().Format(TIME_LAYOUT))
 }
+
+func minOf(x, y int) int {
+	if x < y {
+		return x
+	}
+	return y
+}

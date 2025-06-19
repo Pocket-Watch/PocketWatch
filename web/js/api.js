@@ -453,7 +453,19 @@ export async function chatSend(message) {
     httpPost("/watch/api/chat/send", payload);
 }
 
-export async function chatGet() {
-    console.info("INFO: Fetching the chat from server.");
-    return await httpGet("/watch/api/chat/get");
+export async function chatGet(count, backwardOffset) {
+    let data = {
+        count: count,
+        backwardOffset: backwardOffset,
+    }
+    console.info("INFO: Fetching chat from server.");
+    return await httpPost("/watch/api/chat/get", data);
+}
+
+export async function chatDelete(messageId) {
+    let data = {
+        id: messageId
+    }
+    console.info("INFO: Deleting chat message.");
+    return await httpPost("/watch/api/chat/delete", data);
 }

@@ -21,6 +21,7 @@ const BROADCAST_INTERVAL = 2 * time.Second
 const HEARTBEAT_INTERVAL = 2 * time.Second
 
 const MAX_HISTORY_SIZE = 80
+const MAX_CHAT_LOAD = 100
 
 const SUBTITLE_SIZE_LIMIT = 512 * KB
 const AVATAR_SIZE_LIMIT = 16 * MB
@@ -195,6 +196,11 @@ type ChatMessageEdit struct {
 type ChatMessageFromUser struct {
 	Message string `json:"message"`
 	Edited  bool   `json:"edited"`
+}
+
+type MessageHistoryRequestData struct {
+	Count          uint32 `json:"count"`
+	BackwardOffset uint64 `json:"backwardOffset"`
 }
 
 type FetchedSegment struct {
