@@ -733,6 +733,8 @@ func DatabasePlaylistGet(db *sql.DB) ([]Entry, bool) {
 			entries = append(entries, prev)
 		}
 
+		prev = temp
+
 		if subId.Valid {
 			sub := Subtitle{
 				Id:    uint64(subId.Int64),
@@ -743,8 +745,6 @@ func DatabasePlaylistGet(db *sql.DB) ([]Entry, bool) {
 
 			prev.Subtitles = append(prev.Subtitles, sub)
 		}
-
-		prev = temp
 	}
 
 	if prev.Id != 0 {
@@ -865,6 +865,8 @@ func DatabaseHistoryGet(db *sql.DB) ([]Entry, bool) {
 			entries = append(entries, prev)
 		}
 
+		prev = temp
+
 		if subId.Valid {
 			sub := Subtitle{
 				Id:    uint64(subId.Int64),
@@ -875,8 +877,6 @@ func DatabaseHistoryGet(db *sql.DB) ([]Entry, bool) {
 
 			prev.Subtitles = append(prev.Subtitles, sub)
 		}
-
-		prev = temp
 	}
 
 	if prev.Id != 0 {

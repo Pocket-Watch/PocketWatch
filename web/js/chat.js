@@ -32,7 +32,6 @@ class Chat {
 
         chatDiv.innerText = "[" + username + "] " + chatMsg.message;
         this.chatArea.appendChild(chatDiv);
-
         this.chatArea.scrollTo(0, this.chatArea.clientHeight)
     }
 
