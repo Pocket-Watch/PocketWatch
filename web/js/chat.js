@@ -4,6 +4,7 @@ import { getById } from "./util.js";
 export { Chat }
 
 const CHARACTER_LIMIT = 1000;
+
 class Chat {
     constructor() {
         this.chatInput = getById("chat_input_box");
@@ -31,6 +32,8 @@ class Chat {
 
         chatDiv.innerText = "[" + username + "] " + chatMsg.message;
         this.chatArea.appendChild(chatDiv);
+
+        this.chatArea.scrollTo(0, this.chatArea.clientHeight)
     }
 
     attachListeners() {

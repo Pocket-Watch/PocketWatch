@@ -770,10 +770,7 @@ class Room {
 
         tabs.room.onclick     = _ => this.selectRightPanelTab(TAB_ROOM);
         tabs.playlist.onclick = _ => this.selectRightPanelTab(TAB_PLAYLIST);
-        tabs.chat.onclick     = _ => {
-            this.selectRightPanelTab(TAB_CHAT);
-            this.scrollChatToBottom()
-        }
+        tabs.chat.onclick     = _ => this.selectRightPanelTab(TAB_CHAT);
         tabs.history.onclick  = _ => this.selectRightPanelTab(TAB_HISTORY);
 
         this.attachRoomTabEvents();
@@ -1184,11 +1181,6 @@ class Room {
         console.info("INFO: Loaded chat messages:", messages.json);
         this.chat.clear();
         this.chat.loadMessages(messages.json, this.allUsers);
-        this.scrollChatToBottom()
-    }
-
-    scrollChatToBottom() {
-        this.chat.chatArea.scrollTo(0, this.chat.chatArea.clientHeight)
     }
 
     async loadHistoryData() {
