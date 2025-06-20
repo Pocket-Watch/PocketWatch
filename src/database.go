@@ -729,11 +729,12 @@ func DatabasePlaylistGet(db *sql.DB) ([]Entry, bool) {
 			return []Entry{}, false
 		}
 
-		if temp.Id != prev.Id && prev.Id != 0 {
+		if (prev.Id == 0) {
+			prev = temp
+		} else if (temp.Id != prev.Id) {
 			entries = append(entries, prev)
-		}
-
-		prev = temp
+			prev = temp
+		} 
 
 		if subId.Valid {
 			sub := Subtitle{
@@ -861,11 +862,12 @@ func DatabaseHistoryGet(db *sql.DB) ([]Entry, bool) {
 			return []Entry{}, false
 		}
 
-		if temp.Id != prev.Id && prev.Id != 0 {
+		if (prev.Id == 0) {
+			prev = temp
+		} else if (temp.Id != prev.Id) {
 			entries = append(entries, prev)
-		}
-
-		prev = temp
+			prev = temp
+		} 
 
 		if subId.Valid {
 			sub := Subtitle{

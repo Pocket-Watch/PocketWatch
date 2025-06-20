@@ -836,6 +836,7 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 			UseProxy:   data.RequestEntry.UseProxy,
 			RefererUrl: data.RequestEntry.RefererUrl,
 			SourceUrl:  "",
+			// TODO(kihau): FIX ME!
 			Subtitles:  data.RequestEntry.Subtitles,
 			Created:    time.Now(),
 		}
