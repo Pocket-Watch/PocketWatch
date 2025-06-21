@@ -259,9 +259,6 @@ type CacheHandler struct {
 }
 
 func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	resource := strings.TrimPrefix(r.RequestURI, "/watch")
-	LogDebug("Connection %s requested resource %v", r.RemoteAddr, resource)
-
 	ip := strings.Split(r.RemoteAddr, ":")[0]
 
 	cache.mapMutex.Lock()
@@ -270,9 +267,9 @@ func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		cache.mapMutex.Unlock()
 		rateLimiter.mutex.Lock()
 		if rateLimiter.block() {
-			rateLimiter.update()
+			retryAfter := rateLimiter.getRetryAfter()
 			rateLimiter.mutex.Unlock()
-			respondTooManyRequests(w, ip, rateLimiter.getRetryAfter())
+			respondTooManyRequests(w, ip, retryAfter)
 			return
 		}
 		rateLimiter.mutex.Unlock()
@@ -280,6 +277,9 @@ func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		cache.ipToLimiters[ip] = NewLimiter(LIMITER_HITS, LIMITER_PER_SECOND)
 		cache.mapMutex.Unlock()
 	}
+
+	resource := strings.TrimPrefix(r.RequestURI, "/watch")
+	LogDebug("Connection %s requested resource %v", r.RemoteAddr, resource)
 
 	// The no-cache directive does not prevent the storing of responses
 	// but instead prevents the reuse of responses without revalidation.

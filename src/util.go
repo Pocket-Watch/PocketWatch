@@ -800,7 +800,8 @@ func NewLimiter(hits int, perSeconds int) *RateLimiter {
 // Returns true if the call should be blocked, false otherwise
 func (limiter *RateLimiter) block() bool {
 	nowMs := time.Now().UnixMilli()
-	if limiter.hits.Push(nowMs) {
+	// Update hits with the latest unix timestamp to keep blocking when requests continue to arrive
+	if !limiter.hits.ForcePush(nowMs) {
 		return false
 	}
 
@@ -817,18 +818,7 @@ func (limiter *RateLimiter) block() bool {
 		}
 	}
 
-	if !madeSpace {
-		// none can be removed, the call is denied
-		return true
-	}
-	return !hits.Push(nowMs)
-}
-
-// Update hits with the latest unix timestamp to keep blocking when requests continue to arrive
-func (limiter *RateLimiter) update() {
-	now := time.Now().UnixMilli()
-	limiter.hits.PopEnd()
-	limiter.hits.Push(now)
+	return !madeSpace
 }
 
 // Returns the number of seconds that must elapse before the next request can be made.
@@ -882,8 +872,12 @@ func (ring *RingBuffer) Push(element int64) bool {
 	return true
 }
 
-func (ring *RingBuffer) PushForce(element int64) {
-	if ring.length != ring.capacity {
+// ForcePush adds the element, returns true if the element had to be force pushed, false otherwise
+func (ring *RingBuffer) ForcePush(element int64) bool {
+	forcePush := false
+	if ring.length == ring.capacity {
+		forcePush = true
+	} else {
 		ring.length++
 	}
 	ring.buffer[ring.head] = element
@@ -893,6 +887,7 @@ func (ring *RingBuffer) PushForce(element int64) {
 	} else {
 		ring.head++
 	}
+	return forcePush
 }
 
 // PeekEnd returns the tail value.
