@@ -1,5 +1,5 @@
 import * as api from "./api.js";
-import { getById } from "./util.js";
+import { getById, div, dynamicImg, img } from "./util.js";
 
 export { Chat }
 
@@ -7,10 +7,11 @@ const CHARACTER_LIMIT = 1000;
 
 class Chat {
     constructor() {
-        this.chatInput = getById("chat_input_box");
-        this.chatArea = getById("chat_text_content");
+        this.chatInput         = getById("chat_input_box");
+        this.chatArea          = getById("chat_text_content");
         this.sendMessageButton = getById("chat_send_button");
 
+        this.prevUserId = 0;
         this.attachListeners();
     }
 
@@ -18,6 +19,50 @@ class Chat {
         while (this.chatArea.lastChild) {
             this.chatArea.removeChild(this.chatArea.lastChild);
         }
+    }
+
+    createHeaderMessage(message, user) {
+        let root     = div("chat_message_header")
+        let avatar   = div("chat_message_header_avatar")
+        // let img      = dynamicImg(user.avatar)
+        let avatarImg = img(user.avatar)
+        let right    = div("chat_message_header_right")
+        let info     = div("chat_message_header_info")
+        let username = div("chat_message_header_username")
+        let date     = div("chat_message_header_date")
+        let text     = div("chat_message_header_text")
+
+        text.textContent     = message.message;
+        username.textContent = user.username;
+        username.style.color = `hsl(20 80% 50%)`
+
+        let d = new Date(message.unixTime);
+
+        let Y = d.getFullYear() % 100;
+        let M = d.getMonth().toString().padStart(2, "0");
+        let D = d.getUTCDay().toString().padStart(2, "0");
+
+        let h = d.getHours().toString().padStart(2, "0");
+        let m = d.getMinutes().toString().padStart(2, "0");
+
+        date.textContent = `${Y}/${M}/${D}, ${h}:${m}`;
+
+        root.appendChild(avatar); {
+            avatar.appendChild(avatarImg);
+        }
+        root.appendChild(right); {
+            right.appendChild(info); {
+                info.appendChild(username);
+                info.appendChild(date);
+            }
+            right.appendChild(text);
+        }
+
+        return root
+    }
+
+    createTextMessage(message, user) {
+
     }
 
     addMessage(chatMsg, allUsers) {
@@ -30,9 +75,10 @@ class Chat {
             username = user.username;
         }
 
-        chatDiv.innerText = "[" + username + "] " + chatMsg.message;
-        this.chatArea.appendChild(chatDiv);
-        this.chatArea.scrollTo(0, this.chatArea.clientHeight)
+        let message = this.createHeaderMessage(chatMsg, user);
+
+        this.chatArea.appendChild(message);
+        this.chatArea.scrollTo(0, this.chatArea.scrollHeight)
     }
 
     attachListeners() {
@@ -56,6 +102,7 @@ class Chat {
             // This is handled server side for length
             return;
         }
+
         api.chatSend(content)
         this.chatInput.value = "";
     }
