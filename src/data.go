@@ -19,6 +19,7 @@ const RETRY = 5000 // Retry time in milliseconds
 const TOKEN_LENGTH = 32
 const BROADCAST_INTERVAL = 2 * time.Second
 const HEARTBEAT_INTERVAL = 2 * time.Second
+const BLACK_HOLE_PERIOD = 35 * time.Second
 
 const MAX_HISTORY_SIZE = 80
 const MAX_CHAT_LOAD = 100

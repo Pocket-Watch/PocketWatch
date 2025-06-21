@@ -245,6 +245,11 @@ func createRedirectServer(config ServerConfig) {
 
 func handleUnknownEndpoint(w http.ResponseWriter, r *http.Request) {
 	LogWarn("User %v requested unknown endpoint: %v", r.RemoteAddr, r.RequestURI)
+	if endsWith(r.RequestURI, ".php", ".cgi", ".jsp", "wordpress", "owa") {
+		select {
+		case <-time.After(BLACK_HOLE_PERIOD):
+		}
+	}
 	http.Error(w, "¯\\_(ツ)_/¯", http.StatusTeapot)
 }
 
