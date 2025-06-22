@@ -167,6 +167,24 @@ export function formatTime(seconds) {
     return time;
 }
 
+export function isSameDay(date) {
+    let now = new Date();
+
+    if (now.getFullYear() !== date.getFullYear()) {
+        return false;
+    }
+
+    if (now.getMonth() !== date.getMonth()) {
+        return false;
+    }
+
+    if (now.getDay() !== date.getDay()) {
+        return false;
+    }
+
+    return true;
+}
+
 const PB = 1024 ** 5;
 const TB = 1024 ** 4;
 const GB = 1024 ** 3;

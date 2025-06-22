@@ -519,6 +519,7 @@ html * {
 #entry_subtitle_reattach_toggle {
     width: 270px;
 }
+
 #users_area {
     width: 100%;
     height: 200px;
@@ -529,6 +530,7 @@ html * {
     flex: none;
     padding: 16px;
     background-color: var(--bg_3);
+    scrollbar-color: var(--bg_5) var(--bg_2);
 }
 
 #users_list {
@@ -1202,7 +1204,7 @@ html * {
     }
 
     #right_panel {
-        min-height: 100vh;
+        min-height: 88vh;
         overflow-y: visible;
     }
 

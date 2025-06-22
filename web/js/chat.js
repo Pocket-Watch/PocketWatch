@@ -1,5 +1,5 @@
 import * as api from "./api.js";
-import { getById, div, dynamicImg, img } from "./util.js";
+import { getById, div, img, isSameDay } from "./util.js";
 
 export { Chat }
 
@@ -24,7 +24,6 @@ class Chat {
     createMessage(message, user) {
         let root      = div("chat_message")
         let avatar    = div("chat_message_avatar")
-        // let avatarImg = dynamicImg(user.avatar)
         let avatarImg = img(user.avatar)
         let right     = div("chat_message_right")
         let info      = div("chat_message_info")
@@ -46,7 +45,11 @@ class Chat {
         let h = d.getHours().toString().padStart(2, "0");
         let m = d.getMinutes().toString().padStart(2, "0");
 
-        date.textContent = `${Y}/${M}/${D}, ${h}:${m}`;
+        if (isSameDay(d)) {
+            date.textContent = `${h}:${m}`;
+        } else {
+            date.textContent = `${Y}/${M}/${D}, ${h}:${m}`;
+        }
 
         root.appendChild(avatar); {
             avatar.appendChild(avatarImg);
@@ -62,16 +65,13 @@ class Chat {
         return root
     }
 
-    createSubMessage(message, user) {
+    createSubMessage(message) {
         let root = div("chat_sub_message")
-
         root.textContent = message.message;
-
         return root;
     }
 
     addMessage(chatMsg, allUsers) {
-        let chatDiv = document.createElement("div");
         let index = allUsers.findIndex(user => user.id === chatMsg.authorId);
         let user = allUsers[index];
 
@@ -93,10 +93,13 @@ class Chat {
             message = this.createSubMessage(chatMsg, user);
         }
 
-
-
         this.chatArea.appendChild(message);
-        this.chatArea.scrollTo(0, this.chatArea.scrollHeight)
+
+        let scroll = Math.abs(this.chatArea.scrollHeight - this.chatArea.scrollTop - this.chatArea.clientHeight);
+        if (scroll < 60) {
+            this.scrollToBottom();
+        }
+
         this.prevUserId = user.id;
     }
 
@@ -130,8 +133,14 @@ class Chat {
         for (let i = 0; i < messages.length; i++) {
             this.addMessage(messages[i], allUsers);
         }
+
+        this.scrollToBottom();
     }
-}
+
+    scrollToBottom() {
+        this.chatArea.scrollTo(0, this.chatArea.scrollHeight)
+    }
+} 
 
 /*type ChatMessage struct {
     Message  string `json:"message"`
