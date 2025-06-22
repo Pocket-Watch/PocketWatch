@@ -244,11 +244,19 @@ func createRedirectServer(config ServerConfig) {
 }
 
 func handleUnknownEndpoint(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
 	LogWarn("User %v requested unknown endpoint: %v", r.RemoteAddr, r.RequestURI)
 	endpoint := stripParams(r.RequestURI)
 	file := path.Base(endpoint)
 	if endsWith(file, ".php", ".cgi", ".jsp", "wordpress", "owa") {
-		time.Sleep(BLACK_HOLE_PERIOD)
+		context := r.Context()
+		select {
+		case <-time.After(BLACK_HOLE_PERIOD):
+			LogDebug("%v exited black hole after waiting period of %v.", r.RemoteAddr, BLACK_HOLE_PERIOD)
+		case <-context.Done():
+			LogDebug("%v exited black hole due to cancellation client side after %v.", r.RemoteAddr, time.Since(start))
+			return
+		}
 	}
 	http.Error(w, "¯\\_(ツ)_/¯", http.StatusTeapot)
 }
