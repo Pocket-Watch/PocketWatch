@@ -178,7 +178,7 @@ export function isSameDay(date) {
         return false;
     }
 
-    if (now.getDay() !== date.getDay()) {
+    if (now.getDate() !== date.getDate()) {
         return false;
     }
 

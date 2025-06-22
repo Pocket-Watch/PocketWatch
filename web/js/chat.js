@@ -40,7 +40,7 @@ class Chat {
 
         let Y = d.getFullYear() % 100;
         let M = d.getMonth().toString().padStart(2, "0");
-        let D = d.getUTCDay().toString().padStart(2, "0");
+        let D = d.getDate().toString().padStart(2, "0");
 
         let h = d.getHours().toString().padStart(2, "0");
         let m = d.getMinutes().toString().padStart(2, "0");
