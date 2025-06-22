@@ -243,6 +243,14 @@ func stripLastSegmentStr(url string) *string {
 	return &reducedUrl
 }
 
+func stripParams(path string) string {
+	end := strings.Index(path, "?")
+	if end == -1 {
+		return path
+	}
+	return path[:end]
+}
+
 func stripPathPrefix(path string, parts ...string) string {
 	segments := strings.Split(path, "/")
 
