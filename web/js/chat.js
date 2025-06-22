@@ -21,17 +21,17 @@ class Chat {
         }
     }
 
-    createHeaderMessage(message, user) {
-        let root     = div("chat_message_header")
-        let avatar   = div("chat_message_header_avatar")
-        // let img      = dynamicImg(user.avatar)
+    createMessage(message, user) {
+        let root      = div("chat_message")
+        let avatar    = div("chat_message_avatar")
+        // let avatarImg = dynamicImg(user.avatar)
         let avatarImg = img(user.avatar)
-        let right    = div("chat_message_header_right")
-        let info     = div("chat_message_header_info")
-        let username = div("chat_message_header_username")
-        let color    = Math.floor(Math.sin(user.id) * 10000);
-        let date     = div("chat_message_header_date")
-        let text     = div("chat_message_header_text")
+        let right     = div("chat_message_right")
+        let info      = div("chat_message_info")
+        let username  = div("chat_message_username")
+        let color     = Math.floor(Math.sin(user.id) * 10000);
+        let date      = div("chat_message_date")
+        let text      = div("chat_message_text")
 
         text.textContent     = message.message;
         username.textContent = user.username;
@@ -62,8 +62,12 @@ class Chat {
         return root
     }
 
-    createTextMessage(message, user) {
+    createSubMessage(message, user) {
+        let root = div("chat_sub_message")
 
+        root.textContent = message.message;
+
+        return root;
     }
 
     addMessage(chatMsg, allUsers) {
@@ -71,15 +75,29 @@ class Chat {
         let index = allUsers.findIndex(user => user.id === chatMsg.authorId);
         let user = allUsers[index];
 
-        let username = "Deleted user"
-        if (user) {
-            username = user.username;
+        if (!user) {
+            const dummy = {
+                id: 0,
+                username: "Deleted user",
+                avatar: "img/default_avatar.png",
+                online: false,
+            }
+
+            user = dummy;
         }
 
-        let message = this.createHeaderMessage(chatMsg, user);
+        let message;
+        if (this.prevUserId !== user.id) {
+            message = this.createMessage(chatMsg, user);
+        } else {
+            message = this.createSubMessage(chatMsg, user);
+        }
+
+
 
         this.chatArea.appendChild(message);
         this.chatArea.scrollTo(0, this.chatArea.scrollHeight)
+        this.prevUserId = user.id;
     }
 
     attachListeners() {

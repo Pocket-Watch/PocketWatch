@@ -16,6 +16,8 @@
     box-sizing: border-box;
     flex-direction: column;
     row-gap: 12px;
+    /* padding: 0; */
+    /* padding-top: 8px; */
 }
 
 #chat_text_content {
@@ -25,6 +27,7 @@
     border-radius: 6px;
     box-sizing: border-box;
     color: var(--fg_0);
+    /* padding: 6px; */
     padding: 12px;
     padding-top: 0;
     overflow-y: scroll;
@@ -32,8 +35,7 @@
     vertical-align: bottom;
 }
 
-.chat_message_header {
-    /* height: 38px; */
+.chat_message {
     height: auto;
     width: 100%;
     display: flex;
@@ -44,66 +46,75 @@
     border-radius: 6px;
 }
 
-.chat_message_header:hover {
+.chat_message:hover {
     background-color: var(--bg_4);
     transition-delay: 300ms;
     transition: all 100ms ease;
 }
 
-.chat_message_header_avatar {
-    height: 100%;
+.chat_message_avatar {
+    min-height:  38px;
+    height: 38px;
     min-width: 38px;
     width: 38px;
     border-radius: 8px;
     overflow: hidden
 }
 
-.chat_message_header_avatar img {
+.chat_message_avatar img {
     width:  100%;
     height: 100%;
     object-fit: cover;
 }
 
-.chat_message_header_right {
+.chat_message_right {
     display: flex;
     flex-direction: column;
     justify-content: center;
+    row-gap: 6px;
 }
 
-.chat_message_header_info {
+.chat_message_info {
     display: flex;
     flex-direction: row;
     column-gap: 8px;
 }
 
-.chat_message_header_username {
+.chat_message_username {
     display: flex;
     align-items: center;
     font-size: 16px;
     font-weight: bold;
 }
 
-.chat_message_header_date {
+.chat_message_date {
     display: flex;
     align-items: center;
     font-size: 13px;
     color: var(--fg_6);
 }
 
-.chat_message_header_text {
+.chat_message_text {
     color: var(--fg_2);
     font-size: 16px;
     overflow-wrap: break-word;
     word-break: break-word;
 }
 
-.chat_message {
-
+.chat_sub_message {
+    padding-left: 48px;
+    color: var(--fg_2);
+    font-size: 16px;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
-.chat_message_text {
-
+.chat_sub_message:hover {
+    background-color: var(--bg_4);
+    transition-delay: 300ms;
+    transition: all 100ms ease;
 }
+
 
 #chat_input_container {
     width: 100%;
