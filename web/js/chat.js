@@ -11,15 +11,27 @@ class Chat {
         this.chatArea          = getById("chat_text_content");
         this.sendMessageButton = getById("chat_send_button");
 
-        this.isChatAtBottom   = true;
-        this.prevUserId = 0;
-        this.attachListeners();
+        this.isChatAtBottom = true;
+        this.prevUserId     = 0;
     }
 
     attachChatEvents() {
         this.chatArea.onscroll = _ => {
             let scroll = this.chatArea.scrollHeight - this.chatArea.scrollTop - this.chatArea.clientHeight;
             this.isChatAtBottom = Math.abs(scroll) < 60;
+        };
+
+        this.sendMessageButton.onclick = _ => {
+            this.chatInput.focus();
+            this.processMessageSendIntent();
+        };
+
+        // Handle shiftKey + Enter as 'new line' for formatting
+        this.chatInput.onkeydown = event => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                this.processMessageSendIntent();
+            }
         };
     }
 
@@ -105,20 +117,6 @@ class Chat {
         this.keepAtBottom();
 
         this.prevUserId = user.id;
-    }
-
-    attachListeners() {
-        this.sendMessageButton.addEventListener("click", _ => {
-            this.processMessageSendIntent()
-        })
-
-        // Handle shiftKey + Enter as 'new line' for formatting
-        this.chatInput.addEventListener('keydown', e => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                this.processMessageSendIntent()
-            }
-        });
     }
 
     processMessageSendIntent() {
