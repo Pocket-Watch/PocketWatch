@@ -209,6 +209,10 @@ func StartServer(config ServerConfig, db *sql.DB) {
 	server.loadYoutubeEntry(&server.state.entry, RequestEntry{})
 	server.setupProxy(&server.state.entry)
 
+	if config.EnableShell {
+		CaptureCtrlC(&server)
+	}
+
 	var server_start_error error
 	if !config.EnableSsl || missing_ssl_keys {
 		LogWarn("Server is running in unencrypted http mode.")
@@ -1560,6 +1564,27 @@ func (server *Server) getEntriesFromDirectory(path string, userId uint64) []Entr
 	}
 
 	return entries
+}
+
+func (server *Server) cleanupDummyUsers() []User {
+	removed := []User{}
+
+	server.users.mutex.Lock()
+	defer server.users.mutex.Unlock()
+
+	for _, user := range server.users.slice {
+		if user.LastUpdate == user.CreatedAt && !user.Online {
+			removed = append(removed, user)
+		}
+	}
+
+	for _, user := range removed {
+		server.users.removeByToken(user.token)
+		DatabaseDeleteUser(server.db, user)
+		server.writeEventToAllConnections(nil, "userdelete", user)
+	}
+
+	return removed
 }
 
 func (server *Server) constructEntry(entry Entry) Entry {

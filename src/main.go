@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"os"
 	"os/signal"
@@ -9,14 +8,14 @@ import (
 
 var BuildTime string
 
-func CaptureCtrlC(db *sql.DB) {
+func CaptureCtrlC(server *Server) {
 	channel := make(chan os.Signal, 1)
 	signal.Notify(channel, os.Interrupt)
 
 	go func() {
 		for {
 			<-channel
-			RunInteractiveShell(channel, db)
+			RunInteractiveShell(channel, server)
 		}
 	}()
 }
@@ -80,10 +79,6 @@ func main() {
 
 	if !MigrateDatabase(db) {
 		return
-	}
-
-	if config.Server.EnableShell {
-		CaptureCtrlC(db)
 	}
 
 	StartServer(config.Server, db)

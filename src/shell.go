@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"database/sql"
 	"fmt"
 	"os"
 	"strconv"
@@ -43,7 +42,7 @@ func handleCtrlC(ctrlcChan chan os.Signal, exit chan bool) {
 	}
 }
 
-func RunInteractiveShell(ctrlcChan chan os.Signal, db *sql.DB) {
+func RunInteractiveShell(ctrlcChan chan os.Signal, server *Server) {
 	fmt.Println()
 	LogInfo("Opening interactive shell. Console logging paused.")
 	DisableConsoleLogging()
@@ -116,16 +115,26 @@ outer:
 			}
 
 		case "sqlquery", "sql":
-			DatabaseSqlQuery(db, argument)
+			DatabaseSqlQuery(server.db, argument)
 
 		case "sqltable", "tbl":
-			DatabasePrintTableLayout(db, argument)
+			DatabasePrintTableLayout(server.db, argument)
 
 		case "users", "usr":
-			fmt.Println("Command users it not implemented yet!")
+			fmt.Println("Online users:")
+			server.users.mutex.Lock()
+			for _, user := range server.users.slice {
+				if user.Online {
+					fmt.Printf("  ID:%v - %v\n", user.Id, user.Username)
+				}
+			}
+			server.users.mutex.Unlock()
 
 		case "cleanup", "cln":
-			fmt.Println("Command users it not implemented yet!")
+			removed := server.cleanupDummyUsers()
+			for _, user := range removed {
+				fmt.Printf("Removed user ID:%v - %v\n", user.Id, user.Username)
+			}
 
 		case "reload", "rel":
 			fmt.Println("Command users it not implemented yet!")
