@@ -81,8 +81,10 @@ outer:
 			fmt.Println("  uptime,   up  - Print server uptime")
 			fmt.Println("  loglevel, log - Print or set the log level")
 			fmt.Println("  sqlquery, sql - Execute SQL query")
-			fmt.Println("  sqltable, tlb - Print layout a SQL table")
+			fmt.Println("  sqltable, tbl - Print layout a SQL table")
 			fmt.Println("  users,    usr - Show number of active users")
+			fmt.Println("  cleanup,  cln - Cleanup temporary data (such as inactive dummy users)")
+			fmt.Println("  reload,   rel - Reloads static web resources from disk, enable/disable hot-reload when on/off argument is provided")
 
 		case "version", "v":
 			fmt.Printf("Server version: %v_%v\n", VERSION, BuildTime)
@@ -120,6 +122,12 @@ outer:
 			DatabasePrintTableLayout(db, argument)
 
 		case "users", "usr":
+			fmt.Println("Command users it not implemented yet!")
+
+		case "cleanup", "cln":
+			fmt.Println("Command users it not implemented yet!")
+
+		case "reload", "rel":
 			fmt.Println("Command users it not implemented yet!")
 
 		default:

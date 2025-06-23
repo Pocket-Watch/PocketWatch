@@ -1281,6 +1281,14 @@ class Internals {
             return;
         }
 
+        if (!isHidden(this.htmlSubtitleMenu)) {
+            return;
+        }
+
+        if (!isHidden(this.htmlSettingsMenu)) {
+            return;
+        }
+
         this.htmlPlayerRoot.style.cursor = "none";
         this.htmlControls.root.classList.add("hide");
         this.htmlTitleContainer.classList.add("hide");
