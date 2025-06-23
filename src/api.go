@@ -135,7 +135,6 @@ func (server *Server) apiUserDelete(w http.ResponseWriter, r *http.Request) {
 
 	server.users.mutex.Lock()
 	user := server.users.removeByToken(token)
-	userId := user.Id
 	server.users.mutex.Unlock()
 
 	if user == nil {
@@ -148,7 +147,7 @@ func (server *Server) apiUserDelete(w http.ResponseWriter, r *http.Request) {
 
 	server.conns.mutex.Lock()
 	for _, conn := range server.conns.slice {
-		if conn.userId == userId {
+		if conn.userId == user.Id {
 			conn.close <- true
 		}
 	}

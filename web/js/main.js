@@ -1473,10 +1473,14 @@ class Room {
 
             console.info("INFO: Removing user:", user, "with its user box", userBox);
             this.usersArea.userList.removeChild(userBox.root);
-            
-            if (this.onlineCount > 0) {
-                this.onlineCount -= 1;
+
+            let online = 0;
+            for (let i = 0; i < this.allUsers.length; i++) {
+                if (this.allUsers[i].online) online += 1;
+                console.warn(this.allUsers[i], online)
             }
+
+            this.onlineCount = online;
 
             this.usersArea.onlineCount.textContent  = this.onlineCount;
             this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
