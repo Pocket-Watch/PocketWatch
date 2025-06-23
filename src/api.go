@@ -828,21 +828,19 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 	} else {
 		LogInfo("Adding '%s' url to the playlist.", data.RequestEntry.Url)
 
-		newEntry := Entry{
-			Id:         server.state.entryId.Add(1),
+		temp := Entry{
 			Url:        data.RequestEntry.Url,
 			UserId:     user.Id,
 			Title:      data.RequestEntry.Title,
 			UseProxy:   data.RequestEntry.UseProxy,
 			RefererUrl: data.RequestEntry.RefererUrl,
 			SourceUrl:  "",
-			// TODO(kihau): FIX ME!
 			Subtitles:  data.RequestEntry.Subtitles,
 			Created:    time.Now(),
 		}
 
-		newEntry.Title = constructTitleWhenMissing(&newEntry)
-
+		temp.Title = constructTitleWhenMissing(&temp)
+		newEntry := server.constructEntry(temp)
 		server.loadYoutubeEntry(&newEntry, data.RequestEntry)
 
 		var eventType string

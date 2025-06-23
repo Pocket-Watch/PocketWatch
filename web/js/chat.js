@@ -11,8 +11,16 @@ class Chat {
         this.chatArea          = getById("chat_text_content");
         this.sendMessageButton = getById("chat_send_button");
 
+        this.isChatAtBottom   = true;
         this.prevUserId = 0;
         this.attachListeners();
+    }
+
+    attachChatEvents() {
+        this.chatArea.onscroll = _ => {
+            let scroll = this.chatArea.scrollHeight - this.chatArea.scrollTop - this.chatArea.clientHeight;
+            this.isChatAtBottom = Math.abs(scroll) < 60;
+        };
     }
 
     clear() {
@@ -94,11 +102,7 @@ class Chat {
         }
 
         this.chatArea.appendChild(message);
-
-        let scroll = Math.abs(this.chatArea.scrollHeight - this.chatArea.scrollTop - this.chatArea.clientHeight);
-        if (scroll < 60) {
-            this.scrollToBottom();
-        }
+        this.keepAtBottom();
 
         this.prevUserId = user.id;
     }
@@ -134,11 +138,13 @@ class Chat {
             this.addMessage(messages[i], allUsers);
         }
 
-        this.scrollToBottom();
+        this.keepAtBottom();
     }
 
-    scrollToBottom() {
-        this.chatArea.scrollTo(0, this.chatArea.scrollHeight)
+    keepAtBottom() {
+        if (this.isChatAtBottom) {
+            this.chatArea.scrollTo(0, this.chatArea.scrollHeight)
+        }
     }
 } 
 

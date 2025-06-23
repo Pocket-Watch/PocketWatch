@@ -541,8 +541,6 @@ class Room {
             case TAB_CHAT: {
                 tab     = this.rightPanel.tabs.chat;
                 content = this.rightPanel.content.chat;
-
-                hide(this.chatNewMessage);
             } break;
 
             case TAB_HISTORY: {
@@ -561,6 +559,11 @@ class Room {
 
         this.selected_tab     = tab;
         this.selected_content = content;
+
+        if (tab_type === TAB_CHAT) {
+            hide(this.chatNewMessage);
+            this.chat.keepAtBottom();
+        }
 
         Storage.set(LAST_SELECTED_TAB, tab_type);
     }
@@ -775,6 +778,7 @@ class Room {
 
         this.attachRoomTabEvents();
         this.playlist.attachPlaylistEvents();
+        this.chat.attachChatEvents();
         this.history.attachHistoryEvents();
 
         this.playlist.onSettingsClick   = _     => this.showSettingsMenu();
