@@ -438,6 +438,7 @@ func (server *Server) loadYoutubeEntry(entry *Entry, requested RequestEntry) {
 		LogInfo("Loading youtube entry with url: %v.", entry.Url)
 	}
 
+	server.writeEventToAllConnections(nil, "playerwaiting", "Youtube video is loading. Please stand by!")
 	ok, video := fetchYoutubeVideo(query)
 	if !ok {
 		return

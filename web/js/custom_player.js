@@ -50,6 +50,14 @@ class Player {
         this.internals.setSpeed(speed);
     }
 
+    setBuffering(state) {
+        if (state) {
+            show(this.internals.bufferingSvg);
+        } else {
+            hide(this.internals.bufferingSvg);
+        }
+    }
+
     setToast(toast) {
         this.internals.setToast(toast);
     }

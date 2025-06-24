@@ -1597,6 +1597,13 @@ class Room {
             this.roomContent.titleInput.value = title;
         });
 
+        events.addEventListener("playerwaiting", event => {
+            let message = JSON.parse(event.data);
+            this.player.setToast(message);
+            this.player.setPoster("/watch/img/please_stand_by.webp");
+            this.player.setBuffering(true);
+        });
+
         events.addEventListener("sync", event => {
             let data = JSON.parse(event.data);
             if (!data) {
