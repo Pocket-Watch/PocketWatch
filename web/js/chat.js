@@ -33,6 +33,8 @@ class Chat {
                 this.processMessageSendIntent();
             }
         };
+
+        window.addEventListener("resize", _ => this.keepAtBottom());
     }
 
     clear() {

@@ -83,6 +83,16 @@ type Source struct {
 	Type      string `json:"type" `    // ex. "hls_vod", "live", "file"?
 }
 
+// TODO(kihau): Dynamically add/remove metadata from website room tab when needed.
+// NOTE(kihau): Placeholder, Not used anywhere yet.
+type Metadata struct {
+	TrackNumber int    `json:"track_number"`
+	AlbumName   string `json:"album_name"`
+	AutorName   string `json:"autor_name"`
+	ReleaseDate int    `json:"release_date"`
+	Duration    int    `json:"duration"`
+}
+
 type Entry struct {
 	Id         uint64 `json:"id"`
 	Url        string `json:"url"`
