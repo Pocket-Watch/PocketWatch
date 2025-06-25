@@ -475,16 +475,6 @@ func (server *Server) periodicInactiveUserCleanup() {
 				DatabaseDeleteUser(server.db, user)
 				toDelete = append(toDelete, user)
 			}
-
-			// TODO(kihau): Instead of deleting, notify everyone that user is inactive?
-			// else if time.Since(user.lastOnline) > time.Hour*24*14 && !user.Online {
-			// 	// Archive users that were not active for more than two weeks.
-			// 	LogInfo("Archiving user with id = %v due to 2 weeks of inactivity.", user.Id)
-			//
-			// 	server.inactiveUsers.add(user)
-			// 	DatabaseArchiveUser(server.db, user)
-			// 	toDelete = append(toDelete, user)
-			// }
 		}
 
 		for _, user := range toDelete {

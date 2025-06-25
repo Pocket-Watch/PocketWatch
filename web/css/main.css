@@ -1121,11 +1121,11 @@ html * {
     background-color: var(--orange_0);
 }
 
-#room_entry_url {
-    height: 30px;
+#room_entry_title {
+    height: 36px;
 }
 
-#room_entry_title {
+#room_entry_url {
     height: 36px;
 }
 
@@ -1444,6 +1444,11 @@ html * {
     fill: var(--fg_5);
 }
 
+.widget_readonly_input input:not(:placeholder-shown) ~ button,
+.widget_input input:not(:placeholder-shown) ~ button {
+    background-color: var(--bg_3);
+}
+
 .widget_input_extra_button button:hover {
     border: 2px solid var(--fg_4);
     background-color: var(--bg_3);
@@ -1457,7 +1462,7 @@ html * {
 
 .widget_input_extra_button button:active {
     border-color: var(--blue_2);
-    background-color: var(--bg_4);
+    background-color: var(--bg_4) !important;
     box-shadow: 0 0 0 2px var(--blue_1);
     z-index: 1;
     color: var(--green_2);

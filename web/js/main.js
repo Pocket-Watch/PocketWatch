@@ -131,6 +131,7 @@ class Room {
             subsEditInput:   getById("room_subtitle_edit_input"),
 
             titleUpdateButton:  getById("room_title_update_button"),
+            urlCopyButton:      getById("room_entry_url_copy_button"),
             uploadSubButton:    getById("room_upload_subtitle_button"),
             copyEntryButton:    getById("room_copy_entry_button"),
             setShiftButton:     getById("room_set_shift_button"),
@@ -669,6 +670,10 @@ class Room {
             let title = room.titleInput.value.trim();
             room.titleInput.value = title;
             api.playerUpdateTitle(title);
+        };
+
+        room.urlCopyButton.onclick = _ => {
+            navigator.clipboard.writeText(this.currentEntry.url);
         };
 
         room.uploadSubButton.onclick = _ => {
