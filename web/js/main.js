@@ -1599,9 +1599,20 @@ class Room {
 
         events.addEventListener("playerwaiting", event => {
             let message = JSON.parse(event.data);
+            console.info("INFO: Received player waiting event: ", message);
+
             this.player.setToast(message);
             this.player.setPoster("/watch/img/please_stand_by.webp");
             this.player.setBuffering(true);
+        });
+
+        events.addEventListener("playererror", event => {
+            let message = JSON.parse(event.data);
+            console.info("INFO: Received player error event: ", message);
+
+            this.player.setToast(message);
+            this.player.setPoster("");
+            this.player.setBuffering(false);
         });
 
         events.addEventListener("sync", event => {

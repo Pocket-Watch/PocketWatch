@@ -417,17 +417,17 @@ func fetchYoutubePlaylist(query string, start uint, end uint) (bool, YoutubePlay
 	return false, YoutubePlaylist{}
 }
 
-func (server *Server) loadYoutubeEntry(entry *Entry, requested RequestEntry) {
+func (server *Server) loadYoutubeEntry(entry *Entry, requested RequestEntry) error {
 	if !YOUTUBE_ENABLED {
-		return
+		return nil
 	}
 
 	if !isYoutubeUrl(entry.Url) && !requested.SearchVideo {
-		return
+		return nil
 	}
 
 	if !isYoutubeSourceExpired(entry.SourceUrl) {
-		return
+		return nil
 	}
 
 	query := entry.Url
@@ -441,7 +441,7 @@ func (server *Server) loadYoutubeEntry(entry *Entry, requested RequestEntry) {
 	server.writeEventToAllConnections(nil, "playerwaiting", "Youtube video is loading. Please stand by!")
 	ok, video := fetchYoutubeVideo(query)
 	if !ok {
-		return
+		return fmt.Errorf("Failed to fetch youtube video")
 	}
 
 	entry.Url = video.OriginalUrl
@@ -456,4 +456,6 @@ func (server *Server) loadYoutubeEntry(entry *Entry, requested RequestEntry) {
 	if requested.IsPlaylist {
 		go server.loadYoutubePlaylist(query, video.Id, entry.UserId, requested.PlaylistMaxSize, requested.AddToTop)
 	}
+
+	return nil
 }

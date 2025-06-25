@@ -138,8 +138,6 @@ func StartServer(config ServerConfig, db *sql.DB) {
 	maxEntryId := DatabaseMaxEntryId(db)
 	maxSubId := DatabaseMaxSubtitleId(db)
 
-	currentEntry, _ := DatabaseCurrentEntryGet(db)
-
 	history, _ := DatabaseHistoryGet(db)
 	playlist, _ := DatabasePlaylistGet(db)
 
@@ -149,7 +147,7 @@ func StartServer(config ServerConfig, db *sql.DB) {
 	server := Server{
 		config: config,
 		state: ServerState{
-			entry:    currentEntry,
+			entry:    Entry{},
 			playlist: playlist,
 			history:  history,
 			messages: make([]ChatMessage, 0),
@@ -206,12 +204,22 @@ func StartServer(config ServerConfig, db *sql.DB) {
 		serverRootAddress = "https://" + address
 	}
 
-	server.loadYoutubeEntry(&server.state.entry, RequestEntry{})
-	server.setupProxy(&server.state.entry)
+	CaptureCtrlC(&server)
 
-	if config.EnableShell {
-		CaptureCtrlC(&server)
-	}
+	go func() {
+		currentEntry, _ := DatabaseCurrentEntryGet(db)
+
+		server.setNewEntry(currentEntry, RequestEntry{})
+		timestamp := DatabaseGetTimestamp(server.db)
+
+		server.state.mutex.Lock()
+		server.state.player.Timestamp = timestamp
+		server.state.lastUpdate = time.Now()
+		server.state.mutex.Unlock()
+
+		event := server.createSyncEvent("seek", 0)
+		server.writeEventToAllConnections(nil, "sync", event)
+	}()
 
 	var server_start_error error
 	if !config.EnableSsl || missing_ssl_keys {
@@ -489,19 +497,24 @@ func (server *Server) periodicInactiveUserCleanup() {
 	}
 }
 
-func (server *Server) setNewEntry(entry Entry) Entry {
-	prevEntry := server.state.entry
-	if prevEntry.Url != "" {
-		server.historyAdd(prevEntry)
-
-		if len(server.state.history) > MAX_HISTORY_SIZE {
-			removed := server.state.history[0]
-			server.state.history = slices.Delete(server.state.history, 0, 1)
-			DatabaseHistoryRemove(server.db, removed.Id)
-		}
+func (server *Server) setNewEntry(entry Entry, requested RequestEntry) {
+	err := server.loadYoutubeEntry(&entry, requested)
+	if err != nil {
+		server.writeEventToAllConnections(nil, "playererror", err.Error())
+		return
 	}
 
-	server.setupProxy(&entry)
+	err = server.setupProxy(&entry)
+	if err != nil {
+		LogWarn("%v", err)
+		server.writeEventToAllConnections(nil, "playererror", err.Error())
+		return
+	}
+
+	server.state.mutex.Lock()
+	defer server.state.mutex.Unlock()
+
+	server.historyAdd(server.state.entry)
 
 	server.state.entry = entry
 	DatabaseCurrentEntrySet(server.db, entry)
@@ -510,7 +523,10 @@ func (server *Server) setNewEntry(entry Entry) Entry {
 	server.state.lastUpdate = time.Now()
 	server.state.player.Playing = server.state.player.Autoplay
 
-	return entry
+	LogInfo("New entry URL is now: '%s'.", entry.Url)
+	server.writeEventToAllConnections(nil, "playerset", entry)
+
+	go server.preloadYoutubeSourceOnNextEntry()
 }
 
 func isAnyUrlM3U(urls ...string) bool {
@@ -923,14 +939,15 @@ func prepareMediaPlaylistFromMasterPlaylist(m3u *M3U, referer string, masterUrl 
 	return &MediaPlaylist{m3u, bestUrl, prefix}
 }
 
-func (server *Server) setupProxy(entry *Entry) {
+// TODO(kihau): More explicit error output messages.
+func (server *Server) setupProxy(entry *Entry) error {
 	if isYoutubeUrl(entry.Url) {
 		success := server.setupHlsProxy(entry.SourceUrl, "")
 		if success {
 			entry.SourceUrl = PROXY_ROUTE + PROXY_M3U8
 			LogInfo("HLS proxy setup for youtube was successful.")
 		} else {
-			LogWarn("HLS proxy setup for youtube failed!")
+			return fmt.Errorf("HLS proxy setup for youtube failed!")
 		}
 	} else if entry.UseProxy {
 		paramUrl := ""
@@ -949,7 +966,7 @@ func (server *Server) setupProxy(entry *Entry) {
 				entry.SourceUrl = PROXY_ROUTE + PROXY_M3U8
 				LogInfo("HLS proxy setup was successful.")
 			} else {
-				LogWarn("HLS proxy setup failed!")
+				return fmt.Errorf("HLS proxy setup failed!")
 			}
 		} else {
 			setup := server.setupGenericFileProxy(entry.Url, entry.RefererUrl)
@@ -957,10 +974,12 @@ func (server *Server) setupProxy(entry *Entry) {
 				entry.SourceUrl = PROXY_ROUTE + "proxy" + server.state.genericProxy.extensionWithDot
 				LogInfo("Generic file proxy setup was successful.")
 			} else {
-				LogWarn("Generic file proxy setup failed!")
+				return fmt.Errorf("Generic file proxy setup failed!")
 			}
 		}
 	}
+
+	return nil
 }
 
 func (server *Server) setupHlsProxy(url string, referer string) bool {
@@ -1475,15 +1494,22 @@ func (server *Server) updatePlayerState(isPlaying bool, newTimestamp float64) {
 	server.state.mutex.Unlock()
 }
 
-func (server *Server) createSyncEvent(action string, userId uint64) SyncEventData {
+func (server *Server) getCurrentTimestamp() float64 {
 	server.state.mutex.Lock()
+	defer server.state.mutex.Unlock()
+
 	var timestamp = server.state.player.Timestamp
 	if server.state.player.Playing {
 		now := time.Now()
 		diff := now.Sub(server.state.lastUpdate)
 		timestamp = server.state.player.Timestamp + diff.Seconds()
 	}
-	server.state.mutex.Unlock()
+
+	return timestamp
+}
+
+func (server *Server) createSyncEvent(action string, userId uint64) SyncEventData {
+	timestamp := server.getCurrentTimestamp()
 
 	event := SyncEventData{
 		Timestamp: timestamp,
@@ -1635,6 +1661,12 @@ func (server *Server) historyAdd(entry Entry) {
 
 	server.state.history = append(server.state.history, newEntry)
 	DatabaseHistoryAdd(server.db, newEntry)
+
+	if len(server.state.history) > MAX_HISTORY_SIZE {
+		removed := server.state.history[0]
+		server.state.history = slices.Delete(server.state.history, 0, 1)
+		DatabaseHistoryRemove(server.db, removed.Id)
+	}
 
 	server.writeEventToAllConnections(nil, "historyadd", newEntry)
 }

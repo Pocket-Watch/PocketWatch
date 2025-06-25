@@ -344,6 +344,11 @@ func DatabaseUpdateUserLastOnline(db *sql.DB, id uint64, lastOnline time.Time) b
 	return true
 }
 
+func DatabaseShowTables(db *sql.DB) {
+	query := "SELECT * FROM pg_catalog.pg_tables WHERE schemaname = 'public'";
+	DatabaseSqlQuery(db, query)
+} 
+
 func DatabaseSqlQuery(db *sql.DB, query string) {
 	if db == nil {
 		fmt.Printf("Database is not running\n")
@@ -362,7 +367,7 @@ func DatabaseSqlQuery(db *sql.DB, query string) {
 	columns := make([]any, columnCount)
 
 	for i := range columnNames {
-		columns[i] = new(string)
+		columns[i] = new(sql.NullString)
 	}
 
 	data := make([]string, 0)
@@ -375,8 +380,8 @@ func DatabaseSqlQuery(db *sql.DB, query string) {
 		}
 
 		for _, column := range columns {
-			value := *column.(*string)
-			data = append(data, value)
+			value := *column.(*sql.NullString)
+			data = append(data, value.String)
 		}
 	}
 
@@ -491,6 +496,16 @@ func DatabaseGetLooping(db *sql.DB) bool {
 	return looping.Bool
 }
 
+func DatabaseGetTimestamp(db *sql.DB) float64 {
+	if db == nil {
+		return 0.0
+	}
+
+	var timestamp sql.NullFloat64
+	db.QueryRow("SELECT timestamp FROM player_state").Scan(&timestamp)
+	return timestamp.Float64
+}
+
 func DatabaseSetAutoplay(db *sql.DB, autoplay bool) bool {
 	if db == nil {
 		return true
@@ -506,6 +521,15 @@ func DatabaseSetLooping(db *sql.DB, looping bool) bool {
 	}
 
 	_, err := db.Exec("UPDATE player_state SET looping = $1", looping)
+	return err != nil
+}
+
+func DatabaseSetTimestamp(db *sql.DB, timestamp float64) bool {
+	if db == nil {
+		return true
+	}
+
+	_, err := db.Exec("UPDATE player_state SET timestamp = $1", timestamp)
 	return err != nil
 }
 

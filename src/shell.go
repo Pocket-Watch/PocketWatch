@@ -64,6 +64,10 @@ outer:
 		switch command {
 		case "shutdown":
 			EnableConsoleLogging()
+
+			timestamp := server.getCurrentTimestamp()
+			DatabaseSetTimestamp(server.db, timestamp)
+
 			LogInfo("Shutting down the server.")
 			os.Exit(0)
 
@@ -80,7 +84,7 @@ outer:
 			fmt.Println("  uptime,   up  - Print server uptime")
 			fmt.Println("  loglevel, log - Print or set the log level")
 			fmt.Println("  sqlquery, sql - Execute SQL query")
-			fmt.Println("  sqltable, tbl - Print layout a SQL table")
+			fmt.Println("  sqltable, tbl - Show SQL tables or print layout of a specified SQL table")
 			fmt.Println("  users,    usr - Show number of active users")
 			fmt.Println("  cleanup,  cln - Cleanup temporary data (such as inactive dummy users)")
 			fmt.Println("  reload,   rel - Reloads static web resources from disk, enable/disable hot-reload when on/off argument is provided")
@@ -118,7 +122,11 @@ outer:
 			DatabaseSqlQuery(server.db, argument)
 
 		case "sqltable", "tbl":
-			DatabasePrintTableLayout(server.db, argument)
+			if argument == "" {
+				DatabaseShowTables(server.db)
+			} else {
+				DatabasePrintTableLayout(server.db, argument)
+			}
 
 		case "users", "usr":
 			fmt.Println("Online users:")

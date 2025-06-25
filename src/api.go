@@ -296,6 +296,12 @@ func (server *Server) apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	server.state.mutex.Lock()
+	if server.state.player.Looping {
+		server.playlistAdd(server.state.entry)
+	}
+	server.state.mutex.Unlock()
+
 	entry := Entry{
 		Url:        data.RequestEntry.Url,
 		UserId:     user.Id,
@@ -309,21 +315,7 @@ func (server *Server) apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 
 	entry.Title = constructTitleWhenMissing(&entry)
 	newEntry := server.constructEntry(entry)
-
-	server.loadYoutubeEntry(&newEntry, data.RequestEntry)
-
-	server.state.mutex.Lock()
-
-	if server.state.player.Looping {
-		server.playlistAdd(server.state.entry)
-	}
-
-	newEntry = server.setNewEntry(newEntry)
-	server.state.mutex.Unlock()
-
-	LogInfo("New url is now: '%s'.", server.state.entry.Url)
-
-	server.writeEventToAllConnections(w, "playerset", newEntry)
+	go server.setNewEntry(newEntry, data.RequestEntry)
 }
 
 func (server *Server) apiPlayerEnd(w http.ResponseWriter, r *http.Request) {
@@ -369,13 +361,9 @@ func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 		entry := server.playlistRemove(0)
 		newEntry = server.constructEntry(entry)
 	}
-
-	server.loadYoutubeEntry(&newEntry, RequestEntry{})
-	newEntry = server.setNewEntry(newEntry)
 	server.state.mutex.Unlock()
 
-	server.writeEventToAllConnections(w, "playerset", newEntry)
-	go server.preloadYoutubeSourceOnNextEntry()
+	go server.setNewEntry(newEntry, RequestEntry{})
 }
 
 func (server *Server) apiPlayerPlay(w http.ResponseWriter, r *http.Request) {
@@ -427,9 +415,9 @@ func (server *Server) apiPlayerSeek(w http.ResponseWriter, r *http.Request) {
 	server.state.mutex.Unlock()
 
 	event := server.createSyncEvent("seek", user.Id)
+	server.writeEventToAllConnectionsExceptSelf(w, "sync", event, user.Id, data.ConnectionId)
 
 	io.WriteString(w, "Broadcasting seek!\n")
-	server.writeEventToAllConnectionsExceptSelf(w, "sync", event, user.Id, data.ConnectionId)
 }
 
 func (server *Server) apiPlayerAutoplay(w http.ResponseWriter, r *http.Request) {
@@ -782,15 +770,10 @@ func (server *Server) apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
 	}
 
 	entry := server.playlistRemove(index)
-	newEntry := server.constructEntry(entry)
-
-	server.loadYoutubeEntry(&newEntry, RequestEntry{})
-	newEntry = server.setNewEntry(newEntry)
-
 	server.state.mutex.Unlock()
 
-	server.writeEventToAllConnections(w, "playerset", newEntry)
-	go server.preloadYoutubeSourceOnNextEntry()
+	newEntry := server.constructEntry(entry)
+	go server.setNewEntry(newEntry, RequestEntry{})
 }
 
 func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
@@ -1061,13 +1044,10 @@ func (server *Server) apiHistoryPlay(w http.ResponseWriter, r *http.Request) {
 	}
 
 	entry := server.state.history[index]
-	newEntry := server.constructEntry(entry)
-
-	server.loadYoutubeEntry(&newEntry, RequestEntry{})
-	newEntry = server.setNewEntry(newEntry)
 	server.state.mutex.Unlock()
 
-	server.writeEventToAllConnections(w, "playerset", newEntry)
+	newEntry := server.constructEntry(entry)
+	go server.setNewEntry(newEntry, RequestEntry{})
 }
 
 func (server *Server) apiHistoryRemove(w http.ResponseWriter, r *http.Request) {

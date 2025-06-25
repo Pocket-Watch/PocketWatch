@@ -15,7 +15,16 @@ func CaptureCtrlC(server *Server) {
 	go func() {
 		for {
 			<-channel
-			RunInteractiveShell(channel, server)
+
+			if server.config.EnableShell {
+				RunInteractiveShell(channel, server)
+			} else {
+				timestamp := server.getCurrentTimestamp()
+				DatabaseSetTimestamp(server.db, timestamp)
+
+				LogInfo("Shutting down the server")
+				os.Exit(0)
+			}
 		}
 	}()
 }
