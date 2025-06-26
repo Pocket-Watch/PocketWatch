@@ -55,7 +55,8 @@
     min-width: 38px;
     width: 38px;
     border-radius: 8px;
-    overflow: hidden
+    overflow: hidden;
+    box-shadow: 1px 1px 3px 0px var(--bg_0);
 }
 
 .chat_message_avatar img {
@@ -82,6 +83,7 @@
     align-items: center;
     font-size: 16px;
     font-weight: bold;
+    color: var(--gray_2);
 }
 
 .chat_message_date {

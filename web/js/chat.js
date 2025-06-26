@@ -50,13 +50,16 @@ class Chat {
         let right     = div("chat_message_right")
         let info      = div("chat_message_info")
         let username  = div("chat_message_username")
-        let color     = Math.floor(Math.sin(user.id) * 10000);
         let date      = div("chat_message_date")
         let text      = div("chat_message_text")
 
         text.textContent     = message.message;
         username.textContent = user.username;
-        username.style.color = `hsl(${color} 70% 50%)`
+
+        if (user.id !== 0) {
+            let color = Math.floor(Math.sin(user.id) * 10000);
+            username.style.color = `hsl(${color} 70% 50%)`
+        } 
 
         let d = new Date(message.unixTime);
 

@@ -145,7 +145,7 @@ outer:
 			}
 
 		case "reload", "rel":
-			fmt.Println("Command users it not implemented yet!")
+			fmt.Println("Command 'reload' it not implemented yet!")
 
 		default:
 			if command != "" {
