@@ -77,17 +77,18 @@ outer:
 			return
 
 		case "help", "h":
-			fmt.Println("  shutdown      - Exit the server")
-			fmt.Println("  quit,     q   - Quit the interactive shell")
-			fmt.Println("  help,     h   - Display this help prompt")
-			fmt.Println("  version,  v   - Print server version")
-			fmt.Println("  uptime,   up  - Print server uptime")
-			fmt.Println("  loglevel, log - Print or set the log level")
-			fmt.Println("  sqlquery, sql - Execute SQL query")
-			fmt.Println("  sqltable, tbl - Show SQL tables or print layout of a specified SQL table")
-			fmt.Println("  users,    usr - Show number of active users")
-			fmt.Println("  cleanup,  cln - Cleanup temporary data (such as inactive dummy users)")
-			fmt.Println("  reload,   rel - Reloads static web resources from disk, enable/disable hot-reload when on/off argument is provided")
+			fmt.Println("  shutdown        - Exit the server")
+			fmt.Println("  quit,     q     - Quit the interactive shell")
+			fmt.Println("  help,     h     - Display this help prompt")
+			fmt.Println("  version,  v     - Print server version")
+			fmt.Println("  uptime,   up    - Print server uptime")
+			fmt.Println("  loglevel, log   - Print or set the log level")
+			fmt.Println("  sqlquery, sql   - Execute SQL query")
+			fmt.Println("  sqltable, tbl   - Show SQL tables or print layout of a specified SQL table")
+			fmt.Println("  sqlviews, views - Show SQL views")
+			fmt.Println("  users,    usr   - Show number of active users")
+			fmt.Println("  cleanup,  cln   - Cleanup temporary data (such as inactive dummy users)")
+			fmt.Println("  reload,   rel   - Reloads static web resources from disk, enable/disable hot-reload when on/off argument is provided")
 
 		case "version", "v":
 			fmt.Printf("Server version: %v_%v\n", VERSION, BuildTime)

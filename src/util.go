@@ -496,8 +496,14 @@ func getContentLength(url string, referer string) (int64, error) {
 	}
 	defer response.Body.Close()
 
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return -1, errors.New("Status code: " + response.Status)
+	}
 	// Get the Content-Length header
 	length := response.Header.Get("Content-Length")
+	if length == "" {
+		return -1, errors.New("Content-Length header is empty")
+	}
 	return parseInt64(length)
 }
 
