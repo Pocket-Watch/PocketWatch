@@ -127,6 +127,8 @@ outer:
 			} else {
 				DatabasePrintTableLayout(server.db, argument)
 			}
+		case "sqlviews", "views":
+			DatabaseShowViews(server.db)
 
 		case "users", "usr":
 			fmt.Println("Online users:")

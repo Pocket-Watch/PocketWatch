@@ -345,9 +345,14 @@ func DatabaseUpdateUserLastOnline(db *sql.DB, id uint64, lastOnline time.Time) b
 }
 
 func DatabaseShowTables(db *sql.DB) {
-	query := "SELECT * FROM pg_catalog.pg_tables WHERE schemaname = 'public'";
+	query := "SELECT * FROM pg_catalog.pg_tables WHERE schemaname = 'public'"
 	DatabaseSqlQuery(db, query)
-} 
+}
+
+func DatabaseShowViews(db *sql.DB) {
+	query := "SELECT table_name FROM information_schema.views WHERE table_schema = 'public'"
+	DatabaseSqlQuery(db, query)
+}
 
 func DatabaseSqlQuery(db *sql.DB, query string) {
 	if db == nil {
@@ -753,12 +758,12 @@ func DatabasePlaylistGet(db *sql.DB) ([]Entry, bool) {
 			return []Entry{}, false
 		}
 
-		if (prev.Id == 0) {
+		if prev.Id == 0 {
 			prev = temp
-		} else if (temp.Id != prev.Id) {
+		} else if temp.Id != prev.Id {
 			entries = append(entries, prev)
 			prev = temp
-		} 
+		}
 
 		if subId.Valid {
 			sub := Subtitle{
@@ -886,12 +891,12 @@ func DatabaseHistoryGet(db *sql.DB) ([]Entry, bool) {
 			return []Entry{}, false
 		}
 
-		if (prev.Id == 0) {
+		if prev.Id == 0 {
 			prev = temp
-		} else if (temp.Id != prev.Id) {
+		} else if temp.Id != prev.Id {
 			entries = append(entries, prev)
 			prev = temp
-		} 
+		}
 
 		if subId.Valid {
 			sub := Subtitle{
