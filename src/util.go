@@ -1002,7 +1002,7 @@ func minOf(x, y int) int {
 	return y
 }
 
-func endsWith(s string, suffixes ...string) bool {
+func endsWithAny(s string, suffixes ...string) bool {
 	for _, suffix := range suffixes {
 		if strings.HasSuffix(s, suffix) {
 			return true

@@ -959,7 +959,7 @@ class Internals {
         hide(this.htmlControls.buttons.liveIndicator);
         this.isLive = false;
 
-        if (pathname.endsWith(".m3u8") || pathname.endsWith("m3u") || pathname.endsWith(".ts")) {
+        if (pathname.endsWith(".m3u8") || pathname.endsWith("m3u") || pathname.endsWith(".txt")) {
             import("../external/hls.js").then(module => {
                 if (module.Hls.isSupported()) {
                     if (this.hls == null) {

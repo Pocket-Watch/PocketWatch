@@ -260,7 +260,7 @@ func handleUnknownEndpoint(w http.ResponseWriter, r *http.Request) {
 	LogWarn("User %v requested unknown endpoint: %v", r.RemoteAddr, r.RequestURI)
 	endpoint := stripParams(r.RequestURI)
 	file := path.Base(endpoint)
-	if endsWith(file, ".php", ".cgi", ".jsp", ".aspx", "wordpress", "owa") {
+	if endsWithAny(file, ".php", ".cgi", ".jsp", ".aspx", "wordpress", "owa") {
 		context := r.Context()
 		select {
 		case <-time.After(BLACK_HOLE_PERIOD):
@@ -521,7 +521,7 @@ func (server *Server) setNewEntry(entry Entry, requested RequestEntry) {
 
 func isAnyUrlM3U(urls ...string) bool {
 	for _, url := range urls {
-		if strings.HasSuffix(url, ".m3u8") || strings.HasSuffix(url, ".m3u") {
+		if strings.HasSuffix(url, ".m3u8") || strings.HasSuffix(url, ".m3u") || strings.HasSuffix(url, ".txt") {
 			return true
 		}
 	}
