@@ -7,6 +7,7 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -257,4 +258,21 @@ func logOutput(logLevel LogLevel, stackUp int, format string, args ...any) {
 	} else {
 		fmt.Printf("[%v] [%-16s] [%v] %v\n", date, codeLocation, levelString, message)
 	}
+}
+
+type Logsite struct {
+	mutex    sync.Mutex
+	lastCall time.Time
+}
+
+// Allows or denies calls based on time passed since the last allowed call
+func (site *Logsite) atMostEvery(interval time.Duration) bool {
+	now := time.Now()
+	site.mutex.Lock()
+	defer site.mutex.Unlock()
+	if now.Sub(site.lastCall) < interval {
+		return false
+	}
+	site.lastCall = now
+	return true
 }

@@ -260,7 +260,7 @@ func handleUnknownEndpoint(w http.ResponseWriter, r *http.Request) {
 	LogWarn("User %v requested unknown endpoint: %v", r.RemoteAddr, r.RequestURI)
 	endpoint := stripParams(r.RequestURI)
 	file := path.Base(endpoint)
-	if endsWith(file, ".php", ".cgi", ".jsp", "wordpress", "owa") {
+	if endsWith(file, ".php", ".cgi", ".jsp", ".aspx", "wordpress", "owa") {
 		context := r.Context()
 		select {
 		case <-time.After(BLACK_HOLE_PERIOD):
@@ -1333,6 +1333,8 @@ func (server *Server) serveHlsVod(writer http.ResponseWriter, request *http.Requ
 	}
 }
 
+var chunkLogsite = Logsite{}
+
 func serveHlsChunk(writer http.ResponseWriter, request *http.Request, proxy *HlsProxy, chunk string, chunkId int) {
 	if chunkId < 0 || chunkId >= len(proxy.fetchedChunks) {
 		http.Error(writer, "Chunk ID out of range", 404)
@@ -1351,7 +1353,10 @@ func serveHlsChunk(writer http.ResponseWriter, request *http.Request, proxy *Hls
 	fetchErr := downloadFile(proxy.originalChunks[chunkId], WEB_PROXY+chunk, proxy.referer, false)
 	if fetchErr != nil {
 		mutex.Unlock()
-		LogError("Failed to fetch chunk %v", fetchErr)
+		if chunkLogsite.atMostEvery(time.Second) {
+			LogError("Failed to fetch chunk %v", fetchErr)
+		}
+
 		code := 500
 		if isTimeoutError(fetchErr) {
 			code = 504
