@@ -1376,6 +1376,15 @@ html * {
     color: var(--fg_4);
     transform: translateY(-50%);
     transition: all 0.2s ease;
+    display: flex;
+    column-gap: 6px;
+}
+
+.widget_readonly_input label svg,
+.widget_input label svg {
+    height: 14px;
+    width: 14px;
+    fill: var(--fg_4);
 }
 
 .widget_input input:hover + label {
@@ -1409,6 +1418,20 @@ html * {
 .widget_input input:focus + label {
     color: var(--blue_2);
 }
+
+.widget_readonly_input input:not(:placeholder-shown) + label svg,
+.widget_input input:not(:placeholder-shown) + label svg {
+    fill: var(--fg_6);
+}
+
+.widget_input input:hover + label svg {
+    fill: var(--fg_3);
+}
+
+.widget_input input:focus + label svg {
+    fill: var(--blue_2);
+}
+
 
 .widget_input_extra_button input {
     border-radius: 8px 0 0 8px;

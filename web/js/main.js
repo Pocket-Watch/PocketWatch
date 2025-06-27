@@ -993,8 +993,10 @@ class Room {
         this.playlist.setAutoplay(state.player.autoplay);
         this.playlist.setLooping(state.player.looping);
 
-        this.stateOnLoad = state.player;
         this.setEntryEvent(state.entry);
+        if (state.entry.id !== 0) {
+            this.stateOnLoad = state.player;
+        }
     }
 
     clearUsersArea() {
