@@ -218,7 +218,7 @@ func StartServer(config ServerConfig, db *sql.DB) {
 		server.state.mutex.Unlock()
 
 		event := server.createSyncEvent("seek", 0)
-		server.writeEventToAllConnections(nil, "sync", event)
+		server.writeEventToAllConnections("sync", event)
 	}()
 
 	var server_start_error error
@@ -458,7 +458,7 @@ func (server *Server) periodicResync() {
 			event = server.createSyncEvent("pause", 0)
 		}
 
-		server.writeEventToAllConnections(nil, "sync", event)
+		server.writeEventToAllConnections("sync", event)
 	}
 }
 
@@ -479,7 +479,7 @@ func (server *Server) periodicInactiveUserCleanup() {
 
 		for _, user := range toDelete {
 			user := server.users.removeByToken(user.token)
-			server.writeEventToAllConnections(nil, "userdelete", user)
+			server.writeEventToAllConnections("userdelete", user)
 		}
 
 		server.users.mutex.Unlock()
@@ -490,14 +490,14 @@ func (server *Server) periodicInactiveUserCleanup() {
 func (server *Server) setNewEntry(entry Entry, requested RequestEntry) {
 	err := server.loadYoutubeEntry(&entry, requested)
 	if err != nil {
-		server.writeEventToAllConnections(nil, "playererror", err.Error())
+		server.writeEventToAllConnections("playererror", err.Error())
 		return
 	}
 
 	err = server.setupProxy(&entry)
 	if err != nil {
 		LogWarn("%v", err)
-		server.writeEventToAllConnections(nil, "playererror", err.Error())
+		server.writeEventToAllConnections("playererror", err.Error())
 		return
 	}
 
@@ -514,7 +514,7 @@ func (server *Server) setNewEntry(entry Entry, requested RequestEntry) {
 	server.state.player.Playing = server.state.player.Autoplay
 
 	LogInfo("New entry URL is now: '%s'.", entry.Url)
-	server.writeEventToAllConnections(nil, "playerset", entry)
+	server.writeEventToAllConnections("playerset", entry)
 
 	go server.preloadYoutubeSourceOnNextEntry()
 }
@@ -623,13 +623,10 @@ func (server *Server) writeEvent(w http.ResponseWriter, eventName string, data a
 	return nil
 }
 
-func (server *Server) writeEventToAllConnections(origin http.ResponseWriter, eventName string, data any) {
+func (server *Server) writeEventToAllConnections(eventName string, data any) {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		LogError("Failed to serialize data for event '%v': %v", eventName, err)
-		if origin != nil {
-			http.Error(origin, err.Error(), http.StatusInternalServerError)
-		}
 		return
 	}
 
@@ -1602,7 +1599,7 @@ func (server *Server) cleanupDummyUsers() []User {
 	for _, user := range removed {
 		server.users.removeByToken(user.token)
 		DatabaseDeleteUser(server.db, user)
-		server.writeEventToAllConnections(nil, "userdelete", user)
+		server.writeEventToAllConnections("userdelete", user)
 	}
 
 	return removed
@@ -1633,7 +1630,7 @@ func (server *Server) playlistAdd(entry Entry) {
 	DatabasePlaylistAdd(server.db, newEntry)
 
 	event := createPlaylistEvent("add", newEntry)
-	server.writeEventToAllConnections(nil, "playlist", event)
+	server.writeEventToAllConnections("playlist", event)
 }
 
 func (server *Server) playlistRemove(index int) Entry {
@@ -1643,7 +1640,7 @@ func (server *Server) playlistRemove(index int) Entry {
 	DatabasePlaylistRemove(server.db, entry.Id)
 
 	event := createPlaylistEvent("remove", entry.Id)
-	server.writeEventToAllConnections(nil, "playlist", event)
+	server.writeEventToAllConnections("playlist", event)
 
 	return entry
 }
@@ -1663,7 +1660,7 @@ func (server *Server) historyAdd(entry Entry) {
 		DatabaseHistoryRemove(server.db, removed.Id)
 	}
 
-	server.writeEventToAllConnections(nil, "historyadd", newEntry)
+	server.writeEventToAllConnections("historyadd", newEntry)
 }
 
 func (server *Server) historyRemove(index int) Entry {
@@ -1671,7 +1668,7 @@ func (server *Server) historyRemove(index int) Entry {
 
 	server.state.history = slices.Delete(server.state.history, index, index+1)
 	DatabasePlaylistRemove(server.db, entry.Id)
-	server.writeEventToAllConnections(nil, "historyremove", entry.Id)
+	server.writeEventToAllConnections("historyremove", entry.Id)
 
 	return entry
 }

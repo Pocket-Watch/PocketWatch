@@ -249,7 +249,7 @@ func (server *Server) loadYoutubePlaylist(query string, videoId string, userId u
 	} else {
 		event = createPlaylistEvent("addmany", entries)
 	}
-	server.writeEventToAllConnections(nil, "playlist", event)
+	server.writeEventToAllConnections("playlist", event)
 	go server.preloadYoutubeSourceOnNextEntry()
 }
 
@@ -438,7 +438,7 @@ func (server *Server) loadYoutubeEntry(entry *Entry, requested RequestEntry) err
 		LogInfo("Loading youtube entry with url: %v.", entry.Url)
 	}
 
-	server.writeEventToAllConnections(nil, "playerwaiting", "Youtube video is loading. Please stand by!")
+	server.writeEventToAllConnections("playerwaiting", "Youtube video is loading. Please stand by!")
 	ok, video := fetchYoutubeVideo(query)
 	if !ok {
 		return fmt.Errorf("Failed to fetch youtube video")

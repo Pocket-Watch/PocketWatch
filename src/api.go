@@ -100,7 +100,7 @@ func (server *Server) apiUserCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server.writeEventToAllConnections(w, "usercreate", user)
+	server.writeEventToAllConnections("usercreate", user)
 	io.WriteString(w, string(tokenJson))
 }
 
@@ -143,7 +143,7 @@ func (server *Server) apiUserDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	DatabaseDeleteUser(server.db, *user)
-	server.writeEventToAllConnections(w, "userdelete", user)
+	server.writeEventToAllConnections("userdelete", user)
 
 	server.conns.mutex.Lock()
 	for _, conn := range server.conns.slice {
@@ -187,7 +187,7 @@ func (server *Server) apiUserUpdateName(w http.ResponseWriter, r *http.Request) 
 	DatabaseUpdateUser(server.db, user)
 	server.users.mutex.Unlock()
 
-	server.writeEventToAllConnections(w, "userupdate", user)
+	server.writeEventToAllConnections("userupdate", user)
 }
 
 func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request) {
@@ -263,18 +263,22 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 
 	jsonData, _ := json.Marshal(avatarUrl)
 
-	server.writeEventToAllConnections(w, "userupdate", user)
+	server.writeEventToAllConnections("userupdate", user)
 	io.WriteString(w, string(jsonData))
 }
 
 func (server *Server) apiPlayerGet(w http.ResponseWriter, r *http.Request) {
 	server.state.mutex.Lock()
+	player := server.state.player
+	server.state.mutex.Unlock()
+
+	player.Timestamp = server.getCurrentTimestamp()
+
 	getEvent := PlayerGetResponseData{
-		Player: server.state.player,
+		Player: player,
 		Entry:  server.state.entry,
 		// Subtitles: getSubtitles(),
 	}
-	server.state.mutex.Unlock()
 
 	jsonData, err := json.Marshal(getEvent)
 	if err != nil {
@@ -433,7 +437,7 @@ func (server *Server) apiPlayerAutoplay(w http.ResponseWriter, r *http.Request) 
 	DatabaseSetAutoplay(server.db, autoplay)
 	server.state.mutex.Unlock()
 
-	server.writeEventToAllConnections(w, "playerautoplay", autoplay)
+	server.writeEventToAllConnections("playerautoplay", autoplay)
 }
 
 func (server *Server) apiPlayerLooping(w http.ResponseWriter, r *http.Request) {
@@ -449,7 +453,7 @@ func (server *Server) apiPlayerLooping(w http.ResponseWriter, r *http.Request) {
 	DatabaseSetLooping(server.db, looping)
 	server.state.mutex.Unlock()
 
-	server.writeEventToAllConnections(w, "playerlooping", looping)
+	server.writeEventToAllConnections("playerlooping", looping)
 }
 
 func (server *Server) apiPlayerUpdateTitle(w http.ResponseWriter, r *http.Request) {
@@ -463,7 +467,7 @@ func (server *Server) apiPlayerUpdateTitle(w http.ResponseWriter, r *http.Reques
 	DatabaseCurrentEntryUpdateTitle(server.db, title)
 	server.state.mutex.Unlock()
 
-	server.writeEventToAllConnections(w, "playerupdatetitle", title)
+	server.writeEventToAllConnections("playerupdatetitle", title)
 }
 
 func (server *Server) apiSubtitleDelete(w http.ResponseWriter, r *http.Request) {
@@ -483,7 +487,7 @@ func (server *Server) apiSubtitleDelete(w http.ResponseWriter, r *http.Request) 
 	}
 	server.state.mutex.Unlock()
 
-	server.writeEventToAllConnections(w, "subtitledelete", subId)
+	server.writeEventToAllConnections("subtitledelete", subId)
 }
 
 func (server *Server) apiSubtitleUpdate(w http.ResponseWriter, r *http.Request) {
@@ -503,7 +507,7 @@ func (server *Server) apiSubtitleUpdate(w http.ResponseWriter, r *http.Request) 
 	DatabaseSubtitleUpdate(server.db, data.Id, data.Name)
 	server.state.mutex.Unlock()
 
-	server.writeEventToAllConnections(w, "subtitleupdate", data)
+	server.writeEventToAllConnections("subtitleupdate", data)
 }
 
 func (server *Server) apiSubtitleAttach(w http.ResponseWriter, r *http.Request) {
@@ -520,7 +524,7 @@ func (server *Server) apiSubtitleAttach(w http.ResponseWriter, r *http.Request) 
 	DatabaseSubtitleAttach(server.db, server.state.entry.Id, subtitle)
 	server.state.mutex.Unlock()
 
-	server.writeEventToAllConnections(w, "subtitleattach", subtitle)
+	server.writeEventToAllConnections("subtitleattach", subtitle)
 }
 
 func (server *Server) apiSubtitleShift(w http.ResponseWriter, r *http.Request) {
@@ -540,7 +544,7 @@ func (server *Server) apiSubtitleShift(w http.ResponseWriter, r *http.Request) {
 	DatabaseSubtitleShift(server.db, data.Id, data.Shift)
 	server.state.mutex.Unlock()
 
-	server.writeEventToAllConnections(w, "subtitleshift", data)
+	server.writeEventToAllConnections("subtitleshift", data)
 }
 
 func (server *Server) apiSubtitleUpload(w http.ResponseWriter, r *http.Request) {
@@ -735,7 +739,7 @@ func (server *Server) apiSubtitleSearch(w http.ResponseWriter, r *http.Request) 
 	server.state.entry.Subtitles = append(server.state.entry.Subtitles, subtitle)
 	server.state.mutex.Unlock()
 
-	server.writeEventToAllConnections(w, "subtitleattach", subtitle)
+	server.writeEventToAllConnections("subtitleattach", subtitle)
 }
 
 func (server *Server) apiPlaylistGet(w http.ResponseWriter, r *http.Request) {
@@ -806,7 +810,7 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 		server.state.mutex.Unlock()
 
 		event := createPlaylistEvent(eventType, localEntries)
-		server.writeEventToAllConnections(w, "playlist", event)
+		server.writeEventToAllConnections("playlist", event)
 	} else {
 		LogInfo("Adding '%s' url to the playlist.", data.RequestEntry.Url)
 
@@ -842,7 +846,7 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 		server.state.mutex.Unlock()
 
 		event := createPlaylistEvent(eventType, newEntry)
-		server.writeEventToAllConnections(w, "playlist", event)
+		server.writeEventToAllConnections("playlist", event)
 	}
 }
 
@@ -853,7 +857,7 @@ func (server *Server) apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
 	server.state.mutex.Unlock()
 
 	event := createPlaylistEvent("clear", nil)
-	server.writeEventToAllConnections(w, "playlist", event)
+	server.writeEventToAllConnections("playlist", event)
 }
 
 func (server *Server) apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
@@ -885,7 +889,7 @@ func (server *Server) apiPlaylistShuffle(w http.ResponseWriter, r *http.Request)
 	server.state.mutex.Unlock()
 
 	event := createPlaylistEvent("shuffle", server.state.playlist)
-	server.writeEventToAllConnections(w, "playlist", event)
+	server.writeEventToAllConnections("playlist", event)
 	go server.preloadYoutubeSourceOnNextEntry()
 }
 
@@ -935,7 +939,7 @@ func (server *Server) apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 	}
 
 	event := createPlaylistEvent("move", eventData)
-	server.writeEventToAllConnections(w, "playlist", event)
+	server.writeEventToAllConnections("playlist", event)
 	go server.preloadYoutubeSourceOnNextEntry()
 }
 
@@ -962,7 +966,7 @@ func (server *Server) apiPlaylistUpdate(w http.ResponseWriter, r *http.Request) 
 	server.state.mutex.Unlock()
 
 	event := createPlaylistEvent("update", updated)
-	server.writeEventToAllConnections(w, "playlist", event)
+	server.writeEventToAllConnections("playlist", event)
 }
 
 func (server *Server) apiHistoryGet(w http.ResponseWriter, r *http.Request) {
@@ -1022,7 +1026,7 @@ func (server *Server) apiHistoryClear(w http.ResponseWriter, r *http.Request) {
 
 	DatabaseHistoryClear(server.db)
 
-	server.writeEventToAllConnections(w, "historyclear", nil)
+	server.writeEventToAllConnections("historyclear", nil)
 }
 
 func (server *Server) apiHistoryPlay(w http.ResponseWriter, r *http.Request) {
@@ -1097,7 +1101,7 @@ func (server *Server) apiChatSend(w http.ResponseWriter, r *http.Request) {
 	}
 	server.state.messages = append(server.state.messages, chatMessage)
 	server.state.mutex.Unlock()
-	server.writeEventToAllConnections(w, "messagecreate", chatMessage)
+	server.writeEventToAllConnections("messagecreate", chatMessage)
 }
 
 func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
@@ -1193,7 +1197,7 @@ outer:
 	server.users.mutex.Unlock()
 
 	if went_offline {
-		server.writeEventToAllConnections(nil, "userdisconnected", conn.userId)
+		server.writeEventToAllConnections("userdisconnected", conn.userId)
 	}
 
 	LogInfo("Connection id:%v of user id:%v dropped. Current connection count: %d", conn.id, conn.userId, connectionCount)

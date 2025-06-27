@@ -197,8 +197,10 @@ class Room {
 
         // Id of the currently set entry.
         this.currentEntryId = 0;
-
         this.currentEntry = {};
+
+        // Player state on website load.
+        this.stateOnLoad = null;
     }
 
     showSettingsMenu(_settingsTab) {
@@ -442,6 +444,15 @@ class Room {
 
         // NOTE(kihau): This is a hack to fix autoplay issue with HLS sources.
         this.player.onDataLoad(_ => {
+            if (this.stateOnLoad) {
+                this.player.seek(this.stateOnLoad.timestamp)
+                if (this.stateOnLoad.playing) {
+                    this.player.play()
+                }
+
+                this.stateOnLoad = null;
+            }
+
             if (this.playlist.autoplayEnabled) {
                 this.player.play();
             }
@@ -982,9 +993,8 @@ class Room {
         this.playlist.setAutoplay(state.player.autoplay);
         this.playlist.setLooping(state.player.looping);
 
-        let entry = state.entry;
-        this.setEntryEvent(entry);
-        this.player.seek(state.player.timestamp)
+        this.stateOnLoad = state.player;
+        this.setEntryEvent(state.entry);
     }
 
     clearUsersArea() {
