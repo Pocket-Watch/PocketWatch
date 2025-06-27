@@ -1654,10 +1654,47 @@ func (server *Server) playlistRemove(index int) Entry {
 	return entry
 }
 
+func compareEntries(entry1 Entry, entry2 Entry) bool {
+	if entry1.Url != entry2.Url {
+		return false
+	}
+
+	if entry1.Title != entry2.Title {
+		return false
+	}
+
+	if entry1.UseProxy != entry2.UseProxy {
+		return false
+	}
+
+	if entry1.RefererUrl != entry2.RefererUrl {
+		return false
+	}
+
+	if entry1.SourceUrl != entry2.SourceUrl {
+		return false
+	}
+
+	return true
+}
+
 func (server *Server) historyAdd(entry Entry) {
 	newEntry := server.constructEntry(entry)
 	if newEntry.Id == 0 {
 		return
+	}
+
+	compareFunc := func(entry Entry) bool { 
+		return compareEntries(newEntry, entry) 
+	}
+
+	index := slices.IndexFunc(server.state.history, compareFunc)
+	if index != -1 {
+		// De-duplicate history entries.
+		newEntry = server.state.history[index]
+		server.state.history = slices.Delete(server.state.history, index, index + 1)
+		DatabaseHistoryRemove(server.db, newEntry.Id)
+		server.writeEventToAllConnections("historyremove", newEntry.Id)
 	}
 
 	server.state.history = append(server.state.history, newEntry)
