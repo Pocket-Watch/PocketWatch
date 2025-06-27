@@ -256,21 +256,30 @@ func createRedirectServer(config ServerConfig) {
 }
 
 func handleUnknownEndpoint(w http.ResponseWriter, r *http.Request) {
-	start := time.Now()
 	LogWarn("User %v requested unknown endpoint: %v", r.RemoteAddr, r.RequestURI)
+	if len(r.RequestURI) > MAX_UNKNOWN_PATH_LENGTH {
+		blackholeRequest(r)
+		http.Error(w, "¯\\_(ツ)_/¯", http.StatusTeapot)
+		return
+	}
 	endpoint := stripParams(r.RequestURI)
 	file := path.Base(endpoint)
 	if endsWithAny(file, ".php", ".cgi", ".jsp", ".aspx", "wordpress", "owa") {
-		context := r.Context()
-		select {
-		case <-time.After(BLACK_HOLE_PERIOD):
-			LogDebug("%v exited black hole after waiting period of %v.", r.RemoteAddr, BLACK_HOLE_PERIOD)
-		case <-context.Done():
-			LogDebug("%v exited black hole due to cancellation client side after %v.", r.RemoteAddr, time.Since(start))
-			return
-		}
+		blackholeRequest(r)
 	}
 	http.Error(w, "¯\\_(ツ)_/¯", http.StatusTeapot)
+}
+
+func blackholeRequest(r *http.Request) {
+	start := time.Now()
+	context := r.Context()
+	select {
+	case <-time.After(BLACK_HOLE_PERIOD):
+		LogDebug("%v exited black hole after waiting period of %v.", r.RemoteAddr, BLACK_HOLE_PERIOD)
+	case <-context.Done():
+		LogDebug("%v exited black hole due to cancellation client side after %v.", r.RemoteAddr, time.Since(start))
+		return
+	}
 }
 
 func serveFavicon(w http.ResponseWriter, r *http.Request) {

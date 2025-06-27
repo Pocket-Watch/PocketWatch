@@ -120,6 +120,26 @@ func TestPathTraversal(t *testing.T) {
 	}
 }
 
+func TestShortPaths(t *testing.T) {
+	// path.Clean does not simplify \..
+	_, isSafe := safeJoin("http\\..\\admin")
+	if isSafe {
+		t.Errorf("Path is unsafe")
+		return
+	}
+	_, isSafe = safeJoin("\\..\\")
+	if isSafe {
+		t.Errorf("Path is unsafe")
+		return
+	}
+
+	_, isSafe = safeJoin("../")
+	if isSafe {
+		t.Errorf("Path is unsafe")
+		return
+	}
+}
+
 func TestSuccessfulJoin(t *testing.T) {
 	sep := getPathSeparator()
 	path, isSafe := safeJoin("abc/", "/123/", "/45")
