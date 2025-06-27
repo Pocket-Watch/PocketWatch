@@ -442,7 +442,7 @@ class Room {
 
         });
 
-        // NOTE(kihau): This is a hack to fix autoplay issue with HLS sources.
+        // NOTE(kihau): This hack fixes HLS issues with seeking on website load and auto-playing.
         this.player.onDataLoad(_ => {
             if (this.stateOnLoad) {
                 this.player.seek(this.stateOnLoad.timestamp)
@@ -451,9 +451,7 @@ class Room {
                 }
 
                 this.stateOnLoad = null;
-            }
-
-            if (this.playlist.autoplayEnabled) {
+            } else if (this.playlist.autoplayEnabled) {
                 this.player.play();
             }
         });
