@@ -44,10 +44,11 @@ const VIDEO_PREFIX = "vi-"
 const AUDIO_PREFIX = "au-"
 const MEDIA_INIT_SECTION = "mis.key"
 const MAX_PLAYLIST_DEPTH = 2
+const MAX_PLAYLIST_DURATION_SECONDS = 86400 // 24hours
 
 const MAX_MESSAGE_CHARACTERS = 1000
 const GENERIC_CHUNK_SIZE = 1 * MB
-const SCAN_QUERY_PARAMS = true
+const SCAN_QUERY_PARAMS = false
 
 // Constants - assignable only once!
 var serverRootAddress string

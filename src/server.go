@@ -528,13 +528,8 @@ func (server *Server) setNewEntry(entry Entry, requested RequestEntry) {
 	go server.preloadYoutubeSourceOnNextEntry()
 }
 
-func isAnyUrlM3U(urls ...string) bool {
-	for _, url := range urls {
-		if strings.HasSuffix(url, ".m3u8") || strings.HasSuffix(url, ".m3u") || strings.HasSuffix(url, ".txt") {
-			return true
-		}
-	}
-	return false
+func isPathM3U(p string) bool {
+	return strings.HasSuffix(p, ".m3u8") || strings.HasSuffix(p, ".m3u") || strings.HasSuffix(p, ".txt")
 }
 
 func (server *Server) isAuthorized(w http.ResponseWriter, r *http.Request) bool {
@@ -767,17 +762,11 @@ func (server *Server) isTrustedUrl(url string, parsedUrl *net_url.URL) bool {
 	return false
 }
 
-type MediaPlaylist struct {
-	m3u    *M3U
-	url    string
-	prefix string
-}
-
-// setupDualTrackProxy for the time being will handle only 0-depth media playlists.
+// setupDualTrackProxy for the time being will handle only 0-depth master playlists.
 // returns (success, video proxy, audio proxy)
-func setupDualTrackProxy(originalM3U *M3U, referer string, masterUrl *net_url.URL) (bool, *HlsProxy, *HlsProxy) {
-	prefix := stripLastSegment(masterUrl)
-	originalM3U.prefixRelativeTracks(prefix)
+func setupDualTrackProxy(originalM3U *M3U, referer string) (bool, *HlsProxy, *HlsProxy) {
+	prefix := stripLastSegmentStr(originalM3U.url)
+	originalM3U.prefixRelativeTracks(*prefix)
 	bestTrack := originalM3U.getTrackByVideoHeight(1080)
 	if bestTrack == nil {
 		return false, nil, nil
@@ -790,23 +779,23 @@ func setupDualTrackProxy(originalM3U *M3U, referer string, masterUrl *net_url.UR
 
 	matchedAudio := false
 	audioUrl := ""
-	var audioRendition *[]Param
+	var audioRendition []Param
 	for i := range originalM3U.audioRenditions {
-		rendition := &originalM3U.audioRenditions[i]
-		groupId := getParamValue("GROUP-ID", *rendition)
+		rendition := originalM3U.audioRenditions[i]
+		groupId := getParamValue("GROUP-ID", rendition)
 		if groupId != audioId {
 			continue
 		}
 		matchedAudio = true
-		audioUrl = getParamValue("URI", *rendition)
+		audioUrl = getParamValue("URI", rendition)
 		audioRendition = rendition
 
-		audioDefault := getParamValue("DEFAULT", *rendition)
+		audioDefault := getParamValue("DEFAULT", rendition)
 		if audioDefault == "YES" {
 			break
 		}
 		// YT hack: Look for original in audio track name
-		audioName := getParamValue("NAME", *rendition)
+		audioName := getParamValue("NAME", rendition)
 		if strings.Contains(audioName, "original") {
 			break
 		}
@@ -867,22 +856,23 @@ func setupDualTrackProxy(originalM3U *M3U, referer string, masterUrl *net_url.UR
 	// Craft proxied master playlist for the defaultClient
 	originalM3U.tracks = originalM3U.tracks[:0]
 	originalM3U.audioRenditions = originalM3U.audioRenditions[:0]
-	uriParam := getParam("URI", *audioRendition)
+	uriParam := getParam("URI", audioRendition)
 	uriParam.value = AUDIO_M3U8
 	bestTrack.url = VIDEO_M3U8
 	originalM3U.tracks = append(originalM3U.tracks, *bestTrack)
-	originalM3U.audioRenditions = append(originalM3U.audioRenditions, *audioRendition)
+	originalM3U.audioRenditions = append(originalM3U.audioRenditions, audioRendition)
 
 	originalM3U.serialize(WEB_PROXY + PROXY_M3U8)
 	return true, vidProxy, audioProxy
 }
 
-func prepareMediaPlaylistFromMasterPlaylist(m3u *M3U, referer string, masterUrl *net_url.URL, depth int) *MediaPlaylist {
+func prepareMediaPlaylistFromMasterPlaylist(m3u *M3U, referer string, depth int) *M3U {
 	if len(m3u.tracks) == 0 {
 		LogError("Master playlist contains 0 tracks!")
 		return nil
 	}
 
+	masterUrl, _ := net_url.Parse(m3u.url)
 	prefix := stripLastSegment(masterUrl)
 	LogInfo("A master playlist was provided. The best track will be chosen based on quality.")
 	bestTrack := m3u.getBestTrack()
@@ -890,11 +880,6 @@ func prepareMediaPlaylistFromMasterPlaylist(m3u *M3U, referer string, masterUrl 
 	isRelative := !isAbsolute(bestUrl)
 	if isRelative {
 		bestUrl = prefixUrl(prefix, bestUrl)
-	}
-
-	resolution := getParamValue("RESOLUTION", bestTrack.streamInfo)
-	if resolution != "" {
-		LogDebug("The best track's resolution is %v", resolution)
 	}
 
 	var err error = nil
@@ -914,29 +899,25 @@ func prepareMediaPlaylistFromMasterPlaylist(m3u *M3U, referer string, masterUrl 
 		return nil
 	}
 
-	// Refreshing the prefix in case the newly assembled track consists of 2 or more components
-	playlistUrl, err := net_url.Parse(bestUrl)
-	if err != nil {
-		LogError("Failed to parse URL of the best track: %v for %v", err.Error(), bestUrl)
-		return nil
-	}
-	prefix = stripLastSegment(playlistUrl)
-
 	// Master playlists can point to other master playlists
 	if m3u.isMasterPlaylist {
 		if depth < MAX_PLAYLIST_DEPTH {
-			return prepareMediaPlaylistFromMasterPlaylist(m3u, referer, playlistUrl, depth+1)
+			return prepareMediaPlaylistFromMasterPlaylist(m3u, referer, depth+1)
 		} else {
 			LogError("Exceeded maximum playlist depth of %v. Failed to get media playlist.", MAX_PLAYLIST_DEPTH)
 			return nil
 		}
 	}
 
-	return &MediaPlaylist{m3u, bestUrl, prefix}
+	return m3u
 }
 
 // TODO(kihau): More explicit error output messages.
 func (server *Server) setupProxy(entry *Entry) error {
+	urlStruct, err := net_url.Parse(entry.Url)
+	if err != nil {
+		return err
+	}
 	if isYoutubeUrl(entry.Url) {
 		success := server.setupHlsProxy(entry.SourceUrl, "")
 		if success {
@@ -946,17 +927,9 @@ func (server *Server) setupProxy(entry *Entry) error {
 			return fmt.Errorf("HLS proxy setup for youtube failed!")
 		}
 	} else if entry.UseProxy {
-		paramUrl := ""
-		if SCAN_QUERY_PARAMS {
-			paramUrl = getParamUrl(entry.Url)
-			if paramUrl != "" {
-				LogDebug("Extracted param url: %v", paramUrl)
-			}
-		}
-
-		lastSegment := strings.ToLower(lastUrlSegment(entry.Url))
-		lastSegmentOfParam := strings.ToLower(lastUrlSegment(paramUrl))
-		if isAnyUrlM3U(lastSegment, lastSegmentOfParam) {
+		file := getBaseNoParams(urlStruct.Path)
+		paramUrl := getParamUrl(urlStruct)
+		if isPathM3U(file) || (paramUrl != nil && isPathM3U(getBaseNoParams(paramUrl.Path))) {
 			setup := server.setupHlsProxy(entry.Url, entry.RefererUrl)
 			if setup {
 				entry.SourceUrl = PROXY_ROUTE + PROXY_M3U8
@@ -979,7 +952,7 @@ func (server *Server) setupProxy(entry *Entry) error {
 }
 
 func (server *Server) setupHlsProxy(url string, referer string) bool {
-	parsedUrl, err := net_url.Parse(url)
+	urlStruct, err := net_url.Parse(url)
 	if err != nil {
 		LogError("The provided URL is invalid: %v", err)
 		return false
@@ -991,9 +964,10 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 	_ = os.RemoveAll(WEB_PROXY)
 	_ = os.Mkdir(WEB_PROXY, os.ModePerm)
 	var m3u *M3U
-	if server.isTrustedUrl(url, parsedUrl) {
-		osPath := Conditional(isAbsolute(url), stripPathPrefix(parsedUrl.Path, "watch"), url)
+	if server.isTrustedUrl(url, urlStruct) {
+		osPath := Conditional(isAbsolute(url), stripPathPrefix(urlStruct.Path, "watch"), url)
 		m3u, err = parseM3U("web/" + osPath)
+		m3u.url = url
 	} else {
 		m3u, err = downloadM3U(url, WEB_PROXY+ORIGINAL_M3U8, referer)
 	}
@@ -1003,10 +977,9 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 		return false
 	}
 
-	var prefix string
 	if m3u.isMasterPlaylist {
 		if len(m3u.audioRenditions) > 0 {
-			success, videoProxy, audioProxy := setupDualTrackProxy(m3u, referer, parsedUrl)
+			success, videoProxy, audioProxy := setupDualTrackProxy(m3u, referer)
 			if success {
 				server.state.isHls = true
 				server.state.isLive = false
@@ -1017,36 +990,44 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 			}
 			return success
 		}
-		mediaPlaylist := prepareMediaPlaylistFromMasterPlaylist(m3u, referer, parsedUrl, 0)
-		if mediaPlaylist == nil {
+		if m3u = prepareMediaPlaylistFromMasterPlaylist(m3u, referer, 0); m3u == nil {
 			return false
 		}
-		m3u = mediaPlaylist.m3u
-		url = mediaPlaylist.url
-		prefix = mediaPlaylist.prefix
-	} else {
-		prefix = stripLastSegment(parsedUrl)
 	}
 
 	segmentCount := len(m3u.segments)
-	if segmentCount == 0 {
-		LogWarn("No segments found")
-		return false
-	}
-
+	duration := int(m3u.totalDuration())
 	LogDebug("[Playlist info]")
 	LogDebug("Type:     %v", m3u.getAttribute(EXT_X_PLAYLIST_TYPE))
 	LogDebug("LIVE:     %v", m3u.isLive)
 	LogDebug("Segments: %v", segmentCount)
-	LogDebug("Duration: %vs", int(m3u.totalDuration()))
+	LogDebug("Duration: %vs", duration)
+
+	if segmentCount == 0 {
+		LogWarn("No segments found")
+		return false
+	}
+	if duration > MAX_PLAYLIST_DURATION_SECONDS {
+		LogWarn("Playlist exceeds max duration")
+		return false
+	}
 
 	// Test if the first chunk is available and the source operates as intended (prevents broadcasting broken entries)
-	if !server.validateSegment0(m3u, prefix, referer) {
+	if !server.validateOrRepointPlaylist(m3u, referer) {
 		LogError("Chunk 0 was not available!")
 		return false
 	}
 
-	m3u.prefixRelativeSegments(prefix)
+	// Check encryption map uri
+	segment0 := &m3u.segments[0]
+	if segment0.mapUri != "" {
+		err = downloadFile(segment0.mapUri, WEB_PROXY+MEDIA_INIT_SECTION, referer, true)
+		if err != nil {
+			LogWarn("Failed to obtain map uri key: %v", err.Error())
+			return false
+		}
+		segment0.mapUri = MEDIA_INIT_SECTION
+	}
 
 	server.state.isHls = true
 	server.state.isLive = m3u.isLive
@@ -1058,8 +1039,8 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 		newProxy = setupVodProxy(m3u, WEB_PROXY+PROXY_M3U8, referer, VIDEO_PREFIX)
 	}
 	server.state.proxy = newProxy
-	duration := time.Since(start)
-	LogDebug("Time taken to setup proxy: %v", duration)
+	setupDuration := time.Since(start)
+	LogDebug("Time taken to setup proxy: %v", setupDuration)
 	return true
 }
 
@@ -1093,24 +1074,48 @@ func setupVodProxy(m3u *M3U, osPath, referer, chunkPrefix string) *HlsProxy {
 	return &proxy
 }
 
-func (server *Server) validateSegment0(m3u *M3U, prefix, referer string) bool {
-	// VODs are expected
+var EXTM3U_BYTES = []byte("#EXTM3U")
+
+// validateOrRepointPlaylist will also prefix segments appropriately or fail
+func (server *Server) validateOrRepointPlaylist(m3u *M3U, referer string) bool {
+	// VODs or LIVEs are expected
 	if m3u.isMasterPlaylist {
 		return false
 	}
+
 	url := m3u.segments[0].url
-	if !isAbsolute(url) {
-		url = prefixUrl(prefix, url)
+	if isAbsolute(url) {
+		success, buffer := testGetResponse(url, referer)
+		if !success {
+			return false
+		}
+		if bytes.HasPrefix(buffer.Bytes(), EXTM3U_BYTES) {
+			LogError("[RARE] Segment 0 is another media playlist")
+			return false
+		}
+		return true
 	}
+	// From here segment URL is relative
+	urlStruct, _ := net_url.Parse(m3u.url)
+	prefix := stripLastSegment(urlStruct)
+	url = prefixUrl(prefix, url)
+
 	success, buffer := testGetResponse(url, referer)
-	if !success {
-		return false
+	if success && !bytes.HasPrefix(buffer.Bytes(), EXTM3U_BYTES) {
+		m3u.prefixRelativeSegments(prefix)
+		return true
 	}
-	if bytes.HasPrefix(buffer.Bytes(), []byte("#"+EXTM3U)) {
-		LogError("[RARE] Segment 0 is another media playlist")
-		return false
+	// If that has failed, the root domain can be tried
+	root := getRootDomain(urlStruct)
+	url = prefixUrl(root, m3u.segments[0].url)
+
+	success, buffer = testGetResponse(url, referer)
+	if success && !bytes.HasPrefix(buffer.Bytes(), EXTM3U_BYTES) {
+		m3u.prefixRelativeSegments(root)
+		LogDebug("Repointing segments to root=%v", root)
+		return true
 	}
-	return true
+	return false
 }
 
 var voiceClients = make(map[*websocket.Conn]bool)
@@ -1356,11 +1361,12 @@ func serveHlsChunk(writer http.ResponseWriter, request *http.Request, proxy *Hls
 		return
 	}
 
-	fetchErr := downloadFile(proxy.originalChunks[chunkId], WEB_PROXY+chunk, proxy.referer, false)
+	destinationUrl := proxy.originalChunks[chunkId]
+	fetchErr := downloadFile(destinationUrl, WEB_PROXY+chunk, proxy.referer, false)
 	if fetchErr != nil {
 		mutex.Unlock()
 		if chunkLogsite.atMostEvery(time.Second) {
-			LogError("Failed to fetch chunk %v", fetchErr)
+			LogError("Failed to fetch chunk %v from %v", fetchErr, destinationUrl)
 		}
 
 		code := 500
@@ -1684,15 +1690,15 @@ func (server *Server) historyAdd(entry Entry) {
 		return
 	}
 
-	compareFunc := func(entry Entry) bool { 
-		return compareEntries(newEntry, entry) 
+	compareFunc := func(entry Entry) bool {
+		return compareEntries(newEntry, entry)
 	}
 
 	index := slices.IndexFunc(server.state.history, compareFunc)
 	if index != -1 {
 		// De-duplicate history entries.
 		newEntry = server.state.history[index]
-		server.state.history = slices.Delete(server.state.history, index, index + 1)
+		server.state.history = slices.Delete(server.state.history, index, index+1)
 		DatabaseHistoryRemove(server.db, newEntry.Id)
 		server.writeEventToAllConnections("historyremove", newEntry.Id)
 	}

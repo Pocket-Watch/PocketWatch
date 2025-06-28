@@ -317,6 +317,7 @@ func getParam(paramKey string, params []Param) *Param {
 }
 
 type M3U struct {
+	url              string // the URL where the playlist was originally obtained
 	isMasterPlaylist bool
 	isLive           bool
 	tracks           []Track    // exclusive to master playlists
@@ -647,5 +648,9 @@ func downloadM3U(url string, filename string, referer string) (*M3U, error) {
 	if err != nil {
 		return nil, err
 	}
-	return parseM3U(filename)
+	m3u, err := parseM3U(filename)
+	if m3u != nil {
+		m3u.url = url
+	}
+	return m3u, err
 }

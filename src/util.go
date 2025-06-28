@@ -251,6 +251,11 @@ func stripParams(path string) string {
 	return path[:end]
 }
 
+func getBaseNoParams(urlPath string) string {
+	endpoint := stripParams(urlPath)
+	return path.Base(endpoint)
+}
+
 func stripPathPrefix(path string, parts ...string) string {
 	segments := strings.Split(path, "/")
 
@@ -340,13 +345,8 @@ func isAbsolute(url string) bool {
 }
 
 // Maybe there's some specification for proxied URLs
-func getParamUrl(url string) string {
-	parsedUrl, err := net_url.Parse(url)
-	if err != nil {
-		return ""
-	}
-
-	for _, values := range parsedUrl.Query() {
+func getParamUrl(url *net_url.URL) *net_url.URL {
+	for _, values := range url.Query() {
 		if len(values) == 0 {
 			continue
 		}
@@ -355,12 +355,12 @@ func getParamUrl(url string) string {
 			continue
 		}
 		// Ensure that param url is a valid url
-		_, err = net_url.Parse(paramUrl)
+		paramUrlStruct, err := net_url.Parse(paramUrl)
 		if err == nil {
-			return paramUrl
+			return paramUrlStruct
 		}
 	}
-	return ""
+	return nil
 }
 
 // This will download a chunk of a file within the specified range
@@ -399,6 +399,11 @@ func pullBytesFromResponse(response *http.Response, byteCount int) ([]byte, erro
 // This function tests the server's intent to serve and return data (at most 512 bytes)
 // Returns true if test status code is successful, false if unsuccessful or body couldn't be read
 func testGetResponse(url string, referer string) (bool, *bytes.Buffer) {
+	parsedUrl, err := net_url.Parse(url)
+	if err != nil {
+		LogDebug("Tested %v", parsedUrl)
+		return false, nil
+	}
 	request, _ := http.NewRequest("GET", url, nil)
 	request.Header.Set("User-Agent", userAgent)
 	if referer != "" {
