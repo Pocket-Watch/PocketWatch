@@ -211,7 +211,7 @@ func StartServer(config ServerConfig, db *sql.DB) {
 		server.setNewEntry(currentEntry, RequestEntry{})
 
 		timestamp := DatabaseGetTimestamp(server.db)
-		server.playerSeek(timestamp)
+		server.playerSeek(timestamp, 0)
 	}()
 
 	var server_start_error error
@@ -1580,12 +1580,12 @@ func (server *Server) getEntriesFromDirectory(path string, userId uint64) []Entr
 			LogDebug("File URL: %v", url.String())
 
 			entry := Entry{
-				Id:         server.state.entryId.Add(1),
-				Url:        url.String(),
-				UserId:     userId,
-				UseProxy:   false,
-				Subtitles:  []Subtitle{},
-				Created:    time.Now(),
+				Id:        server.state.entryId.Add(1),
+				Url:       url.String(),
+				UserId:    userId,
+				UseProxy:  false,
+				Subtitles: []Subtitle{},
+				Created:   time.Now(),
 			}
 
 			entry.Title = constructTitleWhenMissing(&entry)
@@ -1632,13 +1632,13 @@ func (server *Server) constructEntry(entry Entry) Entry {
 	return entry
 }
 
-func (server *Server) playerSeek(timestamp float64) {
+func (server *Server) playerSeek(timestamp float64, userId uint64) {
 	server.state.mutex.Lock()
 	server.state.player.Timestamp = timestamp
 	server.state.lastUpdate = time.Now()
 	server.state.mutex.Unlock()
 
-	event := server.createSyncEvent("seek", 0)
+	event := server.createSyncEvent("seek", userId)
 	server.writeEventToAllConnections("sync", event)
 }
 
@@ -1681,10 +1681,6 @@ func compareEntries(entry1 Entry, entry2 Entry) bool {
 	}
 
 	if entry1.RefererUrl != entry2.RefererUrl {
-		return false
-	}
-
-	if entry1.SourceUrl != entry2.SourceUrl {
 		return false
 	}
 

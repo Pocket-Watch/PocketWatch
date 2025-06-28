@@ -356,7 +356,7 @@ func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 	entry := Entry{}
 	if len(server.state.playlist) == 0 && server.state.player.Looping {
 		server.state.mutex.Unlock()
-		server.playerSeek(0.0)
+		server.playerSeek(0, 0)
 		return
 	}
 
@@ -412,7 +412,7 @@ func (server *Server) apiPlayerSeek(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server.playerSeek(data.Timestamp)
+	server.playerSeek(data.Timestamp, user.Id)
 }
 
 func (server *Server) apiPlayerAutoplay(w http.ResponseWriter, r *http.Request) {
