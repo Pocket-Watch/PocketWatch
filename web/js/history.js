@@ -3,7 +3,7 @@ import { getById, div, a, span, img, svg, show } from "./util.js";
 
 export { History }
 
-const MAX_HISTORY_SIZE = 80
+const MAX_HISTORY_SIZE = 120
 
 function createRequestEntry(entry) {
     const requestEntry = {

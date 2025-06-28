@@ -208,17 +208,10 @@ func StartServer(config ServerConfig, db *sql.DB) {
 
 	go func() {
 		currentEntry, _ := DatabaseCurrentEntryGet(db)
-
 		server.setNewEntry(currentEntry, RequestEntry{})
+
 		timestamp := DatabaseGetTimestamp(server.db)
-
-		server.state.mutex.Lock()
-		server.state.player.Timestamp = timestamp
-		server.state.lastUpdate = time.Now()
-		server.state.mutex.Unlock()
-
-		event := server.createSyncEvent("seek", 0)
-		server.writeEventToAllConnections("sync", event)
+		server.playerSeek(timestamp)
 	}()
 
 	var server_start_error error
@@ -497,6 +490,9 @@ func (server *Server) periodicInactiveUserCleanup() {
 }
 
 func (server *Server) setNewEntry(entry Entry, requested RequestEntry) {
+	server.state.isLoading.Store(true)
+	defer server.state.isLoading.Store(false)
+
 	err := server.loadYoutubeEntry(&entry, requested)
 	if err != nil {
 		server.writeEventToAllConnections("playererror", err.Error())
@@ -512,6 +508,10 @@ func (server *Server) setNewEntry(entry Entry, requested RequestEntry) {
 
 	server.state.mutex.Lock()
 	defer server.state.mutex.Unlock()
+
+	if server.state.player.Looping {
+		server.playlistAdd(server.state.entry)
+	}
 
 	server.historyAdd(server.state.entry)
 
@@ -1635,6 +1635,16 @@ func (server *Server) constructEntry(entry Entry) Entry {
 	return entry
 }
 
+func (server *Server) playerSeek(timestamp float64) {
+	server.state.mutex.Lock()
+	server.state.player.Timestamp = timestamp
+	server.state.lastUpdate = time.Now()
+	server.state.mutex.Unlock()
+
+	event := server.createSyncEvent("seek", 0)
+	server.writeEventToAllConnections("sync", event)
+}
+
 func (server *Server) playlistAdd(entry Entry) {
 	newEntry := server.constructEntry(entry)
 	if newEntry.Id == 0 {
@@ -1697,10 +1707,14 @@ func (server *Server) historyAdd(entry Entry) {
 	index := slices.IndexFunc(server.state.history, compareFunc)
 	if index != -1 {
 		// De-duplicate history entries.
-		newEntry = server.state.history[index]
+		removed := server.state.history[index]
 		server.state.history = slices.Delete(server.state.history, index, index+1)
-		DatabaseHistoryRemove(server.db, newEntry.Id)
-		server.writeEventToAllConnections("historyremove", newEntry.Id)
+		DatabaseHistoryRemove(server.db, removed.Id)
+		server.writeEventToAllConnections("historyremove", removed.Id)
+
+		// Select newer subtitles from the new entry
+		removed.Subtitles = newEntry.Subtitles
+		newEntry = removed
 	}
 
 	server.state.history = append(server.state.history, newEntry)

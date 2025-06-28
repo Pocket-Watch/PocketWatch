@@ -300,12 +300,6 @@ func (server *Server) apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server.state.mutex.Lock()
-	if server.state.player.Looping {
-		server.playlistAdd(server.state.entry)
-	}
-	server.state.mutex.Unlock()
-
 	entry := Entry{
 		Url:        data.RequestEntry.Url,
 		UserId:     user.Id,
@@ -344,8 +338,12 @@ func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if server.state.isLoading.Load() {
+		return 
+	}
+
 	// NOTE(kihau):
-	//     We need to check whether currently set entry ID on the defaultClient side matches current entry ID on the server side.
+	//     Checking whether currently set entry ID on the client side matches current entry ID on the server side.
 	//     This check is necessary because multiple clients can send "playlist next" request on video end,
 	//     resulting in multiple playlist skips, which is not an intended behaviour.
 
@@ -356,17 +354,19 @@ func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if server.state.player.Looping {
-		server.playlistAdd(server.state.entry)
-	}
+	entry := Entry{}
+	if len(server.state.playlist) == 0 && server.state.player.Looping {
+		server.state.mutex.Unlock()
+		server.playerSeek(0.0)
+		return
+	} 
 
-	newEntry := Entry{}
 	if len(server.state.playlist) != 0 {
-		entry := server.playlistRemove(0)
-		newEntry = server.constructEntry(entry)
+		entry = server.playlistRemove(0)
 	}
 	server.state.mutex.Unlock()
 
+	newEntry := server.constructEntry(entry)
 	go server.setNewEntry(newEntry, RequestEntry{})
 }
 
@@ -413,15 +413,7 @@ func (server *Server) apiPlayerSeek(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server.state.mutex.Lock()
-	server.state.player.Timestamp = data.Timestamp
-	server.state.lastUpdate = time.Now()
-	server.state.mutex.Unlock()
-
-	event := server.createSyncEvent("seek", user.Id)
-	server.writeEventToAllConnectionsExceptSelf(w, "sync", event, user.Id, data.ConnectionId)
-
-	io.WriteString(w, "Broadcasting seek!\n")
+	server.playerSeek(data.Timestamp)
 }
 
 func (server *Server) apiPlayerAutoplay(w http.ResponseWriter, r *http.Request) {
@@ -769,10 +761,6 @@ func (server *Server) apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if server.state.player.Looping {
-		server.playlistAdd(server.state.entry)
-	}
-
 	entry := server.playlistRemove(index)
 	server.state.mutex.Unlock()
 
@@ -1041,10 +1029,6 @@ func (server *Server) apiHistoryPlay(w http.ResponseWriter, r *http.Request) {
 		server.state.mutex.Unlock()
 		respondBadRequest(w, "Failed to play history element. Entry with ID %v is not in the history.", entryId)
 		return
-	}
-
-	if server.state.player.Looping {
-		server.playlistAdd(server.state.entry)
 	}
 
 	entry := server.state.history[index]

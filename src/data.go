@@ -22,11 +22,11 @@ const HEARTBEAT_INTERVAL = 2 * time.Second
 const BLACK_HOLE_PERIOD = 20 * time.Minute
 
 const MAX_UNKNOWN_PATH_LENGTH = 30
-const MAX_HISTORY_SIZE = 80
+const MAX_HISTORY_SIZE = 120
 const MAX_CHAT_LOAD = 100
 
 const SUBTITLE_SIZE_LIMIT = 512 * KB
-const AVATAR_SIZE_LIMIT = 16 * MB
+const AVATAR_SIZE_LIMIT = 8 * MB
 const PROXY_FILE_SIZE_LIMIT = 4 * GB
 const BODY_LIMIT = 8 * KB
 
@@ -113,9 +113,10 @@ type Entry struct {
 type ServerState struct {
 	mutex sync.Mutex
 
-	player  PlayerState
-	entry   Entry
-	entryId atomic.Uint64
+	player    PlayerState
+	entry     Entry
+	entryId   atomic.Uint64
+	isLoading atomic.Bool
 
 	eventId    atomic.Uint64
 	lastUpdate time.Time

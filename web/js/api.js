@@ -261,7 +261,7 @@ export async function playerNext(currentEntryId) {
         entry_id: currentEntryId,
     };
 
-    console.info("INFO: Sending player next request.");
+    console.info("INFO: Sending player next request with:", payload);
     return await httpPost("/watch/api/player/next", payload);
 }
 
