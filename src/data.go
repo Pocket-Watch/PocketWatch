@@ -103,6 +103,7 @@ type Entry struct {
 	UseProxy   bool   `json:"use_proxy"`
 	RefererUrl string `json:"referer_url"`
 	SourceUrl  string `json:"source_url"`
+	ProxyUrl   string `json:"proxy_url"`
 	// NOTE(kihau): Placeholder until defaultClient side source switching is implemented.
 	// Sources    []Source   `json:"sources"`
 	Subtitles []Subtitle `json:"subtitles"`

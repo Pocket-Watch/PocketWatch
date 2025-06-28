@@ -306,7 +306,6 @@ func (server *Server) apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 		Title:      data.RequestEntry.Title,
 		UseProxy:   data.RequestEntry.UseProxy,
 		RefererUrl: data.RequestEntry.RefererUrl,
-		SourceUrl:  "",
 		Subtitles:  data.RequestEntry.Subtitles,
 		Created:    time.Now(),
 	}
@@ -339,7 +338,7 @@ func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if server.state.isLoading.Load() {
-		return 
+		return
 	}
 
 	// NOTE(kihau):
@@ -359,7 +358,7 @@ func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 		server.state.mutex.Unlock()
 		server.playerSeek(0.0)
 		return
-	} 
+	}
 
 	if len(server.state.playlist) != 0 {
 		entry = server.playlistRemove(0)
@@ -808,7 +807,6 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 			Title:      data.RequestEntry.Title,
 			UseProxy:   data.RequestEntry.UseProxy,
 			RefererUrl: data.RequestEntry.RefererUrl,
-			SourceUrl:  "",
 			Subtitles:  data.RequestEntry.Subtitles,
 			Created:    time.Now(),
 		}

@@ -1242,7 +1242,9 @@ class Room {
             return;
         }
 
-        if (entry.source_url) {
+        if (entry.proxy_url) {
+            url = entry.proxy_url;
+        } else if (entry.source_url) {
             url = entry.source_url;
         }
 

@@ -921,7 +921,7 @@ func (server *Server) setupProxy(entry *Entry) error {
 	if isYoutubeUrl(entry.Url) {
 		success := server.setupHlsProxy(entry.SourceUrl, "")
 		if success {
-			entry.SourceUrl = PROXY_ROUTE + PROXY_M3U8
+			entry.ProxyUrl = PROXY_ROUTE + PROXY_M3U8
 			LogInfo("HLS proxy setup for youtube was successful.")
 		} else {
 			return fmt.Errorf("HLS proxy setup for youtube failed!")
@@ -932,7 +932,7 @@ func (server *Server) setupProxy(entry *Entry) error {
 		if isPathM3U(file) || (paramUrl != nil && isPathM3U(getBaseNoParams(paramUrl.Path))) {
 			setup := server.setupHlsProxy(entry.Url, entry.RefererUrl)
 			if setup {
-				entry.SourceUrl = PROXY_ROUTE + PROXY_M3U8
+				entry.ProxyUrl = PROXY_ROUTE + PROXY_M3U8
 				LogInfo("HLS proxy setup was successful.")
 			} else {
 				return fmt.Errorf("HLS proxy setup failed!")
@@ -940,7 +940,7 @@ func (server *Server) setupProxy(entry *Entry) error {
 		} else {
 			setup := server.setupGenericFileProxy(entry.Url, entry.RefererUrl)
 			if setup {
-				entry.SourceUrl = PROXY_ROUTE + "proxy" + server.state.genericProxy.extensionWithDot
+				entry.ProxyUrl = PROXY_ROUTE + "proxy" + server.state.genericProxy.extensionWithDot
 				LogInfo("Generic file proxy setup was successful.")
 			} else {
 				return fmt.Errorf("Generic file proxy setup failed!")
@@ -1583,10 +1583,7 @@ func (server *Server) getEntriesFromDirectory(path string, userId uint64) []Entr
 				Id:         server.state.entryId.Add(1),
 				Url:        url.String(),
 				UserId:     userId,
-				Title:      "",
 				UseProxy:   false,
-				RefererUrl: "",
-				SourceUrl:  "",
 				Subtitles:  []Subtitle{},
 				Created:    time.Now(),
 			}
