@@ -382,7 +382,7 @@ func (server *Server) apiPlayerPlay(w http.ResponseWriter, r *http.Request) {
 
 	server.updatePlayerState(true, data.Timestamp)
 	event := server.createSyncEvent("play", user.Id)
-	server.writeEventToAllConnectionsExceptSelf(w, "sync", event, user.Id, data.ConnectionId)
+	server.writeEventToAllConnections("sync", event)
 }
 
 func (server *Server) apiPlayerPause(w http.ResponseWriter, r *http.Request) {
@@ -398,7 +398,7 @@ func (server *Server) apiPlayerPause(w http.ResponseWriter, r *http.Request) {
 
 	server.updatePlayerState(false, data.Timestamp)
 	event := server.createSyncEvent("pause", user.Id)
-	server.writeEventToAllConnectionsExceptSelf(w, "sync", event, user.Id, data.ConnectionId)
+	server.writeEventToAllConnections("sync", event)
 }
 
 func (server *Server) apiPlayerSeek(w http.ResponseWriter, r *http.Request) {
@@ -1123,7 +1123,7 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if went_online {
-		server.writeEventToAllConnectionsExceptSelf(w, "userconnected", user.Id, user.Id, conn.id)
+		server.writeEventToAllConnections("userconnected", user.Id)
 		DatabaseUpdateUserLastOnline(server.db, user.Id, time.Now())
 	}
 

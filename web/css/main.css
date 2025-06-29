@@ -14,6 +14,10 @@ html * {
     font-family: Rubik, sans-serif;
 }
 
+/* div { */
+/*     border: 1px solid red !important; */
+/* } */
+
 #settings_menu_modal {
     height: 100%;
     width: 100%;

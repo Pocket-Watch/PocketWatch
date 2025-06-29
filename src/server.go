@@ -650,35 +650,6 @@ func (server *Server) writeEventToAllConnections(eventName string, data any) {
 	server.conns.mutex.Unlock()
 }
 
-func (server *Server) writeEventToAllConnectionsExceptSelf(origin http.ResponseWriter, eventName string, data any, userId uint64, connectionId uint64) {
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		LogError("Failed to serialize data for event '%v': %v", eventName, err)
-		http.Error(origin, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	jsonString := string(jsonData)
-
-	eventId := server.state.eventId.Add(1)
-	event := fmt.Sprintf("id: %v\nevent: %v\ndata: %v\nretry: %v\n\n", eventId, eventName, jsonString, RETRY)
-
-	server.conns.mutex.Lock()
-	for _, conn := range server.conns.slice {
-		if userId == conn.userId && conn.id == connectionId {
-			continue
-		}
-
-		select {
-		case conn.events <- event:
-		default:
-			LogWarn("Channel event write failed for connection: %v", conn.id)
-		}
-	}
-
-	server.conns.mutex.Unlock()
-}
-
 // It should be possible to use this list in a dropdown and attach to entry
 func (server *Server) getSubtitles() []string {
 	subtitles := make([]string, 0)
