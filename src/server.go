@@ -1004,6 +1004,9 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 }
 
 func setupMapUri(m3u *M3U, referer string) error {
+	if len(m3u.segments) == 0 {
+		return nil
+	}
 	segment0 := &m3u.segments[0]
 	if segment0.mapUri != "" {
 		err := downloadFile(segment0.mapUri, WEB_PROXY+MEDIA_INIT_SECTION, referer, true)
