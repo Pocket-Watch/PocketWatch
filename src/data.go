@@ -146,7 +146,6 @@ type HlsProxy struct {
 	// Live resources
 	liveUrl      string
 	liveSegments sync.Map
-	randomizer   atomic.Int64
 	lastRefresh  time.Time
 }
 

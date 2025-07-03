@@ -1020,7 +1020,6 @@ func setupLiveProxy(liveUrl string, referer string) *HlsProxy {
 	proxy.referer = referer
 	proxy.liveUrl = liveUrl
 	proxy.liveSegments.Clear()
-	proxy.randomizer.Store(0)
 	return &proxy
 }
 
@@ -1196,6 +1195,13 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 			http.Error(writer, err.Error(), 500)
 			return
 		}
+		id := 0
+		if mediaSequence := liveM3U.getAttribute(EXT_X_MEDIA_SEQUENCE); mediaSequence != "" {
+			if sequenceId, err := parseInt(mediaSequence); err == nil {
+				id = sequenceId
+			}
+		}
+		// LogDebug("mediaSequence: %v", id)
 		prefix := stripLastSegment(parsedUrl)
 		liveM3U.prefixRelativeSegments(prefix)
 		segmentCount := len(liveM3U.segments)
@@ -1204,15 +1210,14 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 
 			realUrl := segment.url
 			fetched := FetchedSegment{realUrl, false, sync.Mutex{}, time.Now()}
-			seed := proxy.randomizer.Add(1)
-			segName := "live-" + int64ToString(seed)
+			id++
+			segName := "live-" + toString(id)
 			segmentMap.Store(segName, &fetched)
 
 			segment.url = segName
 		}
 
 		liveM3U.serialize(WEB_PROXY + PROXY_M3U8)
-		// LogDebug("Serving refreshed %v", PROXY_M3U8)
 		http.ServeFile(writer, request, WEB_PROXY+PROXY_M3U8)
 		return
 	}

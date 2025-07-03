@@ -580,6 +580,14 @@ func parseInt64(number string) (int64, error) {
 	return strconv.ParseInt(number, 10, 64)
 }
 
+func parseInt(number string) (int, error) {
+	num, err := strconv.ParseInt(number, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return int(num), nil
+}
+
 func generateUniqueId() uint64 {
 	src := rand.NewSource(time.Now().UnixNano())
 	entropy := rand.New(src).Uint64() // Generate a random number between 0 and 99
