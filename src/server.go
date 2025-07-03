@@ -812,14 +812,8 @@ func setupDualTrackProxy(originalM3U *M3U, referer string) (bool, *HlsProxy, *Hl
 	audioM3U.prefixRelativeSegments(*audioPrefix)
 
 	// Check video encryption map uri
-	segment0 := &videoM3U.segments[0]
-	if segment0.mapUri != "" {
-		err = downloadFile(segment0.mapUri, WEB_PROXY+MEDIA_INIT_SECTION, referer, true)
-		if err != nil {
-			LogWarn("Failed to obtain map uri key: %v", err.Error())
-			return false, nil, nil
-		}
-		segment0.mapUri = MEDIA_INIT_SECTION
+	if err = setupMapUri(videoM3U, referer); err != nil {
+		return false, nil, nil
 	}
 
 	vidProxy := setupVodProxy(videoM3U, WEB_PROXY+VIDEO_M3U8, referer, VIDEO_PREFIX)
@@ -990,14 +984,8 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 	}
 
 	// Check encryption map uri
-	segment0 := &m3u.segments[0]
-	if segment0.mapUri != "" {
-		err = downloadFile(segment0.mapUri, WEB_PROXY+MEDIA_INIT_SECTION, referer, true)
-		if err != nil {
-			LogWarn("Failed to obtain map uri key: %v", err.Error())
-			return false
-		}
-		segment0.mapUri = MEDIA_INIT_SECTION
+	if err = setupMapUri(m3u, referer); err != nil {
+		return false
 	}
 
 	server.state.isHls = true
@@ -1013,6 +1001,19 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 	setupDuration := time.Since(start)
 	LogDebug("Time taken to setup proxy: %v", setupDuration)
 	return true
+}
+
+func setupMapUri(m3u *M3U, referer string) error {
+	segment0 := &m3u.segments[0]
+	if segment0.mapUri != "" {
+		err := downloadFile(segment0.mapUri, WEB_PROXY+MEDIA_INIT_SECTION, referer, true)
+		if err != nil {
+			LogWarn("Failed to obtain map uri key: %v", err.Error())
+			return err
+		}
+		segment0.mapUri = MEDIA_INIT_SECTION
+	}
+	return nil
 }
 
 func setupLiveProxy(liveUrl string, referer string) *HlsProxy {
@@ -1167,6 +1168,10 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 	lastRefresh := &proxy.lastRefresh
 
 	now := time.Now()
+	if chunk == MEDIA_INIT_SECTION {
+		http.ServeFile(writer, request, WEB_PROXY+MEDIA_INIT_SECTION)
+		return
+	}
 	if chunk == PROXY_M3U8 {
 		cleanupSegmentMap(segmentMap)
 		refreshedAgo := now.Sub(*lastRefresh)
@@ -1201,9 +1206,12 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 				id = sequenceId
 			}
 		}
+
 		// LogDebug("mediaSequence: %v", id)
 		prefix := stripLastSegment(parsedUrl)
 		liveM3U.prefixRelativeSegments(prefix)
+
+		_ = setupMapUri(liveM3U, proxy.referer)
 		segmentCount := len(liveM3U.segments)
 		for i := range segmentCount {
 			segment := &liveM3U.segments[i]
