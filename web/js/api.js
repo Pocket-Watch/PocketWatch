@@ -1,5 +1,4 @@
 var token = null;
-var connectionId = null;
 
 export class JsonResponse {
     constructor(status, method, endpoint) {
@@ -174,14 +173,6 @@ export function getToken() {
     return token;
 }
 
-export function setConnectionId(id) {
-    connectionId = id;
-}
-
-export function getConnectionId() {
-    return connectionId;
-}
-
 export async function version() {
     console.info("INFO: Requesting server version.");
     return await httpGet("/watch/api/version");
@@ -247,7 +238,6 @@ export async function playerGet() {
 
 export async function playerSet(requestEntry) {
     const payload = {
-        connection_id: connectionId,
         request_entry: requestEntry,
     };
 
@@ -257,7 +247,6 @@ export async function playerSet(requestEntry) {
 
 export async function playerNext(currentEntryId) {
     const payload = {
-        connection_id: connectionId,
         entry_id: currentEntryId,
     };
 
@@ -267,7 +256,6 @@ export async function playerNext(currentEntryId) {
 
 export async function playerPlay(timestamp) {
     const payload = {
-        connection_id: connectionId,
         timestamp: timestamp,
     };
 
@@ -277,7 +265,6 @@ export async function playerPlay(timestamp) {
 
 export async function playerPause(timestamp) {
     const payload = {
-        connection_id: connectionId,
         timestamp: timestamp,
     };
 
@@ -287,7 +274,6 @@ export async function playerPause(timestamp) {
 
 export async function playerSeek(timestamp) {
     const payload = {
-        connection_id: connectionId,
         timestamp: timestamp,
     };
 

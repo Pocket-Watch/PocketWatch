@@ -216,7 +216,7 @@ type ChatMessageFromUser struct {
 	Edited  bool   `json:"edited"`
 }
 
-type MessageHistoryRequestData struct {
+type MessageHistoryRequest struct {
 	Count          uint32 `json:"count"`
 	BackwardOffset uint64 `json:"backwardOffset"`
 }
@@ -228,29 +228,27 @@ type FetchedSegment struct {
 	created  time.Time
 }
 
-type PlayerGetResponseData struct {
+type PlayerGetResponse struct {
 	Player PlayerState `json:"player"`
 	Entry  Entry       `json:"entry"`
 	// Subtitles []string    `json:"subtitles"`
 }
 
-type SyncRequestData struct {
-	ConnectionId uint64  `json:"connection_id"`
-	Timestamp    float64 `json:"timestamp"`
+type SyncRequest struct {
+	Timestamp float64 `json:"timestamp"`
 }
 
-type SyncEventData struct {
+type SyncEvent struct {
 	Timestamp float64 `json:"timestamp"`
 	Action    string  `json:"action"`
 	UserId    uint64  `json:"user_id"`
 }
 
-type PlayerSetRequestData struct {
-	ConnectionId uint64       `json:"connection_id"`
+type PlayerSetRequest struct {
 	RequestEntry RequestEntry `json:"request_entry"`
 }
 
-type PlayerSetEventData struct {
+type PlayerSetEvent struct {
 	PrevEntry Entry `json:"prev_entry"`
 	NewEntry  Entry `json:"new_entry"`
 }
@@ -259,32 +257,31 @@ type PlaybackEnded struct {
 	EntryId uint64 `json:"entry_id"`
 }
 
-type PlayerNextRequestData struct {
-	ConnectionId uint64 `json:"connection_id"`
-	EntryId      uint64 `json:"entry_id"`
+type PlayerNextRequest struct {
+	EntryId uint64 `json:"entry_id"`
 }
 
-type PlayerNextEventData struct {
+type PlayerNextEvent struct {
 	PrevEntry Entry `json:"prev_entry"`
 	NewEntry  Entry `json:"new_entry"`
 }
 
-type SubtitleUpdateRequestData struct {
+type SubtitleUpdateRequest struct {
 	Id   uint64 `json:"id"`
 	Name string `json:"name"`
 }
 
-type SubtitleShiftRequestData struct {
+type SubtitleShiftRequest struct {
 	Id    uint64  `json:"id"`
 	Shift float64 `json:"shift"`
 }
 
-type SubtitleDownloadRequestData struct {
+type SubtitleDownloadRequest struct {
 	Url  string `json:"url"`
 	Name string `json:"name"`
 }
 
-type PlaylistEventData struct {
+type PlaylistEvent struct {
 	Action string `json:"action"`
 	Data   any    `json:"data"`
 }
@@ -302,46 +299,46 @@ type RequestEntry struct {
 	PlaylistMaxSize   uint       `json:"playlist_max_size"`
 }
 
-type PlaylistPlayRequestData struct {
+type PlaylistPlayRequest struct {
 	EntryId uint64 `json:"entry_id"`
 }
 
-type PlaylistAddRequestData struct {
+type PlaylistAddRequest struct {
 	ConnectionId uint64       `json:"connection_id"`
 	RequestEntry RequestEntry `json:"request_entry"`
 }
 
-type PlaylistRemoveRequestData struct {
+type PlaylistRemoveRequest struct {
 	ConnectionId uint64 `json:"connection_id"`
 	EntryId      uint64 `json:"entry_id"`
 }
 
-type PlaylistAutoplayRequestData struct {
+type PlaylistAutoplayRequest struct {
 	ConnectionId uint64 `json:"connection_id"`
 	Autoplay     bool   `json:"autoplay"`
 }
 
-type PlaylistLoopingRequestData struct {
+type PlaylistLoopingRequest struct {
 	ConnectionId uint64 `json:"connection_id"`
 	Looping      bool   `json:"looping"`
 }
 
-type PlaylistMoveRequestData struct {
+type PlaylistMoveRequest struct {
 	ConnectionId uint64 `json:"connection_id"`
 	EntryId      uint64 `json:"entry_id"`
 	DestIndex    int    `json:"dest_index"`
 }
 
-type PlaylistMoveEventData struct {
+type PlaylistMoveEvent struct {
 	EntryId   uint64 `json:"entry_id"`
 	DestIndex int    `json:"dest_index"`
 }
 
-type PlaylistUpdateRequestData struct {
+type PlaylistUpdateRequest struct {
 	Entry Entry `json:"entry"`
 }
 
-type MediaUploadResponseData struct {
+type MediaUploadResponse struct {
 	Url      string `json:"url"`
 	Name     string `json:"name"`
 	Filename string `json:"filename"`

@@ -1453,13 +1453,11 @@ class Room {
     subscribeToServerEvents(events) {
         this.subscribeToSubtitleEvents(events);
 
-        events.addEventListener("userwelcome", event => {
-            let connectionId = JSON.parse(event.data);
-            console.info("INFO: Received a welcome request with connection id:", connectionId);
-            this.connectionId = connectionId;
-
-            api.setConnectionId(this.connectionId);
-        });
+        // events.addEventListener("userwelcome", event => {
+        //     let connectionId = JSON.parse(event.data);
+        //     console.info("INFO: Received a welcome request with connection id:", connectionId);
+        //     this.connectionId = connectionId;
+        // });
 
         events.addEventListener("usercreate", event => {
             let user = JSON.parse(event.data)

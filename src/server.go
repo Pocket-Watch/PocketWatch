@@ -120,8 +120,8 @@ func (conns *Connections) removeById(id uint64) {
 	}
 }
 
-func createPlaylistEvent(action string, data any) PlaylistEventData {
-	event := PlaylistEventData{
+func createPlaylistEvent(action string, data any) PlaylistEvent {
+	event := PlaylistEvent{
 		Action: action,
 		Data:   data,
 	}
@@ -443,7 +443,7 @@ func (server *Server) periodicResync() {
 			continue
 		}
 
-		var event SyncEventData
+		var event SyncEvent
 		server.state.mutex.Lock()
 		playing := server.state.player.Playing
 
@@ -493,6 +493,8 @@ func (server *Server) setNewEntry(entry Entry, requested RequestEntry) {
 	server.state.isLoading.Store(true)
 	defer server.state.isLoading.Store(false)
 
+	entry = server.constructEntry(entry)
+
 	err := server.loadYoutubeEntry(&entry, requested)
 	if err != nil {
 		server.writeEventToAllConnections("playererror", err.Error())
@@ -510,7 +512,7 @@ func (server *Server) setNewEntry(entry Entry, requested RequestEntry) {
 	defer server.state.mutex.Unlock()
 
 	if server.state.player.Looping {
-		server.playlistAdd(server.state.entry)
+		server.playlistAdd(server.state.entry, false)
 	}
 
 	server.historyAdd(server.state.entry)
@@ -1502,10 +1504,10 @@ func (server *Server) getCurrentTimestamp() float64 {
 	return timestamp
 }
 
-func (server *Server) createSyncEvent(action string, userId uint64) SyncEventData {
+func (server *Server) createSyncEvent(action string, userId uint64) SyncEvent {
 	timestamp := server.getCurrentTimestamp()
 
-	event := SyncEventData{
+	event := SyncEvent{
 		Timestamp: timestamp,
 		Action:    action,
 		UserId:    userId,
@@ -1610,6 +1612,7 @@ func (server *Server) constructEntry(entry Entry) Entry {
 	}
 
 	entry.Id = server.state.entryId.Add(1)
+	entry.Title = constructTitleWhenMissing(&entry)
 	entry.Created = time.Now()
 
 	for i := range entry.Subtitles {
@@ -1629,16 +1632,42 @@ func (server *Server) playerSeek(timestamp float64, userId uint64) {
 	server.writeEventToAllConnections("sync", event)
 }
 
-func (server *Server) playlistAdd(entry Entry) {
+func (server *Server) playlistAdd(entry Entry, toTop bool) {
 	newEntry := server.constructEntry(entry)
 	if newEntry.Id == 0 {
 		return
 	}
 
 	server.state.playlist = append(server.state.playlist, newEntry)
-	DatabasePlaylistAdd(server.db, newEntry)
 
-	event := createPlaylistEvent("add", newEntry)
+	var event PlaylistEvent
+
+	if toTop {
+		playlist := make([]Entry, 0)
+		playlist = append(playlist, newEntry)
+		server.state.playlist = append(playlist, server.state.playlist...)
+		event = createPlaylistEvent("addtop", newEntry)
+	} else {
+		server.state.playlist = append(server.state.playlist, newEntry)
+		event = createPlaylistEvent("addtop", newEntry)
+	}
+
+	DatabasePlaylistAdd(server.db, newEntry)
+	server.writeEventToAllConnections("playlist", event)
+}
+
+func (server *Server) playlistAddMany(entries []Entry, toTop bool) {
+	var event PlaylistEvent
+
+	if toTop {
+		server.state.playlist = append(entries, server.state.playlist...)
+		event = createPlaylistEvent("addmanytop", entries)
+	} else {
+		server.state.playlist = append(server.state.playlist, entries...)
+		event = createPlaylistEvent("addmany", entries)
+	}
+
+	DatabasePlaylistAddMany(server.db, entries)
 	server.writeEventToAllConnections("playlist", event)
 }
 

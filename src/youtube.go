@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"math"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,6 +15,18 @@ import (
 )
 
 var YOUTUBE_ENABLED bool = true
+
+func isYoutube(entry RequestEntry) bool {
+	if !YOUTUBE_ENABLED {
+		return false
+	}
+
+	if isYoutubeUrl(entry.Url) && !entry.SearchVideo {
+		return false
+	}
+
+	return true
+}
 
 func isYoutubeUrl(url string) bool {
 	parsedUrl, err := neturl.Parse(url)
@@ -154,24 +167,21 @@ func (server *Server) preloadYoutubeSourceOnNextEntry() {
 		return
 	}
 
-	nextEntry.Thumbnail = video.Thumbnail
-	nextEntry.SourceUrl = video.AudioUrl
-
 	server.state.mutex.Lock()
-	if len(server.state.playlist) == 0 {
-		server.state.mutex.Unlock()
+	defer server.state.mutex.Unlock()
+
+	index := FindEntryIndex(server.state.playlist, nextEntry.Id)
+	if index == -1 {
 		return
 	}
 
-	if server.state.playlist[0].Id == nextEntry.Id {
-		server.state.playlist[0] = nextEntry
-	}
-	server.state.mutex.Unlock()
+	server.state.playlist[index].Thumbnail = video.Thumbnail
+	server.state.playlist[index].SourceUrl = video.VideoUrl
 }
 
-func pickBestThumbnail(thumbnails []YoutubeThumbnail) string {
+func pickSmallestThumbnail(thumbnails []YoutubeThumbnail) string {
 	bestThumbnail := ""
-	var smallestSize uint64 = 0
+	var smallestSize uint64 = math.MaxUint64
 
 	for _, thumbnail := range thumbnails {
 		thumbnailSize := thumbnail.Height * thumbnail.Width
@@ -184,14 +194,37 @@ func pickBestThumbnail(thumbnails []YoutubeThumbnail) string {
 	return bestThumbnail
 }
 
-func (server *Server) loadYoutubePlaylist(query string, videoId string, userId uint64, size uint, addToTop bool) {
+func (server *Server) loadYoutubePlaylist(requested RequestEntry, userId uint64) {
+	if !YOUTUBE_ENABLED {
+		return
+	}
+
+	if !isYoutubeUrl(requested.Url) && !requested.SearchVideo {
+		return
+	}
+
+	query := requested.Url
+	if requested.SearchVideo {
+		query = "ytsearch:" + query
+		ok, playlist := fetchYoutubePlaylist(query, 1, 1)
+
+		if !ok || len(playlist.Entries) == 0 {
+			LogError("Failed to find find youtube video: '%v'", query)
+			return
+		}
+
+		query = playlist.Entries[0].Url
+	}
+
 	url, err := neturl.Parse(query)
 	if err != nil {
 		LogError("Failed to parse youtube source url: %v", err)
 		return
 	}
 
-	if !url.Query().Has("list") {
+	if requested.IsPlaylist && !url.Query().Has("list") {
+		videoId := url.Query().Get("v")
+
 		query := url.Query()
 		query.Add("list", "RD"+videoId)
 		url.RawQuery = query.Encode()
@@ -199,14 +232,15 @@ func (server *Server) loadYoutubePlaylist(query string, videoId string, userId u
 		LogDebug("Url was not a playlist. Constructed youtube playlist url is now: %v", url)
 	}
 
+	size := requested.PlaylistMaxSize
 	if size > 1000 {
 		size = 1000
-	} else if size == 0 {
+	} else if size <= 0 {
 		size = 20
 	}
 
 	query = url.String()
-	ok, playlist := fetchYoutubePlaylist(query, 2, size)
+	ok, playlist := fetchYoutubePlaylist(query, 1, size)
 	if !ok {
 		return
 	}
@@ -215,41 +249,20 @@ func (server *Server) loadYoutubePlaylist(query string, videoId string, userId u
 
 	for _, ytEntry := range playlist.Entries {
 		entry := Entry{
-			Id:         server.state.entryId.Add(1),
-			Url:        ytEntry.Url,
-			Title:      ytEntry.Title,
-			UserId:     userId,
-			UseProxy:   false,
-			RefererUrl: "",
-			SourceUrl:  "",
-			Thumbnail:  pickBestThumbnail(ytEntry.Thumbnails),
-			Created:    time.Now(),
+			Url:       ytEntry.Url,
+			Title:     ytEntry.Title,
+			UserId:    userId,
+			Thumbnail: pickSmallestThumbnail(ytEntry.Thumbnails),
 		}
 
-		if len(ytEntry.Thumbnails) > 0 {
-			entry.Thumbnail = ytEntry.Thumbnails[0].Url
-		}
-
+		entry = server.constructEntry(entry)
 		entries = append(entries, entry)
 	}
 
 	server.state.mutex.Lock()
-	if addToTop {
-		server.state.playlist = append(entries, server.state.playlist...)
-	} else {
-		server.state.playlist = append(server.state.playlist, entries...)
-	}
-
-	DatabasePlaylistAddMany(server.db, entries)
+	server.playlistAddMany(entries, requested.AddToTop)
 	server.state.mutex.Unlock()
 
-	var event PlaylistEventData
-	if addToTop {
-		event = createPlaylistEvent("addmanytop", entries)
-	} else {
-		event = createPlaylistEvent("addmany", entries)
-	}
-	server.writeEventToAllConnections("playlist", event)
 	go server.preloadYoutubeSourceOnNextEntry()
 }
 
@@ -449,12 +462,11 @@ func (server *Server) loadYoutubeEntry(entry *Entry, requested RequestEntry) err
 	entry.SourceUrl = video.VideoUrl
 	entry.Thumbnail = video.Thumbnail
 
-	if requested.SearchVideo {
-		query = video.OriginalUrl
-	}
-
+	// Remove from this function
 	if requested.IsPlaylist {
-		go server.loadYoutubePlaylist(query, video.Id, entry.UserId, requested.PlaylistMaxSize, requested.AddToTop)
+		requested.Url = video.OriginalUrl
+		requested.SearchVideo = false
+		go server.loadYoutubePlaylist(requested, entry.UserId)
 	}
 
 	return nil

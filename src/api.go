@@ -76,7 +76,7 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request) {
 	filename = strings.TrimSuffix(filename, extension)
 	name := cleanupResourceName(filename)
 
-	response := MediaUploadResponseData{
+	response := MediaUploadResponse{
 		Url:      networkPath,
 		Name:     name,
 		Filename: filename,
@@ -274,7 +274,7 @@ func (server *Server) apiPlayerGet(w http.ResponseWriter, r *http.Request) {
 
 	player.Timestamp = server.getCurrentTimestamp()
 
-	getEvent := PlayerGetResponseData{
+	getEvent := PlayerGetResponse{
 		Player: player,
 		Entry:  server.state.entry,
 		// Subtitles: getSubtitles(),
@@ -295,7 +295,7 @@ func (server *Server) apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var data PlayerSetRequestData
+	var data PlayerSetRequest
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
@@ -307,12 +307,9 @@ func (server *Server) apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 		UseProxy:   data.RequestEntry.UseProxy,
 		RefererUrl: data.RequestEntry.RefererUrl,
 		Subtitles:  data.RequestEntry.Subtitles,
-		Created:    time.Now(),
 	}
 
-	entry.Title = constructTitleWhenMissing(&entry)
-	newEntry := server.constructEntry(entry)
-	go server.setNewEntry(newEntry, data.RequestEntry)
+	go server.setNewEntry(entry, data.RequestEntry)
 }
 
 func (server *Server) apiPlayerEnd(w http.ResponseWriter, r *http.Request) {
@@ -332,7 +329,7 @@ func (server *Server) apiPlayerEnd(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
-	var data PlayerNextRequestData
+	var data PlayerNextRequest
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
@@ -365,8 +362,7 @@ func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 	}
 	server.state.mutex.Unlock()
 
-	newEntry := server.constructEntry(entry)
-	go server.setNewEntry(newEntry, RequestEntry{})
+	go server.setNewEntry(entry, RequestEntry{})
 }
 
 func (server *Server) apiPlayerPlay(w http.ResponseWriter, r *http.Request) {
@@ -375,7 +371,7 @@ func (server *Server) apiPlayerPlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var data SyncRequestData
+	var data SyncRequest
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
@@ -391,7 +387,7 @@ func (server *Server) apiPlayerPause(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var data SyncRequestData
+	var data SyncRequest
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
@@ -407,7 +403,7 @@ func (server *Server) apiPlayerSeek(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var data SyncRequestData
+	var data SyncRequest
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
@@ -482,7 +478,7 @@ func (server *Server) apiSubtitleDelete(w http.ResponseWriter, r *http.Request) 
 }
 
 func (server *Server) apiSubtitleUpdate(w http.ResponseWriter, r *http.Request) {
-	var data SubtitleUpdateRequestData
+	var data SubtitleUpdateRequest
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
@@ -519,7 +515,7 @@ func (server *Server) apiSubtitleAttach(w http.ResponseWriter, r *http.Request) 
 }
 
 func (server *Server) apiSubtitleShift(w http.ResponseWriter, r *http.Request) {
-	var data SubtitleShiftRequestData
+	var data SubtitleShiftRequest
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
@@ -592,7 +588,7 @@ func (server *Server) apiSubtitleUpload(w http.ResponseWriter, r *http.Request) 
 }
 
 func (server *Server) apiSubtitleDownload(w http.ResponseWriter, r *http.Request) {
-	var data SubtitleDownloadRequestData
+	var data SubtitleDownloadRequest
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
@@ -747,7 +743,7 @@ func (server *Server) apiPlaylistGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
-	var data PlaylistPlayRequestData
+	var data PlaylistPlayRequest
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
@@ -763,8 +759,7 @@ func (server *Server) apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
 	entry := server.playlistRemove(index)
 	server.state.mutex.Unlock()
 
-	newEntry := server.constructEntry(entry)
-	go server.setNewEntry(newEntry, RequestEntry{})
+	go server.setNewEntry(entry, RequestEntry{})
 }
 
 func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
@@ -773,66 +768,37 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var data PlaylistAddRequestData
+	var data PlaylistAddRequest
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
-	localDirectory, path := server.isLocalDirectory(data.RequestEntry.Url)
+	requested := data.RequestEntry
+
+	localDirectory, path := server.isLocalDirectory(requested.Url)
 	if localDirectory {
 		LogInfo("Adding directory '%s' to the playlist.", path)
 		localEntries := server.getEntriesFromDirectory(path, user.Id)
-
-		var eventType string
-
 		server.state.mutex.Lock()
-		if data.RequestEntry.AddToTop {
-			server.state.playlist = append(localEntries, server.state.playlist...)
-			eventType = "addmanytop"
-		} else {
-			server.state.playlist = append(server.state.playlist, localEntries...)
-			eventType = "addmany"
-		}
-		DatabasePlaylistAddMany(server.db, localEntries)
+		server.playlistAddMany(localEntries, requested.AddToTop)
 		server.state.mutex.Unlock()
-
-		event := createPlaylistEvent(eventType, localEntries)
-		server.writeEventToAllConnections("playlist", event)
+	} else if isYoutube(requested) {
+		go server.loadYoutubePlaylist(requested, user.Id)
 	} else {
-		LogInfo("Adding '%s' url to the playlist.", data.RequestEntry.Url)
+		LogInfo("Adding '%s' url to the playlist.", requested.Url)
 
 		temp := Entry{
-			Url:        data.RequestEntry.Url,
+			Url:        requested.Url,
 			UserId:     user.Id,
-			Title:      data.RequestEntry.Title,
-			UseProxy:   data.RequestEntry.UseProxy,
-			RefererUrl: data.RequestEntry.RefererUrl,
-			Subtitles:  data.RequestEntry.Subtitles,
-			Created:    time.Now(),
+			Title:      requested.Title,
+			UseProxy:   requested.UseProxy,
+			RefererUrl: requested.RefererUrl,
+			Subtitles:  requested.Subtitles,
 		}
-
-		temp.Title = constructTitleWhenMissing(&temp)
-		newEntry := server.constructEntry(temp)
-		server.loadYoutubeEntry(&newEntry, data.RequestEntry)
-
-		var eventType string
 
 		server.state.mutex.Lock()
-		if data.RequestEntry.AddToTop {
-			playlist := make([]Entry, 0)
-			playlist = append(playlist, newEntry)
-			server.state.playlist = append(playlist, server.state.playlist...)
-			eventType = "addtop"
-		} else {
-			server.state.playlist = append(server.state.playlist, newEntry)
-			eventType = "add"
-		}
-
-		DatabasePlaylistAdd(server.db, newEntry)
+		server.playlistAdd(temp, requested.AddToTop)
 		server.state.mutex.Unlock()
-
-		event := createPlaylistEvent(eventType, newEntry)
-		server.writeEventToAllConnections("playlist", event)
 	}
 }
 
@@ -847,7 +813,7 @@ func (server *Server) apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
-	var data PlaylistRemoveRequestData
+	var data PlaylistRemoveRequest
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
@@ -885,7 +851,7 @@ func (server *Server) apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var data PlaylistMoveRequestData
+	var data PlaylistMoveRequest
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
@@ -919,7 +885,7 @@ func (server *Server) apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 	server.state.playlist = list
 	server.state.mutex.Unlock()
 
-	eventData := PlaylistMoveEventData{
+	eventData := PlaylistMoveEvent{
 		EntryId:   data.EntryId,
 		DestIndex: data.DestIndex,
 	}
@@ -930,7 +896,7 @@ func (server *Server) apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiPlaylistUpdate(w http.ResponseWriter, r *http.Request) {
-	var data PlaylistUpdateRequestData
+	var data PlaylistUpdateRequest
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
@@ -969,7 +935,7 @@ func (server *Server) apiHistoryGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiChatGet(w http.ResponseWriter, r *http.Request) {
-	var data MessageHistoryRequestData
+	var data MessageHistoryRequest
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
@@ -1070,8 +1036,7 @@ func (server *Server) apiHistoryPlay(w http.ResponseWriter, r *http.Request) {
 	entry := server.state.history[index]
 	server.state.mutex.Unlock()
 
-	newEntry := server.constructEntry(entry)
-	go server.setNewEntry(newEntry, RequestEntry{})
+	go server.setNewEntry(entry, RequestEntry{})
 }
 
 func (server *Server) apiHistoryRemove(w http.ResponseWriter, r *http.Request) {
@@ -1155,10 +1120,10 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 
 	LogInfo("New connection id:%v established with user id:%v on %s. Current connection count: %d", conn.id, user.Id, r.RemoteAddr, connectionCount)
 
-	welcomeErr := server.writeEvent(w, "userwelcome", conn.id)
-	if welcomeErr != nil {
-		return
-	}
+	// welcomeErr := server.writeEvent(w, "userwelcome", conn.id)
+	// if welcomeErr != nil {
+	// 	return
+	// }
 
 	if went_online {
 		server.writeEventToAllConnections("userconnected", user.Id)
