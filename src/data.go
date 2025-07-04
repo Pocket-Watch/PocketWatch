@@ -207,6 +207,10 @@ type ChatMessageEdit struct {
 	Id            uint64 `json:"id"`
 }
 
+type ChatMessageDeleteRequest struct {
+	Id uint64 `json:"id"`
+}
+
 type ChatMessageFromUser struct {
 	Message string `json:"message"`
 	Edited  bool   `json:"edited"`

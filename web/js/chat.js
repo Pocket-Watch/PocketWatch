@@ -124,6 +124,10 @@ class Chat {
         this.prevUserId = user.id;
     }
 
+    removeMessageById(messageId) {
+        // TODO
+    }
+
     processMessageSendIntent() {
         let content = this.chatInput.value;
         if (content.length === 0 || content.length > CHARACTER_LIMIT) {

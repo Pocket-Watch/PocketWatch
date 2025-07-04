@@ -1002,7 +1002,45 @@ func (server *Server) apiChatGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiChatDelete(w http.ResponseWriter, r *http.Request) {
-	io.WriteString(w, "{}")
+	var data ChatMessageDeleteRequest
+	if !server.readJsonDataFromRequest(w, r, &data) {
+		return
+	}
+
+	user := server.getAuthorized(w, r)
+	if user == nil {
+		http.Error(w, "No longer authorized", http.StatusUnauthorized)
+		return
+	}
+
+	server.state.mutex.Lock()
+	messages := server.state.messages
+	deletedMsgId := -1
+	authorMismatch := false
+	for b := len(messages) - 1; b >= 0; b-- {
+		if messages[b].Id == data.Id {
+			msg := &messages[b]
+			if msg.AuthorId == user.Id {
+				deletedMsgId = int(msg.Id)
+				server.state.messages = append(messages[:b], messages[b+1:]...)
+				break
+			} else {
+				authorMismatch = true
+				break
+			}
+		}
+	}
+	server.state.mutex.Unlock()
+	if authorMismatch {
+		respondBadRequest(w, "You're not the author of this message")
+		return
+	}
+	if deletedMsgId != -1 {
+		server.writeEventToAllConnections("messagedelete", deletedMsgId)
+	} else {
+		respondBadRequest(w, "No message found of id %v", data.Id)
+	}
+
 }
 
 func (server *Server) apiHistoryClear(w http.ResponseWriter, r *http.Request) {
@@ -1073,9 +1111,9 @@ func (server *Server) apiChatSend(w http.ResponseWriter, r *http.Request) {
 	}
 
 	server.state.mutex.Lock()
-	server.state.messageId += 1
+	server.state.messageId++
 	chatMessage := ChatMessage{
-		Id:       1,
+		Id:       server.state.messageId,
 		Message:  newMessage.Message,
 		AuthorId: user.Id,
 		UnixTime: time.Now().UnixMilli(),
