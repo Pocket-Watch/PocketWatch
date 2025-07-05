@@ -221,7 +221,7 @@ type MessageHistoryRequest struct {
 	BackwardOffset uint64 `json:"backwardOffset"`
 }
 
-type FetchedSegment struct {
+type LiveSegment struct {
 	realUrl  string
 	obtained bool
 	mutex    sync.Mutex

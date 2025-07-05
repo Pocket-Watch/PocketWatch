@@ -1222,12 +1222,15 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 			segment := &liveM3U.segments[i]
 
 			realUrl := segment.url
-			fetched := FetchedSegment{realUrl, false, sync.Mutex{}, time.Now()}
-			id++
 			segName := "live-" + toString(id)
-			segmentMap.Store(segName, &fetched)
+
+			if _, exists := segmentMap.Load(segName); !exists {
+				liveSegment := LiveSegment{realUrl, false, sync.Mutex{}, time.Now()}
+				segmentMap.Store(segName, &liveSegment)
+			}
 
 			segment.url = segName
+			id++
 		}
 
 		liveM3U.serialize(WEB_PROXY + PROXY_M3U8)
@@ -1246,7 +1249,7 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 		return
 	}
 
-	fetchedChunk := maybeChunk.(*FetchedSegment)
+	fetchedChunk := maybeChunk.(*LiveSegment)
 	mutex := &fetchedChunk.mutex
 	mutex.Lock()
 	if fetchedChunk.obtained {
@@ -1282,7 +1285,7 @@ func cleanupSegmentMap(segmentMap *sync.Map) {
 	now := time.Now()
 	size := 0
 	segmentMap.Range(func(key, value any) bool {
-		fSegment := value.(*FetchedSegment)
+		fSegment := value.(*LiveSegment)
 		age := now.Sub(fSegment.created)
 		if age.Seconds() > 30 {
 			keysToRemove = append(keysToRemove, key.(string))
