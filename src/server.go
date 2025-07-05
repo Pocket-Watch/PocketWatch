@@ -1652,7 +1652,7 @@ func (server *Server) playlistAdd(entry Entry, toTop bool) {
 		event = createPlaylistEvent("addtop", newEntry)
 	} else {
 		server.state.playlist = append(server.state.playlist, newEntry)
-		event = createPlaylistEvent("addtop", newEntry)
+		event = createPlaylistEvent("add", newEntry)
 	}
 
 	DatabasePlaylistAdd(server.db, newEntry)

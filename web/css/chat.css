@@ -101,17 +101,41 @@
 }
 
 .chat_sub_message {
-    padding: 2px 12px 2px 60px;
-    font-size: 16px;
-    color: var(--fg_2);
-    overflow-wrap: break-word;
-    word-break: break-word;
+    width: 100%;
+    display: flex;
+    box-sizing: border-box;
+    flex-direction: row;
+    padding: 2px 12px 2px 12px;
+    column-gap: 10px;
 }
 
 .chat_sub_message:hover {
     background-color: var(--bg_4);
     transition-delay: 300ms;
     transition: all 100ms ease;
+}
+
+.chat_sub_message_date {
+    display: flex;
+    width: 38px;
+    min-width: 38px;
+    align-items: center;
+    font-size: 13px;
+    color: transparent;
+    user-select: none;
+}
+
+.chat_sub_message:hover .chat_sub_message_date {
+    color: var(--fg_6);
+    transition-delay: 300ms;
+    transition: all 100ms ease;
+}
+
+.chat_sub_message_text {
+    font-size: 16px;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    color: var(--fg_2);
 }
 
 #chat_input_container {

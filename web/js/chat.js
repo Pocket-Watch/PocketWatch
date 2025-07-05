@@ -92,8 +92,31 @@ class Chat {
 
     createSubMessage(message) {
         let root = div("chat_sub_message")
-        root.textContent = message.message;
+        let date = div("chat_sub_message_date")
+        let text = div("chat_sub_message_text")
+
+        text.textContent = message.message;
+
+        let d = new Date(message.unixTime);
+        let h = d.getHours().toString().padStart(2, "0");
+        let m = d.getMinutes().toString().padStart(2, "0");
+
+        date.textContent = `${h}:${m}`;
+
+        root.appendChild(date);
+        root.appendChild(text);
+
         return root;
+    }
+
+    linkify(content) {
+        let string = "This is a https://random.org test message.";
+
+        let s1 = "<span>This is a</span>";
+        let s2 = "<a>https://random.org</a>";
+        let s3 = "<span>test message.</span>";
+
+        // Combining string, slice, startsWith
     }
 
     addMessage(chatMsg, allUsers) {

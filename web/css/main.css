@@ -1235,6 +1235,12 @@ html * {
     }
 }
 
+@media (max-height: 700px) {
+    #settings_menu_root {
+        height: 100%;
+    }
+}
+
 @media (max-width: 700px) {
     #settings_toggles_group {
         display: flex;

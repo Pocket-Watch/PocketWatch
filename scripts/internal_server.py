@@ -26,7 +26,7 @@ class YoutubePlaylist:
 def get_youtube_playlist(query: str, start: int, end: int):
     ytplaylist_opts = {
         'extract_flat': True,
-        'playliststart': start + 2,
+        'playliststart': start,
         'playlistend':   end,
     }
 

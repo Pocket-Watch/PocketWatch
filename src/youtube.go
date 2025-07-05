@@ -222,7 +222,7 @@ func (server *Server) loadYoutubePlaylist(requested RequestEntry, userId uint64)
 		return
 	}
 
-	if requested.IsPlaylist && !url.Query().Has("list") {
+	if !url.Query().Has("list") {
 		videoId := url.Query().Get("v")
 
 		query := url.Query()
