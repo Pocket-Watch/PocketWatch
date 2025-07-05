@@ -134,8 +134,10 @@ class Chat {
             user = dummy;
         }
 
+        let date = new Date(message.unixTime);
+
         let message;
-        if (this.prevUserId !== user.id) {
+        if (this.prevUserId !== user.id || !isSameDay(date)) {
             message = this.createMessage(chatMsg, user);
         } else {
             message = this.createSubMessage(chatMsg, user);
