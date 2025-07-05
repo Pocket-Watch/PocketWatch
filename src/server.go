@@ -617,7 +617,6 @@ func (server *Server) writeEvent(w http.ResponseWriter, eventName string, data a
 	eventId := server.state.eventId.Add(1)
 
 	_, err = fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\nretry: %d\n\n", eventId, eventName, jsonString, RETRY)
-
 	if err != nil {
 		return err
 	}

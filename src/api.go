@@ -1113,6 +1113,19 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
+	_, err := fmt.Fprintf(w, ":\n\n")
+	if err != nil {
+		LogWarn("Connection write failed. Exiting event stream for: %v", r.RemoteAddr)
+		return
+	}
+
+	flusher, success := w.(http.Flusher)
+	if !success {
+		LogWarn("Failed to get flusher. Exiting event stream for: %v", r.RemoteAddr)
+		return
+	}
+	flusher.Flush()
+
 	server.conns.mutex.Lock()
 	conn := server.conns.add(user.Id)
 	connectionCount := len(server.conns.slice)
