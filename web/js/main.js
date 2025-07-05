@@ -1758,6 +1758,18 @@ async function main() {
 
     // Expose room to browser console for debugging.
     window.room = room;
+
+    let start = performance.now();
+    for (let i = 0; i < 100; i++) {
+        fetch("hls.js", {
+            headers: {
+                'Cache-Control': 'no-store'
+            }
+        })
+    }
+    let end = performance.now();
+    console.info("Taken:", (end-start), " ms")
+
 }
 
 main();

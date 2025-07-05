@@ -279,6 +279,14 @@ func serveFavicon(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "web/img/favicon.ico")
 }
 
+func serveHlsBenchmark(w http.ResponseWriter, r *http.Request) {
+	LogInfo("Serving from memory at %v", time.Now().Format(time.StampMilli))
+	io.WriteString(w, hlsString)
+
+	/*LogInfo("Serving from disk at %v", time.Now().Format(time.StampMilli))
+	http.ServeFile(w, r, "web/external/hls.js")*/
+}
+
 type CacheHandler struct {
 	fsHandler    http.Handler
 	ipToLimiters map[string]*RateLimiter
@@ -286,9 +294,9 @@ type CacheHandler struct {
 }
 
 func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ip := strings.Split(r.RemoteAddr, ":")[0]
+	//ip := strings.Split(r.RemoteAddr, ":")[0]
 
-	cache.mapMutex.Lock()
+	/*cache.mapMutex.Lock()
 	rateLimiter, exists := cache.ipToLimiters[ip]
 	if exists {
 		cache.mapMutex.Unlock()
@@ -303,9 +311,15 @@ func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	} else {
 		cache.ipToLimiters[ip] = NewLimiter(LIMITER_HITS, LIMITER_PER_SECOND)
 		cache.mapMutex.Unlock()
-	}
+	}*/
 
 	resource := strings.TrimPrefix(r.RequestURI, "/watch")
+
+	if resource == "/hls.js" {
+		serveHlsBenchmark(w, r)
+		return
+	}
+
 	LogDebug("Connection %s requested resource %v", r.RemoteAddr, resource)
 
 	// The no-cache directive does not prevent the storing of responses
@@ -320,8 +334,15 @@ func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	cache.fsHandler.ServeHTTP(w, r)
 }
 
+var hlsString string
+
 func registerEndpoints(server *Server) *http.ServeMux {
 	mux := http.NewServeMux()
+
+	hlsBytesRead, err := os.ReadFile("/hls.js")
+	if err != nil {
+		hlsString = string(hlsBytesRead)
+	}
 
 	fileserver := http.FileServer(http.Dir("./web"))
 	fsHandler := http.StripPrefix("/watch/", fileserver)
