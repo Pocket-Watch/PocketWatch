@@ -134,7 +134,7 @@ class Chat {
             user = dummy;
         }
 
-        let date = new Date(message.unixTime);
+        let date = new Date(chatMsg.unixTime);
 
         let message;
         if (this.prevUserId !== user.id || !isSameDay(date)) {
