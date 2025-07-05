@@ -1023,3 +1023,12 @@ func endsWithAny(s string, suffixes ...string) bool {
 	}
 	return false
 }
+
+func startsWithAny(s string, prefixes ...string) bool {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(s, prefix) {
+			return true
+		}
+	}
+	return false
+}

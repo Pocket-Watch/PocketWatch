@@ -814,13 +814,13 @@ func setupDualTrackProxy(originalM3U *M3U, referer string) (bool, *HlsProxy, *Hl
 	audioM3U.prefixRelativeSegments(*audioPrefix)
 
 	// Check video encryption map uri
-	if err = setupMapUri(videoM3U, referer); err != nil {
+	if err = setupMapUri(&videoM3U.segments[0], referer, MEDIA_INIT_SECTION); err != nil {
 		return false, nil, nil
 	}
 
 	vidProxy := setupVodProxy(videoM3U, WEB_PROXY+VIDEO_M3U8, referer, VIDEO_PREFIX)
 	audioProxy := setupVodProxy(audioM3U, WEB_PROXY+AUDIO_M3U8, referer, AUDIO_PREFIX)
-	// Craft proxied master playlist for the defaultClient
+	// Craft proxied master playlist for the client
 	originalM3U.tracks = originalM3U.tracks[:0]
 	originalM3U.audioRenditions = originalM3U.audioRenditions[:0]
 	uriParam := getParam("URI", audioRendition)
@@ -986,7 +986,7 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 	}
 
 	// Check encryption map uri
-	if err = setupMapUri(m3u, referer); err != nil {
+	if err = setupMapUri(&m3u.segments[0], referer, MEDIA_INIT_SECTION); err != nil {
 		return false
 	}
 
@@ -1005,18 +1005,14 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 	return true
 }
 
-func setupMapUri(m3u *M3U, referer string) error {
-	if len(m3u.segments) == 0 {
-		return nil
-	}
-	segment0 := &m3u.segments[0]
-	if segment0.mapUri != "" {
-		err := downloadFile(segment0.mapUri, WEB_PROXY+MEDIA_INIT_SECTION, referer, true)
+func setupMapUri(segment *Segment, referer, fileName string) error {
+	if segment.mapUri != "" {
+		err := downloadFile(segment.mapUri, WEB_PROXY+fileName, referer, true)
 		if err != nil {
 			LogWarn("Failed to obtain map uri key: %v", err.Error())
 			return err
 		}
-		segment0.mapUri = MEDIA_INIT_SECTION
+		segment.mapUri = fileName
 	}
 	return nil
 }
@@ -1125,7 +1121,7 @@ func voiceChat(writer http.ResponseWriter, request *http.Request) {
 			if client.RemoteAddr() == conn.RemoteAddr() {
 				continue
 			}
-			// Exclude the broadcasting defaultClient
+			// Exclude the broadcasting client
 			LogDebug("Writing bytes of len: %v to %v clients", len(bytes), len(voiceClients))
 			if err := client.WriteMessage(websocket.BinaryMessage, bytes); err != nil {
 				LogError("Error while writing message: %v", err)
@@ -1173,10 +1169,6 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 	lastRefresh := &proxy.lastRefresh
 
 	now := time.Now()
-	if chunk == MEDIA_INIT_SECTION {
-		http.ServeFile(writer, request, WEB_PROXY+MEDIA_INIT_SECTION)
-		return
-	}
 	if chunk == PROXY_M3U8 {
 		cleanupSegmentMap(segmentMap)
 		refreshedAgo := now.Sub(*lastRefresh)
@@ -1199,12 +1191,12 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 			return
 		}
 
-		parsedUrl, err := net_url.Parse(proxy.liveUrl)
-		if err != nil {
-			LogError("This shouldn't have happened - failed to parse live url: %v", err.Error())
-			http.Error(writer, err.Error(), 500)
+		if len(liveM3U.segments) == 0 {
+			respondInternalError(writer, "No live segments received!")
 			return
 		}
+
+		parsedUrl, _ := net_url.Parse(proxy.liveUrl)
 		id := 0
 		if mediaSequence := liveM3U.getAttribute(EXT_X_MEDIA_SEQUENCE); mediaSequence != "" {
 			if sequenceId, err := parseInt(mediaSequence); err == nil {
@@ -1216,17 +1208,19 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 		prefix := stripLastSegment(parsedUrl)
 		liveM3U.prefixRelativeSegments(prefix)
 
-		_ = setupMapUri(liveM3U, proxy.referer)
 		segmentCount := len(liveM3U.segments)
 		for i := range segmentCount {
 			segment := &liveM3U.segments[i]
 
 			realUrl := segment.url
-			segName := "live-" + toString(id)
+			segName := LIVE_PREFIX + toString(id)
 
 			if _, exists := segmentMap.Load(segName); !exists {
-				liveSegment := LiveSegment{realUrl, false, sync.Mutex{}, time.Now()}
+				liveSegment := LiveSegment{realUrl: realUrl, realMapUri: segment.mapUri, created: time.Now()}
 				segmentMap.Store(segName, &liveSegment)
+				if segment.mapUri != "" {
+					segment.mapUri = MIS_PREFIX + toString(id)
+				}
 			}
 
 			segment.url = segName
@@ -1238,8 +1232,13 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 		return
 	}
 
-	if len(chunk) < 6 {
+	if len(chunk) > MAX_CHUNK_NAME_LENGTH {
 		http.Error(writer, "Not found", 404)
+		return
+	}
+
+	if strings.HasPrefix(chunk, MIS_PREFIX) {
+		fetchOrServeMediaInitSection(writer, request, chunk, segmentMap, proxy.referer)
 		return
 	}
 
@@ -1252,7 +1251,7 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 	fetchedChunk := maybeChunk.(*LiveSegment)
 	mutex := &fetchedChunk.mutex
 	mutex.Lock()
-	if fetchedChunk.obtained {
+	if fetchedChunk.obtainedUrl {
 		mutex.Unlock()
 		http.ServeFile(writer, request, WEB_PROXY+chunk)
 		return
@@ -1268,15 +1267,54 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 		http.Error(writer, "Failed to fetch live chunk", code)
 		return
 	}
-	fetchedChunk.obtained = true
+	fetchedChunk.obtainedUrl = true
 	mutex.Unlock()
-
-	/*if len(keysToRemove) > 0 {
-		LogDebug("Removed %v keys. Current map size: %v", len(keysToRemove), size)
-	}*/
 
 	http.ServeFile(writer, request, WEB_PROXY+chunk)
 	return
+}
+
+func fetchOrServeMediaInitSection(writer http.ResponseWriter, request *http.Request, init string, segmentMap *sync.Map, referer string) {
+	_, after, ok := strings.Cut(init, "-")
+	if !ok || after == "" {
+		http.Error(writer, "Bad media section", http.StatusBadRequest)
+		return
+	}
+	id, err := parseInt64(after)
+	if err != nil {
+		http.Error(writer, "Bad media section", http.StatusBadRequest)
+		return
+	}
+	segName := LIVE_PREFIX + int64ToString(id)
+	maybeChunk, found := segmentMap.Load(segName)
+	if !found {
+		http.Error(writer, "Corresponding live segment not found", http.StatusNotFound)
+		return
+	}
+	liveSegment := maybeChunk.(*LiveSegment)
+	mutex := &liveSegment.mutex
+	mutex.Lock()
+	initKeyPath := WEB_PROXY + init
+	if liveSegment.obtainedMapUri {
+		mutex.Unlock()
+		http.ServeFile(writer, request, initKeyPath)
+		return
+	}
+	fetchErr := downloadFile(liveSegment.realMapUri, initKeyPath, referer, true)
+	if fetchErr != nil {
+		mutex.Unlock()
+		LogError("Failed to fetch media init section %v", fetchErr)
+		code := 500
+		if isTimeoutError(fetchErr) {
+			code = 504
+		}
+		http.Error(writer, "Failed to fetch media init section", code)
+		return
+	}
+	liveSegment.obtainedMapUri = true
+	mutex.Unlock()
+
+	http.ServeFile(writer, request, initKeyPath)
 }
 
 func cleanupSegmentMap(segmentMap *sync.Map) {
@@ -1311,8 +1349,7 @@ func (server *Server) serveHlsVod(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 
-	// TODO: Hardcoded start indexes of 4 and 3
-	if len(chunk) < 4 {
+	if len(chunk) > MAX_CHUNK_NAME_LENGTH || len(chunk) < len(VIDEO_PREFIX) {
 		http.Error(writer, "Not found", 404)
 		return
 	}

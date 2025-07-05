@@ -42,13 +42,15 @@ const VIDEO_M3U8 = "video.m3u8"
 const AUDIO_M3U8 = "audio.m3u8"
 const VIDEO_PREFIX = "vi-"
 const AUDIO_PREFIX = "au-"
+const LIVE_PREFIX = "live-"
+const MIS_PREFIX = "mis-"
 const MEDIA_INIT_SECTION = "mis.key"
 const MAX_PLAYLIST_DEPTH = 2
+const MAX_CHUNK_NAME_LENGTH = 26
 const MAX_PLAYLIST_DURATION_SECONDS = 86400 // 24hours
 
 const MAX_MESSAGE_CHARACTERS = 1000
 const GENERIC_CHUNK_SIZE = 1 * MB
-const SCAN_QUERY_PARAMS = false
 
 // Constants - assignable only once!
 var serverRootAddress string
@@ -76,7 +78,7 @@ type Subtitle struct {
 	Shift float64 `json:"shift"`
 }
 
-// NOTE(kihau): Placeholder until defaultClient side source switching is implemented.
+// NOTE(kihau): Placeholder until client side source switching is implemented.
 type Source struct {
 	AudioUrl  string `json:"audio_url"`
 	VideoUrl  string `json:"video_url"`
@@ -104,7 +106,7 @@ type Entry struct {
 	RefererUrl string `json:"referer_url"`
 	SourceUrl  string `json:"source_url"`
 	ProxyUrl   string `json:"proxy_url"`
-	// NOTE(kihau): Placeholder until defaultClient side source switching is implemented.
+	// NOTE(kihau): Placeholder until client side source switching is implemented.
 	// Sources    []Source   `json:"sources"`
 	Subtitles []Subtitle `json:"subtitles"`
 	Thumbnail string     `json:"thumbnail"`
@@ -222,10 +224,12 @@ type MessageHistoryRequest struct {
 }
 
 type LiveSegment struct {
-	realUrl  string
-	obtained bool
-	mutex    sync.Mutex
-	created  time.Time
+	realUrl        string
+	realMapUri     string
+	obtainedUrl    bool
+	obtainedMapUri bool
+	mutex          sync.Mutex
+	created        time.Time
 }
 
 type PlayerGetResponse struct {
