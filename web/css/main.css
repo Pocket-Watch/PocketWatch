@@ -1209,6 +1209,7 @@ html * {
 
     #right_panel {
         min-height: 88vh;
+        height: 88vh;
         overflow-y: visible;
     }
 
