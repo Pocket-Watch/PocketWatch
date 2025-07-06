@@ -1516,6 +1516,7 @@ class Internals {
         });
 
         this.htmlVideo.addEventListener("loadedmetadata", _ => {
+            this.playbackSpeed.setValue(this.htmlVideo.playbackRate)
             this.fireMetadataLoad();
         });
 
