@@ -49,6 +49,7 @@ const MAX_PLAYLIST_DEPTH = 2
 const MAX_CHUNK_NAME_LENGTH = 26
 const MAX_PLAYLIST_DURATION_SECONDS = 86400 // 24hours
 
+const M3U8_CONTENT_TYPE = "application/vnd.apple.mpegurl"
 const MAX_MESSAGE_CHARACTERS = 1000
 const GENERIC_CHUNK_SIZE = 1 * MB
 

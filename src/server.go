@@ -1171,9 +1171,10 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 	if chunk == PROXY_M3U8 {
 		cleanupSegmentMap(segmentMap)
 		refreshedAgo := now.Sub(*lastRefresh)
-		// Optimized to refresh only every 1.5 seconds
+		// Optimized to refresh at most once every 1.5 seconds
 		if refreshedAgo.Seconds() < 1.5 {
 			LogDebug("Serving unmodified %v", PROXY_M3U8)
+			writer.Header().Add("content-type", M3U8_CONTENT_TYPE)
 			http.ServeFile(writer, request, WEB_PROXY+PROXY_M3U8)
 			return
 		}
@@ -1227,6 +1228,7 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 		}
 
 		liveM3U.serialize(WEB_PROXY + PROXY_M3U8)
+		writer.Header().Add("content-type", M3U8_CONTENT_TYPE)
 		http.ServeFile(writer, request, WEB_PROXY+PROXY_M3U8)
 		return
 	}
@@ -1342,7 +1344,12 @@ func (server *Server) serveHlsVod(writer http.ResponseWriter, request *http.Requ
 	writer.Header().Add("Cache-Control", "no-cache")
 
 	switch chunk {
-	case PROXY_M3U8, VIDEO_M3U8, AUDIO_M3U8, MEDIA_INIT_SECTION:
+	case PROXY_M3U8, VIDEO_M3U8, AUDIO_M3U8:
+		LogDebug("Serving %v", chunk)
+		writer.Header().Add("content-type", M3U8_CONTENT_TYPE)
+		http.ServeFile(writer, request, WEB_PROXY+chunk)
+		return
+	case MEDIA_INIT_SECTION:
 		LogDebug("Serving %v", chunk)
 		http.ServeFile(writer, request, WEB_PROXY+chunk)
 		return
