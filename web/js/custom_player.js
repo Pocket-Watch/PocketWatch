@@ -529,12 +529,12 @@ class Internals {
 
         this.seekForwardTimeout = new Timeout(_ => {
             this.htmlSeekForward.classList.add("hide");
-            this.forwardStack = this.options.seekBy;
+            this.forwardStack = 0;
         }, this.options.seekStackingThresholdMs);
 
         this.seekBackwardTimeout = new Timeout(_ => {
             this.htmlSeekBackward.classList.add("hide");
-            this.backwardStack = this.options.seekBy;
+            this.backwardStack = 0;
         }, this.options.seekStackingThresholdMs);
 
         this.playerUIHideTimeout    = new Timeout(_ => this.hidePlayerUI(), this.options.inactivityTime);
@@ -808,6 +808,9 @@ class Internals {
         let timestamp = this.htmlVideo.currentTime + timeOffset;
         if (timestamp < 0) {
             timestamp = 0;
+        }
+        if (timestamp > this.htmlVideo.duration) {
+            timestamp = this.htmlVideo.duration;
         }
         return timestamp;
     }
@@ -1338,30 +1341,43 @@ class Internals {
     }
 
     seekBackward() {
+        let timestamp = this.getNewTime(-this.options.seekBy);
+        let realOffset = this.htmlVideo.currentTime - timestamp;
+        let offset = Math.round(realOffset);
+
         this.htmlSeekBackward.classList.remove("hide");
+        this.backwardStack += offset;
         if (this.seekBackwardTimeout.inProgress()) {
-            this.backwardStack += this.options.seekBy;
             this.svgs.seekBackward.setText(this.backwardStack + "s")
         } else {
-            this.svgs.seekBackward.setText(this.options.seekBy + "s")
+            this.svgs.seekBackward.setText(offset + "s")
         }
-
         this.seekBackwardTimeout.schedule();
-        let timestamp = this.getNewTime(-this.options.seekBy);
+
+        if (realOffset === 0.0) {
+            return
+        }
         this.fireControlsSeeked(timestamp);
         this.seek(timestamp);
     }
 
     seekForward() {
+        let timestamp = this.getNewTime(this.options.seekBy);
+        let realOffset = timestamp - this.htmlVideo.currentTime;
+        let offset = Math.round(realOffset);
+
         this.htmlSeekForward.classList.remove("hide");
+        this.forwardStack += offset;
         if (this.seekForwardTimeout.inProgress()) {
-            this.forwardStack += this.options.seekBy;
             this.svgs.seekForward.setText(this.forwardStack + "s")
         } else {
-            this.svgs.seekForward.setText(this.options.seekBy + "s")
+            this.svgs.seekForward.setText(offset + "s")
         }
         this.seekForwardTimeout.schedule();
-        let timestamp = this.getNewTime(this.options.seekBy);
+
+        if (realOffset === 0.0) {
+            return
+        }
         this.fireControlsSeeked(timestamp);
         this.seek(timestamp);
     }
