@@ -495,13 +495,30 @@ func (server *Server) setNewEntry(entry Entry, requested RequestEntry) {
 
 	entry = server.constructEntry(entry)
 
-	err := server.loadYoutubeEntry(&entry, requested)
-	if err != nil {
-		server.writeEventToAllConnections("playererror", err.Error())
-		return
+	if isYoutube(requested) && isYoutubeSourceExpired(entry.SourceUrl) {
+		server.writeEventToAllConnections("playerwaiting", "Youtube video is loading. Please stand by!")
+
+		err := server.loadYoutubeEntry(&entry, requested)
+		if err != nil {
+			server.writeEventToAllConnections("playererror", err.Error())
+			return
+		}
+
+		if requested.IsPlaylist {
+			requested.Url = entry.Url
+
+			go func() {
+				entries, err := server.loadYoutubePlaylist(requested, entry.UserId)
+				if err == nil {
+					server.state.mutex.Lock()
+					server.playlistAddMany(entries, requested.AddToTop)
+					server.state.mutex.Unlock()
+				}
+			}()
+		}
 	}
 
-	err = server.setupProxy(&entry)
+	err := server.setupProxy(&entry)
 	if err != nil {
 		LogWarn("%v", err)
 		server.writeEventToAllConnections("playererror", err.Error())
@@ -1684,8 +1701,6 @@ func (server *Server) playlistAdd(entry Entry, toTop bool) {
 		return
 	}
 
-	server.state.playlist = append(server.state.playlist, newEntry)
-
 	var event PlaylistEvent
 
 	if toTop {
@@ -1703,6 +1718,10 @@ func (server *Server) playlistAdd(entry Entry, toTop bool) {
 }
 
 func (server *Server) playlistAddMany(entries []Entry, toTop bool) {
+	if len(entries) == 0 {
+		return
+	}
+
 	var event PlaylistEvent
 
 	if toTop {

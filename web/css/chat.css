@@ -30,6 +30,7 @@
     overflow-x: hidden;
     vertical-align: bottom;
     scrollbar-color: var(--bg_5) var(--bg_2);
+    padding-bottom: 12px;
 }
 
 .chat_message {

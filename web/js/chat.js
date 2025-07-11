@@ -12,7 +12,11 @@ class Chat {
         this.sendMessageButton = getById("chat_send_button");
 
         this.isChatAtBottom = true;
-        this.prevUserId     = 0;
+        this.prevUserId     = -1;
+        this.prevDate       = new Date();
+
+        this.messages     = [];
+        this.htmlMessages = [];
     }
 
     attachChatEvents() {
@@ -38,6 +42,14 @@ class Chat {
     }
 
     clear() {
+        this.messages     = [];
+        this.htmlMessages = [];
+
+        this.prevUserId = -1;
+        this.prevDate   = new Date(); 
+
+        this.isChatAtBottom = true;
+
         while (this.chatArea.lastChild) {
             this.chatArea.removeChild(this.chatArea.lastChild);
         }
@@ -70,7 +82,8 @@ class Chat {
         let h = d.getHours().toString().padStart(2, "0");
         let m = d.getMinutes().toString().padStart(2, "0");
 
-        if (isSameDay(d)) {
+        let now = new Date();
+        if (isSameDay(d, now)) {
             date.textContent = `${h}:${m}`;
         } else {
             date.textContent = `${Y}/${M}/${D}, ${h}:${m}`;
@@ -121,14 +134,14 @@ class Chat {
 
     addMessage(chatMsg, allUsers) {
         let index = allUsers.findIndex(user => user.id === chatMsg.authorId);
-        let user = allUsers[index];
+        let user  = allUsers[index];
 
         if (!user) {
             const dummy = {
                 id: 0,
                 username: "Deleted user",
-                avatar: "img/default_avatar.png",
-                online: false,
+                avatar:   "img/default_avatar.png",
+                online:   false,
             }
 
             user = dummy;
@@ -137,20 +150,44 @@ class Chat {
         let date = new Date(chatMsg.unixTime);
 
         let message;
-        if (this.prevUserId !== user.id || !isSameDay(date)) {
+        if (this.prevUserId !== user.id || !isSameDay(this.prevDate, date)) {
             message = this.createMessage(chatMsg, user);
         } else {
             message = this.createSubMessage(chatMsg, user);
         }
 
-        this.chatArea.appendChild(message);
-        this.keepAtBottom();
-
         this.prevUserId = user.id;
+        this.prevDate   = date;
+
+        this.messages.push(chatMsg);
+        this.htmlMessages.push(message);
+        this.chatArea.appendChild(message);
+
+        this.keepAtBottom();
     }
 
     removeMessageById(messageId) {
-        // TODO
+        let index = this.messages.findIndex(message => message.id = messageId);
+        if (index === -1) {
+            console.warn("WARN: Chat::remove failed. Failed to find message with ID =", messageId);
+            return;
+        }
+
+        // let message     = this.messages[index];
+        // let htmlMessage = this.htmlMessages[index];
+
+        if (index === this.messages.length - 1) {
+            let prev = this.messages[index - 1];
+            this.prevUserId = prev.authorId;
+            this.prevDate   = new Date(prev.unixTime);
+        }
+
+        // if delete message was a header message, the next one also must be a header message
+        // and it its not, turn it into a header message
+
+        this.messages.splice(index, 1);
+        this.htmlMessages.splice(index, 1);
+        this.chatArea.removeChild(htmlEntry);
     }
 
     processMessageSendIntent() {

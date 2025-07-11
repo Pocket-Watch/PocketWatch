@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Linux deploy script for pocketwatch
+# Linux deploy script for PocketWatch
 
 set -xe
 
@@ -28,7 +28,13 @@ tmux kill-session -t $session || true
 #     Kill it after 10 seconds of trying
 
 main_server="./build/pocketwatch --config-path secret/config.json"
-internal_server="python ./scripts/internal_server.py"
+
+# Prefer compiled internal server if one exists.
+if test -e "build/internal_server"; then
+    internal_server="./build/internal_server"
+else 
+    internal_server="python ./scripts/internal_server.py"
+fi
 
 tmux new -s $session -d
 tmux rename-window  -t $session internal_server

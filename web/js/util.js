@@ -167,18 +167,16 @@ export function formatTime(seconds) {
     return time;
 }
 
-export function isSameDay(date) {
-    let now = new Date();
-
-    if (now.getFullYear() !== date.getFullYear()) {
+export function isSameDay(date1, date2) {
+    if (date1.getFullYear() !== date2.getFullYear()) {
         return false;
     }
 
-    if (now.getMonth() !== date.getMonth()) {
+    if (date1.getMonth() !== date2.getMonth()) {
         return false;
     }
 
-    if (now.getDate() !== date.getDate()) {
+    if (date1.getDate() !== date2.getDate()) {
         return false;
     }
 

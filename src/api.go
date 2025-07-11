@@ -783,7 +783,34 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 		server.playlistAddMany(localEntries, requested.AddToTop)
 		server.state.mutex.Unlock()
 	} else if isYoutube(requested) {
-		go server.loadYoutubePlaylist(requested, user.Id)
+		entry := Entry{
+			Url:        requested.Url,
+			UserId:     user.Id,
+			Title:      requested.Title,
+			UseProxy:   requested.UseProxy,
+			RefererUrl: requested.RefererUrl,
+			Subtitles:  requested.Subtitles,
+		}
+
+		err := server.loadYoutubeEntry(&entry, requested)
+		if err != nil {
+			return
+		}
+
+		server.state.mutex.Lock()
+		server.playlistAdd(entry, requested.AddToTop)
+		server.state.mutex.Unlock()
+
+		if requested.IsPlaylist {
+			requested.Url = entry.Url
+
+			entries, err := server.loadYoutubePlaylist(requested, entry.UserId)
+			if err == nil {
+				server.state.mutex.Lock()
+				server.playlistAddMany(entries, requested.AddToTop)
+				server.state.mutex.Unlock()
+			}
+		}
 	} else {
 		LogInfo("Adding '%s' url to the playlist.", requested.Url)
 

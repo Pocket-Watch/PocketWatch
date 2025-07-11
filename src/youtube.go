@@ -21,7 +21,7 @@ func isYoutube(entry RequestEntry) bool {
 		return false
 	}
 
-	if isYoutubeUrl(entry.Url) && !entry.SearchVideo {
+	if !isYoutubeUrl(entry.Url) && !entry.SearchVideo {
 		return false
 	}
 
@@ -194,32 +194,20 @@ func pickSmallestThumbnail(thumbnails []YoutubeThumbnail) string {
 	return bestThumbnail
 }
 
-func (server *Server) loadYoutubePlaylist(requested RequestEntry, userId uint64) {
+func (server *Server) loadYoutubePlaylist(requested RequestEntry, userId uint64) ([]Entry, error) {
 	if !YOUTUBE_ENABLED {
-		return
+		return []Entry{}, nil
 	}
 
-	if !isYoutubeUrl(requested.Url) && !requested.SearchVideo {
-		return
+	if !isYoutubeUrl(requested.Url) {
+		return []Entry{}, nil
 	}
 
 	query := requested.Url
-	if requested.SearchVideo {
-		query = "ytsearch:" + query
-		ok, playlist := fetchYoutubePlaylist(query, 1, 1)
-
-		if !ok || len(playlist.Entries) == 0 {
-			LogError("Failed to find find youtube video: '%v'", query)
-			return
-		}
-
-		query = playlist.Entries[0].Url
-	}
-
 	url, err := neturl.Parse(query)
 	if err != nil {
 		LogError("Failed to parse youtube source url: %v", err)
-		return
+		return []Entry{}, fmt.Errorf("Failed to parse youtube source url: %v", err)
 	}
 
 	if !url.Query().Has("list") {
@@ -242,7 +230,7 @@ func (server *Server) loadYoutubePlaylist(requested RequestEntry, userId uint64)
 	query = url.String()
 	ok, playlist := fetchYoutubePlaylist(query, 1, size)
 	if !ok {
-		return
+		return []Entry{}, fmt.Errorf("Failed to fetch YouTube playlist.")
 	}
 
 	entries := make([]Entry, 0)
@@ -259,11 +247,7 @@ func (server *Server) loadYoutubePlaylist(requested RequestEntry, userId uint64)
 		entries = append(entries, entry)
 	}
 
-	server.state.mutex.Lock()
-	server.playlistAddMany(entries, requested.AddToTop)
-	server.state.mutex.Unlock()
-
-	go server.preloadYoutubeSourceOnNextEntry()
+	return entries, nil
 }
 
 type InternalServerVideoFetch struct {
@@ -451,7 +435,6 @@ func (server *Server) loadYoutubeEntry(entry *Entry, requested RequestEntry) err
 		LogInfo("Loading youtube entry with url: %v.", entry.Url)
 	}
 
-	server.writeEventToAllConnections("playerwaiting", "Youtube video is loading. Please stand by!")
 	ok, video := fetchYoutubeVideo(query)
 	if !ok {
 		return fmt.Errorf("Failed to fetch youtube video")
@@ -461,13 +444,6 @@ func (server *Server) loadYoutubeEntry(entry *Entry, requested RequestEntry) err
 	entry.Title = video.Title
 	entry.SourceUrl = video.VideoUrl
 	entry.Thumbnail = video.Thumbnail
-
-	// Remove from this function
-	if requested.IsPlaylist {
-		requested.Url = video.OriginalUrl
-		requested.SearchVideo = false
-		go server.loadYoutubePlaylist(requested, entry.UserId)
-	}
 
 	return nil
 }
