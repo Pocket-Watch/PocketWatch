@@ -360,3 +360,87 @@ func TestPushForceRing(t *testing.T) {
 		t.Errorf("Peek end should be 4. Actual: %v", buffer.PeekEnd())
 	}
 }
+
+func TestValidASCIIString(t *testing.T) {
+	input := "basic"
+	if !validateName(input) {
+		t.Errorf("%v should be a valid string", input)
+	}
+}
+
+func TestValidVietnameseDiacritics(t *testing.T) {
+	input := "៛ៜấី"
+	if !validateName(input) {
+		t.Errorf("%v should be a valid string", input)
+	}
+}
+
+func TestValidJapanese(t *testing.T) {
+	input := "日本語"
+	if !validateName(input) {
+		t.Errorf("%v should be a valid string", input)
+	}
+}
+
+func TestZalgoTilde(t *testing.T) {
+	input := "T̃"
+	if validateName(input) {
+		t.Errorf("%v should be invalid string", input)
+	}
+}
+
+func TestLightZalgo(t *testing.T) {
+	input := "café͂́"
+	if validateName(input) {
+		t.Errorf("%v should be invalid", input)
+	}
+}
+
+func TestInsaneZalgoT(t *testing.T) {
+	input := "T̃͟͏̧̟͓̯"
+	if validateName(input) {
+		t.Errorf("%v should be invalid", input)
+	}
+}
+
+func TestInsaneZalgoU(t *testing.T) {
+	input := "U̷̥̼͐̄̓̀̃̚͘"
+	if validateName(input) {
+		t.Errorf("%v should be invalid", input)
+	}
+}
+
+func TestValidReservedAcuteAccents(t *testing.T) {
+	input := "áéíóú"
+	if !validateName(input) {
+		t.Errorf("%v should be a valid string", input)
+	}
+}
+
+func TestUBar(t *testing.T) {
+	input := "ʉ"
+	if !validateName(input) {
+		t.Errorf("%v should be a valid string", input)
+	}
+}
+
+func TestEmpty(t *testing.T) {
+	input := "        "
+	if validateName(input) {
+		t.Errorf("%v should be an invalid string", input)
+	}
+}
+
+func TestInvalidSeparators(t *testing.T) {
+	input := "\n \t"
+	if validateName(input) {
+		t.Errorf("%v should be an invalid string", input)
+	}
+}
+
+func TestWithSpaceOnly(t *testing.T) {
+	input := "      n"
+	if !validateName(input) {
+		t.Errorf("%v should be a valid string", input)
+	}
+}

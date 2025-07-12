@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
 
 var defaultClient = http.Client{
@@ -1031,4 +1032,37 @@ func startsWithAny(s string, prefixes ...string) bool {
 		}
 	}
 	return false
+}
+
+const CDM_THRESHOLD = 0
+
+// validateName validates a string ensuring it is non-empty, consists only of valid UTF8 characters,
+// where space is the only separator and consecutive Combining Diacritical Marks count doesn't exceed CDM_THRESHOLD
+func validateName(str string) bool {
+	cdmCount := 0
+	isEmpty := true
+	for _, char := range str {
+		switch char {
+		case utf8.RuneError:
+			return false
+		case ' ':
+			continue
+		case '\t', '\r', '\n', '\u200b', '\u200c', '\u000b':
+			return false
+		}
+		isEmpty = false
+		if isCombiningDiacriticalMark(char) {
+			cdmCount++
+		} else {
+			cdmCount = 0
+		}
+		if cdmCount > CDM_THRESHOLD {
+			return false
+		}
+	}
+	return !isEmpty
+}
+
+func isCombiningDiacriticalMark(r rune) bool {
+	return r >= 0x0300 && r <= 0x036F
 }

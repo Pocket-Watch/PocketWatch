@@ -21,6 +21,7 @@ const BROADCAST_INTERVAL = 2 * time.Second
 const HEARTBEAT_INTERVAL = 2 * time.Second
 const BLACK_HOLE_PERIOD = 20 * time.Minute
 
+const MAX_NICKNAME_LENGTH = 255
 const MAX_UNKNOWN_PATH_LENGTH = 30
 const MAX_HISTORY_SIZE = 120
 const MAX_CHAT_LOAD = 100

@@ -173,6 +173,16 @@ func (server *Server) apiUserUpdateName(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	if len(newUsername) > MAX_NICKNAME_LENGTH {
+		respondBadRequest(w, "Nickname is too long, exceeds %v bytes", MAX_NICKNAME_LENGTH)
+		return
+	}
+	if !validateName(newUsername) {
+		respondBadRequest(w, "Nickname is invalid due to one of the following reasons: the nickname is empty, contains invalid separators, contains invalid UTF8, contains CDM characters")
+		return
+	}
+	newUsername = strings.TrimSpace(newUsername)
+
 	server.users.mutex.Lock()
 	userIndex := server.getAuthorizedIndex(w, r)
 
@@ -1025,7 +1035,8 @@ func (server *Server) apiChatDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	server.state.mutex.Unlock()
 	if authorMismatch {
-		respondBadRequest(w, "You're not the author of this message")
+		LogWarn("User %v (id:%v) tried to remove a stranger's message", user.Username, user.Id)
+		http.Error(w, "You're not the author of this message", http.StatusBadRequest)
 		return
 	}
 	if deletedMsgId != -1 {
