@@ -1,5 +1,5 @@
 import * as api from "./api.js";
-import { getById, div, img, isSameDay } from "./util.js";
+import { getById, div, img, span, a, isSameDay } from "./util.js";
 
 export { Chat }
 
@@ -55,6 +55,23 @@ class Chat {
         }
     }
 
+    findUser(userId, allUsers) {
+        let user = allUsers.find(user => user.id === userId);
+
+        if (!user) {
+            const dummy = {
+                id: 0,
+                username: "Deleted user",
+                avatar:   "img/default_avatar.png",
+                online:   false,
+            }
+
+            user = dummy;
+        }
+
+        return user
+    }
+
     createMessage(message, user) {
         let root      = div("chat_message")
         let avatar    = div("chat_message_avatar")
@@ -65,7 +82,9 @@ class Chat {
         let date      = div("chat_message_date")
         let text      = div("chat_message_text")
 
-        text.textContent     = message.message;
+        let segments = this.linkify(message.message);
+
+        // text.textContent     = message.message;
         username.textContent = user.username;
 
         if (user.id !== 0) {
@@ -97,7 +116,9 @@ class Chat {
                 info.appendChild(username);
                 info.appendChild(date);
             }
-            right.appendChild(text);
+            right.appendChild(text); {
+                text.append(...segments);
+            }
         }
 
         return root
@@ -108,7 +129,8 @@ class Chat {
         let date = div("chat_sub_message_date")
         let text = div("chat_sub_message_text")
 
-        text.textContent = message.message;
+        let segments = this.linkify(message.message);
+        // text.textContent = message.message;
 
         let d = new Date(message.unixTime);
         let h = d.getHours().toString().padStart(2, "0");
@@ -117,36 +139,59 @@ class Chat {
         date.textContent = `${h}:${m}`;
 
         root.appendChild(date);
-        root.appendChild(text);
+        root.appendChild(text); {
+            text.append(...segments);
+        }
 
         return root;
     }
 
     linkify(content) {
-        let string = "This is a https://random.org test message.";
+        let segments = [];
 
-        let s1 = "<span>This is a</span>";
-        let s2 = "<a>https://random.org</a>";
-        let s3 = "<span>test message.</span>";
+        let segmentStart = 0;
+        let parsingUrl   = false;
 
-        // Combining string, slice, startsWith
+        for (let i = 0; i < content.length; i++) {
+            let slice = content.slice(i)
+
+            if (!parsingUrl && (slice.startsWith("http://") || slice.startsWith("https://"))) {
+                if (segmentStart !== i) {
+                    let text    = content.slice(segmentStart, i);
+                    let segment = span(null, text)
+                    segments.push(segment);
+                }
+
+                segmentStart = i;
+                parsingUrl   = true;
+            }
+
+            let rune = content[i];
+            if (rune === " " && parsingUrl) {
+                let url     = content.slice(segmentStart, i);
+                let segment = a(null, url)
+                segments.push(segment);
+
+                parsingUrl   = false;
+                segmentStart = i;;
+            }
+        }
+
+        if (parsingUrl) {
+            let url     = content.slice(segmentStart);
+            let segment = a(null, url)
+            segments.push(segment);
+        } else {
+            let text    = content.slice(segmentStart);
+            let segment = span(null, text)
+            segments.push(segment);
+        }
+
+        return segments
     }
 
     addMessage(chatMsg, allUsers) {
-        let index = allUsers.findIndex(user => user.id === chatMsg.authorId);
-        let user  = allUsers[index];
-
-        if (!user) {
-            const dummy = {
-                id: 0,
-                username: "Deleted user",
-                avatar:   "img/default_avatar.png",
-                online:   false,
-            }
-
-            user = dummy;
-        }
-
+        let user = this.findUser(chatMsg.authorId, allUsers)
         let date = new Date(chatMsg.unixTime);
 
         let message;
@@ -166,15 +211,14 @@ class Chat {
         this.keepAtBottom();
     }
 
-    removeMessageById(messageId) {
-        let index = this.messages.findIndex(message => message.id = messageId);
+    removeMessageById(messageId, allUsers) {
+        let index = this.messages.findIndex(message => message.id === messageId);
         if (index === -1) {
             console.warn("WARN: Chat::remove failed. Failed to find message with ID =", messageId);
             return;
         }
 
-        // let message     = this.messages[index];
-        // let htmlMessage = this.htmlMessages[index];
+        let htmlMessage = this.htmlMessages[index];
 
         if (index === this.messages.length - 1) {
             let prev = this.messages[index - 1];
@@ -182,12 +226,21 @@ class Chat {
             this.prevDate   = new Date(prev.unixTime);
         }
 
-        // if delete message was a header message, the next one also must be a header message
-        // and it its not, turn it into a header message
+        if (htmlMessage.classList.contains("chat_message")) {
+            let next     = this.messages[index + 1];
+            let nextHtml = this.htmlMessages[index + 1];
+            if (next && !nextHtml.classList.contains("chat_message")) {
+                let user = this.findUser(chatMsg.authorId, allUsers)
+                let newHtml = this.createMessage(next, user);
+
+                this.htmlMessages[index + 1] = newHtml;
+                this.chatArea.replaceChild(newHtml, nextHtml);
+            }
+        }
 
         this.messages.splice(index, 1);
         this.htmlMessages.splice(index, 1);
-        this.chatArea.removeChild(htmlEntry);
+        this.chatArea.removeChild(htmlMessage);
     }
 
     processMessageSendIntent() {

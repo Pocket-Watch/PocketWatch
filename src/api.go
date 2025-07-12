@@ -785,6 +785,15 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 
 	requested := data.RequestEntry
 
+	entry := Entry{
+		Url:        requested.Url,
+		UserId:     user.Id,
+		Title:      requested.Title,
+		UseProxy:   requested.UseProxy,
+		RefererUrl: requested.RefererUrl,
+		Subtitles:  requested.Subtitles,
+	}
+
 	localDirectory, path := server.isLocalDirectory(requested.Url)
 	if localDirectory {
 		LogInfo("Adding directory '%s' to the playlist.", path)
@@ -792,49 +801,36 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 		server.state.mutex.Lock()
 		server.playlistAddMany(localEntries, requested.AddToTop)
 		server.state.mutex.Unlock()
-	} else if isYoutube(requested) {
-		entry := Entry{
-			Url:        requested.Url,
-			UserId:     user.Id,
-			Title:      requested.Title,
-			UseProxy:   requested.UseProxy,
-			RefererUrl: requested.RefererUrl,
-			Subtitles:  requested.Subtitles,
-		}
+		return
+	} 
 
-		err := server.loadYoutubeEntry(&entry, requested)
+	if isYoutube(entry, requested) {
+		err := loadYoutubeEntry(&entry, requested)
+		if err != nil {
+			LogWarn("Failed to load entry in playlist add: %v", err)
+			return
+		}
+	} 
+
+	LogInfo("Adding '%s' url to the playlist.", requested.Url)
+	server.state.mutex.Lock()
+	server.playlistAdd(entry, requested.AddToTop)
+	server.state.mutex.Unlock()
+
+	if requested.IsPlaylist {
+		requested.Url = entry.Url
+		entries, err := server.loadYoutubePlaylist(requested, entry.UserId)
+
 		if err != nil {
 			return
 		}
 
-		server.state.mutex.Lock()
-		server.playlistAdd(entry, requested.AddToTop)
-		server.state.mutex.Unlock()
-
-		if requested.IsPlaylist {
-			requested.Url = entry.Url
-
-			entries, err := server.loadYoutubePlaylist(requested, entry.UserId)
-			if err == nil {
-				server.state.mutex.Lock()
-				server.playlistAddMany(entries, requested.AddToTop)
-				server.state.mutex.Unlock()
-			}
-		}
-	} else {
-		LogInfo("Adding '%s' url to the playlist.", requested.Url)
-
-		temp := Entry{
-			Url:        requested.Url,
-			UserId:     user.Id,
-			Title:      requested.Title,
-			UseProxy:   requested.UseProxy,
-			RefererUrl: requested.RefererUrl,
-			Subtitles:  requested.Subtitles,
+		if len(entries) > 0 {
+			entries = entries[1:]
 		}
 
 		server.state.mutex.Lock()
-		server.playlistAdd(temp, requested.AddToTop)
+		server.playlistAddMany(entries, requested.AddToTop)
 		server.state.mutex.Unlock()
 	}
 }

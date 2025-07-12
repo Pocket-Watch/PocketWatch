@@ -22,7 +22,10 @@ export function div(className) {
 
 export function a(className, textContent, href = null) {
     let element = document.createElement("a");
-    element.className = className;
+    if (className) {
+        element.className = className;
+    }
+
     element.textContent = textContent;
     if (href) {
         element.href = href;
@@ -34,7 +37,10 @@ export function a(className, textContent, href = null) {
 
 export function span(className, textContent) {
     let element = document.createElement("span");
-    element.className = className;
+    if (className) {
+        element.className = className;
+    }
+
     element.textContent = textContent;
     return element;
 }

@@ -16,12 +16,16 @@ import (
 
 var YOUTUBE_ENABLED bool = true
 
-func isYoutube(entry RequestEntry) bool {
+func isYoutube(entry Entry, requested RequestEntry) bool {
 	if !YOUTUBE_ENABLED {
 		return false
 	}
 
-	if !isYoutubeUrl(entry.Url) && !entry.SearchVideo {
+	if !isYoutubeUrl(entry.Url) && !requested.SearchVideo {
+		return false
+	}
+
+	if !isYoutubeSourceExpired(entry.SourceUrl) {
 		return false
 	}
 
@@ -414,7 +418,7 @@ func fetchYoutubePlaylist(query string, start uint, end uint) (bool, YoutubePlay
 	return false, YoutubePlaylist{}
 }
 
-func (server *Server) loadYoutubeEntry(entry *Entry, requested RequestEntry) error {
+func loadYoutubeEntry(entry *Entry, requested RequestEntry) error {
 	if !YOUTUBE_ENABLED {
 		return nil
 	}

@@ -98,6 +98,7 @@
     color: var(--fg_2);
     font-size: 16px;
     overflow-wrap: break-word;
+    overflow-y: hidden;
     word-break: break-word;
 }
 
@@ -136,7 +137,18 @@
     font-size: 16px;
     overflow-wrap: break-word;
     word-break: break-word;
+    overflow-y: hidden;
     color: var(--fg_2);
+}
+
+.chat_message a, .chat_sub_message a,
+.chat_message a:visited, .chat_sub_message a:visited {
+    color: var(--purple_2);
+    text-decoration: none;
+}
+
+.chat_message a:hover, .chat_sub_message a:hover {
+    text-decoration: underline;
 }
 
 #chat_input_container {

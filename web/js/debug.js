@@ -89,4 +89,6 @@ import("./util.js").then(mod => importAll(mod));
 import("./api.js").then(mod => window.api = mod);
 import("./main.js").then(mod => window.main = mod);
 import("./playlist.js").then(mod => window.playlist = mod);
+import("./chat.js").then(mod => window.chat = mod);
+import("./history.js").then(mod => window.history = mod);
 import("./custom_player.js").then(mod => window.player = mod);

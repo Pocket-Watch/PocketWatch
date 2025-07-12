@@ -1706,7 +1706,7 @@ class Room {
             let msgId = JSON.parse(event.data);
             console.info("INFO: A message has been deleted");
 
-            this.chat.removeMessageById(msgId);
+            this.chat.removeMessageById(msgId, this.allUsers);
         });
 
         events.addEventListener("historyclear", _ => {

@@ -495,10 +495,10 @@ func (server *Server) setNewEntry(entry Entry, requested RequestEntry) {
 
 	entry = server.constructEntry(entry)
 
-	if isYoutube(requested) && isYoutubeSourceExpired(entry.SourceUrl) {
+	if isYoutube(entry, requested) {
 		server.writeEventToAllConnections("playerwaiting", "Youtube video is loading. Please stand by!")
 
-		err := server.loadYoutubeEntry(&entry, requested)
+		err := loadYoutubeEntry(&entry, requested)
 		if err != nil {
 			server.writeEventToAllConnections("playererror", err.Error())
 			return
