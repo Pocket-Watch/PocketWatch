@@ -42,6 +42,7 @@
     column-gap: 10px;
     margin-top: 10px;
     padding: 2px 12px 2px 12px;
+    overflow-y: hidden;
 }
 
 .chat_message:hover {
@@ -98,7 +99,6 @@
     color: var(--fg_2);
     font-size: 16px;
     overflow-wrap: break-word;
-    overflow-y: hidden;
     word-break: break-word;
 }
 
@@ -109,6 +109,7 @@
     flex-direction: row;
     padding: 2px 12px 2px 12px;
     column-gap: 10px;
+    overflow-y: hidden;
 }
 
 .chat_sub_message:hover {
@@ -137,7 +138,6 @@
     font-size: 16px;
     overflow-wrap: break-word;
     word-break: break-word;
-    overflow-y: hidden;
     color: var(--fg_2);
 }
 

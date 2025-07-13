@@ -83,8 +83,6 @@ class Chat {
         let text      = div("chat_message_text")
 
         let segments = this.linkify(message.message);
-
-        // text.textContent     = message.message;
         username.textContent = user.username;
 
         if (user.id !== 0) {
@@ -130,7 +128,6 @@ class Chat {
         let text = div("chat_sub_message_text")
 
         let segments = this.linkify(message.message);
-        // text.textContent = message.message;
 
         let d = new Date(message.unixTime);
         let h = d.getHours().toString().padStart(2, "0");
