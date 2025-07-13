@@ -42,7 +42,6 @@
     column-gap: 10px;
     margin-top: 10px;
     padding: 2px 12px 2px 12px;
-    overflow-y: hidden;
 }
 
 .chat_message:hover {
@@ -69,9 +68,10 @@
 
 .chat_message_right {
     display: flex;
+    box-sizing: border-box;
     flex-direction: column;
     justify-content: center;
-    row-gap: 6px;
+    row-gap: 2px;
 }
 
 .chat_message_info {
@@ -100,6 +100,8 @@
     font-size: 16px;
     overflow-wrap: break-word;
     word-break: break-word;
+    line-height: 1.2;
+    overflow-y: hidden;
 }
 
 .chat_sub_message {
@@ -109,7 +111,6 @@
     flex-direction: row;
     padding: 2px 12px 2px 12px;
     column-gap: 10px;
-    overflow-y: hidden;
 }
 
 .chat_sub_message:hover {
@@ -139,6 +140,8 @@
     overflow-wrap: break-word;
     word-break: break-word;
     color: var(--fg_2);
+    line-height: 1.2;
+    overflow-y: hidden;
 }
 
 .chat_message a, .chat_sub_message a,
