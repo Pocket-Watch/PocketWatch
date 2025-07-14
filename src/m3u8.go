@@ -39,7 +39,7 @@ const (
 	// 4.3.4. [Master Playlist Tags]
 	EXT_X_MEDIA        = "EXT-X-MEDIA"        // attribute-list keys: TYPE,URI,GROUP-ID,LANGUAGE,ASSOC-LANGUAGE,NAME,DEFAULT(...)
 	EXT_X_STREAM_INF   = "EXT-X-STREAM-INF"   // <attribute-list> <URI> keys: BANDWIDTH,AVERAGE-BANDWIDTH,CODECS,RESOLUTION,FRAME-RATE,AUDIO,VIDEO(...)
-	EXT_X_SESSION_DATA = "EXT-X-SESSION-DATA" // attribute-list keys: DATA-ID,VALUE,URI,LANGUAGE,
+	EXT_X_SESSION_DATA = "EXT-X-SESSION-DATA" // attribute-list keys: DATA-ID,VALUE,URI,LANGUAGE ; carries arbitrary data
 	EXT_X_SESSION_KEY  = "EXT-X-SESSION-KEY"  // <attribute-list>
 
 	// 4.3.5. [Media or Master Playlist Tags]
@@ -292,7 +292,7 @@ type Track struct {
 	streamInfo []Param
 }
 
-// getParamValue searches params and returns the value associated with the given key, or empty if not found
+// getParamValue searches params and returns the value associated with the first given key, or empty if not found
 func getParamValue(paramKey string, params []Param) string {
 	if paramKey == "" {
 		return ""
@@ -314,6 +314,19 @@ func getParam(paramKey string, params []Param) *Param {
 		}
 	}
 	return nil
+}
+
+// removeAttributes searches attribute pairs and removes every pair matching the given key
+func (m3u *M3U) removeAttributes(key string) {
+	pairs := m3u.attributePairs
+	for i := 0; i < len(pairs); i++ {
+		if pairs[i].key == key {
+			pairs[i] = pairs[len(pairs)-1]
+			pairs = pairs[:len(pairs)-1]
+			i--
+		}
+	}
+	m3u.attributePairs = pairs
 }
 
 type M3U struct {
@@ -365,7 +378,7 @@ func newM3U(segmentCapacity uint32) *M3U {
 	return m3u
 }
 
-// Returns the value associated with the given key or "" if key is missing
+// Returns the value associated with the first given key or "" if key is missing
 func (m3u *M3U) getAttribute(key string) string {
 	for i := range m3u.attributePairs {
 		pair := &m3u.attributePairs[i]

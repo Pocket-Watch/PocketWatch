@@ -58,3 +58,30 @@ func TestShortParamsAndTrailingComma(t *testing.T) {
 		t.Errorf("Value is different, expected: V, actual: %v", val)
 	}
 }
+
+func TestAddingPairsAttributeRetrievalAndRemoval(t *testing.T) {
+	m3u := M3U{}
+	m3u.isMasterPlaylist = true
+	m3u.addPair(KeyValue{key: EXT_X_SESSION_DATA, value: "DATA-ID=\"key1\",VALUE=\"value1\""})
+	m3u.addPair(KeyValue{key: EXT_X_SESSION_DATA, value: "DATA-ID=\"key2\",VALUE=\"value2\""})
+	m3u.addPair(KeyValue{key: EXT_X_PLAYLIST_TYPE, value: "VOD"})
+	if len(m3u.attributePairs) != 3 {
+		t.Errorf("M3U should contain 3 attribute pairs")
+		return
+	}
+	attributeValue := m3u.getAttribute(EXT_X_SESSION_DATA)
+	sessionParams := parseParams(attributeValue)
+	if getParamValue("DATA-ID", sessionParams) != "key1" {
+		t.Errorf("Data ID is different, expected: key1, actual: %v", attributeValue)
+		return
+	}
+	m3u.removeAttributes(EXT_X_SESSION_DATA)
+	if len(m3u.attributePairs) != 1 {
+		t.Errorf("M3U should contain 1 attribute pair")
+		return
+	}
+	if m3u.getAttribute(EXT_X_PLAYLIST_TYPE) != "VOD" {
+		t.Errorf("M3U should be VOD")
+		return
+	}
+}
