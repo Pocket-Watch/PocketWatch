@@ -12,7 +12,6 @@ class YoutubeVideo:
         self.audio_url    = audio_url
         self.video_url    = video_url
 
-
 class YoutubePlaylistVideo:
     def __init__(self, url: str, title: str, thumbnails: list):
         self.url          = url
@@ -88,6 +87,27 @@ def get_youtube_video(query: str):
 
     return YoutubeVideo(id, title, thumbnail, original_url, audio_url, video_url)
 
+class TwitchStream:
+    def __init__(self, id: str, title: str, thumbnail: str, original_url: str, url: str):
+        self.id           = id
+        self.title        = title
+        self.thumbnail    = thumbnail
+        self.original_url = original_url
+        self.url          = url
+
+def get_twitch_stream(url: str):
+    twitch_opts = { 'noplaylist': True }
+    twitch = yt_dlp.YoutubeDL(twitch_opts)
+    info = bench("extract_info", lambda : twitch.extract_info(url, download=False))
+
+    id           = info["id"]
+    title        = info["title"]
+    thumbnail    = info["thumbnail"]
+    original_url = info["original_url"]
+    url          = info["url"]
+
+    return TwitchStream(id, title, thumbnail, original_url, url)
+
 class InternalServer(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path == '/youtube/fetch':
@@ -104,6 +124,17 @@ class InternalServer(http.server.BaseHTTPRequestHandler):
             request = json.loads(self.rfile.read1())
 
             data = bench('get_youtube_playlist', lambda : get_youtube_playlist(request["query"], request["start"], request["end"]))
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+
+            jsondata = json.dumps(data, default=vars)
+            response = bytes(jsondata, "utf-8")
+            self.wfile.write(response)
+
+        elif self.path == '/twitch/fetch':
+            url  = json.loads(self.rfile.read1())
+            data = bench('get_twitch_stream', lambda : get_twitch_stream(url))
             self.send_response(200)
             self.send_header("Content-type", "application/json")
             self.end_headers()

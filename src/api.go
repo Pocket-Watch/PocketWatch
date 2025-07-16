@@ -810,6 +810,12 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 			LogWarn("Failed to load entry in playlist add: %v", err)
 			return
 		}
+	} else if isTwitch(entry) {
+		err := loadTwitchEntry(&entry, requested)
+		if err != nil {
+			LogWarn("Failed to load entry in playlist add: %v", err)
+			return
+		}
 	} 
 
 	LogInfo("Adding '%s' url to the playlist.", requested.Url)

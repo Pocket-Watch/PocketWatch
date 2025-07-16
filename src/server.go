@@ -516,6 +516,14 @@ func (server *Server) setNewEntry(entry Entry, requested RequestEntry) {
 				}
 			}()
 		}
+	} else if isTwitch(entry) {
+		server.writeEventToAllConnections("playerwaiting", "Twitch stream is loading. Please stand by!")
+
+		err := loadTwitchEntry(&entry, requested)
+		if err != nil {
+			server.writeEventToAllConnections("playererror", err.Error())
+			return
+		}
 	}
 
 	err := server.setupProxy(&entry)
@@ -901,7 +909,7 @@ func (server *Server) setupProxy(entry *Entry) error {
 	if err != nil {
 		return err
 	}
-	if isYoutubeUrl(entry.Url) {
+	if isYoutubeUrl(entry.Url) || isTwitchUrl(entry.Url) {
 		success := server.setupHlsProxy(entry.SourceUrl, "")
 		if success {
 			entry.ProxyUrl = PROXY_ROUTE + PROXY_M3U8

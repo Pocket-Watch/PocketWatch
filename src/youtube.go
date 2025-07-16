@@ -2,10 +2,10 @@ package main
 
 import (
 	"bytes"
-	"math"
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	neturl "net/url"
 	"os/exec"
@@ -15,6 +15,119 @@ import (
 )
 
 var YOUTUBE_ENABLED bool = true
+
+type TwitchStream struct {
+	Id          string `json:"id"`
+	Title       string `json:"title"`
+	Thumbnail   string `json:"thumbnail"`
+	OriginalUrl string `json:"original_url"`
+	StreamUrl   string `json:"url"`
+}
+
+func isTwitch(entry Entry) bool {
+	if !YOUTUBE_ENABLED {
+		return false
+	}
+
+	if !isTwitchUrl(entry.Url) {
+		return false
+	}
+
+	return true
+}
+
+func isTwitchUrl(url string) bool {
+	if strings.HasPrefix(url, "twitch.tv") {
+		return true
+	}
+
+	parsedUrl, err := neturl.Parse(url)
+	if err != nil {
+		return false
+	}
+
+	host := parsedUrl.Host
+	return strings.HasSuffix(host, "twitch.tv")
+}
+
+func fetchTwitchWithInternalServer(url string) (bool, TwitchStream) {
+	request, err := json.Marshal(url)
+	if err != nil {
+		LogError("Failed to marshal JSON request data for the internal server: %v", err)
+		return false, TwitchStream{}
+	}
+
+	response, nil := http.Post("http://localhost:2345/twitch/fetch", "application/json", bytes.NewBuffer(request))
+	if err != nil {
+		LogError("Request POST to the internal server failed: %v", err)
+		return false, TwitchStream{}
+	}
+	defer response.Body.Close()
+
+	var stream TwitchStream
+	responseData, err := io.ReadAll(response.Body)
+	if err != nil {
+		LogError("Failed to unmarshal data from the internal server: %v", err)
+		return false, TwitchStream{}
+	}
+
+	json.Unmarshal(responseData, &stream)
+	return true, stream
+}
+
+func fetchTwitchWithYtdlp(url string) (bool, TwitchStream) {
+	args := []string{url, "--print", "%(.{id,title,thumbnail,original_url,url})j"}
+
+	command := exec.Command("yt-dlp", args...)
+	output, err := command.Output()
+
+	if err != nil {
+		LogError("Failed to get output from the yt-dlp command: %v", err)
+		return false, TwitchStream{}
+	}
+
+	var stream TwitchStream
+	err = json.Unmarshal(output, &stream)
+	if err != nil {
+		LogError("Failed to unmarshal yt-dlp output json: %v", err)
+		return false, TwitchStream{}
+	}
+
+	return true, stream
+}
+
+func fetchTwitchStream(url string) (bool, TwitchStream) {
+	ok, stream := fetchTwitchWithInternalServer(url)
+	if ok {
+		return true, stream
+	}
+
+	LogWarn("Internal server twitch stream fetch failed. Falling back to yt-dlp command fetch.")
+	ok, stream = fetchTwitchWithYtdlp(url)
+	if ok {
+		return true, stream
+	}
+
+	return false, TwitchStream{}
+}
+
+func loadTwitchEntry(entry *Entry, requested RequestEntry) error {
+	if !YOUTUBE_ENABLED {
+		return nil
+	}
+
+	ok, stream := fetchTwitchStream(entry.Url)
+	if !ok {
+		return fmt.Errorf("Failed to fetch twitch stream")
+	}
+
+	entry.Url = stream.OriginalUrl
+	entry.Title = stream.Title
+	entry.SourceUrl = stream.StreamUrl
+	entry.Thumbnail = stream.Thumbnail
+
+	return nil
+}
 
 func isYoutube(entry Entry, requested RequestEntry) bool {
 	if !YOUTUBE_ENABLED {
