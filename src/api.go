@@ -1133,6 +1133,8 @@ func (server *Server) apiStreamStart(w http.ResponseWriter, r *http.Request) {
 	LogInfo("Connection %s started stream.", r.RemoteAddr)
 
 	server.state.setupLock.Lock()
+	defer server.state.setupLock.Unlock()
+
 	_ = os.RemoveAll(WEB_STREAM)
 	_ = os.Mkdir(WEB_STREAM, os.ModePerm)
 
@@ -1156,11 +1158,11 @@ func (server *Server) apiStreamStart(w http.ResponseWriter, r *http.Request) {
 		respondInternalError(w, "ERROR: %v", err)
 		return
 	}
+
 	defer file.Close()
 	m3u.serializePlaylist(file)
 
 	server.state.liveStream = LiveStream{}
-	server.state.setupLock.Unlock()
 
 	entry := Entry{
 		Url:       entryUrl,
@@ -1170,9 +1172,8 @@ func (server *Server) apiStreamStart(w http.ResponseWriter, r *http.Request) {
 		Subtitles: []Subtitle{},
 		Created:   time.Now(),
 	}
-	go server.setNewEntry(entry, RequestEntry{})
 
-	w.WriteHeader(http.StatusOK)
+	go server.setNewEntry(entry, RequestEntry{})
 }
 
 func (server *Server) apiStreamUpload(w http.ResponseWriter, r *http.Request) {
