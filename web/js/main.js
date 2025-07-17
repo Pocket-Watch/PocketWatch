@@ -42,6 +42,7 @@ class Room {
         this.chat     = new Chat();
         this.history  = new History();
 
+        this.pageIcon      = getById("page_icon");
         this.pageRoot      = getById("page_root");
         this.selectedTheme = getById("selected_theme");
 
@@ -947,6 +948,12 @@ class Room {
     }
 
     attachHtmlEvents() {
+        document.addEventListener("visibilitychange", _ => {
+            if (document.visibilityState === "visible") {
+                this.pageIcon.href = "img/favicon.ico";
+            }
+        });
+
         this.attachSettingsMenuEvents();
         this.attachEntryAreaEvents();
         this.usersArea.settingsButton.onclick = _ => this.showSettingsMenu();
@@ -1695,8 +1702,12 @@ class Room {
             }
 
             let messageSoundEnabled = this.settingsMenu.newMessageSoundToggle.classList.contains("active");
-            if (messageSoundEnabled && (this.selected_tab !== this.rightPanel.tabs.chat || this.player.isFullscreen())) {
+            if (messageSoundEnabled && (this.selected_tab !== this.rightPanel.tabs.chat || this.player.isFullscreen() || document.visibilityState === "hidden")) {
                 this.newMessageAudio.play();
+            }
+
+            if (document.visibilityState === "hidden") {
+                this.pageIcon.href = "img/favicon_unread.ico";
             }
 
             this.chat.addMessage(data, this.allUsers);
