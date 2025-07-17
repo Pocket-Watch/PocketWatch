@@ -1309,10 +1309,10 @@ class Room {
             hide(this.connectionLostPopup);
 
             await this.loadUsersData();
-            await this.loadPlayerData();
-            await this.loadPlaylistData();
-            await this.loadChatData();
-            await this.loadHistoryData();
+            this.loadPlayerData();
+            this.loadPlaylistData();
+            this.loadChatData();
+            this.loadHistoryData();
             api.uptime().then(uptime   => this.settingsMenu.websiteUptime.textContent  = uptime);
             api.version().then(version => this.settingsMenu.websiteVersion.textContent = version);
         };

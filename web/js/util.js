@@ -45,9 +45,14 @@ export function span(className, textContent) {
     return element;
 }
 
-export function img(src) {
+export function img(src, lazy) {
     let element = document.createElement("img");
     element.src = src;
+
+    if (lazy) {
+        element.loading = "lazy";
+    }
+
     return element;
 }
 

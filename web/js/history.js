@@ -109,7 +109,7 @@ class History {
         let entryThumbnail = div("history_entry_thumbnail");
         let thumbnailSrc   = entry.thumbnail ? entry.thumbnail : "img/thumbnail_placeholder.png";
         let thumbnailPlay  = svg("svg/main_icons.svg#thumbnail_play")
-        let thumbnailImg   = img(thumbnailSrc);
+        let thumbnailImg   = img(thumbnailSrc, true);
         let entryInfo      = div("history_entry_info");
         let entryTitle     = span("history_entry_title", entry.title);
         let entryUrl       = a("history_entry_url", entry.url);

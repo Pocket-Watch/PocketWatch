@@ -877,7 +877,7 @@ class Playlist {
         let entryThumbnail = div("playlist_entry_thumbnail");
         let thumbnailSrc   = entry.thumbnail ? entry.thumbnail : "img/thumbnail_placeholder.png";
         let thumbnailPlay  = svg("svg/main_icons.svg#thumbnail_play")
-        let thumbnailImg   = img(thumbnailSrc);
+        let thumbnailImg   = img(thumbnailSrc, true);
         let entryInfo      = div("playlist_entry_info");
         let entryTitle     = span("playlist_entry_title", entry.title);
         let entryUrl       = a("playlist_entry_url", entry.url);
