@@ -802,7 +802,7 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 		server.playlistAddMany(localEntries, requested.AddToTop)
 		server.state.mutex.Unlock()
 		return
-	} 
+	}
 
 	if isYoutube(entry, requested) {
 		err := loadYoutubeEntry(&entry, requested)
@@ -816,7 +816,7 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 			LogWarn("Failed to load entry in playlist add: %v", err)
 			return
 		}
-	} 
+	}
 
 	LogInfo("Adding '%s' url to the playlist.", requested.Url)
 	server.state.mutex.Lock()
@@ -1127,6 +1127,110 @@ func (server *Server) apiChatSend(w http.ResponseWriter, r *http.Request) {
 	server.state.messages = append(server.state.messages, chatMessage)
 	server.state.mutex.Unlock()
 	server.writeEventToAllConnections("messagecreate", chatMessage)
+}
+
+func (server *Server) apiStreamStart(w http.ResponseWriter, r *http.Request) {
+	LogInfo("Connection %s started stream.", r.RemoteAddr)
+
+	server.state.setupLock.Lock()
+	_ = os.RemoveAll(WEB_STREAM)
+	_ = os.Mkdir(WEB_STREAM, os.ModePerm)
+
+	user := server.getAuthorized(w, r)
+	if user == nil {
+		return
+	}
+
+	entryUrl := "/watch/stream/stream.m3u8"
+	m3u := M3U{
+		url:    entryUrl,
+		isLive: true,
+	}
+	m3u.addPair(KeyValue{EXT_X_VERSION, "3"})
+	m3u.addPair(KeyValue{EXT_X_TARGETDURATION, "10"})
+	m3u.addPair(KeyValue{EXT_X_MEDIA_SEQUENCE, "0"})
+
+	// Create a dummy file so clients have something to munch on
+	file, err := os.Create(WEB_STREAM + STREAM_M3U8)
+	if err != nil {
+		respondInternalError(w, "ERROR: %v", err)
+		return
+	}
+	defer file.Close()
+	m3u.serializePlaylist(file)
+
+	server.state.liveStream = LiveStream{}
+	server.state.setupLock.Unlock()
+
+	entry := Entry{
+		Url:       entryUrl,
+		UserId:    user.Id,
+		Title:     user.Username + "'s stream",
+		UseProxy:  false,
+		Subtitles: []Subtitle{},
+		Created:   time.Now(),
+	}
+	go server.setNewEntry(entry, RequestEntry{})
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (server *Server) apiStreamUpload(w http.ResponseWriter, r *http.Request) {
+	user := server.getAuthorized(w, r)
+	if user == nil {
+		LogWarn("User not found for connection %v", r.RemoteAddr)
+		http.Error(w, "User not found", http.StatusUnauthorized)
+		return
+	}
+
+	server.state.mutex.Lock()
+	userId := server.state.entry.UserId
+	server.state.mutex.Unlock()
+
+	if userId != user.Id {
+		LogWarn("User ID mismatch on stream upload from %v", r.RemoteAddr)
+		http.Error(w, "You're not the owner of this stream", http.StatusUnauthorized)
+		return
+	}
+
+	filename := r.PathValue("filename")
+	LogInfo("Receiving stream item: %v", filename)
+
+	// Do more filename validation (continuity)
+	if !strings.HasPrefix(filename, "stream") {
+		respondBadRequest(w, "Invalid filename %v", filename)
+		return
+	}
+
+	safePath, safe := safeJoin(WEB_STREAM, filename)
+	if !safe {
+		respondBadRequest(w, "Path traversal attempted on %v", filename)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, MAX_CHUNK_SIZE)
+
+	server.state.setupLock.Lock()
+	liveStream := &server.state.liveStream
+	server.state.setupLock.Unlock()
+
+	file, err := os.Create(safePath)
+	if err != nil {
+		LogError("Failed to create file: %v", err)
+		http.Error(w, "Failed to create file", http.StatusInternalServerError)
+		return
+	}
+	defer file.Close()
+
+	written, err := io.Copy(file, r.Body)
+	if err != nil {
+		LogError("Failed to read bytes from body: %v", err)
+		http.Error(w, "Failed to read bytes", http.StatusInternalServerError)
+		return
+	}
+	defer r.Body.Close()
+	liveStream.dataTransferred += written
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {

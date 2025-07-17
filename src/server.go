@@ -387,10 +387,13 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	server.HandleEndpoint(mux, "/watch/api/chat/get", server.apiChatGet, "POST", true)
 	server.HandleEndpoint(mux, "/watch/api/chat/delete", server.apiChatDelete, "POST", true)
 
+	server.HandleEndpoint(mux, "/watch/api/stream/start", server.apiStreamStart, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/stream/upload/{filename}", server.apiStreamUpload, "POST", true)
 	// Server events and proxy.
 	server.HandleEndpoint(mux, "/watch/api/events", server.apiEvents, "GET", false)
 
 	server.HandleEndpoint(mux, PROXY_ROUTE, server.watchProxy, "GET", false)
+	server.HandleEndpoint(mux, STREAM_ROUTE, server.watchStream, "GET", false)
 
 	// Voice chat
 	server.HandleEndpoint(mux, "/watch/vc", voiceChat, "GET", false)
@@ -1156,13 +1159,6 @@ func voiceChat(writer http.ResponseWriter, request *http.Request) {
 	}
 }
 
-// This endpoints should serve HLS chunks
-// If the chunk is out of range or has no id, then 404 should be returned
-// 1. Download m3u8 provided by a user
-// 2. Serve a modified m3u8 to every user that wants to use a proxy
-// 3. In memory use:
-//   - 0-indexed string[] for original chunk URLs
-//   - 0-indexed mutex[] to ensure the same chunk is not requested while it's being fetched
 func (server *Server) watchProxy(writer http.ResponseWriter, request *http.Request) {
 	urlPath := request.URL.Path
 	chunk := path.Base(urlPath)
@@ -1181,6 +1177,13 @@ func (server *Server) watchProxy(writer http.ResponseWriter, request *http.Reque
 	} else {
 		server.serveGenericFile(writer, request, chunk)
 	}
+}
+
+func (server *Server) watchStream(writer http.ResponseWriter, request *http.Request) {
+	urlPath := request.URL.Path
+	chunk := path.Base(urlPath)
+
+	server.serveStream(writer, request, chunk)
 }
 
 func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Request, chunk string) {
@@ -1363,6 +1366,24 @@ func cleanupSegmentMap(segmentMap *sync.Map) {
 	for _, key := range keysToRemove {
 		segmentMap.Delete(key)
 	}
+}
+
+func (server *Server) serveStream(writer http.ResponseWriter, request *http.Request, chunk string) {
+	writer.Header().Add("Cache-Control", "no-cache")
+
+	if len(chunk) > MAX_CHUNK_NAME_LENGTH {
+		http.Error(writer, "Not found", 404)
+		return
+	}
+
+	if chunk == STREAM_M3U8 {
+		LogDebug("Serving %v", STREAM_M3U8)
+		writer.Header().Add("content-type", M3U8_CONTENT_TYPE)
+		http.ServeFile(writer, request, WEB_STREAM+STREAM_M3U8)
+		return
+	}
+
+	http.ServeFile(writer, request, WEB_STREAM+chunk)
 }
 
 func (server *Server) serveHlsVod(writer http.ResponseWriter, request *http.Request, chunk string) {

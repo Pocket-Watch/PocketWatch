@@ -30,10 +30,13 @@ const SUBTITLE_SIZE_LIMIT = 512 * KB
 const AVATAR_SIZE_LIMIT = 8 * MB
 const PROXY_FILE_SIZE_LIMIT = 4 * GB
 const BODY_LIMIT = 8 * KB
+const MAX_CHUNK_SIZE = 10 * MB
 
 var SUBTITLE_EXTENSIONS = [...]string{".vtt", ".srt"}
 
 const PROXY_ROUTE = "/watch/proxy/"
+const STREAM_ROUTE = "/watch/stream/"
+const WEB_STREAM = "web/stream/"
 const WEB_PROXY = "web/proxy/"
 const WEB_MEDIA = "web/media/"
 const MEDIA = "media/"
@@ -41,6 +44,7 @@ const ORIGINAL_M3U8 = "original.m3u8"
 const PROXY_M3U8 = "proxy.m3u8"
 const VIDEO_M3U8 = "video.m3u8"
 const AUDIO_M3U8 = "audio.m3u8"
+const STREAM_M3U8 = "stream.m3u8"
 const VIDEO_PREFIX = "vi-"
 const AUDIO_PREFIX = "au-"
 const LIVE_PREFIX = "live-"
@@ -138,6 +142,8 @@ type ServerState struct {
 	isLive       bool
 	isHls        bool
 	genericProxy GenericProxy
+
+	liveStream LiveStream
 }
 
 type HlsProxy struct {
@@ -164,6 +170,12 @@ type GenericProxy struct {
 	downloadMutex       sync.Mutex
 	downloadBeginOffset int64
 	referer             string
+}
+
+type LiveStream struct {
+	userId          uint64
+	dataTransferred int64
+	lastChunkId     uint64
 }
 
 type Connection struct {
