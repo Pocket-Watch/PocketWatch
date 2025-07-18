@@ -71,7 +71,7 @@ class Room {
             root:              getById("entry_area"),
             dropdownContainer: getById("entry_dropdown_container"),
 
-            // Top Controls 
+            // Top Controls
             dropdownButton:    getById("entry_dropdown_button"),
             resetButton:       getById("entry_reset_button"),
             urlInput:          getById("entry_url_input"),
@@ -265,7 +265,7 @@ class Room {
         if (theme) {
             this.selectedTheme.href = `css/themes/${theme}.css`
             this.settingsMenu.themeSwitcherSelect.value = theme;
-        } 
+        }
 
         // Player settings
         let volume = Storage.get("volume");
@@ -298,7 +298,7 @@ class Room {
         if (fgColor != null && fgOpacity != null) {
             this.player.setSubtitleForegroundColor(fgColor, fgOpacity);
         }
-        
+
         let bgColor = Storage.get(Options.SUBTITLE_BACKGROUND_COLOR);
         let bgOpacity = Storage.get(Options.SUBTITLE_BACKGROUND_OPACITY);
         if (bgColor != null && bgOpacity != null) {
@@ -880,7 +880,7 @@ class Room {
         menu.modal.onclick = _ => this.hideSettingsMenu();
         menu.root.onclick  = event => event.stopPropagation();
 
-        menu.root.onkeydown = event => { 
+        menu.root.onkeydown = event => {
             if (event.key === "Escape") {
                 this.hideSettingsMenu();
             }
@@ -889,7 +889,11 @@ class Room {
         menu.closeButton.onclick = _ => this.hideSettingsMenu();
 
         menu.tokenCopyButton.onclick = _ => {
-            navigator.clipboard.writeText(api.getToken());
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(api.getToken());
+            } else {
+                menu.tokenSetInput.value = api.getToken();
+            }
         };
 
         menu.tokenSetButton.onclick = async _ => {
@@ -1043,7 +1047,7 @@ class Room {
             if (user.online) {
                 this.onlineCount += 1;
                 userbox.root.classList.add("online");
-            } 
+            }
 
             this.allUserBoxes.push(userbox);
         }
@@ -1100,7 +1104,7 @@ class Room {
             input.onchange = event => {
                 let file = event.target.files[0];
                 console.log("Picked file:", file);
-                api.userUpdateAvatar(file) 
+                api.userUpdateAvatar(file)
             }
 
             input.click();
@@ -1131,8 +1135,8 @@ class Room {
             }
         });
 
-        // TODO(kihau): 
-        //   Current edit behaviour is still pretty confusing. 
+        // TODO(kihau):
+        //   Current edit behaviour is still pretty confusing.
         //   Instead clicking edit name button should switch edit mode on and off (similar to the playlist entries)
         editNameButton.onclick = _ => {
             userbox.nameInput.readOnly = false;
@@ -1584,11 +1588,11 @@ class Room {
 
             this.allUsers[index] = user;
 
-            let userbox = this.allUserBoxes[index]; 
+            let userbox = this.allUserBoxes[index];
 
             let input = userbox.nameInput;
             input.value = user.username;
-           
+
             let newAvatar = dynamicImg(user.avatar);
             userbox.avatar.replaceWith(newAvatar);
             userbox.avatar = newAvatar;
