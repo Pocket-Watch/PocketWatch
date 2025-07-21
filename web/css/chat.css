@@ -44,6 +44,8 @@
     padding: 2px 12px 2px 12px;
 }
 
+
+.chat_message.highlight,
 .chat_message:hover {
     background-color: var(--bg_4);
     transition-delay: 300ms;
@@ -113,6 +115,7 @@
     column-gap: 10px;
 }
 
+.chat_sub_message.highlight,
 .chat_sub_message:hover {
     background-color: var(--bg_4);
     transition-delay: 300ms;
@@ -129,6 +132,7 @@
     user-select: none;
 }
 
+.chat_sub_message.highlight .chat_sub_message_date,
 .chat_sub_message:hover .chat_sub_message_date {
     color: var(--fg_6);
     transition-delay: 300ms;

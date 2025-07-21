@@ -536,7 +536,7 @@
                                 </div>
 
                                 <div id="playlist_context_expand_entry" class="context_menu_item">
-                                    <span>Expand</span>
+                                    <span id="playlist_context_expand_entry_text">Expand</span>
                                     <svg><use href="svg/main_icons.svg#dropdown"/></svg>
                                 </div>
 
@@ -567,6 +567,19 @@
                     </div>
 
                     <div id="content_chat" class="content_view">
+                        <div id="chat_context_menu" class="context_menu">
+                            <div id="chat_context_edit"class="context_menu_item">
+                                <span>Edit</span>
+                                <svg><use href="svg/main_icons.svg#edit"/></svg>
+                            </div>
+
+                            <div id="chat_context_delete"class="context_menu_item">
+                                <span>Delete</span>
+                                <svg><use href="svg/main_icons.svg#delete"/></svg>
+                            </div>
+                        </div>
+
+
                         <div id="chat_text_content">
                             <!-- NOTE(kihau): Content of this list is dynamically generated in JavaScript -->
                         </div>

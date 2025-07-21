@@ -10,6 +10,8 @@ class Chat {
         this.chatInput         = getById("chat_input_box");
         this.chatArea          = getById("chat_text_content");
         this.sendMessageButton = getById("chat_send_button");
+        this.contextMenu       = getById("chat_context_menu");
+        this.contextMenuDelete = getById("chat_context_delete");
 
         this.isChatAtBottom = true;
         this.prevUserId     = -1;
@@ -17,9 +19,61 @@ class Chat {
 
         this.messages     = [];
         this.htmlMessages = [];
+
+        this.contextMenuMessage     = null;
+        this.contextMenuHtmlMessage = null;
+    }
+
+    hideContextMenu() {
+        if (this.contextMenuHtmlMessage) {
+            this.contextMenuHtmlMessage.classList.remove("highlight");
+        }
+
+        this.contextMenuMessage     = null;
+        this.contextMenuHtmlMessage = null;
+        hide(this.contextMenu);
+    }
+
+    showContextMenu(event, message, htmlMessage) {
+        show(this.contextMenu);
+
+        const entryRect = htmlMessage.getBoundingClientRect();
+        const listRect  = this.chatArea.getBoundingClientRect();
+        const height    = this.contextMenu.offsetHeight;
+        const width     = this.contextMenu.offsetWidth;
+
+        let contextMenuX = event.clientX;
+        let protrusion = contextMenuX + width - entryRect.right;
+        if (protrusion > 0) {
+            contextMenuX -= protrusion;
+        }
+
+        let contextMenuY = event.clientY;
+        protrusion = contextMenuY + height - listRect.bottom;
+        if (protrusion > 0) {
+            contextMenuY -= protrusion;
+        }
+
+        this.contextMenu.style.left = (contextMenuX - entryRect.left) + "px";
+        this.contextMenu.style.top  = (contextMenuY - listRect.top)   + "px";
+
+        this.contextMenuMessage     = message;
+        this.contextMenuHtmlMessage = htmlMessage;
+
+        this.contextMenuHtmlMessage.classList.add("highlight");
     }
 
     attachChatEvents() {
+        this.contextMenu.oncontextmenu = event => {
+            event.preventDefault();
+            this.hideContextMenu();
+        };
+
+        this.contextMenuDelete.onclick = _ => api.chatDelete(this.contextMenuMessage.id);
+
+        this.chatArea.oncontextmenu = _ => { return false };
+        document.addEventListener("click", _ => this.hideContextMenu());
+
         this.chatArea.onscroll = _ => {
             let scroll = this.chatArea.scrollHeight - this.chatArea.scrollTop - this.chatArea.clientHeight;
             this.isChatAtBottom = Math.abs(scroll) < 60;
@@ -106,6 +160,16 @@ class Chat {
             date.textContent = `${Y}/${M}/${D}, ${h}:${m}`;
         }
 
+        root.oncontextmenu = event => {
+            event.preventDefault();
+
+            if (this.contextMenuMessage && this.contextMenuMessage.id === message.id) {
+                this.hideContextMenu();
+            } else {
+                this.showContextMenu(event, message, root);
+            }
+        };
+
         root.appendChild(avatar); {
             avatar.appendChild(avatarImg);
         }
@@ -134,6 +198,16 @@ class Chat {
         let m = d.getMinutes().toString().padStart(2, "0");
 
         date.textContent = `${h}:${m}`;
+
+        root.oncontextmenu = event => {
+            event.preventDefault();
+
+            if (this.contextMenuMessage && this.contextMenuMessage.id === message.id) {
+                this.hideContextMenu();
+            } else {
+                this.showContextMenu(event, message, root);
+            }
+        };
 
         root.appendChild(date);
         root.appendChild(text); {
@@ -227,7 +301,7 @@ class Chat {
             let next     = this.messages[index + 1];
             let nextHtml = this.htmlMessages[index + 1];
             if (next && !nextHtml.classList.contains("chat_message")) {
-                let user = this.findUser(chatMsg.authorId, allUsers)
+                let user = this.findUser(next.authorId, allUsers)
                 let newHtml = this.createMessage(next, user);
 
                 this.htmlMessages[index + 1] = newHtml;

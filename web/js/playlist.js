@@ -39,6 +39,7 @@ class Playlist {
         this.contextMenuMoveTop    = getById("playlist_context_move_to_top");
         this.contextMenuMoveBottom = getById("playlist_context_move_to_bottom");
         this.contextMenuExpand     = getById("playlist_context_expand_entry");
+        this.contextMenuExpandText = getById("playlist_context_expand_entry_text");
         this.contextMenuCopyUrl    = getById("playlist_context_copy_url");
         this.contextMenuEdit       = getById("playlist_context_edit");
         this.contextMenuDelete     = getById("playlist_context_delete");
@@ -624,6 +625,14 @@ class Playlist {
 
     showContextMenu(event, htmlEntry, entry, user) {
         show(this.contextMenu);
+
+        if (this.expandedEntry === htmlEntry) {
+            this.contextMenuExpandText.textContent = "Collapse";
+            this.contextMenuExpand.classList.add("expanded");
+        } else {
+            this.contextMenuExpandText.textContent = "Expand";
+            this.contextMenuExpand.classList.remove("expanded");
+        }
 
         const entryRect = htmlEntry.getBoundingClientRect();
         const listRect  = this.htmlEntryList.getBoundingClientRect();

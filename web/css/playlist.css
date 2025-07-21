@@ -125,6 +125,7 @@
     position: relative;
     box-sizing: border-box;
     flex-direction: column;
+    overflow: -moz-scrollbars-vertical; 
     overflow-y: scroll;
     overflow-x: hidden;
     scroll-behavior: smooth;
@@ -133,6 +134,10 @@
 
 #playlist_entry_list.disable-smooth-scrolling-for-toy-touch-device-systems {
     scroll-behavior: unset !important;
+}
+
+#playlist_context_expand_entry.expanded svg {
+    transform: rotate(180deg);
 }
 
 #playlist_context_edit span {
