@@ -35,27 +35,33 @@ class Chat {
     }
 
     showContextMenu(event, message, htmlMessage) {
+        if (this.contextMenuHtmlMessage) {
+            this.contextMenuHtmlMessage.classList.remove("highlight");
+        }
+
         show(this.contextMenu);
 
-        const entryRect = htmlMessage.getBoundingClientRect();
-        const listRect  = this.chatArea.getBoundingClientRect();
-        const height    = this.contextMenu.offsetHeight;
-        const width     = this.contextMenu.offsetWidth;
+        const msgRect  = htmlMessage.getBoundingClientRect();
+        const chatRect = this.chatArea.getBoundingClientRect();
+        const height   = this.contextMenu.offsetHeight;
+        const width    = this.contextMenu.offsetWidth;
 
-        let contextMenuX = event.clientX;
-        let protrusion = contextMenuX + width - entryRect.right;
+        const SMALL_ARBITRARY_OFFSET_TODO_PLEASE_FIX_ME = 14;
+
+        let contextMenuX = event.clientX + SMALL_ARBITRARY_OFFSET_TODO_PLEASE_FIX_ME;
+        let protrusion = contextMenuX + width - msgRect.right;
         if (protrusion > 0) {
             contextMenuX -= protrusion;
         }
 
-        let contextMenuY = event.clientY;
-        protrusion = contextMenuY + height - listRect.bottom;
+        let contextMenuY = event.clientY + SMALL_ARBITRARY_OFFSET_TODO_PLEASE_FIX_ME;
+        protrusion = contextMenuY + height - chatRect.bottom;
         if (protrusion > 0) {
             contextMenuY -= protrusion;
         }
 
-        this.contextMenu.style.left = (contextMenuX - entryRect.left) + "px";
-        this.contextMenu.style.top  = (contextMenuY - listRect.top)   + "px";
+        this.contextMenu.style.left = (contextMenuX - msgRect.left) + "px";
+        this.contextMenu.style.top  = (contextMenuY - chatRect.top)   + "px";
 
         this.contextMenuMessage     = message;
         this.contextMenuHtmlMessage = htmlMessage;
@@ -107,6 +113,8 @@ class Chat {
         while (this.chatArea.lastChild) {
             this.chatArea.removeChild(this.chatArea.lastChild);
         }
+
+        this.hideContextMenu();
     }
 
     findUser(userId, allUsers) {
@@ -289,12 +297,19 @@ class Chat {
             return;
         }
 
+        let message = this.messages[index];
         let htmlMessage = this.htmlMessages[index];
 
         if (index === this.messages.length - 1) {
             let prev = this.messages[index - 1];
-            this.prevUserId = prev.authorId;
-            this.prevDate   = new Date(prev.unixTime);
+
+            if (prev) {
+                this.prevUserId = prev.authorId;
+                this.prevDate   = new Date(prev.unixTime);
+            } else {
+                this.prevUserId = -1;
+                this.prevDate   = new Date();
+            }
         }
 
         if (htmlMessage.classList.contains("chat_message")) {
@@ -304,9 +319,18 @@ class Chat {
                 let user = this.findUser(next.authorId, allUsers)
                 let newHtml = this.createMessage(next, user);
 
+                if (this.contextMenuMessage && this.contextMenuMessage.id === next.id) {
+                    this.contextMenuHtmlMessage = newHtml;
+                    newHtml.classList.add("highlight");
+                }
+
                 this.htmlMessages[index + 1] = newHtml;
                 this.chatArea.replaceChild(newHtml, nextHtml);
             }
+        }
+
+        if (this.contextMenuMessage && this.contextMenuMessage.id === message.id) {
+            this.hideContextMenu();
         }
 
         this.messages.splice(index, 1);

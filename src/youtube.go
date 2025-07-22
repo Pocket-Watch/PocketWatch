@@ -388,7 +388,7 @@ func fetchVideoWithInternalServer(query string) (bool, YoutubeVideo) {
 		return false, YoutubeVideo{}
 	}
 
-	response, nil := http.Post("http://localhost:2345/youtube/fetch", "application/json", bytes.NewBuffer(request))
+	response, err := http.Post("http://localhost:2345/youtube/fetch", "application/json", bytes.NewBuffer(request))
 	if err != nil {
 		LogError("Request POST to the internal server failed: %v", err)
 		return false, YoutubeVideo{}
