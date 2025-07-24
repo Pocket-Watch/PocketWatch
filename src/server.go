@@ -422,7 +422,7 @@ func (server *Server) HandleEndpoint(mux *http.ServeMux, endpoint string, endpoi
 		}
 
 		// NOTE(kihau): Hack to prevent console spam on proxy.
-		if PROXY_ROUTE != endpoint {
+		if PROXY_ROUTE != endpoint && STREAM_ROUTE != endpoint {
 			endpointTrim := strings.TrimPrefix(endpoint, "/watch/api/")
 			requested := strings.ReplaceAll(endpointTrim, "/", " ")
 			LogInfo("Connection %s requested %v.", r.RemoteAddr, requested)
@@ -636,8 +636,7 @@ func (server *Server) writeEvent(w http.ResponseWriter, eventName string, data a
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		LogError("Failed to serialize data for event '%v': %v", eventName, err)
-
-		http.Error(w, "Failed to serialize welcome message", http.StatusInternalServerError)
+		http.Error(w, "Failed to serialize event data", http.StatusInternalServerError)
 		return err
 	}
 
@@ -1377,7 +1376,6 @@ func (server *Server) serveStream(writer http.ResponseWriter, request *http.Requ
 	}
 
 	if chunk == STREAM_M3U8 {
-		LogDebug("Serving %v", STREAM_M3U8)
 		writer.Header().Add("content-type", M3U8_CONTENT_TYPE)
 		http.ServeFile(writer, request, WEB_STREAM+STREAM_M3U8)
 		return
