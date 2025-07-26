@@ -617,6 +617,10 @@ class Playlist {
     }
 
     hideContextMenu() {
+        if (this.contextMenuHtmlEntry) {
+            this.contextMenuHtmlEntry.classList.remove("highlight");
+        }
+
         this.contextMenuHtmlEntry = null;
         this.contextMenuUser  = null;
         this.contextMenuEntry = null;
@@ -624,6 +628,10 @@ class Playlist {
     }
 
     showContextMenu(event, htmlEntry, entry, user) {
+        if (this.contextMenuHtmlEntry) {
+            this.contextMenuHtmlEntry.classList.remove("highlight");
+        }
+
         show(this.contextMenu);
 
         if (this.expandedEntry === htmlEntry) {
@@ -657,6 +665,8 @@ class Playlist {
         this.contextMenuEntry     = entry;
         this.contextMenuHtmlEntry = htmlEntry;
         this.contextMenuUser      = user;
+
+        this.contextMenuHtmlEntry.classList.add("highlight");
     }
 
     toggleEntryEdit(htmlEntry, entry) {

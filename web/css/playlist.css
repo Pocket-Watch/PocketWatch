@@ -213,6 +213,16 @@
     opacity: 0.3;
 }
 
+.playlist_entry.highlight {
+    border-color: var(--gray_2);
+    box-shadow: 0px 0px 12px var(--bg_0);
+}
+
+.playlist_entry.highlight .playlist_drag_area {
+    color: var(--fg_1);
+    background-color: var(--bg_6);
+}
+
 .playlist_entry.draggable {
     border-color: var(--gray_2);
     box-shadow: 0px 0px 12px var(--bg_0);

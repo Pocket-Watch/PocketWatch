@@ -45,7 +45,8 @@ class History {
         this.contextMenuDelete      = getById("history_context_delete");
 
         // Selected entry for an open context menu.
-        this.contextMenuEntry = null;
+        this.contextMenuEntry     = null;
+        this.contextMenuHtmlEntry = null;
     }
 
     // NOTE(kihau): Attachable history events (similar to the custom player)
@@ -73,11 +74,19 @@ class History {
     }
 
     hideContextMenu() {
+        if (this.contextMenuHtmlEntry) {
+            this.contextMenuHtmlEntry.classList.remove("highlight");
+        }
+
         this.contextMenuEntry = null;
         hide(this.contextMenu);
     }
 
     showContextMenu(event, entry, htmlEntry) {
+        if (this.contextMenuHtmlEntry) {
+            this.contextMenuHtmlEntry.classList.remove("highlight");
+        }
+
         show(this.contextMenu);
 
         const entryRect = htmlEntry.getBoundingClientRect();
@@ -100,7 +109,10 @@ class History {
         this.contextMenu.style.left = (contextMenuX - entryRect.left) + "px";
         this.contextMenu.style.top  = (contextMenuY - listRect.top)   + "px";
 
-        this.contextMenuEntry = entry;
+        this.contextMenuEntry     = entry;
+        this.contextMenuHtmlEntry = htmlEntry;
+
+        this.contextMenuHtmlEntry.classList.add("highlight");
     }
 
     createHtmlEntry(entry) {
