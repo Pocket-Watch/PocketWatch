@@ -1006,6 +1006,15 @@ func (server *Server) apiChatGet(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(jsonData))
 }
 
+func indexOfMessageById(messages []ChatMessage, messageId uint64) int {
+	for b := len(messages) - 1; b >= 0; b-- {
+		if messages[b].Id == messageId {
+			return b
+		}
+	}
+	return -1
+}
+
 func (server *Server) apiChatDelete(w http.ResponseWriter, r *http.Request) {
 	var data ChatMessageDeleteRequest
 	if !server.readJsonDataFromRequest(w, r, &data) {
@@ -1020,33 +1029,26 @@ func (server *Server) apiChatDelete(w http.ResponseWriter, r *http.Request) {
 
 	server.state.mutex.Lock()
 	messages := server.state.messages
-	deletedMsgId := -1
-	authorMismatch := false
-	for b := len(messages) - 1; b >= 0; b-- {
-		if messages[b].Id == data.Id {
-			msg := &messages[b]
-			if msg.AuthorId == user.Id {
-				deletedMsgId = int(msg.Id)
-				server.state.messages = append(messages[:b], messages[b+1:]...)
-				break
-			} else {
-				authorMismatch = true
-				break
-			}
-		}
+
+	index := indexOfMessageById(messages, data.Id)
+	if index == -1 {
+		server.state.mutex.Unlock()
+		respondBadRequest(w, "No message found of id %v", data.Id)
+		return
 	}
-	server.state.mutex.Unlock()
-	if authorMismatch {
+
+	msg := &messages[index]
+	if msg.AuthorId != user.Id {
+		server.state.mutex.Unlock()
 		LogWarn("User %v (id:%v) tried to remove a stranger's message", user.Username, user.Id)
 		http.Error(w, "You're not the author of this message", http.StatusBadRequest)
 		return
 	}
-	if deletedMsgId != -1 {
-		server.writeEventToAllConnections("messagedelete", deletedMsgId)
-	} else {
-		respondBadRequest(w, "No message found of id %v", data.Id)
-	}
 
+	server.state.messages = append(messages[:index], messages[index+1:]...)
+	server.state.mutex.Unlock()
+
+	server.writeEventToAllConnections("messagedelete", msg.Id)
 }
 
 func (server *Server) apiHistoryClear(w http.ResponseWriter, r *http.Request) {
@@ -1098,8 +1100,6 @@ func (server *Server) apiHistoryRemove(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiChatSend(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection %s posted a chat message.", r.RemoteAddr)
-
 	user := server.getAuthorized(w, r)
 	if user == nil {
 		return
@@ -1127,6 +1127,46 @@ func (server *Server) apiChatSend(w http.ResponseWriter, r *http.Request) {
 	server.state.messages = append(server.state.messages, chatMessage)
 	server.state.mutex.Unlock()
 	server.writeEventToAllConnections("messagecreate", chatMessage)
+}
+
+func (server *Server) apiChatEdit(w http.ResponseWriter, r *http.Request) {
+	user := server.getAuthorized(w, r)
+	if user == nil {
+		return
+	}
+
+	var messageEdit ChatMessageEdit
+	if !server.readJsonDataFromRequest(w, r, &messageEdit) {
+		return
+	}
+
+	if len([]rune(messageEdit.EditedMessage)) > MAX_MESSAGE_CHARACTERS {
+		http.Error(w, "Message edit exceeds 1000 chars", http.StatusForbidden)
+		return
+	}
+
+	server.state.mutex.Lock()
+	messages := server.state.messages
+
+	index := indexOfMessageById(messages, messageEdit.Id)
+	if index == -1 {
+		server.state.mutex.Unlock()
+		respondBadRequest(w, "No message found of id %v", messageEdit.Id)
+		return
+	}
+
+	msg := &messages[index]
+	if msg.AuthorId != user.Id {
+		server.state.mutex.Unlock()
+		LogWarn("User %v (id:%v) tried to edit a stranger's message", user.Username, user.Id)
+		http.Error(w, "You're not the author of this message", http.StatusBadRequest)
+		return
+	}
+
+	msg.Message = messageEdit.EditedMessage
+	server.state.mutex.Unlock()
+
+	server.writeEventToAllConnections("messageedit", messageEdit)
 }
 
 func (server *Server) apiStreamStart(w http.ResponseWriter, r *http.Request) {

@@ -431,12 +431,21 @@ export async function historyRemove(entryId) {
 
 export async function chatSend(message) {
     const payload = {
-        message: message,
-        edited: false,
-    };
+        message: message
+    }
 
     console.info("INFO: Sending new chat to the server.");
     httpPost("/watch/api/chat/send", payload);
+}
+
+export async function chatEdit(message, messageId) {
+    const payload = {
+        editedMessage: message,
+        id: messageId
+    }
+
+    console.info("INFO: Sending a chat edit to the server.");
+    httpPost("/watch/api/chat/edit", payload);
 }
 
 export async function chatGet(count, backwardOffset) {

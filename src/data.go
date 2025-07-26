@@ -229,7 +229,6 @@ type ChatMessageDeleteRequest struct {
 
 type ChatMessageFromUser struct {
 	Message string `json:"message"`
-	Edited  bool   `json:"edited"`
 }
 
 type MessageHistoryRequest struct {

@@ -1717,6 +1717,12 @@ class Room {
             this.chat.addMessage(data, this.allUsers);
         });
 
+        events.addEventListener("messageedit", event => {
+            let msgEdit = JSON.parse(event.data);
+            console.info("INFO: A message has been edited:", msgEdit);
+            // this.chat.editMessage()
+        });
+
         events.addEventListener("messagedelete", event => {
             let msgId = JSON.parse(event.data);
             console.info("INFO: A message has been deleted");

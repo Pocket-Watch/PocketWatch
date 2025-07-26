@@ -384,6 +384,7 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	server.HandleEndpoint(mux, "/watch/api/history/remove", server.apiHistoryRemove, "POST", true)
 
 	server.HandleEndpoint(mux, "/watch/api/chat/send", server.apiChatSend, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/chat/edit", server.apiChatEdit, "POST", true)
 	server.HandleEndpoint(mux, "/watch/api/chat/get", server.apiChatGet, "POST", true)
 	server.HandleEndpoint(mux, "/watch/api/chat/delete", server.apiChatDelete, "POST", true)
 
