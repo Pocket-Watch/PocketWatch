@@ -1037,7 +1037,7 @@ func (server *Server) apiChatDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg := &messages[index]
+	msg := messages[index]
 	if msg.AuthorId != user.Id {
 		server.state.mutex.Unlock()
 		LogWarn("User %v (id:%v) tried to remove a stranger's message", user.Username, user.Id)

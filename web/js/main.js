@@ -1725,8 +1725,7 @@ class Room {
 
         events.addEventListener("messagedelete", event => {
             let msgId = JSON.parse(event.data);
-            console.info("INFO: A message has been deleted");
-
+            console.info("INFO: Deleting message with ID =", msgId);
             this.chat.removeMessageById(msgId, this.allUsers);
         });
 
