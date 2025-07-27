@@ -57,7 +57,7 @@ func fetchTwitchWithInternalServer(url string) (bool, TwitchStream) {
 		return false, TwitchStream{}
 	}
 
-	response, nil := http.Post("http://localhost:2345/twitch/fetch", "application/json", bytes.NewBuffer(request))
+	response, err := http.Post("http://localhost:2345/twitch/fetch", "application/json", bytes.NewBuffer(request))
 	if err != nil {
 		LogError("Request POST to the internal server failed: %v", err)
 		return false, TwitchStream{}
@@ -394,6 +394,20 @@ func fetchVideoWithInternalServer(query string) (bool, YoutubeVideo) {
 		return false, YoutubeVideo{}
 	}
 	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		responseData, err := io.ReadAll(response.Body)
+
+		if err != nil {
+			LogError("Failed to unmarshal data from the internal server: %v", err)
+		} else {
+			var errorMessage string
+			json.Unmarshal(responseData, &errorMessage)
+			LogError("Internal server returned status code %v with message: %v", response.StatusCode, errorMessage)
+		}
+
+		return false, YoutubeVideo{}
+	}
 
 	var video YoutubeVideo
 	responseData, err := io.ReadAll(response.Body)

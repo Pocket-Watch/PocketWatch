@@ -27,11 +27,15 @@ def get_youtube_playlist(query: str, start: int, end: int):
         'extract_flat': True,
         'playliststart': start,
         'playlistend':   end,
+        'color': 'no_color',
     }
 
     ytplaylist = yt_dlp.YoutubeDL(ytplaylist_opts)
     info = ytplaylist.extract_info(query, download=False)
     videos = []
+
+    if info is None:
+        raise Exception("Yt-Dlp output data is missing")
 
     entries = info['entries']
     for entry in entries:
@@ -62,13 +66,14 @@ def get_youtube_video(query: str):
         },
         'playlist_items': '1',
         'noplaylist': True,
+        'color': 'no_color',
     }
 
     ytfetch = yt_dlp.YoutubeDL(ytfetch_opts)
     info = bench("extract_info", lambda : ytfetch.extract_info(query, download=False))
 
     if info is None:
-        return
+        raise Exception("Yt-Dlp output data is missing")
 
     entry = info
     entries = info.get("entries")
@@ -77,6 +82,11 @@ def get_youtube_video(query: str):
         entry = entries[0]
 
     formats = entry.get("requested_formats")
+    if formats is None:
+        raise Exception("Yt-Dlp output formats are missing")
+
+    if len(formats) < 2:
+        raise Exception(f"Expected 2 source url, but Yt-Dlp provided: {len(formats)}")
         
     id           = entry.get("id")
     title        = entry.get("title")
@@ -109,10 +119,11 @@ def get_twitch_stream(url: str):
     return TwitchStream(id, title, thumbnail, original_url, url)
 
 class InternalServer(http.server.BaseHTTPRequestHandler):
-    def do_POST(self):
+    def handle_request(self):
         if self.path == '/youtube/fetch':
             request = json.loads(self.rfile.read1())
             data = bench('get_youtube_video', lambda : get_youtube_video(request["query"]))
+
             self.send_response(200)
             self.send_header("Content-type", "application/json")
             self.end_headers()
@@ -120,6 +131,7 @@ class InternalServer(http.server.BaseHTTPRequestHandler):
             jsondata = json.dumps(data, default=vars)
             response = bytes(jsondata, "utf-8")
             self.wfile.write(response)
+
         elif self.path == '/youtube/playlist':
             request = json.loads(self.rfile.read1())
 
@@ -146,6 +158,19 @@ class InternalServer(http.server.BaseHTTPRequestHandler):
         else:
             self.send_response(404)
             self.end_headers()
+
+    def do_POST(self):
+        try:
+            self.handle_request()
+        except Exception as exception:
+            self.send_response(503)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+
+            exception_string = str(exception)
+            jsondata = json.dumps(exception_string, default=vars)
+            response = bytes(jsondata, "utf-8")
+            self.wfile.write(response)
 
 hostname = "localhost"
 port = 2345
