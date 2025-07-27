@@ -144,6 +144,9 @@ class Player {
     // Enable and show the track at the specified index.
     enableSubtitleTrackAt(index) {
         let subtitle = this.internals.subtitles[index];
+        if (!subtitle) {
+            return;
+        }
         this.internals.enableSubtitleTrack(subtitle);
     }
 
@@ -436,7 +439,7 @@ class Internals {
 
         this.htmlSubtitleMenu = newDiv(null, "player_menu_root");
         this.htmlSubtitleList = newDiv("subtitle_track_list");
-        this.htmlSettingsMenu = newDiv(null, "player_menu_root"),
+        this.htmlSettingsMenu = newDiv(null, "player_menu_root");
 
         // 
         // Constructing player widgets.
@@ -444,7 +447,7 @@ class Internals {
 
         Slider.iconsPath = iconsPath;
 
-        this.subtitleToggle  = new Switcher("Enable subtitles"),
+        this.subtitleToggle  = new Switcher("Enable subtitles");
         this.subtitleShift   = new Slider("Subtitle shift", -20,  20, 0.1,  0, "s", true);
         this.subtitleSize    = new Slider("Subtitle size",   10, 100, 1.0, 30, "px");
         this.subtitlePos     = new Slider("Vertical position",   0, 100, 1.0, 16, "%");
@@ -1093,37 +1096,19 @@ class Internals {
     }
 
     enableSubtitleTrack(subtitle) {
-        if (!subtitle) {
-            return;
-        }
-
         this.subtitleToggle.setState(true);
-        this.fireSubtitleSelect(subtitle)
-
-        if (this.selectedSubtitle) {
-            this.selectedSubtitle.htmlTrack.classList.remove("subtitle_track_selected");;
-        }
-
-        this.selectedSubtitle = subtitle;
-        this.selectedSubtitle.htmlTrack.classList.add("subtitle_track_selected");;
-
-        this.subtitleShift.setValue(this.selectedSubtitle.offset);
-        this.updateSubtitles(this.getCurrentTime());
+        this.switchSubtitleTrack(subtitle);
     }
 
     switchSubtitleTrack(subtitle) {
-        if (!subtitle) {
-            return;
-        }
-
         this.fireSubtitleSelect(subtitle)
 
         if (this.selectedSubtitle) {
-            this.selectedSubtitle.htmlTrack.classList.remove("subtitle_track_selected");;
+            this.selectedSubtitle.htmlTrack.classList.remove("subtitle_track_selected");
         }
 
         this.selectedSubtitle = subtitle;
-        this.selectedSubtitle.htmlTrack.classList.add("subtitle_track_selected");;
+        this.selectedSubtitle.htmlTrack.classList.add("subtitle_track_selected");
 
         this.subtitleShift.setValue(this.selectedSubtitle.offset);
         this.updateSubtitles(this.getCurrentTime());
@@ -1738,7 +1723,6 @@ class Internals {
     rebindFullscreenAPIFromWebkit() {
         // Should remove the logs and toasts once tested successfully
         console.debug("Rebinding webkit fullscreen API")
-        this.setToast("Rebinding webkit fullscreen API")
         if (!HTMLElement.prototype.requestFullscreen) {
             HTMLElement.prototype.requestFullscreen = HTMLElement.prototype.webkitRequestFullscreen;
         }
@@ -1747,12 +1731,11 @@ class Internals {
         }
 
         if (Object.getOwnPropertyDescriptor(Document.prototype, "fullscreenElement")) {
-            this.setToast("getOwnPropertyDescriptor determined fullscreenElement already exists")
+            this.setToast("determined fullscreenElement already exists")
             return;
         }
         Object.defineProperty(Document.prototype, "fullscreenElement", {
             get: () => {
-                console.debug("Returning document.webkitFullscreenElement", document.webkitFullscreenElement)
                 this.setToast("fullscreenElement rebound getter was called " + document.webkitFullscreenElement)
                 return document.webkitFullscreenElement;
             }
