@@ -18,14 +18,14 @@ import (
 func (server *Server) apiVersion(w http.ResponseWriter, r *http.Request) {
 	uptimeString := fmt.Sprintf("%v_%v", VERSION, BuildTime)
 	response, _ := json.Marshal(uptimeString)
-	io.WriteString(w, string(response))
+	w.Write(response)
 }
 
 func (server *Server) apiUptime(w http.ResponseWriter, r *http.Request) {
-	uptime := time.Now().Sub(startTime)
+	uptime := time.Since(startTime)
 	uptimeString := fmt.Sprintf("%v", uptime)
 	response, _ := json.Marshal(uptimeString)
-	io.WriteString(w, string(response))
+	w.Write(response)
 }
 
 func (server *Server) apiLogin(w http.ResponseWriter, r *http.Request) {
@@ -85,7 +85,7 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonData, _ := json.Marshal(response)
-	io.WriteString(w, string(jsonData))
+	w.Write(jsonData)
 }
 
 func (server *Server) apiUserCreate(w http.ResponseWriter, r *http.Request) {
@@ -101,7 +101,7 @@ func (server *Server) apiUserCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	server.writeEventToAllConnections("usercreate", user)
-	io.WriteString(w, string(tokenJson))
+	w.Write(tokenJson)
 }
 
 func (server *Server) apiUserVerify(w http.ResponseWriter, r *http.Request) {
@@ -124,7 +124,7 @@ func (server *Server) apiUserVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	io.WriteString(w, string(jsonData))
+	w.Write(jsonData)
 }
 
 func (server *Server) apiUserDelete(w http.ResponseWriter, r *http.Request) {
@@ -164,7 +164,7 @@ func (server *Server) apiUserGetAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	io.WriteString(w, string(usersJson))
+	w.Write(usersJson)
 }
 
 func (server *Server) apiUserUpdateName(w http.ResponseWriter, r *http.Request) {
@@ -274,7 +274,7 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 	jsonData, _ := json.Marshal(avatarUrl)
 
 	server.writeEventToAllConnections("userupdate", user)
-	io.WriteString(w, string(jsonData))
+	w.Write(jsonData)
 }
 
 func (server *Server) apiPlayerGet(w http.ResponseWriter, r *http.Request) {
@@ -296,7 +296,7 @@ func (server *Server) apiPlayerGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	io.WriteString(w, string(jsonData))
+	w.Write(jsonData)
 }
 
 func (server *Server) apiPlayerSet(w http.ResponseWriter, r *http.Request) {
@@ -594,7 +594,7 @@ func (server *Server) apiSubtitleUpload(w http.ResponseWriter, r *http.Request) 
 	}
 
 	jsonData, _ := json.Marshal(subtitle)
-	io.WriteString(w, string(jsonData))
+	w.Write(jsonData)
 }
 
 func (server *Server) apiSubtitleDownload(w http.ResponseWriter, r *http.Request) {
@@ -671,7 +671,7 @@ func (server *Server) apiSubtitleDownload(w http.ResponseWriter, r *http.Request
 	}
 
 	jsonData, _ := json.Marshal(subtitle)
-	io.WriteString(w, string(jsonData))
+	w.Write(jsonData)
 }
 
 func (server *Server) apiSubtitleSearch(w http.ResponseWriter, r *http.Request) {
@@ -749,7 +749,7 @@ func (server *Server) apiPlaylistGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	io.WriteString(w, string(jsonData))
+	w.Write(jsonData)
 }
 
 func (server *Server) apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
@@ -970,7 +970,7 @@ func (server *Server) apiHistoryGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	io.WriteString(w, string(jsonData))
+	w.Write(jsonData)
 }
 
 func (server *Server) apiChatGet(w http.ResponseWriter, r *http.Request) {
@@ -1003,7 +1003,7 @@ func (server *Server) apiChatGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	io.WriteString(w, string(jsonData))
+	w.Write(jsonData)
 }
 
 func indexOfMessageById(messages []ChatMessage, messageId uint64) int {

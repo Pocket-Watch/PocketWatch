@@ -249,7 +249,7 @@ func DatabaseLoadUsers(db *sql.DB) (*Users, bool) {
 		return users, true
 	}
 
-	query := fmt.Sprintf("SELECT * FROM users")
+	query := "SELECT * FROM users"
 	rows, err := db.Query(query)
 	if err != nil {
 		LogError("Failed to load users from the database. An error occurred while querying database 'users' table: %v", err)

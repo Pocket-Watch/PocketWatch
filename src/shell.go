@@ -94,7 +94,7 @@ outer:
 			fmt.Printf("Server version: %v_%v\n", VERSION, BuildTime)
 
 		case "uptime", "up":
-			uptime := time.Now().Sub(startTime)
+			uptime := time.Since(startTime)
 			fmt.Printf("Server uptime: %v\n", uptime)
 
 		case "loglevel", "log":

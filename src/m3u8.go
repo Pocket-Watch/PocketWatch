@@ -621,6 +621,7 @@ func (m3u *M3U) serializePlaylist(file *os.File) {
 			output.WriteString("#" + pair.key + ":" + pair.value + "\n")
 		}
 	}
+
 	for _, seg := range m3u.segments {
 		if seg.mapUri != "" {
 			output.WriteString("#EXT-X-MAP:URI=\"" + seg.mapUri + "\"\n")
@@ -650,8 +651,9 @@ func (m3u *M3U) serializePlaylist(file *os.File) {
 		output.WriteString(extInf)
 		output.WriteString(seg.url + "\n")
 	}
+
 	if !m3u.isLive {
-		output.WriteString(fmt.Sprintf("#EXT-X-ENDLIST\n"))
+		output.WriteString("#EXT-X-ENDLIST\n")
 	}
 	file.WriteString(output.String())
 }

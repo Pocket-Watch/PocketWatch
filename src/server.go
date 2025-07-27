@@ -474,7 +474,7 @@ func (server *Server) periodicInactiveUserCleanup() {
 
 		toDelete := make([]User, 0)
 		for _, user := range server.users.slice {
-			if user.LastUpdate == user.CreatedAt && time.Since(user.LastOnline) > time.Hour*24 && !user.Online {
+			if user.LastUpdate.Equal(user.CreatedAt) && time.Since(user.LastOnline) > time.Hour*24 && !user.Online {
 				// Remove users that are not active and that have not updated their user profile.
 				LogInfo("Removing dummy temp user with id = %v due to 24h of inactivity.", user.Id)
 
@@ -1285,22 +1285,24 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 		http.ServeFile(writer, request, WEB_PROXY+chunk)
 		return
 	}
+
 	fetchErr := downloadFile(fetchedChunk.realUrl, WEB_PROXY+chunk, proxy.referer, false)
 	if fetchErr != nil {
 		mutex.Unlock()
 		LogError("Failed to fetch live chunk %v", fetchErr)
+
 		code := 500
 		if isTimeoutError(fetchErr) {
 			code = 504
 		}
+
 		http.Error(writer, "Failed to fetch live chunk", code)
 		return
 	}
+
 	fetchedChunk.obtainedUrl = true
 	mutex.Unlock()
-
 	http.ServeFile(writer, request, WEB_PROXY+chunk)
-	return
 }
 
 func fetchOrServeMediaInitSection(writer http.ResponseWriter, request *http.Request, init string, segmentMap *sync.Map, referer string) {
@@ -1619,12 +1621,12 @@ func (server *Server) isLocalDirectory(url string) (bool, string) {
 
 	path := parsedUrl.Path
 
-	if strings.HasPrefix(path, "/watch") {
-		path = strings.TrimPrefix(path, "/watch")
+	if after, ok := strings.CutPrefix(path, "/watch"); ok {
+		path = after
 	}
 
-	if strings.HasPrefix(path, "/") {
-		path = strings.TrimPrefix(path, "/")
+	if after, ok := strings.CutPrefix(path, "/"); ok {
+		path = after
 	}
 
 	if !filepath.IsLocal(path) {
@@ -1683,7 +1685,7 @@ func (server *Server) cleanupDummyUsers() []User {
 	defer server.users.mutex.Unlock()
 
 	for _, user := range server.users.slice {
-		if user.LastUpdate == user.CreatedAt && !user.Online {
+		if user.LastUpdate.Equal(user.CreatedAt) && !user.Online {
 			removed = append(removed, user)
 		}
 	}
