@@ -18,7 +18,6 @@ var YTDLP_ENABLED bool = true
 
 func postToInternalServer(endpoint string, data any) ([]byte, bool) {
 	request, err := json.Marshal(data)
-	LogDebug("The request is: %s", request)
 	if err != nil {
 		LogError("Failed to marshal JSON request data for the internal server: %v", err)
 		return []byte{}, false
@@ -26,6 +25,10 @@ func postToInternalServer(endpoint string, data any) ([]byte, bool) {
 
 	url := "http://localhost:2345" + endpoint
 	response, err := http.Post(url, "application/json", bytes.NewBuffer(request))
+	if err != nil {
+		LogError("Request POST %v to the internal server failed: %v", endpoint, err)
+		return []byte{}, false
+	}
 
 	if response.StatusCode != http.StatusOK {
 		responseData, err := io.ReadAll(response.Body)
