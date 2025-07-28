@@ -178,7 +178,7 @@ class Room {
         // Current connection id.
         this.connectionId = 0;
 
-        // Currently connected user. Server User structure.
+        // Self user id. Server User structure.
         this.currentUserId = -1;
 
         // User token string.
@@ -1705,8 +1705,7 @@ class Room {
                 show(this.chatNewMessage);
             }
 
-            let messageSoundEnabled = this.settingsMenu.newMessageSoundToggle.classList.contains("active");
-            if (messageSoundEnabled && (this.selected_tab !== this.rightPanel.tabs.chat || this.player.isFullscreen() || document.visibilityState === "hidden")) {
+            if (this.shouldPlayNotificationSound(data.authorId)) {
                 this.newMessageAudio.play();
             }
 
@@ -1745,6 +1744,13 @@ class Room {
             console.info("INFO: Received history addremove: ", entryId);
             this.history.remove(entryId);
         });
+    }
+
+    shouldPlayNotificationSound(authorId) {
+        let messageSoundEnabled = this.settingsMenu.newMessageSoundToggle.classList.contains("active");
+        let isAway = this.selected_tab !== this.rightPanel.tabs.chat || document.visibilityState === "hidden";
+        let isSelf = room.currentUserId === authorId;
+        return messageSoundEnabled && !isSelf && (isAway || this.player.isFullscreen())
     }
 
     handleDisconnect() {
