@@ -75,11 +75,14 @@ def get_youtube_video(query: str):
     if info is None:
         raise Exception("Yt-Dlp output data is missing")
 
-    entry = info
     entries = info.get("entries")
-
-    if entries is not None:
+    if entries is None or len(entries) == 0:
+        entry = info
+    else:
         entry = entries[0]
+
+    if entry is None:
+        raise Exception("Yt-Dlp did not return any YouTube videos")
 
     formats = entry.get("requested_formats")
     if formats is None:
@@ -88,10 +91,10 @@ def get_youtube_video(query: str):
     if len(formats) < 2:
         raise Exception(f"Expected 2 source url, but Yt-Dlp provided: {len(formats)}")
         
-    id           = entry.get("id")
-    title        = entry.get("title")
-    thumbnail    = entry.get("thumbnail")
-    original_url = entry.get("original_url")
+    id           = entry["id"]
+    title        = entry["title"]
+    thumbnail    = entry["thumbnail"]
+    original_url = entry["original_url"]
     video_url    = formats[0]["manifest_url"]
     audio_url    = formats[1]["manifest_url"]
 
@@ -106,15 +109,24 @@ class TwitchStream:
         self.url          = url
 
 def get_twitch_stream(url: str):
-    twitch_opts = { 'noplaylist': True }
+    twitch_opts = { 
+        'noplaylist': True,
+        'color': 'no_color',
+    }
     twitch = yt_dlp.YoutubeDL(twitch_opts)
     info = bench("extract_info", lambda : twitch.extract_info(url, download=False))
 
+    if info is None:
+        raise Exception("Yt-Dlp did not returned any Twitch streams")
+
     id           = info["id"]
-    title        = info["title"]
+    uploader     = info["uploader"]
+    description  = info["description"]
     thumbnail    = info["thumbnail"]
     original_url = info["original_url"]
     url          = info["url"]
+
+    title        = f"Twitch {uploader} (live) - {description}"
 
     return TwitchStream(id, title, thumbnail, original_url, url)
 
@@ -171,6 +183,8 @@ class InternalServer(http.server.BaseHTTPRequestHandler):
             jsondata = json.dumps(exception_string, default=vars)
             response = bytes(jsondata, "utf-8")
             self.wfile.write(response)
+
+            raise exception
 
 hostname = "localhost"
 port = 2345

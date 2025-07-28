@@ -14,7 +14,41 @@ import (
 	"time"
 )
 
-var YOUTUBE_ENABLED bool = true
+var YTDLP_ENABLED bool = true
+
+func postToInternalServer(endpoint string, data any) ([]byte, bool) {
+	request, err := json.Marshal(data)
+	LogDebug("The request is: %s", request)
+	if err != nil {
+		LogError("Failed to marshal JSON request data for the internal server: %v", err)
+		return []byte{}, false
+	}
+
+	url := "http://localhost:2345" + endpoint
+	response, err := http.Post(url, "application/json", bytes.NewBuffer(request))
+
+	if response.StatusCode != http.StatusOK {
+		responseData, err := io.ReadAll(response.Body)
+
+		if err != nil {
+			LogError("Failed to read body from the internal server: %v", err)
+		} else {
+			var errorMessage string
+			json.Unmarshal(responseData, &errorMessage)
+			LogError("Internal server returned status code %v with message: %v", response.StatusCode, errorMessage)
+		}
+
+		return []byte{}, false
+	}
+
+	responseData, err := io.ReadAll(response.Body)
+	if err != nil {
+		LogError("Failed to unmarshal data from the internal server: %v", err)
+		return []byte{}, false
+	}
+
+	return responseData, true
+}
 
 type TwitchStream struct {
 	Id          string `json:"id"`
@@ -25,7 +59,7 @@ type TwitchStream struct {
 }
 
 func isTwitch(entry Entry) bool {
-	if !YOUTUBE_ENABLED {
+	if !YTDLP_ENABLED {
 		return false
 	}
 
@@ -51,27 +85,13 @@ func isTwitchUrl(url string) bool {
 }
 
 func fetchTwitchWithInternalServer(url string) (bool, TwitchStream) {
-	request, err := json.Marshal(url)
-	if err != nil {
-		LogError("Failed to marshal JSON request data for the internal server: %v", err)
+	response, ok := postToInternalServer("/twitch/fetch", url)
+	if !ok {
 		return false, TwitchStream{}
 	}
-
-	response, err := http.Post("http://localhost:2345/twitch/fetch", "application/json", bytes.NewBuffer(request))
-	if err != nil {
-		LogError("Request POST to the internal server failed: %v", err)
-		return false, TwitchStream{}
-	}
-	defer response.Body.Close()
 
 	var stream TwitchStream
-	responseData, err := io.ReadAll(response.Body)
-	if err != nil {
-		LogError("Failed to unmarshal data from the internal server: %v", err)
-		return false, TwitchStream{}
-	}
-
-	json.Unmarshal(responseData, &stream)
+	json.Unmarshal(response, &stream)
 	return true, stream
 }
 
@@ -112,7 +132,7 @@ func fetchTwitchStream(url string) (bool, TwitchStream) {
 }
 
 func loadTwitchEntry(entry *Entry, requested RequestEntry) error {
-	if !YOUTUBE_ENABLED {
+	if !YTDLP_ENABLED {
 		return nil
 	}
 
@@ -130,7 +150,7 @@ func loadTwitchEntry(entry *Entry, requested RequestEntry) error {
 }
 
 func isYoutube(entry Entry, requested RequestEntry) bool {
-	if !YOUTUBE_ENABLED {
+	if !YTDLP_ENABLED {
 		return false
 	}
 
@@ -312,7 +332,7 @@ func pickSmallestThumbnail(thumbnails []YoutubeThumbnail) string {
 }
 
 func (server *Server) loadYoutubePlaylist(requested RequestEntry, userId uint64) ([]Entry, error) {
-	if !YOUTUBE_ENABLED {
+	if !YTDLP_ENABLED {
 		return []Entry{}, nil
 	}
 
@@ -382,40 +402,13 @@ func fetchVideoWithInternalServer(query string) (bool, YoutubeVideo) {
 		Query: query,
 	}
 
-	request, err := json.Marshal(data)
-	if err != nil {
-		LogError("Failed to marshal JSON request data for the internal server: %v", err)
-		return false, YoutubeVideo{}
-	}
-
-	response, err := http.Post("http://localhost:2345/youtube/fetch", "application/json", bytes.NewBuffer(request))
-	if err != nil {
-		LogError("Request POST to the internal server failed: %v", err)
-		return false, YoutubeVideo{}
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusOK {
-		responseData, err := io.ReadAll(response.Body)
-
-		if err != nil {
-			LogError("Failed to unmarshal data from the internal server: %v", err)
-		} else {
-			var errorMessage string
-			json.Unmarshal(responseData, &errorMessage)
-			LogError("Internal server returned status code %v with message: %v", response.StatusCode, errorMessage)
-		}
-
+	response, ok := postToInternalServer("/youtube/fetch", data)
+	if !ok {
 		return false, YoutubeVideo{}
 	}
 
 	var video YoutubeVideo
-	responseData, err := io.ReadAll(response.Body)
-	if err != nil {
-		LogError("Failed to unmarshal data from the internal server: %v", err)
-		return false, YoutubeVideo{}
-	}
-	json.Unmarshal(responseData, &video)
+	json.Unmarshal(response, &video)
 	return true, video
 }
 
@@ -480,27 +473,13 @@ func fetchPlaylistWithInternalServer(query string, start uint, end uint) (bool, 
 		End:   end,
 	}
 
-	request, err := json.Marshal(data)
-	if err != nil {
-		LogError("Failed to marshal JSON request data for the internal server: %v", err)
+	response, ok := postToInternalServer("/youtube/playlist", data)
+	if !ok {
 		return false, YoutubePlaylist{}
 	}
-
-	response, nil := http.Post("http://localhost:2345/youtube/playlist", "application/json", bytes.NewBuffer(request))
-	if err != nil {
-		LogError("Request POST to the internal server failed: %v", err)
-		return false, YoutubePlaylist{}
-	}
-	defer response.Body.Close()
 
 	var playlist YoutubePlaylist
-	responseData, err := io.ReadAll(response.Body)
-	if err != nil {
-		LogError("Failed to unmarshal playlist data from the internal server: %v", err)
-		return false, YoutubePlaylist{}
-	}
-
-	json.Unmarshal(responseData, &playlist)
+	json.Unmarshal(response, &playlist)
 	return true, playlist
 }
 
@@ -546,7 +525,7 @@ func fetchYoutubePlaylist(query string, start uint, end uint) (bool, YoutubePlay
 }
 
 func loadYoutubeEntry(entry *Entry, requested RequestEntry) error {
-	if !YOUTUBE_ENABLED {
+	if !YTDLP_ENABLED {
 		return nil
 	}
 
