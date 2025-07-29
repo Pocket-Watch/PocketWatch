@@ -1,5 +1,5 @@
 #content_playlist {
-    row-gap: 6px;
+    row-gap: 4px;
     display: flex;
     box-sizing: border-box;
     flex-direction: column;
@@ -108,12 +108,16 @@
 #playlist_entry_list_root {
     width: 100%;
     height: 100%;
-    border: 2px solid var(--bg_5);
-    border-radius: 6px;
+    border-top: 1px solid var(--bg_5);
+    border-bottom: 1px solid var(--bg_5);
     display: flex;
     position: relative;
     box-sizing: border-box;
-    padding: 6px;
+    /* TODO(kihau): 
+       Padding on scrolling does not behave exactly like history. 
+       This should be on entry_list instead, but it has position absolute so it's a little problematic...
+    */
+    padding: 4px 0;
     overflow: hidden;
     flex-direction: column;
 }

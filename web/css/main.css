@@ -859,7 +859,7 @@ html * {
     /* visibility: hidden; */
     display: none !important;
     position: absolute;
-    padding: 16px;
+    padding: 8px;
 }
 
 .content_view.selected {
