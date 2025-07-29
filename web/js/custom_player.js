@@ -949,8 +949,8 @@ class Internals {
         }
     }
 
-    setVideoTrack(url) {
-        if(URL.canParse && !URL.canParse(url, document.baseURI)){
+    async setVideoTrack(url) {
+        if (URL.canParse && !URL.canParse(url, document.baseURI)) {
             console.warn("Failed to set a new URL. It's not parsable.");
             // We should probably inform the user about the error either via debug log or return false
             return;
@@ -966,32 +966,35 @@ class Internals {
         this.isLive = false;
 
         if (pathname.endsWith(".m3u8") || pathname.endsWith("m3u") || pathname.endsWith(".txt")) {
-            import("../external/hls.js").then(module => {
-                if (module.Hls.isSupported()) {
-                    if (this.hls == null) {
-                        this.hls = new module.Hls(this.options.hlsConfig);
+            let module = await import(this.options.hlsJsPath);
+            if (!module.Hls.isSupported()) {
+                console.error("HLS is not supported!")
+                return
+            }
 
-                        this.hls.on(module.Hls.Events.MANIFEST_PARSED, (_, data) => {
-                            if (!data.levels || data.levels.length === 0) {
-                                return;
-                            }
+            if (this.hls == null) {
+                this.hls = new module.Hls(this.options.hlsConfig);
 
-                            let details = data.levels[0].details;
-                            if (details) {
-                                this.isLive = details.live;
-                            }
-
-                            if (this.isLive) {
-                                show(this.htmlControls.buttons.liveIndicator);
-                            }
-                        });
+                this.hls.on(module.Hls.Events.MANIFEST_PARSED, (_, data) => {
+                    if (!data.levels || data.levels.length === 0) {
+                        return;
                     }
 
-                    this.hls.loadSource(url);
-                    this.hls.attachMedia(this.htmlVideo);
-                    this.playingHls = true;
-                }
-            });
+                    let details = data.levels[0].details;
+                    if (details) {
+                        this.isLive = details.live;
+                    }
+
+                    if (this.isLive) {
+                        show(this.htmlControls.buttons.liveIndicator);
+                    }
+                });
+            }
+
+            this.hls.loadSource(url);
+            this.hls.attachMedia(this.htmlVideo);
+            this.playingHls = true;
+
         } else {
             if (this.playingHls) {
                 this.hls.detachMedia();
@@ -2833,6 +2836,7 @@ class Options {
     constructor() {
         // Icon path pointing to the svg file
         this.iconsPath = "svg/player_icons.svg"
+        this.hlsJsPath = "../external/hls.js"
 
         this.hidePlaybackButton   = false;
         this.hideNextButton       = false;
