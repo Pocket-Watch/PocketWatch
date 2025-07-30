@@ -336,10 +336,11 @@ export async function subtitleUpload(file, filename) {
     return subtitle;
 }
 
-export async function subtitleDownload(url, name) {
+export async function subtitleDownload(url, name, referer) {
     let data = {
         url:  url,
         name: name,
+        referer: referer
     }
 
     console.info("INFO: Sending subtitle download for url", url);

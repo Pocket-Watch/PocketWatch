@@ -483,16 +483,17 @@ class Room {
     async createNewRequestEntry() {
         let area = this.entryArea;
 
-        let subname = area.subtitleNameInput.value.trim();
-        let suburl  = area.subtitleUrlInput.value.trim();
+        let subName = area.subtitleNameInput.value.trim();
+        let subUrl  = area.subtitleUrlInput.value.trim();
+        let referer = area.refererInput.value.trim();
 
         let subtitles = [];
 
         let sub;
         if (this.subtitleFile) {
-            sub = await api.subtitleUpload(this.subtitleFile, subname);
-        } else if (suburl) {
-            let response = await api.subtitleDownload(suburl, subname);
+            sub = await api.subtitleUpload(this.subtitleFile, subName);
+        } else if (subUrl) {
+            let response = await api.subtitleDownload(subUrl, subName, referer);
             sub = response.json;
         }
 

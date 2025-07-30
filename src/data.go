@@ -294,8 +294,9 @@ type SubtitleShiftRequest struct {
 }
 
 type SubtitleDownloadRequest struct {
-	Url  string `json:"url"`
-	Name string `json:"name"`
+	Url     string `json:"url"`
+	Name    string `json:"name"`
+	Referer string `json:"referer"`
 }
 
 type PlaylistEvent struct {

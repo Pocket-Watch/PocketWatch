@@ -605,7 +605,7 @@ func (server *Server) apiSubtitleDownload(w http.ResponseWriter, r *http.Request
 
 	url, err := url.Parse(data.Url)
 	if err != nil {
-		respondBadRequest(w, "Provieded url '%v' is not valid: %v", data.Url, err)
+		respondBadRequest(w, "Provided url '%v' is invalid: %v", data.Url, err)
 		return
 	}
 
@@ -620,7 +620,16 @@ func (server *Server) apiSubtitleDownload(w http.ResponseWriter, r *http.Request
 	serverUrl := data.Url
 
 	if url.IsAbs() {
-		response, err := hastyClient.Get(data.Url)
+		request, err := http.NewRequest("GET", data.Url, nil)
+		if err != nil {
+			respondBadRequest(w, "Error creating request: %v", err)
+			return
+		}
+		if data.Referer != "" {
+			request.Header.Set("Referer", data.Referer)
+		}
+
+		response, err := hastyClient.Do(request)
 		if err != nil {
 			respondBadRequest(w, "Failed to download subtitle for url %v; %v", data.Url, err)
 			return
@@ -628,7 +637,7 @@ func (server *Server) apiSubtitleDownload(w http.ResponseWriter, r *http.Request
 		defer response.Body.Close()
 
 		if response.StatusCode != http.StatusOK {
-			respondBadRequest(w, "Failed to download subtitle for url %v; %v", data.Url, err)
+			respondBadRequest(w, "Failed to download subtitle for url %v; %v", data.Url, response.StatusCode)
 			return
 		}
 
