@@ -8,7 +8,8 @@ const CHARACTER_LIMIT = 1000;
 class Chat {
     constructor() {
         this.chatInput         = getById("chat_input_box");
-        this.chatArea          = getById("chat_text_content");
+        this.chatListRoot      = getById("chat_message_list_root");
+        this.chatList          = getById("chat_message_list");
         this.sendMessageButton = getById("chat_send_button");
         this.contextMenu       = getById("chat_context_menu");
         this.contextMenuDelete = getById("chat_context_delete");
@@ -42,19 +43,17 @@ class Chat {
         show(this.contextMenu);
 
         const msgRect  = htmlMessage.getBoundingClientRect();
-        const chatRect = this.chatArea.getBoundingClientRect();
+        const chatRect = this.chatList.getBoundingClientRect();
         const height   = this.contextMenu.offsetHeight;
         const width    = this.contextMenu.offsetWidth;
 
-        const SMALL_ARBITRARY_OFFSET_TODO_PLEASE_FIX_ME = 14;
-
-        let contextMenuX = event.clientX + SMALL_ARBITRARY_OFFSET_TODO_PLEASE_FIX_ME;
+        let contextMenuX = event.clientX;
         let protrusion = contextMenuX + width - msgRect.right;
         if (protrusion > 0) {
             contextMenuX -= protrusion;
         }
 
-        let contextMenuY = event.clientY + SMALL_ARBITRARY_OFFSET_TODO_PLEASE_FIX_ME;
+        let contextMenuY = event.clientY;
         protrusion = contextMenuY + height - chatRect.bottom;
         if (protrusion > 0) {
             contextMenuY -= protrusion;
@@ -77,11 +76,12 @@ class Chat {
 
         this.contextMenuDelete.onclick = _ => api.chatDelete(this.contextMenuMessage.id);
 
-        this.chatArea.oncontextmenu = _ => { return false };
+        this.chatList.oncontextmenu = _ => { return false };
         document.addEventListener("click", _ => this.hideContextMenu());
 
-        this.chatArea.onscroll = _ => {
-            let scroll = this.chatArea.scrollHeight - this.chatArea.scrollTop - this.chatArea.clientHeight;
+        this.chatListRoot.onscroll = _ => {
+            let root = this.chatListRoot;
+            let scroll = root.scrollHeight - root.scrollTop - root.clientHeight;
             this.isChatAtBottom = Math.abs(scroll) < 60;
         };
 
@@ -110,8 +110,8 @@ class Chat {
 
         this.isChatAtBottom = true;
 
-        while (this.chatArea.lastChild) {
-            this.chatArea.removeChild(this.chatArea.lastChild);
+        while (this.chatList.lastChild) {
+            this.chatList.removeChild(this.chatList.lastChild);
         }
 
         this.hideContextMenu();
@@ -285,7 +285,7 @@ class Chat {
 
         this.messages.push(chatMsg);
         this.htmlMessages.push(message);
-        this.chatArea.appendChild(message);
+        this.chatList.appendChild(message);
 
         this.keepAtBottom();
     }
@@ -325,7 +325,7 @@ class Chat {
                 }
 
                 this.htmlMessages[index + 1] = newHtml;
-                this.chatArea.replaceChild(newHtml, nextHtml);
+                this.chatList.replaceChild(newHtml, nextHtml);
             }
         }
 
@@ -335,7 +335,7 @@ class Chat {
 
         this.messages.splice(index, 1);
         this.htmlMessages.splice(index, 1);
-        this.chatArea.removeChild(htmlMessage);
+        this.chatList.removeChild(htmlMessage);
     }
 
     processMessageSendIntent() {
@@ -360,7 +360,7 @@ class Chat {
 
     keepAtBottom() {
         if (this.isChatAtBottom) {
-            this.chatArea.scrollTo(0, this.chatArea.scrollHeight)
+            this.chatListRoot.scrollTo(0, this.chatList.scrollHeight)
         }
     }
 } 

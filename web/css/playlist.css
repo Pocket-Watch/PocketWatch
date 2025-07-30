@@ -118,8 +118,14 @@
        This should be on entry_list instead, but it has position absolute so it's a little problematic...
     */
     padding: 4px 0;
-    overflow: hidden;
     flex-direction: column;
+    overflow: hidden;
+
+    /* overflow-y: scroll; */
+    /* overflow-x: hidden; */
+    /* overflow: -moz-scrollbars-vertical;  */
+    /* scroll-behavior: smooth; */
+    /* scrollbar-color: var(--bg_5) var(--bg_2); */
 }
 
 #playlist_entry_list {
@@ -129,9 +135,10 @@
     position: relative;
     box-sizing: border-box;
     flex-direction: column;
-    overflow: -moz-scrollbars-vertical; 
+
     overflow-y: scroll;
     overflow-x: hidden;
+    overflow: -moz-scrollbars-vertical; 
     scroll-behavior: smooth;
     scrollbar-color: var(--bg_5) var(--bg_2);
 }
@@ -254,6 +261,7 @@
 }
 
 .playlist_entry {
+    padding: inherit;
     width: calc(100% - 4px);
     height: auto;
     border-radius: 6px;
