@@ -3,8 +3,10 @@ import { getById, div, a, span, img, svg, button, hide, show, isScrollableVisibl
 
 export { Playlist }
 
-// NOTE(kihau): Hardcoded size values from the playlist.css
+// NOTE(kihau): Adjustable row gap value. No need to update CSS.
 const ENTRY_ROW_GAP = 4;
+
+// NOTE(kihau): Hardcoded size values from the playlist.css. CSS needs to be updated.
 const ENTRY_BORDER  = 2;
 const ENTRY_HEIGHT  = 64 + ENTRY_BORDER * 2;
 
@@ -186,6 +188,14 @@ class Playlist {
         this.footerEntryCount.textContent = this.entries.length;
     }
 
+    // This method updates min-height on the HTML entry list. 
+    // Because all child elements have position absolute, HTML entry list won't get its height updated automatically,
+    // which is why the updated must be performed manually...
+    updateHtmlListHeight() {
+        let height = (ENTRY_HEIGHT + ENTRY_ROW_GAP) * this.entries.length - ENTRY_ROW_GAP;
+        this.htmlEntryList.style.minHeight = height + "px";
+    }
+
     addEntry(entry, users) {
         this.entries.push(entry);
 
@@ -199,6 +209,7 @@ class Playlist {
         window.getComputedStyle(htmlEntry).marginLeft;
         show(htmlEntry);
 
+        this.updateHtmlListHeight();
         this.updateFooter();
     }
 
@@ -225,6 +236,7 @@ class Playlist {
         window.getComputedStyle(htmlEntry).marginLeft;
         show(htmlEntry);
 
+        this.updateHtmlListHeight();
         this.updateFooter();
     }
 
@@ -268,6 +280,7 @@ class Playlist {
             this.setEntryPosition(entry, i);
         }
 
+        this.updateHtmlListHeight();
         this.updateFooter();
         return entry;
     }
@@ -403,7 +416,7 @@ class Playlist {
             this.htmlEntries.push(htmlEntry);
             this.htmlEntryList.appendChild(htmlEntry);
 
-            if (isScrollableVisible(this.htmlEntryList, htmlEntry)) {
+            if (isScrollableVisible(this.htmlEntryListRoot, htmlEntry)) {
                 setTimeout(_ => {
                     window.getComputedStyle(htmlEntry).marginLeft;
                     show(htmlEntry);
@@ -413,6 +426,7 @@ class Playlist {
             }
         }
 
+        this.updateHtmlListHeight();
         this.updateFooter();
     }
 
@@ -443,7 +457,7 @@ class Playlist {
             this.htmlEntries.unshift(htmlEntry);
             this.htmlEntryList.appendChild(htmlEntry);
 
-            if (isScrollableVisible(this.htmlEntryList, htmlEntry)) {
+            if (isScrollableVisible(this.htmlEntryListRoot, htmlEntry)) {
                 setTimeout(_ => {
                     window.getComputedStyle(htmlEntry).marginLeft;
                     show(htmlEntry);
@@ -453,6 +467,7 @@ class Playlist {
             }
         }
 
+        this.updateHtmlListHeight();
         this.updateFooter();
     }
 
@@ -463,7 +478,7 @@ class Playlist {
         for (let i = 0; i < this.htmlEntries.length; i++) {
             const htmlEntry = this.htmlEntries[i];
 
-            if (isScrollableVisible(this.htmlEntryList, htmlEntry)) {
+            if (isScrollableVisible(this.htmlEntryListRoot, htmlEntry)) {
                 setTimeout(_ => {
                     hide(htmlEntry);
                     setTimeout(_ => this.htmlEntryList.removeChild(htmlEntry), ENTRY_TRANSITION_TIME);
@@ -477,6 +492,7 @@ class Playlist {
         this.entries       = [];
         this.expandedEntry = null;
 
+        this.updateHtmlListHeight();
         this.updateFooter();
     }
 
@@ -558,13 +574,13 @@ class Playlist {
     }
 
     indexToPosition(index) {
-        const rect = this.htmlEntryList.getBoundingClientRect();
+        const rect = this.htmlEntryListRoot.getBoundingClientRect();
         let positionY = rect.y + (ENTRY_HEIGHT + ENTRY_ROW_GAP) * index;
         return positionY;
     }
 
     positionToIndex(positionY) {
-        const rect   = this.htmlEntryList.getBoundingClientRect();
+        const rect   = this.htmlEntryListRoot.getBoundingClientRect();
         let index = Math.floor((positionY - rect.y) / (ENTRY_HEIGHT + ENTRY_ROW_GAP));
 
         if (index < 0) {
@@ -696,13 +712,13 @@ class Playlist {
 
     startScrollingUp() {
         if (!this.scrollIntervalId) {
-            this.scrollIntervalId = setInterval(_ => this.htmlEntryList.scrollTop -= this.scrollingStep, 16);
+            this.scrollIntervalId = setInterval(_ => this.htmlEntryListRoot.scrollTop -= this.scrollingStep, 16);
         }
     }
 
     startScrollingDown() {
         if (!this.scrollIntervalId) {
-            this.scrollIntervalId = setInterval(_ => this.htmlEntryList.scrollTop += this.scrollingStep, 16);
+            this.scrollIntervalId = setInterval(_ => this.htmlEntryListRoot.scrollTop += this.scrollingStep, 16);
         }
     }
 
@@ -723,7 +739,7 @@ class Playlist {
         this.hideContextMenu();
         this.collapseEntry(this.expandedEntry);
 
-        let listRect    = this.htmlEntryList.getBoundingClientRect();
+        let listRect    = this.htmlEntryListRoot.getBoundingClientRect();
         let entryRect   = htmlEntry.getBoundingClientRect();
         let mouseOffset = positionY - entryRect.top;
         let top         = (positionY - listRect.top - mouseOffset) + "px";
@@ -744,7 +760,7 @@ class Playlist {
             return;
         }
 
-        let listRect   = this.htmlEntryList.getBoundingClientRect();
+        let listRect   = this.htmlEntryListRoot.getBoundingClientRect();
         let top        = positionY - listRect.top - this.draggableEntryMouseOffset;
         let maxPos     = this.indexToPosition(this.htmlEntries.length - 2);
         let maxTop     = Math.min(top, maxPos)
@@ -773,8 +789,8 @@ class Playlist {
         this.stopScrolling();
 
         let entryRect  = this.draggableEntry.getBoundingClientRect();
-        let listRect   = this.htmlEntryList.getBoundingClientRect();
-        let listScroll = this.htmlEntryList.scrollTop;
+        let listRect   = this.htmlEntryListRoot.getBoundingClientRect();
+        let listScroll = this.htmlEntryListRoot.scrollTop;
         let entryTop   = entryRect.top - listRect.top + listScroll;
 
         this.draggableEntry.classList.remove("draggable");
@@ -841,9 +857,9 @@ class Playlist {
             return;
         }
 
-        let listScroll  = this.htmlEntryList.scrollTop;
-        let dragRect = this.draggableEntry.getBoundingClientRect();
-        let dragPos  = dragRect.y + listScroll + ENTRY_HEIGHT / 2.0;
+        let listScroll = this.htmlEntryListRoot.scrollTop;
+        let dragRect   = this.draggableEntry.getBoundingClientRect();
+        let dragPos    = dragRect.y + listScroll + ENTRY_HEIGHT / 2.0;
 
         let hoverIndex = this.positionToIndex(dragPos);
         let startIndex = this.dragCurrentIndex;
@@ -941,7 +957,7 @@ class Playlist {
             clearTimeout(this.touchHoldDelay);
             this.touchHoldDelay = setTimeout(_ => {
                 this.scrollingStep = TOY_TOUCH_DEVICE_SCROLLING_STEP;
-                this.htmlEntryList.classList.add("disable-smooth-scrolling-for-toy-touch-device-systems");
+                this.htmlEntryList.classList.add("disable_smooth_scrolling_for_toy_touch_device_systems");
                 this.startEntryDragging(entryRoot, event.touches[0].clientY);
 
                 let onDragging = event => {
@@ -966,7 +982,7 @@ class Playlist {
 
         entryDragArea.onmousedown = event => {
             this.scrollingStep = DESKTOP_PLATFORM_SCROLLING_STEP;
-            this.htmlEntryList.classList.remove("disable-smooth-scrolling-for-toy-touch-device-systems");
+            this.htmlEntryList.classList.remove("disable_smooth_scrolling_for_toy_touch_device_systems");
             this.startEntryDragging(entryRoot, event.clientY);
 
             let onDragging = event => {
