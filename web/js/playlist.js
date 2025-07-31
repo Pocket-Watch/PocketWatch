@@ -18,8 +18,7 @@ const BULK_ACTION_DELAY     = 32;
 const DRAG_INACTIVITY_DELAY = 32;
 const TOUCH_HOLD_DELAY_TIME = 80;
 
-const DESKTOP_PLATFORM_SCROLLING_STEP = ENTRY_HEIGHT * 3.0;
-const TOY_TOUCH_DEVICE_SCROLLING_STEP = 32.0
+const SCROLLING_STEP = ENTRY_HEIGHT / 3.0;
 
 class Playlist {
     constructor() {
@@ -78,8 +77,6 @@ class Playlist {
         this.shadowedEntryMoveTimout   = null;
 
         this.scrollIntervalId = null;
-        this.scrollingStep = 0;
-
         this.currentEntryId = 0;
     }
 
@@ -712,13 +709,13 @@ class Playlist {
 
     startScrollingUp() {
         if (!this.scrollIntervalId) {
-            this.scrollIntervalId = setInterval(_ => this.htmlEntryListRoot.scrollTop -= this.scrollingStep, 16);
+            this.scrollIntervalId = setInterval(_ => this.htmlEntryListRoot.scrollTop -= SCROLLING_STEP, 16);
         }
     }
 
     startScrollingDown() {
         if (!this.scrollIntervalId) {
-            this.scrollIntervalId = setInterval(_ => this.htmlEntryListRoot.scrollTop += this.scrollingStep, 16);
+            this.scrollIntervalId = setInterval(_ => this.htmlEntryListRoot.scrollTop += SCROLLING_STEP, 16);
         }
     }
 
@@ -956,8 +953,6 @@ class Playlist {
         entryDragArea.ontouchstart = event => {
             clearTimeout(this.touchHoldDelay);
             this.touchHoldDelay = setTimeout(_ => {
-                this.scrollingStep = TOY_TOUCH_DEVICE_SCROLLING_STEP;
-                this.htmlEntryList.classList.add("disable_smooth_scrolling_for_toy_touch_device_systems");
                 this.startEntryDragging(entryRoot, event.touches[0].clientY);
 
                 let onDragging = event => {
@@ -981,8 +976,6 @@ class Playlist {
         entryDragArea.ontouchend  = _ => clearTimeout(this.touchHoldDelay);
 
         entryDragArea.onmousedown = event => {
-            this.scrollingStep = DESKTOP_PLATFORM_SCROLLING_STEP;
-            this.htmlEntryList.classList.remove("disable_smooth_scrolling_for_toy_touch_device_systems");
             this.startEntryDragging(entryRoot, event.clientY);
 
             let onDragging = event => {

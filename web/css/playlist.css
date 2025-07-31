@@ -118,12 +118,7 @@
     overflow-y: scroll;
     overflow-x: hidden;
     overflow: -moz-scrollbars-vertical; 
-    scroll-behavior: smooth;
     scrollbar-color: var(--bg_5) var(--bg_2);
-}
-
-#playlist_entry_list_root.disable_smooth_scrolling_for_toy_touch_device_systems {
-    scroll-behavior: unset !important;
 }
 
 #playlist_entry_list {
