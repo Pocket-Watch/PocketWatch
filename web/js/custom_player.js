@@ -849,17 +849,16 @@ class Internals {
             this.htmlVideo.volume = volume;
         }
 
+        this.fireControlsVolumeSet(volume);
         this.updateHtmlVolume(volume);
     }
 
     toggleVolume() {
         let volume = this.getVolume();
         if (volume === 0.0) {
-            this.fireControlsVolumeSet(this.volumeBeforeMute);
             this.setVolume(this.volumeBeforeMute);
         } else {
             this.volumeBeforeMute = volume;
-            this.fireControlsVolumeSet(0.0);
             this.setVolume(0.0);
         }
     }
@@ -1596,7 +1595,6 @@ class Internals {
 
         this.htmlControls.buttons.volumeInput.addEventListener("input", _event => {
             let volume = this.getVolume();
-            this.fireControlsVolumeSet(volume);
             this.setVolume(volume);
         });
 

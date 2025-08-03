@@ -1750,7 +1750,7 @@ class Room {
     shouldPlayNotificationSound(authorId) {
         let messageSoundEnabled = this.settingsMenu.newMessageSoundToggle.classList.contains("active");
         let isAway = this.selected_tab !== this.rightPanel.tabs.chat || document.visibilityState === "hidden";
-        let isSelf = room.currentUserId === authorId;
+        let isSelf = this.currentUserId === authorId;
         return messageSoundEnabled && !isSelf && (isAway || this.player.isFullscreen())
     }
 

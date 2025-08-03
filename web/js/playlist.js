@@ -32,7 +32,6 @@ class Playlist {
         this.autoplayEnabled = false;
         this.loopingEnabled  = false;
 
-        // TODO(kihau): Try to make this scrollable instead.
         this.htmlEntryListRoot = getById("playlist_entry_list_root");
         this.htmlEntryList     = getById("playlist_entry_list");
         this.footerEntryCount  = getById("playlist_footer_entry_count");
