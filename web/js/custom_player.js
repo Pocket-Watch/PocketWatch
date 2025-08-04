@@ -1370,7 +1370,7 @@ class Internals {
     }
 
     attachPlayerRootEvents() {
-        this.htmlPlayerRoot.addEventListener("touchmove",  _ => this.showPlayerUI());
+        this.htmlPlayerRoot.addEventListener("touchmove",  _ => this.showPlayerUI(), {passive: true});
         this.htmlPlayerRoot.addEventListener("mousemove",  _ => this.showPlayerUI());
         this.htmlPlayerRoot.addEventListener("mousedown",  _ => this.showPlayerUI());
         this.htmlPlayerRoot.addEventListener("mouseup",    _ => this.showPlayerUI());
@@ -1653,7 +1653,7 @@ class Internals {
             this.isDraggingProgressBar = true;
             document.addEventListener("touchmove", onProgressBarTouchMove, { passive: false });
             document.addEventListener("touchend", onProgressBarTouchStop);
-        });
+        }, {passive: true});
 
         this.htmlControls.progress.root.addEventListener("mousedown", _event => {
             const onProgressBarMouseMove = event => {

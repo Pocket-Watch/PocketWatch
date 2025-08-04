@@ -10,6 +10,7 @@ scratch/*
 logs/*
 
 # Exclusions for web/ directory .
+web/stream/*
 web/media/*
 web/proxy/*
 web/users/*
@@ -25,3 +26,4 @@ build_local.sh
 deploy.sh
 config.json
 *.exe
+*.exe~
