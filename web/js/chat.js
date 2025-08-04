@@ -26,6 +26,7 @@ class Chat {
         this.contextMenuMessage     = null;
         this.contextMenuHtmlMessage = null;
         this.contextMenuUrl         = "";
+        this.contextMenuShowUrl     = false;
     }
 
     hideContextMenu() {
@@ -33,14 +34,26 @@ class Chat {
             this.contextMenuHtmlMessage.classList.remove("highlight");
         }
 
+        this.contextMenuCopyUrl.classList.add("hide");
+
         this.contextMenuMessage     = null;
         this.contextMenuHtmlMessage = null;
+        this.contextMenuUrl         = "";
+        this.contextMenuShowUrl     = false;
+
         hide(this.contextMenu);
     }
 
     showContextMenu(event, message, htmlMessage) {
         if (this.contextMenuHtmlMessage) {
             this.contextMenuHtmlMessage.classList.remove("highlight");
+        }
+
+        if (this.contextMenuShowUrl) {
+            this.contextMenuCopyUrl.classList.remove("hide");
+            this.contextMenuShowUrl = false;
+        } else {
+            this.contextMenuCopyUrl.classList.add("hide");
         }
 
         show(this.contextMenu);
@@ -232,13 +245,13 @@ class Chat {
     }
 
     contextUrlShow(url) {
-        this.contextMenuUrl = url;
-        this.contextMenuCopyUrl.classList.remove("hide");
+        this.contextMenuUrl     = url;
+        this.contextMenuShowUrl = true;
     }
 
     contextUrlHide() {
-        this.contextMenuUrl = "";
-        this.contextMenuCopyUrl.classList.add("hide");
+        this.contextMenuUrl     = "";
+        this.contextMenuShowUrl = false;
     }
 
     linkify(content) {

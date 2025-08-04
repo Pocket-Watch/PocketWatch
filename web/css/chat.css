@@ -186,3 +186,18 @@
     background-color: var(--aqua_0);
 }
 
+#chat_context_delete span {
+    color: var(--red_2);
+}
+
+#chat_context_delete svg {
+    fill: var(--red_2);
+}
+
+#chat_context_delete:hover {
+    background-color: var(--red_custom_0);
+}
+
+#chat_context_delete:active {
+    background-color: var(--red_custom_1);
+}
