@@ -1654,6 +1654,10 @@ html * {
     color: var(--fg_6);
 }
 
+.context_menu_item.hide {
+    display: none;
+}
+
 .context_menu_item {
     height: 26px;
     width: 100%;

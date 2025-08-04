@@ -7,12 +7,14 @@ const CHARACTER_LIMIT = 1000;
 
 class Chat {
     constructor() {
-        this.chatInput         = getById("chat_input_box");
-        this.chatListRoot      = getById("chat_message_list_root");
-        this.chatList          = getById("chat_message_list");
-        this.sendMessageButton = getById("chat_send_button");
-        this.contextMenu       = getById("chat_context_menu");
-        this.contextMenuDelete = getById("chat_context_delete");
+        this.chatInput          = getById("chat_input_box");
+        this.chatListRoot       = getById("chat_message_list_root");
+        this.chatList           = getById("chat_message_list");
+        this.sendMessageButton  = getById("chat_send_button");
+        this.contextMenu        = getById("chat_context_menu");
+        this.contextMenuDelete  = getById("chat_context_delete");
+        this.contextMenuCopy    = getById("chat_context_copy");
+        this.contextMenuCopyUrl = getById("chat_context_copy_url");
 
         this.isChatAtBottom = true;
         this.prevUserId     = -1;
@@ -23,6 +25,7 @@ class Chat {
 
         this.contextMenuMessage     = null;
         this.contextMenuHtmlMessage = null;
+        this.contextMenuUrl         = "";
     }
 
     hideContextMenu() {
@@ -43,7 +46,8 @@ class Chat {
         show(this.contextMenu);
 
         const msgRect  = htmlMessage.getBoundingClientRect();
-        const chatRect = this.chatList.getBoundingClientRect();
+        const rootRect = this.chatListRoot.getBoundingClientRect();
+        const listRect = this.chatList.getBoundingClientRect();
         const height   = this.contextMenu.offsetHeight;
         const width    = this.contextMenu.offsetWidth;
 
@@ -54,13 +58,13 @@ class Chat {
         }
 
         let contextMenuY = event.clientY;
-        protrusion = contextMenuY + height - chatRect.bottom;
+        protrusion = contextMenuY + height - rootRect.bottom;
         if (protrusion > 0) {
             contextMenuY -= protrusion;
         }
 
         this.contextMenu.style.left = (contextMenuX - msgRect.left) + "px";
-        this.contextMenu.style.top  = (contextMenuY - chatRect.top)   + "px";
+        this.contextMenu.style.top  = (contextMenuY - listRect.top)   + "px";
 
         this.contextMenuMessage     = message;
         this.contextMenuHtmlMessage = htmlMessage;
@@ -74,7 +78,9 @@ class Chat {
             this.hideContextMenu();
         };
 
-        this.contextMenuDelete.onclick = _ => api.chatDelete(this.contextMenuMessage.id);
+        this.contextMenuCopy.onclick    = _ => navigator.clipboard.writeText(this.contextMenuMessage.message);
+        this.contextMenuCopyUrl.onclick = _ => navigator.clipboard.writeText(this.contextMenuUrl);
+        this.contextMenuDelete.onclick  = _ => api.chatDelete(this.contextMenuMessage.id);
 
         this.chatList.oncontextmenu = _ => { return false };
         document.addEventListener("click", _ => this.hideContextMenu());
@@ -225,6 +231,16 @@ class Chat {
         return root;
     }
 
+    contextUrlShow(url) {
+        this.contextMenuUrl = url;
+        this.contextMenuCopyUrl.classList.remove("hide");
+    }
+
+    contextUrlHide() {
+        this.contextMenuUrl = "";
+        this.contextMenuCopyUrl.classList.add("hide");
+    }
+
     linkify(content) {
         let segments = [];
 
@@ -238,6 +254,7 @@ class Chat {
                 if (segmentStart !== i) {
                     let text    = content.slice(segmentStart, i);
                     let segment = span(null, text)
+                    segment.oncontextmenu = event => this.contextUrlHide();
                     segments.push(segment);
                 }
 
@@ -249,6 +266,7 @@ class Chat {
             if (rune === " " && parsingUrl) {
                 let url     = content.slice(segmentStart, i);
                 let segment = a(null, url)
+                segment.oncontextmenu = event => this.contextUrlShow(url);
                 segments.push(segment);
 
                 parsingUrl   = false;
@@ -259,10 +277,12 @@ class Chat {
         if (parsingUrl) {
             let url     = content.slice(segmentStart);
             let segment = a(null, url)
+            segment.oncontextmenu = event => this.contextUrlShow(url);
             segments.push(segment);
         } else {
             let text    = content.slice(segmentStart);
             let segment = span(null, text)
+            segment.oncontextmenu = event => this.contextUrlHide();
             segments.push(segment);
         }
 

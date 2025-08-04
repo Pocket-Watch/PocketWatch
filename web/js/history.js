@@ -32,6 +32,8 @@ class History {
         // Represents the structure of the htmlEntryList post transition while entries are still mid transition.
         this.htmlEntries = [];
 
+        this.htmlEntryListRoot = getById("history_entry_list_root");
+
         // HTML DOM with history entries.
         this.htmlEntryList = getById("history_entry_list");
 
@@ -90,6 +92,7 @@ class History {
         show(this.contextMenu);
 
         const entryRect = htmlEntry.getBoundingClientRect();
+        const rootRect  = this.htmlEntryListRoot.getBoundingClientRect();
         const listRect  = this.htmlEntryList.getBoundingClientRect();
         const height    = this.contextMenu.offsetHeight;
         const width     = this.contextMenu.offsetWidth;
@@ -101,7 +104,7 @@ class History {
         }
 
         let contextMenuY = event.clientY;
-        protrusion = contextMenuY + height - listRect.bottom;
+        protrusion = contextMenuY + height - rootRect.bottom;
         if (protrusion > 0) {
             contextMenuY -= protrusion;
         }
