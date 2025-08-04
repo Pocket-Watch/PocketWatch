@@ -67,3 +67,8 @@ button {
 *:focus {
     outline: none;
 }
+
+/* Disables random non-standard highlight on mobile chromium browsers. */
+* {
+    -webkit-tap-highlight-color: transparent;
+}
