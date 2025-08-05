@@ -1,4 +1,4 @@
-import { Options, Player } from "./custom_player.js"
+import {Options, Player, Timeout} from "./custom_player.js"
 import { Playlist } from "./playlist.js"
 import { History } from "./history.js"
 import { Chat } from "./chat.js"
@@ -152,11 +152,11 @@ class Room {
                 placeholderRoot: getById("room_upload_media_placeholder"),
                 progressRoot:    getById("room_upload_media_progress"),
                 filepicker:      getById("room_upload_media_filepicker"),
+                text:            getById("room_upload_media_progress_text"),
                 percent:         getById("room_upload_media_progress_percent"),
                 barCurrent:      getById("room_upload_media_progress_bar_current"),
                 uploaded:        getById("room_upload_media_progress_uploaded"),
                 transfer:        getById("room_upload_media_progress_transfer"),
-
             },
 
             browse: {
@@ -202,6 +202,12 @@ class Room {
 
         // Player state on website load.
         this.stateOnLoad = null;
+
+        // Timeouts
+        this.fileUploadReset  = new Timeout(_ => {
+            this.roomContent.upload.placeholderRoot.classList.remove("hide");
+            this.roomContent.upload.progressRoot.classList.add("hide");
+        }, 2000)
     }
 
     showSettingsMenu(_settingsTab) {
@@ -581,6 +587,7 @@ class Room {
     }
 
     startMediaFileUpload(file) {
+        this.fileUploadReset.cancel();
         const room = this.roomContent;
 
         let timeRate = new Date().getTime();
@@ -594,6 +601,7 @@ class Room {
         room.upload.uploaded.textContent = "0 B / 0 B";
         room.upload.transfer.textContent = "0 B/s";
 
+        room.upload.text.textContent = "Uploading file";
         room.upload.placeholderRoot.classList.add("hide");
         room.upload.progressRoot.classList.remove("hide");
 
@@ -624,12 +632,13 @@ class Room {
         });
 
         upload.then(response => {
+            this.fileUploadReset.schedule();
             if (response.checkError()) {
+                room.upload.text.textContent = "Error: " + response.error.message;
                 return;
             }
 
-            room.upload.placeholderRoot.classList.remove("hide");
-            room.upload.progressRoot.classList.add("hide");
+            room.upload.text.textContent = "Upload finished!";
 
             let data = response.json;
             switch (data.category) {
