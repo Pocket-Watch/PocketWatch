@@ -615,6 +615,22 @@ class Playlist {
         let date           = new Date(entry.created);
         let creationDate   = span("playlist_dropdown_creation_date", date.toLocaleString());
 
+        // 
+        // TODO(kihau): Show subtitles.
+        //
+
+        //
+        // TODO(kihau): Better formatting for created at.
+        //
+
+        //
+        // TODO(kihau): Show referer.
+        //
+        // entryDropdown.append(refererRoot); {
+        //     // Proxy checkbox
+        //     // Proxy referer input
+        // }
+
         entryDropdown.append(infoLabels); {
             infoLabels.append(addedByText);
             infoLabels.append(createdAtText);
