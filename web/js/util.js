@@ -178,6 +178,19 @@ export function formatTime(seconds) {
     return time;
 }
 
+export function isLocalUrl(url) {
+    url = url.toLowerCase();
+    if (!url.startsWith("http") && !url.startsWith("https")) {
+        return false
+    }
+    try {
+        return new URL(url).host === document.location.host;
+    } catch (error) {
+        console.warn("Invalid URL:", error);
+        return false;
+    }
+}
+
 export function isSameDay(date1, date2) {
     if (date1.getFullYear() !== date2.getFullYear()) {
         return false;
