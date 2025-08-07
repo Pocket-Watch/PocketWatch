@@ -248,6 +248,7 @@
     background: transparent;
     /* justify-content: center; */
     align-items: center;
+    touch-action: none;
 }
 
 #player_progress_root * {
@@ -814,6 +815,7 @@
     -webkit-appearance: none;
     flex: 1 0 auto;
     background: transparent;
+    touch-action: none;
 }
 
 .player_shifter_slider::-webkit-slider-runnable-track {
