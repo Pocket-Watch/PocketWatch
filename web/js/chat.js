@@ -1,5 +1,5 @@
 import * as api from "./api.js";
-import { getById, div, img, span, a, isSameDay } from "./util.js";
+import { getById, div, img, span, a, isSameDay, isLocalUrl } from "./util.js";
 
 export { Chat }
 
@@ -267,7 +267,7 @@ class Chat {
                 if (segmentStart !== i) {
                     let text    = content.slice(segmentStart, i);
                     let segment = span(null, text)
-                    segment.oncontextmenu = event => this.contextUrlHide();
+                    segment.oncontextmenu = _ => this.contextUrlHide();
                     segments.push(segment);
                 }
 
@@ -277,9 +277,16 @@ class Chat {
 
             let rune = content[i];
             if (rune === " " && parsingUrl) {
-                let url     = content.slice(segmentStart, i);
-                let segment = a(null, url)
-                segment.oncontextmenu = event => this.contextUrlShow(url);
+                let url = content.slice(segmentStart, i);
+
+                let segment
+                if (isLocalImage(url)) {
+                    segment = img(url, true);
+                } else {
+                    segment = a(null, url)
+                }
+
+                segment.oncontextmenu = _ => this.contextUrlShow(url);
                 segments.push(segment);
 
                 parsingUrl   = false;
@@ -288,14 +295,21 @@ class Chat {
         }
 
         if (parsingUrl) {
-            let url     = content.slice(segmentStart);
-            let segment = a(null, url)
-            segment.oncontextmenu = event => this.contextUrlShow(url);
+            let url = content.slice(segmentStart);
+
+            let segment
+            if (isLocalImage(url)) {
+                segment = img(url, true);
+            } else {
+                segment = a(null, url)
+            }
+
+            segment.oncontextmenu = _ => this.contextUrlShow(url);
             segments.push(segment);
         } else {
             let text    = content.slice(segmentStart);
             let segment = span(null, text)
-            segment.oncontextmenu = event => this.contextUrlHide();
+            segment.oncontextmenu = _ => this.contextUrlHide();
             segments.push(segment);
         }
 

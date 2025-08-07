@@ -1139,6 +1139,7 @@ html * {
 
 #room_subtitle_upload_button,
 #room_subtitle_delete_button {
+    min-width: 34px;
     width: 34px;
     height: 100%;
     z-index: 1;
@@ -1178,11 +1179,20 @@ html * {
 
 #room_subtitle_select {
     flex-grow: 1.0;
-    background-color: var(--bg_2);
+    background-color: var(--bg_3);
     border: 2px solid var(--fg_6);
     border-radius: 8px;
     color: var(--fg_1);
     padding-left: 12px;
+    transition: all 0.2s ease;
+}
+
+#room_subtitle_select:hover {
+    border: 2px solid var(--fg_4);
+}
+
+#room_subtitle_select:empty {
+    background-color: var(--bg_2);
 }
 
 #room_upload_file {

@@ -181,14 +181,40 @@ export function formatTime(seconds) {
 export function isLocalUrl(url) {
     url = url.toLowerCase();
     if (!url.startsWith("http") && !url.startsWith("https")) {
-        return false
+        return false;
     }
+
     try {
         return new URL(url).host === document.location.host;
     } catch (error) {
         console.warn("Invalid URL:", error);
         return false;
     }
+}
+
+export function isLocalImage(url) {
+    if (!isLocalUrl(url)) {
+        return false;
+    }
+
+    if (url.endsWith("png")) {
+        return true;
+    }
+
+    if (url.endsWith("jpg")) {
+        return true;
+    }
+
+    if (url.endsWith("jpeg")) {
+        return true;
+    }
+
+    if (url.endsWith("gif")) {
+        return true;
+    }
+
+    return false;
+
 }
 
 export function isSameDay(date1, date2) {

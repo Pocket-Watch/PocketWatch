@@ -152,6 +152,13 @@
     overflow-y: hidden;
 }
 
+.chat_message img, .chat_sub_message img {
+    max-width: 80%;
+    max-height: 600px;
+    display: block;
+    border-radius: 6px;
+}
+
 .chat_message a, .chat_sub_message a,
 .chat_message a:visited, .chat_sub_message a:visited {
     color: var(--purple_2);
