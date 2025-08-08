@@ -187,7 +187,7 @@ export function isLocalUrl(url) {
     try {
         return new URL(url).host === document.location.host;
     } catch (error) {
-        console.warn("Invalid URL:", error);
+        console.warn("WARN: Invalid URL:", error);
         return false;
     }
 }

@@ -1,5 +1,5 @@
 import * as api from "./api.js";
-import { getById, div, img, span, a, isSameDay, isLocalUrl } from "./util.js";
+import { getById, div, img, span, a, isSameDay, isLocalImage } from "./util.js";
 
 export { Chat }
 
@@ -7,6 +7,7 @@ const CHARACTER_LIMIT = 1000;
 
 class Chat {
     constructor() {
+        this.contentRoot        = getById("content_chat");
         this.chatInput          = getById("chat_input_box");
         this.chatListRoot       = getById("chat_message_list_root");
         this.chatList           = getById("chat_message_list");
@@ -85,6 +86,28 @@ class Chat {
         this.contextMenuHtmlMessage.classList.add("highlight");
     }
 
+    async uploadAndPasteImage(files) {
+        if (!files || files.length == 0) {
+            return;
+        }
+
+        let file = files[0];
+        console.log(file)
+        if (!file.type.startsWith("image/")) {
+            return;
+        }
+
+        event.preventDefault();
+        console.warn("invoke");
+
+        let unix = Date.now()
+        let filename = unix + file.name;
+        let response = await api.uploadMedia(file, filename)
+
+        let fullUrl = document.location.href + response.url
+        this.chatInput.value += fullUrl;
+    }
+
     attachChatEvents() {
         this.contextMenu.oncontextmenu = event => {
             event.preventDefault();
@@ -115,6 +138,23 @@ class Chat {
                 event.preventDefault();
                 this.processMessageSendIntent();
             }
+        };
+
+        this.contentRoot.ondragover = event => {
+            event.preventDefault();
+        };
+
+        this.contentRoot.ondrop = event => {
+            event.preventDefault();
+
+            let data = event.dataTransfer;
+            console.warn(event);
+            this.uploadAndPasteImage(data.files);
+        };
+
+        this.chatInput.onpaste = event => {
+            let data = event.clipboardData || window.clipboardData;
+            this.uploadAndPasteImage(data.files);
         };
 
         window.addEventListener("resize", _ => this.keepAtBottom());
