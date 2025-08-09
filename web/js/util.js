@@ -180,7 +180,7 @@ export function formatTime(seconds) {
 
 export function isLocalUrl(url) {
     url = url.toLowerCase();
-    if (!url.startsWith("http") && !url.startsWith("https")) {
+    if (!url.startsWith("https") && !url.startsWith("http")) {
         return false;
     }
 

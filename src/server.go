@@ -563,6 +563,7 @@ func isPathM3U(p string) bool {
 	return strings.HasSuffix(p, ".m3u8") || strings.HasSuffix(p, ".m3u") || strings.HasSuffix(p, ".txt")
 }
 
+// isAuthorized checks if the user is authorized, if not responds with an error code
 func (server *Server) isAuthorized(w http.ResponseWriter, r *http.Request) bool {
 	server.users.mutex.Lock()
 	defer server.users.mutex.Unlock()
@@ -571,6 +572,7 @@ func (server *Server) isAuthorized(w http.ResponseWriter, r *http.Request) bool 
 	return index != -1
 }
 
+// getAuthorized returns the authorized user or responds with an error code if user wasn't found
 func (server *Server) getAuthorized(w http.ResponseWriter, r *http.Request) *User {
 	server.users.mutex.Lock()
 	defer server.users.mutex.Unlock()
@@ -587,7 +589,7 @@ func (server *Server) getAuthorized(w http.ResponseWriter, r *http.Request) *Use
 func (server *Server) getAuthorizedIndex(w http.ResponseWriter, r *http.Request) int {
 	token := r.Header.Get("Authorization")
 	if token == "" {
-		respondBadRequest(w, "Failed to authorize user, specified token is empty")
+		respondUnauthorized(w, "Failed to authorize user, no token provided")
 		return -1
 	}
 
@@ -597,7 +599,7 @@ func (server *Server) getAuthorizedIndex(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	respondBadRequest(w, "User with the specified token is not in the user list")
+	respondUnauthorized(w, "User with the specified token is not in the user list")
 	return -1
 }
 
@@ -1261,6 +1263,10 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 		return
 	}
 
+	if !server.isAuthorized(writer, request) {
+		return
+	}
+
 	if len(chunk) > MAX_CHUNK_NAME_LENGTH {
 		http.Error(writer, "Not found", 404)
 		return
@@ -1371,13 +1377,16 @@ func cleanupSegmentMap(segmentMap *sync.Map) {
 }
 
 func (server *Server) serveStream(writer http.ResponseWriter, request *http.Request, chunk string) {
-	writer.Header().Add("Cache-Control", "no-cache")
+	if !server.isAuthorized(writer, request) {
+		return
+	}
 
 	if len(chunk) > MAX_CHUNK_NAME_LENGTH {
 		http.Error(writer, "Not found", 404)
 		return
 	}
 
+	writer.Header().Add("Cache-Control", "no-cache")
 	if chunk == STREAM_M3U8 {
 		writer.Header().Add("content-type", M3U8_CONTENT_TYPE)
 		http.ServeFile(writer, request, WEB_STREAM+STREAM_M3U8)
@@ -1399,6 +1408,10 @@ func (server *Server) serveHlsVod(writer http.ResponseWriter, request *http.Requ
 	case MEDIA_INIT_SECTION:
 		LogDebug("Serving %v", chunk)
 		http.ServeFile(writer, request, WEB_PROXY+chunk)
+		return
+	}
+
+	if !server.isAuthorized(writer, request) {
 		return
 	}
 

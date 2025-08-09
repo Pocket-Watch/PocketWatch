@@ -4,7 +4,20 @@ import { History } from "./history.js"
 import { Chat } from "./chat.js"
 import { sha256 } from "./auth.js"
 import * as api from "./api.js";
-import { Storage, button, div, formatTime, formatByteCount, getById, dynamicImg, svg, show, hide, fileInput } from "./util.js";
+import {
+    Storage,
+    button,
+    div,
+    formatTime,
+    formatByteCount,
+    getById,
+    dynamicImg,
+    svg,
+    show,
+    hide,
+    fileInput,
+    isLocalUrl
+} from "./util.js";
 
 const SERVER_ID = 0;
 
@@ -220,9 +233,9 @@ class Room {
     }
 
     configureHlsRequests(xhr, url) {
-        /*if (proxying) {
-            xhr.setRequestHeader("Authorization", "Token");
-        }*/
+        if (isLocalUrl(url)) {
+            xhr.setRequestHeader("Authorization", api.getToken());
+        }
     }
 
     applyPlayerOptions(options) {
