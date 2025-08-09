@@ -1581,10 +1581,8 @@ class Room {
             console.info("INFO: User disconnected, ID: ", userId)
 
             let userBoxes = this.usersArea.userList;
-            let offlineBoxes = userBoxes.getElementsByClassName("user_box.online");
-
-            // let firstOfflineBox = offlineBoxes[offlineBoxes.length - 1].nextElementSibling;
-            let lastOnlineBox = offlineBoxes[offlineBoxes.length - 1];
+            let onlineBoxes = userBoxes.getElementsByClassName("user_box online");
+            let lastOnlineBox = onlineBoxes[onlineBoxes.length - 1];
 
             let index = this.allUsers.findIndex(user => user.id === userId);
             if (index === -1) {
