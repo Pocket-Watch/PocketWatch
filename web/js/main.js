@@ -1,4 +1,4 @@
-import {Options, Player, Timeout} from "./custom_player.js"
+import { Options, Player, Timeout } from "./custom_player.js"
 import { Playlist } from "./playlist.js"
 import { History } from "./history.js"
 import { Chat } from "./chat.js"
@@ -1082,6 +1082,15 @@ class Room {
         for (let i = 0; i < this.allUsers.length; i++) {
             this.allUsers[i].online = false;
         }
+
+        for (let i = 0; i < this.allUserBoxes.length; i++) {
+            this.allUserBoxes[i].root.classList.remove("online");
+        }
+
+        this.onlineCount = 0;
+
+        this.usersArea.onlineCount.textContent  = this.onlineCount;
+        this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
     }
 
     async loadUsersData() {
@@ -1765,8 +1774,6 @@ class Room {
 
     handleDisconnect() {
         this.markAllUsersOffline();
-        this.clearUsersArea();
-        this.updateUsersArea();
         this.player.setToast("Connection to the server was lost...");
         show(this.connectionLostPopup);
         setTimeout(_ => this.connectToServer(), RECONNECT_AFTER);

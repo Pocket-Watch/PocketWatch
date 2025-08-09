@@ -16,6 +16,7 @@ class Chat {
         this.contextMenuDelete  = getById("chat_context_delete");
         this.contextMenuCopy    = getById("chat_context_copy");
         this.contextMenuCopyUrl = getById("chat_context_copy_url");
+        this.contextMenuOpen    = getById("chat_context_open");
 
         this.isChatAtBottom = true;
         this.prevUserId     = -1;
@@ -36,6 +37,7 @@ class Chat {
         }
 
         this.contextMenuCopyUrl.classList.add("hide");
+        this.contextMenuOpen.classList.add("hide");
 
         this.contextMenuMessage     = null;
         this.contextMenuHtmlMessage = null;
@@ -52,9 +54,11 @@ class Chat {
 
         if (this.contextMenuShowUrl) {
             this.contextMenuCopyUrl.classList.remove("hide");
+            this.contextMenuOpen.classList.remove("hide");
             this.contextMenuShowUrl = false;
         } else {
             this.contextMenuCopyUrl.classList.add("hide");
+            this.contextMenuOpen.classList.add("hide");
         }
 
         show(this.contextMenu);
@@ -116,6 +120,7 @@ class Chat {
 
         this.contextMenuCopy.onclick    = _ => navigator.clipboard.writeText(this.contextMenuMessage.message);
         this.contextMenuCopyUrl.onclick = _ => navigator.clipboard.writeText(this.contextMenuUrl);
+        this.contextMenuOpen.onclick    = _ => window.open(this.contextMenuUrl, '_blank').focus();
         this.contextMenuDelete.onclick  = _ => api.chatDelete(this.contextMenuMessage.id);
 
         this.chatList.oncontextmenu = _ => { return false };

@@ -20,6 +20,10 @@ time, mark, audio, video {
     vertical-align: baseline;
 }
 
+hr {
+    margin: 0;
+}
+
 /* HTML5 display-role reset for older browsers */
 article, aside, details, figcaption, figure, footer, header, hgroup, menu, nav, section {
     display: block;
@@ -47,7 +51,6 @@ table {
     border-spacing: 0;
 }
 
-
 input {
     border: 0;
     border-radius: 0;
@@ -73,3 +76,8 @@ button {
 * {
     -webkit-tap-highlight-color: transparent;
 }
+
+/* NOTE: Debugging */
+/* * {
+    border: 1px solid red !important;
+} */
