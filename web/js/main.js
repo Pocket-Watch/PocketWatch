@@ -5,18 +5,7 @@ import { Chat } from "./chat.js"
 import { sha256 } from "./auth.js"
 import * as api from "./api.js";
 import {
-    Storage,
-    button,
-    div,
-    formatTime,
-    formatByteCount,
-    getById,
-    dynamicImg,
-    svg,
-    show,
-    hide,
-    fileInput,
-    isLocalUrl
+    Storage, button, div, formatTime, formatByteCount, getById, dynamicImg, svg, show, hide, fileInput, isLocalUrl
 } from "./util.js";
 
 const SERVER_ID = 0;
@@ -24,7 +13,8 @@ const SERVER_ID = 0;
 const SELECTED_THEME         = "selected_theme"
 const USER_AVATAR_ANIMATIONS = "user_avatar_animations"
 const NEW_MESSAGE_SOUND      = "new_message_sound"
-const ROOM_THEATER_MODE      = "room_theader_mode"
+const ROOM_THEATER_MODE      = "room_theater_mode"
+const LOW_BANDWIDTH_MODE     = "low_bandwidth_mode"
 const LAST_SELECTED_TAB      = "last_selected_tab"
 const LAST_SELECTED_SUBTITLE = "last_selected_subtitle"
 
@@ -73,6 +63,7 @@ class Room {
             animatedAvatarsToggle:   getById("animated_avatars_toggle"),
             newMessageSoundToggle:   getById("new_message_sound_toggle"),
             theaterModeToggle:       getById("theater_mode_toggle"),
+            lowBandwidthModeToggle:  getById("low_bandwidth_mode_toggle"),
             themeSwitcherSelect:     getById("settings_switch_theme"),
             deleteYourAccountButton: getById("delete_your_account"),
             confirmAccountDelete:    getById("confirm_deletion_phrase"),
@@ -271,13 +262,20 @@ class Room {
             this.settingsMenu.newMessageSoundToggle.classList.remove("active");
         }
 
-        let theater = Storage.get(ROOM_THEATER_MODE);
-        if (theater && Storage.isTrue(theater)) {
+        if (Storage.getBool(ROOM_THEATER_MODE)) {
             this.pageRoot.classList.add("theater_mode");
             this.settingsMenu.theaterModeToggle.classList.add("active");
         } else {
             this.pageRoot.classList.remove("theater_mode");
             this.settingsMenu.theaterModeToggle.classList.remove("active");
+        }
+
+        if (Storage.getBool(LOW_BANDWIDTH_MODE)) {
+            this.settingsMenu.lowBandwidthModeToggle.classList.add("active");
+            // Replace images with placeholders?
+        } else {
+            this.settingsMenu.lowBandwidthModeToggle.classList.remove("active");
+            // Now load the images or demand a page reload?
         }
 
         let theme = Storage.get(SELECTED_THEME);
@@ -959,6 +957,12 @@ class Room {
             let isToggled = menu.theaterModeToggle.classList.toggle("active");
             Storage.setBool(ROOM_THEATER_MODE, isToggled);
             this.pageRoot.classList.toggle("theater_mode");
+        };
+
+        menu.lowBandwidthModeToggle.onclick = _ => {
+            let isToggled = menu.lowBandwidthModeToggle.classList.toggle("active");
+            Storage.setBool(LOW_BANDWIDTH_MODE, isToggled);
+            // Do something or page reload?
         };
 
         menu.themeSwitcherSelect.onchange = event => {
