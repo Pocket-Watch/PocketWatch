@@ -14,6 +14,28 @@ export function isHidden(element) {
     element.classList.contains("show")
 }
 
+export function widget_toggle(id, text) {
+    let root   = document.createElement("div");
+    let toggle = document.createElement("div"); 
+    let circle = document.createElement("div"); 
+    let label  = document.createElement("span");
+    
+    root.classList.add("widget_toggle");
+
+    if (id) {
+        root.id = id;
+    }
+
+    label.textContent = text;
+
+    root.appendChild(toggle); {
+        toggle.appendChild(circle);
+    }
+    root.appendChild(label);
+
+    return root;
+}
+
 export function div(className) {
     let element = document.createElement("div");
     element.className = className;
@@ -206,6 +228,10 @@ export function isLocalImage(url) {
     }
 
     if (url.endsWith("jpeg")) {
+        return true;
+    }
+
+    if (url.endsWith("webp")) {
         return true;
     }
 
