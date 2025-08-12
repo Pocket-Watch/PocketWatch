@@ -75,14 +75,12 @@ class Chat {
             contextMenuX -= protrusion;
         }
 
-        let contextMenuY = event.clientY;
-        protrusion = contextMenuY + height - rootRect.bottom;
-        if (protrusion > 0) {
-            contextMenuY -= protrusion;
+        let contextBottom = (listRect.bottom - event.clientY - height);
+        if (contextBottom < 0) {
+            contextBottom = 0;
         }
-
         this.contextMenu.style.left = (contextMenuX - msgRect.left) + "px";
-        this.contextMenu.style.top  = (contextMenuY - listRect.top)   + "px";
+        this.contextMenu.style.bottom  = (contextBottom) + "px";
 
         this.contextMenuMessage     = message;
         this.contextMenuHtmlMessage = htmlMessage;
@@ -100,9 +98,6 @@ class Chat {
         if (!file.type.startsWith("image/")) {
             return;
         }
-
-        event.preventDefault();
-        console.warn("invoke");
 
         let unix = Date.now()
         let filename = unix + file.name;
@@ -153,16 +148,13 @@ class Chat {
             event.preventDefault();
 
             let data = event.dataTransfer;
-            console.warn(event);
             this.uploadAndPasteImage(data.files);
         };
 
         this.chatInput.onpaste = event => {
-            let data = event.clipboardData || window.clipboardData;
+            let data = event.clipboardData;
             this.uploadAndPasteImage(data.files);
         };
-
-        window.addEventListener("resize", _ => this.keepAtBottom());
     }
 
     clear() {
@@ -378,8 +370,6 @@ class Chat {
         this.messages.push(chatMsg);
         this.htmlMessages.push(message);
         this.chatList.appendChild(message);
-
-        this.keepAtBottom();
     }
 
     removeMessageById(messageId, allUsers) {
@@ -446,21 +436,5 @@ class Chat {
         for (let i = 0; i < messages.length; i++) {
             this.addMessage(messages[i], allUsers);
         }
-
-        this.keepAtBottom();
-    }
-
-    keepAtBottom() {
-        if (this.isChatAtBottom) {
-            this.chatListRoot.scrollTo(0, this.chatList.scrollHeight)
-        }
     }
 } 
-
-/*type ChatMessage struct {
-    Message  string `json:"message"`
-    UnixTime int64  `json:"unixTime"`
-    Id       uint64 `json:"id"`
-    AuthorId uint64 `json:"authorId"`
-    Edited   bool   `json:"edited"`
-}*/

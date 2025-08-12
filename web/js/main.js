@@ -591,7 +591,6 @@ class Room {
 
         if (tab_type === TAB_CHAT) {
             hide(this.chatNewMessage);
-            this.chat.keepAtBottom();
         }
 
         Storage.set(LAST_SELECTED_TAB, tab_type);
