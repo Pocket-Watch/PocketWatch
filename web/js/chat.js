@@ -64,6 +64,7 @@ class Chat {
         show(this.contextMenu);
 
         const msgRect  = htmlMessage.getBoundingClientRect();
+        const rootRect = this.chatListRoot.getBoundingClientRect();
         const list = this.chatList.getBoundingClientRect();
         const menuHeight   = this.contextMenu.offsetHeight;
         const width    = this.contextMenu.offsetWidth;
@@ -75,13 +76,15 @@ class Chat {
         }
 
         // Reversed columns change x,y origin of the context menu to bottom-left corner
-        let menuBottom = list.height - event.clientY + list.top;
-        if (menuBottom + menuHeight > list.height) {
-            menuBottom = list.height - menuHeight;
+        let revMenuBottom = list.height - event.clientY + list.top;
+        let menuTop = event.clientY - menuHeight;
+        if (rootRect.top > menuTop) {
+            protrusion = rootRect.top - menuTop;
+            revMenuBottom -= protrusion;
         }
 
         this.contextMenu.style.left = (contextMenuX - msgRect.left) + "px";
-        this.contextMenu.style.bottom = menuBottom + "px";
+        this.contextMenu.style.bottom = revMenuBottom + "px";
 
         this.contextMenuMessage     = message;
         this.contextMenuHtmlMessage = htmlMessage;
