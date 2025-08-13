@@ -253,28 +253,11 @@ export function isLocalImage(url) {
         return false;
     }
 
-    if (url.endsWith("png")) {
-        return true;
+    const extensions = ["png", "jpg", "jpeg", "webp", "gif"];
+    for (let ext of extensions) {
+        if (url.endsWith(ext)) return true;
     }
-
-    if (url.endsWith("jpg")) {
-        return true;
-    }
-
-    if (url.endsWith("jpeg")) {
-        return true;
-    }
-
-    if (url.endsWith("webp")) {
-        return true;
-    }
-
-    if (url.endsWith("gif")) {
-        return true;
-    }
-
     return false;
-
 }
 
 export function isSameDay(date1, date2) {

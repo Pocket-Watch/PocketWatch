@@ -1,5 +1,5 @@
 import * as api from "./api.js";
-import { getById, div, img, span, a, isSameDay, isLocalImage } from "./util.js";
+import {getById, div, img, span, a, isSameDay, isLocalImage} from "./util.js";
 
 export { Chat }
 
@@ -64,9 +64,8 @@ class Chat {
         show(this.contextMenu);
 
         const msgRect  = htmlMessage.getBoundingClientRect();
-        const rootRect = this.chatListRoot.getBoundingClientRect();
-        const listRect = this.chatList.getBoundingClientRect();
-        const height   = this.contextMenu.offsetHeight;
+        const list = this.chatList.getBoundingClientRect();
+        const menuHeight   = this.contextMenu.offsetHeight;
         const width    = this.contextMenu.offsetWidth;
 
         let contextMenuX = event.clientX;
@@ -75,12 +74,14 @@ class Chat {
             contextMenuX -= protrusion;
         }
 
-        let contextBottom = (listRect.bottom - event.clientY - height);
-        if (contextBottom < 0) {
-            contextBottom = 0;
+        // Reversed columns change x,y origin of the context menu to bottom-left corner
+        let menuBottom = list.height - event.clientY + list.top;
+        if (menuBottom + menuHeight > list.height) {
+            menuBottom = list.height - menuHeight;
         }
+
         this.contextMenu.style.left = (contextMenuX - msgRect.left) + "px";
-        this.contextMenu.style.bottom  = (contextBottom) + "px";
+        this.contextMenu.style.bottom = menuBottom + "px";
 
         this.contextMenuMessage     = message;
         this.contextMenuHtmlMessage = htmlMessage;
