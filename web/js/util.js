@@ -14,16 +14,50 @@ export function isHidden(element) {
     element.classList.contains("show")
 }
 
-export function widget_toggle(id, text) {
+export function widget_input(id, labelText, text, readonly) {
+    let root  = document.createElement("div");
+    let input = document.createElement("input");
+    let label = document.createElement("label");
+
+    if (readonly) {
+        root.classList.add("widget_readonly_input");
+        input.readOnly = true;
+    } else {
+        root.classList.add("widget_input");
+    }
+
+    if (id) {
+        root.id = id;
+    }
+
+    input.placeholder = " ";
+
+    label.textContent = labelText;
+    input.value = text;
+
+    root.appendChild(input);
+    root.appendChild(label);
+    return root;
+}
+
+export function widget_toggle(id, text, enabled, readonly) {
     let root   = document.createElement("div");
     let toggle = document.createElement("div"); 
     let circle = document.createElement("div"); 
     let label  = document.createElement("span");
     
-    root.classList.add("widget_toggle");
+    if (readonly) {
+        root.classList.add("widget_readonly_toggle");
+    } else {
+        root.classList.add("widget_toggle");
+    }
 
     if (id) {
         root.id = id;
+    }
+
+    if (enabled) {
+        root.classList.add("active");
     }
 
     label.textContent = text;

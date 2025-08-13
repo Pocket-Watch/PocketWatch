@@ -600,11 +600,9 @@ class Playlist {
 
     createEntryDropdown(entry, user) {
         let entryDropdown  = div("playlist_entry_dropdown");
-        let proxyLabels    = div("playlist_dropdown_proxy_labels");
-        let proxyLabel     = span("playlist_dropdown_proxy_label", "Using proxy");
-        let refererLabel   = span("playlist_dropdown_referer_label", "Proxy referer");
-        let proxyCheckbox  = /* Checkbox, custom styled */ null;
-        let proxyReferer   = a("playlist_dropdown_proxy_referer", entry.referer_url);
+        let proxyRoot      = div("playlist_dropdown_proxy_root");
+        let proxyToggle    = widget_toggle(null, "Enable proxy", entry.use_proxy, true);
+        let proxyReferer   = widget_input(null, "Referer", entry.referer_url, true);
         let infoLabels     = div("playlist_dropdown_info_labels");
         let addedByText    = span("playlist_dropdown_added_by", "Added by"); 
         let createdAtText  = span("playlist_dropdown_created_at", "Created at");
@@ -619,18 +617,10 @@ class Playlist {
         // TODO(kihau): Show subtitles.
         //
 
-        //
-        // TODO(kihau): Better formatting for created at.
-        //
-
-        //
-        // TODO(kihau): Show referer.
-        //
-        // entryDropdown.append(refererRoot); {
-        //     // Proxy checkbox
-        //     // Proxy referer input
-        // }
-
+        entryDropdown.append(proxyRoot); {
+            proxyRoot.append(proxyToggle);
+            proxyRoot.append(proxyReferer);
+        }
         entryDropdown.append(infoLabels); {
             infoLabels.append(addedByText);
             infoLabels.append(createdAtText);

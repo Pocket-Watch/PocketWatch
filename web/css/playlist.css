@@ -549,9 +549,13 @@
 }
 
 .playlist_entry.expand .playlist_entry_dropdown {
-    height: 80px;
+    height: 130px;
     visibility: inherit;
     transition: height 100ms ease;
+    display: flex;
+    box-sizing: border-box;
+    flex-direction: column;
+    padding: 6px;
 }
 
 .playlist_entry.expand .playlist_dropdown_button svg {
@@ -599,13 +603,19 @@
     padding-left: 4px;
 }
 
-.playlist_dropdown_info_labels {
+.playlist_dropdown_proxy_root {
     width: 100%;
-    height: 40%;
+    height: 40px;
     display: flex;
     box-sizing: border-box;
-    padding-left: 8px;
-    padding-right: 8px;
+    column-gap: 6px;
+}
+
+.playlist_dropdown_info_labels {
+    width: 100%;
+    height: 30px;
+    display: flex;
+    box-sizing: border-box;
 }
 
 .playlist_dropdown_added_by {
@@ -619,14 +629,11 @@
 
 .playlist_dropdown_info_content {
     width: 100%;
-    height: 60%;
+    height: 50px;
     display: flex;
     box-sizing: border-box;
     justify-content: center;
     align-items: center;
-    padding-left: 8px;
-    padding-right: 8px;
-    padding-bottom: 4px;
 }
 
 .playlist_dropdown_created_at {
