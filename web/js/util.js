@@ -115,13 +115,13 @@ export function img(src, lazy) {
 export function isScrollableVisible(scrollableList, element) {
     let listTop     = scrollableList.scrollTop;
     let listBottom  = scrollableList.offsetHeight + listTop;
-    let entryTop    = element.offsetTop
+    let entryTop    = element.offsetTop;
     let entryBottom = element.offsetHeight + entryTop;
     return (entryTop <= listBottom) && (entryBottom >= listTop);
 }
 
 export function isAnimated(url_string) {
-    let url = new URL(url_string, window.location.href)
+    let url = new URL(url_string, window.location.href);
     return url.searchParams.get("ext") === "gif";
 }
 
@@ -150,14 +150,14 @@ export function dynamicImg(src) {
 
         let scaleX = canvas.width / w;
         let scaleY = canvas.height / h;
-        let ratio  = Math.max(scaleX, scaleY)
+        let ratio  = Math.max(scaleX, scaleY);
 
         let offsetX = (canvas.width - w * ratio) / 2.0;
         let offsetY = (canvas.height - h * ratio) / 2.0;
 
         const ctx = canvas.getContext("2d");
         ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = "high"
+        ctx.imageSmoothingQuality = "high";
         ctx.drawImage(image, offsetX, offsetY, w * ratio, h * ratio);
     };
 

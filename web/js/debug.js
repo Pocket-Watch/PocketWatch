@@ -18,7 +18,7 @@ async function createExamplePlaylist(count = 10) {
     let api = await import("./api.js");
 
     for (let i = 0; i <= count; i++) {
-        let entry = createEntry(`Example ${i}`, `https://example.com/video${i}.mp4`)
+        let entry = createEntry(`Example ${i}`, `https://example.com/video${i}.mp4`);
         await api.playlistAdd(entry);
     }
 }

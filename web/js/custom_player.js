@@ -79,7 +79,7 @@ class Player {
     }
 
     setSubtitle(url, name, shift = 0.0) {
-        let info = FileInfo.fromUrl(url)
+        let info = FileInfo.fromUrl(url);
         if (name) {
             info.filename = name;
         }
@@ -88,7 +88,7 @@ class Player {
     }
 
     addSubtitle(url, name, shift = 0.0) {
-        let info = FileInfo.fromUrl(url)
+        let info = FileInfo.fromUrl(url);
         if (name) {
             info.filename = name;
         }
@@ -313,9 +313,9 @@ function isHidden(element) {
     return element.style.display === "none";
 }
 
-const DEFAULT_SUBTITLE_BACKGROUND_COLOR   = "#1d2021"
+const DEFAULT_SUBTITLE_BACKGROUND_COLOR   = "#1d2021";
 const DEFAULT_SUBTITLE_BACKGROUND_OPACITY = 80;
-const DEFAULT_SUBTITLE_FOREGROUND_COLOR   = "#fbf1c7"
+const DEFAULT_SUBTITLE_FOREGROUND_COLOR   = "#fbf1c7";
 const DEFAULT_SUBTITLE_FOREGROUND_OPACITY = 100;
 
 class Internals {
@@ -594,7 +594,7 @@ class Internals {
         this.playerUIHideTimeout.schedule();
         this.svgs.playback.setHref(this.icons.pause);
 
-        let result = this.htmlVideo.play()
+        let result = this.htmlVideo.play();
 
         result.catch(exception => {
             this.bufferingTimeout.cancel();
@@ -648,7 +648,7 @@ class Internals {
     }
 
     updateProgressBar(progress) {
-        this.htmlControls.progress.current.style.width = progress * 100 + "%"
+        this.htmlControls.progress.current.style.width = progress * 100 + "%";
 
         const width = this.htmlControls.progress.root.clientWidth;
         let thumb_left = width * progress;
@@ -693,7 +693,7 @@ class Internals {
         for (let r = whereabouts; r < cues.length; r++) {
             let cue = cues[r];
             if (cue.startTime <= time && time <= cue.endTime) {
-                freshCues.push(cue)
+                freshCues.push(cue);
                 continue;
             }
             break;
@@ -967,7 +967,7 @@ class Internals {
         if (pathname.endsWith(".m3u8") || pathname.endsWith("m3u") || pathname.endsWith(".txt")) {
             let module = await import(this.options.hlsJsPath);
             if (!module.Hls.isSupported()) {
-                console.error("HLS is not supported!")
+                console.error("HLS is not supported!");
                 return
             }
 
@@ -1032,7 +1032,7 @@ class Internals {
 
         let ext = info.extension;
         if (ext !== "vtt" && ext !== "srt") {
-            console.warn("Unsupported subtitle extension:", ext)
+            console.warn("Unsupported subtitle extension:", ext);
             return
         }
 
@@ -1047,7 +1047,7 @@ class Internals {
                 cues = parseSrt(text);
             }
 
-            console.debug("Parsed", ext, "track, cue count:", cues.length, "in", performance.now() - parseStart, "ms")
+            console.debug("Parsed", ext, "track, cue count:", cues.length, "in", performance.now() - parseStart, "ms");
 
             if (cues.length === 0) {
                 return
@@ -1069,7 +1069,7 @@ class Internals {
                 this.enableSubtitleTrack(subtitle);
             }
 
-            URL.revokeObjectURL(url)
+            URL.revokeObjectURL(url);
 
             let trackList = this.htmlSubtitleList;
             trackList.appendChild(subtitle.htmlTrack);
@@ -1103,7 +1103,7 @@ class Internals {
     }
 
     switchSubtitleTrack(subtitle) {
-        this.fireSubtitleSelect(subtitle)
+        this.fireSubtitleSelect(subtitle);
 
         if (this.selectedSubtitle) {
             this.selectedSubtitle.htmlTrack.classList.remove("subtitle_track_selected");
@@ -1370,7 +1370,7 @@ class Internals {
     }
 
     attachPlayerRootEvents() {
-        this.htmlPlayerRoot.addEventListener("touchmove",  _ => this.showPlayerUI(), {passive: true});
+        this.htmlPlayerRoot.addEventListener("touchmove",  _ => this.showPlayerUI(), { passive: true });
         this.htmlPlayerRoot.addEventListener("mousemove",  _ => this.showPlayerUI());
         this.htmlPlayerRoot.addEventListener("mousedown",  _ => this.showPlayerUI());
         this.htmlPlayerRoot.addEventListener("mouseup",    _ => this.showPlayerUI());
@@ -1495,7 +1495,7 @@ class Internals {
                 this.showPlayerUI();
             }
 
-            this.svgs.playback.setHref(this.icons.replay)
+            this.svgs.playback.setHref(this.icons.replay);
             this.firePlaybackEnd();
         });
 
@@ -1519,7 +1519,7 @@ class Internals {
         });
 
         this.htmlVideo.addEventListener("loadedmetadata", _ => {
-            this.playbackSpeed.setValue(this.htmlVideo.playbackRate)
+            this.playbackSpeed.setValue(this.htmlVideo.playbackRate);
             this.fireMetadataLoad();
         });
 
@@ -1581,7 +1581,7 @@ class Internals {
         this.htmlControls.buttons.settingsButton.addEventListener("click", _ => {
             hide(this.htmlSubtitleMenu);
 
-            let menu = this.htmlSettingsMenu
+            let menu = this.htmlSettingsMenu;
             if (isHidden(menu)) {
                 show(menu);
             } else {
@@ -1619,7 +1619,7 @@ class Internals {
             }
 
             return progress;
-        }
+        };
 
         this.htmlControls.progress.root.addEventListener("touchstart", _ => {
             const onProgressBarTouchMove = event => {
@@ -1631,7 +1631,7 @@ class Internals {
                 const progress = calculateProgress(event, progressRoot);
                 this.updateProgressBar(progress);
                 this.updateProgressPopup(progress);
-            }
+            };
 
             const onProgressBarTouchStop = event => {
                 this.isDraggingProgressBar = false;
@@ -1648,7 +1648,7 @@ class Internals {
 
                 this.fireControlsSeeked(timestamp);
                 this.seek(timestamp);
-            }
+            };
 
             this.isDraggingProgressBar = true;
             document.addEventListener("touchmove", onProgressBarTouchMove, { passive: false });
@@ -1661,7 +1661,7 @@ class Internals {
                 const progress = calculateProgress(event, progressRoot);
                 this.updateProgressBar(progress);
                 this.updateProgressPopup(progress);
-            }
+            };
 
             const onProgressBarMouseUp = event => {
                 this.isDraggingProgressBar = false;
@@ -1676,7 +1676,7 @@ class Internals {
 
                 this.fireControlsSeeked(timestamp);
                 this.seek(timestamp);
-            }
+            };
 
             this.isDraggingProgressBar = true;
             document.addEventListener("mousemove", onProgressBarMouseMove);
@@ -1723,7 +1723,7 @@ class Internals {
 
     rebindFullscreenAPIFromWebkit() {
         // Should remove the logs and toasts once tested successfully
-        console.debug("Rebinding webkit fullscreen API")
+        console.debug("Rebinding webkit fullscreen API");
         if (!HTMLElement.prototype.requestFullscreen) {
             HTMLElement.prototype.requestFullscreen = HTMLElement.prototype.webkitRequestFullscreen;
         }
@@ -1732,12 +1732,12 @@ class Internals {
         }
 
         if (Object.getOwnPropertyDescriptor(Document.prototype, "fullscreenElement")) {
-            this.setToast("determined fullscreenElement already exists")
+            this.setToast("determined fullscreenElement already exists");
             return;
         }
         Object.defineProperty(Document.prototype, "fullscreenElement", {
             get: () => {
-                this.setToast("fullscreenElement rebound getter was called " + document.webkitFullscreenElement)
+                this.setToast("fullscreenElement rebound getter was called " + document.webkitFullscreenElement);
                 return document.webkitFullscreenElement;
             }
         });
@@ -1807,7 +1807,7 @@ class Internals {
         if (this.options.hidePlaybackButton)   hide(playbackButton);
         if (this.options.hideNextButton)       hide(nextButton);
         if (this.options.hideVolumeButton)     hide(volumeButton);
-        if (this.options.hideVolumeSlider)     hide(volumeRoot)
+        if (this.options.hideVolumeSlider)     hide(volumeRoot);
         if (this.options.hideTimestamps)       hide(timestamp);
         if (this.options.hideDownloadButton)   hide(downloadButton);
         if (this.options.hideSpeedButton)      hide(speedButton);
@@ -1844,7 +1844,7 @@ class Internals {
 
             buttonsRoot.append(timestamp);
 
-            buttonsRoot.append(spacer)
+            buttonsRoot.append(spacer);
 
             buttonsRoot.append(downloadButton); {
                 downloadButton.appendChild(svgs.download.svg);
@@ -1916,7 +1916,7 @@ class Internals {
         let searchTop          = newDiv("player_subtitle_search_top");
         let searchNameRoot     = newDiv(null, "player_input_box");
         let searchNameInput    = newElement("input");
-        let searchNameLabel    = newLabel("Subtitle Name")
+        let searchNameLabel    = newLabel("Subtitle Name");
         let searchButton       = newElement("button", "player_subtitle_search_button");
         let searchMiddle       = newDiv("player_subtitle_search_middle");
         let searchLangRoot     = newDiv(null, "player_input_box");
@@ -1964,10 +1964,10 @@ class Internals {
         searchEpisodeInput.placeholder = " ";
 
         searchNameInput.type    = "text";
-        searchYearInput.type    = "text"
-        searchLangInput.type    = "text"
-        searchSeasonInput.type  = "text"
-        searchEpisodeInput.type = "text"
+        searchYearInput.type    = "text";
+        searchLangInput.type    = "text";
+        searchSeasonInput.type  = "text";
+        searchEpisodeInput.type = "text";
 
         searchButton.textContent   = "[S]";
 
@@ -1985,7 +1985,7 @@ class Internals {
 
             selectedTab.classList.add("player_menu_tab_selected");
             show(selectedView);
-        }
+        };
 
         selectTab.onclick  = _ => select(selectTab,  selectView);
         searchTab.onclick  = _ => select(searchTab,  searchView);
@@ -2024,9 +2024,8 @@ class Internals {
             let episode = searchEpisodeInput.value;
             let search  = new Search(title, lang, year, season, episode);
             searchButton.disabled = true;
-            let success = await this.fireSubtitleSearch(search);
+            await this.fireSubtitleSearch(search);
             searchButton.disabled = false;
-            console.debug("Search", success ? "was successful" : "failed");
         });
 
         subsShift.onInput   = value    => this.setCurrentSubtitleShift(value);
@@ -2134,7 +2133,7 @@ class Internals {
 
             selectedTab.classList.add("player_menu_tab_selected");
             show(selectedView);
-        }
+        };
 
         generalTab.onclick     = _ => select(generalTab,    generalView);
         appearanceTab.onclick  = _ => select(appearanceTab, appearanceView);
@@ -2524,7 +2523,7 @@ function removeInlinedEvents(tag) {
     }
 }
 
-const ALLOWED_STYLE_TAGS = ["i", "b", "u", "ruby", "rt", "c", "v", "lang", "font"]
+const ALLOWED_STYLE_TAGS = ["i", "b", "u", "ruby", "rt", "c", "v", "lang", "font"];
 const PARSER = new DOMParser();
 export function sanitizeHTMLForDisplay(html) {
     // Using a temporary element or document fragment preloads <img> tags causing onload to fire
@@ -2544,7 +2543,7 @@ function sanitizeChildren(tag) {
             sanitizeChildren(child);
             continue;
         }
-        console.warn("Removed", name, "during sanitization.")
+        console.warn("Removed", name, "during sanitization.");
         tag.removeChild(child);
         i--;
     }
@@ -2585,14 +2584,14 @@ function createTimestampString(timestamp) {
 // Receives [subtitle file text, decimal separator ('.' = VTT ',' = SRT), skipCounter is true for SRT
 function parseSubtitles(subtitleText, decimalMark, skipCounter, skipHeader) {
     let lines = subtitleText.split("\n");
-    let cues = []
+    let cues = [];
     let i = 0;
     if (skipHeader) i = 2;
     for (; i < lines.length-1; i++) {
         if (skipCounter) ++i;
 
         let timestamps = lines[i];
-        let [start, end, ok] = parseTimestamps(timestamps, decimalMark)
+        let [start, end, ok] = parseTimestamps(timestamps, decimalMark);
         if (!ok) {
             continue;
         }
@@ -2670,9 +2669,9 @@ export class Search {
 }
 
 function newDiv(id, className) {
-    let div = document.createElement("div")
+    let div = document.createElement("div");
     // The tabIndex makes divs focusable so that they can receive and bubble key events.
-    div.tabIndex = -1
+    div.tabIndex = -1;
     if (id) {
         div.id = id;
     }
@@ -2685,7 +2684,7 @@ function newDiv(id, className) {
 }
 
 function newLabel(labelText) {
-    let label = document.createElement("label")
+    let label = document.createElement("label");
     label.textContent = labelText;
     return label;
 }
@@ -2739,7 +2738,7 @@ class Svg {
         this.use.setAttribute("href", href)
     }
 
-    static new(initialHref, width=20, height=20) {
+    static new(initialHref, width = 20, height = 20) {
         let svg = document.createElementNS(SVG_NAMESPACE, "svg");
         let use = document.createElementNS(SVG_NAMESPACE, "use");
         use.setAttribute("href", initialHref);
@@ -2795,7 +2794,7 @@ function makeRgba(hexColor, opacity) {
 
 function addOpacityToColor(hexColor, opacity) {
     let byteOpacity = Math.floor(opacity / 100.0 * 255);
-    let hexOpacity  = byteOpacity.toString(16)
+    let hexOpacity  = byteOpacity.toString(16);
     return hexColor + hexOpacity;
 }
 
@@ -2833,8 +2832,8 @@ function isMobileAgent() {
 class Options {
     constructor() {
         // Icon path pointing to the svg file
-        this.iconsPath = "svg/player_icons.svg"
-        this.hlsJsPath = "../external/hls.js"
+        this.iconsPath = "svg/player_icons.svg";
+        this.hlsJsPath = "../external/hls.js";
 
         this.hidePlaybackButton   = false;
         this.hideNextButton       = false;

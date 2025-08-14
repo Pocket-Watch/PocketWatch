@@ -1,5 +1,5 @@
 import * as api from "./api.js";
-import { getById, div, a, span, img, svg, button, hide, show, isScrollableVisible } from "./util.js";
+import { getById, div, a, span, img, svg, button, hide, show, isScrollableVisible, widget_toggle, widget_input } from "./util.js";
 
 export { Playlist }
 
@@ -64,7 +64,7 @@ class Playlist {
         // Corresponds to the actual playlist entries on the server.
         this.entries = [];
 
-        // Represents the structure of the htmlEntryList post transition while entries are still mid transition.
+        // Represents the structure of the htmlEntryList post transition while entries are still mid-transition.
         this.htmlEntries = [];
 
         this.draggableEntry    = null;
@@ -107,7 +107,7 @@ class Playlist {
             if (this.entries.length > 0) {
                 api.playerNext(this.currentEntryId);
             }
-        }
+        };
 
         this.controlsAutoplayButton.onclick = _ => {
             this.controlsAutoplayButton.classList.toggle("active");
@@ -147,7 +147,7 @@ class Playlist {
         for (let i = 0; i < this.entries.length; i++) {
             const entry = this.entries[i];
 
-            if (entry.user_id == user.id) {
+            if (entry.user_id === user.id) {
                 const oldHtmlEntry = this.htmlEntries[i];
 
                 let newHtmlEntry = this.createHtmlEntry(entry, user);
@@ -174,7 +174,7 @@ class Playlist {
                 username: "<Unknown user>",
                 avatar: "img/default_avatar.png",
                 online: false,
-            }
+            };
 
             return dummy;
         }
@@ -240,7 +240,7 @@ class Playlist {
         let index = this.entries.findIndex(item => item.id === entryId);
         if (index === -1) {
             console.error("ERROR: Playlist::remove failed. Entry with id", entryId, "is not in the playlist.");
-            return;
+            return null;
         }
 
         if (this.contextMenuEntry && entryId === this.contextMenuEntry.id) {
@@ -328,7 +328,7 @@ class Playlist {
     move(entryId, destIndex) {
         let index = this.entries.findIndex(item => item.id === entryId);
         if (index === -1) {
-            console.error("ERROR: Playlist::move failed. Provided entry with ID:", entryId, "is not within the playlist entry list.")
+            console.error("ERROR: Playlist::move failed. Provided entry with ID:", entryId, "is not within the playlist entry list.");
             return;
         }
 
@@ -368,7 +368,7 @@ class Playlist {
     update(entry, users) {
         let index = this.entries.findIndex(item => item.id === entry.id);
         if (index === -1) {
-            console.error("ERROR: Playlist::update failed. Provided entry with ID:", entry.id, "is not within the playlist entry list.")
+            console.error("ERROR: Playlist::update failed. Provided entry with ID:", entry.id, "is not within the playlist entry list.");
             return;
         }
 
@@ -384,7 +384,7 @@ class Playlist {
             this.stopEntryEdit();
         }
 
-        if (this.draggableEntry && this.dragCurrentIndex == index) {
+        if (this.draggableEntry && this.dragCurrentIndex === index) {
             let draggableBefore = this.draggableEntry;
             this.draggableEntry = this.createDraggableEntry(htmlEntry, draggableBefore.style.top);
             this.htmlEntryList.replaceChild(this.draggableEntry, draggableBefore);
@@ -490,10 +490,6 @@ class Playlist {
 
         this.updateHtmlListHeight();
         this.updateFooter();
-    }
-
-    findEntryIndex(entry) {
-        return this.entries.findIndex(item => item.id === entry.id);
     }
 
     findHtmlIndex(htmlEntry) {
@@ -766,7 +762,7 @@ class Playlist {
         let listRect   = this.htmlEntryListRoot.getBoundingClientRect();
         let top        = positionY - listRect.top - this.draggableEntryMouseOffset;
         let maxPos     = this.indexToPosition(this.htmlEntries.length - 2);
-        let maxTop     = Math.min(top, maxPos)
+        let maxTop     = Math.min(top, maxPos);
 
         this.draggableEntry.style.top = maxTop + "px";
 
@@ -824,13 +820,11 @@ class Playlist {
 
         if (this.dragStartIndex !== this.dragCurrentIndex) {
             let entry = this.entries[this.dragCurrentIndex];
-            this.revertDragging(this.dragCurrentIndex, this.dragStartIndex)
+            this.revertDragging(this.dragCurrentIndex, this.dragStartIndex);
             api.playlistMove(entry.id, this.dragCurrentIndex);
         }
 
         this.draggableEntry            = null;
-        this.draggableStartIndex       = -1;
-        this.draggableCurrentIndex     = -1;
         this.draggableEntryMouseOffset = 0; 
     }
 
@@ -845,7 +839,7 @@ class Playlist {
         this.htmlEntryList.removeChild(this.draggableEntry);
 
         let htmlEntry = this.htmlEntries[this.dragCurrentIndex];
-        htmlEntry.classList.remove("shadow")
+        htmlEntry.classList.remove("shadow");
 
         this.internalMove(this.dragCurrentIndex, this.dragStartIndex);
 
@@ -916,7 +910,7 @@ class Playlist {
         let entryDragArea  = div("playlist_drag_area"); 
         let entryThumbnail = div("playlist_entry_thumbnail");
         let thumbnailSrc   = entry.thumbnail ? entry.thumbnail : "img/thumbnail_placeholder.png";
-        let thumbnailPlay  = svg("svg/main_icons.svg#thumbnail_play")
+        let thumbnailPlay  = svg("svg/main_icons.svg#thumbnail_play");
         let thumbnailImg   = img(thumbnailSrc, true);
         let entryInfo      = div("playlist_entry_info");
         let entryTitle     = span("playlist_entry_title", entry.title);

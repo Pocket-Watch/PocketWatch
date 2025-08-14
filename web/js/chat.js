@@ -1,5 +1,5 @@
 import * as api from "./api.js";
-import {getById, div, img, span, a, isSameDay, isLocalImage} from "./util.js";
+import { getById, div, img, span, a, isSameDay, isLocalImage, show, hide } from "./util.js";
 
 export { Chat }
 
@@ -18,7 +18,6 @@ class Chat {
         this.contextMenuCopyUrl = getById("chat_context_copy_url");
         this.contextMenuOpen    = getById("chat_context_open");
 
-        this.isChatAtBottom = true;
         this.prevUserId     = -1;
         this.prevDate       = new Date();
 
@@ -93,21 +92,21 @@ class Chat {
     }
 
     async uploadAndPasteImage(files) {
-        if (!files || files.length == 0) {
+        if (!files || files.length === 0) {
             return;
         }
 
         let file = files[0];
-        console.log(file)
+        console.log(file);
         if (!file.type.startsWith("image/")) {
             return;
         }
 
-        let unix = Date.now()
+        let unix = Date.now();
         let filename = unix + file.name;
-        let response = await api.uploadMedia(file, filename)
+        let response = await api.uploadMedia(file, filename);
 
-        let fullUrl = document.location.href + response.url
+        let fullUrl = document.location.href + response.url;
         this.chatInput.value += fullUrl;
     }
 
@@ -124,12 +123,6 @@ class Chat {
 
         this.chatList.oncontextmenu = _ => { return false };
         document.addEventListener("click", _ => this.hideContextMenu());
-
-        this.chatListRoot.onscroll = _ => {
-            let root = this.chatListRoot;
-            let scroll = root.scrollHeight - root.scrollTop - root.clientHeight;
-            this.isChatAtBottom = Math.abs(scroll) < 60;
-        };
 
         this.sendMessageButton.onclick = _ => {
             this.chatInput.focus();
@@ -168,8 +161,6 @@ class Chat {
         this.prevUserId = -1;
         this.prevDate   = new Date(); 
 
-        this.isChatAtBottom = true;
-
         while (this.chatList.lastChild) {
             this.chatList.removeChild(this.chatList.lastChild);
         }
@@ -186,7 +177,7 @@ class Chat {
                 username: "Deleted user",
                 avatar:   "img/default_avatar.png",
                 online:   false,
-            }
+            };
 
             user = dummy;
         }
@@ -195,14 +186,14 @@ class Chat {
     }
 
     createMessage(message, user) {
-        let root      = div("chat_message")
-        let avatar    = div("chat_message_avatar")
-        let avatarImg = img(user.avatar)
-        let right     = div("chat_message_right")
-        let info      = div("chat_message_info")
-        let username  = div("chat_message_username")
-        let date      = div("chat_message_date")
-        let text      = div("chat_message_text")
+        let root      = div("chat_message");
+        let avatar    = div("chat_message_avatar");
+        let avatarImg = img(user.avatar);
+        let right     = div("chat_message_right");
+        let info      = div("chat_message_info");
+        let username  = div("chat_message_username");
+        let date      = div("chat_message_date");
+        let text      = div("chat_message_text");
 
         let segments = this.linkify(message.message);
         username.textContent = user.username;
@@ -255,9 +246,9 @@ class Chat {
     }
 
     createSubMessage(message) {
-        let root = div("chat_sub_message")
-        let date = div("chat_sub_message_date")
-        let text = div("chat_sub_message_text")
+        let root = div("chat_sub_message");
+        let date = div("chat_sub_message_date");
+        let text = div("chat_sub_message_text");
 
         let segments = this.linkify(message.message);
 
@@ -302,12 +293,12 @@ class Chat {
         let parsingUrl   = false;
 
         for (let i = 0; i < content.length; i++) {
-            let slice = content.slice(i)
+            let slice = content.slice(i);
 
             if (!parsingUrl && (slice.startsWith("http://") || slice.startsWith("https://"))) {
                 if (segmentStart !== i) {
                     let text    = content.slice(segmentStart, i);
-                    let segment = span(null, text)
+                    let segment = span(null, text);
                     segment.oncontextmenu = _ => this.contextUrlHide();
                     segments.push(segment);
                 }
@@ -320,7 +311,7 @@ class Chat {
             if (rune === " " && parsingUrl) {
                 let url = content.slice(segmentStart, i);
 
-                let segment
+                let segment;
                 if (isLocalImage(url)) {
                     segment = img(url, true);
                 } else {
@@ -331,14 +322,14 @@ class Chat {
                 segments.push(segment);
 
                 parsingUrl   = false;
-                segmentStart = i;;
+                segmentStart = i;
             }
         }
 
         if (parsingUrl) {
             let url = content.slice(segmentStart);
 
-            let segment
+            let segment;
             if (isLocalImage(url)) {
                 segment = img(url, true);
             } else {
@@ -349,7 +340,7 @@ class Chat {
             segments.push(segment);
         } else {
             let text    = content.slice(segmentStart);
-            let segment = span(null, text)
+            let segment = span(null, text);
             segment.oncontextmenu = _ => this.contextUrlHide();
             segments.push(segment);
         }
@@ -358,7 +349,7 @@ class Chat {
     }
 
     addMessage(chatMsg, allUsers) {
-        let user = this.findUser(chatMsg.authorId, allUsers)
+        let user = this.findUser(chatMsg.authorId, allUsers);
         let date = new Date(chatMsg.unixTime);
 
         let message;
@@ -402,7 +393,7 @@ class Chat {
             let next     = this.messages[index + 1];
             let nextHtml = this.htmlMessages[index + 1];
             if (next && !nextHtml.classList.contains("chat_message")) {
-                let user = this.findUser(next.authorId, allUsers)
+                let user = this.findUser(next.authorId, allUsers);
                 let newHtml = this.createMessage(next, user);
 
                 if (this.contextMenuMessage && this.contextMenuMessage.id === next.id) {
@@ -432,7 +423,7 @@ class Chat {
             return;
         }
 
-        api.chatSend(content)
+        api.chatSend(content);
         this.chatInput.value = "";
     }
 

@@ -6,7 +6,7 @@ class AudioProcessor extends AudioWorkletProcessor {
         this.keepProcessing = true;
         this.port.onmessage = (event) => {
             if (event.data.command === 'stop') {
-                console.log("STOP Received, closing port")
+                console.log("STOP Received, closing port");
                 this.port.close();
                 this.keepProcessing = false;
             }

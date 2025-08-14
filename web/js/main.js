@@ -1,8 +1,8 @@
-import { Options, Player, Timeout } from "./custom_player.js"
-import { Playlist } from "./playlist.js"
-import { History } from "./history.js"
-import { Chat } from "./chat.js"
-import { sha256 } from "./auth.js"
+import { Options, Player, Timeout } from "./custom_player.js";
+import { Playlist } from "./playlist.js";
+import { History } from "./history.js";
+import { Chat } from "./chat.js";
+import { sha256 } from "./auth.js";
 import * as api from "./api.js";
 import {
     Storage, button, div, formatTime, formatByteCount, getById, dynamicImg, svg, show, hide, fileInput, isLocalUrl
@@ -10,13 +10,13 @@ import {
 
 const SERVER_ID = 0;
 
-const SELECTED_THEME         = "selected_theme"
-const USER_AVATAR_ANIMATIONS = "user_avatar_animations"
-const NEW_MESSAGE_SOUND      = "new_message_sound"
-const ROOM_THEATER_MODE      = "room_theater_mode"
-const LOW_BANDWIDTH_MODE     = "low_bandwidth_mode"
-const LAST_SELECTED_TAB      = "last_selected_tab"
-const LAST_SELECTED_SUBTITLE = "last_selected_subtitle"
+const SELECTED_THEME         = "selected_theme";
+const USER_AVATAR_ANIMATIONS = "user_avatar_animations";
+const NEW_MESSAGE_SOUND      = "new_message_sound";
+const ROOM_THEATER_MODE      = "room_theater_mode";
+const LOW_BANDWIDTH_MODE     = "low_bandwidth_mode";
+const LAST_SELECTED_TAB      = "last_selected_tab";
+const LAST_SELECTED_SUBTITLE = "last_selected_subtitle";
 
 const TAB_ROOM     = 1;
 const TAB_PLAYLIST = 2;
@@ -30,7 +30,7 @@ class Room {
     constructor() {
         let video0 = getById("video0");
 
-        let options = new Options();
+        let options                = new Options();
         options.useAudioGain       = true;
         options.maxVolume          = 1.5;
         options.hideSpeedButton    = true;
@@ -179,9 +179,6 @@ class Room {
 
         this.roomSelectedSubId = -1;
 
-        // Current connection id.
-        this.connectionId = 0;
-
         // Self user id. Server User structure.
         this.currentUserId = -1;
 
@@ -200,7 +197,7 @@ class Room {
         // Subtitle file to be attached to the entry.
         this.subtitleFile = null;
 
-        // Id of the currently set entry.
+        // ID of the currently set entry.
         this.currentEntryId = 0;
         this.currentEntry = {};
 
@@ -211,7 +208,7 @@ class Room {
         this.fileUploadReset  = new Timeout(_ => {
             this.roomContent.upload.placeholderRoot.classList.remove("hide");
             this.roomContent.upload.progressRoot.classList.add("hide");
-        }, 2000)
+        }, 2000);
     }
 
     showSettingsMenu(_settingsTab) {
@@ -280,19 +277,19 @@ class Room {
 
         let theme = Storage.get(SELECTED_THEME);
         if (theme) {
-            this.selectedTheme.href = `css/themes/${theme}.css`
+            this.selectedTheme.href = `css/themes/${theme}.css`;
             this.settingsMenu.themeSwitcherSelect.value = theme;
         }
 
         // Player settings
         let volume = Storage.get("volume");
-        if (volume != null) {
+        if (volume !== null) {
             this.player.setVolume(volume);
         }
 
         let lastSub = Storage.get(LAST_SELECTED_SUBTITLE);
         if (lastSub !== null) {
-            this.player.switchSubtitleTrackByUrl(lastSub)
+            this.player.switchSubtitleTrackByUrl(lastSub);
         }
 
         let subsEnabled = Storage.getBool(Options.SUBTITLES_ENABLED);
@@ -301,24 +298,24 @@ class Room {
         }
 
         let size = Storage.get(Options.SUBTITLE_FONT_SIZE);
-        if (size != null) {
+        if (size !== null) {
             this.player.setSubtitleFontSize(size);
         }
 
         let position = Storage.getNum(Options.SUBTITLE_VERTICAL_POSITION);
-        if (position != null) {
+        if (position !== null) {
             this.player.setSubtitleVerticalPosition(position);
         }
 
         let fgColor = Storage.get(Options.SUBTITLE_FOREGROUND_COLOR);
         let fgOpacity = Storage.get(Options.SUBTITLE_FOREGROUND_OPACITY);
-        if (fgColor != null && fgOpacity != null) {
+        if (fgColor !== null && fgOpacity !== null) {
             this.player.setSubtitleForegroundColor(fgColor, fgOpacity);
         }
 
         let bgColor = Storage.get(Options.SUBTITLE_BACKGROUND_COLOR);
         let bgOpacity = Storage.get(Options.SUBTITLE_BACKGROUND_OPACITY);
-        if (bgColor != null && bgOpacity != null) {
+        if (bgColor !== null && bgOpacity !== null) {
             this.player.setSubtitleBackgroundColor(bgColor, bgOpacity);
         }
 
@@ -361,7 +358,7 @@ class Room {
 
         this.player.onControlsVolumeSet(volume => {
             // Maybe browsers optimize calls to localStorage and don't write to disk 30 times a second?
-            Storage.set("volume", volume)
+            Storage.set("volume", volume);
         });
 
         this.player.onSettingsChange((key, value) => {
@@ -408,8 +405,8 @@ class Room {
         });
 
         this.player.onMetadataLoad(_ => {
-            this.roomContent.videoResolution.textContent = this.player.getResolution()
-        })
+            this.roomContent.videoResolution.textContent = this.player.getResolution();
+        });
 
         this.player.onPlaybackError((exception, error) => {
             if (exception.name === "NotAllowedError") {
@@ -419,14 +416,14 @@ class Room {
 
             if (exception.name === "AbortError") {
                 this.player.setToast("AbortError: Likely the video is slowly loading. Pausing playback!");
-                api.playerPause(this.player.getCurrentTime())
+                api.playerPause(this.player.getCurrentTime());
                 return;
             }
 
             if (!error) {
                 this.player.setToast("UNKNOWN ERROR, press F12 to see what happened!");
                 console.error(exception.name + ":", exception.message);
-                api.playerPause(this.player.getCurrentTime())
+                api.playerPause(this.player.getCurrentTime());
                 return;
             }
 
@@ -455,17 +452,15 @@ class Room {
                 }
 
                 api.playerPause(this.player.getCurrentTime());
-                return;
             }
-
         });
 
-        // NOTE(kihau): This hack fixes HLS issues with seeking on website load and auto-playing.
+        // NOTE(kihau): This hack fixes HLS issues with seeking on website load and autoplaying.
         this.player.onDataLoad(_ => {
             if (this.stateOnLoad) {
-                this.player.seek(this.stateOnLoad.timestamp)
+                this.player.seek(this.stateOnLoad.timestamp);
                 if (this.stateOnLoad.playing) {
-                    this.player.play()
+                    this.player.play();
                 }
 
                 this.stateOnLoad = null;
@@ -523,15 +518,15 @@ class Room {
         }
 
         let countString = area.ytCountInput.value.trim();
-        let count = Number(countString)
+        let count = Number(countString);
         if (!count || count <= 0) {
-            count = 20
+            count = 20;
         }
 
         let skipCountString = area.ytSkipCountInput.value.trim();
-        let skipCount = Number(skipCountString)
+        let skipCount = Number(skipCountString);
         if (!skipCount || skipCount <= 0) {
-            skipCount = 0
+            skipCount = 0;
         }
 
         const requestEntry = {
@@ -554,8 +549,8 @@ class Room {
         this.selected_tab.classList.remove("selected");
         this.selected_content.classList.remove("selected");
 
-        let tab     = null;
-        let content = null;
+        let tab;
+        let content;
         switch (tab_type) {
             case TAB_ROOM: {
                 tab     = this.rightPanel.tabs.room;
@@ -733,14 +728,11 @@ class Room {
             event.preventDefault();
 
             let files = event.dataTransfer.files;
-            if (!files) {
+            if (!files || files.length === 0) {
                 return;
             }
 
-            for (let i = 0; i < files.length; i++) {
-                this.startMediaFileUpload(files[i]);
-                break;
-            }
+            this.startMediaFileUpload(files[0]);
         };
 
         room.upload.filepicker.onchange = event => {
@@ -748,7 +740,7 @@ class Room {
                 return;
             }
 
-            this.startMediaFileUpload(event.target.files[0])
+            this.startMediaFileUpload(event.target.files[0]);
         };
 
         room.browse.videoButton.onclick     = _ => window.open("media/video/", "_blank").focus();
@@ -774,7 +766,7 @@ class Room {
         };
 
         room.subtitlesSelect.onchange = event => {
-            let id  = Number(event.target.value)
+            let id  = Number(event.target.value);
             let sub = this.currentEntry.subtitles.find(sub => sub.id === id);
 
             room.subsEditInput.value = sub.name;
@@ -784,7 +776,7 @@ class Room {
         room.subsUpdateButton.onclick = _ => {
             let subtitle = this.currentEntry.subtitles.find(sub => sub.id === this.roomSelectedSubId);
             if (!subtitle) {
-                return
+                return;
             }
 
             let newName = room.subsEditInput.value.trim();
@@ -794,7 +786,7 @@ class Room {
         room.subsDeleteButton.onclick = _ => {
             let subtitle = this.currentEntry.subtitles.find(sub => sub.id === this.roomSelectedSubId);
             if (!subtitle) {
-                return
+                return;
             }
 
             api.subtitleDelete(subtitle.id);
@@ -873,7 +865,7 @@ class Room {
                 console.log("File selected: ", files[0]);
                 this.subtitleFile = files[0];
                 area.subtitleNameInput.value = this.subtitleFile.name;
-            }
+            };
 
             input.click();
         };
@@ -917,7 +909,7 @@ class Room {
         };
 
         menu.tokenSetButton.onclick = async _ => {
-            let newToken = menu.tokenSetInput.value
+            let newToken = menu.tokenSetInput.value;
             if (!newToken || newToken === "") {
                 console.warn("WARN: Provided token is empty.");
                 return;
@@ -966,9 +958,9 @@ class Room {
 
         menu.themeSwitcherSelect.onchange = event => {
             let theme = event.target.value;
-            this.selectedTheme.href = `css/themes/${theme}.css`
-            Storage.set(SELECTED_THEME, theme)
-        }
+            this.selectedTheme.href = `css/themes/${theme}.css`;
+            Storage.set(SELECTED_THEME, theme);
+        };
 
         menu.deleteYourAccountButton.onclick = _ => {
             if (menu.confirmAccountDelete.value === "I confirm") {
@@ -1119,7 +1111,7 @@ class Room {
 
     appendSelfUserContent(userbox) {
         let changeAvatarButton = button("user_box_change_avatar","Update your avatar");
-        let uploadAvaterSvg    = svg("svg/main_icons.svg#upload");
+        let uploadAvatarSvg    = svg("svg/main_icons.svg#upload");
         let shadowContainer    = div("user_box_shadow");
         let editNameButton     = button("user_box_edit_name_button", "Change your username");
         let editNameSvg        = svg("svg/main_icons.svg#edit2");
@@ -1134,13 +1126,13 @@ class Room {
         // Attaching events to html elements
         //
         changeAvatarButton.onclick = _ => {
-            let input = fileInput(".png,.jpg,.jpeg,.gif,.webp")
+            let input = fileInput(".png,.jpg,.jpeg,.gif,.webp");
 
             input.onchange = event => {
                 let file = event.target.files[0];
                 console.log("Picked file:", file);
-                api.userUpdateAvatar(file)
-            }
+                api.userUpdateAvatar(file);
+            };
 
             input.click();
         };
@@ -1161,7 +1153,7 @@ class Room {
                 userbox.nameInput.readOnly = true;
 
                 let user = this.allUsers.find(user => this.currentUserId === user.id);
-                let newUsername = userbox.nameInput.value.trim()
+                let newUsername = userbox.nameInput.value.trim();
                 if (newUsername && newUsername !== user.username) {
                     api.userUpdateName(newUsername);
                 } else {
@@ -1183,7 +1175,7 @@ class Room {
         //
         userbox.top.appendChild(shadowContainer);
         userbox.top.appendChild(changeAvatarButton); {
-            changeAvatarButton.appendChild(uploadAvaterSvg);
+            changeAvatarButton.appendChild(uploadAvatarSvg);
         }
         userbox.bottom.appendChild(editNameButton); {
             editNameButton.appendChild(editNameSvg);
@@ -1203,7 +1195,7 @@ class Room {
             bottom:    bottom,
             avatar:    avatar,
             nameInput: nameInput,
-        }
+        };
 
         //
         // Configuring parameters for html elements.
@@ -1221,7 +1213,7 @@ class Room {
             bottom.append(nameInput);
         }
 
-        if (user.id == this.currentUserId) {
+        if (user.id === this.currentUserId) {
             this.appendSelfUserContent(userbox, user);
         }
 
@@ -1308,7 +1300,7 @@ class Room {
             }
         }
 
-        this.player.setPoster(null)
+        this.player.setPoster(null);
         if (entry.thumbnail) {
             this.player.setPoster(entry.thumbnail);
         }
@@ -1319,7 +1311,7 @@ class Room {
 
         this.player.discardPlayback();
         this.player.setTitle(null);
-        this.player.setPoster("")
+        this.player.setPoster("");
         this.player.setToast("Nothing is playing at the moment!");
         this.player.clearAllSubtitleTracks();
     }
@@ -1335,7 +1327,7 @@ class Room {
         }
 
         if (Math.abs(desync) > MAX_DESYNC && !this.player.isLive()) {
-            let diff = Math.abs(desync) - MAX_DESYNC
+            let diff = Math.abs(desync) - MAX_DESYNC;
             console.warn("WARN: You are desynced! MAX_DESYNC(" + MAX_DESYNC + ") exceeded by:", diff, "Trying to resync now!");
             this.player.seek(timestamp);
         }
@@ -1364,7 +1356,7 @@ class Room {
         };
 
         events.onerror = _ => {
-            events.close()
+            events.close();
             console.error("ERROR: Connection to the server was lost. Attempting to reconnect in", RECONNECT_AFTER, "ms");
             this.handleDisconnect();
         };
@@ -1405,7 +1397,7 @@ class Room {
     subscribeToSubtitleEvents(events) {
         events.addEventListener("subtitledelete", event => {
             if (!event.data) {
-                console.warn("WARN: Subtitle delete event failed, event data is null.")
+                console.warn("WARN: Subtitle delete event failed, event data is null.");
                 return;
             }
 
@@ -1414,13 +1406,13 @@ class Room {
 
             let subs = this.currentEntry.subtitles;
             if (!subs) {
-                console.warn("WARN: Subtitle delete event failed, currentEntry subtitles is null.")
+                console.warn("WARN: Subtitle delete event failed, currentEntry subtitles is null.");
                 return;
             }
 
             let index = subs.findIndex(sub => sub.id === subId);
             if (index === -1) {
-                console.warn("WARN: Subtitle delete event failed, subtitle index is -1.")
+                console.warn("WARN: Subtitle delete event failed, subtitle index is -1.");
                 return;
             }
 
@@ -1438,7 +1430,7 @@ class Room {
         events.addEventListener("subtitleupdate", event => {
             let data = JSON.parse(event.data);
             if (!data) {
-                console.warn("WARN: Subtitle update event failed, event data is null.")
+                console.warn("WARN: Subtitle update event failed, event data is null.");
                 return;
             }
 
@@ -1446,13 +1438,13 @@ class Room {
 
             let subs = this.currentEntry.subtitles;
             if (!subs) {
-                console.warn("WARN: Subtitle update event failed, currentEntry subtitles is null.")
+                console.warn("WARN: Subtitle update event failed, currentEntry subtitles is null.");
                 return;
             }
 
             let index = subs.findIndex(sub => sub.id === data.id);
             if (index === -1) {
-                console.warn("WARN: Subtitle update event failed, subtitle index is -1.")
+                console.warn("WARN: Subtitle update event failed, subtitle index is -1.");
                 return;
             }
 
@@ -1506,9 +1498,9 @@ class Room {
         // });
 
         events.addEventListener("usercreate", event => {
-            let user = JSON.parse(event.data)
-            this.allUsers.push(user)
-            console.info("INFO: New user has been created: ", user)
+            let user = JSON.parse(event.data);
+            this.allUsers.push(user);
+            console.info("INFO: New user has been created: ", user);
 
             let userbox = this.createUserBox(user);
             this.allUserBoxes.push(userbox);
@@ -1519,10 +1511,10 @@ class Room {
         });
 
         events.addEventListener("userdelete", event => {
-            let target = JSON.parse(event.data)
+            let target = JSON.parse(event.data);
             let index = this.allUsers.findIndex(user => user.id === target.id);
 
-            if (this.currentUserId == target.id) {
+            if (this.currentUserId === target.id) {
                 events.close();
                 this.markAllUsersOffline();
                 this.clearUsersArea();
@@ -1538,7 +1530,7 @@ class Room {
             let online = 0;
             for (let i = 0; i < this.allUsers.length; i++) {
                 if (this.allUsers[i].online) online += 1;
-                console.warn(this.allUsers[i], online)
+                console.warn(this.allUsers[i], online);
             }
 
             this.onlineCount = online;
@@ -1551,7 +1543,7 @@ class Room {
         // The server will always serve the up-to-date snapshot of User which should never exceed 1 kB in practice
         events.addEventListener("userconnected", event => {
             let userId = JSON.parse(event.data);
-            console.info("INFO: User connected, ID: ", userId)
+            console.info("INFO: User connected, ID: ", userId);
 
             let userBoxes = this.usersArea.userList;
             let onlineBoxes = userBoxes.getElementsByClassName("online");
@@ -1581,7 +1573,7 @@ class Room {
 
         events.addEventListener("userdisconnected", event => {
             let userId = JSON.parse(event.data);
-            console.info("INFO: User disconnected, ID: ", userId)
+            console.info("INFO: User disconnected, ID: ", userId);
 
             let userBoxes = this.usersArea.userList;
             let onlineBoxes = userBoxes.getElementsByClassName("user_box online");
@@ -1590,7 +1582,7 @@ class Room {
             let index = this.allUsers.findIndex(user => user.id === userId);
             if (index === -1) {
                 console.warn("WARN: Failed to find users with user ID =", userId);
-                return
+                return;
             }
 
             this.allUsers[index].online = false;
@@ -1611,9 +1603,9 @@ class Room {
 
         events.addEventListener("userupdate", event => {
             let user = JSON.parse(event.data);
-            console.info("INFO: Update user name event for: ", user)
+            console.info("INFO: Update user name event for: ", user);
 
-            let index = this.allUsers.findIndex(x => x.id == user.id);
+            let index = this.allUsers.findIndex(x => x.id === user.id);
             if (index === -1) {
                 console.warn("WARN: Failed to find users with user ID =", user.id);
                 return;
@@ -1646,7 +1638,7 @@ class Room {
 
         events.addEventListener("playerautoplay", event => {
             let autoplay = JSON.parse(event.data);
-            this.playlist.setAutoplay(autoplay)
+            this.playlist.setAutoplay(autoplay);
         });
 
         events.addEventListener("playerupdatetitle", event => {
@@ -1677,7 +1669,7 @@ class Room {
         events.addEventListener("sync", event => {
             let data = JSON.parse(event.data);
             if (!data) {
-                console.error("ERROR: Failed to parse event data")
+                console.error("ERROR: Failed to parse event data");
                 return;
             }
 
@@ -1783,7 +1775,7 @@ class Room {
         let messageSoundEnabled = this.settingsMenu.newMessageSoundToggle.classList.contains("active");
         let isAway = this.selected_tab !== this.rightPanel.tabs.chat || document.visibilityState === "hidden";
         let isSelf = this.currentUserId === authorId;
-        return messageSoundEnabled && !isSelf && (isAway || this.player.isFullscreen())
+        return messageSoundEnabled && !isSelf && (isAway || this.player.isFullscreen());
     }
 
     handleDisconnect() {

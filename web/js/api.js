@@ -305,7 +305,7 @@ export async function subtitleUpdate(id, name) {
     let data = {
         id:    id,
         name:  name,
-    }
+    };
 
     console.info("INFO: Sending player subtitle update request for subtitle", id);
     httpPost("/watch/api/subtitle/update", data);
@@ -321,7 +321,7 @@ export async function subtitleShift(id, shift) {
     let data = {
         id:    id,
         shift: shift,
-    }
+    };
     httpPost("/watch/api/subtitle/shift", data);
 }
 
@@ -341,7 +341,7 @@ export async function subtitleDownload(url, name, referer) {
         url:  url,
         name: name,
         referer: referer
-    }
+    };
 
     console.info("INFO: Sending subtitle download for url", url);
     return await httpPost("/watch/api/subtitle/download", data);
@@ -393,7 +393,7 @@ export async function playlistMove(entryId, dest) {
     const payload = {
         entry_id:   entryId,
         dest_index: dest,
-    }
+    };
 
     console.info("INFO: Sending playlist move request with: ", payload);
     return await httpPost("/watch/api/playlist/move", payload);
@@ -402,7 +402,7 @@ export async function playlistMove(entryId, dest) {
 export async function playlistUpdate(entry) {
     const payload = {
         entry: entry,
-    }
+    };
 
     console.info("INFO: Sending playlist update request for entry id:", entry);
     return await httpPost("/watch/api/playlist/update", payload);
@@ -433,7 +433,7 @@ export async function historyRemove(entryId) {
 export async function chatSend(message) {
     const payload = {
         message: message
-    }
+    };
 
     console.info("INFO: Sending new chat to the server.");
     httpPost("/watch/api/chat/send", payload);
@@ -443,7 +443,7 @@ export async function chatEdit(message, messageId) {
     const payload = {
         editedMessage: message,
         id: messageId
-    }
+    };
 
     console.info("INFO: Sending a chat edit to the server.");
     httpPost("/watch/api/chat/edit", payload);
@@ -453,7 +453,7 @@ export async function chatGet(count, backwardOffset) {
     let data = {
         count: count,
         backwardOffset: backwardOffset,
-    }
+    };
     console.info("INFO: Fetching chat from server.");
     return await httpPost("/watch/api/chat/get", data);
 }
@@ -461,7 +461,7 @@ export async function chatGet(count, backwardOffset) {
 export async function chatDelete(messageId) {
     let data = {
         id: messageId
-    }
+    };
     console.info("INFO: Deleting chat message.");
     return await httpPost("/watch/api/chat/delete", data);
 }

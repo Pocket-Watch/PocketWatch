@@ -1,9 +1,9 @@
 import * as api from "./api.js";
-import { getById, div, a, span, img, svg, show } from "./util.js";
+import { getById, div, a, span, img, svg, show, hide } from "./util.js";
 
 export { History }
 
-const MAX_HISTORY_SIZE = 120
+const MAX_HISTORY_SIZE = 120;
 
 function createRequestEntry(entry) {
     const requestEntry = {
@@ -29,7 +29,7 @@ class History {
         // Corresponds to the actual history entries on the server.
         this.entries = [];
 
-        // Represents the structure of the htmlEntryList post transition while entries are still mid transition.
+        // Represents the structure of the htmlEntryList post transition while entries are still mid-transition.
         this.htmlEntries = [];
 
         this.htmlEntryListRoot = getById("history_entry_list_root");
@@ -69,7 +69,7 @@ class History {
 
         this.contextMenuPlayNow.onclick     = _ => api.historyPlay(this.contextMenuEntry.id);
         this.contextMenuExpand.onclick      = _ => console.warn("TODO");
-        this.contextMenuCopyUrl.onclick     = _ => navigator.clipboard.writeText(this.contextMenuEntry.url);;
+        this.contextMenuCopyUrl.onclick     = _ => navigator.clipboard.writeText(this.contextMenuEntry.url);
         this.contextMenuCopyEntry.onclick   = _ => this.onContextEntryCopy(this.contextMenuEntry);
         this.contextMenuAddPlaylist.onclick = _ => api.playlistAdd(createRequestEntry(this.contextMenuEntry));
         this.contextMenuDelete.onclick      = _ => api.historyRemove(this.contextMenuEntry.id);
@@ -123,7 +123,7 @@ class History {
         let entryTop       = div("history_entry_top"); 
         let entryThumbnail = div("history_entry_thumbnail");
         let thumbnailSrc   = entry.thumbnail ? entry.thumbnail : "img/thumbnail_placeholder.png";
-        let thumbnailPlay  = svg("svg/main_icons.svg#thumbnail_play")
+        let thumbnailPlay  = svg("svg/main_icons.svg#thumbnail_play");
         let thumbnailImg   = img(thumbnailSrc, true);
         let entryInfo      = div("history_entry_info");
         let entryTitle     = span("history_entry_title", entry.title);
@@ -136,7 +136,7 @@ class History {
         //
 
         entryThumbnail.onclick = _ => api.historyPlay(entry.id);
-        dropdownButton.onclick = _ => console.warn("TODO")
+        dropdownButton.onclick = _ => console.warn("TODO");
 
         entryRoot.oncontextmenu = event => {
             event.preventDefault();
