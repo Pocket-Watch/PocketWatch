@@ -48,7 +48,7 @@
 
                     <div id="settings_token_update" class="widget_input widget_input_extra_button">
                         <input id="settings_token_set_input" placeholder="" title="Update your token to login to a different account."/>
-                        <label>Set your token</label>
+                        <label for="settings_token_set_input">Set your token</label>
                         <button id="settings_token_set_button" type="button">
                             <svg><use href="svg/main_icons.svg#accept"/></svg>
                         </button>
@@ -88,7 +88,7 @@
                 </div>
 
                 <div>
-                    <span class="placeholder">Select theme:</span>
+                    <label class="placeholder" for="settings_switch_theme">Select theme:</label>
 
                     <select id="settings_switch_theme">
                         <option value="gruvbox">Gruvbox</option>
@@ -102,7 +102,7 @@
                     <div id="settings_delete_account_inner">
                         <div class="widget_input widget_input_extra_button">
                             <input id="confirm_deletion_phrase" placeholder="" title="Confirm by typing the phrase: I confirm"/>
-                            <label>Type: I confirm</label>
+                            <label for="confirm_deletion_phrase">Type: I confirm</label>
                             <button id="delete_your_account" title="Delete your account">
                                 <svg><use href="svg/main_icons.svg#delete"/></svg>
                             </button>
@@ -110,7 +110,7 @@
 
                     </div>
                 </div>
-                <img class="construction_anim" src="img/under_construction.png">
+                <img class="construction_anim" src="img/under_construction.png" alt="Placeholder 'page under construction' sign">
             </div>
         </div>
 
@@ -137,7 +137,7 @@
 
                         <div id="entry_url_container" class="widget_input">
                             <input id="entry_url_input" type="url" placeholder="" title="Enter video or audio URL here. Could be a YouTube link or any other media URL."/>
-                            <label>
+                            <label for="entry_url_input">
                                 <svg><use href="svg/main_icons.svg#link"/></svg>
                                 <span id="entry_url_label">Entry URL</span>
                             </label>
@@ -160,7 +160,7 @@
                             <div class="entry_section_group">
                                 <div class="widget_input">
                                     <input id="entry_title_input" placeholder="" title="Enter your custom title for the entry."/>
-                                    <label>
+                                    <label for="entry_title_input">
                                         <svg><use href="svg/main_icons.svg#title"/></svg>
                                         <span>Entry Title</span>
                                     </label>
@@ -173,14 +173,14 @@
                             </div>
 
                             <div class="entry_section_group">
-                                <div id="entry_proxy_toggle" class="widget_toggle" title="Enables media proxy. That means that provided resource (ex. link to a youtube video) will be fetched by the server and relayed to all online memebers in your room.">
+                                <div id="entry_proxy_toggle" class="widget_toggle" title="Enables media proxy. That means that provided resource (ex. link to a youtube video) will be fetched by the server and relayed to all online members in your room.">
                                     <div><div></div></div>
                                     <span>Create Proxy</span>
                                 </div>
 
                                 <div id="referer_container" class="widget_input">
                                     <input id="entry_dropdown_referer_input" type="url" placeholder="" title="Enter URL referer for the proxy. Sometimes needed for the proxy to work. Usually set automatically by the PocketPicker extension."/>
-                                    <label>
+                                    <label for="entry_dropdown_referer_input">
                                         <svg><use href="svg/main_icons.svg#link"/></svg>
                                         <span>Media Referer</span>
                                     </label>
@@ -199,7 +199,7 @@
 
                                     <div class="widget_input">
                                         <input id="entry_subtitle_name_input" placeholder="" title="Specify subtitle name."/>
-                                        <label>
+                                        <label for="entry_subtitle_name_input">
                                             <svg><use href="svg/main_icons.svg#subtitles"/></svg>
                                             Subtitle name
                                         </label>
@@ -209,13 +209,13 @@
                                 <div id="entry_subtitle_group_right">
                                     <div class="widget_input">
                                         <input id="entry_subtitle_url_input" placeholder="" title="Specify subtitle URL."/>
-                                        <label>
+                                        <label for="entry_subtitle_url_input">
                                             <svg><use href="svg/main_icons.svg#link"/></svg>
                                             <span>Subtitle URL</span>
                                         </label>
                                     </div>
 
-                                    <div id="entry_subtitle_reattach_toggle" class="widget_toggle" title="Reattch subtitles that are attached in the player right now.">
+                                    <div id="entry_subtitle_reattach_toggle" class="widget_toggle" title="Reattach subtitles that are attached in the player right now.">
                                         <div><div></div></div>
                                         <span>Reattach subtitles</span>
                                     </div>
@@ -242,12 +242,12 @@
                                 <div id="entry_youtube_inputs_group">
                                     <div class="widget_input">
                                         <input type="text" id="youtube_video_count_input" placeholder="" title="Maximum number of videos to add to the playlist."/>
-                                        <label>Max number of playlist videos</label>
+                                        <label for="youtube_video_count_input">Max number of playlist videos</label>
                                     </div>
 
                                     <div class="widget_input">
                                         <input type="text" id="youtube_video_skip_count_input" placeholder="" title="Maximum number of videos to add to the playlist."/>
-                                        <label>Number of videos to skip</label>
+                                        <label for="youtube_video_skip_count_input">Number of videos to skip</label>
                                     </div>
                                 </div>
                             </div>
@@ -313,7 +313,7 @@
 
                         <div id="room_entry_title" class="widget_input widget_input_extra_button"> 
                             <input id="room_entry_title_input" placeholder="" title="Change the currently set title"/>
-                            <label>
+                            <label for="room_entry_title_input">
                                 <svg><use href="svg/main_icons.svg#title"/></svg>
                                 <span>Current Title</span>
                             </label>
@@ -325,7 +325,7 @@
 
                         <div id="room_entry_url" class="widget_readonly_input widget_input_extra_button"> 
                             <input readonly id="room_entry_url_input" placeholder="" title="ULR of the currently playing video / audio"/>
-                            <label>
+                            <label for="room_entry_url_input">
                                 <svg><use href="svg/main_icons.svg#link"/></svg>
                                 <span>Current URL</span>
                             </label>
@@ -350,7 +350,7 @@
 
                         <div id="room_subtitle_name" class="widget_input widget_input_extra_button"> 
                             <input id="room_subtitle_name_input" placeholder="" title="Change selected subtitle name"/>
-                            <label>
+                            <label for="room_subtitle_name_input">
                                 <svg><use href="svg/main_icons.svg#subtitles"/></svg>
                                 <span>Subtitle Name</span>
                             </label>
@@ -373,7 +373,7 @@
 
                             <div id="room_entry_referer" class="widget_readonly_input"> 
                                 <input readonly id="room_entry_referer_input" placeholder=" "/>
-                                <label>
+                                <label for="room_entry_referer_input">
                                     <svg><use href="svg/main_icons.svg#link"/></svg>
                                     <span>Proxy Referer</span>
                                 </label>
@@ -596,7 +596,7 @@
 
                         <div class="widget_input" id="chat_input_container">
                             <input id="chat_input_box" placeholder="" spellcheck="true" title="Send a chat message."/>
-                            <label>Chat Message</label>
+                            <label for="chat_input_box">Chat Message</label>
                             <button id="chat_send_button">Send</button>
                         </div>
                     </div>

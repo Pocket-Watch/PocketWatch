@@ -628,7 +628,7 @@ func (server *Server) readJsonDataFromRequest(w http.ResponseWriter, r *http.Req
 
 	err = json.Unmarshal(body, &data)
 	if err != nil {
-		respondBadRequest(w, "Failed to deserialise request body data: %v", err)
+		respondBadRequest(w, "Failed to deserialize request body data: %v", err)
 		return false
 	}
 

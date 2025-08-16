@@ -643,7 +643,7 @@ html * {
     pointer-events: none;
 }
 
-.user_box.selfbox user_box_bottom input {
+.user_box.selfbox .user_box_bottom input {
     padding-left: 8px;
 }
 

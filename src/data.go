@@ -98,7 +98,7 @@ type Source struct {
 type Metadata struct {
 	TrackNumber int    `json:"track_number"`
 	AlbumName   string `json:"album_name"`
-	AutorName   string `json:"autor_name"`
+	AuthorName  string `json:"author_name"`
 	ReleaseDate int    `json:"release_date"`
 	Duration    int    `json:"duration"`
 }

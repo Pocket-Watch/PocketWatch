@@ -1,4 +1,4 @@
-var token = null;
+let token = null;
 
 export class JsonResponse {
     constructor(status, method, endpoint) {
@@ -40,7 +40,7 @@ async function httpPostFile(endpoint, file, filename) {
     const headers = new Headers();
     headers.set("Authorization", token);
 
-    var formdata = new FormData();
+    let formdata = new FormData();
     if (filename) {
         formdata.append("file", file, filename);
     } else {
@@ -76,7 +76,7 @@ async function httpPostFileWithProgress(endpoint, file, onprogress) {
         request.open("POST", endpoint, true);
         request.setRequestHeader("Authorization", token);
 
-        var formdata = new FormData();
+        let formdata = new FormData();
         formdata.append("file", file);
 
         request.upload.onprogress = onprogress;

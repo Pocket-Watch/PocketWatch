@@ -569,17 +569,17 @@
 
 .player_menu_tab:hover {
     background-color: rgba(var(--player_color_bg3), var(--player_opacity_bg3));
-    color: var(--player_color_fg1)
+    color: var(--player_color_fg1);
 }
 
 .player_menu_tab:active {
     background-color: rgba(var(--player_color_bg2), var(--player_opacity_bg2));
-    color: var(--player_color_fg1)
+    color: var(--player_color_fg1);
 }
 
 .player_menu_tab_selected {
     background-color: rgba(var(--player_color_bg4), var(--player_opacity_bg4));
-    color: var(--player_color_fg1)
+    color: var(--player_color_fg1);
 }
 
 .player_menu_separator {
@@ -643,7 +643,7 @@
 
 .subtitle_track_selected {
     background-color: rgba(var(--player_color_bg3), var(--player_opacity_bg3));
-    color: var(--player_color_fg1)
+    color: var(--player_color_fg1);
 }
 
 .subtitle_track_selected .subtitle_track_buttons {
@@ -660,7 +660,7 @@
 
 .subtitle_track:hover {
     background-color: rgba(var(--player_color_bg3), var(--player_opacity_bg3));
-    color: var(--player_color_fg1)
+    color: var(--player_color_fg1);
 }
 
 .subtitle_track:hover .subtitle_track_buttons {
@@ -669,7 +669,7 @@
 
 .subtitle_track:active {
     background-color: rgba(var(--player_color_bg2), var(--player_opacity_bg2));
-    color: var(--player_color_fg1)
+    color: var(--player_color_fg1);
 }
 
 .subtitle_track_text {

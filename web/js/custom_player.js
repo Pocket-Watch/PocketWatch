@@ -2500,17 +2500,6 @@ function binarySearchForCue(time, cues) {
     return ((left + right) / 2) | 0
 }
 
-// Use linear search to find the index of the cue that should be shown based on startTime only
-function linearCueSearch(time, cues) {
-    let len = cues.length;
-    for (let i = 0; i < len; i++) {
-        if (cues[i].startTime < time) {
-            continue;
-        }
-        return i-1;
-    }
-}
-
 // It's possible to attach inlined events to styling tags
 function removeInlinedEvents(tag) {
     let attributes = tag.attributes;
