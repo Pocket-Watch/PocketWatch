@@ -4,9 +4,7 @@ import { History } from "./history.js";
 import { Chat } from "./chat.js";
 import { sha256 } from "./auth.js";
 import * as api from "./api.js";
-import {
-    Storage, button, div, formatTime, formatByteCount, getById, dynamicImg, svg, show, hide, fileInput, isLocalUrl
-} from "./util.js";
+import { Storage, button, div, formatTime, formatByteCount, getById, dynamicImg, svg, show, hide, fileInput, isLocalUrl, input } from "./util.js";
 
 const SERVER_ID = 0;
 
@@ -1187,7 +1185,7 @@ class Room {
         let top       = div("user_box_top");
         let avatar    = dynamicImg(user.avatar);
         let bottom    = div("user_box_bottom");
-        let nameInput = document.createElement("input");
+        let nameInput = input(null, user.username);
 
         let userbox = {
             root:      root,
@@ -1201,7 +1199,6 @@ class Room {
         // Configuring parameters for html elements.
         //
         nameInput.readOnly = true;
-        nameInput.value = user.username;
 
         //
         // Constructing html element structure.

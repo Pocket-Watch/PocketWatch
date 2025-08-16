@@ -177,8 +177,13 @@ export function button(className, title) {
 
 export function input(className, text, placeholder = null) {
     let element = document.createElement("input");
-    element.className = className;
+
+    if (className) {
+        element.className = className;
+    }
+
     element.value = text;
+    element.autocomplete = "off";
 
     if (placeholder) {
         element.placeholder = placeholder
