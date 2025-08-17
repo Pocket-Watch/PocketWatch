@@ -1377,19 +1377,20 @@ func cleanupSegmentMap(segmentMap *sync.Map) {
 }
 
 func (server *Server) serveStream(writer http.ResponseWriter, request *http.Request, chunk string) {
+	writer.Header().Add("Cache-Control", "no-cache")
+
+	if chunk == STREAM_M3U8 {
+		writer.Header().Add("content-type", M3U8_CONTENT_TYPE)
+		http.ServeFile(writer, request, WEB_STREAM+STREAM_M3U8)
+		return
+	}
+
 	if !server.isAuthorized(writer, request) {
 		return
 	}
 
 	if len(chunk) > MAX_CHUNK_NAME_LENGTH {
 		http.Error(writer, "Not found", 404)
-		return
-	}
-
-	writer.Header().Add("Cache-Control", "no-cache")
-	if chunk == STREAM_M3U8 {
-		writer.Header().Add("content-type", M3U8_CONTENT_TYPE)
-		http.ServeFile(writer, request, WEB_STREAM+STREAM_M3U8)
 		return
 	}
 
