@@ -15,6 +15,7 @@ const ROOM_THEATER_MODE      = "room_theater_mode";
 const LOW_BANDWIDTH_MODE     = "low_bandwidth_mode";
 const LAST_SELECTED_TAB      = "last_selected_tab";
 const LAST_SELECTED_SUBTITLE = "last_selected_subtitle";
+const HLS_DEBUG              = "hls_debug";
 
 const TAB_ROOM     = 1;
 const TAB_PLAYLIST = 2;
@@ -61,6 +62,7 @@ class Room {
             animatedAvatarsToggle:   getById("animated_avatars_toggle"),
             newMessageSoundToggle:   getById("new_message_sound_toggle"),
             theaterModeToggle:       getById("theater_mode_toggle"),
+            hlsDebugToggle:          getById("hls_debug_toggle"),
             lowBandwidthModeToggle:  getById("low_bandwidth_mode_toggle"),
             themeSwitcherSelect:     getById("settings_switch_theme"),
             deleteYourAccountButton: getById("delete_your_account"),
@@ -153,7 +155,7 @@ class Room {
             upload: {
                 placeholderRoot: getById("room_upload_media_placeholder"),
                 progressRoot:    getById("room_upload_media_progress"),
-                filepicker:      getById("room_upload_media_filepicker"),
+                filePicker:      getById("room_upload_media_filepicker"),
                 text:            getById("room_upload_media_progress_text"),
                 percent:         getById("room_upload_media_progress_percent"),
                 barCurrent:      getById("room_upload_media_progress_bar_current"),
@@ -234,6 +236,11 @@ class Room {
         if (show != null) {
             options.showControlsOnPause = show;
         }
+
+        let enabled = Storage.getBool(HLS_DEBUG);
+        if (enabled) {
+            options.hlsConfig.debug = enabled;
+        }
     }
 
     applyUserPreferences() {
@@ -263,6 +270,11 @@ class Room {
         } else {
             this.pageRoot.classList.remove("theater_mode");
             this.settingsMenu.theaterModeToggle.classList.remove("active");
+        }
+
+        let enabled = Storage.getBool(HLS_DEBUG);
+        if (enabled) {
+            this.settingsMenu.hlsDebugToggle.classList.add("active");
         }
 
         if (Storage.getBool(LOW_BANDWIDTH_MODE)) {
@@ -715,7 +727,7 @@ class Room {
         };
 
         room.upload.placeholderRoot.onclick = _ => {
-            room.upload.filepicker.click();
+            room.upload.filePicker.click();
         };
 
         room.upload.placeholderRoot.ondragover = event => {
@@ -733,7 +745,7 @@ class Room {
             this.startMediaFileUpload(files[0]);
         };
 
-        room.upload.filepicker.onchange = event => {
+        room.upload.filePicker.onchange = event => {
             if (event.target.files.length === 0) {
                 return;
             }
@@ -946,6 +958,11 @@ class Room {
             let isToggled = menu.theaterModeToggle.classList.toggle("active");
             Storage.setBool(ROOM_THEATER_MODE, isToggled);
             this.pageRoot.classList.toggle("theater_mode");
+        };
+
+        menu.hlsDebugToggle.onclick = _ => {
+            let isToggled = menu.hlsDebugToggle.classList.toggle("active");
+            Storage.setBool(HLS_DEBUG, isToggled);
         };
 
         menu.lowBandwidthModeToggle.onclick = _ => {
