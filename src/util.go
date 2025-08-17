@@ -738,7 +738,7 @@ func respondBadRequest(writer http.ResponseWriter, format string, args ...any) {
 
 func respondUnauthorized(writer http.ResponseWriter, format string, args ...any) {
 	output := fmt.Sprintf(format, args...)
-	LogWarnUp(1, "%v", output)
+	LogWarnUp(2, "%v", output)
 	http.Error(writer, output, http.StatusUnauthorized)
 }
 
