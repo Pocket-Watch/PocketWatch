@@ -991,6 +991,37 @@ class Room {
             }
         });
 
+        this.pageRoot.addEventListener("keydown", event => {
+            let ctrl = event.getModifierState("Alt");
+            let alt  = event.getModifierState("Control");
+
+            if (!ctrl || !alt) {
+                return
+            }
+
+            switch (event.key) {
+                case "r": {
+                    this.selectRightPanelTab(TAB_ROOM);
+                } break;
+
+                case "p": {
+                    this.selectRightPanelTab(TAB_PLAYLIST);
+                } break;
+
+                case "c": {
+                    this.selectRightPanelTab(TAB_CHAT);
+                } break;
+
+                case "h": {
+                    this.selectRightPanelTab(TAB_HISTORY);
+                } break;
+
+                case "d": {
+                    this.entryArea.root.classList.toggle("expand");
+                } break;
+            }
+        });
+
         this.attachSettingsMenuEvents();
         this.attachEntryAreaEvents();
         this.usersArea.settingsButton.onclick = _ => this.showSettingsMenu();
