@@ -316,6 +316,10 @@
                             </button>
                         </div>
 
+                        <h2 class="widget_separator">
+                            <span>Now Playing</span>
+                        </h2>
+
                         <div id="room_entry_title" class="widget_input widget_input_extra_button"> 
                             <input id="room_entry_title_input" placeholder="" title="Change the currently set title"/>
                             <label for="room_entry_title_input">
@@ -339,6 +343,25 @@
                                 <svg><use href="svg/main_icons.svg#copy"/></svg>
                             </button>
                         </div>
+
+                        <div id="room_entry_proxy">
+                            <div id="room_entry_proxy_enabled" class="widget_readonly_toggle">
+                                <div><div></div></div>
+                                <span>Using proxy</span>
+                            </div>
+
+                            <div id="room_entry_referer" class="widget_readonly_input"> 
+                                <input readonly id="room_entry_referer_input" placeholder=" "/>
+                                <label for="room_entry_referer_input">
+                                    <svg><use href="svg/main_icons.svg#link"/></svg>
+                                    <span>Proxy Referer</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <h2 class="widget_separator">
+                            <span>Attached Subtitles</span>
+                        </h2>
 
                         <div id="room_subtitle_select_root">
                             <button id="room_subtitle_upload_button" class="widget_button">
@@ -370,20 +393,9 @@
                             <button id="room_set_shift_button" type="button">Set Shift</button>
                         </div>
 
-                        <div id="room_entry_proxy">
-                            <div id="room_entry_proxy_enabled" class="widget_readonly_toggle">
-                                <div><div></div></div>
-                                <span>Using proxy</span>
-                            </div>
-
-                            <div id="room_entry_referer" class="widget_readonly_input"> 
-                                <input readonly id="room_entry_referer_input" placeholder=" "/>
-                                <label for="room_entry_referer_input">
-                                    <svg><use href="svg/main_icons.svg#link"/></svg>
-                                    <span>Proxy Referer</span>
-                                </label>
-                            </div>
-                        </div>
+                        <h2 class="widget_separator">
+                            <span>Extra Info</span>
+                        </h2>
 
                         <div id="room_created_by"> 
                             <span class="placeholder">Created by:</span>
@@ -399,6 +411,10 @@
                             <span class="placeholder">Current resolution:</span>
                             <span id="room_video_resolution" class="placeholder"></span>
                         </div>
+
+                        <h2 class="widget_separator">
+                            <span>Last Action</span>
+                        </h2>
 
                         <div id="room_last_action"> 
                             <span class="placeholder">Last action:</span>

@@ -1137,16 +1137,12 @@ html * {
     background-color: var(--orange_0);
 }
 
-#room_entry_title {
-    height: 36px;
-}
-
-#room_entry_url {
-    height: 36px;
-}
-
+#room_entry_title,
+#room_entry_url,
+#room_entry_referer,
 #room_subtitle_name {
-    height: 36px;
+    height: 38px;
+    max-height: 38px;
 }
 
 #room_subtitle_upload_input {
@@ -1155,8 +1151,8 @@ html * {
 
 #room_subtitle_upload_button,
 #room_subtitle_delete_button {
-    min-width: 34px;
-    width: 34px;
+    min-width: 38px;
+    width: 38px;
     height: 100%;
     z-index: 1;
     background-color: var(--fg_6);
@@ -1187,8 +1183,8 @@ html * {
 
 #room_subtitle_select_root {
     width: 100%;
-    height: 36px;
-    min-height: 36px;
+    height: 38px;
+    min-height: 38px;
     display: flex;
     box-sizing: border-box;
     column-gap: 4px;
@@ -1704,6 +1700,44 @@ html * {
     fill: var(--fg_0);
 }
 
+/* Seprator widget -------------------------------------------------------------------------- */
+
+.widget_separator {
+    height: 20px;
+    min-height: 20px;
+    text-align: center;
+    display: block;
+    overflow: hidden;
+    margin-top: 8px;
+    /* margin-bottom: 10px; */
+}
+
+.widget_separator span {
+    position: relative;
+    display: inline-block;
+    color: var(--fg_5);
+}
+
+.widget_separator span:before,
+.widget_separator span:after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    height: 2px;
+    width: 99999px;
+    background: var(--bg_5);
+}
+
+.widget_separator span:before {
+    left: 100%;
+    margin-left: 20px;
+}
+
+.widget_separator span:after {
+    right: 100%;
+    margin-right: 20px;
+}
+
 /* Context menu -------------------------------------------------------------------------- */
 
 .context_menu {
@@ -1824,3 +1858,4 @@ html * {
     position: absolute;
     visibility: hidden;
 }
+
