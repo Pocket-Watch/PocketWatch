@@ -18,6 +18,10 @@ class Player {
         return this.internals.isFullscreen();
     }
 
+    toggleFullscreen() {
+        return this.internals.toggleFullscreen();
+    }
+
     isPlaying() {
         return this.internals.isVideoPlaying();
     }

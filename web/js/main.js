@@ -596,6 +596,7 @@ class Room {
 
         if (tab_type === TAB_CHAT) {
             hide(this.chatNewMessage);
+            this.chat.focusChatInput();
         }
 
         Storage.set(LAST_SELECTED_TAB, tab_type);
@@ -992,6 +993,10 @@ class Room {
         });
 
         this.pageRoot.addEventListener("keydown", event => {
+            if (event.key === "f" && event.target === this.pageRoot) {
+                this.player.toggleFullscreen();
+            }
+
             let ctrl = event.getModifierState("Alt");
             let alt  = event.getModifierState("Control");
 
