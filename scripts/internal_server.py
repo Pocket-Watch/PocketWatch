@@ -4,13 +4,12 @@ import json
 import http.server
 
 class YoutubeVideo:
-    def __init__(self, id: str, title: str, thumbnail: str, original_url: str, audio_url: str, video_url: str):
+    def __init__(self, id: str, title: str, thumbnail: str, original_url: str, manifest_url: str):
         self.id           = id
         self.title        = title
         self.thumbnail    = thumbnail
         self.original_url = original_url
-        self.audio_url    = audio_url
-        self.video_url    = video_url
+        self.manifest_url = manifest_url
 
 class YoutubePlaylistVideo:
     def __init__(self, url: str, title: str, thumbnails: list):
@@ -57,11 +56,11 @@ def bench(note, func):
 def get_youtube_video(query: str):
     ytfetch_opts = {
         # NOTE(kihau): Only request videos with either H264 or H265 codec.
-        'format': '(bv*[vcodec~=\'^((he|a)vc|h26[45])\']+ba)',
+        # 'format': '(bv*[vcodec~=\'^((he|a)vc|h26[45])\']+ba)',
         
         'extractor_args': {
             'youtube': {
-                'player_client': ['ios'],
+                'player_client': ['web_safari'],
             }
         },
         'playlist_items': '1',
@@ -84,21 +83,13 @@ def get_youtube_video(query: str):
     if entry is None:
         raise Exception("Yt-Dlp did not return any YouTube videos")
 
-    formats = entry.get("requested_formats")
-    if formats is None:
-        raise Exception("Yt-Dlp output formats are missing")
-
-    if len(formats) < 2:
-        raise Exception(f"Expected 2 source url, but Yt-Dlp provided: {len(formats)}")
-        
     id           = entry["id"]
     title        = entry["title"]
     thumbnail    = entry["thumbnail"]
     original_url = entry["original_url"]
-    video_url    = formats[0]["manifest_url"]
-    audio_url    = formats[1]["manifest_url"]
+    manifest_url = entry["manifest_url"]
 
-    return YoutubeVideo(id, title, thumbnail, original_url, audio_url, video_url)
+    return YoutubeVideo(id, title, thumbnail, original_url, manifest_url)
 
 class TwitchStream:
     def __init__(self, id: str, title: str, thumbnail: str, original_url: str, url: str):

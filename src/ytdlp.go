@@ -247,20 +247,7 @@ type YoutubeVideo struct {
 	Title       string `json:"title"`
 	Thumbnail   string `json:"thumbnail"`
 	OriginalUrl string `json:"original_url"`
-	AudioUrl    string `json:"audio_url"`
-	VideoUrl    string `json:"video_url"`
-}
-
-type YoutubeFormat struct {
-	ManifestUrl string `json:"manifest_url"`
-}
-
-type YoutubeVideo2 struct {
-	Id          string          `json:"id"`
-	Title       string          `json:"title"`
-	Thumbnail   string          `json:"thumbnail"`
-	OriginalUrl string          `json:"original_url"`
-	Formats     []YoutubeFormat `json:"requested_formats"`
+	SourceUrl   string `json:"manifest_url"`
 }
 
 type YoutubeContent struct {
@@ -316,7 +303,7 @@ func (server *Server) preloadYoutubeSourceOnNextEntry() {
 	}
 
 	server.state.playlist[index].Thumbnail = video.Thumbnail
-	server.state.playlist[index].SourceUrl = video.VideoUrl
+	server.state.playlist[index].SourceUrl = video.SourceUrl
 }
 
 func pickSmallestThumbnail(thumbnails []YoutubeThumbnail) string {
@@ -418,9 +405,9 @@ func fetchVideoWithInternalServer(query string) (bool, YoutubeVideo) {
 func fetchVideoWithYtdlp(query string) (bool, YoutubeVideo) {
 	args := []string{
 		query, "--playlist-items", "1",
-		"--extractor-args", "youtube:player_client=ios",
-		"--format", "(bv*[vcodec~='^((he|a)vc|h26[45])']+ba)",
-		"--print", "%(.{id,title,thumbnail,original_url,requested_formats})j",
+		"--extractor-args", "youtube:player_client=web_safari",
+		// "--format", "(bv*[vcodec~='^((he|a)vc|h26[45])']+ba)",
+		"--print", "%(.{id,title,thumbnail,original_url,manifest_url})j",
 	}
 
 	command := exec.Command("yt-dlp", args...)
@@ -431,24 +418,11 @@ func fetchVideoWithYtdlp(query string) (bool, YoutubeVideo) {
 		return false, YoutubeVideo{}
 	}
 
-	var video2 YoutubeVideo2
-	err = json.Unmarshal(output, &video2)
+	var video YoutubeVideo
+	err = json.Unmarshal(output, &video)
 	if err != nil {
 		LogError("Failed to unmarshal yt-dlp output json: %v", err)
 		return false, YoutubeVideo{}
-	}
-
-	if len(video2.Formats) < 2 {
-		return false, YoutubeVideo{}
-	}
-
-	video := YoutubeVideo{
-		Id:          video2.Id,
-		Title:       video2.Title,
-		Thumbnail:   video2.Thumbnail,
-		OriginalUrl: video2.OriginalUrl,
-		AudioUrl:    video2.Formats[1].ManifestUrl,
-		VideoUrl:    video2.Formats[0].ManifestUrl,
 	}
 
 	return true, video
@@ -555,7 +529,7 @@ func loadYoutubeEntry(entry *Entry, requested RequestEntry) error {
 
 	entry.Url = video.OriginalUrl
 	entry.Title = video.Title
-	entry.SourceUrl = video.VideoUrl
+	entry.SourceUrl = video.SourceUrl
 	entry.Thumbnail = video.Thumbnail
 
 	return nil
