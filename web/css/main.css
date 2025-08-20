@@ -10,6 +10,10 @@
     src: url('../fonts/Rubik-Bold.ttf');
 }
 
+html {
+    background-color: var(--bg_0);
+}
+
 html * {
     font-family: Rubik, sans-serif;
 }

@@ -17,6 +17,7 @@ const LAST_SELECTED_TAB      = "last_selected_tab";
 const LAST_SELECTED_SUBTITLE = "last_selected_subtitle";
 const HLS_DEBUG              = "hls_debug";
 
+const TAB_DEFAULT  = 0;
 const TAB_ROOM     = 1;
 const TAB_PLAYLIST = 2;
 const TAB_CHAT     = 3;
@@ -174,7 +175,7 @@ class Room {
         this.chatNewMessage  = getById("tab_chat_new_message_indicator");
         this.newMessageAudio = new Audio("audio/new_message.mp3");
 
-        this.selected_tab = TAB_ROOM;
+        this.selected_tab = TAB_DEFAULT;
 
         this.roomSelectedSubId = -1;
 
@@ -625,10 +626,10 @@ class Room {
 
         let bytesPrev = 0;
 
-        room.upload.percent.textContent = "0%";
+        room.upload.percent.textContent    = "0%";
         room.upload.barCurrent.style.width = "0%";
-        room.upload.uploaded.textContent = "0 B / 0 B";
-        room.upload.transfer.textContent = "0 B/s";
+        room.upload.uploaded.textContent   = "0 B / 0 B";
+        room.upload.transfer.textContent   = "0 B/s";
 
         room.upload.text.textContent = "Uploading file";
         room.upload.placeholderRoot.classList.add("hide");
@@ -1148,7 +1149,7 @@ class Room {
         }
 
         this.usersArea.onlineCount.textContent  = this.onlineCount;
-        this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
+        this.usersArea.offlineCount.textContent = String(this.allUsers.length - this.onlineCount);
     }
 
     markAllUsersOffline() {
@@ -1326,6 +1327,7 @@ class Room {
 
         this.roomContent.refererInput.value            = entry.referer_url;
         this.roomContent.createdByUsername.textContent = this.getUsernameByUserId(entry.user_id);
+        // TODO(kihau): Nicer way to display the creation date.
         this.roomContent.createdAtDate.textContent     = new Date(entry.created);
 
         this.updateRoomSubtitlesHtml(entry);
@@ -1571,7 +1573,7 @@ class Room {
             this.usersArea.userList.appendChild(userbox.root);
 
             this.usersArea.onlineCount.textContent = this.onlineCount;
-            this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
+            this.usersArea.offlineCount.textContent = String(this.allUsers.length - this.onlineCount);
         });
 
         events.addEventListener("userdelete", event => {
@@ -1599,7 +1601,7 @@ class Room {
             this.onlineCount = online;
 
             this.usersArea.onlineCount.textContent  = this.onlineCount;
-            this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
+            this.usersArea.offlineCount.textContent = String(this.allUsers.length - this.onlineCount);
         });
 
         // All user-related update events can be multiplexed into one "user-update" event to simplify logic
@@ -1631,7 +1633,7 @@ class Room {
             this.onlineCount += 1;
 
             this.usersArea.onlineCount.textContent  = this.onlineCount;
-            this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
+            this.usersArea.offlineCount.textContent = String(this.allUsers.length - this.onlineCount);
         });
 
         events.addEventListener("userdisconnected", event => {
@@ -1661,7 +1663,7 @@ class Room {
             this.onlineCount -= 1;
 
             this.usersArea.onlineCount.textContent  = this.onlineCount;
-            this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
+            this.usersArea.offlineCount.textContent = String(this.allUsers.length - this.onlineCount);
         });
 
         events.addEventListener("userupdate", event => {
