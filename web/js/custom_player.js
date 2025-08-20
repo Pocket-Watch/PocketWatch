@@ -1550,15 +1550,29 @@ class Internals {
         });
 
         // This roughly simulates a click on an invisible anchor as there's no practical way to trigger "Save As" dialog
-        this.htmlControls.buttons.downloadButton.addEventListener("click", _ => {
+        this.htmlControls.buttons.downloadButton.addEventListener("click", async _ => {
+            let url = this.getCurrentUrl();
+            let fileInfo = FileInfo.fromUrl(url);
+            if (!isLocalUrl(url)) {
+                try {
+                    let response = await fetch(url);
+                    if (response.ok) {
+                        let responseBlob = await response.blob();
+                        url = URL.createObjectURL(responseBlob);
+                    }
+                } catch {}
+            }
+
             const anchor = document.createElement("a");
-            anchor.href = this.getCurrentUrl();
-            let fileInfo = FileInfo.fromUrl(anchor.href);
+            anchor.href = url;
             anchor.download = fileInfo.filename;
+            anchor.target = "_blank";
+            anchor.rel = "noreferrer";
 
             document.body.appendChild(anchor);
             anchor.click();
-            document.body.removeChild(anchor);
+            anchor.remove();
+            URL.revokeObjectURL(url);
         });
 
         this.htmlControls.buttons.speedButton.addEventListener("click", _ => {
@@ -2769,6 +2783,18 @@ function stopPropagation(event) {
 
 function isFunction(func) {
     return func != null && typeof func === "function";
+}
+
+function isLocalUrl(url) {
+    url = url.toLowerCase();
+    if (!url.startsWith("https") && !url.startsWith("http")) {
+        return false;
+    }
+    try {
+        return new URL(url).host === document.location.host;
+    } catch (error) {
+        return false;
+    }
 }
 
 function makeRgba(hexColor, opacity) {

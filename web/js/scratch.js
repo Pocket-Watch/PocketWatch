@@ -23,7 +23,7 @@ function main() {
     let video0 = document.getElementById("video0");
     let options = new Options();
     options.hideNextButton = true;
-    options.hideDownloadButton = true;
+    //options.useAudioGain = true;
     player = new Player(video0, options);
 
     //let track = "https://ftp.halifax.rwth-aachen.de/blender/demo/movies/ToS/ToS-4k-1920.mov";
