@@ -1079,7 +1079,7 @@ class Playlist {
             } break;
 
             default: {
-                console.error("Unknown playlist action:", action, "with data:", data);
+                console.error("ERROR: Unknown playlist action:", action, "with data:", data);
             } break;
         }
     }

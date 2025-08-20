@@ -939,6 +939,7 @@ class Internals {
             this.htmlPlayerRoot.requestFullscreen();
             this.svgs.fullscreen.setHref(this.icons.fullscreen_exit);
             this.fireFullscreenChange(true)
+            this.htmlPlayerRoot.focus();
         }
     }
 

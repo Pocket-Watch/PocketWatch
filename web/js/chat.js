@@ -30,10 +30,6 @@ class Chat {
         this.contextMenuShowUrl     = false;
     }
 
-    focusChatInput() {
-        this.chatInput.focus();
-    }
-
     hideContextMenu() {
         if (this.contextMenuHtmlMessage) {
             this.contextMenuHtmlMessage.classList.remove("highlight");

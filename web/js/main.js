@@ -174,8 +174,7 @@ class Room {
         this.chatNewMessage  = getById("tab_chat_new_message_indicator");
         this.newMessageAudio = new Audio("audio/new_message.mp3");
 
-        this.selected_tab     = this.rightPanel.tabs.room;
-        this.selected_content = this.rightPanel.content.room;
+        this.selected_tab = TAB_ROOM;
 
         this.roomSelectedSubId = -1;
 
@@ -400,7 +399,7 @@ class Room {
             if (this.playlist.autoplayEnabled) {
                 api.playerNext(this.currentEntryId);
             } else {
-                console.info("Playback ended! Informing the server");
+                console.info("INFO: Playback ended! Informing the server");
                 let endTime = this.player.getDuration();
                 if (isNaN(endTime)) {
                     endTime = 0;
@@ -555,10 +554,7 @@ class Room {
         return requestEntry;
     }
 
-    selectRightPanelTab(tab_type) {
-        this.selected_tab.classList.remove("selected");
-        this.selected_content.classList.remove("selected");
-
+    getRightPanelTabHtml(tab_type) {
         let tab;
         let content;
         switch (tab_type) {
@@ -588,17 +584,34 @@ class Room {
             } break;
         }
 
+        let htmlContent = {
+            tab:     tab,
+            content: content,
+        };
+
+        return htmlContent;
+    }
+
+    selectRightPanelTab(tab_type) {
+        const selected = this.getRightPanelTabHtml(this.selected_tab);
+
+        selected.tab.classList.remove("selected");
+        selected.content.classList.remove("selected");
+
+        const { tab, content } = this.getRightPanelTabHtml(tab_type);
+
         tab.classList.add("selected");
         content.classList.add("selected");
 
-        this.selected_tab     = tab;
-        this.selected_content = content;
+        if (this.selected_tab === tab_type) {
+            content.scrollIntoView({ behavior: "smooth", block: "end" });
+        }
 
         if (tab_type === TAB_CHAT) {
             hide(this.chatNewMessage);
-            this.chat.focusChatInput();
         }
 
+        this.selected_tab = tab_type;
         Storage.set(LAST_SELECTED_TAB, tab_type);
     }
 
@@ -1015,6 +1028,7 @@ class Room {
 
                 case "c": {
                     this.selectRightPanelTab(TAB_CHAT);
+                    this.chat.chatInput.focus();
                 } break;
 
                 case "h": {
@@ -1580,7 +1594,6 @@ class Room {
             let online = 0;
             for (let i = 0; i < this.allUsers.length; i++) {
                 if (this.allUsers[i].online) online += 1;
-                console.warn(this.allUsers[i], online);
             }
 
             this.onlineCount = online;
@@ -1776,7 +1789,7 @@ class Room {
             let data = JSON.parse(event.data);
             console.info("INFO: New message received from server");
 
-            if (this.selected_tab !== this.rightPanel.tabs.chat) {
+            if (this.selected_tab !== TAB_CHAT) {
                 show(this.chatNewMessage);
             }
 
@@ -1823,7 +1836,7 @@ class Room {
 
     shouldPlayNotificationSound(authorId) {
         let messageSoundEnabled = this.settingsMenu.newMessageSoundToggle.classList.contains("active");
-        let isAway = this.selected_tab !== this.rightPanel.tabs.chat || document.visibilityState === "hidden";
+        let isAway = this.selected_tab !== TAB_CHAT || document.visibilityState === "hidden";
         let isSelf = this.currentUserId === authorId;
         return messageSoundEnabled && !isSelf && (isAway || this.player.isFullscreen());
     }
