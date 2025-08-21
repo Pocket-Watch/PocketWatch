@@ -1164,7 +1164,7 @@ class Room {
         this.onlineCount = 0;
 
         this.usersArea.onlineCount.textContent  = this.onlineCount;
-        this.usersArea.offlineCount.textContent = this.allUsers.length - this.onlineCount;
+        this.usersArea.offlineCount.textContent = String(this.allUsers.length - this.onlineCount);
     }
 
     async loadUsersData() {

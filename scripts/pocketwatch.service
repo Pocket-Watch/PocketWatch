@@ -1,0 +1,13 @@
+[Unit]
+Description=PocketWatch startup service
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/PocketWatch/scripts
+ExecStart=/bin/sh onboot.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=default.target

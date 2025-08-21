@@ -181,7 +181,7 @@ class Playlist {
     }
 
     updateFooter() {
-        this.footerEntryCount.textContent = this.entries.length;
+        this.footerEntryCount.textContent = String(this.entries.length);
     }
 
     // This method updates min-height on the HTML entry list. 
