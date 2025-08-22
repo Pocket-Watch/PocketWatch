@@ -616,10 +616,15 @@
                             </div>
                         </div>
 
-                        <div class="widget_input" id="chat_input_container">
-                            <input id="chat_input_box" placeholder="" spellcheck="true" title="Send a chat message."/>
-                            <label for="chat_input_box">Chat Message</label>
-                            <button id="chat_send_button">Send</button>
+                        <div id="chat_input_container">
+                            <button id="chat_input_upload_button">
+                                <svg><use href="svg/main_icons.svg#plus"/></svg>
+                            </button>
+                            <input id="chat_input_box" spellcheck="true" placeholder="Send a chat message." title="Send a chat message."/>
+                            <input type="file" id="chat_input_upload_image" accept="image/png, image/gif, image/jpeg"/>
+                            <button id="chat_input_send_button">
+                                <svg><use href="svg/main_icons.svg#send"/></svg>
+                            </button>
                         </div>
                     </div>
 

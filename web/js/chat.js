@@ -11,7 +11,9 @@ class Chat {
         this.chatInput          = getById("chat_input_box");
         this.chatListRoot       = getById("chat_message_list_root");
         this.chatList           = getById("chat_message_list");
-        this.sendMessageButton  = getById("chat_send_button");
+        this.sendMessageButton  = getById("chat_input_send_button");
+        this.uploadButton       = getById("chat_input_upload_button");
+        this.uploadImageInput   = getById("chat_input_upload_image");
         this.contextMenu        = getById("chat_context_menu");
         this.contextMenuDelete  = getById("chat_context_delete");
         this.contextMenuCopy    = getById("chat_context_copy");
@@ -127,6 +129,15 @@ class Chat {
         this.sendMessageButton.onclick = _ => {
             this.chatInput.focus();
             this.processMessageSendIntent();
+        };
+
+        this.uploadButton.onclick = _ => {
+            this.uploadImageInput.click();
+        };
+
+        this.uploadImageInput.onchange = async event => {
+            let files = event.target.files;
+            this.uploadAndPasteImage(files);
         };
 
         // Handle shiftKey + Enter as 'new line' for formatting
