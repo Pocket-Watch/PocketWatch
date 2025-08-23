@@ -225,11 +225,13 @@
 #chat_input_upload_button svg {
     height: 18px;
     width: 18px;
+    min-width: 18px;
 }
 
 #chat_input_send_button svg {
     height: 22px;
     width: 22px;
+    min-width: 22px;
 }
 
 #chat_input_upload_button svg,
