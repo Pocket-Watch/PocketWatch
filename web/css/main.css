@@ -1055,6 +1055,17 @@ html * {
     font-weight: bold;
 }
 
+#room_media_browse_anchor,
+#room_media_browse_anchor:visited {
+    color: var(--purple_1);
+    text-decoration: none;
+}
+
+#room_media_browse_anchor:hover {
+    color: var(--purple_2);
+    text-decoration: underline;
+}
+
 #room_media_browse_separator {
     height: 0px;
     width: 100%;
@@ -1203,6 +1214,7 @@ html * {
     color: var(--fg_1);
     padding-left: 12px;
     transition: all 0.2s ease;
+    cursor: pointer;
 }
 
 #room_subtitle_select:hover {
@@ -1550,6 +1562,7 @@ html * {
     transition: all 0.2s ease;
     color: var(--fg_5);
     font-weight: bold;
+    cursor: pointer;
 }
 
 .widget_input_extra_button button svg {

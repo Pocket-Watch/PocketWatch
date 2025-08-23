@@ -2123,7 +2123,7 @@ class Internals {
         let appearanceView  = newDiv("player_settings_menu_appearance_view");
         let alwaysShow      = new Switcher("Always show controls");
         let showOnPause     = new Switcher("Show controls on pause");
-        let audioGain                = new Switcher("Audio gain");
+        let audioGain       = new Switcher("Audio gain");
         let playbackSpeed   = this.playbackSpeed;
         let brightness      = new Slider("Brightness", 0.2, 2, 0.05, 1.0);
         let fitToScreen     = this.fitToScreen;
@@ -2140,7 +2140,7 @@ class Internals {
         appearanceTab.textContent = "Appearance";
 
         selectedTab.classList.add("player_menu_tab_selected");
-        show(selectedView);
+        hide(appearanceView);
 
         menuRoot.onclick = stopPropagation;
 
