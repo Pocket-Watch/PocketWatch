@@ -652,19 +652,19 @@ html * {
 }
 
 .user_box.online .user_box_bottom input {
-    background-color: var(--green_0);
+    background-color: var(--green_custom_0);
 }
 
 .user_box.online .user_box_edit_name_button {
-    background-color: var(--green_0);
+    background-color: var(--green_custom_0);
 }
 
 .user_box.online .user_box_edit_name_button:hover {
-    background-color: var(--green_1);
+    background-color: var(--green_2);
 }
 
 .user_box.online .user_box_edit_name_button:active {
-    background-color: var(--green_2);
+    background-color: var(--fg_4);
 }
 
 .user_box_edit_name_button {
@@ -714,7 +714,7 @@ html * {
 }
 
 #users_online {
-    background-color: var(--green_0);
+    background-color: var(--green_custom_0);
 }
 
 #users_offline {
