@@ -1435,9 +1435,12 @@ class Room {
             this.handleServerEvent(wsEvent.type, wsEvent.data);
         }
 
-        window.addEventListener("beforeunload", _ => {
-            ws.close();
-        });
+        // NOTE(kihau): Event "beforeunload" was needed with regular SSE
+        // TODO(kihau): Check whether "beforeunload" is still needed for WebSockets.
+        //
+        // window.addEventListener("beforeunload", _ => {
+        //     ws.close();
+        // });
     }
 
     updateRoomSubtitlesHtml(entry) {
