@@ -1406,8 +1406,8 @@ class Room {
     }
 
     listenToServerEvents() {
-        let events = new EventSource("/watch/api/events?token=" + this.token);
-        events.onopen = async _ => {
+        let ws = new WebSocket("/watch/api/events?token=" + this.token);
+        ws.onopen = async _ => {
             console.info("INFO: Connection to events opened.");
 
             hide(this.connectionLostPopup);
@@ -1421,16 +1421,22 @@ class Room {
             api.version().then(version => this.settingsMenu.websiteVersion.textContent = version);
         };
 
-        events.onerror = _ => {
-            events.close();
+        // ws.onerror = event => {
+        //     console.error("ERROR: WebSocket connection errored with:", event);
+        // };
+        
+        ws.onclose = _ => {
             console.error("ERROR: Connection to the server was lost. Attempting to reconnect in", RECONNECT_AFTER, "ms");
             this.handleDisconnect();
-        };
+        }
 
-        this.subscribeToServerEvents(events);
+        ws.onmessage = event => {
+            let wsEvent = JSON.parse(event.data);
+            this.handleServerEvent(wsEvent.type, wsEvent.data);
+        }
 
         window.addEventListener("beforeunload", _ => {
-            events.close();
+            ws.close();
         });
     }
 
@@ -1460,380 +1466,376 @@ class Room {
         }
     }
 
-    subscribeToSubtitleEvents(events) {
-        events.addEventListener("subtitledelete", event => {
-            if (!event.data) {
-                console.warn("WARN: Subtitle delete event failed, event data is null.");
-                return;
-            }
+    handleServerEvent(wsType, wsData) {
+        switch (wsType) {
+            default: {
+                console.warn("WARN: Unhandled event of type:", wsType);
+            } break;
 
-            let subId = JSON.parse(event.data);
-            console.info("INFO: Received subtitle delete event for subtitle with ID:", subId);
+            case "ping": {
+                // TODO(kihau): Respond with pong.
+            } break;
 
-            let subs = this.currentEntry.subtitles;
-            if (!subs) {
-                console.warn("WARN: Subtitle delete event failed, currentEntry subtitles is null.");
-                return;
-            }
+            case "usercreate": {
+                let user = wsData;
+                this.allUsers.push(user);
+                console.info("INFO: New user has been created: ", user);
 
-            let index = subs.findIndex(sub => sub.id === subId);
-            if (index === -1) {
-                console.warn("WARN: Subtitle delete event failed, subtitle index is -1.");
-                return;
-            }
+                let userbox = this.createUserBox(user);
+                this.allUserBoxes.push(userbox);
+                this.usersArea.userList.appendChild(userbox.root);
 
-            subs.splice(index, 1);
+                this.usersArea.onlineCount.textContent = this.onlineCount;
+                this.usersArea.offlineCount.textContent = String(this.allUsers.length - this.onlineCount);
 
-            this.player.clearAllSubtitleTracks();
-            for (let i = 0; i < subs.length; i++) {
-                const sub = subs[i];
-                this.player.addSubtitle(sub.url, sub.name, sub.shift);
-            }
+            } break;
 
-            this.updateRoomSubtitlesHtml(this.currentEntry);
-        });
+            case "userdelete": {
+                let target = wsData;
+                let index = this.allUsers.findIndex(user => user.id === target.id);
 
-        events.addEventListener("subtitleupdate", event => {
-            let data = JSON.parse(event.data);
-            if (!data) {
-                console.warn("WARN: Subtitle update event failed, event data is null.");
-                return;
-            }
-
-            console.info("INFO: Received subtitle update event with:", data);
-
-            let subs = this.currentEntry.subtitles;
-            if (!subs) {
-                console.warn("WARN: Subtitle update event failed, currentEntry subtitles is null.");
-                return;
-            }
-
-            let index = subs.findIndex(sub => sub.id === data.id);
-            if (index === -1) {
-                console.warn("WARN: Subtitle update event failed, subtitle index is -1.");
-                return;
-            }
-
-            subs[index].name = data.name;
-
-            this.player.clearAllSubtitleTracks();
-            for (let i = 0; i < subs.length; i++) {
-                const sub = subs[i];
-                this.player.addSubtitle(sub.url, sub.name, sub.shift);
-            }
-
-            this.updateRoomSubtitlesHtml(this.currentEntry);
-        });
-
-        events.addEventListener("subtitleattach", event => {
-            let subtitle = JSON.parse(event.data);
-            console.log(subtitle);
-            this.player.addSubtitle(subtitle.url, subtitle.name, subtitle.shift);
-            this.player.setToast("Subtitle added: " + subtitle.name);
-
-            if (!this.currentEntry.subtitles) {
-                this.currentEntry.subtitles = [];
-            }
-
-            this.currentEntry.subtitles.push(subtitle);
-            this.updateRoomSubtitlesHtml(this.currentEntry);
-        });
-
-        events.addEventListener("subtitleshift", event => {
-            let data = JSON.parse(event.data);
-
-            let subs = this.currentEntry.subtitles;
-            for (let i = 0; i < subs.length; i++) {
-                let sub = subs[i];
-                if (sub.id === data.id) {
-                    this.player.setSubtitleShiftByUrl(sub.url, data.shift);
-                    subs[i].shift = data.shift;
-                    break;
+                if (this.currentUserId === target.id) {
+                    events.close();
+                    this.markAllUsersOffline();
+                    this.clearUsersArea();
+                    this.updateUsersArea();
                 }
-            }
-        });
-    }
 
-    subscribeToServerEvents(events) {
-        this.subscribeToSubtitleEvents(events);
+                let user = this.allUsers.splice(index, 1)[0];
+                let userBox = this.allUserBoxes.splice(index, 1)[0];
 
-        // events.addEventListener("userwelcome", event => {
-        //     let connectionId = JSON.parse(event.data);
-        //     console.info("INFO: Received a welcome request with connection id:", connectionId);
-        //     this.connectionId = connectionId;
-        // });
+                console.info("INFO: Removing user:", user, "with its user box", userBox);
+                this.usersArea.userList.removeChild(userBox.root);
 
-        events.addEventListener("usercreate", event => {
-            let user = JSON.parse(event.data);
-            this.allUsers.push(user);
-            console.info("INFO: New user has been created: ", user);
+                let online = 0;
+                for (let i = 0; i < this.allUsers.length; i++) {
+                    if (this.allUsers[i].online) online += 1;
+                }
 
-            let userbox = this.createUserBox(user);
-            this.allUserBoxes.push(userbox);
-            this.usersArea.userList.appendChild(userbox.root);
+                this.onlineCount = online;
 
-            this.usersArea.onlineCount.textContent = this.onlineCount;
-            this.usersArea.offlineCount.textContent = String(this.allUsers.length - this.onlineCount);
-        });
+                this.usersArea.onlineCount.textContent  = this.onlineCount;
+                this.usersArea.offlineCount.textContent = String(this.allUsers.length - this.onlineCount);
+            } break;
 
-        events.addEventListener("userdelete", event => {
-            let target = JSON.parse(event.data);
-            let index = this.allUsers.findIndex(user => user.id === target.id);
+            // All user-related update events can be multiplexed into one "user-update" event to simplify logic
+            // The server will always serve the up-to-date snapshot of User which should never exceed 1 kB in practice
+            case "userconnected": {
+                let userId = wsData;
+                console.info("INFO: User connected, ID: ", userId);
 
-            if (this.currentUserId === target.id) {
-                events.close();
-                this.markAllUsersOffline();
-                this.clearUsersArea();
-                this.updateUsersArea();
-            }
+                let userBoxes = this.usersArea.userList;
+                let onlineBoxes = userBoxes.getElementsByClassName("online");
+                let lastOnlineBox = onlineBoxes[onlineBoxes.length - 1];
 
-            let user = this.allUsers.splice(index, 1)[0];
-            let userBox = this.allUserBoxes.splice(index, 1)[0];
+                let index = this.allUsers.findIndex(user => user.id === userId);
+                if (index === -1) {
+                    console.warn("WARN: Failed to find users with user ID =", userId);
+                    return;
+                }
 
-            console.info("INFO: Removing user:", user, "with its user box", userBox);
-            this.usersArea.userList.removeChild(userBox.root);
+                this.allUsers[index].online = true;
+                this.allUserBoxes[index].root.classList.add("online");
 
-            let online = 0;
-            for (let i = 0; i < this.allUsers.length; i++) {
-                if (this.allUsers[i].online) online += 1;
-            }
+                let connectedNow = this.allUserBoxes[index].root;
+                if (lastOnlineBox) {
+                    userBoxes.insertBefore(connectedNow, lastOnlineBox.nextSibling);
+                } else {
+                    userBoxes.appendChild(connectedNow);
+                }
 
-            this.onlineCount = online;
+                this.onlineCount += 1;
 
-            this.usersArea.onlineCount.textContent  = this.onlineCount;
-            this.usersArea.offlineCount.textContent = String(this.allUsers.length - this.onlineCount);
-        });
+                this.usersArea.onlineCount.textContent  = this.onlineCount;
+                this.usersArea.offlineCount.textContent = String(this.allUsers.length - this.onlineCount);
+            } break;
 
-        // All user-related update events can be multiplexed into one "user-update" event to simplify logic
-        // The server will always serve the up-to-date snapshot of User which should never exceed 1 kB in practice
-        events.addEventListener("userconnected", event => {
-            let userId = JSON.parse(event.data);
-            console.info("INFO: User connected, ID: ", userId);
+            case "userdisconnected": {
+                let userId = wsData;
+                console.info("INFO: User disconnected, ID: ", userId);
 
-            let userBoxes = this.usersArea.userList;
-            let onlineBoxes = userBoxes.getElementsByClassName("online");
-            let lastOnlineBox = onlineBoxes[onlineBoxes.length - 1];
+                let userBoxes = this.usersArea.userList;
+                let onlineBoxes = userBoxes.getElementsByClassName("user_box online");
+                let lastOnlineBox = onlineBoxes[onlineBoxes.length - 1];
 
-            let index = this.allUsers.findIndex(user => user.id === userId);
-            if (index === -1) {
-                console.warn("WARN: Failed to find users with user ID =", userId);
-                return;
-            }
+                let index = this.allUsers.findIndex(user => user.id === userId);
+                if (index === -1) {
+                    console.warn("WARN: Failed to find users with user ID =", userId);
+                    return;
+                }
 
-            this.allUsers[index].online = true;
-            this.allUserBoxes[index].root.classList.add("online");
+                this.allUsers[index].online = false;
+                this.allUserBoxes[index].root.classList.remove("online");
 
-            let connectedNow = this.allUserBoxes[index].root;
-            if (lastOnlineBox) {
-                userBoxes.insertBefore(connectedNow, lastOnlineBox.nextSibling);
-            } else {
-                userBoxes.appendChild(connectedNow);
-            }
+                let disconnectedNow = this.allUserBoxes[index].root;
+                if (lastOnlineBox && lastOnlineBox.nextElementSibling) {
+                    userBoxes.insertBefore(disconnectedNow, lastOnlineBox.nextElementSibling);
+                } else {
+                    userBoxes.appendChild(disconnectedNow);
+                }
 
-            this.onlineCount += 1;
+                this.onlineCount -= 1;
 
-            this.usersArea.onlineCount.textContent  = this.onlineCount;
-            this.usersArea.offlineCount.textContent = String(this.allUsers.length - this.onlineCount);
-        });
+                this.usersArea.onlineCount.textContent  = this.onlineCount;
+                this.usersArea.offlineCount.textContent = String(this.allUsers.length - this.onlineCount);
+            } break;
 
-        events.addEventListener("userdisconnected", event => {
-            let userId = JSON.parse(event.data);
-            console.info("INFO: User disconnected, ID: ", userId);
+            case "userupdate": {
+                let user = wsData;
+                console.info("INFO: Update user name event for: ", user);
 
-            let userBoxes = this.usersArea.userList;
-            let onlineBoxes = userBoxes.getElementsByClassName("user_box online");
-            let lastOnlineBox = onlineBoxes[onlineBoxes.length - 1];
+                let index = this.allUsers.findIndex(x => x.id === user.id);
+                if (index === -1) {
+                    console.warn("WARN: Failed to find users with user ID =", user.id);
+                    return;
+                }
 
-            let index = this.allUsers.findIndex(user => user.id === userId);
-            if (index === -1) {
-                console.warn("WARN: Failed to find users with user ID =", userId);
-                return;
-            }
+                this.allUsers[index] = user;
 
-            this.allUsers[index].online = false;
-            this.allUserBoxes[index].root.classList.remove("online");
+                let userbox = this.allUserBoxes[index];
 
-            let disconnectedNow = this.allUserBoxes[index].root;
-            if (lastOnlineBox && lastOnlineBox.nextElementSibling) {
-                userBoxes.insertBefore(disconnectedNow, lastOnlineBox.nextElementSibling);
-            } else {
-                userBoxes.appendChild(disconnectedNow);
-            }
+                let input = userbox.nameInput;
+                input.value = user.username;
 
-            this.onlineCount -= 1;
+                let newAvatar = dynamicImg(user.avatar);
+                userbox.avatar.replaceWith(newAvatar);
+                userbox.avatar = newAvatar;
 
-            this.usersArea.onlineCount.textContent  = this.onlineCount;
-            this.usersArea.offlineCount.textContent = String(this.allUsers.length - this.onlineCount);
-        });
+                this.playlist.handleUserUpdate(user);
+            } break;
 
-        events.addEventListener("userupdate", event => {
-            let user = JSON.parse(event.data);
-            console.info("INFO: Update user name event for: ", user);
+            case "playerset": {
+                let entry = wsData;
+                console.info("INFO: Received player set event: ", entry);
+                this.setEntryEvent(entry);
+            } break;
 
-            let index = this.allUsers.findIndex(x => x.id === user.id);
-            if (index === -1) {
-                console.warn("WARN: Failed to find users with user ID =", user.id);
-                return;
-            }
+            case "playerlooping": {
+                let looping = wsData;
+                this.playlist.setLooping(looping)
+            } break;
 
-            this.allUsers[index] = user;
+            case "playerautoplay": {
+                let autoplay = wsData;
+                this.playlist.setAutoplay(autoplay);
+            } break;
 
-            let userbox = this.allUserBoxes[index];
+            case "playerupdatetitle": {
+                let title = wsData;
+                this.player.setTitle(title);
+                this.currentEntry.title = title;
+                this.roomContent.titleInput.value = title;
+            } break;
 
-            let input = userbox.nameInput;
-            input.value = user.username;
+            case "playerwaiting": {
+                let message = wsData;
+                console.info("INFO: Received player waiting event: ", message);
 
-            let newAvatar = dynamicImg(user.avatar);
-            userbox.avatar.replaceWith(newAvatar);
-            userbox.avatar = newAvatar;
+                this.player.setToast(message);
+                this.player.setPoster("/watch/img/please_stand_by.webp");
+                this.player.setBuffering(true);
+            } break;
 
-            this.playlist.handleUserUpdate(user);
-        });
+            case "playererror": {
+                let message = wsData;
+                console.info("INFO: Received player error event: ", message);
 
-        events.addEventListener("playerset", event => {
-            let entry = JSON.parse(event.data);
-            console.info("INFO: Received player set event: ", entry);
-            this.setEntryEvent(entry);
-        });
+                this.player.setToast(message);
+                this.player.setPoster("");
+                this.player.setBuffering(false);
+            } break;
 
-        events.addEventListener("playerlooping", event => {
-            let looping = JSON.parse(event.data);
-            this.playlist.setLooping(looping)
-        });
+            case "sync": {
+                let data = wsData;
+                if (!data) {
+                    console.error("ERROR: Failed to parse event data");
+                    return;
+                }
 
-        events.addEventListener("playerautoplay", event => {
-            let autoplay = JSON.parse(event.data);
-            this.playlist.setAutoplay(autoplay);
-        });
+                let timestamp = data.timestamp;
+                let userId = data.user_id;
+                let username = this.getUsernameByUserId(userId);
 
-        events.addEventListener("playerupdatetitle", event => {
-            let title = JSON.parse(event.data);
-            this.player.setTitle(title);
-            this.currentEntry.title = title;
-            this.roomContent.titleInput.value = title;
-        });
+                switch (data.action) {
+                    case "play": {
+                        if (userId !== SERVER_ID) {
+                            this.player.setToast(username + " clicked play.");
+                            this.roomContent.lastActionText.textContent = username + " clicked play.";
+                        }
 
-        events.addEventListener("playerwaiting", event => {
-            let message = JSON.parse(event.data);
-            console.info("INFO: Received player waiting event: ", message);
+                        this.resyncPlayer(timestamp, userId);
+                        this.player.play();
+                    } break;
 
-            this.player.setToast(message);
-            this.player.setPoster("/watch/img/please_stand_by.webp");
-            this.player.setBuffering(true);
-        });
+                    case "pause": {
+                        if (userId !== SERVER_ID) {
+                            this.player.setToast(username + " clicked pause.");
+                            this.roomContent.lastActionText.textContent = username + " clicked pause.";
+                        }
 
-        events.addEventListener("playererror", event => {
-            let message = JSON.parse(event.data);
-            console.info("INFO: Received player error event: ", message);
+                        this.resyncPlayer(timestamp, userId);
+                        this.player.pause();
+                    } break;
 
-            this.player.setToast(message);
-            this.player.setPoster("");
-            this.player.setBuffering(false);
-        });
+                    case "seek": {
+                        if (userId !== SERVER_ID) {
+                            let time = formatTime(timestamp);
+                            this.player.setToast(username + " seeked to " + time);
+                            this.roomContent.lastActionText.textContent = username + " seeked to " + time;
+                        }
 
-        events.addEventListener("sync", event => {
-            let data = JSON.parse(event.data);
-            if (!data) {
-                console.error("ERROR: Failed to parse event data");
-                return;
-            }
+                        if (!this.player.isLive()) {
+                            this.player.seek(timestamp);
+                        }
+                    } break;
 
-            let timestamp = data.timestamp;
-            let userId = data.user_id;
-            let username = this.getUsernameByUserId(userId);
+                    default: {
+                        console.error("ERROR: Unknown sync action found", data.action)
+                    } break;
+                }
+            } break;
 
-            switch (data.action) {
-                case "play": {
-                    if (userId !== SERVER_ID) {
-                        this.player.setToast(username + " clicked play.");
-                        this.roomContent.lastActionText.textContent = username + " clicked play.";
+            case "playlist": {
+                let response = wsData;
+                console.info("INFO: Received playlist event for:", response.action, "with:", response.data);
+                this.playlist.handleServerEvent(response.action, response.data, this.allUsers);
+            } break;
+
+            case "messagecreate": {
+                let data = wsData;
+                console.info("INFO: New message received from server");
+
+                if (this.selected_tab !== TAB_CHAT) {
+                    show(this.chatNewMessage);
+                }
+
+                if (this.shouldPlayNotificationSound(data.authorId)) {
+                    this.newMessageAudio.play();
+                }
+
+                if (document.visibilityState === "hidden") {
+                    this.pageIcon.href = "img/favicon_unread.ico";
+                }
+
+                this.chat.addMessage(data, this.allUsers);
+            } break;
+
+            case "messageedit": {
+                let msgEdit = wsData;
+                console.info("INFO: A message has been edited:", msgEdit);
+                // this.chat.editMessage()
+            } break;
+
+            case "messagedelete": {
+                let msgId = wsData;
+                console.info("INFO: Deleting message with ID =", msgId);
+                this.chat.removeMessageById(msgId, this.allUsers);
+            } break;
+
+            case "historyclear": {
+                console.info("INFO: Received history clear event");
+                this.history.clear();
+            } break;
+
+            case "historyadd": {
+                let entry = wsData;
+                console.info("INFO: Received history addevent: ", entry);
+                this.history.add(entry);
+            } break;
+
+            case "historyremove": {
+                let entryId = wsData;
+                console.info("INFO: Received history addremove: ", entryId);
+                this.history.remove(entryId);
+            } break;
+
+            case "subtitledelete": {
+                let subId = wsData;
+                console.info("INFO: Received subtitle delete event for subtitle with ID:", subId);
+
+                let subs = this.currentEntry.subtitles;
+                if (!subs) {
+                    console.warn("WARN: Subtitle delete event failed, currentEntry subtitles is null.");
+                    return;
+                }
+
+                let index = subs.findIndex(sub => sub.id === subId);
+                if (index === -1) {
+                    console.warn("WARN: Subtitle delete event failed, subtitle index is -1.");
+                    return;
+                }
+
+                subs.splice(index, 1);
+
+                this.player.clearAllSubtitleTracks();
+                for (let i = 0; i < subs.length; i++) {
+                    const sub = subs[i];
+                    this.player.addSubtitle(sub.url, sub.name, sub.shift);
+                }
+
+                this.updateRoomSubtitlesHtml(this.currentEntry);
+            } break;
+
+            case "subtitleupdate": {
+                let data = wsData;
+                if (!data) {
+                    console.warn("WARN: Subtitle update event failed, event data is null.");
+                    return;
+                }
+
+                console.info("INFO: Received subtitle update event with:", data);
+
+                let subs = this.currentEntry.subtitles;
+                if (!subs) {
+                    console.warn("WARN: Subtitle update event failed, currentEntry subtitles is null.");
+                    return;
+                }
+
+                let index = subs.findIndex(sub => sub.id === data.id);
+                if (index === -1) {
+                    console.warn("WARN: Subtitle update event failed, subtitle index is -1.");
+                    return;
+                }
+
+                subs[index].name = data.name;
+
+                this.player.clearAllSubtitleTracks();
+                for (let i = 0; i < subs.length; i++) {
+                    const sub = subs[i];
+                    this.player.addSubtitle(sub.url, sub.name, sub.shift);
+                }
+
+                this.updateRoomSubtitlesHtml(this.currentEntry);
+            } break;
+
+            case "subtitleattach": {
+                let subtitle = wsData;
+                console.log(subtitle);
+                this.player.addSubtitle(subtitle.url, subtitle.name, subtitle.shift);
+                this.player.setToast("Subtitle added: " + subtitle.name);
+
+                if (!this.currentEntry.subtitles) {
+                    this.currentEntry.subtitles = [];
+                }
+
+                this.currentEntry.subtitles.push(subtitle);
+                this.updateRoomSubtitlesHtml(this.currentEntry);
+            } break;
+
+            case "subtitleshift": {
+                let data = wsData;
+
+                let subs = this.currentEntry.subtitles;
+                for (let i = 0; i < subs.length; i++) {
+                    let sub = subs[i];
+                    if (sub.id === data.id) {
+                        this.player.setSubtitleShiftByUrl(sub.url, data.shift);
+                        subs[i].shift = data.shift;
+                        break;
                     }
-
-                    this.resyncPlayer(timestamp, userId);
-                    this.player.play();
-                } break;
-
-                case "pause": {
-                    if (userId !== SERVER_ID) {
-                        this.player.setToast(username + " clicked pause.");
-                        this.roomContent.lastActionText.textContent = username + " clicked pause.";
-                    }
-
-                    this.resyncPlayer(timestamp, userId);
-                    this.player.pause();
-                } break;
-
-                case "seek": {
-                    if (userId !== SERVER_ID) {
-                        let time = formatTime(timestamp);
-                        this.player.setToast(username + " seeked to " + time);
-                        this.roomContent.lastActionText.textContent = username + " seeked to " + time;
-                    }
-
-                    if (!this.player.isLive()) {
-                        this.player.seek(timestamp);
-                    }
-                } break;
-
-                default: {
-                    console.error("ERROR: Unknown sync action found", data.action)
-                } break;
-            }
-        });
-
-        events.addEventListener("playlist", event => {
-            let response = JSON.parse(event.data);
-            console.info("INFO: Received playlist event for:", response.action, "with:", response.data);
-            this.playlist.handleServerEvent(response.action, response.data, this.allUsers);
-        });
-
-        events.addEventListener("messagecreate", event => {
-            let data = JSON.parse(event.data);
-            console.info("INFO: New message received from server");
-
-            if (this.selected_tab !== TAB_CHAT) {
-                show(this.chatNewMessage);
-            }
-
-            if (this.shouldPlayNotificationSound(data.authorId)) {
-                this.newMessageAudio.play();
-            }
-
-            if (document.visibilityState === "hidden") {
-                this.pageIcon.href = "img/favicon_unread.ico";
-            }
-
-            this.chat.addMessage(data, this.allUsers);
-        });
-
-        events.addEventListener("messageedit", event => {
-            let msgEdit = JSON.parse(event.data);
-            console.info("INFO: A message has been edited:", msgEdit);
-            // this.chat.editMessage()
-        });
-
-        events.addEventListener("messagedelete", event => {
-            let msgId = JSON.parse(event.data);
-            console.info("INFO: Deleting message with ID =", msgId);
-            this.chat.removeMessageById(msgId, this.allUsers);
-        });
-
-        events.addEventListener("historyclear", _ => {
-            console.info("INFO: Received history clear event");
-            this.history.clear();
-        });
-
-        events.addEventListener("historyadd", event => {
-            let entry = JSON.parse(event.data);
-            console.info("INFO: Received history addevent: ", entry);
-            this.history.add(entry);
-        });
-
-        events.addEventListener("historyremove", event => {
-            let entryId = JSON.parse(event.data);
-            console.info("INFO: Received history addremove: ", entryId);
-            this.history.remove(entryId);
-        });
+                }
+            } break;
+        }
     }
 
     shouldPlayNotificationSound(authorId) {

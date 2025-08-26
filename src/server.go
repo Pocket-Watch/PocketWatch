@@ -89,6 +89,10 @@ func makeConnections() *Connections {
 	conns := new(Connections)
 	conns.slice = make([]Connection, 0)
 	conns.idCounter = 1
+	conns.upgrader = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+	}
 	return conns
 }
 
@@ -99,7 +103,7 @@ func (conns *Connections) add(userId uint64) Connection {
 	conn := Connection{
 		id:     id,
 		userId: userId,
-		events: make(chan string, 100),
+		events: make(chan []byte, 100),
 		close:  make(chan bool, 1),
 	}
 	conns.slice = append(conns.slice, conn)
@@ -523,7 +527,7 @@ func (server *Server) setNewEntry(entry Entry, requested RequestEntry) {
 	} else if isTwitch(entry) {
 		server.writeEventToAllConnections("playerwaiting", "Twitch stream is loading. Please stand by!")
 
-		err := loadTwitchEntry(&entry, requested)
+		err := loadTwitchEntry(&entry)
 		if err != nil {
 			server.writeEventToAllConnections("playererror", err.Error())
 			return
@@ -635,40 +639,17 @@ func (server *Server) readJsonDataFromRequest(w http.ResponseWriter, r *http.Req
 	return true
 }
 
-func (server *Server) writeEvent(w http.ResponseWriter, eventName string, data any) error {
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		LogError("Failed to serialize data for event '%v': %v", eventName, err)
-		http.Error(w, "Failed to serialize event data", http.StatusInternalServerError)
-		return err
+func (server *Server) writeEventToAllConnections(eventType string, eventData any) {
+	data := WebsocketEvent{
+		Type: eventType,
+		Data: eventData,
 	}
 
-	jsonString := string(jsonData)
-	eventId := server.state.eventId.Add(1)
-
-	_, err = fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\nretry: %d\n\n", eventId, eventName, jsonString, RETRY)
+	event, err := json.Marshal(data)
 	if err != nil {
-		return err
-	}
-
-	if f, ok := w.(http.Flusher); ok {
-		f.Flush()
-	}
-
-	return nil
-}
-
-func (server *Server) writeEventToAllConnections(eventName string, data any) {
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		LogError("Failed to serialize data for event '%v': %v", eventName, err)
+		LogError("Failed to serialize data for event '%v': %v", eventType, err)
 		return
 	}
-
-	jsonString := string(jsonData)
-
-	eventId := server.state.eventId.Add(1)
-	event := fmt.Sprintf("id: %v\nevent: %v\ndata: %v\nretry: %v\n\n", eventId, eventName, jsonString, RETRY)
 
 	server.conns.mutex.Lock()
 	for _, conn := range server.conns.slice {

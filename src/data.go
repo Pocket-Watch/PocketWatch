@@ -7,6 +7,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 const KB = 1024
@@ -122,12 +124,10 @@ type Entry struct {
 type ServerState struct {
 	mutex sync.Mutex
 
-	player    PlayerState
-	entry     Entry
-	entryId   atomic.Uint64
-	isLoading atomic.Bool
-
-	eventId    atomic.Uint64
+	player     PlayerState
+	entry      Entry
+	entryId    atomic.Uint64
+	isLoading  atomic.Bool
 	lastUpdate time.Time
 
 	playlist  []Entry
@@ -181,7 +181,7 @@ type LiveStream struct {
 type Connection struct {
 	id     uint64
 	userId uint64
-	events chan string
+	events chan []byte
 	close  chan bool
 }
 
@@ -189,6 +189,7 @@ type Connections struct {
 	mutex     sync.Mutex
 	idCounter uint64
 	slice     []Connection
+	upgrader  websocket.Upgrader
 }
 
 type User struct {
@@ -297,6 +298,11 @@ type SubtitleDownloadRequest struct {
 	Url     string `json:"url"`
 	Name    string `json:"name"`
 	Referer string `json:"referer"`
+}
+
+type WebsocketEvent struct {
+	Type string `json:"type"`
+	Data any    `json:"data"`
 }
 
 type PlaylistEvent struct {

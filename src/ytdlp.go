@@ -134,7 +134,7 @@ func fetchTwitchStream(url string) (bool, TwitchStream) {
 	return false, TwitchStream{}
 }
 
-func loadTwitchEntry(entry *Entry, requested RequestEntry) error {
+func loadTwitchEntry(entry *Entry) error {
 	if !YTDLP_ENABLED {
 		return nil
 	}

@@ -13,6 +13,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 func (server *Server) apiVersion(w http.ResponseWriter, r *http.Request) {
@@ -820,7 +822,7 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else if isTwitch(entry) {
-		err := loadTwitchEntry(&entry, requested)
+		err := loadTwitchEntry(&entry)
 		if err != nil {
 			LogWarn("Failed to load entry in playlist add: %v", err)
 			return
@@ -1298,27 +1300,17 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ws, err := server.conns.upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		respondBadRequest(w, "Failed to establish websocket connection.")
+		server.users.mutex.Unlock()
+		return
+	}
+
 	went_online := !user.Online
 	user.connections += 1
 	user.Online = true
 	server.users.mutex.Unlock()
-
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-
-	_, err := fmt.Fprintf(w, ":\n\n")
-	if err != nil {
-		LogWarn("Connection write failed. Exiting event stream for: %v", r.RemoteAddr)
-		return
-	}
-
-	flusher, success := w.(http.Flusher)
-	if !success {
-		LogWarn("Failed to get flusher. Exiting event stream for: %v", r.RemoteAddr)
-		return
-	}
-	flusher.Flush()
 
 	server.conns.mutex.Lock()
 	conn := server.conns.add(user.Id)
@@ -1326,11 +1318,6 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 	server.conns.mutex.Unlock()
 
 	LogInfo("New connection id:%v established with user id:%v on %s. Current connection count: %d", conn.id, user.Id, r.RemoteAddr, connectionCount)
-
-	// welcomeErr := server.writeEvent(w, "userwelcome", conn.id)
-	// if welcomeErr != nil {
-	// 	return
-	// }
 
 	if went_online {
 		server.writeEventToAllConnections("userconnected", user.Id)
@@ -1341,9 +1328,9 @@ outer:
 	for {
 		select {
 		case event := <-conn.events:
-			_, err := fmt.Fprint(w, event)
+			err := ws.WriteMessage(websocket.TextMessage, event)
 			if err != nil {
-				LogDebug("Connection write fail: %v", err)
+				LogDebug("Failed to write websocket message: %v", err)
 				break outer
 			}
 
@@ -1352,19 +1339,14 @@ outer:
 
 		case <-time.After(HEARTBEAT_INTERVAL):
 			// NOTE(kihau): Send a heartbeat event to verify that the connection is still active.
-			_, err := w.Write([]byte(":\n\n"))
+			err := ws.WriteMessage(websocket.TextMessage, []byte("{\"type\":\"ping\",\"data\":{}}"))
 			if err != nil {
 				break outer
 			}
 		}
-
-		flusher, success := w.(http.Flusher)
-		if !success {
-			break
-		}
-
-		flusher.Flush()
 	}
+
+	_ = ws.Close()
 
 	server.conns.mutex.Lock()
 	server.conns.removeById(conn.id)
