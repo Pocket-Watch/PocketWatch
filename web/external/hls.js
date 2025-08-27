@@ -523,7 +523,7 @@ function enableLogs(debugConfig, context, id) {
     // Some browsers don't allow to use bind on console object anyway
     // fallback to default if needed
     try {
-      newLogger.log(`Debug logs enabled for "${context}" in hls.js version ${"1.6.4"}`);
+      newLogger.log(`Debug logs enabled for "${context}" in hls.js version ${"1.6.11"}`);
     } catch (e) {
       /* log fn threw an exception. All logger methods are no-ops. */
       return createLogger();
@@ -635,19 +635,20 @@ function utf8ArrayToStr(array, exitOnNull = false) {
  *  hex dump helper class
  */
 
-const Hex = {
-  hexDump: function (array) {
-    let str = '';
-    for (let i = 0; i < array.length; i++) {
-      let h = array[i].toString(16);
-      if (h.length < 2) {
-        h = '0' + h;
-      }
-      str += h;
+function arrayToHex(array) {
+  let str = '';
+  for (let i = 0; i < array.length; i++) {
+    let h = array[i].toString(16);
+    if (h.length < 2) {
+      h = '0' + h;
     }
-    return str;
+    str += h;
   }
-};
+  return str;
+}
+function hexToArrayBuffer(str) {
+  return Uint8Array.from(str.replace(/^0x/, '').replace(/([\da-fA-F]{2}) ?/g, '0x$1 ').replace(/ +$/, '').split(' ')).buffer;
+}
 
 function getDefaultExportFromCjs (x) {
 	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
@@ -1033,7 +1034,7 @@ class Fragment extends BaseSegment {
         return total;
       }
     }
-    if (this.byteRange) {
+    if (this.byteRange.length) {
       const start = this.byteRange[0];
       const end = this.byteRange[1];
       if (isFiniteNumber(start) && isFiniteNumber(end)) {
@@ -1068,7 +1069,10 @@ class Fragment extends BaseSegment {
       } else {
         const keyFormats = Object.keys(this.levelkeys);
         if (keyFormats.length === 1) {
-          return this._decryptdata = this.levelkeys[keyFormats[0]].getDecryptData(this.sn);
+          const levelKey = this._decryptdata = this.levelkeys[keyFormats[0]] || null;
+          if (levelKey) {
+            return levelKey.getDecryptData(this.sn);
+          }
         }
       }
     }
@@ -1092,9 +1096,10 @@ class Fragment extends BaseSegment {
     if ((_this$_decryptdata = this._decryptdata) != null && _this$_decryptdata.encrypted) {
       return true;
     } else if (this.levelkeys) {
+      var _this$levelkeys$keyFo;
       const keyFormats = Object.keys(this.levelkeys);
       const len = keyFormats.length;
-      if (len > 1 || len === 1 && this.levelkeys[keyFormats[0]].encrypted) {
+      if (len > 1 || len === 1 && (_this$levelkeys$keyFo = this.levelkeys[keyFormats[0]]) != null && _this$levelkeys$keyFo.encrypted) {
         return true;
       }
     }
@@ -1153,8 +1158,8 @@ class Fragment extends BaseSegment {
   }
   abortRequests() {
     var _this$loader, _this$keyLoader;
-    (_this$loader = this.loader) == null ? void 0 : _this$loader.abort();
-    (_this$keyLoader = this.keyLoader) == null ? void 0 : _this$keyLoader.abort();
+    (_this$loader = this.loader) == null || _this$loader.abort();
+    (_this$keyLoader = this.keyLoader) == null || _this$keyLoader.abort();
   }
   setElementaryStreamInfo(type, startPTS, endPTS, startDTS, endDTS, partial = false) {
     const {
@@ -1272,12 +1277,6 @@ function readUint64(buffer, offset) {
 }
 function readSint32(buffer, offset) {
   return buffer[offset] << 24 | buffer[offset + 1] << 16 | buffer[offset + 2] << 8 | buffer[offset + 3];
-}
-function writeUint32(buffer, offset, value) {
-  buffer[offset] = value >> 24;
-  buffer[offset + 1] = value >> 16 & 0xff;
-  buffer[offset + 2] = value >> 8 & 0xff;
-  buffer[offset + 3] = value & 0xff;
 }
 
 // Find "moof" box
@@ -1444,7 +1443,7 @@ function parseInitSegment(initSegment) {
               id: trackId
             }, stsd);
           } else {
-            // Add 'meta' and other track records required by `offsetStartDTS`
+            // Add 'meta' and other track records
             result[trackId] = {
               timescale,
               type: hdlrType,
@@ -1665,7 +1664,7 @@ function addLeadingZero(num) {
 }
 function patchEncyptionData(initSegment, decryptdata) {
   if (!initSegment || !decryptdata) {
-    return initSegment;
+    return;
   }
   const keyId = decryptdata.keyId;
   if (keyId && decryptdata.isCommonEncryption) {
@@ -1689,7 +1688,7 @@ function patchEncyptionData(initSegment, decryptdata) {
             // Look for default key id (keyID offset is always 8 within the tenc box):
             const tencKeyId = tenc.subarray(8, 24);
             if (!tencKeyId.some(b => b !== 0)) {
-              logger.log(`[eme] Patching keyId in 'enc${isAudio ? 'a' : 'v'}>sinf>>tenc' box: ${Hex.hexDump(tencKeyId)} -> ${Hex.hexDump(keyId)}`);
+              logger.log(`[eme] Patching keyId in 'enc${isAudio ? 'a' : 'v'}>sinf>>tenc' box: ${arrayToHex(tencKeyId)} -> ${arrayToHex(keyId)}`);
               tenc.set(keyId, 8);
             }
           }
@@ -1697,7 +1696,6 @@ function patchEncyptionData(initSegment, decryptdata) {
       });
     });
   }
-  return initSegment;
 }
 function parseSinf(sinf) {
   const schm = findBox(sinf, ['schm'])[0];
@@ -1740,13 +1738,14 @@ function getSampleData(data, initData, logger) {
     if (!track) {
       continue;
     }
-    const trackTimes = tracks[id] || (tracks[id] = {
+    tracks[id] || (tracks[id] = {
       start: NaN,
       duration: 0,
       sampleCount: 0,
       timescale: track.timescale,
       type: track.type
     });
+    const trackTimes = tracks[id];
     // get start DTS
     const tfdt = findBox(traf, ['tfdt'])[0];
     if (tfdt) {
@@ -1878,44 +1877,6 @@ function getSampleData(data, initData, logger) {
     }
   }
   return tracks;
-}
-
-// TODO: Remove `offsetStartDTS` in favor of using `timestampOffset` (issue #5715)
-function offsetStartDTS(initData, fmp4, timeOffset) {
-  findBox(fmp4, ['moof', 'traf']).forEach(traf => {
-    findBox(traf, ['tfhd']).forEach(tfhd => {
-      // get the track id from the tfhd
-      const id = readUint32(tfhd, 4);
-      const track = initData[id];
-      if (!track) {
-        return;
-      }
-      // assume a 90kHz clock if no timescale was specified
-      const timescale = track.timescale || 90e3;
-      // get the base media decode time from the tfdt
-      findBox(traf, ['tfdt']).forEach(tfdt => {
-        const version = tfdt[0];
-        const offset = timeOffset * timescale;
-        if (offset) {
-          let baseMediaDecodeTime = readUint32(tfdt, 4);
-          if (version === 0) {
-            baseMediaDecodeTime -= offset;
-            baseMediaDecodeTime = Math.max(baseMediaDecodeTime, 0);
-            writeUint32(tfdt, 4, baseMediaDecodeTime);
-          } else {
-            baseMediaDecodeTime *= Math.pow(2, 32);
-            baseMediaDecodeTime += readUint32(tfdt, 8);
-            baseMediaDecodeTime -= offset;
-            baseMediaDecodeTime = Math.max(baseMediaDecodeTime, 0);
-            const upper = Math.floor(baseMediaDecodeTime / (UINT32_MAX$1 + 1));
-            const lower = Math.floor(baseMediaDecodeTime % (UINT32_MAX$1 + 1));
-            writeUint32(tfdt, 4, upper);
-            writeUint32(tfdt, 8, lower);
-          }
-        }
-      });
-    });
-  });
 }
 
 // TODO: Check if the last moof+mdat pair is part of the valid range
@@ -2334,85 +2295,13 @@ function mp4pssh(systemId, keyids, data) {
     kidCount = new Uint8Array();
   }
   const dataSize = new Uint8Array(4);
-  if (data && data.byteLength > 0) {
+  if (data.byteLength > 0) {
     new DataView(dataSize.buffer).setUint32(0, data.byteLength, false);
   }
   return mp4Box([112, 115, 115, 104], new Uint8Array([version, 0x00, 0x00, 0x00 // Flags
   ]), systemId,
   // 16 bytes
-  kidCount, kids, dataSize, data || new Uint8Array());
-}
-function parseMultiPssh(initData) {
-  const results = [];
-  if (initData instanceof ArrayBuffer) {
-    const length = initData.byteLength;
-    let offset = 0;
-    while (offset + 32 < length) {
-      const view = new DataView(initData, offset);
-      const pssh = parsePssh(view);
-      results.push(pssh);
-      offset += pssh.size;
-    }
-  }
-  return results;
-}
-function parsePssh(view) {
-  const size = view.getUint32(0);
-  const offset = view.byteOffset;
-  const length = view.byteLength;
-  if (length < size) {
-    return {
-      offset,
-      size: length
-    };
-  }
-  const type = view.getUint32(4);
-  if (type !== 0x70737368) {
-    return {
-      offset,
-      size
-    };
-  }
-  const version = view.getUint32(8) >>> 24;
-  if (version !== 0 && version !== 1) {
-    return {
-      offset,
-      size
-    };
-  }
-  const buffer = view.buffer;
-  const systemId = Hex.hexDump(new Uint8Array(buffer, offset + 12, 16));
-  const dataSizeOrKidCount = view.getUint32(28);
-  let kids = null;
-  let data = null;
-  if (version === 0) {
-    if (size - 32 < dataSizeOrKidCount || dataSizeOrKidCount < 22) {
-      return {
-        offset,
-        size
-      };
-    }
-    data = new Uint8Array(buffer, offset + 32, dataSizeOrKidCount);
-  } else if (version === 1) {
-    if (!dataSizeOrKidCount || length < offset + 32 + dataSizeOrKidCount * 16 + 16) {
-      return {
-        offset,
-        size
-      };
-    }
-    kids = [];
-    for (let i = 0; i < dataSizeOrKidCount; i++) {
-      kids.push(new Uint8Array(buffer, offset + 32 + i * 16, 16));
-    }
-  }
-  return {
-    version,
-    systemId,
-    kids,
-    data,
-    offset,
-    size
-  };
+  kidCount, kids, dataSize, data);
 }
 
 const userAgentHevcSupportIsInaccurate = () => {
@@ -2582,7 +2471,9 @@ function pickMostCompleteCodecName(parsedCodec, levelCodec) {
   // Parsing of mp4a codecs strings in mp4-tools from media is incomplete as of d8c6c7a
   // so use level codec is parsed codec is unavailable or incomplete
   if (parsedCodec && (parsedCodec.length > 4 || ['ac-3', 'ec-3', 'alac', 'fLaC', 'Opus'].indexOf(parsedCodec) !== -1)) {
-    return parsedCodec;
+    if (isCodecSupportedAsType(parsedCodec, 'audio') || isCodecSupportedAsType(parsedCodec, 'video')) {
+      return parsedCodec;
+    }
   }
   if (levelCodec) {
     const levelCodecs = levelCodec.split(',');
@@ -2598,6 +2489,9 @@ function pickMostCompleteCodecName(parsedCodec, levelCodec) {
     }
   }
   return levelCodec || parsedCodec;
+}
+function isCodecSupportedAsType(codec, type) {
+  return isCodecType(codec, type) && isCodecMediaSourceSupported(codec, type);
 }
 function convertAVC1ToAVCOTI(videoCodecs) {
   // Convert avc1 codec string from RFC-4281 to RFC-6381 for MediaSource.isTypeSupported
@@ -2638,30 +2532,37 @@ function getCodecsForMimeType(mimeType) {
   return mimeType.replace(/^.+codecs=["']?([^"']+).*$/, '$1');
 }
 
+// @ts-ignore
+const supportedResult = {
+  supported: true,
+  powerEfficient: true,
+  smooth: true
+  // keySystemAccess: null,
+};
+
+// @ts-ignore
+const unsupportedResult = {
+  supported: false,
+  smooth: false,
+  powerEfficient: false
+  // keySystemAccess: null,
+};
 const SUPPORTED_INFO_DEFAULT = {
   supported: true,
   configurations: [],
-  decodingInfoResults: [{
-    supported: true,
-    powerEfficient: true,
-    smooth: true
-  }]
+  decodingInfoResults: [supportedResult]
 };
 function getUnsupportedResult(error, configurations) {
   return {
     supported: false,
     configurations,
-    decodingInfoResults: [{
-      supported: false,
-      smooth: false,
-      powerEfficient: false
-    }],
+    decodingInfoResults: [unsupportedResult],
     error
   };
 }
-const SUPPORTED_INFO_CACHE = {};
 function requiresMediaCapabilitiesDecodingInfo(level, audioTracksByGroup, currentVideoRange, currentFrameRate, currentBw, audioPreference) {
   // Only test support when configuration is exceeds minimum options
+  const videoCodecs = level.videoCodec;
   const audioGroups = level.audioCodec ? level.audioGroups : null;
   const audioCodecPreference = audioPreference == null ? void 0 : audioPreference.audioCodec;
   const channelsPreference = audioPreference == null ? void 0 : audioPreference.channels;
@@ -2692,69 +2593,47 @@ function requiresMediaCapabilitiesDecodingInfo(level, audioTracksByGroup, curren
       return true;
     }
   }
-  return level.videoCodec !== undefined && (level.width > 1920 && level.height > 1088 || level.height > 1920 && level.width > 1088 || level.frameRate > Math.max(currentFrameRate, 30) || level.videoRange !== 'SDR' && level.videoRange !== currentVideoRange || level.bitrate > Math.max(currentBw, 8e6)) || !!audioChannels && isFiniteNumber(maxChannels) && Object.keys(audioChannels).some(channels => parseInt(channels) > maxChannels);
+  return videoCodecs !== undefined && (
+  // Force media capabilities check for HEVC to avoid failure on Windows
+  videoCodecs.split(',').some(videoCodec => isHEVC(videoCodec)) || level.width > 1920 && level.height > 1088 || level.height > 1920 && level.width > 1088 || level.frameRate > Math.max(currentFrameRate, 30) || level.videoRange !== 'SDR' && level.videoRange !== currentVideoRange || level.bitrate > Math.max(currentBw, 8e6)) || !!audioChannels && isFiniteNumber(maxChannels) && Object.keys(audioChannels).some(channels => parseInt(channels) > maxChannels);
 }
-function getMediaDecodingInfoPromise(level, audioTracksByGroup, mediaCapabilities) {
+function getMediaDecodingInfoPromise(level, audioTracksByGroup, mediaCapabilities, cache = {}) {
   const videoCodecs = level.videoCodec;
-  const audioCodecs = level.audioCodec;
-  if (!videoCodecs && !audioCodecs || !mediaCapabilities) {
+  if (!videoCodecs && !level.audioCodec || !mediaCapabilities) {
     return Promise.resolve(SUPPORTED_INFO_DEFAULT);
   }
   const configurations = [];
-  if (videoCodecs) {
-    const baseVideoConfiguration = {
-      width: level.width,
-      height: level.height,
-      bitrate: Math.ceil(Math.max(level.bitrate * 0.9, level.averageBitrate)),
-      // Assume a framerate of 30fps since MediaCapabilities will not accept Level default of 0.
-      framerate: level.frameRate || 30
+  const videoDecodeList = makeVideoConfigurations(level);
+  const videoCount = videoDecodeList.length;
+  const audioDecodeList = makeAudioConfigurations(level, audioTracksByGroup, videoCount > 0);
+  const audioCount = audioDecodeList.length;
+  for (let i = videoCount || 1 * audioCount || 1; i--;) {
+    const configuration = {
+      type: 'media-source'
     };
-    const videoRange = level.videoRange;
-    if (videoRange !== 'SDR') {
-      baseVideoConfiguration.transferFunction = videoRange.toLowerCase();
+    if (videoCount) {
+      configuration.video = videoDecodeList[i % videoCount];
     }
-    const videoCodecsArray = videoCodecs.split(',');
+    if (audioCount) {
+      configuration.audio = audioDecodeList[i % audioCount];
+      const audioBitrate = configuration.audio.bitrate;
+      if (configuration.video && audioBitrate) {
+        configuration.video.bitrate -= audioBitrate;
+      }
+    }
+    configurations.push(configuration);
+  }
+  if (videoCodecs) {
     // Override Windows Firefox HEVC MediaCapabilities result (https://github.com/video-dev/hls.js/issues/7046)
     const ua = navigator.userAgent;
-    if (videoCodecsArray.some(videoCodec => isHEVC(videoCodec)) && userAgentHevcSupportIsInaccurate()) {
-      return Promise.resolve(getUnsupportedResult(new Error(`Overriding Windows Firefox HEVC MediaCapabilities result based on user-agent sting: (${ua})`), configurations));
+    if (videoCodecs.split(',').some(videoCodec => isHEVC(videoCodec)) && userAgentHevcSupportIsInaccurate()) {
+      return Promise.resolve(getUnsupportedResult(new Error(`Overriding Windows Firefox HEVC MediaCapabilities result based on user-agent string: (${ua})`), configurations));
     }
-    configurations.push.apply(configurations, videoCodecsArray.map(videoCodec => ({
-      type: 'media-source',
-      video: _objectSpread2(_objectSpread2({}, baseVideoConfiguration), {}, {
-        contentType: mimeTypeForCodec(fillInMissingAV01Params(videoCodec), 'video')
-      })
-    })));
-  }
-  if (audioCodecs && level.audioGroups) {
-    level.audioGroups.forEach(audioGroupId => {
-      var _audioTracksByGroup$g;
-      if (!audioGroupId) {
-        return;
-      }
-      (_audioTracksByGroup$g = audioTracksByGroup.groups[audioGroupId]) == null ? void 0 : _audioTracksByGroup$g.tracks.forEach(audioTrack => {
-        if (audioTrack.groupId === audioGroupId) {
-          const channels = audioTrack.channels || '';
-          const channelsNumber = parseFloat(channels);
-          if (isFiniteNumber(channelsNumber) && channelsNumber > 2) {
-            configurations.push.apply(configurations, audioCodecs.split(',').map(audioCodec => ({
-              type: 'media-source',
-              audio: {
-                contentType: mimeTypeForCodec(audioCodec, 'audio'),
-                channels: '' + channelsNumber
-                // spatialRendering:
-                //   audioCodec === 'ec-3' && channels.indexOf('JOC'),
-              }
-            })));
-          }
-        }
-      });
-    });
   }
   return Promise.all(configurations.map(configuration => {
     // Cache MediaCapabilities promises
     const decodingInfoKey = getMediaDecodingInfoKey(configuration);
-    return SUPPORTED_INFO_CACHE[decodingInfoKey] || (SUPPORTED_INFO_CACHE[decodingInfoKey] = mediaCapabilities.decodingInfo(configuration));
+    return cache[decodingInfoKey] || (cache[decodingInfoKey] = mediaCapabilities.decodingInfo(configuration));
   })).then(decodingInfoResults => ({
     supported: !decodingInfoResults.some(info => !info.supported),
     configurations,
@@ -2766,22 +2645,90 @@ function getMediaDecodingInfoPromise(level, audioTracksByGroup, mediaCapabilitie
     error
   }));
 }
+function makeVideoConfigurations(level) {
+  var _level$videoCodec;
+  const videoCodecs = (_level$videoCodec = level.videoCodec) == null ? void 0 : _level$videoCodec.split(',');
+  const bitrate = getVariantDecodingBitrate(level);
+  const width = level.width || 640;
+  const height = level.height || 480;
+  // Assume a framerate of 30fps since MediaCapabilities will not accept Level default of 0.
+  const framerate = level.frameRate || 30;
+  const videoRange = level.videoRange.toLowerCase();
+  return videoCodecs ? videoCodecs.map(videoCodec => {
+    const videoConfiguration = {
+      contentType: mimeTypeForCodec(fillInMissingAV01Params(videoCodec), 'video'),
+      width,
+      height,
+      bitrate,
+      framerate
+    };
+    if (videoRange !== 'sdr') {
+      videoConfiguration.transferFunction = videoRange;
+    }
+    return videoConfiguration;
+  }) : [];
+}
+function makeAudioConfigurations(level, audioTracksByGroup, hasVideo) {
+  var _level$audioCodec;
+  const audioCodecs = (_level$audioCodec = level.audioCodec) == null ? void 0 : _level$audioCodec.split(',');
+  const combinedBitrate = getVariantDecodingBitrate(level);
+  if (audioCodecs && level.audioGroups) {
+    return level.audioGroups.reduce((configurations, audioGroupId) => {
+      var _audioTracksByGroup$g;
+      const tracks = audioGroupId ? (_audioTracksByGroup$g = audioTracksByGroup.groups[audioGroupId]) == null ? void 0 : _audioTracksByGroup$g.tracks : null;
+      if (tracks) {
+        return tracks.reduce((configs, audioTrack) => {
+          if (audioTrack.groupId === audioGroupId) {
+            const channelsNumber = parseFloat(audioTrack.channels || '');
+            audioCodecs.forEach(audioCodec => {
+              const audioConfiguration = {
+                contentType: mimeTypeForCodec(audioCodec, 'audio'),
+                bitrate: hasVideo ? estimatedAudioBitrate(audioCodec, combinedBitrate) : combinedBitrate
+              };
+              if (channelsNumber) {
+                audioConfiguration.channels = '' + channelsNumber;
+              }
+              configs.push(audioConfiguration);
+            });
+          }
+          return configs;
+        }, configurations);
+      }
+      return configurations;
+    }, []);
+  }
+  return [];
+}
+function estimatedAudioBitrate(audioCodec, levelBitrate) {
+  if (levelBitrate <= 1) {
+    return 1;
+  }
+  let audioBitrate = 128000;
+  if (audioCodec === 'ec-3') {
+    audioBitrate = 768000;
+  } else if (audioCodec === 'ac-3') {
+    audioBitrate = 640000;
+  }
+  return Math.min(levelBitrate / 2, audioBitrate); // Don't exceed some % of level bitrate
+}
+function getVariantDecodingBitrate(level) {
+  return Math.ceil(Math.max(level.bitrate * 0.9, level.averageBitrate) / 1000) * 1000 || 1;
+}
 function getMediaDecodingInfoKey(config) {
+  let key = '';
   const {
     audio,
     video
   } = config;
-  const mediaConfig = video || audio;
-  if (mediaConfig) {
-    const codec = getCodecsForMimeType(mediaConfig.contentType);
-    if (video) {
-      return `r${video.height}x${video.width}f${Math.ceil(video.framerate)}${video.transferFunction || 'sd'}_${codec}_${Math.ceil(video.bitrate / 1e5)}`;
-    }
-    if (audio) {
-      return `c${audio.channels}${audio.spatialRendering ? 's' : 'n'}_${codec}`;
-    }
+  if (video) {
+    const codec = getCodecsForMimeType(video.contentType);
+    key += `${codec}_r${video.height}x${video.width}f${Math.ceil(video.framerate)}${video.transferFunction || 'sd'}_${Math.ceil(video.bitrate / 1e5)}`;
   }
-  return '';
+  if (audio) {
+    const codec = getCodecsForMimeType(audio.contentType);
+    key += `${video ? '_' : ''}${codec}_c${audio.channels}`;
+  }
+  return key;
 }
 
 const HdcpLevels = ['NONE', 'TYPE-0', 'TYPE-1', null];
@@ -3374,6 +3321,7 @@ class AbrController extends Logger {
     this.partCurrent = null;
     this.bitrateTestDelay = 0;
     this.rebufferNotice = -1;
+    this.supportedCache = {};
     this.bwEstimator = void 0;
     /*
         This method monitors the download rate of the current fragment, and will downswitch if that fragment will not load
@@ -3584,13 +3532,14 @@ class AbrController extends Logger {
     this.unregisterListeners();
     this.clearTimer();
     // @ts-ignore
-    this.hls = this._abandonRulesCheck = null;
+    this.hls = this._abandonRulesCheck = this.supportedCache = null;
     this.fragCurrent = this.partCurrent = null;
   }
   onManifestLoading(event, data) {
     this.lastLoadedFragLevel = -1;
     this.firstSelection = -1;
     this.lastLevelLoadSec = 0;
+    this.supportedCache = {};
     this.fragCurrent = this.partCurrent = null;
     this.onLevelsUpdated();
     this.clearTimer();
@@ -3959,9 +3908,8 @@ class AbrController extends Logger {
       }
       if (config.useMediaCapabilities && !levelInfo.supportedResult && !levelInfo.supportedPromise) {
         const mediaCapabilities = navigator.mediaCapabilities;
-        if (typeof (mediaCapabilities == null ? void 0 : mediaCapabilities.decodingInfo) === 'function' && (requiresMediaCapabilitiesDecodingInfo(levelInfo, audioTracksByGroup, currentVideoRange, currentFrameRate, currentBw, audioPreference) || isHEVC(levelInfo.videoCodec)) // Force media capabilities check for HEVC to avoid failure on Windows
-        ) {
-          levelInfo.supportedPromise = getMediaDecodingInfoPromise(levelInfo, audioTracksByGroup, mediaCapabilities);
+        if (typeof (mediaCapabilities == null ? void 0 : mediaCapabilities.decodingInfo) === 'function' && requiresMediaCapabilitiesDecodingInfo(levelInfo, audioTracksByGroup, currentVideoRange, currentFrameRate, currentBw, audioPreference)) {
+          levelInfo.supportedPromise = getMediaDecodingInfoPromise(levelInfo, audioTracksByGroup, mediaCapabilities, this.supportedCache);
           levelInfo.supportedPromise.then(decodingInfo => {
             if (!this.hls) {
               return;
@@ -3980,7 +3928,11 @@ class AbrController extends Logger {
                   this.hls.nextLoadLevel = 0;
                 }
               }
+            } else if (decodingInfo.decodingInfoResults.some(info => info.smooth === false || info.powerEfficient === false)) {
+              this.log(`MediaCapabilities decodingInfo for level ${index} not smooth or powerEfficient: ${stringify(decodingInfo)}`);
             }
+          }).catch(error => {
+            this.warn(`Error handling MediaCapabilities decodingInfo: ${error}`);
           });
         } else {
           levelInfo.supportedResult = SUPPORTED_INFO_DEFAULT;
@@ -3989,7 +3941,7 @@ class AbrController extends Logger {
 
       // skip candidates which change codec-family or video-range,
       // and which decrease or increase frame-rate for up and down-switch respectfully
-      if (currentCodecSet && levelInfo.codecSet !== currentCodecSet || currentVideoRange && levelInfo.videoRange !== currentVideoRange || upSwitch && currentFrameRate > levelInfo.frameRate || !upSwitch && currentFrameRate > 0 && currentFrameRate < levelInfo.frameRate || levelInfo.supportedResult && !((_levelInfo$supportedR = levelInfo.supportedResult.decodingInfoResults) != null && _levelInfo$supportedR[0].smooth)) {
+      if (currentCodecSet && levelInfo.codecSet !== currentCodecSet || currentVideoRange && levelInfo.videoRange !== currentVideoRange || upSwitch && currentFrameRate > levelInfo.frameRate || !upSwitch && currentFrameRate > 0 && currentFrameRate < levelInfo.frameRate || (_levelInfo$supportedR = levelInfo.supportedResult) != null && (_levelInfo$supportedR = _levelInfo$supportedR.decodingInfoResults) != null && _levelInfo$supportedR.some(info => info.smooth === false)) {
         if (!firstSelection || i !== minStartIndex) {
           levelsSkipped.push(i);
           continue;
@@ -4291,7 +4243,10 @@ function shouldRetry(retryConfig, retryCount, isTimeout, loaderResponse) {
 }
 function retryForHttpStatus(httpStatus) {
   // Do not retry on status 4xx, status 0 (CORS error), or undefined (decrypt/gap/parse error)
-  return httpStatus === 0 && navigator.onLine === false || !!httpStatus && (httpStatus < 400 || httpStatus > 499);
+  return offlineHttpStatus(httpStatus) || !!httpStatus && (httpStatus < 400 || httpStatus > 499);
+}
+function offlineHttpStatus(httpStatus) {
+  return httpStatus === 0 && navigator.onLine === false;
 }
 
 var NetworkErrorAction = {
@@ -4306,14 +4261,14 @@ var ErrorActionFlags = {
   None: 0,
   MoveAllAlternatesMatchingHost: 1,
   MoveAllAlternatesMatchingHDCP: 2,
-  SwitchToSDR: 4
+  MoveAllAlternatesMatchingKey: 4,
+  SwitchToSDR: 8
 };
 class ErrorController extends Logger {
   constructor(hls) {
     super('error-controller', hls.logger);
     this.hls = void 0;
     this.playlistError = 0;
-    this.penalizedRenditions = {};
     this.hls = hls;
     this.registerListeners();
   }
@@ -4337,18 +4292,45 @@ class ErrorController extends Logger {
     this.unregisterListeners();
     // @ts-ignore
     this.hls = null;
-    this.penalizedRenditions = {};
   }
   startLoad(startPosition) {}
   stopLoad() {
     this.playlistError = 0;
   }
   getVariantLevelIndex(frag) {
-    return (frag == null ? void 0 : frag.type) === PlaylistLevelType.MAIN ? frag.level : this.hls.loadLevel;
+    if ((frag == null ? void 0 : frag.type) === PlaylistLevelType.MAIN) {
+      return frag.level;
+    }
+    return this.getVariantIndex();
+  }
+  getVariantIndex() {
+    var _hls$loadLevelObj;
+    const hls = this.hls;
+    const currentLevel = hls.currentLevel;
+    if ((_hls$loadLevelObj = hls.loadLevelObj) != null && _hls$loadLevelObj.details || currentLevel === -1) {
+      return hls.loadLevel;
+    }
+    return currentLevel;
+  }
+  variantHasKey(level, keyInError) {
+    if (level) {
+      var _level$details;
+      if ((_level$details = level.details) != null && _level$details.hasKey(keyInError)) {
+        return true;
+      }
+      const audioGroupsIds = level.audioGroups;
+      if (audioGroupsIds) {
+        const audioTracks = this.hls.allAudioTracks.filter(track => audioGroupsIds.indexOf(track.groupId) >= 0);
+        return audioTracks.some(track => {
+          var _track$details;
+          return (_track$details = track.details) == null ? void 0 : _track$details.hasKey(keyInError);
+        });
+      }
+    }
+    return false;
   }
   onManifestLoading() {
     this.playlistError = 0;
-    this.penalizedRenditions = {};
   }
   onLevelUpdated() {
     this.playlistError = 0;
@@ -4385,10 +4367,10 @@ class ErrorController extends Logger {
       case ErrorDetails.LEVEL_EMPTY_ERROR:
       case ErrorDetails.LEVEL_PARSING_ERROR:
         {
-          var _data$context, _data$context$levelDe;
+          var _data$context;
           // Only retry when empty and live
           const levelIndex = data.parent === PlaylistLevelType.MAIN ? data.level : hls.loadLevel;
-          if (data.details === ErrorDetails.LEVEL_EMPTY_ERROR && !!((_data$context = data.context) != null && (_data$context$levelDe = _data$context.levelDetails) != null && _data$context$levelDe.live)) {
+          if (data.details === ErrorDetails.LEVEL_EMPTY_ERROR && !!((_data$context = data.context) != null && (_data$context = _data$context.levelDetails) != null && _data$context.live)) {
             data.errorAction = this.getPlaylistRetryOrSwitchAction(data, levelIndex);
           } else {
             // Escalate to fatal if not retrying or switching
@@ -4421,17 +4403,20 @@ class ErrorController extends Logger {
         return;
       case ErrorDetails.KEY_SYSTEM_STATUS_OUTPUT_RESTRICTED:
         {
-          const level = hls.loadLevelObj;
-          const restrictedHdcpLevel = level == null ? void 0 : level.attrs['HDCP-LEVEL'];
-          if (restrictedHdcpLevel) {
-            data.errorAction = {
-              action: NetworkErrorAction.SendAlternateToPenaltyBox,
-              flags: ErrorActionFlags.MoveAllAlternatesMatchingHDCP,
-              hdcpLevel: restrictedHdcpLevel
-            };
-          } else {
-            this.keySystemError(data);
-          }
+          data.errorAction = {
+            action: NetworkErrorAction.SendAlternateToPenaltyBox,
+            flags: ErrorActionFlags.MoveAllAlternatesMatchingHDCP
+          };
+        }
+        return;
+      case ErrorDetails.KEY_SYSTEM_SESSION_UPDATE_FAILED:
+      case ErrorDetails.KEY_SYSTEM_STATUS_INTERNAL_ERROR:
+      case ErrorDetails.KEY_SYSTEM_NO_SESSION:
+        {
+          data.errorAction = {
+            action: NetworkErrorAction.SendAlternateToPenaltyBox,
+            flags: ErrorActionFlags.MoveAllAlternatesMatchingKey
+          };
         }
         return;
       case ErrorDetails.BUFFER_ADD_CODEC_ERROR:
@@ -4454,14 +4439,10 @@ class ErrorController extends Logger {
         return;
     }
     if (data.type === ErrorTypes.KEY_SYSTEM_ERROR) {
-      this.keySystemError(data);
+      // Do not retry level. Should be fatal if ErrorDetails.KEY_SYSTEM_<ERROR> not handled with early return above.
+      data.levelRetry = false;
+      data.errorAction = createDoNothingErrorAction();
     }
-  }
-  keySystemError(data) {
-    const levelIndex = this.getVariantLevelIndex(data.frag);
-    // Do not retry level. Escalate to fatal if switching levels fails.
-    data.levelRetry = false;
-    data.errorAction = this.getLevelSwitchAction(data, levelIndex);
   }
   getPlaylistRetryOrSwitchAction(data, levelIndex) {
     const hls = this.hls;
@@ -4577,7 +4558,7 @@ class ErrorController extends Logger {
           } else if (playlistErrorType === PlaylistContextType.AUDIO_TRACK && levelCandidate.hasAudioGroup(playlistErrorGroupId) || playlistErrorType === PlaylistContextType.SUBTITLE_TRACK && levelCandidate.hasSubtitleGroup(playlistErrorGroupId)) {
             // For audio/subs playlist errors find another group ID or fallthrough to redundant fail-over
             continue;
-          } else if (fragErrorType === PlaylistLevelType.AUDIO && (_level$audioGroups = level.audioGroups) != null && _level$audioGroups.some(groupId => levelCandidate.hasAudioGroup(groupId)) || fragErrorType === PlaylistLevelType.SUBTITLE && (_level$subtitleGroups = level.subtitleGroups) != null && _level$subtitleGroups.some(groupId => levelCandidate.hasSubtitleGroup(groupId)) || findAudioCodecAlternate && level.audioCodec === levelCandidate.audioCodec || !findAudioCodecAlternate && level.audioCodec !== levelCandidate.audioCodec || findVideoCodecAlternate && level.codecSet === levelCandidate.codecSet) {
+          } else if (fragErrorType === PlaylistLevelType.AUDIO && (_level$audioGroups = level.audioGroups) != null && _level$audioGroups.some(groupId => levelCandidate.hasAudioGroup(groupId)) || fragErrorType === PlaylistLevelType.SUBTITLE && (_level$subtitleGroups = level.subtitleGroups) != null && _level$subtitleGroups.some(groupId => levelCandidate.hasSubtitleGroup(groupId)) || findAudioCodecAlternate && level.audioCodec === levelCandidate.audioCodec || findVideoCodecAlternate && level.codecSet === levelCandidate.codecSet || !findAudioCodecAlternate && level.codecSet !== levelCandidate.codecSet) {
             // For video/audio/subs frag errors find another group ID or fallthrough to redundant fail-over
             continue;
           }
@@ -4632,21 +4613,50 @@ class ErrorController extends Logger {
       return;
     }
     const {
-      flags,
-      hdcpLevel,
-      nextAutoLevel
+      flags
     } = errorAction;
+    const nextAutoLevel = errorAction.nextAutoLevel;
     switch (flags) {
       case ErrorActionFlags.None:
         this.switchLevel(data, nextAutoLevel);
         break;
       case ErrorActionFlags.MoveAllAlternatesMatchingHDCP:
-        if (hdcpLevel) {
-          hls.maxHdcpLevel = HdcpLevels[HdcpLevels.indexOf(hdcpLevel) - 1];
-          errorAction.resolved = true;
+        {
+          const levelIndex = this.getVariantLevelIndex(data.frag);
+          const level = hls.levels[levelIndex];
+          const restrictedHdcpLevel = level == null ? void 0 : level.attrs['HDCP-LEVEL'];
+          errorAction.hdcpLevel = restrictedHdcpLevel;
+          if (restrictedHdcpLevel) {
+            hls.maxHdcpLevel = HdcpLevels[HdcpLevels.indexOf(restrictedHdcpLevel) - 1];
+            errorAction.resolved = true;
+            this.warn(`Restricting playback to HDCP-LEVEL of "${hls.maxHdcpLevel}" or lower`);
+            break;
+          }
+          // Fallthrough when no HDCP-LEVEL attribute is found
         }
-        this.warn(`Restricting playback to HDCP-LEVEL of "${hls.maxHdcpLevel}" or lower`);
-        break;
+      // eslint-disable-next-line no-fallthrough
+      case ErrorActionFlags.MoveAllAlternatesMatchingKey:
+        {
+          const levelKey = data.decryptdata;
+          if (levelKey) {
+            // Penalize all levels with key
+            const levels = this.hls.levels;
+            for (let i = levels.length; i--;) {
+              if (this.variantHasKey(levels[i], levelKey)) {
+                var _levels$i$audioGroups, _data$frag3;
+                this.log(`Banned key found in level ${i} (${levels[i].bitrate}bps) or audio group "${(_levels$i$audioGroups = levels[i].audioGroups) == null ? void 0 : _levels$i$audioGroups.join(',')}" (${(_data$frag3 = data.frag) == null ? void 0 : _data$frag3.type} fragment) ${arrayToHex(levelKey.keyId || [])}`);
+                levels[i].fragmentError++;
+                levels[i].loadError++;
+                this.log(`Removing level ${i} with key error (${data.error})`);
+                this.hls.removeLevel(i);
+              }
+            }
+            if (levels.length) {
+              errorAction.resolved = true;
+            }
+          }
+          break;
+        }
     }
     // If not resolved by previous actions try to switch to next level
     if (!errorAction.resolved) {
@@ -4665,6 +4675,7 @@ class ErrorController extends Logger {
         const levels = this.hls.levels;
         for (let i = levels.length; i--;) {
           if (levels[i][`${data.sourceBufferName}Codec`] === codec) {
+            this.log(`Removing level ${i} for ${data.details} ("${codec}" not supported)`);
             this.hls.removeLevel(i);
           }
         }
@@ -4705,22 +4716,28 @@ class FragmentTracker {
     const {
       hls
     } = this;
-    hls.on(Events.MANIFEST_LOADING, this.onManifestLoading, this);
-    hls.on(Events.BUFFER_APPENDED, this.onBufferAppended, this);
-    hls.on(Events.FRAG_BUFFERED, this.onFragBuffered, this);
-    hls.on(Events.FRAG_LOADED, this.onFragLoaded, this);
+    if (hls) {
+      hls.on(Events.MANIFEST_LOADING, this.onManifestLoading, this);
+      hls.on(Events.BUFFER_APPENDED, this.onBufferAppended, this);
+      hls.on(Events.FRAG_BUFFERED, this.onFragBuffered, this);
+      hls.on(Events.FRAG_LOADED, this.onFragLoaded, this);
+    }
   }
   _unregisterListeners() {
     const {
       hls
     } = this;
-    hls.off(Events.MANIFEST_LOADING, this.onManifestLoading, this);
-    hls.off(Events.BUFFER_APPENDED, this.onBufferAppended, this);
-    hls.off(Events.FRAG_BUFFERED, this.onFragBuffered, this);
-    hls.off(Events.FRAG_LOADED, this.onFragLoaded, this);
+    if (hls) {
+      hls.off(Events.MANIFEST_LOADING, this.onManifestLoading, this);
+      hls.off(Events.BUFFER_APPENDED, this.onBufferAppended, this);
+      hls.off(Events.FRAG_BUFFERED, this.onFragBuffered, this);
+      hls.off(Events.FRAG_LOADED, this.onFragLoaded, this);
+    }
   }
   destroy() {
     this._unregisterListeners();
+    // @ts-ignore
+    this.hls =
     // @ts-ignore
     this.fragments =
     // @ts-ignore
@@ -4741,8 +4758,7 @@ class FragmentTracker {
         if (!activePart) {
           break;
         }
-        const appendedPTS = activePart.end;
-        if (activePart.start <= position && appendedPTS !== null && position <= appendedPTS) {
+        if (activePart.start <= position && position <= activePart.end && activePart.loaded) {
           return activePart;
         }
       }
@@ -5098,12 +5114,12 @@ class FragmentTracker {
     }
   }
   removeAllFragments() {
-    var _this$hls, _this$hls$latestLevel;
+    var _this$hls;
     this.fragments = Object.create(null);
     this.endListFragments = Object.create(null);
     this.activePartLists = Object.create(null);
     this.hasGaps = false;
-    const partlist = (_this$hls = this.hls) == null ? void 0 : (_this$hls$latestLevel = _this$hls.latestLevelDetails) == null ? void 0 : _this$hls$latestLevel.partList;
+    const partlist = (_this$hls = this.hls) == null || (_this$hls = _this$hls.latestLevelDetails) == null ? void 0 : _this$hls.partList;
     if (partlist) {
       partlist.forEach(part => part.clearElementaryStreamInfo());
     }
@@ -5111,7 +5127,7 @@ class FragmentTracker {
 }
 function isPartial(fragmentEntity) {
   var _fragmentEntity$range, _fragmentEntity$range2, _fragmentEntity$range3;
-  return fragmentEntity.buffered && (fragmentEntity.body.gap || ((_fragmentEntity$range = fragmentEntity.range.video) == null ? void 0 : _fragmentEntity$range.partial) || ((_fragmentEntity$range2 = fragmentEntity.range.audio) == null ? void 0 : _fragmentEntity$range2.partial) || ((_fragmentEntity$range3 = fragmentEntity.range.audiovideo) == null ? void 0 : _fragmentEntity$range3.partial));
+  return fragmentEntity.buffered && !!(fragmentEntity.body.gap || (_fragmentEntity$range = fragmentEntity.range.video) != null && _fragmentEntity$range.partial || (_fragmentEntity$range2 = fragmentEntity.range.audio) != null && _fragmentEntity$range2.partial || (_fragmentEntity$range3 = fragmentEntity.range.audiovideo) != null && _fragmentEntity$range3.partial);
 }
 function getFragmentKey(fragment) {
   return `${fragment.type}_${fragment.level}_${fragment.sn}`;
@@ -6615,6 +6631,16 @@ class LevelDetails {
       this.misses = previous.misses + 1;
     }
   }
+  hasKey(levelKey) {
+    return this.encryptedFragments.some(frag => {
+      let decryptdata = frag.decryptdata;
+      if (!decryptdata) {
+        frag.setKeyFormat(levelKey.keyFormat);
+        decryptdata = frag.decryptdata;
+      }
+      return !!decryptdata && levelKey.matches(decryptdata);
+    });
+  }
   get hasProgramDateTime() {
     if (this.fragments.length) {
       return isFiniteNumber(this.fragments[this.fragments.length - 1].programDateTime);
@@ -6643,15 +6669,13 @@ class LevelDetails {
     return this.fragmentEnd;
   }
   get fragmentEnd() {
-    var _this$fragments;
-    if ((_this$fragments = this.fragments) != null && _this$fragments.length) {
+    if (this.fragments.length) {
       return this.fragments[this.fragments.length - 1].end;
     }
     return 0;
   }
   get fragmentStart() {
-    var _this$fragments2;
-    if ((_this$fragments2 = this.fragments) != null && _this$fragments2.length) {
+    if (this.fragments.length) {
       return this.fragments[0].start;
     }
     return 0;
@@ -6698,6 +6722,22 @@ class LevelDetails {
     }
     return false;
   }
+}
+
+function arrayValuesMatch(a, b) {
+  if (a.length === b.length) {
+    return !a.some((value, i) => value !== b[i]);
+  }
+  return false;
+}
+function optionalArrayValuesMatch(a, b) {
+  if (!a && !b) {
+    return true;
+  }
+  if (!a || !b) {
+    return false;
+  }
+  return arrayValuesMatch(a, b);
 }
 
 function isFullSegmentEncryption(method) {
@@ -6805,23 +6845,6 @@ function keySystemFormatToKeySystemDomain(format) {
       return KeySystems.CLEARKEY;
   }
 }
-
-// System IDs for which we can extract a key ID from "encrypted" event PSSH
-var KeySystemIds = {
-  CENC: "1077efecc0b24d02ace33c1e52e2fb4b",
-  CLEARKEY: "e2719d58a985b3c9781ab030af78d30e",
-  PLAYREADY: "9a04f07998404286ab92e65be0885f95",
-  WIDEVINE: "edef8ba979d64acea3c827dcd51d21ed"
-};
-function keySystemIdToKeySystemDomain(systemId) {
-  if (systemId === KeySystemIds.WIDEVINE) {
-    return KeySystems.WIDEVINE;
-  } else if (systemId === KeySystemIds.PLAYREADY) {
-    return KeySystems.PLAYREADY;
-  } else if (systemId === KeySystemIds.CENC || systemId === KeySystemIds.CLEARKEY) {
-    return KeySystems.CLEARKEY;
-  }
-}
 function keySystemDomainToKeySystemFormat(keySystem) {
   switch (keySystem) {
     case KeySystems.FAIRPLAY:
@@ -6895,7 +6918,7 @@ function createMediaKeySystemConfigurations(initDataTypes, audioCodecs, videoCod
 }
 function isPersistentSessionType(drmSystemOptions) {
   var _drmSystemOptions$ses;
-  return drmSystemOptions.sessionType === 'persistent-license' || !!((_drmSystemOptions$ses = drmSystemOptions.sessionTypes) != null && _drmSystemOptions$ses.some(type => type === 'persistent-license'));
+  return !!drmSystemOptions && (drmSystemOptions.sessionType === 'persistent-license' || !!((_drmSystemOptions$ses = drmSystemOptions.sessionTypes) != null && _drmSystemOptions$ses.some(type => type === 'persistent-license')));
 }
 function parsePlayReadyWRM(keyBytes) {
   const keyBytesUtf16 = new Uint16Array(keyBytes.buffer, keyBytes.byteOffset, keyBytes.byteLength / 2);
@@ -6924,7 +6947,7 @@ class LevelKey {
   static clearKeyUriToKeyIdMap() {
     keyUriToKeyIdMap = {};
   }
-  constructor(method, uri, format, formatversions = [1], iv = null) {
+  constructor(method, uri, format, formatversions = [1], iv = null, keyId) {
     this.uri = void 0;
     this.method = void 0;
     this.keyFormat = void 0;
@@ -6942,6 +6965,12 @@ class LevelKey {
     this.iv = iv;
     this.encrypted = method ? method !== 'NONE' : false;
     this.isCommonEncryption = this.encrypted && !isFullSegmentEncryption(method);
+    if (keyId != null && keyId.startsWith('0x')) {
+      this.keyId = new Uint8Array(hexToArrayBuffer(keyId));
+    }
+  }
+  matches(key) {
+    return key.uri === this.uri && key.method === this.method && key.encrypted === this.encrypted && key.keyFormat === this.keyFormat && arrayValuesMatch(key.keyFormatVersions, this.keyFormatVersions) && optionalArrayValuesMatch(key.iv, this.iv) && optionalArrayValuesMatch(key.keyId, this.keyId);
   }
   isSupported() {
     // If it's Segment encryption or No encryption, just select that key system
@@ -6958,7 +6987,7 @@ class LevelKey {
           case KeySystemFormats.WIDEVINE:
           case KeySystemFormats.PLAYREADY:
           case KeySystemFormats.CLEARKEY:
-            return ['ISO-23001-7', 'SAMPLE-AES', 'SAMPLE-AES-CENC', 'SAMPLE-AES-CTR'].indexOf(this.method) !== -1;
+            return ['SAMPLE-AES', 'SAMPLE-AES-CENC', 'SAMPLE-AES-CTR'].indexOf(this.method) !== -1;
         }
       }
     }
@@ -6982,6 +7011,9 @@ class LevelKey {
       const decryptdata = new LevelKey(this.method, this.uri, 'identity', this.keyFormatVersions, iv);
       return decryptdata;
     }
+    if (this.pssh && this.keyId) {
+      return this;
+    }
 
     // Initialize keyId if possible
     const keyBytes = convertDataUriToArrayBytes(this.uri);
@@ -6991,9 +7023,10 @@ class LevelKey {
           // Setting `pssh` on this LevelKey/DecryptData allows HLS.js to generate a session using
           // the playlist-key before the "encrypted" event. (Comment out to only use "encrypted" path.)
           this.pssh = keyBytes;
-          // In case of widevine keyID is embedded in PSSH box. Read Key ID.
-          if (keyBytes.length >= 22) {
-            this.keyId = keyBytes.subarray(keyBytes.length - 22, keyBytes.length - 6);
+          // In case of Widevine, if KEYID is not in the playlist, assume only two fields in the pssh KEY tag URI.
+          if (!this.keyId && keyBytes.length >= 22) {
+            const offset = keyBytes.length - 22;
+            this.keyId = keyBytes.subarray(offset, offset + 16);
           }
           break;
         case KeySystemFormats.PLAYREADY:
@@ -7284,7 +7317,7 @@ class M3U8Parser {
         frag = new Fragment(type, base);
         // setup the next fragment for part loading
         frag.playlistOffset = totalduration;
-        frag.start = totalduration;
+        frag.setStart(totalduration);
         frag.sn = currentSN;
         frag.cc = discontinuityCounter;
         if (currentBitrate) {
@@ -7315,7 +7348,7 @@ class M3U8Parser {
         // url
         if (isFiniteNumber(frag.duration)) {
           frag.playlistOffset = totalduration;
-          frag.start = totalduration;
+          frag.setStart(totalduration);
           if (levelkeys) {
             setFragLevelKeys(frag, levelkeys, level);
           }
@@ -7487,10 +7520,14 @@ class M3U8Parser {
                 if (!levelkeys) {
                   levelkeys = {};
                 }
-                if (levelkeys[levelKey.keyFormat]) {
-                  levelkeys = _extends({}, levelkeys);
+                const currentKey = levelkeys[levelKey.keyFormat];
+                // Ignore duplicate playlist KEY tags
+                if (!(currentKey != null && currentKey.matches(levelKey))) {
+                  if (currentKey) {
+                    levelkeys = _extends({}, levelkeys);
+                  }
+                  levelkeys[levelKey.keyFormat] = levelKey;
                 }
-                levelkeys[levelKey.keyFormat] = levelKey;
               } else {
                 logger.warn(`[Keys] Ignoring invalid EXT-X-KEY tag: "${value1}"`);
               }
@@ -7613,9 +7650,6 @@ class M3U8Parser {
       if (!level.live) {
         lastFragment.endList = true;
       }
-      if (firstFragment && level.startCC === undefined) {
-        level.startCC = firstFragment.cc;
-      }
       /**
        * Backfill any missing PDT values
        * "If the first EXT-X-PROGRAM-DATE-TIME tag in a Playlist appears after
@@ -7631,9 +7665,6 @@ class M3U8Parser {
           programDateTimes.unshift(firstFragment);
         }
       }
-    } else {
-      level.endSN = 0;
-      level.startCC = 0;
     }
     if (level.fragmentHint) {
       totalduration += level.fragmentHint.duration;
@@ -7648,7 +7679,17 @@ class M3U8Parser {
 }
 function mapDateRanges(programDateTimes, details) {
   // Make sure DateRanges are mapped to a ProgramDateTime tag that applies a date to a segment that overlaps with its start date
-  const programDateTimeCount = programDateTimes.length;
+  let programDateTimeCount = programDateTimes.length;
+  if (!programDateTimeCount) {
+    if (details.hasProgramDateTime) {
+      const lastFragment = details.fragments[details.fragments.length - 1];
+      programDateTimes.push(lastFragment);
+      programDateTimeCount++;
+    } else {
+      // no segments with EXT-X-PROGRAM-DATE-TIME references in playlist history
+      return;
+    }
+  }
   const lastProgramDateTime = programDateTimes[programDateTimeCount - 1];
   const playlistEnd = details.live ? Infinity : details.totalduration;
   const dateRangeIds = Object.keys(details.dateRanges);
@@ -7657,6 +7698,10 @@ function mapDateRanges(programDateTimes, details) {
     const startDateTime = dateRange.startDate.getTime();
     dateRange.tagAnchor = lastProgramDateTime.ref;
     for (let j = programDateTimeCount; j--;) {
+      var _programDateTimes$j;
+      if (((_programDateTimes$j = programDateTimes[j]) == null ? void 0 : _programDateTimes$j.sn) < details.startSN) {
+        break;
+      }
       const fragIndex = findFragmentWithStartDate(details, startDateTime, programDateTimes, j, playlistEnd);
       if (fragIndex !== -1) {
         dateRange.tagAnchor = details.fragments[fragIndex].ref;
@@ -7676,6 +7721,9 @@ function findFragmentWithStartDate(details, startDateTime, programDateTimes, ind
       if (startDateTime <= pdtStart + durationBetweenPdt * 1000) {
         // map to fragment with date-time range
         const startIndex = programDateTimes[index].sn - details.startSN;
+        if (startIndex < 0) {
+          return -1;
+        }
         const fragments = details.fragments;
         if (fragments.length > programDateTimes.length) {
           const endSegment = programDateTimes[index + 1] || fragments[fragments.length - 1];
@@ -7710,7 +7758,7 @@ function parseKey(keyTagAttributes, baseurl, parsed) {
   // No uri is allowed when METHOD is NONE
   const resolvedUri = decrypturi ? M3U8Parser.resolve(decrypturi, baseurl) : '';
   const keyFormatVersions = (decryptkeyformatversions ? decryptkeyformatversions : '1').split('/').map(Number).filter(Number.isFinite);
-  return new LevelKey(decryptmethod, resolvedUri, decryptkeyformat, keyFormatVersions, decryptiv);
+  return new LevelKey(decryptmethod, resolvedUri, decryptkeyformat, keyFormatVersions, decryptiv, keyAttrs.KEYID);
 }
 function parseStartTimeOffset(startAttributes) {
   const startAttrs = new AttrList(startAttributes);
@@ -7817,7 +7865,7 @@ function updateFromToPTS(fragFrom, fragTo) {
     fragTo.setStart(Math.max(fragFrom.start - fragTo.duration, 0));
   }
 }
-function updateFragPTSDTS(details, frag, startPTS, endPTS, startDTS, endDTS) {
+function updateFragPTSDTS(details, frag, startPTS, endPTS, startDTS, endDTS, logger) {
   const parsedMediaDuration = endPTS - startPTS;
   if (parsedMediaDuration <= 0) {
     logger.warn('Fragment should have a positive duration', frag);
@@ -7831,17 +7879,19 @@ function updateFragPTSDTS(details, frag, startPTS, endPTS, startDTS, endDTS) {
   if (isFiniteNumber(fragStartPts)) {
     // delta PTS between audio and video
     const deltaPTS = Math.abs(fragStartPts - startPTS);
-    if (!isFiniteNumber(frag.deltaPTS)) {
+    if (details && deltaPTS > details.totalduration) {
+      logger.warn(`media timestamps and playlist times differ by ${deltaPTS}s for level ${frag.level} ${details.url}`);
+    } else if (!isFiniteNumber(frag.deltaPTS)) {
       frag.deltaPTS = deltaPTS;
     } else {
       frag.deltaPTS = Math.max(deltaPTS, frag.deltaPTS);
     }
     maxStartPTS = Math.max(startPTS, fragStartPts);
     startPTS = Math.min(startPTS, fragStartPts);
-    startDTS = Math.min(startDTS, frag.startDTS);
+    startDTS = frag.startDTS !== undefined ? Math.min(startDTS, frag.startDTS) : startDTS;
     minEndPTS = Math.min(endPTS, fragEndPts);
     endPTS = Math.max(endPTS, fragEndPts);
-    endDTS = Math.max(endDTS, frag.endDTS);
+    endDTS = frag.endDTS !== undefined ? Math.max(endDTS, frag.endDTS) : endDTS;
   }
   const drift = startPTS - frag.start;
   if (frag.start !== 0) {
@@ -7883,7 +7933,7 @@ function updateFragPTSDTS(details, frag, startPTS, endPTS, startDTS, endDTS) {
   details.PTSKnown = details.alignedSliding = true;
   return drift;
 }
-function mergeDetails(oldDetails, newDetails) {
+function mergeDetails(oldDetails, newDetails, logger) {
   if (oldDetails === newDetails) {
     return;
   }
@@ -7905,13 +7955,11 @@ function mergeDetails(oldDetails, newDetails) {
   // loop through overlapping SN and update startPTS, cc, and duration if any found
   let PTSFrag;
   mapFragmentIntersection(oldDetails, newDetails, (oldFrag, newFrag, newFragIndex, newFragments) => {
-    if (!newDetails.startCC && newFrag.cc !== oldFrag.cc) {
-      var _getFragmentWithSN$cc, _getFragmentWithSN;
+    if ((!newDetails.startCC || newDetails.skippedSegments) && newFrag.cc !== oldFrag.cc) {
       const ccOffset = oldFrag.cc - newFrag.cc;
       for (let i = newFragIndex; i < newFragments.length; i++) {
         newFragments[i].cc += ccOffset;
       }
-      newDetails.startCC = (_getFragmentWithSN$cc = (_getFragmentWithSN = getFragmentWithSN(oldDetails, newDetails.startSN - 1)) == null ? void 0 : _getFragmentWithSN.cc) != null ? _getFragmentWithSN$cc : newFragments[0].cc;
       newDetails.endCC = newFragments[newFragments.length - 1].cc;
     }
     if (isFiniteNumber(oldFrag.startPTS) && isFiniteNumber(oldFrag.endPTS)) {
@@ -7960,9 +8008,8 @@ function mergeDetails(oldDetails, newDetails) {
       }
       newDetails.startSN = newFragments[0].sn;
     } else {
-      newDetails.endCC = newFragments[newFragments.length - 1].cc;
       if (newDetails.canSkipDateRanges) {
-        newDetails.dateRanges = mergeDateRanges(oldDetails.dateRanges, newDetails);
+        newDetails.dateRanges = mergeDateRanges(oldDetails.dateRanges, newDetails, logger);
       }
       const programDateTimes = oldDetails.fragments.filter(frag => frag.rawProgramDateTime);
       if (oldDetails.hasProgramDateTime && !newDetails.hasProgramDateTime) {
@@ -7974,6 +8021,12 @@ function mergeDetails(oldDetails, newDetails) {
       }
       mapDateRanges(programDateTimes, newDetails);
     }
+    newDetails.endCC = newFragments[newFragments.length - 1].cc;
+  }
+  if (!newDetails.startCC) {
+    var _fragPriorToNewStart$;
+    const fragPriorToNewStart = getFragmentWithSN(oldDetails, newDetails.startSN - 1);
+    newDetails.startCC = (_fragPriorToNewStart$ = fragPriorToNewStart == null ? void 0 : fragPriorToNewStart.cc) != null ? _fragPriorToNewStart$ : newFragments[0].cc;
   }
 
   // Merge parts
@@ -7984,7 +8037,7 @@ function mergeDetails(oldDetails, newDetails) {
 
   // if at least one fragment contains PTS info, recompute PTS information for all fragments
   if (PTSFrag) {
-    updateFragPTSDTS(newDetails, PTSFrag, PTSFrag.startPTS, PTSFrag.endPTS, PTSFrag.startDTS, PTSFrag.endDTS);
+    updateFragPTSDTS(newDetails, PTSFrag, PTSFrag.startPTS, PTSFrag.endPTS, PTSFrag.startDTS, PTSFrag.endDTS, logger);
   } else {
     // ensure that delta is within oldFragments range
     // also adjust sliding in case delta is 0 (we could have old=[50-60] and new=old=[50-61])
@@ -8014,7 +8067,7 @@ function mergeDetails(oldDetails, newDetails) {
     newDetails.requestScheduled = oldDetails.requestScheduled;
   }
 }
-function mergeDateRanges(oldDateRanges, newDetails) {
+function mergeDateRanges(oldDateRanges, newDetails, logger) {
   const {
     dateRanges: deltaDateRanges,
     recentlyRemovedDateranges
@@ -8027,20 +8080,21 @@ function mergeDateRanges(oldDateRanges, newDetails) {
   }
   const mergeIds = Object.keys(dateRanges);
   const mergeCount = mergeIds.length;
-  if (mergeCount) {
-    Object.keys(deltaDateRanges).forEach(id => {
-      const mergedDateRange = dateRanges[id];
-      const dateRange = new DateRange(deltaDateRanges[id].attr, mergedDateRange);
-      if (dateRange.isValid) {
-        dateRanges[id] = dateRange;
-        if (!mergedDateRange) {
-          dateRange.tagOrder += mergeCount;
-        }
-      } else {
-        logger.warn(`Ignoring invalid Playlist Delta Update DATERANGE tag: "${stringify(deltaDateRanges[id].attr)}"`);
-      }
-    });
+  if (!mergeCount) {
+    return deltaDateRanges;
   }
+  Object.keys(deltaDateRanges).forEach(id => {
+    const mergedDateRange = dateRanges[id];
+    const dateRange = new DateRange(deltaDateRanges[id].attr, mergedDateRange);
+    if (dateRange.isValid) {
+      dateRanges[id] = dateRange;
+      if (!mergedDateRange) {
+        dateRange.tagOrder += mergeCount;
+      }
+    } else {
+      logger.warn(`Ignoring invalid Playlist Delta Update DATERANGE tag: "${stringify(deltaDateRanges[id].attr)}"`);
+    }
+  });
   return dateRanges;
 }
 function mapPartIntersection(oldParts, newParts, intersectionFn) {
@@ -8073,7 +8127,9 @@ function mapFragmentIntersection(oldDetails, newDetails, intersectionFn) {
     }
     if (oldFrag && newFrag) {
       intersectionFn(oldFrag, newFrag, i, newFrags);
-      if (oldFrag.url && oldFrag.url !== newFrag.url) {
+      const uriBefore = oldFrag.relurl;
+      const uriAfter = newFrag.relurl;
+      if (uriBefore && notEqualAfterStrippingQueries(uriBefore, uriAfter)) {
         newDetails.playlistParsingError = getSequenceError(`media sequence mismatch ${newFrag.sn}:`, oldDetails, newDetails, oldFrag, newFrag);
         return;
       } else if (oldFrag.cc !== newFrag.cc) {
@@ -8181,13 +8237,22 @@ function findPart(partList, sn, partIndex) {
 function reassignFragmentLevelIndexes(levels) {
   levels.forEach((level, index) => {
     var _level$details;
-    (_level$details = level.details) == null ? void 0 : _level$details.fragments.forEach(fragment => {
+    (_level$details = level.details) == null || _level$details.fragments.forEach(fragment => {
       fragment.level = index;
       if (fragment.initSegment) {
         fragment.initSegment.level = index;
       }
     });
   });
+}
+function notEqualAfterStrippingQueries(uriBefore, uriAfter) {
+  if (uriBefore !== uriAfter && uriAfter) {
+    return stripQuery(uriBefore) !== stripQuery(uriAfter);
+  }
+  return false;
+}
+function stripQuery(uri) {
+  return uri.replace(/\?[^?]*$/, '');
 }
 
 function findFirstFragWithCC(fragments, cc) {
@@ -8208,11 +8273,10 @@ function shouldAlignOnDiscontinuities(refDetails, details) {
   return false;
 }
 function adjustFragmentStart(frag, sliding) {
-  if (frag) {
-    const start = frag.start + sliding;
-    frag.start = frag.startPTS = start;
-    frag.endPTS = start + frag.duration;
-  }
+  const start = frag.start + sliding;
+  frag.startPTS = start;
+  frag.setStart(start);
+  frag.endPTS = start + frag.duration;
 }
 function adjustSlidingStart(sliding, details) {
   // Update segments
@@ -8241,13 +8305,13 @@ function alignStream(switchDetails, details) {
     return;
   }
   alignDiscontinuities(details, switchDetails);
-  if (!details.alignedSliding && switchDetails) {
+  if (!details.alignedSliding) {
     // If the PTS wasn't figured out via discontinuity sequence that means there was no CC increase within the level.
     // Aligning via Program Date Time should therefore be reliable, since PDT should be the same within the same
     // discontinuity sequence.
     alignMediaPlaylistByPDT(details, switchDetails);
   }
-  if (!details.alignedSliding && switchDetails && !details.skippedSegments) {
+  if (!details.alignedSliding && !details.skippedSegments) {
     // Try to align on sn so that we pick a better start fragment.
     // Do not perform this on playlists with delta updates as this is only to align levels on switch
     // and adjustSliding only adjusts fragments after skippedSegments.
@@ -8322,6 +8386,14 @@ function alignMediaPlaylistByPDT(details, refDetails) {
   adjustSlidingStart(delta, details);
 }
 
+function addEventListener(el, type, listener) {
+  removeEventListener(el, type, listener);
+  el.addEventListener(type, listener);
+}
+function removeEventListener(el, type, listener) {
+  el.removeEventListener(type, listener);
+}
+
 /**
  *  TimeRanges to string helper
  */
@@ -8390,7 +8462,8 @@ class BaseStreamController extends TaskLoop {
       } = this;
       const currentTime = media ? media.currentTime : 0;
       const bufferInfo = BufferHelper.bufferInfo(mediaBuffer ? mediaBuffer : media, currentTime, config.maxBufferHole);
-      this.log(`media seeking to ${isFiniteNumber(currentTime) ? currentTime.toFixed(3) : currentTime}, state: ${state}`);
+      const noFowardBuffer = !bufferInfo.len;
+      this.log(`Media seeking to ${isFiniteNumber(currentTime) ? currentTime.toFixed(3) : currentTime}, state: ${state}, ${noFowardBuffer ? 'out of' : 'in'} buffer`);
       if (this.state === State.ENDED) {
         this.resetLoadingState();
       } else if (fragCurrent) {
@@ -8399,12 +8472,12 @@ class BaseStreamController extends TaskLoop {
         const fragStartOffset = fragCurrent.start - tolerance;
         const fragEndOffset = fragCurrent.start + fragCurrent.duration + tolerance;
         // if seeking out of buffered range or into new one
-        if (!bufferInfo.len || fragEndOffset < bufferInfo.start || fragStartOffset > bufferInfo.end) {
+        if (noFowardBuffer || fragEndOffset < bufferInfo.start || fragStartOffset > bufferInfo.end) {
           const pastFragment = currentTime > fragEndOffset;
           // if the seek position is outside the current fragment range
           if (currentTime < fragStartOffset || pastFragment) {
             if (pastFragment && fragCurrent.loader) {
-              this.log('seeking outside of buffer while fragment load in progress, cancel fragment load');
+              this.log(`Cancelling fragment load for seek (sn: ${fragCurrent.sn})`);
               fragCurrent.abortRequests();
               this.resetLoadingState();
             }
@@ -8432,13 +8505,17 @@ class BaseStreamController extends TaskLoop {
       }
 
       // in case seeking occurs although no media buffered, adjust startPosition and nextLoadPosition to seek target
-      if (!this.hls.hasEnoughToStart && !bufferInfo.len) {
-        this.log(`setting startPosition to ${currentTime} because of seek before start`);
-        this.nextLoadPosition = this.startPosition = currentTime;
+      if (!this.hls.hasEnoughToStart) {
+        this.log(`Setting ${noFowardBuffer ? 'startPosition' : 'nextLoadPosition'} to ${currentTime} for seek without enough to start`);
+        this.nextLoadPosition = currentTime;
+        if (noFowardBuffer) {
+          this.startPosition = currentTime;
+        }
       }
-
-      // Async tick to speed up processing
-      this.tickImmediate();
+      if (noFowardBuffer && this.state === State.IDLE) {
+        // Async tick to speed up processing
+        this.tickImmediate();
+      }
     };
     this.onMediaEnded = () => {
       // reset startPosition and lastCurrentTime to restart playback @ stream beginning
@@ -8565,8 +8642,7 @@ class BaseStreamController extends TaskLoop {
   }
   getLevelDetails() {
     if (this.levels && this.levelLastLoaded !== null) {
-      var _this$levelLastLoaded;
-      return (_this$levelLastLoaded = this.levelLastLoaded) == null ? void 0 : _this$levelLastLoaded.details;
+      return this.levelLastLoaded.details;
     }
   }
   get timelineOffset() {
@@ -8579,10 +8655,8 @@ class BaseStreamController extends TaskLoop {
   }
   onMediaAttached(event, data) {
     const media = this.media = this.mediaBuffer = data.media;
-    media.removeEventListener('seeking', this.onMediaSeeking);
-    media.removeEventListener('ended', this.onMediaEnded);
-    media.addEventListener('seeking', this.onMediaSeeking);
-    media.addEventListener('ended', this.onMediaEnded);
+    addEventListener(media, 'seeking', this.onMediaSeeking);
+    addEventListener(media, 'ended', this.onMediaEnded);
     const config = this.config;
     if (this.levels && config.autoStartLoad && this.state === State.STOPPED) {
       this.startLoad(config.startPosition);
@@ -8600,8 +8674,8 @@ class BaseStreamController extends TaskLoop {
     }
 
     // remove video listeners
-    media.removeEventListener('seeking', this.onMediaSeeking);
-    media.removeEventListener('ended', this.onMediaEnded);
+    removeEventListener(media, 'seeking', this.onMediaSeeking);
+    removeEventListener(media, 'ended', this.onMediaEnded);
     if (this.keyLoader && !transferringMedia) {
       this.keyLoader.detach();
     }
@@ -8829,6 +8903,29 @@ class BaseStreamController extends TaskLoop {
     stats.parsing.end = stats.buffering.end = self.performance.now();
     this.tick();
   }
+  unhandledEncryptionError(initSegment, frag) {
+    var _tracks$audio, _tracks$video;
+    const tracks = initSegment.tracks;
+    if (tracks && !frag.encrypted && ((_tracks$audio = tracks.audio) != null && _tracks$audio.encrypted || (_tracks$video = tracks.video) != null && _tracks$video.encrypted) && (!this.config.emeEnabled || !this.keyLoader.emeController)) {
+      const media = this.media;
+      const error = new Error(`Encrypted track with no key in ${this.fragInfo(frag)} (media ${media ? 'attached mediaKeys: ' + media.mediaKeys : 'detached'})`);
+      this.warn(error.message);
+      // Ignore if media is detached or mediaKeys are set
+      if (!media || media.mediaKeys) {
+        return false;
+      }
+      this.hls.trigger(Events.ERROR, {
+        type: ErrorTypes.KEY_SYSTEM_ERROR,
+        details: ErrorDetails.KEY_SYSTEM_NO_KEYS,
+        fatal: false,
+        error,
+        frag
+      });
+      this.resetTransmuxer();
+      return true;
+    }
+    return false;
+  }
   fragContextChanged(frag) {
     const {
       fragCurrent
@@ -8877,7 +8974,7 @@ class BaseStreamController extends TaskLoop {
   _doFragLoad(frag, level, targetBufferTime = null, progressCallback) {
     var _frag$decryptdata;
     this.fragCurrent = frag;
-    const details = level == null ? void 0 : level.details;
+    const details = level.details;
     if (!this.levels || !details) {
       throw new Error(`frag load aborted, missing level${details ? '' : ' detail'}s`);
     }
@@ -8899,10 +8996,11 @@ class BaseStreamController extends TaskLoop {
         frag
       });
       if (this.fragCurrent === null) {
-        keyLoadingPromise = Promise.reject(new Error(`frag load aborted, context changed in KEY_LOADING`));
+        this.log(`context changed in KEY_LOADING`);
+        return Promise.resolve(null);
       }
     } else if (!frag.encrypted) {
-      keyLoadingPromise = this.keyLoader.loadClear(frag, details.encryptedFragments);
+      keyLoadingPromise = this.keyLoader.loadClear(frag, details.encryptedFragments, this.startFragRequested);
       if (keyLoadingPromise) {
         this.log(`[eme] blocking frag load until media-keys acquired`);
       }
@@ -8919,7 +9017,7 @@ class BaseStreamController extends TaskLoop {
     if (this.loadingParts && isMediaFragment(frag)) {
       const partList = details.partList;
       if (partList && progressCallback) {
-        if (targetBufferTime > frag.end && details.fragmentHint) {
+        if (targetBufferTime > details.fragmentEnd && details.fragmentHint) {
           frag = details.fragmentHint;
         }
         const partIndex = this.getNextPart(partList, frag, targetBufferTime);
@@ -8956,13 +9054,14 @@ class BaseStreamController extends TaskLoop {
       }
     }
     if (isMediaFragment(frag) && this.loadingParts) {
-      this.log(`LL-Part loading OFF after next part miss @${targetBufferTime.toFixed(2)}`);
+      var _details$partList;
+      this.log(`LL-Part loading OFF after next part miss @${targetBufferTime.toFixed(2)} Check buffer at sn: ${frag.sn} loaded parts: ${(_details$partList = details.partList) == null ? void 0 : _details$partList.filter(p => p.loaded).map(p => `[${p.start}-${p.end}]`)}`);
       this.loadingParts = false;
     } else if (!frag.url) {
       // Selected fragment hint for part but not loading parts
       return Promise.resolve(null);
     }
-    this.log(`Loading ${frag.type} sn: ${frag.sn} of ${this.fragInfo(frag, false)}) cc: ${frag.cc} ${details ? '[' + details.startSN + '-' + details.endSN + ']' : ''}, target: ${parseFloat(targetBufferTime.toFixed(3))}`);
+    this.log(`Loading ${frag.type} sn: ${frag.sn} of ${this.fragInfo(frag, false)}) cc: ${frag.cc} ${'[' + details.startSN + '-' + details.endSN + ']'}, target: ${parseFloat(targetBufferTime.toFixed(3))}`);
     // Don't update nextLoadPosition for fragments which are not buffered
     if (isFiniteNumber(frag.sn) && !this.bitrateTest) {
       this.nextLoadPosition = frag.start + frag.duration;
@@ -8974,7 +9073,7 @@ class BaseStreamController extends TaskLoop {
     let result;
     if (dataOnProgress && keyLoadingPromise) {
       result = keyLoadingPromise.then(keyLoadedData => {
-        if (!keyLoadedData || this.fragContextChanged(keyLoadedData == null ? void 0 : keyLoadedData.frag)) {
+        if (!keyLoadedData || this.fragContextChanged(keyLoadedData.frag)) {
           return null;
         }
         return this.fragmentLoader.load(frag, progressCallback);
@@ -8983,7 +9082,7 @@ class BaseStreamController extends TaskLoop {
       // load unencrypted fragment data with progress event,
       // or handle fragment result after key and fragment are finished loading
       result = Promise.all([this.fragmentLoader.load(frag, dataOnProgress ? progressCallback : undefined), keyLoadingPromise]).then(([fragLoadedData]) => {
-        if (!dataOnProgress && fragLoadedData && progressCallback) {
+        if (!dataOnProgress && progressCallback) {
           progressCallback(fragLoadedData);
         }
         return fragLoadedData;
@@ -9026,8 +9125,11 @@ class BaseStreamController extends TaskLoop {
   handleFragLoadError(error) {
     if ('data' in error) {
       const data = error.data;
-      if (error.data && data.details === ErrorDetails.INTERNAL_ABORTED) {
+      if (data.frag && data.details === ErrorDetails.INTERNAL_ABORTED) {
         this.handleFragLoadAborted(data.frag, data.part);
+      } else if (data.frag && data.type === ErrorTypes.KEY_SYSTEM_ERROR) {
+        data.frag.abortRequests();
+        this.resetFragmentLoading(data.frag);
       } else {
         this.hls.trigger(Events.ERROR, data);
       }
@@ -9075,11 +9177,15 @@ class BaseStreamController extends TaskLoop {
       if (!details) {
         return this.loadingParts;
       }
-      if (details != null && details.partList) {
+      if (details.partList) {
         var _details$fragmentHint;
         // Buffer must be ahead of first part + duration of parts after last segment
         // and playback must be at or past segment adjacent to part list
         const firstPart = details.partList[0];
+        // Loading of VTT subtitle parts is not implemented in subtitle-stream-controller (#7460)
+        if (firstPart.fragment.type === PlaylistLevelType.SUBTITLE) {
+          return false;
+        }
         const safePartStart = firstPart.end + (((_details$fragmentHint = details.fragmentHint) == null ? void 0 : _details$fragmentHint.duration) || 0);
         if (bufferEnd >= safePartStart) {
           var _this$media;
@@ -9123,8 +9229,7 @@ class BaseStreamController extends TaskLoop {
     };
   }
   bufferFragmentData(data, frag, part, chunkMeta, noBacktracking) {
-    var _buffer;
-    if (!data || this.state !== State.PARSING) {
+    if (this.state !== State.PARSING) {
       return;
     }
     const {
@@ -9132,18 +9237,21 @@ class BaseStreamController extends TaskLoop {
       data2
     } = data;
     let buffer = data1;
-    if (data1 && data2) {
+    if (data2) {
       // Combine the moof + mdat so that we buffer with a single append
       buffer = appendUint8Array(data1, data2);
     }
-    if (!((_buffer = buffer) != null && _buffer.length)) {
+    if (!buffer.length) {
       return;
     }
+    const offsetTimestamp = this.initPTS[frag.cc];
+    const offset = offsetTimestamp ? -offsetTimestamp.baseTime / offsetTimestamp.timescale : undefined;
     const segment = {
       type: data.type,
       frag,
       part,
       chunkMeta,
+      offset,
       parent: frag.type,
       data: buffer
     };
@@ -9223,8 +9331,7 @@ class BaseStreamController extends TaskLoop {
     return false;
   }
   getAppendedFrag(position, playlistType = PlaylistLevelType.MAIN) {
-    var _this$fragmentTracker;
-    const fragOrPart = (_this$fragmentTracker = this.fragmentTracker) == null ? void 0 : _this$fragmentTracker.getAppendedFrag(position, playlistType);
+    const fragOrPart = this.fragmentTracker ? this.fragmentTracker.getAppendedFrag(position, playlistType) : null;
     if (fragOrPart && 'fragment' in fragOrPart) {
       return fragOrPart.fragment;
     }
@@ -9310,9 +9417,9 @@ class BaseStreamController extends TaskLoop {
     return nextFragment;
   }
   get primaryPrefetch() {
-    if (interstitialsEnabled(this.hls.config)) {
-      var _this$hls$interstitia, _this$hls$interstitia2;
-      const playingInterstitial = (_this$hls$interstitia = this.hls.interstitialsManager) == null ? void 0 : (_this$hls$interstitia2 = _this$hls$interstitia.playingItem) == null ? void 0 : _this$hls$interstitia2.event;
+    if (interstitialsEnabled(this.config)) {
+      var _this$hls$interstitia;
+      const playingInterstitial = (_this$hls$interstitia = this.hls.interstitialsManager) == null || (_this$hls$interstitia = _this$hls$interstitia.playingItem) == null ? void 0 : _this$hls$interstitia.event;
       if (playingInterstitial) {
         return true;
       }
@@ -9323,7 +9430,7 @@ class BaseStreamController extends TaskLoop {
     if (!frag) {
       return frag;
     }
-    if (interstitialsEnabled(this.hls.config) && frag.type !== PlaylistLevelType.SUBTITLE) {
+    if (interstitialsEnabled(this.config) && frag.type !== PlaylistLevelType.SUBTITLE) {
       // Do not load fragments outside the buffering schedule segment
       const interstitials = this.hls.interstitialsManager;
       const bufferingItem = interstitials == null ? void 0 : interstitials.bufferingItem;
@@ -9365,7 +9472,7 @@ class BaseStreamController extends TaskLoop {
   }
   mapToInitFragWhenRequired(frag) {
     // If an initSegment is present, it must be buffered first
-    if (frag != null && frag.initSegment && !(frag != null && frag.initSegment.data) && !this.bitrateTest) {
+    if (frag != null && frag.initSegment && !frag.initSegment.data && !this.bitrateTest) {
       return frag.initSegment;
     }
     return frag;
@@ -9383,7 +9490,10 @@ class BaseStreamController extends TaskLoop {
       const loaded = part.loaded;
       if (loaded) {
         nextPart = -1;
-      } else if ((contiguous || part.independent || independentAttrOmitted) && part.fragment === frag) {
+      } else if (contiguous || (part.independent || independentAttrOmitted) && part.fragment === frag) {
+        if (part.fragment !== frag) {
+          this.warn(`Need buffer at ${targetBufferTime} but next unloaded part starts at ${part.start}`);
+        }
         nextPart = i;
       }
       contiguous = loaded;
@@ -9391,8 +9501,17 @@ class BaseStreamController extends TaskLoop {
     return nextPart;
   }
   loadedEndOfParts(partList, targetBufferTime) {
-    const lastPart = partList[partList.length - 1];
-    return lastPart && targetBufferTime > lastPart.start && lastPart.loaded;
+    let part;
+    for (let i = partList.length; i--;) {
+      part = partList[i];
+      if (!part.loaded) {
+        return false;
+      }
+      if (targetBufferTime > part.start) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /*
@@ -9462,7 +9581,7 @@ class BaseStreamController extends TaskLoop {
     } = config;
     const partList = levelDetails.partList;
     const loadingParts = !!(this.loadingParts && partList != null && partList.length && fragmentHint);
-    if (loadingParts && fragmentHint && !this.bitrateTest && partList[partList.length - 1].fragment.sn === fragmentHint.sn) {
+    if (loadingParts && !this.bitrateTest && partList[partList.length - 1].fragment.sn === fragmentHint.sn) {
       // Include incomplete fragment with parts at end
       fragments = fragments.concat(fragmentHint);
       endSN = fragmentHint.sn;
@@ -9487,10 +9606,10 @@ class BaseStreamController extends TaskLoop {
       if (fragState === FragmentState.OK || fragState === FragmentState.PARTIAL && frag.gap) {
         fragPrevious = frag;
       }
-      if (fragPrevious && frag.sn === fragPrevious.sn && (!loadingParts || partList[0].fragment.sn > frag.sn || !levelDetails.live && !loadingParts)) {
+      if (fragPrevious && frag.sn === fragPrevious.sn && (!loadingParts || partList[0].fragment.sn > frag.sn || !levelDetails.live)) {
         // Force the next fragment to load if the previous one was already selected. This can occasionally happen with
         // non-uniform fragment durations
-        const sameLevel = fragPrevious && frag.level === fragPrevious.level;
+        const sameLevel = frag.level === fragPrevious.level;
         if (sameLevel) {
           const nextFrag = fragments[curSNIdx + 1];
           if (frag.sn < endSN && this.fragmentTracker.getState(nextFrag) !== FragmentState.OK) {
@@ -9577,7 +9696,7 @@ class BaseStreamController extends TaskLoop {
   }
   handleFragLoadAborted(frag, part) {
     if (this.transmuxer && frag.type === this.playlistType && isMediaFragment(frag) && frag.stats.aborted) {
-      this.warn(`Fragment ${frag.sn}${part ? ' part ' + part.index : ''} of ${this.playlistLabel()} ${frag.level} was aborted`);
+      this.log(`Fragment ${frag.sn}${part ? ' part ' + part.index : ''} of ${this.playlistLabel()} ${frag.level} was aborted`);
       this.resetFragmentLoading(frag);
     }
   }
@@ -9587,6 +9706,7 @@ class BaseStreamController extends TaskLoop {
     }
   }
   onFragmentOrKeyLoadError(filterType, data) {
+    var _this$hls$latestLevel;
     if (data.chunkMeta && !data.frag) {
       const context = this.getCurrentContext(data.chunkMeta);
       if (context) {
@@ -9609,27 +9729,40 @@ class BaseStreamController extends TaskLoop {
     }
     // keep retrying until the limit will be reached
     const errorAction = data.errorAction;
+    if (!errorAction) {
+      this.state = State.ERROR;
+      return;
+    }
     const {
       action,
       flags,
       retryCount = 0,
       retryConfig
-    } = errorAction || {};
-    const couldRetry = !!errorAction && !!retryConfig;
+    } = errorAction;
+    const couldRetry = !!retryConfig;
     const retry = couldRetry && action === NetworkErrorAction.RetryRequest;
     const noAlternate = couldRetry && !errorAction.resolved && flags === ErrorActionFlags.MoveAllAlternatesMatchingHost;
-    if (!retry && noAlternate && isMediaFragment(frag) && !frag.endList) {
+    const live = (_this$hls$latestLevel = this.hls.latestLevelDetails) == null ? void 0 : _this$hls$latestLevel.live;
+    if (!retry && noAlternate && isMediaFragment(frag) && !frag.endList && live) {
       this.resetFragmentErrors(filterType);
       this.treatAsGap(frag);
       errorAction.resolved = true;
     } else if ((retry || noAlternate) && retryCount < retryConfig.maxNumRetry) {
-      this.resetStartWhenNotLoaded(this.levelLastLoaded);
+      var _data$response;
+      const offlineStatus = offlineHttpStatus((_data$response = data.response) == null ? void 0 : _data$response.code);
       const delay = getRetryDelay(retryConfig, retryCount);
-      this.warn(`Fragment ${frag.sn} of ${filterType} ${frag.level} errored with ${data.details}, retrying loading ${retryCount + 1}/${retryConfig.maxNumRetry} in ${delay}ms`);
-      errorAction.resolved = true;
+      this.resetStartWhenNotLoaded();
       this.retryDate = self.performance.now() + delay;
       this.state = State.FRAG_LOADING_WAITING_RETRY;
-    } else if (retryConfig && errorAction) {
+      errorAction.resolved = true;
+      if (offlineStatus) {
+        this.log(`Waiting for connection (offline)`);
+        this.retryDate = Infinity;
+        data.reason = 'offline';
+        return;
+      }
+      this.warn(`Fragment ${frag.sn} of ${filterType} ${frag.level} errored with ${data.details}, retrying loading ${retryCount + 1}/${retryConfig.maxNumRetry} in ${delay}ms`);
+    } else if (retryConfig) {
       this.resetFragmentErrors(filterType);
       if (retryCount < retryConfig.maxNumRetry) {
         // Network retry is skipped when level switch is preferred
@@ -9648,6 +9781,19 @@ class BaseStreamController extends TaskLoop {
     // Perform next async tick sooner to speed up error action resolution
     this.tickImmediate();
   }
+  checkRetryDate() {
+    const now = self.performance.now();
+    const retryDate = this.retryDate;
+    // if current time is gt than retryDate, or if media seeking let's switch to IDLE state to retry loading
+    const waitingForConnection = retryDate === Infinity;
+    if (!retryDate || now >= retryDate || waitingForConnection && !offlineHttpStatus(0)) {
+      if (waitingForConnection) {
+        this.log(`Connection restored (online)`);
+      }
+      this.resetStartWhenNotLoaded();
+      this.state = State.IDLE;
+    }
+  }
   reduceLengthAndFlushBuffer(data) {
     // if in appending state
     if (this.state === State.PARSING || this.state === State.PARSED) {
@@ -9665,7 +9811,7 @@ class BaseStreamController extends TaskLoop {
         // current position is not buffered, but browser is still complaining about buffer full error
         // this happens on IE/Edge, refer to https://github.com/video-dev/hls.js/pull/708
         // in that case flush the whole audio buffer to recover
-        this.warn(`Buffer full error while media.currentTime is not buffered, flush ${playlistType} buffer`);
+        this.warn(`Buffer full error while media.currentTime (${this.getLoadPosition()}) is not buffered, flush ${playlistType} buffer`);
       }
       if (frag) {
         this.fragmentTracker.removeFragment(frag);
@@ -9710,11 +9856,12 @@ class BaseStreamController extends TaskLoop {
       this.state = State.IDLE;
     }
   }
-  resetStartWhenNotLoaded(level) {
+  resetStartWhenNotLoaded() {
     // if loadedmetadata is not set, it means that first frag request failed
     // in that case, reset startFragRequested flag
     if (!this.hls.hasEnoughToStart) {
       this.startFragRequested = false;
+      const level = this.levelLastLoaded;
       const details = level ? level.details : null;
       if (details != null && details.live) {
         // Update the start position and return to IDLE to recover live start
@@ -9728,9 +9875,9 @@ class BaseStreamController extends TaskLoop {
     }
   }
   resetWhenMissingContext(chunkMeta) {
-    this.warn(`The loading context changed while buffering fragment ${chunkMeta.sn} of ${this.playlistLabel()} ${chunkMeta.level}. This chunk will not be buffered.`);
+    this.log(`Loading context changed while buffering sn ${chunkMeta.sn} of ${this.playlistLabel()} ${chunkMeta.level === -1 ? '<removed>' : chunkMeta.level}. This chunk will not be buffered.`);
     this.removeUnbufferedFrags();
-    this.resetStartWhenNotLoaded(this.levelLastLoaded);
+    this.resetStartWhenNotLoaded();
     this.resetLoadingState();
   }
   removeUnbufferedFrags(start = 0) {
@@ -9753,7 +9900,7 @@ class BaseStreamController extends TaskLoop {
           this.warn(`Could not parse fragment ${frag.sn} ${type} duration reliably (${parsedDuration})`);
           return result || false;
         }
-        const drift = partial ? 0 : updateFragPTSDTS(details, frag, info.startPTS, info.endPTS, info.startDTS, info.endDTS);
+        const drift = partial ? 0 : updateFragPTSDTS(details, frag, info.startPTS, info.endPTS, info.startDTS, info.endDTS, this);
         this.hls.trigger(Events.LEVEL_PTS_UPDATED, {
           details,
           level,
@@ -9815,7 +9962,7 @@ class BaseStreamController extends TaskLoop {
   }
   resetTransmuxer() {
     var _this$transmuxer2;
-    (_this$transmuxer2 = this.transmuxer) == null ? void 0 : _this$transmuxer2.reset();
+    (_this$transmuxer2 = this.transmuxer) == null || _this$transmuxer2.reset();
   }
   recoverWorkerError(data) {
     if (data.event === 'demuxerWorker') {
@@ -9824,7 +9971,7 @@ class BaseStreamController extends TaskLoop {
         this.transmuxer.destroy();
         this.transmuxer = null;
       }
-      this.resetStartWhenNotLoaded(this.levelLastLoaded);
+      this.resetStartWhenNotLoaded();
       this.resetLoadingState();
     }
   }
@@ -10234,7 +10381,7 @@ function requireEventemitter3 () {
 var eventemitter3Exports = requireEventemitter3();
 var EventEmitter = /*@__PURE__*/getDefaultExportFromCjs(eventemitter3Exports);
 
-const version = "1.6.4";
+const version = "1.6.11";
 
 // ensure the worker ends up in the bundle
 // If the worker should not be included this gets aliased to empty.js
@@ -11727,7 +11874,7 @@ class SampleAesDecrypter {
       if (!this.decrypter.isSync()) {
         this.decryptAacSamples(samples, sampleIndex + 1, callback);
       }
-    });
+    }).catch(callback);
   }
   decryptAacSamples(samples, sampleIndex, callback) {
     for (;; sampleIndex++) {
@@ -11771,7 +11918,7 @@ class SampleAesDecrypter {
       if (!this.decrypter.isSync()) {
         this.decryptAvcSamples(samples, sampleIndex, unitIndex + 1, callback);
       }
-    });
+    }).catch(callback);
   }
   decryptAvcSamples(samples, sampleIndex, unitIndex, callback) {
     if (samples instanceof Uint8Array) {
@@ -12851,10 +12998,10 @@ class HevcVideoParser extends BaseVideoParser {
       eg.readBoolean(); // frame_field_info_present_flag
       default_display_window_flag = eg.readBoolean();
       if (default_display_window_flag) {
-        pic_left_offset += eg.readUEG();
-        pic_right_offset += eg.readUEG();
-        pic_top_offset += eg.readUEG();
-        pic_bottom_offset += eg.readUEG();
+        eg.skipUEG();
+        eg.skipUEG();
+        eg.skipUEG();
+        eg.skipUEG();
       }
       const vui_timing_info_present_flag = eg.readBoolean();
       if (vui_timing_info_present_flag) {
@@ -12934,7 +13081,7 @@ class HevcVideoParser extends BaseVideoParser {
     }
     let width = pic_width_in_luma_samples,
       height = pic_height_in_luma_samples;
-    if (conformance_window_flag || default_display_window_flag) {
+    if (conformance_window_flag) {
       let chroma_scale_w = 1,
         chroma_scale_h = 1;
       if (chroma_format_idc === 1) {
@@ -13124,6 +13271,7 @@ class TSDemuxer {
     this._audioTrack.segmentCodec = 'aac';
 
     // flush any partial content
+    this.videoParser = null;
     this.aacOverFlow = null;
     this.remainderData = null;
     this.audioCodec = audioCodec;
@@ -13210,18 +13358,7 @@ class TSDemuxer {
           case videoPid:
             if (stt) {
               if (videoData && (pes = parsePES(videoData, this.logger))) {
-                if (this.videoParser === null) {
-                  switch (videoTrack.segmentCodec) {
-                    case 'avc':
-                      this.videoParser = new AvcVideoParser();
-                      break;
-                    case 'hevc':
-                      {
-                        this.videoParser = new HevcVideoParser();
-                      }
-                      break;
-                  }
-                }
+                this.readyVideoParser(videoTrack.segmentCodec);
                 if (this.videoParser !== null) {
                   this.videoParser.parsePES(videoTrack, textTrack, pes, false);
                 }
@@ -13384,18 +13521,7 @@ class TSDemuxer {
     // try to parse last PES packets
     let pes;
     if (videoData && (pes = parsePES(videoData, this.logger))) {
-      if (this.videoParser === null) {
-        switch (videoTrack.segmentCodec) {
-          case 'avc':
-            this.videoParser = new AvcVideoParser();
-            break;
-          case 'hevc':
-            {
-              this.videoParser = new HevcVideoParser();
-            }
-            break;
-        }
-      }
+      this.readyVideoParser(videoTrack.segmentCodec);
       if (this.videoParser !== null) {
         this.videoParser.parsePES(videoTrack, textTrack, pes, true);
         videoTrack.pesData = null;
@@ -13439,6 +13565,15 @@ class TSDemuxer {
     const demuxResult = this.demux(data, timeOffset, true, !this.config.progressive);
     const sampleAes = this.sampleAes = new SampleAesDecrypter(this.observer, this.config, keyData);
     return this.decrypt(demuxResult, sampleAes);
+  }
+  readyVideoParser(codec) {
+    if (this.videoParser === null) {
+      if (codec === 'avc') {
+        this.videoParser = new AvcVideoParser();
+      } else if (codec === 'hevc') {
+        this.videoParser = new HevcVideoParser();
+      }
+    }
   }
   decrypt(demuxResult, sampleAes) {
     return new Promise(resolve => {
@@ -14625,17 +14760,17 @@ function createMp4Sample(isKeyframe, duration, size, cts) {
     }
   };
 }
-class MP4Remuxer {
+class MP4Remuxer extends Logger {
   constructor(observer, config, typeSupported, logger) {
-    this.logger = void 0;
+    super('mp4-remuxer', logger);
     this.observer = void 0;
     this.config = void 0;
     this.typeSupported = void 0;
     this.ISGenerated = false;
     this._initPTS = null;
     this._initDTS = null;
-    this.nextAvcDts = null;
-    this.nextAudioPts = null;
+    this.nextVideoTs = null;
+    this.nextAudioTs = null;
     this.videoSampleDuration = null;
     this.isAudioContiguous = false;
     this.isVideoContiguous = false;
@@ -14643,7 +14778,6 @@ class MP4Remuxer {
     this.observer = observer;
     this.config = config;
     this.typeSupported = typeSupported;
-    this.logger = logger;
     this.ISGenerated = false;
     if (chromeVersion === null) {
       const userAgent = navigator.userAgent || '';
@@ -14660,16 +14794,16 @@ class MP4Remuxer {
     this.config = this.videoTrackConfig = this._initPTS = this._initDTS = null;
   }
   resetTimeStamp(defaultTimeStamp) {
-    this.logger.log('[mp4-remuxer]: initPTS & initDTS reset');
+    this.log('initPTS & initDTS reset');
     this._initPTS = this._initDTS = defaultTimeStamp;
   }
   resetNextTimestamp() {
-    this.logger.log('[mp4-remuxer]: reset next timestamp');
+    this.log('reset next timestamp');
     this.isVideoContiguous = false;
     this.isAudioContiguous = false;
   }
   resetInitSegment() {
-    this.logger.log('[mp4-remuxer]: ISGenerated flag reset');
+    this.log('ISGenerated flag reset');
     this.ISGenerated = false;
     this.videoTrackConfig = undefined;
   }
@@ -14692,7 +14826,7 @@ class MP4Remuxer {
       return pts;
     }, firstPts);
     if (rolloverDetected) {
-      this.logger.debug('PTS rollover detected');
+      this.debug('PTS rollover detected');
     }
     return startPTS;
   }
@@ -14721,7 +14855,7 @@ class MP4Remuxer {
       if (this.ISGenerated) {
         var _videoTrack$pixelRati, _config$pixelRatio, _videoTrack$pixelRati2, _config$pixelRatio2;
         const config = this.videoTrackConfig;
-        if (config && (videoTrack.width !== config.width || videoTrack.height !== config.height || ((_videoTrack$pixelRati = videoTrack.pixelRatio) == null ? void 0 : _videoTrack$pixelRati[0]) !== ((_config$pixelRatio = config.pixelRatio) == null ? void 0 : _config$pixelRatio[0]) || ((_videoTrack$pixelRati2 = videoTrack.pixelRatio) == null ? void 0 : _videoTrack$pixelRati2[1]) !== ((_config$pixelRatio2 = config.pixelRatio) == null ? void 0 : _config$pixelRatio2[1])) || !config && enoughVideoSamples || this.nextAudioPts === null && enoughAudioSamples) {
+        if (config && (videoTrack.width !== config.width || videoTrack.height !== config.height || ((_videoTrack$pixelRati = videoTrack.pixelRatio) == null ? void 0 : _videoTrack$pixelRati[0]) !== ((_config$pixelRatio = config.pixelRatio) == null ? void 0 : _config$pixelRatio[0]) || ((_videoTrack$pixelRati2 = videoTrack.pixelRatio) == null ? void 0 : _videoTrack$pixelRati2[1]) !== ((_config$pixelRatio2 = config.pixelRatio) == null ? void 0 : _config$pixelRatio2[1])) || !config && enoughVideoSamples || this.nextAudioTs === null && enoughAudioSamples) {
           this.resetInitSegment();
         }
       }
@@ -14736,14 +14870,14 @@ class MP4Remuxer {
         if (!isVideoContiguous && this.config.forceKeyFrameOnDiscontinuity) {
           independent = true;
           if (firstKeyFrameIndex > 0) {
-            this.logger.warn(`[mp4-remuxer]: Dropped ${firstKeyFrameIndex} out of ${length} video samples due to a missing keyframe`);
+            this.warn(`Dropped ${firstKeyFrameIndex} out of ${length} video samples due to a missing keyframe`);
             const startPTS = this.getVideoStartPts(videoTrack.samples);
             videoTrack.samples = videoTrack.samples.slice(firstKeyFrameIndex);
             videoTrack.dropped += firstKeyFrameIndex;
             videoTimeOffset += (videoTrack.samples[0].pts - startPTS) / videoTrack.inputTimeScale;
             firstKeyFramePTS = videoTimeOffset;
           } else if (firstKeyFrameIndex === -1) {
-            this.logger.warn(`[mp4-remuxer]: No keyframe found out of ${length} video samples`);
+            this.warn(`No keyframe found out of ${length} video samples`);
             independent = false;
           }
         }
@@ -14765,7 +14899,7 @@ class MP4Remuxer {
         if (enoughAudioSamples) {
           // if initSegment was generated without audio samples, regenerate it again
           if (!audioTrack.samplerate) {
-            this.logger.warn('[mp4-remuxer]: regenerate InitSegment as audio detected');
+            this.warn('regenerate InitSegment as audio detected');
             initSegment = this.generateIS(audioTrack, videoTrack, timeOffset, accurateTimeOffset);
           }
           audio = this.remuxAudio(audioTrack, audioTimeOffset, this.isAudioContiguous, accurateTimeOffset, hasVideo || enoughVideoSamples || playlistType === PlaylistLevelType.AUDIO ? videoTimeOffset : undefined);
@@ -14773,7 +14907,7 @@ class MP4Remuxer {
             const audioTrackLength = audio ? audio.endPTS - audio.startPTS : 0;
             // if initSegment was generated without video samples, regenerate it again
             if (!videoTrack.inputTimeScale) {
-              this.logger.warn('[mp4-remuxer]: regenerate InitSegment as video detected');
+              this.warn('regenerate InitSegment as video detected');
               initSegment = this.generateIS(audioTrack, videoTrack, timeOffset, accurateTimeOffset);
             }
             video = this.remuxVideo(videoTrack, videoTimeOffset, isVideoContiguous, audioTrackLength);
@@ -14818,7 +14952,7 @@ class MP4Remuxer {
     let initPTS;
     let initDTS;
     let timescale;
-    let trackId;
+    let trackId = -1;
     if (computePTSDTS) {
       initPTS = initDTS = Infinity;
     }
@@ -14898,13 +15032,19 @@ class MP4Remuxer {
     if (Object.keys(tracks).length) {
       this.ISGenerated = true;
       if (computePTSDTS) {
+        if (_initPTS) {
+          this.warn(`Timestamps at playlist time: ${accurateTimeOffset ? '' : '~'}${timeOffset} ${initPTS / timescale} != initPTS: ${_initPTS.baseTime / _initPTS.timescale} (${_initPTS.baseTime}/${_initPTS.timescale}) trackId: ${_initPTS.trackId}`);
+        }
+        this.log(`Found initPTS at playlist time: ${timeOffset} offset: ${initPTS / timescale} (${initPTS}/${timescale}) trackId: ${trackId}`);
         this._initPTS = {
           baseTime: initPTS,
-          timescale: timescale
+          timescale: timescale,
+          trackId: trackId
         };
         this._initDTS = {
           baseTime: initDTS,
-          timescale: timescale
+          timescale: timescale,
+          trackId: trackId
         };
       } else {
         initPTS = timescale = undefined;
@@ -14923,7 +15063,8 @@ class MP4Remuxer {
     const outputSamples = [];
     const nbSamples = inputSamples.length;
     const initPTS = this._initPTS;
-    let nextAvcDts = this.nextAvcDts;
+    const initTime = initPTS.baseTime * timeScale / initPTS.timescale;
+    let nextVideoTs = this.nextVideoTs;
     let offset = 8;
     let mp4SampleDuration = this.videoSampleDuration;
     let firstDTS;
@@ -14933,25 +15074,25 @@ class MP4Remuxer {
     let sortSamples = false;
 
     // if parsed fragment is contiguous with last one, let's use last DTS value as reference
-    if (!contiguous || nextAvcDts === null) {
-      const pts = timeOffset * timeScale;
+    if (!contiguous || nextVideoTs === null) {
+      const pts = initTime + timeOffset * timeScale;
       const cts = inputSamples[0].pts - normalizePts(inputSamples[0].dts, inputSamples[0].pts);
-      if (chromeVersion && nextAvcDts !== null && Math.abs(pts - cts - nextAvcDts) < 15000) {
+      if (chromeVersion && nextVideoTs !== null && Math.abs(pts - cts - (nextVideoTs + initTime)) < 15000) {
         // treat as contigous to adjust samples that would otherwise produce video buffer gaps in Chrome
         contiguous = true;
       } else {
         // if not contiguous, let's use target timeOffset
-        nextAvcDts = pts - cts;
+        nextVideoTs = pts - cts - initTime;
       }
     }
 
     // PTS is coded on 33bits, and can loop from -2^32 to 2^32
     // PTSNormalize will make PTS/DTS value monotonic, we use last known DTS value as reference value
-    const initTime = initPTS.baseTime * timeScale / initPTS.timescale;
+    const nextVideoPts = nextVideoTs + initTime;
     for (let i = 0; i < nbSamples; i++) {
       const sample = inputSamples[i];
-      sample.pts = normalizePts(sample.pts - initTime, nextAvcDts);
-      sample.dts = normalizePts(sample.dts - initTime, nextAvcDts);
+      sample.pts = normalizePts(sample.pts, nextVideoPts);
+      sample.dts = normalizePts(sample.dts, nextVideoPts);
       if (sample.dts < inputSamples[i > 0 ? i - 1 : i].dts) {
         sortSamples = true;
       }
@@ -14978,17 +15119,17 @@ class MP4Remuxer {
     // if fragment are contiguous, detect hole/overlapping between fragments
     if (contiguous) {
       // check timestamp continuity across consecutive fragments (this is to remove inter-fragment gap/hole)
-      const delta = firstDTS - nextAvcDts;
+      const delta = firstDTS - nextVideoPts;
       const foundHole = delta > averageSampleDuration;
       const foundOverlap = delta < -1;
       if (foundHole || foundOverlap) {
         if (foundHole) {
-          this.logger.warn(`${(track.segmentCodec || '').toUpperCase()}: ${toMsFromMpegTsClock(delta, true)} ms (${delta}dts) hole between fragments detected at ${timeOffset.toFixed(3)}`);
+          this.warn(`${(track.segmentCodec || '').toUpperCase()}: ${toMsFromMpegTsClock(delta, true)} ms (${delta}dts) hole between fragments detected at ${timeOffset.toFixed(3)}`);
         } else {
-          this.logger.warn(`${(track.segmentCodec || '').toUpperCase()}: ${toMsFromMpegTsClock(-delta, true)} ms (${delta}dts) overlapping between fragments detected at ${timeOffset.toFixed(3)}`);
+          this.warn(`${(track.segmentCodec || '').toUpperCase()}: ${toMsFromMpegTsClock(-delta, true)} ms (${delta}dts) overlapping between fragments detected at ${timeOffset.toFixed(3)}`);
         }
-        if (!foundOverlap || nextAvcDts >= inputSamples[0].pts || chromeVersion) {
-          firstDTS = nextAvcDts;
+        if (!foundOverlap || nextVideoPts >= inputSamples[0].pts || chromeVersion) {
+          firstDTS = nextVideoPts;
           const firstPTS = inputSamples[0].pts - delta;
           if (foundHole) {
             inputSamples[0].dts = firstDTS;
@@ -15014,7 +15155,7 @@ class MP4Remuxer {
               }
             }
           }
-          this.logger.log(`Video: Initial PTS/DTS adjusted: ${toMsFromMpegTsClock(firstPTS, true)}/${toMsFromMpegTsClock(firstDTS, true)}, delta: ${toMsFromMpegTsClock(delta, true)} ms`);
+          this.log(`Video: Initial PTS/DTS adjusted: ${toMsFromMpegTsClock(firstPTS, true)}/${toMsFromMpegTsClock(firstDTS, true)}, delta: ${toMsFromMpegTsClock(delta, true)} ms`);
         }
       }
     }
@@ -15097,14 +15238,14 @@ class MP4Remuxer {
         const config = this.config;
         const lastFrameDuration = i > 0 ? VideoSample.dts - inputSamples[i - 1].dts : averageSampleDuration;
         ptsDelta = i > 0 ? VideoSample.pts - inputSamples[i - 1].pts : averageSampleDuration;
-        if (config.stretchShortVideoTrack && this.nextAudioPts !== null) {
+        if (config.stretchShortVideoTrack && this.nextAudioTs !== null) {
           // In some cases, a segment's audio track duration may exceed the video track duration.
           // Since we've already remuxed audio, and we know how long the audio track is, we look to
           // see if the delta to the next segment is longer than maxBufferHole.
           // If so, playback would potentially get stuck, so we artificially inflate
           // the duration of the last frame to minimize any potential gap between segments.
           const gapTolerance = Math.floor(config.maxBufferHole * timeScale);
-          const deltaToFrameEnd = (audioTrackLength ? minPTS + audioTrackLength * timeScale : this.nextAudioPts) - VideoSample.pts;
+          const deltaToFrameEnd = (audioTrackLength ? minPTS + audioTrackLength * timeScale : this.nextAudioTs + initTime) - VideoSample.pts;
           if (deltaToFrameEnd > gapTolerance) {
             // We subtract lastFrameDuration from deltaToFrameEnd to try to prevent any video
             // frame overlap. maxBufferHole should be >> lastFrameDuration anyway.
@@ -15114,7 +15255,7 @@ class MP4Remuxer {
             } else {
               stretchedLastFrame = true;
             }
-            this.logger.log(`[mp4-remuxer]: It is approximately ${deltaToFrameEnd / 90} ms to the next segment; using duration ${mp4SampleDuration / 90} ms for the last video frame.`);
+            this.log(`It is approximately ${deltaToFrameEnd / 90} ms to the next segment; using duration ${mp4SampleDuration / 90} ms for the last video frame.`);
           } else {
             mp4SampleDuration = lastFrameDuration;
           }
@@ -15142,7 +15283,7 @@ class MP4Remuxer {
         // Fix for "CNN special report, with CC" in test-streams (Safari browser only)
         // Ignore DTS when frame durations are irregular. Safari MSE does not handle this leading to gaps.
         if (maxPtsDelta - minPtsDelta < maxDtsDelta - minDtsDelta && averageSampleDuration / maxDtsDelta < 0.025 && outputSamples[0].cts === 0) {
-          this.logger.warn('Found irregular gaps in sample duration. Using PTS instead of DTS to determine MP4 sample duration.');
+          this.warn('Found irregular gaps in sample duration. Using PTS instead of DTS to determine MP4 sample duration.');
           let dts = firstDTS;
           for (let i = 0, len = outputSamples.length; i < len; i++) {
             const nextDts = dts + outputSamples[i].duration;
@@ -15161,7 +15302,8 @@ class MP4Remuxer {
     }
     // next AVC/HEVC sample DTS should be equal to last sample DTS + last sample duration (in PES timescale)
     mp4SampleDuration = stretchedLastFrame || !mp4SampleDuration ? averageSampleDuration : mp4SampleDuration;
-    this.nextAvcDts = nextAvcDts = lastDTS + mp4SampleDuration;
+    const endDTS = lastDTS + mp4SampleDuration;
+    this.nextVideoTs = nextVideoTs = endDTS - initTime;
     this.videoSampleDuration = mp4SampleDuration;
     this.isVideoContiguous = true;
     const moof = MP4.moof(track.sequenceNumber++, firstDTS, _extends(track, {
@@ -15171,10 +15313,10 @@ class MP4Remuxer {
     const data = {
       data1: moof,
       data2: mdat,
-      startPTS: minPTS / timeScale,
-      endPTS: (maxPTS + mp4SampleDuration) / timeScale,
-      startDTS: firstDTS / timeScale,
-      endDTS: nextAvcDts / timeScale,
+      startPTS: (minPTS - initTime) / timeScale,
+      endPTS: (maxPTS + mp4SampleDuration - initTime) / timeScale,
+      startDTS: (firstDTS - initTime) / timeScale,
+      endDTS: nextVideoTs / timeScale,
       type,
       hasAudio: false,
       hasVideo: true,
@@ -15207,7 +15349,7 @@ class MP4Remuxer {
     const alignedWithVideo = videoTimeOffset !== undefined;
     let inputSamples = track.samples;
     let offset = rawMPEG ? 0 : 8;
-    let nextAudioPts = this.nextAudioPts || -1;
+    let nextAudioTs = this.nextAudioTs || -1;
 
     // window.audioSamples ? window.audioSamples.push(inputSamples.map(s => s.pts)) : (window.audioSamples = [inputSamples.map(s => s.pts)]);
 
@@ -15219,15 +15361,15 @@ class MP4Remuxer {
     // contiguous fragments are consecutive fragments from same quality level (same level, new SN = old SN + 1)
     // this helps ensuring audio continuity
     // and this also avoids audio glitches/cut when switching quality, or reporting wrong duration on first audio frame
-    const timeOffsetMpegTS = timeOffset * inputTimeScale;
     const initTime = initPTS.baseTime * inputTimeScale / initPTS.timescale;
-    this.isAudioContiguous = contiguous = contiguous || inputSamples.length && nextAudioPts > 0 && (accurateTimeOffset && Math.abs(timeOffsetMpegTS - nextAudioPts) < 9000 || Math.abs(normalizePts(inputSamples[0].pts - initTime, timeOffsetMpegTS) - nextAudioPts) < 20 * inputSampleDuration);
+    const timeOffsetMpegTS = initTime + timeOffset * inputTimeScale;
+    this.isAudioContiguous = contiguous = contiguous || inputSamples.length && nextAudioTs > 0 && (accurateTimeOffset && Math.abs(timeOffsetMpegTS - (nextAudioTs + initTime)) < 9000 || Math.abs(normalizePts(inputSamples[0].pts, timeOffsetMpegTS) - (nextAudioTs + initTime)) < 20 * inputSampleDuration);
 
     // compute normalized PTS
     inputSamples.forEach(function (sample) {
-      sample.pts = normalizePts(sample.pts - initTime, timeOffsetMpegTS);
+      sample.pts = normalizePts(sample.pts, timeOffsetMpegTS);
     });
-    if (!contiguous || nextAudioPts < 0) {
+    if (!contiguous || nextAudioTs < 0) {
       // filter out sample with negative PTS that are not playable anyway
       // if we don't remove these negative samples, they will shift all audio samples forward.
       // leading to audio overlap between current / next fragment
@@ -15238,14 +15380,14 @@ class MP4Remuxer {
         return;
       }
       if (videoTimeOffset === 0) {
-        // Set the start to 0 to match video so that start gaps larger than inputSampleDuration are filled with silence
-        nextAudioPts = 0;
+        // Set the start to match video so that start gaps larger than inputSampleDuration are filled with silence
+        nextAudioTs = 0;
       } else if (accurateTimeOffset && !alignedWithVideo) {
         // When not seeking, not live, and LevelDetails.PTSKnown, use fragment start as predicted next audio PTS
-        nextAudioPts = Math.max(0, timeOffsetMpegTS);
+        nextAudioTs = Math.max(0, timeOffsetMpegTS - initTime);
       } else {
         // if frags are not contiguous and if we cant trust time offset, let's use first sample PTS as next audio PTS
-        nextAudioPts = inputSamples[0].pts;
+        nextAudioTs = inputSamples[0].pts - initTime;
       }
     }
 
@@ -15257,7 +15399,7 @@ class MP4Remuxer {
 
     if (track.segmentCodec === 'aac') {
       const maxAudioFramesDrift = this.config.maxAudioFramesDrift;
-      for (let i = 0, nextPts = nextAudioPts; i < inputSamples.length; i++) {
+      for (let i = 0, nextPts = nextAudioTs + initTime; i < inputSamples.length; i++) {
         // First, let's see how far off this frame is from where we expect it to be
         const sample = inputSamples[i];
         const pts = sample.pts;
@@ -15267,8 +15409,9 @@ class MP4Remuxer {
         // When remuxing with video, if we're overlapping by more than a duration, drop this sample to stay in sync
         if (delta <= -maxAudioFramesDrift * inputSampleDuration && alignedWithVideo) {
           if (i === 0) {
-            this.logger.warn(`Audio frame @ ${(pts / inputTimeScale).toFixed(3)}s overlaps nextAudioPts by ${Math.round(1000 * delta / inputTimeScale)} ms.`);
-            this.nextAudioPts = nextAudioPts = nextPts = pts;
+            this.warn(`Audio frame @ ${(pts / inputTimeScale).toFixed(3)}s overlaps marker by ${Math.round(1000 * delta / inputTimeScale)} ms.`);
+            this.nextAudioTs = nextAudioTs = pts - initTime;
+            nextPts = pts;
           }
         } // eslint-disable-line brace-style
 
@@ -15282,24 +15425,23 @@ class MP4Remuxer {
           // Adjust nextPts so that silent samples are aligned with media pts. This will prevent media samples from
           // later being shifted if nextPts is based on timeOffset and delta is not a multiple of inputSampleDuration.
           nextPts = pts - missing * inputSampleDuration;
-          if (nextPts < 0) {
+          while (nextPts < 0 && missing && inputSampleDuration) {
             missing--;
             nextPts += inputSampleDuration;
           }
           if (i === 0) {
-            this.nextAudioPts = nextAudioPts = nextPts;
+            this.nextAudioTs = nextAudioTs = nextPts - initTime;
           }
-          this.logger.warn(`[mp4-remuxer]: Injecting ${missing} audio frame @ ${(nextPts / inputTimeScale).toFixed(3)}s due to ${Math.round(1000 * delta / inputTimeScale)} ms gap.`);
+          this.warn(`Injecting ${missing} audio frames @ ${((nextPts - initTime) / inputTimeScale).toFixed(3)}s due to ${Math.round(1000 * delta / inputTimeScale)} ms gap.`);
           for (let j = 0; j < missing; j++) {
-            const newStamp = Math.max(nextPts, 0);
             let fillFrame = AAC.getSilentFrame(track.parsedCodec || track.manifestCodec || track.codec, track.channelCount);
             if (!fillFrame) {
-              this.logger.log('[mp4-remuxer]: Unable to get silent frame for given audio codec; duplicating last frame instead.');
+              this.log('Unable to get silent frame for given audio codec; duplicating last frame instead.');
               fillFrame = sample.unit.subarray();
             }
             inputSamples.splice(i, 0, {
               unit: fillFrame,
-              pts: newStamp
+              pts: nextPts
             });
             nextPts += inputSampleDuration;
             i++;
@@ -15329,7 +15471,7 @@ class MP4Remuxer {
       } else {
         if (contiguous && track.segmentCodec === 'aac') {
           // set PTS/DTS to expected PTS/DTS
-          pts = nextAudioPts;
+          pts = nextAudioTs + initTime;
         }
         // remember first PTS of our audioSamples
         firstPTS = pts;
@@ -15378,7 +15520,8 @@ class MP4Remuxer {
 
     // The next audio sample PTS should be equal to last sample PTS + duration
     const lastSample = outputSamples[outputSamples.length - 1];
-    this.nextAudioPts = nextAudioPts = lastPTS + scaleFactor * lastSample.duration;
+    nextAudioTs = lastPTS - initTime;
+    this.nextAudioTs = nextAudioTs + scaleFactor * lastSample.duration;
 
     // Set the track samples from inputSamples to outputSamples before remuxing
     const moof = rawMPEG ? new Uint8Array(0) : MP4.moof(track.sequenceNumber++, firstPTS / scaleFactor, _extends({}, track, {
@@ -15387,8 +15530,8 @@ class MP4Remuxer {
 
     // Clear the track samples. This also clears the samples array in the demuxer, since the reference is shared
     track.samples = [];
-    const start = firstPTS / inputTimeScale;
-    const end = nextAudioPts / inputTimeScale;
+    const start = (firstPTS - initTime) / inputTimeScale;
+    const end = nextAudioTs / inputTimeScale;
     const type = 'audio';
     const audioData = {
       data1: moof,
@@ -15473,9 +15616,9 @@ function flushTextTrackUserdataCueSamples(track, timeOffset, initPTS) {
   };
 }
 
-class PassThroughRemuxer {
+class PassThroughRemuxer extends Logger {
   constructor(observer, config, typeSupported, logger) {
-    this.logger = void 0;
+    super('passthrough-remuxer', logger);
     this.emitInitSegment = false;
     this.audioCodec = void 0;
     this.videoCodec = void 0;
@@ -15484,12 +15627,17 @@ class PassThroughRemuxer {
     this.initTracks = void 0;
     this.lastEndTime = null;
     this.isVideoContiguous = false;
-    this.logger = logger;
   }
   destroy() {}
   resetTimeStamp(defaultInitPTS) {
-    this.initPTS = defaultInitPTS;
     this.lastEndTime = null;
+    const initPTS = this.initPTS;
+    if (initPTS && defaultInitPTS) {
+      if (initPTS.baseTime === defaultInitPTS.baseTime && initPTS.timescale === defaultInitPTS.timescale) {
+        return;
+      }
+    }
+    this.initPTS = defaultInitPTS;
   }
   resetNextTimestamp() {
     this.isVideoContiguous = false;
@@ -15498,10 +15646,10 @@ class PassThroughRemuxer {
   resetInitSegment(initSegment, audioCodec, videoCodec, decryptdata) {
     this.audioCodec = audioCodec;
     this.videoCodec = videoCodec;
-    this.generateInitSegment(patchEncyptionData(initSegment, decryptdata));
+    this.generateInitSegment(initSegment, decryptdata);
     this.emitInitSegment = true;
   }
-  generateInitSegment(initSegment) {
+  generateInitSegment(initSegment, decryptdata) {
     let {
       audioCodec,
       videoCodec
@@ -15511,41 +15659,55 @@ class PassThroughRemuxer {
       this.initData = undefined;
       return;
     }
-    const initData = this.initData = parseInitSegment(initSegment);
+    const {
+      audio,
+      video
+    } = this.initData = parseInitSegment(initSegment);
+    if (decryptdata) {
+      patchEncyptionData(initSegment, decryptdata);
+    } else {
+      const eitherTrack = audio || video;
+      if (eitherTrack != null && eitherTrack.encrypted) {
+        this.warn(`Init segment with encrypted track with has no key ("${eitherTrack.codec}")!`);
+      }
+    }
 
     // Get codec from initSegment
-    if (initData.audio) {
-      audioCodec = getParsedTrackCodec(initData.audio, ElementaryStreamTypes.AUDIO, this.logger);
+    if (audio) {
+      audioCodec = getParsedTrackCodec(audio, ElementaryStreamTypes.AUDIO, this);
     }
-    if (initData.video) {
-      videoCodec = getParsedTrackCodec(initData.video, ElementaryStreamTypes.VIDEO, this.logger);
+    if (video) {
+      videoCodec = getParsedTrackCodec(video, ElementaryStreamTypes.VIDEO, this);
     }
     const tracks = {};
-    if (initData.audio && initData.video) {
+    if (audio && video) {
       tracks.audiovideo = {
         container: 'video/mp4',
         codec: audioCodec + ',' + videoCodec,
-        supplemental: initData.video.supplemental,
+        supplemental: video.supplemental,
+        encrypted: video.encrypted,
         initSegment,
         id: 'main'
       };
-    } else if (initData.audio) {
+    } else if (audio) {
       tracks.audio = {
         container: 'audio/mp4',
         codec: audioCodec,
+        encrypted: audio.encrypted,
         initSegment,
         id: 'audio'
       };
-    } else if (initData.video) {
+    } else if (video) {
       tracks.video = {
         container: 'video/mp4',
         codec: videoCodec,
-        supplemental: initData.video.supplemental,
+        supplemental: video.supplemental,
+        encrypted: video.encrypted,
         initSegment,
         id: 'main'
       };
     } else {
-      this.logger.warn('[passthrough-remuxer.ts]: initSegment does not contain moov or trak boxes.');
+      this.warn('initSegment does not contain moov or trak boxes.');
     }
     this.initTracks = tracks;
   }
@@ -15573,7 +15735,7 @@ class PassThroughRemuxer {
     // The binary segment data is added to the videoTrack in the mp4demuxer. We don't check to see if the data is only
     // audio or video (or both); adding it to video was an arbitrary choice.
     const data = videoTrack.samples;
-    if (!(data != null && data.length)) {
+    if (!data.length) {
       return result;
     }
     const initSegment = {
@@ -15588,62 +15750,66 @@ class PassThroughRemuxer {
     }
     if (!((_initData2 = initData) != null && _initData2.length)) {
       // We can't remux if the initSegment could not be generated
-      this.logger.warn('[passthrough-remuxer.ts]: Failed to generate initSegment.');
+      this.warn('Failed to generate initSegment.');
       return result;
     }
     if (this.emitInitSegment) {
       initSegment.tracks = this.initTracks;
       this.emitInitSegment = false;
     }
-    const trackSampleData = getSampleData(data, initData, this.logger);
+    const trackSampleData = getSampleData(data, initData, this);
     const audioSampleTimestamps = initData.audio ? trackSampleData[initData.audio.id] : null;
     const videoSampleTimestamps = initData.video ? trackSampleData[initData.video.id] : null;
     const videoStartTime = toStartEndOrDefault(videoSampleTimestamps, Infinity);
     const audioStartTime = toStartEndOrDefault(audioSampleTimestamps, Infinity);
     const videoEndTime = toStartEndOrDefault(videoSampleTimestamps, 0, true);
     const audioEndTime = toStartEndOrDefault(audioSampleTimestamps, 0, true);
-    let baseOffsetSamples;
     let decodeTime = timeOffset;
     let duration = 0;
-    if (audioSampleTimestamps && (!videoSampleTimestamps || !initPTS && audioStartTime < videoStartTime || initPTS && initPTS.trackId === initData.audio.id)) {
-      initSegment.trackId = initData.audio.id;
-      baseOffsetSamples = audioSampleTimestamps;
-      duration = audioEndTime - audioStartTime;
-    } else if (videoSampleTimestamps) {
-      initSegment.trackId = initData.video.id;
-      baseOffsetSamples = videoSampleTimestamps;
-      duration = videoEndTime - videoStartTime;
-    }
+    const syncOnAudio = audioSampleTimestamps && (!videoSampleTimestamps || !initPTS && audioStartTime < videoStartTime || initPTS && initPTS.trackId === initData.audio.id);
+    const baseOffsetSamples = syncOnAudio ? audioSampleTimestamps : videoSampleTimestamps;
     if (baseOffsetSamples) {
       const timescale = baseOffsetSamples.timescale;
+      const baseTime = baseOffsetSamples.start - timeOffset * timescale;
+      const trackId = syncOnAudio ? initData.audio.id : initData.video.id;
       decodeTime = baseOffsetSamples.start / timescale;
-      initSegment.timescale = timescale;
-      if (!initPTS) {
-        initSegment.initPTS = baseOffsetSamples.start - timeOffset * timescale;
-        this.initPTS = initPTS = {
-          baseTime: initSegment.initPTS,
-          timescale,
-          trackId: initSegment.trackId
-        };
+      duration = syncOnAudio ? audioEndTime - audioStartTime : videoEndTime - videoStartTime;
+      if ((accurateTimeOffset || !initPTS) && (isInvalidInitPts(initPTS, decodeTime, timeOffset, duration) || timescale !== initPTS.timescale)) {
+        if (initPTS) {
+          this.warn(`Timestamps at playlist time: ${accurateTimeOffset ? '' : '~'}${timeOffset} ${baseTime / timescale} != initPTS: ${initPTS.baseTime / initPTS.timescale} (${initPTS.baseTime}/${initPTS.timescale}) trackId: ${initPTS.trackId}`);
+        }
+        this.log(`Found initPTS at playlist time: ${timeOffset} offset: ${decodeTime - timeOffset} (${baseTime}/${timescale}) trackId: ${trackId}`);
+        initPTS = null;
+        initSegment.initPTS = baseTime;
+        initSegment.timescale = timescale;
+        initSegment.trackId = trackId;
       }
+    } else {
+      this.warn(`No audio or video samples found for initPTS at playlist time: ${timeOffset}`);
     }
-    if ((accurateTimeOffset || !initPTS) && (isInvalidInitPts(initPTS, decodeTime, timeOffset, duration) || initSegment.timescale !== initPTS.timescale)) {
-      initSegment.initPTS = decodeTime - timeOffset;
-      if (initPTS && initPTS.timescale === 1) {
-        this.logger.warn(`Adjusting initPTS @${timeOffset} from ${initPTS.baseTime / initPTS.timescale} to ${initSegment.initPTS}`);
+    if (!initPTS) {
+      if (!initSegment.timescale || initSegment.trackId === undefined || initSegment.initPTS === undefined) {
+        this.warn('Could not set initPTS');
+        initSegment.initPTS = decodeTime;
+        initSegment.timescale = 1;
+        initSegment.trackId = -1;
       }
       this.initPTS = initPTS = {
         baseTime: initSegment.initPTS,
-        timescale: 1
+        timescale: initSegment.timescale,
+        trackId: initSegment.trackId
       };
+    } else {
+      initSegment.initPTS = initPTS.baseTime;
+      initSegment.timescale = initPTS.timescale;
+      initSegment.trackId = initPTS.trackId;
     }
-    const startTime = audioTrack ? decodeTime - initPTS.baseTime / initPTS.timescale : lastEndTime;
-    offsetStartDTS(initData, data, initPTS.baseTime / initPTS.timescale);
+    const startTime = decodeTime - initPTS.baseTime / initPTS.timescale;
     const endTime = startTime + duration;
     if (duration > 0) {
       this.lastEndTime = endTime;
     } else {
-      this.logger.warn('Duration parsed from mp4 should be greater than zero');
+      this.warn('Duration parsed from mp4 should be greater than zero');
       this.resetNextTimestamp();
     }
     const hasAudio = !!initData.audio;
@@ -15655,6 +15821,7 @@ class PassThroughRemuxer {
     if (hasVideo) {
       type += 'video';
     }
+    const encrypted = (initData.audio ? initData.audio.encrypted : false) || (initData.video ? initData.video.encrypted : false);
     const track = {
       data1: data,
       startPTS: startTime,
@@ -15665,7 +15832,8 @@ class PassThroughRemuxer {
       hasAudio,
       hasVideo,
       nb: 1,
-      dropped: 0
+      dropped: 0,
+      encrypted
     };
     result.audio = hasAudio && !hasVideo ? track : undefined;
     result.video = hasVideo ? track : undefined;
@@ -15678,14 +15846,14 @@ class PassThroughRemuxer {
       track.independent = independent;
       track.firstKeyFrame = firstKeyFrame;
       if (independent && videoSampleTimestamps.keyFrameStart) {
-        track.firstKeyFramePTS = videoSampleTimestamps.keyFrameStart - initPTS.baseTime / initPTS.timescale;
+        track.firstKeyFramePTS = (videoSampleTimestamps.keyFrameStart - initPTS.baseTime) / initPTS.timescale;
       }
       if (!this.isVideoContiguous) {
         result.independent = independent;
       }
       this.isVideoContiguous || (this.isVideoContiguous = independent);
       if (track.dropped) {
-        this.logger.warn(`fmp4 does not start with IDR: firstIDR ${firstKeyFrame}/${videoSampleCount} dropped: ${track.dropped} pts: ${track.firstKeyFramePTS || 'NA'}`);
+        this.warn(`fmp4 does not start with IDR: firstIDR ${firstKeyFrame}/${videoSampleCount} dropped: ${track.dropped} start: ${track.firstKeyFramePTS || 'NA'}`);
       }
     }
     result.initSegment = initSegment;
@@ -15709,7 +15877,7 @@ function isInvalidInitPts(initPTS, startDTS, timeOffset, duration) {
   return Math.abs(startTime - timeOffset) > minDuration;
 }
 function getParsedTrackCodec(track, type, logger) {
-  const parsedCodec = track == null ? void 0 : track.codec;
+  const parsedCodec = track.codec;
   if (parsedCodec && parsedCodec.length > 4) {
     return parsedCodec;
   }
@@ -16508,7 +16676,8 @@ class AudioStreamController extends BaseStreamController {
     frag,
     id,
     initPTS,
-    timescale
+    timescale,
+    trackId
   }) {
     // Always update the new INIT PTS
     // Can change due level switch
@@ -16517,9 +16686,10 @@ class AudioStreamController extends BaseStreamController {
       const inFlightFrag = this.fragCurrent;
       this.initPTS[cc] = {
         baseTime: initPTS,
-        timescale
+        timescale,
+        trackId
       };
-      this.log(`InitPTS for cc: ${cc} found from main: ${initPTS}/${timescale}`);
+      this.log(`InitPTS for cc: ${cc} found from main: ${initPTS / timescale} (${initPTS}/${timescale}) trackId: ${trackId}`);
       this.mainAnchor = frag;
       // If we are waiting, tick immediately to unblock audio fragment transmuxing
       if (this.state === State.WAITING_INIT_PTS) {
@@ -16557,7 +16727,7 @@ class AudioStreamController extends BaseStreamController {
     const syncFrag = findNearestWithCC(trackDetails, targetDiscontinuity, pos);
     // Only stop waiting for audioFrag.cc if an audio segment of the same discontinuity domain (cc) is found
     if (syncFrag) {
-      this.log(`Waiting fragment cc (${waitingToAppend == null ? void 0 : waitingToAppend.cc}) cancelled because video is at cc ${mainAnchor.cc}`);
+      this.log(`Syncing with main frag at ${syncFrag.start} cc ${syncFrag.cc}`);
       this.startFragRequested = false;
       this.nextLoadPosition = syncFrag.start;
       this.resetLoadingState();
@@ -16609,19 +16779,7 @@ class AudioStreamController extends BaseStreamController {
         }
       case State.FRAG_LOADING_WAITING_RETRY:
         {
-          var _this$media;
-          const now = performance.now();
-          const retryDate = this.retryDate;
-          // if current time is gt than retryDate, or if media seeking let's switch to IDLE state to retry loading
-          if (!retryDate || now >= retryDate || (_this$media = this.media) != null && _this$media.seeking) {
-            const {
-              levels,
-              trackId
-            } = this;
-            this.log('RetryDate reached, switch back to IDLE state');
-            this.resetStartWhenNotLoaded((levels == null ? void 0 : levels[trackId]) || null);
-            this.state = State.IDLE;
-          }
+          this.checkRetryDate();
           break;
         }
       case State.WAITING_INIT_PTS:
@@ -17051,7 +17209,9 @@ class AudioStreamController extends BaseStreamController {
         if (data.parent !== 'audio') {
           return;
         }
-        this.resetLoadingState();
+        if (!this.reduceLengthAndFlushBuffer(data)) {
+          this.resetLoadingState();
+        }
         break;
       case ErrorDetails.BUFFER_FULL_ERROR:
         if (data.parent !== 'audio') {
@@ -17132,6 +17292,9 @@ class AudioStreamController extends BaseStreamController {
     }
     if (initSegment != null && initSegment.tracks) {
       const mapFragment = frag.initSegment || frag;
+      if (this.unhandledEncryptionError(initSegment, frag)) {
+        return;
+      }
       this._bufferInitSegment(level, initSegment.tracks, mapFragment, chunkMeta);
       hls.trigger(Events.FRAG_PARSING_INIT_SEGMENT, {
         frag: mapFragment,
@@ -17329,8 +17492,8 @@ class BasePlaylistController extends Logger {
       }
       if (foundIndex !== -1) {
         const attr = renditionReports[foundIndex];
-        const msn = parseInt(attr['LAST-MSN']) || (previous == null ? void 0 : previous.lastPartSn);
-        let part = parseInt(attr['LAST-PART']) || (previous == null ? void 0 : previous.lastPartIndex);
+        const msn = parseInt(attr['LAST-MSN']) || previous.lastPartSn;
+        let part = parseInt(attr['LAST-PART']) || previous.lastPartIndex;
         if (this.hls.config.lowLatencyMode) {
           const currentGoal = Math.min(previous.age - previous.partTarget, previous.targetduration);
           if (part >= 0 && currentGoal > previous.partTarget) {
@@ -17380,7 +17543,7 @@ class BasePlaylistController extends Logger {
       const offset = Math.max(timelineOffset || 0, 0);
       details.appliedTimelineOffset = offset;
       details.fragments.forEach(frag => {
-        frag.start = frag.playlistOffset + offset;
+        frag.setStart(frag.playlistOffset + offset);
       });
     }
 
@@ -17390,7 +17553,7 @@ class BasePlaylistController extends Logger {
       details.reloaded(previousDetails);
       // Merge live playlists to adjust fragment starts and fill in delta playlist skipped segments
       if (previousDetails && details.fragments.length > 0) {
-        mergeDetails(previousDetails, details);
+        mergeDetails(previousDetails, details, this);
         const error = details.playlistParsingError;
         if (error) {
           this.warn(error);
@@ -18271,9 +18434,9 @@ class BufferController extends Logger {
   }
   onMediaAttaching(event, data) {
     const media = this.media = data.media;
-    const MediaSource = getMediaSource(this.appendSource);
     this.transferData = this.overrides = undefined;
-    if (media && MediaSource) {
+    const MediaSource = getMediaSource(this.appendSource);
+    if (MediaSource) {
       const transferringMedia = !!data.mediaSource;
       if (transferringMedia || data.overrides) {
         this.transferData = data;
@@ -18330,9 +18493,12 @@ class BufferController extends Logger {
     const trackNames = transferredTracks ? Object.keys(transferredTracks) : null;
     const trackCount = trackNames ? trackNames.length : 0;
     const mediaSourceOpenCallback = () => {
-      if (this.media && this.mediaSourceOpenOrEnded) {
-        this._onMediaSourceOpen();
-      }
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      Promise.resolve().then(() => {
+        if (this.media && this.mediaSourceOpenOrEnded) {
+          this._onMediaSourceOpen();
+        }
+      });
     };
     if (transferredTracks && trackNames && trackCount) {
       if (!this.tracksReady) {
@@ -18380,6 +18546,7 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
             const sbTuple = [type, sb];
             this.sourceBuffers[sbIndex] = sbTuple;
             if (sb.updating && this.operationQueue) {
+              // eslint-disable-next-line @typescript-eslint/no-floating-promises
               this.operationQueue.prependBlocker(type);
             }
             this.trackSourceBuffer(type, track);
@@ -18532,7 +18699,7 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
       return;
     }
     trackNames.forEach(trackName => {
-      var _this$transferData3, _this$transferData3$t, _trackCodec;
+      var _this$transferData3, _trackCodec;
       const parsedTrack = data[trackName];
       const {
         id,
@@ -18543,7 +18710,7 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
         supplemental
       } = parsedTrack;
       let track = tracks[trackName];
-      const transferredTrack = (_this$transferData3 = this.transferData) == null ? void 0 : (_this$transferData3$t = _this$transferData3.tracks) == null ? void 0 : _this$transferData3$t[trackName];
+      const transferredTrack = (_this$transferData3 = this.transferData) == null || (_this$transferData3 = _this$transferData3.tracks) == null ? void 0 : _this$transferData3[trackName];
       const sbTrack = transferredTrack != null && transferredTrack.buffer ? transferredTrack : track;
       const sbCodec = (sbTrack == null ? void 0 : sbTrack.pendingCodec) || (sbTrack == null ? void 0 : sbTrack.codec);
       const trackLevelCodec = sbTrack == null ? void 0 : sbTrack.levelCodec;
@@ -18675,10 +18842,14 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
       parent,
       frag,
       part,
-      chunkMeta
+      chunkMeta,
+      offset
     } = eventData;
     const chunkStats = chunkMeta.buffering[type];
-    const sn = frag.sn;
+    const {
+      sn,
+      cc
+    } = frag;
     const bufferAppendingStart = self.performance.now();
     chunkStats.start = bufferAppendingStart;
     const fragBuffering = frag.stats.buffering;
@@ -18703,12 +18874,12 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
     }
 
     // Block audio append until overlapping video append
-    const videoTrack = this.tracks.video;
+    const videoTrack = tracks.video;
     const videoSb = videoTrack == null ? void 0 : videoTrack.buffer;
     if (videoSb && sn !== 'initSegment') {
       const partOrFrag = part || frag;
       const blockedAudioAppend = this.blockedAudioAppend;
-      if (type === 'audio' && parent !== 'main' && !this.blockedAudioAppend) {
+      if (type === 'audio' && parent !== 'main' && !this.blockedAudioAppend && !(videoTrack.ending || videoTrack.ended)) {
         const pStart = partOrFrag.start;
         const pTime = pStart + partOrFrag.duration * 0.05;
         const vbuffered = videoSb.buffered;
@@ -18735,18 +18906,14 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
     const operation = {
       label: `append-${type}`,
       execute: () => {
+        var _this$tracks$type2;
         chunkStats.executeStart = self.performance.now();
-        if (checkTimestampOffset) {
-          const track = this.tracks[type];
-          if (track) {
-            const sb = track.buffer;
-            if (sb) {
-              const delta = fragStart - sb.timestampOffset;
-              if (Math.abs(delta) >= 0.1) {
-                this.log(`Updating audio SourceBuffer timestampOffset to ${fragStart} (delta: ${delta}) sn: ${sn})`);
-                sb.timestampOffset = fragStart;
-              }
-            }
+        const sb = (_this$tracks$type2 = this.tracks[type]) == null ? void 0 : _this$tracks$type2.buffer;
+        if (sb) {
+          if (checkTimestampOffset) {
+            this.updateTimestampOffset(sb, fragStart, 0.1, type, sn, cc);
+          } else if (offset !== undefined && isFiniteNumber(offset)) {
+            this.updateTimestampOffset(sb, offset, 0.000001, type, sn, cc);
           }
         }
         this.appendExecutor(data, type);
@@ -18802,7 +18969,7 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
           fatal: false
         };
         const mediaError = (_this$media = this.media) == null ? void 0 : _this$media.error;
-        if (error.code === DOMException.QUOTA_EXCEEDED_ERR) {
+        if (error.code === DOMException.QUOTA_EXCEEDED_ERR || error.name == 'QuotaExceededError' || `quota` in error) {
           // QuotaExceededError: http://www.w3.org/TR/html5/infrastructure.html#quotaexceedederror
           // let's stop appending any segments, and report BUFFER_FULL_ERROR error
           event.details = ErrorDetails.BUFFER_FULL_ERROR;
@@ -18908,8 +19075,13 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
   }
   get bufferedToEnd() {
     return this.sourceBufferCount > 0 && !this.sourceBuffers.some(([type]) => {
-      var _this$tracks$type2, _this$tracks$type3;
-      return type && (!((_this$tracks$type2 = this.tracks[type]) != null && _this$tracks$type2.ended) || ((_this$tracks$type3 = this.tracks[type]) == null ? void 0 : _this$tracks$type3.ending));
+      if (type) {
+        const track = this.tracks[type];
+        if (track) {
+          return !track.ended || track.ending;
+        }
+      }
+      return false;
     });
   }
 
@@ -18931,8 +19103,8 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
     });
     const allowEndOfStream = ((_this$overrides = this.overrides) == null ? void 0 : _this$overrides.endOfStream) !== false;
     const allTracksEnding = this.sourceBufferCount > 0 && !this.sourceBuffers.some(([type]) => {
-      var _this$tracks$type4;
-      return type && !((_this$tracks$type4 = this.tracks[type]) != null && _this$tracks$type4.ended);
+      var _this$tracks$type3;
+      return type && !((_this$tracks$type3 = this.tracks[type]) != null && _this$tracks$type3.ended);
     });
     if (allTracksEnding) {
       if (allowEndOfStream) {
@@ -18957,6 +19129,9 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
         this.tracksEnded();
         this.hls.trigger(Events.BUFFERED_TO_END, undefined);
       }
+    } else if (data.type === 'video') {
+      // Make sure pending audio appends are unblocked when video reaches end
+      this.unblockAudio();
     }
   }
   tracksEnded() {
@@ -18979,11 +19154,13 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
     this.updateDuration();
   }
   updateDuration() {
-    const durationAndRange = this.getDurationAndRange();
-    if (!durationAndRange) {
-      return;
-    }
-    this.blockUntilOpen(() => this.updateMediaSource(durationAndRange));
+    this.blockUntilOpen(() => {
+      const durationAndRange = this.getDurationAndRange();
+      if (!durationAndRange) {
+        return;
+      }
+      this.updateMediaSource(durationAndRange);
+    });
   }
   onError(event, data) {
     if (data.details === ErrorDetails.BUFFER_APPEND_ERROR && data.frag) {
@@ -19024,8 +19201,9 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
       const targetBackBufferPosition = Math.floor(currentTime / targetDuration) * targetDuration - maxBackBufferLength;
       this.flushBackBuffer(currentTime, targetDuration, targetBackBufferPosition);
     }
-    if (isFiniteNumber(config.frontBufferFlushThreshold) && config.frontBufferFlushThreshold > 0) {
-      const frontBufferLength = Math.max(config.maxBufferLength, config.frontBufferFlushThreshold);
+    const frontBufferFlushThreshold = config.frontBufferFlushThreshold;
+    if (isFiniteNumber(frontBufferFlushThreshold) && frontBufferFlushThreshold > 0) {
+      const frontBufferLength = Math.max(config.maxBufferLength, frontBufferFlushThreshold);
       const maxFrontBufferLength = Math.max(frontBufferLength, targetDuration);
       const targetFrontBufferPosition = Math.floor(currentTime / targetDuration) * targetDuration + maxFrontBufferLength;
       this.flushFrontBuffer(currentTime, targetDuration, targetFrontBufferPosition);
@@ -19102,7 +19280,7 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
     const playlistEnd = details.edge;
     if (details.live && this.hls.config.liveDurationInfinity) {
       const len = details.fragments.length;
-      if (len && details.live && !!mediaSource.setLiveSeekableRange) {
+      if (len && !!mediaSource.setLiveSeekableRange) {
         const start = Math.max(0, details.fragmentStart);
         const end = Math.max(start, playlistEnd);
         return {
@@ -19242,7 +19420,7 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
           this.error(`error while trying to add sourceBuffer: ${error.message}`);
           // remove init segment from queue and delete track info
           this.shiftAndExecuteNext(type);
-          (_this$operationQueue = this.operationQueue) == null ? void 0 : _this$operationQueue.removeBlockers();
+          (_this$operationQueue = this.operationQueue) == null || _this$operationQueue.removeBlockers();
           delete this.tracks[type];
           this.hls.trigger(Events.ERROR, {
             type: ErrorTypes.MEDIA_ERROR,
@@ -19311,7 +19489,7 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
   }
   get mediaSrc() {
     var _this$media2, _this$media2$querySel;
-    const media = ((_this$media2 = this.media) == null ? void 0 : (_this$media2$querySel = _this$media2.querySelector) == null ? void 0 : _this$media2$querySel.call(_this$media2, 'source')) || this.media;
+    const media = ((_this$media2 = this.media) == null || (_this$media2$querySel = _this$media2.querySelector) == null ? void 0 : _this$media2$querySel.call(_this$media2, 'source')) || this.media;
     return media == null ? void 0 : media.src;
   }
   onSBUpdateStart(type) {
@@ -19351,6 +19529,13 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
     const operation = this.currentOp(type);
     if (operation) {
       operation.onError(error);
+    }
+  }
+  updateTimestampOffset(sb, timestampOffset, tolerance, type, sn, cc) {
+    const delta = timestampOffset - sb.timestampOffset;
+    if (Math.abs(delta) >= tolerance) {
+      this.log(`Updating ${type} SourceBuffer timestampOffset to ${timestampOffset} (sn: ${sn} cc: ${cc})`);
+      sb.timestampOffset = timestampOffset;
     }
   }
 
@@ -19445,8 +19630,8 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
   }
   stepOperationQueue(bufferNames) {
     bufferNames.forEach(type => {
-      var _this$tracks$type5;
-      const sb = (_this$tracks$type5 = this.tracks[type]) == null ? void 0 : _this$tracks$type5.buffer;
+      var _this$tracks$type4;
+      const sb = (_this$tracks$type4 = this.tracks[type]) == null ? void 0 : _this$tracks$type4.buffer;
       // Only cycle the queue if the SB is not updating. There's a bug in Chrome which sets the SB updating flag to
       // true when changing the MediaSource duration (https://bugs.chromium.org/p/chromium/issues/detail?id=959359&can=2&q=mediasource%20duration)
       // While this is a workaround, it's probably useful to have around
@@ -19849,84 +20034,6 @@ const CmStreamingFormat = {
 const CmcdStreamingFormat = CmStreamingFormat;
 
 /**
- * CMCD object header name.
- *
- * @group CMCD
- *
- * @beta
- */
-const CMCD_OBJECT = 'CMCD-Object';
-
-/**
- * CMCD request header name.
- *
- * @group CMCD
- *
- * @beta
- */
-const CMCD_REQUEST = 'CMCD-Request';
-
-/**
- * CMCD session header name.
- *
- * @group CMCD
- *
- * @beta
- */
-const CMCD_SESSION = 'CMCD-Session';
-
-/**
- * CMCD status header name.
- *
- * @group CMCD
- *
- * @beta
- */
-const CMCD_STATUS = 'CMCD-Status';
-
-/**
- * CMCD header fields.
- *
- * @group CMCD
- *
- * @enum
- *
- * @beta
- */
-const CmcdHeaderField = {
-  /**
-   * keys whose values vary with the object being requested.
-   */
-  OBJECT: CMCD_OBJECT,
-  /**
-   * keys whose values vary with each request.
-   */
-  REQUEST: CMCD_REQUEST,
-  /**
-   * keys whose values are expected to be invariant over the life of the session.
-   */
-  SESSION: CMCD_SESSION,
-  /**
-   * keys whose values do not vary with every request or object.
-   */
-  STATUS: CMCD_STATUS
-};
-
-/**
- * The map of CMCD header fields to official CMCD keys.
- *
- * @internal
- *
- * @group CMCD
- */
-const CmcdHeaderMap = {
-  [CmcdHeaderField.OBJECT]: ['br', 'd', 'ot', 'tb'],
-  [CmcdHeaderField.REQUEST]: ['bl', 'dl', 'mtp', 'nor', 'nrr', 'su'],
-  [CmcdHeaderField.SESSION]: ['cid', 'pr', 'sf', 'sid', 'st', 'v'],
-  [CmcdHeaderField.STATUS]: ['bs', 'rtp']
-};
-
-/**
  * Structured Field Item
  *
  * @group Structured Field
@@ -20020,7 +20127,7 @@ function serializeBoolean(value) {
  *
  * @beta
  */
-function base64encode(binary) {
+function encodeBase64(binary) {
   return btoa(String.fromCharCode(...binary));
 }
 
@@ -20054,7 +20161,7 @@ function serializeByteSequence(value) {
   if (ArrayBuffer.isView(value) === false) {
     throw serializeError(value, BYTES);
   }
-  return `:${base64encode(value)}:`;
+  return `:${encodeBase64(value)}:`;
 }
 
 const INTEGER = 'Integer';
@@ -20443,7 +20550,7 @@ function serializeInnerList(value) {
 function serializeDict(dict, options = {
   whitespace: true
 }) {
-  if (typeof dict !== 'object') {
+  if (typeof dict !== 'object' || dict == null) {
     throw serializeError(dict, DICT);
   }
   const entries = dict instanceof Map ? dict.entries() : Object.entries(dict);
@@ -20484,6 +20591,153 @@ function encodeSfDict(value, options) {
 }
 
 /**
+ * CMCD object header name.
+ *
+ * @group CMCD
+ *
+ * @beta
+ */
+const CMCD_OBJECT = 'CMCD-Object';
+
+/**
+ * CMCD request header name.
+ *
+ * @group CMCD
+ *
+ * @beta
+ */
+const CMCD_REQUEST = 'CMCD-Request';
+
+/**
+ * CMCD session header name.
+ *
+ * @group CMCD
+ *
+ * @beta
+ */
+const CMCD_SESSION = 'CMCD-Session';
+
+/**
+ * CMCD status header name.
+ *
+ * @group CMCD
+ *
+ * @beta
+ */
+const CMCD_STATUS = 'CMCD-Status';
+
+/**
+ * The map of CMCD keys to their appropriate header shard.
+ *
+ * @group CMCD
+ *
+ * @internal
+ */
+const CMCD_HEADER_MAP = {
+  // Object
+  br: CMCD_OBJECT,
+  ab: CMCD_OBJECT,
+  d: CMCD_OBJECT,
+  ot: CMCD_OBJECT,
+  tb: CMCD_OBJECT,
+  tpb: CMCD_OBJECT,
+  lb: CMCD_OBJECT,
+  tab: CMCD_OBJECT,
+  lab: CMCD_OBJECT,
+  url: CMCD_OBJECT,
+  // Request
+  pb: CMCD_REQUEST,
+  bl: CMCD_REQUEST,
+  tbl: CMCD_REQUEST,
+  dl: CMCD_REQUEST,
+  ltc: CMCD_REQUEST,
+  mtp: CMCD_REQUEST,
+  nor: CMCD_REQUEST,
+  nrr: CMCD_REQUEST,
+  rc: CMCD_REQUEST,
+  sn: CMCD_REQUEST,
+  sta: CMCD_REQUEST,
+  su: CMCD_REQUEST,
+  ttfb: CMCD_REQUEST,
+  ttfbb: CMCD_REQUEST,
+  ttlb: CMCD_REQUEST,
+  cmsdd: CMCD_REQUEST,
+  cmsds: CMCD_REQUEST,
+  smrt: CMCD_REQUEST,
+  df: CMCD_REQUEST,
+  cs: CMCD_REQUEST,
+  // TODO: Which header to put the `ts` field is not defined yet.
+  ts: CMCD_REQUEST,
+  // Session
+  cid: CMCD_SESSION,
+  pr: CMCD_SESSION,
+  sf: CMCD_SESSION,
+  sid: CMCD_SESSION,
+  st: CMCD_SESSION,
+  v: CMCD_SESSION,
+  msd: CMCD_SESSION,
+  // Status
+  bs: CMCD_STATUS,
+  bsd: CMCD_STATUS,
+  cdn: CMCD_STATUS,
+  rtp: CMCD_STATUS,
+  bg: CMCD_STATUS,
+  pt: CMCD_STATUS,
+  ec: CMCD_STATUS,
+  e: CMCD_STATUS
+};
+
+/**
+ * CMCD header fields.
+ *
+ * @group CMCD
+ *
+ * @enum
+ *
+ * @beta
+ */
+const CmcdHeaderField = {
+  /**
+   * keys whose values vary with each request.
+   */
+  REQUEST: CMCD_REQUEST};
+
+function createHeaderMap(headerMap) {
+  return Object.keys(headerMap).reduce((acc, field) => {
+    var _a;
+    (_a = headerMap[field]) === null || _a === void 0 ? void 0 : _a.forEach(key => acc[key] = field);
+    return acc;
+  }, {});
+}
+/**
+ * Group a CMCD data object into header shards
+ *
+ * @param cmcd - The CMCD data object to convert.
+ * @param customHeaderMap - A map of CMCD header fields to custom CMCD keys.
+ *
+ * @returns The CMCD header shards.
+ *
+ * @group CMCD
+ *
+ * @beta
+ */
+function groupCmcdHeaders(cmcd, customHeaderMap) {
+  const result = {};
+  if (!cmcd) {
+    return result;
+  }
+  const keys = Object.keys(cmcd);
+  const custom = customHeaderMap ? createHeaderMap(customHeaderMap) : {};
+  return keys.reduce((acc, key) => {
+    var _a;
+    const field = CMCD_HEADER_MAP[key] || custom[key] || CmcdHeaderField.REQUEST;
+    const data = (_a = acc[field]) !== null && _a !== void 0 ? _a : acc[field] = {};
+    data[key] = cmcd[key];
+    return acc;
+  }, result);
+}
+
+/**
  * Checks if the given key is a token field.
  *
  * @param key - The key to check.
@@ -20493,7 +20747,7 @@ function encodeSfDict(value, options) {
  * @internal
  */
 function isTokenField(key) {
-  return key === 'ot' || key === 'sf' || key === 'st';
+  return ['ot', 'sf', 'st', 'e', 'sta'].includes(key);
 }
 
 /**
@@ -20511,6 +20765,15 @@ function isValid(value) {
   }
   return value != null && value !== '' && value !== false;
 }
+
+/**
+ * CMCD event mode variable name.
+ *
+ * @group CMCD
+ *
+ * @beta
+ */
+const CMCD_EVENT_MODE = 'event';
 
 /**
  * Constructs a relative path from a URL.
@@ -20541,17 +20804,37 @@ function urlToRelativePath(url, base) {
     fromPath.shift();
     toPath.unshift('..');
   }
-  return toPath.join('/');
+  const relativePath = toPath.join('/');
+  // preserve query parameters and hash of the destination url
+  return relativePath + to.search + to.hash;
 }
 
 const toRounded = value => Math.round(value);
 const toUrlSafe = (value, options) => {
-  if (options === null || options === void 0 ? void 0 : options.baseUrl) {
-    value = urlToRelativePath(value, options.baseUrl);
+  if (Array.isArray(value)) {
+    return value.map(item => toUrlSafe(item, options));
   }
-  return encodeURIComponent(value);
+  if (value instanceof SfItem && typeof value.value === 'string') {
+    return new SfItem(toUrlSafe(value.value, options), value.params);
+  } else {
+    if (options.baseUrl) {
+      value = urlToRelativePath(value, options.baseUrl);
+    }
+    return options.version === 1 ? encodeURIComponent(value) : value;
+  }
 };
 const toHundred = value => toRounded(value / 100) * 100;
+const nor = (value, options) => {
+  let norValue = value;
+  if (options.version >= 2) {
+    if (value instanceof SfItem && typeof value.value === 'string') {
+      norValue = new SfItem([value]);
+    } else if (typeof value === 'string') {
+      norValue = [value];
+    }
+  }
+  return toUrlSafe(norValue, options);
+};
 /**
  * The default formatters for CMCD values.
  *
@@ -20559,7 +20842,7 @@ const toHundred = value => toRounded(value / 100) * 100;
  *
  * @beta
  */
-const CmcdFormatters = {
+const CMCD_FORMATTER_MAP = {
   /**
    * Bitrate (kbps) rounded integer
    */
@@ -20583,7 +20866,7 @@ const CmcdFormatters = {
   /**
    * Next Object Request URL encoded
    */
-  nor: toUrlSafe,
+  nor,
   /**
    * Requested maximum throughput (kbps) rounded nearest 100kbps
    */
@@ -20595,40 +20878,220 @@ const CmcdFormatters = {
 };
 
 /**
- * Internal CMCD processing function.
- *
- * @param obj - The CMCD object to process.
- * @param map - The mapping function to use.
- * @param options - Options for encoding.
- *
- * @internal
+ * CMCD request mode variable name.
  *
  * @group CMCD
+ *
+ * @beta
  */
-function processCmcd(obj, options) {
+const CMCD_REQUEST_MODE = 'request';
+
+/**
+ * CMCD response mode variable name.
+ *
+ * @group CMCD
+ *
+ * @beta
+ */
+const CMCD_RESPONSE_MODE = 'response';
+
+/**
+ * Defines the common keys for CMCD (Common Media Client Data) version 2.
+ *
+ * @group CMCD
+ *
+ * @beta
+ */
+const CMCD_COMMON_KEYS = ['ab', 'bg', 'bl', 'br', 'bs', 'bsd', 'cdn', 'cid', 'cs', 'df', 'ec', 'lab', 'lb', 'ltc', 'msd', 'mtp', 'pb', 'pr', 'pt', 'sf', 'sid', 'sn', 'st', 'sta', 'tab', 'tb', 'tbl', 'tpb', 'ts', 'v'];
+
+/**
+ * Defines the event-specific keys for CMCD (Common Media Client Data) version 2.
+ *
+ * @group CMCD
+ *
+ * @beta
+ */
+const CMCD_EVENT_KEYS = ['e'];
+
+const CUSTOM_KEY_REGEX = /^[a-zA-Z0-9-.]+-[a-zA-Z0-9-.]+$/;
+/**
+ * Check if a key is a custom key.
+ *
+ * @param key - The key to check.
+ *
+ * @returns `true` if the key is a custom key, `false` otherwise.
+ *
+ * @group CMCD
+ *
+ * @beta
+ */
+function isCmcdCustomKey(key) {
+  return CUSTOM_KEY_REGEX.test(key);
+}
+
+/**
+ * Check if a key is a valid CMCD event key.
+ *
+ * @param key - The key to check.
+ *
+ * @returns `true` if the key is a valid CMCD event key, `false` otherwise.
+ *
+ * @group CMCD
+ *
+ * @beta
+ *
+ * @example
+ * {@includeCode ../../test/cmcd/isCmcdEventKey.test.ts#example}
+ */
+function isCmcdEventKey(key) {
+  return CMCD_COMMON_KEYS.includes(key) || CMCD_EVENT_KEYS.includes(key) || isCmcdCustomKey(key);
+}
+
+/**
+ * Defines the request-specific keys for CMCD (Common Media Client Data) version 2.
+ *
+ * @group CMCD
+ *
+ * @beta
+ */
+const CMCD_REQUEST_KEYS = ['d', 'dl', 'nor', 'ot', 'rtp', 'su'];
+
+/**
+ * Check if a key is a valid CMCD request key.
+ *
+ * @param key - The key to check.
+ *
+ * @returns `true` if the key is a valid CMCD request key, `false` otherwise.
+ *
+ * @group CMCD
+ *
+ * @beta
+ *
+ * @example
+ * {@includeCode ../../test/cmcd/isCmcdRequestKey.test.ts#example}
+ */
+function isCmcdRequestKey(key) {
+  return CMCD_COMMON_KEYS.includes(key) || CMCD_REQUEST_KEYS.includes(key) || isCmcdCustomKey(key);
+}
+
+/**
+ * CMCD v2 - Response-only and timing keys.
+ *
+ * @group CMCD
+ *
+ * @beta
+ */
+const CMCD_RESPONSE_KEYS = ['cmsdd', 'cmsds', 'rc', 'smrt', 'ttfb', 'ttfbb', 'ttlb', 'url'];
+
+/**
+ * Check if a key is a valid CMCD response key.
+ *
+ * @param key - The key to check.
+ *
+ * @returns `true` if the key is a valid CMCD request key, `false` otherwise.
+ *
+ * @group CMCD
+ *
+ * @beta
+ *
+ * @example
+ * {@includeCode ../../test/cmcd/isCmcdResponseKey.test.ts#example}
+ */
+function isCmcdResponseKey(key) {
+  return CMCD_COMMON_KEYS.includes(key) || CMCD_REQUEST_KEYS.includes(key) || CMCD_RESPONSE_KEYS.includes(key) || isCmcdCustomKey(key);
+}
+
+/**
+ * Defines the keys for CMCD (Common Media Client Data) version 1.
+ *
+ * @group CMCD
+ *
+ * @beta
+ */
+const CMCD_V1_KEYS = ['bl', 'br', 'bs', 'cid', 'd', 'dl', 'mtp', 'nor', 'nrr', 'ot', 'pr', 'rtp', 'sf', 'sid', 'st', 'su', 'tb', 'v'];
+
+/**
+ * Filter function for CMCD v1 keys.
+ *
+ * @param key - The CMCD key to filter.
+ *
+ * @returns `true` if the key should be included, `false` otherwise.
+ *
+ * @group CMCD
+ *
+ * @beta
+ *
+ * @example
+ * {@includeCode ../../test/cmcd/isCmcdV1Key.test.ts#example}
+ */
+function isCmcdV1Key(key) {
+  return CMCD_V1_KEYS.includes(key) || isCmcdCustomKey(key);
+}
+
+const filterMap = {
+  [CMCD_RESPONSE_MODE]: isCmcdResponseKey,
+  [CMCD_EVENT_MODE]: isCmcdEventKey,
+  [CMCD_REQUEST_MODE]: isCmcdRequestKey
+};
+/**
+ * Convert a generic object to CMCD data.
+ *
+ * @param obj - The CMCD object to process.
+ * @param options - Options for encoding.
+ *
+ * @group CMCD
+ *
+ * @beta
+ */
+function prepareCmcdData(obj, options = {}) {
   const results = {};
   if (obj == null || typeof obj !== 'object') {
     return results;
   }
-  const keys = Object.keys(obj).sort();
-  const formatters = _extends({}, CmcdFormatters, options === null || options === void 0 ? void 0 : options.formatters);
-  const filter = options === null || options === void 0 ? void 0 : options.filter;
-  keys.forEach(key => {
-    if (filter === null || filter === void 0 ? void 0 : filter(key)) {
-      return;
-    }
+  const version = options.version || obj['v'] || 1;
+  const reportingMode = options.reportingMode || CMCD_REQUEST_MODE;
+  const keyFilter = version === 1 ? isCmcdV1Key : filterMap[reportingMode];
+  // Filter keys based on the version, reporting mode and options
+  let keys = Object.keys(obj).filter(keyFilter);
+  const filter = options.filter;
+  if (typeof filter === 'function') {
+    keys = keys.filter(filter);
+  }
+  // Ensure all required keys are present before sorting
+  const needsTimestamp = reportingMode === CMCD_RESPONSE_MODE || reportingMode === CMCD_EVENT_MODE;
+  if (needsTimestamp && !keys.includes('ts')) {
+    keys.push('ts');
+  }
+  if (version > 1 && !keys.includes('v')) {
+    keys.push('v');
+  }
+  const formatters = _extends({}, CMCD_FORMATTER_MAP, options.formatters);
+  const formatterOptions = {
+    version,
+    reportingMode,
+    baseUrl: options.baseUrl
+  };
+  keys.sort().forEach(key => {
     let value = obj[key];
     const formatter = formatters[key];
-    if (formatter) {
-      value = formatter(value, options);
+    if (typeof formatter === 'function') {
+      value = formatter(value, formatterOptions);
     }
     // Version should only be reported if not equal to 1.
-    if (key === 'v' && value === 1) {
-      return;
+    if (key === 'v') {
+      if (version === 1) {
+        return;
+      } else {
+        value = version;
+      }
     }
     // Playback rate should only be sent if not equal to 1.
     if (key == 'pr' && value === 1) {
       return;
+    }
+    // Ensure a timestamp is set for response and event modes
+    if (needsTimestamp && key === 'ts' && !isFiniteNumber(value)) {
+      value = Date.now();
     }
     // ignore invalid values
     if (!isValid(value)) {
@@ -20643,27 +21106,6 @@ function processCmcd(obj, options) {
 }
 
 /**
- * Encode a CMCD object to a string.
- *
- * @param cmcd - The CMCD object to encode.
- * @param options - Options for encoding.
- *
- * @returns The encoded CMCD string.
- *
- * @group CMCD
- *
- * @beta
- */
-function encodeCmcd(cmcd, options = {}) {
-  if (!cmcd) {
-    return '';
-  }
-  return encodeSfDict(processCmcd(cmcd, options), _extends({
-    whitespace: false
-  }, options));
-}
-
-/**
  * Convert a CMCD data object to request headers
  *
  * @param cmcd - The CMCD data object to convert.
@@ -20674,24 +21116,24 @@ function encodeCmcd(cmcd, options = {}) {
  * @group CMCD
  *
  * @beta
+ *
+ * @example
+ * {@includeCode ../../test/cmcd/toCmcdHeaders.test.ts#example}
  */
 function toCmcdHeaders(cmcd, options = {}) {
   const result = {};
   if (!cmcd) {
     return result;
   }
-  const entries = Object.entries(cmcd);
-  const headerMap = Object.entries(CmcdHeaderMap).concat(Object.entries((options === null || options === void 0 ? void 0 : options.customHeaderMap) || {}));
-  const shards = entries.reduce((acc, entry) => {
-    var _a, _b;
-    const [key, value] = entry;
-    const field = ((_a = headerMap.find(entry => entry[1].includes(key))) === null || _a === void 0 ? void 0 : _a[0]) || CmcdHeaderField.REQUEST;
-    (_b = acc[field]) !== null && _b !== void 0 ? _b : acc[field] = {};
-    acc[field][key] = value;
-    return acc;
-  }, {});
+  const data = prepareCmcdData(cmcd, options);
+  const shards = groupCmcdHeaders(data, options === null || options === void 0 ? void 0 : options.customHeaderMap);
   return Object.entries(shards).reduce((acc, [field, value]) => {
-    acc[field] = encodeCmcd(value, options);
+    const shard = encodeSfDict(value, {
+      whitespace: false
+    });
+    if (shard) {
+      acc[field] = shard;
+    }
     return acc;
   }, result);
 }
@@ -20708,6 +21150,9 @@ function toCmcdHeaders(cmcd, options = {}) {
  * @group CMCD
  *
  * @beta
+ *
+ * @example
+ * {@includeCode ../../test/cmcd/appendCmcdHeaders.test.ts#example}
  */
 function appendCmcdHeaders(headers, cmcd, options) {
   return _extends(headers, toCmcdHeaders(cmcd, options));
@@ -20723,6 +21168,50 @@ function appendCmcdHeaders(headers, cmcd, options) {
 const CMCD_PARAM = 'CMCD';
 
 /**
+ * Encode a CMCD object to a string.
+ *
+ * @param cmcd - The CMCD object to encode.
+ * @param options - Options for encoding.
+ *
+ * @returns The encoded CMCD string.
+ *
+ * @group CMCD
+ *
+ * @beta
+ *
+ * @example
+ * {@includeCode ../../test/cmcd/encodeCmcd.test.ts#example}
+ */
+function encodeCmcd(cmcd, options = {}) {
+  if (!cmcd) {
+    return '';
+  }
+  return encodeSfDict(prepareCmcdData(cmcd, options), {
+    whitespace: false
+  });
+}
+
+/**
+ * Convert a CMCD data object to a URL encoded string.
+ *
+ * @param cmcd - The CMCD object to convert.
+ * @param options - Options for encoding the CMCD object.
+ *
+ * @returns The URL encoded CMCD data.
+ *
+ * @group CMCD
+ *
+ * @beta
+ */
+function toCmcdUrl(cmcd, options = {}) {
+  if (!cmcd) {
+    return '';
+  }
+  const params = encodeCmcd(cmcd, options);
+  return encodeURIComponent(params);
+}
+
+/**
  * Convert a CMCD data object to a query arg.
  *
  * @param cmcd - The CMCD object to convert.
@@ -20733,13 +21222,16 @@ const CMCD_PARAM = 'CMCD';
  * @group CMCD
  *
  * @beta
+ *
+ * @example
+ * {@includeCode ../../test/cmcd/toCmcdQuery.test.ts#example}
  */
 function toCmcdQuery(cmcd, options = {}) {
   if (!cmcd) {
     return '';
   }
-  const params = encodeCmcd(cmcd, options);
-  return `${CMCD_PARAM}=${encodeURIComponent(params)}`;
+  const value = toCmcdUrl(cmcd, options);
+  return `${CMCD_PARAM}=${value}`;
 }
 
 const REGEX = /CMCD=[^&#]+/;
@@ -20755,6 +21247,9 @@ const REGEX = /CMCD=[^&#]+/;
  * @group CMCD
  *
  * @beta
+ *
+ * @example
+ * {@includeCode ../../test/cmcd/appendCmcdQuery.test.ts#example}
  */
 function appendCmcdQuery(url, cmcd, options) {
   // TODO: Replace with URLSearchParams once we drop Safari < 10.1 & Chrome < 49 support.
@@ -20962,12 +21457,12 @@ class CMCDController {
     return undefined;
   }
   getNextPart(part) {
-    var _this$hls$levels$frag2, _this$hls$levels$frag3;
+    var _this$hls$levels$frag2;
     const {
       index,
       fragment
     } = part;
-    const partList = (_this$hls$levels$frag2 = this.hls.levels[fragment.level]) == null ? void 0 : (_this$hls$levels$frag3 = _this$hls$levels$frag2.details) == null ? void 0 : _this$hls$levels$frag3.partList;
+    const partList = (_this$hls$levels$frag2 = this.hls.levels[fragment.level]) == null || (_this$hls$levels$frag2 = _this$hls$levels$frag2.details) == null ? void 0 : _this$hls$levels$frag2.partList;
     if (partList) {
       const {
         sn
@@ -21259,7 +21754,11 @@ class ContentSteeringController extends Logger {
         this.updatePathwayPriority(pathwayPriority);
         errorAction.resolved = this.pathwayId !== errorPathway;
       }
-      if (!errorAction.resolved) {
+      if (data.details === ErrorDetails.BUFFER_APPEND_ERROR && !data.fatal) {
+        // Error will become fatal in buffer-controller when reaching `appendErrorMaxRetry`
+        // Stream-controllers are expected to reduce buffer length even if this is not deemed a QuotaExceededError
+        errorAction.resolved = true;
+      } else if (!errorAction.resolved) {
         this.warn(`Could not resolve ${data.details} ("${data.error.message}") with content-steering for Pathway: ${errorPathway} levels: ${levels ? levels.length : levels} priorities: ${stringify(pathwayPriority)} penalized: ${stringify(this.penalizedPathways)}`);
       }
     }
@@ -21550,14 +22049,6 @@ function performUriReplacement(uri, stableId, perOptionKey, uriReplacement) {
   return url.href;
 }
 
-function addEventListener(el, type, listener) {
-  removeEventListener(el, type, listener);
-  el.addEventListener(type, listener);
-}
-function removeEventListener(el, type, listener) {
-  el.removeEventListener(type, listener);
-}
-
 /**
  * Controller to deal with encrypted media extensions (EME)
  * @see https://developer.mozilla.org/en-US/docs/Web/API/Encrypted_Media_Extensions_API
@@ -21578,6 +22069,7 @@ class EMEController extends Logger {
     this.keyIdToKeySessionPromise = {};
     this.mediaKeys = null;
     this.setMediaKeysQueue = EMEController.CDMCleanupPromise ? [EMEController.CDMCleanupPromise] : [];
+    this.bannedKeyIds = {};
     this.onMediaEncrypted = event => {
       const {
         initDataType,
@@ -21600,61 +22092,26 @@ class EMEController extends Logger {
       }
       this.keyFormatPromise.then(keySystemFormat => {
         const keySystem = keySystemFormatToKeySystemDomain(keySystemFormat);
-        let keyId;
-        let keySystemDomain;
-        if (initDataType === 'sinf') {
-          if (keySystem !== KeySystems.FAIRPLAY) {
-            this.warn(`Ignoring unexpected "${event.type}" event with init data type: "${initDataType}" for selected key-system ${keySystem}`);
-            return;
-          }
-          // Match sinf keyId to playlist skd://keyId=
-          const json = bin2str(new Uint8Array(initData));
-          try {
-            const sinf = base64Decode(JSON.parse(json).sinf);
-            const tenc = parseSinf(sinf);
-            if (!tenc) {
-              throw new Error(`'schm' box missing or not cbcs/cenc with schi > tenc`);
-            }
-            keyId = new Uint8Array(tenc.subarray(8, 24));
-            keySystemDomain = KeySystems.FAIRPLAY;
-          } catch (error) {
-            this.warn(`${logMessage} Failed to parse sinf: ${error}`);
-            return;
-          }
-        } else {
-          if (keySystem !== KeySystems.WIDEVINE && keySystem !== KeySystems.PLAYREADY) {
-            this.warn(`Ignoring unexpected "${event.type}" event with init data type: "${initDataType}" for selected key-system ${keySystem}`);
-            return;
-          }
-          // Support Widevine/PlayReady clear-lead key-session creation (otherwise depend on playlist keys)
-          const psshResults = parseMultiPssh(initData);
-          const psshInfos = psshResults.filter(pssh => !!pssh.systemId && keySystemIdToKeySystemDomain(pssh.systemId) === keySystem);
-          if (psshInfos.length > 1) {
-            this.warn(`${logMessage} Using first of ${psshInfos.length} pssh found for selected key-system ${keySystem}`);
-          }
-          const psshInfo = psshInfos[0];
-          if (!psshInfo) {
-            if (psshResults.length === 0 || psshResults.some(pssh => !pssh.systemId)) {
-              this.warn(`${logMessage} contains incomplete or invalid pssh data`);
-            } else {
-              this.log(`ignoring ${logMessage} for ${psshResults.map(pssh => keySystemIdToKeySystemDomain(pssh.systemId)).join(',')} pssh data in favor of playlist keys`);
-            }
-            return;
-          }
-          keySystemDomain = keySystemIdToKeySystemDomain(psshInfo.systemId);
-          if (psshInfo.version === 0 && psshInfo.data) {
-            if (keySystemDomain === KeySystems.WIDEVINE) {
-              const offset = psshInfo.data.length - 22;
-              keyId = new Uint8Array(psshInfo.data.subarray(offset, offset + 16));
-            } else if (keySystemDomain === KeySystems.PLAYREADY) {
-              keyId = parsePlayReadyWRM(psshInfo.data);
-            }
-          }
-        }
-        if (!keySystemDomain || !keyId) {
+        if (initDataType !== 'sinf' || keySystem !== KeySystems.FAIRPLAY) {
+          this.log(`Ignoring "${event.type}" event with init data type: "${initDataType}" for selected key-system ${keySystem}`);
           return;
         }
-        const keyIdHex = Hex.hexDump(keyId);
+
+        // Match sinf keyId to playlist skd://keyId=
+        let keyId;
+        try {
+          const json = bin2str(new Uint8Array(initData));
+          const sinf = base64Decode(JSON.parse(json).sinf);
+          const tenc = parseSinf(sinf);
+          if (!tenc) {
+            throw new Error(`'schm' box missing or not cbcs/cenc with schi > tenc`);
+          }
+          keyId = new Uint8Array(tenc.subarray(8, 24));
+        } catch (error) {
+          this.warn(`${logMessage} Failed to parse sinf: ${error}`);
+          return;
+        }
+        const keyIdHex = arrayToHex(keyId);
         const {
           keyIdToKeySessionPromise,
           mediaKeySessions
@@ -21667,9 +22124,12 @@ class EMEController extends Logger {
           if (!decryptdata.keyId) {
             continue;
           }
-          const oldKeyIdHex = Hex.hexDump(decryptdata.keyId);
+          const oldKeyIdHex = arrayToHex(decryptdata.keyId);
           if (keyIdHex === oldKeyIdHex || decryptdata.uri.replace(/-/g, '').indexOf(keyIdHex) !== -1) {
             keySessionContextPromise = keyIdToKeySessionPromise[oldKeyIdHex];
+            if (!keySessionContextPromise) {
+              continue;
+            }
             if (decryptdata.pssh) {
               break;
             }
@@ -21684,33 +22144,9 @@ class EMEController extends Logger {
           }
         }
         if (!keySessionContextPromise) {
-          if (keySystemDomain !== keySystem) {
-            this.log(`Ignoring "${event.type}" event with ${keySystemDomain} init data for selected key-system ${keySystem}`);
-            return;
-          }
-          // "Clear-lead" (misc key not encountered in playlist)
-          keySessionContextPromise = keyIdToKeySessionPromise[keyIdHex] = this.getKeySystemSelectionPromise([keySystemDomain]).then(({
-            keySystem,
-            mediaKeys
-          }) => {
-            var _keySystemToKeySystem;
-            this.throwIfDestroyed();
-            const decryptdata = new LevelKey('ISO-23001-7', keyIdHex, (_keySystemToKeySystem = keySystemDomainToKeySystemFormat(keySystem)) != null ? _keySystemToKeySystem : '');
-            decryptdata.pssh = new Uint8Array(initData);
-            decryptdata.keyId = keyId;
-            return this.attemptSetMediaKeys(keySystem, mediaKeys).then(() => {
-              this.throwIfDestroyed();
-              const keySessionContext = this.createMediaKeySessionContext({
-                decryptdata,
-                keySystem,
-                mediaKeys
-              });
-              return this.generateRequestWithPreferredKeySession(keySessionContext, initDataType, initData, 'encrypted-event-no-match');
-            });
-          });
-          keySessionContextPromise.catch(error => this.handleError(error));
+          this.handleError(new Error(`Key ID ${keyIdHex} not encountered in playlist. Key-system sessions ${mediaKeySessions.length}.`));
         }
-      });
+      }).catch(error => this.handleError(error));
     };
     this.onWaitingForKey = event => {
       this.log(`"${event.type}" event`);
@@ -21751,7 +22187,7 @@ class EMEController extends Logger {
       drmSystems,
       widevineLicenseUrl
     } = this.config;
-    const keySystemConfiguration = drmSystems[keySystem];
+    const keySystemConfiguration = drmSystems == null ? void 0 : drmSystems[keySystem];
     if (keySystemConfiguration) {
       return keySystemConfiguration.licenseUrl;
     }
@@ -21772,7 +22208,7 @@ class EMEController extends Logger {
     const {
       drmSystems
     } = this.config;
-    const keySystemConfiguration = drmSystems[keySystem];
+    const keySystemConfiguration = drmSystems == null ? void 0 : drmSystems[keySystem];
     if (keySystemConfiguration) {
       return keySystemConfiguration.serverCertificateUrl;
     } else {
@@ -21825,14 +22261,15 @@ class EMEController extends Logger {
     return requestMediaKeySystemAccessFunc(keySystem, supportedConfigurations);
   }
   getMediaKeysPromise(keySystem, audioCodecs, videoCodecs) {
+    var _keySystemAccessPromi;
     // This can throw, but is caught in event handler callpath
-    const mediaKeySystemConfigs = getSupportedMediaKeySystemConfigurations(keySystem, audioCodecs, videoCodecs, this.config.drmSystemOptions);
-    const keySystemAccessPromises = this.keySystemAccessPromises[keySystem];
-    let keySystemAccess = keySystemAccessPromises == null ? void 0 : keySystemAccessPromises.keySystemAccess;
+    const mediaKeySystemConfigs = getSupportedMediaKeySystemConfigurations(keySystem, audioCodecs, videoCodecs, this.config.drmSystemOptions || {});
+    let keySystemAccessPromises = this.keySystemAccessPromises[keySystem];
+    let keySystemAccess = (_keySystemAccessPromi = keySystemAccessPromises) == null ? void 0 : _keySystemAccessPromi.keySystemAccess;
     if (!keySystemAccess) {
       this.log(`Requesting encrypted media "${keySystem}" key-system access with config: ${stringify(mediaKeySystemConfigs)}`);
       keySystemAccess = this.requestMediaKeySystemAccess(keySystem, mediaKeySystemConfigs);
-      const _keySystemAccessPromises = this.keySystemAccessPromises[keySystem] = {
+      const keySystemAccessPromisesNew = keySystemAccessPromises = this.keySystemAccessPromises[keySystem] = {
         keySystemAccess
       };
       keySystemAccess.catch(error => {
@@ -21842,9 +22279,9 @@ class EMEController extends Logger {
         this.log(`Access for key-system "${mediaKeySystemAccess.keySystem}" obtained`);
         const certificateRequest = this.fetchServerCertificate(keySystem);
         this.log(`Create media-keys for "${keySystem}"`);
-        _keySystemAccessPromises.mediaKeys = mediaKeySystemAccess.createMediaKeys().then(mediaKeys => {
+        const mediaKeys = keySystemAccessPromisesNew.mediaKeys = mediaKeySystemAccess.createMediaKeys().then(mediaKeys => {
           this.log(`Media-keys created for "${keySystem}"`);
-          _keySystemAccessPromises.hasMediaKeys = true;
+          keySystemAccessPromisesNew.hasMediaKeys = true;
           return certificateRequest.then(certificate => {
             if (certificate) {
               return this.setMediaKeysServerCertificate(mediaKeys, keySystem, certificate);
@@ -21852,10 +22289,10 @@ class EMEController extends Logger {
             return mediaKeys;
           });
         });
-        _keySystemAccessPromises.mediaKeys.catch(error => {
+        mediaKeys.catch(error => {
           this.error(`Failed to create media-keys for "${keySystem}"}: ${error}`);
         });
-        return _keySystemAccessPromises.mediaKeys;
+        return mediaKeys;
       });
     }
     return keySystemAccess.then(() => keySystemAccessPromises.mediaKeys);
@@ -21865,7 +22302,7 @@ class EMEController extends Logger {
     keySystem,
     mediaKeys
   }) {
-    this.log(`Creating key-system session "${keySystem}" keyId: ${Hex.hexDump(decryptdata.keyId || [])}`);
+    this.log(`Creating key-system session "${keySystem}" keyId: ${arrayToHex(decryptdata.keyId || [])}`);
     const mediaKeysSession = mediaKeys.createSession();
     const mediaKeySessionContext = {
       decryptdata,
@@ -21887,6 +22324,7 @@ class EMEController extends Logger {
     } else {
       this.warn(`Could not renew expired session. Missing pssh initData.`);
     }
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.removeSession(mediaKeySessionContext);
   }
   getKeyIdString(decryptdata) {
@@ -21896,13 +22334,12 @@ class EMEController extends Logger {
     if (decryptdata.keyId === null) {
       throw new Error('keyId is null');
     }
-    return Hex.hexDump(decryptdata.keyId);
+    return arrayToHex(decryptdata.keyId);
   }
   updateKeySession(mediaKeySessionContext, data) {
-    var _mediaKeySessionConte;
     const keySession = mediaKeySessionContext.mediaKeysSession;
-    this.log(`Updating key-session "${keySession.sessionId}" for keyID ${Hex.hexDump(((_mediaKeySessionConte = mediaKeySessionContext.decryptdata) == null ? void 0 : _mediaKeySessionConte.keyId) || [])}
-      } (data length: ${data ? data.byteLength : data})`);
+    this.log(`Updating key-session "${keySession.sessionId}" for keyId ${arrayToHex(mediaKeySessionContext.decryptdata.keyId || [])}
+      } (data length: ${data.byteLength})`);
     return keySession.update(data);
   }
   getSelectedKeySystemFormats() {
@@ -21925,7 +22362,7 @@ class EMEController extends Logger {
   }
   selectKeySystem(keySystemsToAttempt) {
     return new Promise((resolve, reject) => {
-      return this.getKeySystemSelectionPromise(keySystemsToAttempt).then(({
+      this.getKeySystemSelectionPromise(keySystemsToAttempt).then(({
         keySystem
       }) => {
         const keySystemFormat = keySystemDomainToKeySystemFormat(keySystem);
@@ -21953,11 +22390,17 @@ class EMEController extends Logger {
   loadKey(data) {
     const decryptdata = data.keyInfo.decryptdata;
     const keyId = this.getKeyIdString(decryptdata);
+    const badStatus = this.bannedKeyIds[keyId];
+    if (badStatus) {
+      const error = getKeyStatusError(badStatus, decryptdata);
+      this.handleError(error, data.frag);
+      return Promise.reject(error);
+    }
     const keyDetails = `(keyId: ${keyId} format: "${decryptdata.keyFormat}" method: ${decryptdata.method} uri: ${decryptdata.uri})`;
     this.log(`Starting session for key ${keyDetails}`);
-    let keyContextPromise = this.keyIdToKeySessionPromise[keyId];
+    const keyContextPromise = this.keyIdToKeySessionPromise[keyId];
     if (!keyContextPromise) {
-      keyContextPromise = this.getKeySystemForKeyPromise(decryptdata).then(({
+      const keySessionContextPromise = this.getKeySystemForKeyPromise(decryptdata).then(({
         keySystem,
         mediaKeys
       }) => {
@@ -21971,13 +22414,14 @@ class EMEController extends Logger {
             decryptdata
           });
         });
-      });
-      const keySessionContextPromise = this.keyIdToKeySessionPromise[keyId] = keyContextPromise.then(keySessionContext => {
+      }).then(keySessionContext => {
         const scheme = 'cenc';
         const initData = decryptdata.pssh ? decryptdata.pssh.buffer : null;
         return this.generateRequestWithPreferredKeySession(keySessionContext, scheme, initData, 'playlist-key');
       });
-      keySessionContextPromise.catch(error => this.handleError(error));
+      keySessionContextPromise.catch(error => this.handleError(error, data.frag));
+      this.keyIdToKeySessionPromise[keyId] = keySessionContextPromise;
+      return keySessionContextPromise;
     }
     return keyContextPromise;
   }
@@ -21986,12 +22430,15 @@ class EMEController extends Logger {
       throw new Error('invalid state');
     }
   }
-  handleError(error) {
+  handleError(error, frag) {
     if (!this.hls) {
       return;
     }
     this.error(error.message);
     if (error instanceof EMEKeyError) {
+      if (frag) {
+        error.data.frag = frag;
+      }
       this.hls.trigger(Events.ERROR, error.data);
     } else {
       this.hls.trigger(Events.ERROR, {
@@ -22051,8 +22498,8 @@ class EMEController extends Logger {
     });
   }
   generateRequestWithPreferredKeySession(context, initDataType, initData, reason) {
-    var _this$config$drmSyste, _this$config$drmSyste2;
-    const generateRequestFilter = (_this$config$drmSyste = this.config.drmSystems) == null ? void 0 : (_this$config$drmSyste2 = _this$config$drmSyste[context.keySystem]) == null ? void 0 : _this$config$drmSyste2.generateRequest;
+    var _this$config$drmSyste;
+    const generateRequestFilter = (_this$config$drmSyste = this.config.drmSystems) == null || (_this$config$drmSyste = _this$config$drmSyste[context.keySystem]) == null ? void 0 : _this$config$drmSyste.generateRequest;
     if (generateRequestFilter) {
       try {
         const mappedInitData = generateRequestFilter.call(this.hls, initDataType, initData, context);
@@ -22063,9 +22510,8 @@ class EMEController extends Logger {
         initData = mappedInitData.initData ? mappedInitData.initData : null;
         context.decryptdata.pssh = initData ? new Uint8Array(initData) : null;
       } catch (error) {
-        var _this$hls;
         this.warn(error.message);
-        if ((_this$hls = this.hls) != null && _this$hls.config.debug) {
+        if (this.hls && this.hls.config.debug) {
           throw error;
         }
       }
@@ -22075,7 +22521,7 @@ class EMEController extends Logger {
       return Promise.resolve(context);
     }
     const keyId = this.getKeyIdString(context.decryptdata);
-    this.log(`Generating key-session request for "${reason}": ${keyId} (init data type: ${initDataType} length: ${initData ? initData.byteLength : null})`);
+    this.log(`Generating key-session request for "${reason}": ${keyId} (init data type: ${initDataType} length: ${initData.byteLength})`);
     const licenseStatus = new EventEmitter();
     const onmessage = context._onmessage = event => {
       const keySession = context.mediaKeysSession;
@@ -22098,7 +22544,9 @@ class EMEController extends Logger {
         });
       } else if (messageType === 'license-release') {
         if (context.keySystem === KeySystems.FAIRPLAY) {
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
           this.updateKeySession(context, strToUtf8array('acknowledged'));
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
           this.removeSession(context);
         }
       } else {
@@ -22111,52 +22559,48 @@ class EMEController extends Logger {
         licenseStatus.emit('error', new Error('invalid state'));
         return;
       }
+      const initialStatus = context.keyStatus;
       this.onKeyStatusChange(context);
-      const keyStatus = context.keyStatus;
-      licenseStatus.emit('keyStatus', keyStatus);
-      if (keyStatus === 'expired') {
-        this.warn(`${context.keySystem} expired for key ${keyId}`);
-        this.renewKeySession(context);
+      const status = context.keyStatus;
+      if (status !== initialStatus) {
+        licenseStatus.emit('keyStatus', status, context);
+        if (status === 'expired') {
+          this.log(`${context.keySystem} expired for key ${keyId}`);
+          this.renewKeySession(context);
+        }
       }
     };
     addEventListener(context.mediaKeysSession, 'message', onmessage);
     addEventListener(context.mediaKeysSession, 'keystatuseschange', onkeystatuseschange);
     const keyUsablePromise = new Promise((resolve, reject) => {
       licenseStatus.on('error', reject);
-      licenseStatus.on('keyStatus', keyStatus => {
+      licenseStatus.on('keyStatus', (keyStatus, {
+        decryptdata
+      }) => {
         if (keyStatus.startsWith('usable')) {
           resolve();
-        } else if (keyStatus === 'output-restricted') {
-          reject(new EMEKeyError({
-            type: ErrorTypes.KEY_SYSTEM_ERROR,
-            details: ErrorDetails.KEY_SYSTEM_STATUS_OUTPUT_RESTRICTED,
-            fatal: false
-          }, 'HDCP level output restricted'));
-        } else if (keyStatus === 'internal-error') {
-          reject(new EMEKeyError({
-            type: ErrorTypes.KEY_SYSTEM_ERROR,
-            details: ErrorDetails.KEY_SYSTEM_STATUS_INTERNAL_ERROR,
-            fatal: true
-          }, `key status changed to "${keyStatus}"`));
+        } else if (keyStatus === 'internal-error' || keyStatus === 'output-restricted') {
+          reject(getKeyStatusError(keyStatus, decryptdata));
         } else if (keyStatus === 'expired') {
-          reject(new Error('key expired while generating request'));
+          reject(new Error(`key expired while generating request (keyId: ${keyId})`));
         } else {
-          this.warn(`unhandled key status change "${keyStatus}"`);
+          this.warn(`unhandled key status change "${keyStatus}" (keyId: ${keyId})`);
         }
       });
     });
     return context.mediaKeysSession.generateRequest(initDataType, initData).then(() => {
-      var _context$mediaKeysSes;
-      this.log(`Request generated for key-session "${(_context$mediaKeysSes = context.mediaKeysSession) == null ? void 0 : _context$mediaKeysSes.sessionId}" keyId: ${keyId}`);
+      this.log(`Request generated for key-session "${context.mediaKeysSession.sessionId}" keyId: ${keyId}`);
     }).catch(error => {
       throw new EMEKeyError({
         type: ErrorTypes.KEY_SYSTEM_ERROR,
         details: ErrorDetails.KEY_SYSTEM_NO_SESSION,
         error,
+        decryptdata: context.decryptdata,
         fatal: false
       }, `Error generating key-session request: ${error}`);
     }).then(() => keyUsablePromise).catch(error => {
       licenseStatus.removeAllListeners();
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.removeSession(context);
       throw error;
     }).then(() => {
@@ -22165,6 +22609,7 @@ class EMEController extends Logger {
     });
   }
   onKeyStatusChange(mediaKeySessionContext) {
+    const sessionLevelKeyId = arrayToHex(new Uint8Array(mediaKeySessionContext.decryptdata.keyId || []));
     mediaKeySessionContext.mediaKeysSession.keyStatuses.forEach((status, keyId) => {
       // keyStatuses.forEach is not standard API so the callback value looks weird on xboxone
       // xboxone callback(keyId, status) so we need to exchange them
@@ -22173,8 +22618,19 @@ class EMEController extends Logger {
         keyId = status;
         status = temp;
       }
-      this.log(`key status change "${status}" for keyStatuses keyId: ${Hex.hexDump('buffer' in keyId ? new Uint8Array(keyId.buffer, keyId.byteOffset, keyId.byteLength) : new Uint8Array(keyId))} session keyId: ${Hex.hexDump(new Uint8Array(mediaKeySessionContext.decryptdata.keyId || []))} uri: ${mediaKeySessionContext.decryptdata.uri}`);
-      mediaKeySessionContext.keyStatus = status;
+      const keyIdWithStatusChange = arrayToHex('buffer' in keyId ? new Uint8Array(keyId.buffer, keyId.byteOffset, keyId.byteLength) : new Uint8Array(keyId));
+
+      // Error immediately when encountering a key ID with this status again
+      if (status === 'internal-error') {
+        this.bannedKeyIds[keyIdWithStatusChange] = status;
+      }
+
+      // Only acknowledge status changes for level-key ID
+      const matched = keyIdWithStatusChange === sessionLevelKeyId;
+      this.log(`${matched ? '' : 'un'}matched key status change "${status}" for keyStatuses keyId: ${keyIdWithStatusChange} session keyId: ${sessionLevelKeyId} uri: ${mediaKeySessionContext.decryptdata.uri}`);
+      if (matched) {
+        mediaKeySessionContext.keyStatus = status;
+      }
     });
   }
   fetchServerCertificate(keySystem) {
@@ -22237,7 +22693,7 @@ class EMEController extends Logger {
   setMediaKeysServerCertificate(mediaKeys, keySystem, cert) {
     return new Promise((resolve, reject) => {
       mediaKeys.setServerCertificate(cert).then(success => {
-        this.log(`setServerCertificate ${success ? 'success' : 'not supported by CDM'} (${cert == null ? void 0 : cert.byteLength}) on "${keySystem}"`);
+        this.log(`setServerCertificate ${success ? 'success' : 'not supported by CDM'} (${cert.byteLength}) on "${keySystem}"`);
         resolve(mediaKeys);
       }).catch(error => {
         reject(new EMEKeyError({
@@ -22255,8 +22711,9 @@ class EMEController extends Logger {
         throw new EMEKeyError({
           type: ErrorTypes.KEY_SYSTEM_ERROR,
           details: ErrorDetails.KEY_SYSTEM_SESSION_UPDATE_FAILED,
+          decryptdata: context.decryptdata,
           error,
-          fatal: true
+          fatal: false
         }, error.message);
       });
     });
@@ -22365,6 +22822,7 @@ class EMEController extends Logger {
               reject(new EMEKeyError({
                 type: ErrorTypes.KEY_SYSTEM_ERROR,
                 details: ErrorDetails.KEY_SYSTEM_LICENSE_REQUEST_FAILED,
+                decryptdata: keySessionContext.decryptdata,
                 fatal: true,
                 networkDetails: xhr,
                 response: {
@@ -22394,7 +22852,7 @@ class EMEController extends Logger {
           licenseChallenge = this.unpackPlayReadyKeyMessage(xhr, licenseChallenge);
         }
         xhr.send(licenseChallenge);
-      });
+      }).catch(reject);
     });
   }
   onDestroying() {
@@ -22425,6 +22883,7 @@ class EMEController extends Logger {
     var _media$setMediaKeys;
     this._requestLicenseFailureCount = 0;
     this.keyIdToKeySessionPromise = {};
+    this.bannedKeyIds = {};
     if (!this.mediaKeys && !this.mediaKeySessions.length) {
       return;
     }
@@ -22436,19 +22895,19 @@ class EMEController extends Logger {
 
     // Close all sessions and remove media keys from the video element.
     const keySessionCount = mediaKeysList.length;
-    EMEController.CDMCleanupPromise = Promise.all(mediaKeysList.map(mediaKeySessionContext => this.removeSession(mediaKeySessionContext)).concat(media == null ? void 0 : (_media$setMediaKeys = media.setMediaKeys(null)) == null ? void 0 : _media$setMediaKeys.catch(error => {
-      var _this$hls2;
+    EMEController.CDMCleanupPromise = Promise.all(mediaKeysList.map(mediaKeySessionContext => this.removeSession(mediaKeySessionContext)).concat(media == null || (_media$setMediaKeys = media.setMediaKeys(null)) == null ? void 0 : _media$setMediaKeys.catch(error => {
       this.log(`Could not clear media keys: ${error}`);
-      (_this$hls2 = this.hls) == null ? void 0 : _this$hls2.trigger(Events.ERROR, {
+      if (!this.hls) return;
+      this.hls.trigger(Events.ERROR, {
         type: ErrorTypes.OTHER_ERROR,
         details: ErrorDetails.KEY_SYSTEM_DESTROY_MEDIA_KEYS_ERROR,
         fatal: false,
         error: new Error(`Could not clear media keys: ${error}`)
       });
     }))).catch(error => {
-      var _this$hls3;
       this.log(`Could not close sessions and clear media keys: ${error}`);
-      (_this$hls3 = this.hls) == null ? void 0 : _this$hls3.trigger(Events.ERROR, {
+      if (!this.hls) return;
+      this.hls.trigger(Events.ERROR, {
         type: ErrorTypes.OTHER_ERROR,
         details: ErrorDetails.KEY_SYSTEM_DESTROY_CLOSE_SESSION_ERROR,
         fatal: false,
@@ -22462,6 +22921,7 @@ class EMEController extends Logger {
   }
   onManifestLoading() {
     this.keyFormatPromise = null;
+    this.bannedKeyIds = {};
   }
   onManifestLoaded(event, {
     sessionKeys
@@ -22483,10 +22943,11 @@ class EMEController extends Logger {
   removeSession(mediaKeySessionContext) {
     const {
       mediaKeysSession,
-      licenseXhr
+      licenseXhr,
+      decryptdata
     } = mediaKeySessionContext;
     if (mediaKeysSession) {
-      this.log(`Remove licenses and keys and close session ${mediaKeysSession.sessionId}`);
+      this.log(`Remove licenses and keys and close session "${mediaKeysSession.sessionId}" keyId: ${arrayToHex((decryptdata == null ? void 0 : decryptdata.keyId) || [])}`);
       if (mediaKeySessionContext._onmessage) {
         mediaKeysSession.removeEventListener('message', mediaKeySessionContext._onmessage);
         mediaKeySessionContext._onmessage = undefined;
@@ -22508,12 +22969,12 @@ class EMEController extends Logger {
       } = this.config;
       const removePromise = isPersistentSessionType(drmSystemOptions) ? new Promise((resolve, reject) => {
         self.setTimeout(() => reject(new Error(`MediaKeySession.remove() timeout`)), 8000);
-        mediaKeysSession.remove().then(resolve);
+        mediaKeysSession.remove().then(resolve).catch(reject);
       }) : Promise.resolve();
       return removePromise.catch(error => {
-        var _this$hls4;
         this.log(`Could not remove session: ${error}`);
-        (_this$hls4 = this.hls) == null ? void 0 : _this$hls4.trigger(Events.ERROR, {
+        if (!this.hls) return;
+        this.hls.trigger(Events.ERROR, {
           type: ErrorTypes.OTHER_ERROR,
           details: ErrorDetails.KEY_SYSTEM_DESTROY_REMOVE_SESSION_ERROR,
           fatal: false,
@@ -22522,9 +22983,9 @@ class EMEController extends Logger {
       }).then(() => {
         return mediaKeysSession.close();
       }).catch(error => {
-        var _this$hls5;
         this.log(`Could not close session: ${error}`);
-        (_this$hls5 = this.hls) == null ? void 0 : _this$hls5.trigger(Events.ERROR, {
+        if (!this.hls) return;
+        this.hls.trigger(Events.ERROR, {
           type: ErrorTypes.OTHER_ERROR,
           details: ErrorDetails.KEY_SYSTEM_DESTROY_CLOSE_SESSION_ERROR,
           fatal: false,
@@ -22543,6 +23004,16 @@ class EMEKeyError extends Error {
     this.data = data;
     data.err = data.error;
   }
+}
+function getKeyStatusError(keyStatus, decryptdata) {
+  const outputRestricted = keyStatus === 'output-restricted';
+  const details = outputRestricted ? ErrorDetails.KEY_SYSTEM_STATUS_OUTPUT_RESTRICTED : ErrorDetails.KEY_SYSTEM_STATUS_INTERNAL_ERROR;
+  return new EMEKeyError({
+    type: ErrorTypes.KEY_SYSTEM_ERROR,
+    details,
+    fatal: false,
+    decryptdata
+  }, outputRestricted ? 'HDCP level output restricted' : `key status changed to "${keyStatus}"`);
 }
 
 class FPSController {
@@ -23314,7 +23785,7 @@ class InterstitialEvent {
   reset() {
     var _this$assetListLoader;
     this.appendInPlaceStarted = false;
-    (_this$assetListLoader = this.assetListLoader) == null ? void 0 : _this$assetListLoader.destroy();
+    (_this$assetListLoader = this.assetListLoader) == null || _this$assetListLoader.destroy();
     this.assetListLoader = undefined;
     if (!this.supplementsPrimary) {
       this.assetListResponse = null;
@@ -23508,21 +23979,13 @@ class HlsAssetPlayer {
     this._currentTime = void 0;
     this._bufferedEosTime = void 0;
     this.checkPlayout = () => {
-      if (this.reachedPlayout(this.currentTime)) {
+      if (this.reachedPlayout(this.currentTime) && this.hls) {
         this.hls.trigger(Events.PLAYOUT_LIMIT_REACHED, {});
       }
     };
     const hls = this.hls = new HlsPlayerClass(userConfig);
     this.interstitial = interstitial;
     this.assetItem = assetItem;
-    let uri = assetItem.uri;
-    try {
-      uri = getInterstitialUrl(uri, userConfig.primarySessionId).href;
-    } catch (error) {
-      // Ignore error parsing ASSET_URI or adding _HLS_primary_id to it. The
-      // issue should surface as an INTERSTITIAL_ASSET_ERROR loading the asset.
-    }
-    hls.loadSource(uri);
     const detailsLoaded = () => {
       this.hasDetails = true;
     };
@@ -23550,8 +24013,25 @@ class HlsAssetPlayer {
     });
   }
   get appendInPlace() {
-    var _this$interstitial;
-    return ((_this$interstitial = this.interstitial) == null ? void 0 : _this$interstitial.appendInPlace) || false;
+    return this.interstitial.appendInPlace;
+  }
+  loadSource() {
+    const hls = this.hls;
+    if (!hls) {
+      return;
+    }
+    if (!hls.url) {
+      let uri = this.assetItem.uri;
+      try {
+        uri = getInterstitialUrl(uri, hls.config.primarySessionId || '').href;
+      } catch (error) {
+        // Ignore error parsing ASSET_URI or adding _HLS_primary_id to it. The
+        // issue should surface as an INTERSTITIAL_ASSET_ERROR loading the asset.
+      }
+      hls.loadSource(uri);
+    } else if (hls.levels.length && !hls.started) {
+      hls.startLoad(-1, true);
+    }
   }
   bufferedInPlaceToEnd(media) {
     var _this$hls;
@@ -23561,13 +24041,14 @@ class HlsAssetPlayer {
     if ((_this$hls = this.hls) != null && _this$hls.bufferedToEnd) {
       return true;
     }
-    if (!media || !this._bufferedEosTime) {
+    if (!media) {
       return false;
     }
+    const duration = Math.min(this._bufferedEosTime || Infinity, this.duration);
     const start = this.timelineOffset;
     const bufferInfo = BufferHelper.bufferInfo(media, start, 0);
     const bufferedEnd = this.getAssetTime(bufferInfo.end);
-    return bufferedEnd >= this._bufferedEosTime - 0.02;
+    return bufferedEnd >= duration - 0.02;
   }
   reachedPlayout(time) {
     const interstitial = this.interstitial;
@@ -23611,6 +24092,13 @@ class HlsAssetPlayer {
     if (!duration) {
       return 0;
     }
+    const playoutLimit = this.interstitial.playoutLimit;
+    if (playoutLimit) {
+      const assetPlayout = playoutLimit - this.startOffset;
+      if (assetPlayout > 0 && assetPlayout < duration) {
+        return assetPlayout;
+      }
+    }
     return duration;
   }
   get remaining() {
@@ -23631,7 +24119,7 @@ class HlsAssetPlayer {
     const timelineOffset = this.timelineOffset;
     if (value !== timelineOffset) {
       const diff = value - timelineOffset;
-      if (Math.abs(diff) > 1 / 90000) {
+      if (Math.abs(diff) > 1 / 90000 && this.hls) {
         if (this.hasDetails) {
           throw new Error(`Cannot set timelineOffset after playlists are loaded`);
         }
@@ -23662,33 +24150,40 @@ class HlsAssetPlayer {
   }
   destroy() {
     this.removeMediaListeners();
-    this.hls.destroy();
-    // @ts-ignore
-    this.hls = this.interstitial = null;
+    if (this.hls) {
+      this.hls.destroy();
+    }
+    this.hls = null;
     // @ts-ignore
     this.tracks = this.mediaAttached = this.checkPlayout = null;
   }
   attachMedia(data) {
-    this.hls.attachMedia(data);
+    var _this$hls6;
+    this.loadSource();
+    (_this$hls6 = this.hls) == null || _this$hls6.attachMedia(data);
   }
   detachMedia() {
+    var _this$hls7;
     this.removeMediaListeners();
     this.mediaAttached = null;
-    this.hls.detachMedia();
+    (_this$hls7 = this.hls) == null || _this$hls7.detachMedia();
   }
   resumeBuffering() {
-    this.hls.resumeBuffering();
+    var _this$hls8;
+    (_this$hls8 = this.hls) == null || _this$hls8.resumeBuffering();
   }
   pauseBuffering() {
-    this.hls.pauseBuffering();
+    var _this$hls9;
+    (_this$hls9 = this.hls) == null || _this$hls9.pauseBuffering();
   }
   transferMedia() {
+    var _this$hls0;
     this.bufferSnapShot();
-    return this.hls.transferMedia();
+    return ((_this$hls0 = this.hls) == null ? void 0 : _this$hls0.transferMedia()) || null;
   }
   resetDetails() {
     const hls = this.hls;
-    if (this.hasDetails) {
+    if (hls && this.hasDetails) {
       hls.stopLoad();
       const deleteDetails = obj => delete obj.details;
       hls.levels.forEach(deleteDetails);
@@ -23698,17 +24193,20 @@ class HlsAssetPlayer {
     }
   }
   on(event, listener, context) {
-    this.hls.on(event, listener);
+    var _this$hls1;
+    (_this$hls1 = this.hls) == null || _this$hls1.on(event, listener);
   }
   once(event, listener, context) {
-    this.hls.once(event, listener);
+    var _this$hls10;
+    (_this$hls10 = this.hls) == null || _this$hls10.once(event, listener);
   }
   off(event, listener, context) {
-    this.hls.off(event, listener);
+    var _this$hls11;
+    (_this$hls11 = this.hls) == null || _this$hls11.off(event, listener);
   }
   toString() {
-    var _this$hls6;
-    return `HlsAssetPlayer: ${eventAssetToString(this.assetItem)} ${(_this$hls6 = this.hls) == null ? void 0 : _this$hls6.sessionId} ${this.appendInPlace ? 'append-in-place' : ''}`;
+    var _this$hls12;
+    return `HlsAssetPlayer: ${eventAssetToString(this.assetItem)} ${(_this$hls12 = this.hls) == null ? void 0 : _this$hls12.sessionId} ${this.appendInPlace ? 'append-in-place' : ''}`;
   }
 }
 
@@ -23845,7 +24343,7 @@ class InterstitialsSchedule extends Logger {
         const asset = assetList[i];
         if (!asset.error) {
           const timelineStart = asset.timelineStart;
-          if (timelinePos === timelineStart || timelinePos > timelineStart && timelinePos < timelineStart + (asset.duration || 0)) {
+          if (timelinePos === timelineStart || timelinePos > timelineStart && (timelinePos < timelineStart + (asset.duration || 0) || i === length - 1)) {
             return i;
           }
         }
@@ -23854,8 +24352,8 @@ class InterstitialsSchedule extends Logger {
     return 0;
   }
   get assetIdAtEnd() {
-    var _this$items, _this$items2;
-    const interstitialAtEnd = (_this$items = this.items) == null ? void 0 : (_this$items2 = _this$items[this.length - 1]) == null ? void 0 : _this$items2.event;
+    var _this$items;
+    const interstitialAtEnd = (_this$items = this.items) == null || (_this$items = _this$items[this.length - 1]) == null ? void 0 : _this$items.event;
     if (interstitialAtEnd) {
       const assetList = interstitialAtEnd.assetList;
       const assetAtEnd = assetList[assetList.length - 1];
@@ -23914,12 +24412,12 @@ class InterstitialsSchedule extends Logger {
     });
     this.updateSchedule(mediaSelection, removedInterstitials);
   }
-  updateSchedule(mediaSelection, removedInterstitials = []) {
+  updateSchedule(mediaSelection, removedInterstitials = [], forceUpdate = false) {
     const events = this.events || [];
     if (events.length || removedInterstitials.length || this.length < 2) {
       const currentItems = this.items;
       const updatedItems = this.parseSchedule(events, mediaSelection);
-      const updated = removedInterstitials.length || (currentItems == null ? void 0 : currentItems.length) !== updatedItems.length || updatedItems.some((item, i) => {
+      const updated = forceUpdate || removedInterstitials.length || (currentItems == null ? void 0 : currentItems.length) !== updatedItems.length || updatedItems.some((item, i) => {
         return Math.abs(item.playout.start - currentItems[i].playout.start) > 0.005 || Math.abs(item.playout.end - currentItems[i].playout.end) > 0.005;
       });
       if (updated) {
@@ -24172,10 +24670,6 @@ class InterstitialsSchedule extends Logger {
       this.log(`"${interstitial.identifier}" resumption ${resumeTime} not aligned with estimated timeline end ${resumesInPlaceAt}`);
       return false;
     }
-    if (!mediaSelection) {
-      this.log(`"${interstitial.identifier}" resumption ${resumeTime} can not be aligned with media (none selected)`);
-      return false;
-    }
     const playlists = Object.keys(mediaSelection);
     return !playlists.some(playlistType => {
       const details = mediaSelection[playlistType].details;
@@ -24208,7 +24702,8 @@ class InterstitialsSchedule extends Logger {
     let sumDuration = 0;
     let hasUnknownDuration = false;
     let hasErrors = false;
-    interstitial.assetList.forEach((asset, i) => {
+    for (let i = 0; i < interstitial.assetList.length; i++) {
+      const asset = interstitial.assetList[i];
       const timelineStart = eventStart + sumDuration;
       asset.startOffset = sumDuration;
       asset.timelineStart = timelineStart;
@@ -24216,7 +24711,7 @@ class InterstitialsSchedule extends Logger {
       hasErrors || (hasErrors = !!asset.error);
       const duration = asset.error ? 0 : asset.duration || 0;
       sumDuration += duration;
-    });
+    }
     // Use the sum of known durations when it is greater than the stated duration
     if (hasUnknownDuration && !hasErrors) {
       interstitial.duration = Math.max(sumDuration, interstitial.duration);
@@ -24317,9 +24812,12 @@ class AssetListLoader {
 }
 
 function playWithCatch(media) {
-  media == null ? void 0 : media.play().catch(() => {
+  media == null || media.play().catch(() => {
     /* no-op */
   });
+}
+function timelineMessage(label, time) {
+  return `[${label}] Advancing timeline position to ${time}`;
 }
 class InterstitialsController extends Logger {
   constructor(hls, HlsPlayerClass) {
@@ -24360,7 +24858,7 @@ class InterstitialsController extends Logger {
     };
     this.onSeeking = () => {
       const currentTime = this.currentTime;
-      if (currentTime === undefined || this.playbackDisabled) {
+      if (currentTime === undefined || this.playbackDisabled || !this.schedule) {
         return;
       }
       const diff = currentTime - this.timelinePos;
@@ -24381,19 +24879,23 @@ class InterstitialsController extends Logger {
       if (backwardSeek) {
         const resetCount = this.schedule.resetErrorsInRange(currentTime, currentTime - diff);
         if (resetCount) {
-          this.updateSchedule();
+          this.updateSchedule(true);
         }
       }
       this.checkBuffer();
       if (backwardSeek && currentTime < playingItem.start || currentTime >= playingItem.end) {
         var _this$media;
-        const scheduleIndex = this.schedule.findItemIndexAtTime(this.timelinePos);
+        const playingIndex = this.findItemIndex(playingItem);
+        let scheduleIndex = this.schedule.findItemIndexAtTime(currentTime);
+        if (scheduleIndex === -1) {
+          scheduleIndex = playingIndex + (backwardSeek ? -1 : 1);
+          this.log(`seeked ${backwardSeek ? 'back ' : ''}to position not covered by schedule ${currentTime} (resolving from ${playingIndex} to ${scheduleIndex})`);
+        }
         if (!this.isInterstitial(playingItem) && (_this$media = this.media) != null && _this$media.paused) {
           this.shouldPlay = false;
         }
         if (!backwardSeek) {
           // check if an Interstitial between the current item and target item has an X-RESTRICT JUMP restriction
-          const playingIndex = this.findItemIndex(playingItem);
           if (scheduleIndex > playingIndex) {
             const jumpIndex = this.schedule.findJumpRestrictedIndex(playingIndex + 1, scheduleIndex);
             if (jumpIndex > playingIndex) {
@@ -24411,6 +24913,7 @@ class InterstitialsController extends Logger {
         // restart Interstitial at end
         if (this.playingLastItem && this.isInterstitial(playingItem)) {
           const restartAsset = playingItem.event.assetList[0];
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
           if (restartAsset) {
             this.endedItem = this.playingItem;
             this.playingItem = null;
@@ -24422,6 +24925,11 @@ class InterstitialsController extends Logger {
       const start = playingAsset.timelineStart;
       const duration = playingAsset.duration || 0;
       if (backwardSeek && currentTime < start || currentTime >= start + duration) {
+        var _playingItem$event;
+        if ((_playingItem$event = playingItem.event) != null && _playingItem$event.appendInPlace) {
+          this.clearInterstitial(playingItem.event, playingItem);
+          this.flushFrontBuffer(currentTime);
+        }
         this.setScheduleToAssetAtTime(currentTime, playingAsset);
       }
     };
@@ -24465,6 +24973,9 @@ class InterstitialsController extends Logger {
     // Schedule update callback
     this.onScheduleUpdate = (removedInterstitials, previousItems) => {
       const schedule = this.schedule;
+      if (!schedule) {
+        return;
+      }
       const playingItem = this.playingItem;
       const interstitialEvents = schedule.events || [];
       const scheduleItems = schedule.items || [];
@@ -24478,6 +24989,39 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
       if (removedIds.length) {
         this.log(`Removed events ${removedIds}`);
       }
+
+      // Update schedule item references
+      // Do not replace Interstitial playingItem without a match - used for INTERSTITIAL_ASSET_ENDED and INTERSTITIAL_ENDED
+      let updatedPlayingItem = null;
+      let updatedBufferingItem = null;
+      if (playingItem) {
+        updatedPlayingItem = this.updateItem(playingItem, this.timelinePos);
+        if (this.itemsMatch(playingItem, updatedPlayingItem)) {
+          this.playingItem = updatedPlayingItem;
+        } else {
+          this.waitingItem = this.endedItem = null;
+        }
+      }
+      // Clear waitingItem if it has been removed from the schedule
+      this.waitingItem = this.updateItem(this.waitingItem);
+      this.endedItem = this.updateItem(this.endedItem);
+      // Do not replace Interstitial bufferingItem without a match - used for transfering media element or source
+      const bufferingItem = this.bufferingItem;
+      if (bufferingItem) {
+        updatedBufferingItem = this.updateItem(bufferingItem, this.bufferedPos);
+        if (this.itemsMatch(bufferingItem, updatedBufferingItem)) {
+          this.bufferingItem = updatedBufferingItem;
+        } else if (bufferingItem.event) {
+          // Interstitial removed from schedule (Live -> VOD or other scenario where Start Date is outside the range of VOD Playlist)
+          this.bufferingItem = this.playingItem;
+          this.clearInterstitial(bufferingItem.event, null);
+        }
+      }
+      removedInterstitials.forEach(interstitial => {
+        interstitial.assetList.forEach(asset => {
+          this.clearAssetPlayer(asset.identifier, null);
+        });
+      });
       this.playerQueue.forEach(player => {
         if (player.interstitial.appendInPlace) {
           const timelineStart = player.assetItem.timelineStart;
@@ -24493,40 +25037,6 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
           }
         }
       });
-
-      // Update schedule item references
-      // Do not replace Interstitial playingItem without a match - used for INTERSTITIAL_ASSET_ENDED and INTERSTITIAL_ENDED
-      let trimInPlaceForPlayout = null;
-      if (playingItem) {
-        const updatedPlayingItem = this.updateItem(playingItem, this.timelinePos);
-        if (this.itemsMatch(playingItem, updatedPlayingItem)) {
-          this.playingItem = updatedPlayingItem;
-          this.waitingItem = this.endedItem = null;
-          trimInPlaceForPlayout = () => this.trimInPlace(updatedPlayingItem, playingItem);
-        }
-      } else {
-        // Clear waitingItem if it has been removed from the schedule
-        this.waitingItem = this.updateItem(this.waitingItem);
-        this.endedItem = this.updateItem(this.endedItem);
-      }
-      // Do not replace Interstitial bufferingItem without a match - used for transfering media element or source
-      const bufferingItem = this.bufferingItem;
-      if (bufferingItem) {
-        const updatedBufferingItem = this.updateItem(bufferingItem, this.bufferedPos);
-        if (this.itemsMatch(bufferingItem, updatedBufferingItem)) {
-          this.bufferingItem = updatedBufferingItem;
-          trimInPlaceForPlayout || (trimInPlaceForPlayout = () => this.trimInPlace(updatedBufferingItem, bufferingItem));
-        } else if (bufferingItem.event) {
-          // Interstitial removed from schedule (Live -> VOD or other scenario where Start Date is outside the range of VOD Playlist)
-          this.bufferingItem = this.playingItem;
-          this.clearInterstitial(bufferingItem.event, null);
-        }
-      }
-      removedInterstitials.forEach(interstitial => {
-        interstitial.assetList.forEach(asset => {
-          this.clearAssetPlayer(asset.identifier, null);
-        });
-      });
       if (interstitialsUpdated || previousItems) {
         this.hls.trigger(Events.INTERSTITIALS_UPDATED, {
           events: interstitialEvents.slice(0),
@@ -24539,11 +25049,14 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
           this.primaryFallback(playingItem.event);
           return;
         }
-        if (trimInPlaceForPlayout) {
-          trimInPlaceForPlayout();
+        if (playingItem) {
+          this.trimInPlace(updatedPlayingItem, playingItem);
+        }
+        if (bufferingItem && updatedBufferingItem !== updatedPlayingItem) {
+          this.trimInPlace(updatedBufferingItem, bufferingItem);
         }
 
-        // Check is buffered to new Interstitial event boundary
+        // Check if buffered to new Interstitial event boundary
         // (Live update publishes Interstitial with new segment)
         this.checkBuffer();
       }
@@ -24556,47 +25069,50 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
   }
   registerListeners() {
     const hls = this.hls;
-    hls.on(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
-    hls.on(Events.MEDIA_ATTACHED, this.onMediaAttached, this);
-    hls.on(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
-    hls.on(Events.MANIFEST_LOADING, this.onManifestLoading, this);
-    hls.on(Events.LEVEL_UPDATED, this.onLevelUpdated, this);
-    hls.on(Events.AUDIO_TRACK_SWITCHING, this.onAudioTrackSwitching, this);
-    hls.on(Events.AUDIO_TRACK_UPDATED, this.onAudioTrackUpdated, this);
-    hls.on(Events.SUBTITLE_TRACK_SWITCH, this.onSubtitleTrackSwitch, this);
-    hls.on(Events.SUBTITLE_TRACK_UPDATED, this.onSubtitleTrackUpdated, this);
-    hls.on(Events.EVENT_CUE_ENTER, this.onInterstitialCueEnter, this);
-    hls.on(Events.ASSET_LIST_LOADED, this.onAssetListLoaded, this);
-    hls.on(Events.BUFFER_APPENDED, this.onBufferAppended, this);
-    hls.on(Events.BUFFER_FLUSHED, this.onBufferFlushed, this);
-    hls.on(Events.BUFFERED_TO_END, this.onBufferedToEnd, this);
-    hls.on(Events.MEDIA_ENDED, this.onMediaEnded, this);
-    hls.on(Events.ERROR, this.onError, this);
-    hls.on(Events.DESTROYING, this.onDestroying, this);
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (hls) {
+      hls.on(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
+      hls.on(Events.MEDIA_ATTACHED, this.onMediaAttached, this);
+      hls.on(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
+      hls.on(Events.MANIFEST_LOADING, this.onManifestLoading, this);
+      hls.on(Events.LEVEL_UPDATED, this.onLevelUpdated, this);
+      hls.on(Events.AUDIO_TRACK_SWITCHING, this.onAudioTrackSwitching, this);
+      hls.on(Events.AUDIO_TRACK_UPDATED, this.onAudioTrackUpdated, this);
+      hls.on(Events.SUBTITLE_TRACK_SWITCH, this.onSubtitleTrackSwitch, this);
+      hls.on(Events.SUBTITLE_TRACK_UPDATED, this.onSubtitleTrackUpdated, this);
+      hls.on(Events.EVENT_CUE_ENTER, this.onInterstitialCueEnter, this);
+      hls.on(Events.ASSET_LIST_LOADED, this.onAssetListLoaded, this);
+      hls.on(Events.BUFFER_APPENDED, this.onBufferAppended, this);
+      hls.on(Events.BUFFER_FLUSHED, this.onBufferFlushed, this);
+      hls.on(Events.BUFFERED_TO_END, this.onBufferedToEnd, this);
+      hls.on(Events.MEDIA_ENDED, this.onMediaEnded, this);
+      hls.on(Events.ERROR, this.onError, this);
+      hls.on(Events.DESTROYING, this.onDestroying, this);
+    }
   }
   unregisterListeners() {
     const hls = this.hls;
-    if (!hls) {
-      return;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (hls) {
+      hls.off(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
+      hls.off(Events.MEDIA_ATTACHED, this.onMediaAttached, this);
+      hls.off(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
+      hls.off(Events.MANIFEST_LOADING, this.onManifestLoading, this);
+      hls.off(Events.LEVEL_UPDATED, this.onLevelUpdated, this);
+      hls.off(Events.AUDIO_TRACK_SWITCHING, this.onAudioTrackSwitching, this);
+      hls.off(Events.AUDIO_TRACK_UPDATED, this.onAudioTrackUpdated, this);
+      hls.off(Events.SUBTITLE_TRACK_SWITCH, this.onSubtitleTrackSwitch, this);
+      hls.off(Events.SUBTITLE_TRACK_UPDATED, this.onSubtitleTrackUpdated, this);
+      hls.off(Events.EVENT_CUE_ENTER, this.onInterstitialCueEnter, this);
+      hls.off(Events.ASSET_LIST_LOADED, this.onAssetListLoaded, this);
+      hls.off(Events.BUFFER_CODECS, this.onBufferCodecs, this);
+      hls.off(Events.BUFFER_APPENDED, this.onBufferAppended, this);
+      hls.off(Events.BUFFER_FLUSHED, this.onBufferFlushed, this);
+      hls.off(Events.BUFFERED_TO_END, this.onBufferedToEnd, this);
+      hls.off(Events.MEDIA_ENDED, this.onMediaEnded, this);
+      hls.off(Events.ERROR, this.onError, this);
+      hls.off(Events.DESTROYING, this.onDestroying, this);
     }
-    hls.off(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
-    hls.off(Events.MEDIA_ATTACHED, this.onMediaAttached, this);
-    hls.off(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
-    hls.off(Events.MANIFEST_LOADING, this.onManifestLoading, this);
-    hls.off(Events.LEVEL_UPDATED, this.onLevelUpdated, this);
-    hls.off(Events.AUDIO_TRACK_SWITCHING, this.onAudioTrackSwitching, this);
-    hls.off(Events.AUDIO_TRACK_UPDATED, this.onAudioTrackUpdated, this);
-    hls.off(Events.SUBTITLE_TRACK_SWITCH, this.onSubtitleTrackSwitch, this);
-    hls.off(Events.SUBTITLE_TRACK_UPDATED, this.onSubtitleTrackUpdated, this);
-    hls.off(Events.EVENT_CUE_ENTER, this.onInterstitialCueEnter, this);
-    hls.off(Events.ASSET_LIST_LOADED, this.onAssetListLoaded, this);
-    hls.off(Events.BUFFER_CODECS, this.onBufferCodecs, this);
-    hls.off(Events.BUFFER_APPENDED, this.onBufferAppended, this);
-    hls.off(Events.BUFFER_FLUSHED, this.onBufferFlushed, this);
-    hls.off(Events.BUFFERED_TO_END, this.onBufferedToEnd, this);
-    hls.off(Events.MEDIA_ENDED, this.onMediaEnded, this);
-    hls.off(Events.ERROR, this.onError, this);
-    hls.off(Events.DESTROYING, this.onDestroying, this);
   }
   startLoad() {
     // TODO: startLoad - check for waitingItem and retry by resetting schedule
@@ -24608,15 +25124,16 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
   }
   resumeBuffering() {
     var _this$getBufferingPla;
-    (_this$getBufferingPla = this.getBufferingPlayer()) == null ? void 0 : _this$getBufferingPla.resumeBuffering();
+    (_this$getBufferingPla = this.getBufferingPlayer()) == null || _this$getBufferingPla.resumeBuffering();
   }
   pauseBuffering() {
     var _this$getBufferingPla2;
-    (_this$getBufferingPla2 = this.getBufferingPlayer()) == null ? void 0 : _this$getBufferingPla2.pauseBuffering();
+    (_this$getBufferingPla2 = this.getBufferingPlayer()) == null || _this$getBufferingPla2.pauseBuffering();
   }
   destroy() {
     this.unregisterListeners();
     this.stopLoad();
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (this.assetListLoader) {
       this.assetListLoader.destroy();
     }
@@ -24625,9 +25142,9 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     if (this.schedule) {
       this.schedule.destroy();
     }
-    this.media = this.detachedData = this.mediaSelection = this.requiredTracks = this.altSelection = this.manager = null;
+    this.media = this.detachedData = this.mediaSelection = this.requiredTracks = this.altSelection = this.schedule = this.manager = null;
     // @ts-ignore
-    this.hls = this.HlsPlayerClass = this.schedule = this.log = null;
+    this.hls = this.HlsPlayerClass = this.log = null;
     // @ts-ignore
     this.assetListLoader = null;
     // @ts-ignore
@@ -24668,6 +25185,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     }
   }
   clearScheduleState() {
+    this.log(`clear schedule state`);
     this.playingItem = this.bufferingItem = this.waitingItem = this.endedItem = this.playingAsset = this.endedAsset = this.bufferingAsset = null;
   }
   onMediaDetaching(event, data) {
@@ -24684,6 +25202,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     if (this.detachedData) {
       const player = this.getBufferingPlayer();
       if (player) {
+        this.log(`Removing schedule state for detachedData and ${player}`);
         this.playingAsset = this.endedAsset = this.bufferingAsset = this.bufferingItem = this.waitingItem = this.detachedData = null;
         player.detachMedia();
       }
@@ -24691,278 +25210,288 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     }
   }
   get interstitialsManager() {
-    if (!this.manager) {
-      if (!this.hls) {
-        return null;
-      }
-      const c = this;
-      const effectiveBufferingItem = () => c.bufferingItem || c.waitingItem;
-      const getAssetPlayer = asset => asset ? c.getAssetPlayer(asset.identifier) : asset;
-      const getMappedTime = (item, timelineType, asset, controllerField, assetPlayerField) => {
-        if (item) {
-          let time = item[timelineType].start;
-          const interstitial = item.event;
-          if (interstitial) {
-            if (timelineType === 'playout' || interstitial.timelineOccupancy !== TimelineOccupancy.Point) {
-              const assetPlayer = getAssetPlayer(asset);
-              if ((assetPlayer == null ? void 0 : assetPlayer.interstitial) === interstitial) {
-                time += assetPlayer.assetItem.startOffset + assetPlayer[assetPlayerField];
-              }
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (!this.hls) {
+      return null;
+    }
+    if (this.manager) {
+      return this.manager;
+    }
+    const c = this;
+    const effectiveBufferingItem = () => c.bufferingItem || c.waitingItem;
+    const getAssetPlayer = asset => asset ? c.getAssetPlayer(asset.identifier) : asset;
+    const getMappedTime = (item, timelineType, asset, controllerField, assetPlayerField) => {
+      if (item) {
+        let time = item[timelineType].start;
+        const interstitial = item.event;
+        if (interstitial) {
+          if (timelineType === 'playout' || interstitial.timelineOccupancy !== TimelineOccupancy.Point) {
+            const assetPlayer = getAssetPlayer(asset);
+            if ((assetPlayer == null ? void 0 : assetPlayer.interstitial) === interstitial) {
+              time += assetPlayer.assetItem.startOffset + assetPlayer[assetPlayerField];
             }
-          } else {
-            const value = controllerField === 'bufferedPos' ? getBufferedEnd() : c[controllerField];
-            time += value - item.start;
           }
-          return time;
+        } else {
+          const value = controllerField === 'bufferedPos' ? getBufferedEnd() : c[controllerField];
+          time += value - item.start;
         }
-        return 0;
-      };
-      const findMappedTime = (primaryTime, timelineType) => {
-        if (primaryTime !== 0 && timelineType !== 'primary' && c.schedule.length) {
-          var _c$schedule$items;
-          const index = c.schedule.findItemIndexAtTime(primaryTime);
-          const item = (_c$schedule$items = c.schedule.items) == null ? void 0 : _c$schedule$items[index];
-          if (item) {
-            const diff = item[timelineType].start - item.start;
-            return primaryTime + diff;
+        return time;
+      }
+      return 0;
+    };
+    const findMappedTime = (primaryTime, timelineType) => {
+      var _c$schedule;
+      if (primaryTime !== 0 && timelineType !== 'primary' && (_c$schedule = c.schedule) != null && _c$schedule.length) {
+        var _c$schedule$items;
+        const index = c.schedule.findItemIndexAtTime(primaryTime);
+        const item = (_c$schedule$items = c.schedule.items) == null ? void 0 : _c$schedule$items[index];
+        if (item) {
+          const diff = item[timelineType].start - item.start;
+          return primaryTime + diff;
+        }
+      }
+      return primaryTime;
+    };
+    const getBufferedEnd = () => {
+      const value = c.bufferedPos;
+      if (value === Number.MAX_VALUE) {
+        return getMappedDuration('primary');
+      }
+      return Math.max(value, 0);
+    };
+    const getMappedDuration = timelineType => {
+      var _c$primaryDetails, _c$schedule2;
+      if ((_c$primaryDetails = c.primaryDetails) != null && _c$primaryDetails.live) {
+        // return end of last event item or playlist
+        return c.primaryDetails.edge;
+      }
+      return ((_c$schedule2 = c.schedule) == null ? void 0 : _c$schedule2.durations[timelineType]) || 0;
+    };
+    const seekTo = (time, timelineType) => {
+      var _item$event, _c$schedule$items2;
+      const item = c.effectivePlayingItem;
+      if (item != null && (_item$event = item.event) != null && _item$event.restrictions.skip || !c.schedule) {
+        return;
+      }
+      c.log(`seek to ${time} "${timelineType}"`);
+      const playingItem = c.effectivePlayingItem;
+      const targetIndex = c.schedule.findItemIndexAtTime(time, timelineType);
+      const targetItem = (_c$schedule$items2 = c.schedule.items) == null ? void 0 : _c$schedule$items2[targetIndex];
+      const bufferingPlayer = c.getBufferingPlayer();
+      const bufferingInterstitial = bufferingPlayer == null ? void 0 : bufferingPlayer.interstitial;
+      const appendInPlace = bufferingInterstitial == null ? void 0 : bufferingInterstitial.appendInPlace;
+      const seekInItem = playingItem && c.itemsMatch(playingItem, targetItem);
+      if (playingItem && (appendInPlace || seekInItem)) {
+        // seek in asset player or primary media (appendInPlace)
+        const assetPlayer = getAssetPlayer(c.playingAsset);
+        const media = (assetPlayer == null ? void 0 : assetPlayer.media) || c.primaryMedia;
+        if (media) {
+          const currentTime = timelineType === 'primary' ? media.currentTime : getMappedTime(playingItem, timelineType, c.playingAsset, 'timelinePos', 'currentTime');
+          const diff = time - currentTime;
+          const seekToTime = (appendInPlace ? currentTime : media.currentTime) + diff;
+          if (seekToTime >= 0 && (!assetPlayer || appendInPlace || seekToTime <= assetPlayer.duration)) {
+            media.currentTime = seekToTime;
+            return;
           }
         }
-        return primaryTime;
-      };
-      const getBufferedEnd = () => {
-        const value = c.bufferedPos;
-        if (value === Number.MAX_VALUE) {
-          return getMappedDuration('primary');
+      }
+      // seek out of item or asset
+      if (targetItem) {
+        let seekToTime = time;
+        if (timelineType !== 'primary') {
+          const primarySegmentStart = targetItem[timelineType].start;
+          const diff = time - primarySegmentStart;
+          seekToTime = targetItem.start + diff;
         }
-        return Math.max(value, 0);
-      };
-      const getMappedDuration = timelineType => {
-        var _c$primaryDetails;
-        if ((_c$primaryDetails = c.primaryDetails) != null && _c$primaryDetails.live) {
-          // return end of last event item or playlist
-          return c.primaryDetails.edge;
-        }
-        return c.schedule.durations[timelineType];
-      };
-      const seekTo = (time, timelineType) => {
-        var _item$event, _c$schedule$items2;
-        const item = c.effectivePlayingItem;
-        if (item != null && (_item$event = item.event) != null && _item$event.restrictions.skip) {
-          return;
-        }
-        c.log(`seek to ${time} "${timelineType}"`);
-        const playingItem = c.effectivePlayingItem;
-        const targetIndex = c.schedule.findItemIndexAtTime(time, timelineType);
-        const targetItem = (_c$schedule$items2 = c.schedule.items) == null ? void 0 : _c$schedule$items2[targetIndex];
-        const bufferingPlayer = c.getBufferingPlayer();
-        const bufferingInterstitial = bufferingPlayer == null ? void 0 : bufferingPlayer.interstitial;
-        const appendInPlace = bufferingInterstitial == null ? void 0 : bufferingInterstitial.appendInPlace;
-        const seekInItem = playingItem && c.itemsMatch(playingItem, targetItem);
-        if (playingItem && (appendInPlace || seekInItem)) {
-          // seek in asset player or primary media (appendInPlace)
-          const assetPlayer = getAssetPlayer(c.playingAsset);
-          const media = (assetPlayer == null ? void 0 : assetPlayer.media) || c.primaryMedia;
+        const targetIsPrimary = !c.isInterstitial(targetItem);
+        if ((!c.isInterstitial(playingItem) || playingItem.event.appendInPlace) && (targetIsPrimary || targetItem.event.appendInPlace)) {
+          const media = c.media || (appendInPlace ? bufferingPlayer == null ? void 0 : bufferingPlayer.media : null);
           if (media) {
-            const currentTime = timelineType === 'primary' ? media.currentTime : getMappedTime(playingItem, timelineType, c.playingAsset, 'timelinePos', 'currentTime');
-            const diff = time - currentTime;
-            const seekToTime = (appendInPlace ? currentTime : media.currentTime) + diff;
-            if (seekToTime >= 0 && (!assetPlayer || appendInPlace || seekToTime <= assetPlayer.duration)) {
-              media.currentTime = seekToTime;
+            media.currentTime = seekToTime;
+          }
+        } else if (playingItem) {
+          // check if an Interstitial between the current item and target item has an X-RESTRICT JUMP restriction
+          const playingIndex = c.findItemIndex(playingItem);
+          if (targetIndex > playingIndex) {
+            const jumpIndex = c.schedule.findJumpRestrictedIndex(playingIndex + 1, targetIndex);
+            if (jumpIndex > playingIndex) {
+              c.setSchedulePosition(jumpIndex);
               return;
             }
           }
-        }
-        // seek out of item or asset
-        if (targetItem) {
-          let seekToTime = time;
-          if (timelineType !== 'primary') {
-            const primarySegmentStart = targetItem[timelineType].start;
-            const diff = time - primarySegmentStart;
-            seekToTime = targetItem.start + diff;
-          }
-          const targetIsPrimary = !c.isInterstitial(targetItem);
-          if ((!c.isInterstitial(playingItem) || playingItem.event.appendInPlace) && (targetIsPrimary || targetItem.event.appendInPlace)) {
-            const media = c.media || (appendInPlace ? bufferingPlayer == null ? void 0 : bufferingPlayer.media : null);
-            if (media) {
-              media.currentTime = seekToTime;
-            }
-          } else if (playingItem) {
-            // check if an Interstitial between the current item and target item has an X-RESTRICT JUMP restriction
-            const playingIndex = c.findItemIndex(playingItem);
-            if (targetIndex > playingIndex) {
-              const jumpIndex = c.schedule.findJumpRestrictedIndex(playingIndex + 1, targetIndex);
-              if (jumpIndex > playingIndex) {
-                c.setSchedulePosition(jumpIndex);
-                return;
+          let assetIndex = 0;
+          if (targetIsPrimary) {
+            c.timelinePos = seekToTime;
+            c.checkBuffer();
+          } else {
+            const assetList = targetItem.event.assetList;
+            const eventTime = time - (targetItem[timelineType] || targetItem).start;
+            for (let i = assetList.length; i--;) {
+              const asset = assetList[i];
+              if (asset.duration && eventTime >= asset.startOffset && eventTime < asset.startOffset + asset.duration) {
+                assetIndex = i;
+                break;
               }
             }
-            let assetIndex = 0;
-            if (targetIsPrimary) {
-              c.timelinePos = seekToTime;
-              c.checkBuffer();
-            } else {
-              var _targetItem$event;
-              const assetList = targetItem == null ? void 0 : (_targetItem$event = targetItem.event) == null ? void 0 : _targetItem$event.assetList;
-              if (assetList) {
-                const eventTime = time - (targetItem[timelineType] || targetItem).start;
-                for (let i = assetList.length; i--;) {
-                  const asset = assetList[i];
-                  if (asset.duration && eventTime >= asset.startOffset && eventTime < asset.startOffset + asset.duration) {
-                    assetIndex = i;
-                    break;
-                  }
-                }
-              }
-            }
-            c.setSchedulePosition(targetIndex, assetIndex);
           }
+          c.setSchedulePosition(targetIndex, assetIndex);
         }
-      };
-      const getActiveInterstitial = () => {
+      }
+    };
+    const getActiveInterstitial = () => {
+      const playingItem = c.effectivePlayingItem;
+      if (c.isInterstitial(playingItem)) {
+        return playingItem;
+      }
+      const bufferingItem = effectiveBufferingItem();
+      if (c.isInterstitial(bufferingItem)) {
+        return bufferingItem;
+      }
+      return null;
+    };
+    const interstitialPlayer = {
+      get bufferedEnd() {
+        const interstitialItem = effectiveBufferingItem();
+        const bufferingItem = c.bufferingItem;
+        if (bufferingItem && bufferingItem === interstitialItem) {
+          var _c$bufferingAsset;
+          return getMappedTime(bufferingItem, 'playout', c.bufferingAsset, 'bufferedPos', 'bufferedEnd') - bufferingItem.playout.start || ((_c$bufferingAsset = c.bufferingAsset) == null ? void 0 : _c$bufferingAsset.startOffset) || 0;
+        }
+        return 0;
+      },
+      get currentTime() {
+        const interstitialItem = getActiveInterstitial();
         const playingItem = c.effectivePlayingItem;
-        if (c.isInterstitial(playingItem)) {
-          return playingItem;
+        if (playingItem && playingItem === interstitialItem) {
+          return getMappedTime(playingItem, 'playout', c.effectivePlayingAsset, 'timelinePos', 'currentTime') - playingItem.playout.start;
         }
-        const bufferingItem = effectiveBufferingItem();
-        if (c.isInterstitial(bufferingItem)) {
-          return bufferingItem;
+        return 0;
+      },
+      set currentTime(time) {
+        const interstitialItem = getActiveInterstitial();
+        const playingItem = c.effectivePlayingItem;
+        if (playingItem && playingItem === interstitialItem) {
+          seekTo(time + playingItem.playout.start, 'playout');
+        }
+      },
+      get duration() {
+        const interstitialItem = getActiveInterstitial();
+        if (interstitialItem) {
+          return interstitialItem.playout.end - interstitialItem.playout.start;
+        }
+        return 0;
+      },
+      get assetPlayers() {
+        var _getActiveInterstitia;
+        const assetList = (_getActiveInterstitia = getActiveInterstitial()) == null ? void 0 : _getActiveInterstitia.event.assetList;
+        if (assetList) {
+          return assetList.map(asset => c.getAssetPlayer(asset.identifier));
+        }
+        return [];
+      },
+      get playingIndex() {
+        var _getActiveInterstitia2;
+        const interstitial = (_getActiveInterstitia2 = getActiveInterstitial()) == null ? void 0 : _getActiveInterstitia2.event;
+        if (interstitial && c.effectivePlayingAsset) {
+          return interstitial.findAssetIndex(c.effectivePlayingAsset);
+        }
+        return -1;
+      },
+      get scheduleItem() {
+        return getActiveInterstitial();
+      }
+    };
+    return this.manager = {
+      get events() {
+        var _c$schedule3;
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        return ((_c$schedule3 = c.schedule) == null || (_c$schedule3 = _c$schedule3.events) == null ? void 0 : _c$schedule3.slice(0)) || [];
+      },
+      get schedule() {
+        var _c$schedule4;
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        return ((_c$schedule4 = c.schedule) == null || (_c$schedule4 = _c$schedule4.items) == null ? void 0 : _c$schedule4.slice(0)) || [];
+      },
+      get interstitialPlayer() {
+        if (getActiveInterstitial()) {
+          return interstitialPlayer;
         }
         return null;
-      };
-      const interstitialPlayer = {
+      },
+      get playerQueue() {
+        return c.playerQueue.slice(0);
+      },
+      get bufferingAsset() {
+        return c.bufferingAsset;
+      },
+      get bufferingItem() {
+        return effectiveBufferingItem();
+      },
+      get bufferingIndex() {
+        const item = effectiveBufferingItem();
+        return c.findItemIndex(item);
+      },
+      get playingAsset() {
+        return c.effectivePlayingAsset;
+      },
+      get playingItem() {
+        return c.effectivePlayingItem;
+      },
+      get playingIndex() {
+        const item = c.effectivePlayingItem;
+        return c.findItemIndex(item);
+      },
+      primary: {
+        get bufferedEnd() {
+          return getBufferedEnd();
+        },
         get currentTime() {
-          const interstitialItem = getActiveInterstitial();
-          const playingItem = c.effectivePlayingItem;
-          if (playingItem && playingItem === interstitialItem) {
-            return getMappedTime(playingItem, 'playout', c.effectivePlayingAsset, 'timelinePos', 'currentTime') - playingItem.playout.start;
-          }
-          return 0;
+          const timelinePos = c.timelinePos;
+          return timelinePos > 0 ? timelinePos : 0;
         },
         set currentTime(time) {
-          const interstitialItem = getActiveInterstitial();
-          const playingItem = c.effectivePlayingItem;
-          if (playingItem && playingItem === interstitialItem) {
-            seekTo(time + playingItem.playout.start, 'playout');
-          }
+          seekTo(time, 'primary');
         },
         get duration() {
-          const interstitialItem = getActiveInterstitial();
-          if (interstitialItem) {
-            return interstitialItem.playout.end - interstitialItem.playout.start;
-          }
-          return 0;
+          return getMappedDuration('primary');
         },
-        get assetPlayers() {
-          var _getActiveInterstitia;
-          const assetList = (_getActiveInterstitia = getActiveInterstitial()) == null ? void 0 : _getActiveInterstitia.event.assetList;
-          if (assetList) {
-            return assetList.map(asset => c.getAssetPlayer(asset.identifier));
-          }
-          return [];
-        },
-        get playingIndex() {
-          var _getActiveInterstitia2;
-          const interstitial = (_getActiveInterstitia2 = getActiveInterstitial()) == null ? void 0 : _getActiveInterstitia2.event;
-          if (interstitial && c.effectivePlayingAsset) {
-            return interstitial.findAssetIndex(c.effectivePlayingAsset);
-          }
-          return -1;
-        },
-        get scheduleItem() {
-          return getActiveInterstitial();
+        get seekableStart() {
+          var _c$primaryDetails2;
+          return ((_c$primaryDetails2 = c.primaryDetails) == null ? void 0 : _c$primaryDetails2.fragmentStart) || 0;
         }
-      };
-      this.manager = {
-        get events() {
-          var _c$schedule, _c$schedule$events;
-          return ((_c$schedule = c.schedule) == null ? void 0 : (_c$schedule$events = _c$schedule.events) == null ? void 0 : _c$schedule$events.slice(0)) || [];
+      },
+      integrated: {
+        get bufferedEnd() {
+          return getMappedTime(effectiveBufferingItem(), 'integrated', c.bufferingAsset, 'bufferedPos', 'bufferedEnd');
         },
-        get schedule() {
-          var _c$schedule2, _c$schedule2$items;
-          return ((_c$schedule2 = c.schedule) == null ? void 0 : (_c$schedule2$items = _c$schedule2.items) == null ? void 0 : _c$schedule2$items.slice(0)) || [];
+        get currentTime() {
+          return getMappedTime(c.effectivePlayingItem, 'integrated', c.effectivePlayingAsset, 'timelinePos', 'currentTime');
         },
-        get interstitialPlayer() {
-          if (getActiveInterstitial()) {
-            return interstitialPlayer;
-          }
-          return null;
+        set currentTime(time) {
+          seekTo(time, 'integrated');
         },
-        get playerQueue() {
-          return c.playerQueue.slice(0);
+        get duration() {
+          return getMappedDuration('integrated');
         },
-        get bufferingAsset() {
-          return c.bufferingAsset;
-        },
-        get bufferingItem() {
-          return effectiveBufferingItem();
-        },
-        get bufferingIndex() {
-          const item = effectiveBufferingItem();
-          return c.findItemIndex(item);
-        },
-        get playingAsset() {
-          return c.effectivePlayingAsset;
-        },
-        get playingItem() {
-          return c.effectivePlayingItem;
-        },
-        get playingIndex() {
-          const item = c.effectivePlayingItem;
-          return c.findItemIndex(item);
-        },
-        primary: {
-          get bufferedEnd() {
-            return getBufferedEnd();
-          },
-          get currentTime() {
-            const timelinePos = c.timelinePos;
-            return timelinePos > 0 ? timelinePos : 0;
-          },
-          set currentTime(time) {
-            seekTo(time, 'primary');
-          },
-          get duration() {
-            return getMappedDuration('primary');
-          },
-          get seekableStart() {
-            var _c$primaryDetails2;
-            return ((_c$primaryDetails2 = c.primaryDetails) == null ? void 0 : _c$primaryDetails2.fragmentStart) || 0;
-          }
-        },
-        integrated: {
-          get bufferedEnd() {
-            return getMappedTime(effectiveBufferingItem(), 'integrated', c.bufferingAsset, 'bufferedPos', 'bufferedEnd');
-          },
-          get currentTime() {
-            return getMappedTime(c.effectivePlayingItem, 'integrated', c.effectivePlayingAsset, 'timelinePos', 'currentTime');
-          },
-          set currentTime(time) {
-            seekTo(time, 'integrated');
-          },
-          get duration() {
-            return getMappedDuration('integrated');
-          },
-          get seekableStart() {
-            var _c$primaryDetails3;
-            return findMappedTime(((_c$primaryDetails3 = c.primaryDetails) == null ? void 0 : _c$primaryDetails3.fragmentStart) || 0, 'integrated');
-          }
-        },
-        skip: () => {
-          const item = c.effectivePlayingItem;
-          const event = item == null ? void 0 : item.event;
-          if (event && !event.restrictions.skip) {
-            const index = c.findItemIndex(item);
-            if (event.appendInPlace) {
-              const time = item.playout.start + item.event.duration;
-              seekTo(time + 0.001, 'playout');
-            } else {
-              c.advanceAfterAssetEnded(event, index, Infinity);
-            }
+        get seekableStart() {
+          var _c$primaryDetails3;
+          return findMappedTime(((_c$primaryDetails3 = c.primaryDetails) == null ? void 0 : _c$primaryDetails3.fragmentStart) || 0, 'integrated');
+        }
+      },
+      skip: () => {
+        const item = c.effectivePlayingItem;
+        const event = item == null ? void 0 : item.event;
+        if (event && !event.restrictions.skip) {
+          const index = c.findItemIndex(item);
+          if (event.appendInPlace) {
+            const time = item.playout.start + item.event.duration;
+            seekTo(time + 0.001, 'playout');
+          } else {
+            c.advanceAfterAssetEnded(event, index, Infinity);
           }
         }
-      };
-    }
-    return this.manager;
+      }
+    };
   }
 
   // Schedule getters
@@ -24987,7 +25516,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
 
   // Media getters and event callbacks
   get currentTime() {
-    var _this$bufferingItem, _this$bufferingItem$e, _media;
+    var _this$bufferingItem, _media;
     if (this.mediaSelection === null) {
       // Do not advance before schedule is known
       return undefined;
@@ -24998,7 +25527,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
       return undefined;
     }
     let media = this.media;
-    if (!media && (_this$bufferingItem = this.bufferingItem) != null && (_this$bufferingItem$e = _this$bufferingItem.event) != null && _this$bufferingItem$e.appendInPlace) {
+    if (!media && (_this$bufferingItem = this.bufferingItem) != null && (_this$bufferingItem = _this$bufferingItem.event) != null && _this$bufferingItem.appendInPlace) {
       // Observe detached media currentTime when appending in place
       media = this.primaryMedia;
     }
@@ -25083,7 +25612,8 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
             if (isAssetPlayer && queuedPlayer.interstitial.appendInPlace !== appendInPlace) {
               const interstitial = queuedPlayer.interstitial;
               this.clearInterstitial(queuedPlayer.interstitial, null);
-              interstitial.appendInPlace = false;
+              interstitial.appendInPlace = false; // setter may be a no-op;
+              // `appendInPlace` getter may still return `true` after insterstitial streaming has begun in that mode.
               if (interstitial.appendInPlace) {
                 this.warn(`Could not change append strategy for queued assets ${interstitial}`);
               }
@@ -25098,12 +25628,13 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     }
     const transferring = attachMediaSourceData && 'mediaSource' in attachMediaSourceData && ((_attachMediaSourceDat = attachMediaSourceData.mediaSource) == null ? void 0 : _attachMediaSourceDat.readyState) !== 'closed';
     const dataToAttach = transferring && attachMediaSourceData ? attachMediaSourceData : media;
-    this.log(`${transferring ? 'transfering MediaSource' : 'attaching media'} to ${isAssetPlayer ? player : 'Primary'} from ${logFromSource}`);
-    if (dataToAttach === attachMediaSourceData) {
-      const isAssetAtEndOfSchedule = isAssetPlayer && player.assetId === this.schedule.assetIdAtEnd;
+    this.log(`${transferring ? 'transfering MediaSource' : 'attaching media'} to ${isAssetPlayer ? player : 'Primary'} from ${logFromSource} (media.currentTime: ${media.currentTime})`);
+    const schedule = this.schedule;
+    if (dataToAttach === attachMediaSourceData && schedule) {
+      const isAssetAtEndOfSchedule = isAssetPlayer && player.assetId === schedule.assetIdAtEnd;
       // Prevent asset players from marking EoS on transferred MediaSource
       dataToAttach.overrides = {
-        duration: this.schedule.duration,
+        duration: schedule.duration,
         endOfStream: !isAssetPlayer || isAssetAtEndOfSchedule,
         cueRemoval: !isAssetPlayer
       };
@@ -25116,7 +25647,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
   // Scheduling methods
   checkStart() {
     const schedule = this.schedule;
-    const interstitialEvents = schedule.events;
+    const interstitialEvents = schedule == null ? void 0 : schedule.events;
     if (!interstitialEvents || this.playbackDisabled || !this.media) {
       return;
     }
@@ -25129,6 +25660,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     const effectivePlayingItem = this.effectivePlayingItem;
     if (timelinePos === -1) {
       const startPosition = this.hls.startPosition;
+      this.log(timelineMessage('checkStart', startPosition));
       this.timelinePos = startPosition;
       if (interstitialEvents.length && interstitialEvents[0].cue.pre) {
         const index = schedule.findEventIndex(interstitialEvents[0].identifier);
@@ -25143,12 +25675,32 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
       this.setSchedulePosition(index);
     }
   }
+  advanceAssetBuffering(item, assetItem) {
+    const interstitial = item.event;
+    const assetListIndex = interstitial.findAssetIndex(assetItem);
+    const nextAssetIndex = getNextAssetIndex(interstitial, assetListIndex);
+    if (!interstitial.isAssetPastPlayoutLimit(nextAssetIndex)) {
+      this.bufferedToEvent(item, nextAssetIndex);
+    } else if (this.schedule) {
+      var _this$schedule$items;
+      const nextItem = (_this$schedule$items = this.schedule.items) == null ? void 0 : _this$schedule$items[this.findItemIndex(item) + 1];
+      if (nextItem) {
+        this.bufferedToItem(nextItem);
+      }
+    }
+  }
   advanceAfterAssetEnded(interstitial, index, assetListIndex) {
     const nextAssetIndex = getNextAssetIndex(interstitial, assetListIndex);
     if (!interstitial.isAssetPastPlayoutLimit(nextAssetIndex)) {
       // Advance to next asset list item
+      if (interstitial.appendInPlace) {
+        const assetItem = interstitial.assetList[nextAssetIndex];
+        if (assetItem) {
+          this.advanceInPlace(assetItem.timelineStart);
+        }
+      }
       this.setSchedulePosition(index, nextAssetIndex);
-    } else {
+    } else if (this.schedule) {
       // Advance to next schedule segment
       // check if we've reached the end of the program
       const scheduleItems = this.schedule.items;
@@ -25161,8 +25713,12 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
         }
         const resumptionTime = interstitial.resumeTime;
         if (this.timelinePos < resumptionTime) {
+          this.log(timelineMessage('advanceAfterAssetEnded', resumptionTime));
           this.timelinePos = resumptionTime;
-          this.checkBuffer();
+          if (interstitial.appendInPlace) {
+            this.advanceInPlace(resumptionTime);
+          }
+          this.checkBuffer(this.bufferedPos < resumptionTime);
         }
         this.setSchedulePosition(nextIndex);
       }
@@ -25170,6 +25726,9 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
   }
   setScheduleToAssetAtTime(time, playingAsset) {
     const schedule = this.schedule;
+    if (!schedule) {
+      return;
+    }
     const parentIdentifier = playingAsset.parentIdentifier;
     const interstitial = schedule.getEvent(parentIdentifier);
     if (interstitial) {
@@ -25179,22 +25738,22 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     }
   }
   setSchedulePosition(index, assetListIndex) {
-    const scheduleItems = this.schedule.items;
+    var _this$schedule2;
+    const scheduleItems = (_this$schedule2 = this.schedule) == null ? void 0 : _this$schedule2.items;
     if (!scheduleItems || this.playbackDisabled) {
       return;
     }
-    this.log(`setSchedulePosition ${index}, ${assetListIndex}`);
     const scheduledItem = index >= 0 ? scheduleItems[index] : null;
+    this.log(`setSchedulePosition ${index}, ${assetListIndex} (${scheduledItem ? segmentToString(scheduledItem) : scheduledItem}) pos: ${this.timelinePos}`);
     // Cleanup current item / asset
-    const currentItem = this.playingItem;
+    const currentItem = this.waitingItem || this.playingItem;
     const playingLastItem = this.playingLastItem;
     if (this.isInterstitial(currentItem)) {
-      var _interstitial$assetLi;
       const interstitial = currentItem.event;
       const playingAsset = this.playingAsset;
       const assetId = playingAsset == null ? void 0 : playingAsset.identifier;
       const player = assetId ? this.getAssetPlayer(assetId) : null;
-      if (player && assetId && (!this.eventItemsMatch(currentItem, scheduledItem) || assetListIndex !== undefined && assetId !== ((_interstitial$assetLi = interstitial.assetList) == null ? void 0 : _interstitial$assetLi[assetListIndex].identifier))) {
+      if (player && assetId && (!this.eventItemsMatch(currentItem, scheduledItem) || assetListIndex !== undefined && assetId !== interstitial.assetList[assetListIndex].identifier)) {
         var _this$detachedData3;
         const playingAssetListIndex = interstitial.findAssetIndex(playingAsset);
         this.log(`INTERSTITIAL_ASSET_ENDED ${playingAssetListIndex + 1}/${interstitial.assetList.length} ${eventAssetToString(playingAsset)}`);
@@ -25208,6 +25767,17 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
           scheduleIndex: index,
           player
         });
+        if (currentItem !== this.playingItem) {
+          // Schedule change occured on INTERSTITIAL_ASSET_ENDED
+          if (this.itemsMatch(currentItem, this.playingItem) &&
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+          !this.playingAsset // INTERSTITIAL_ASSET_ENDED side-effect
+          ) {
+            this.advanceAfterAssetEnded(interstitial, this.findItemIndex(this.playingItem), playingAssetListIndex);
+          }
+          // Navigation occured on INTERSTITIAL_ASSET_ENDED
+          return;
+        }
         this.retreiveMediaSource(assetId, scheduledItem);
         if (player.media && !((_this$detachedData3 = this.detachedData) != null && _this$detachedData3.mediaSource)) {
           player.detachMedia();
@@ -25225,12 +25795,13 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
         });
         // Exiting an Interstitial
         if (interstitial.cue.once) {
+          var _this$schedule3;
           // Remove interstitial with CUE attribute value of ONCE after it has played
           this.updateSchedule();
-          const items = this.schedule.items;
-          if (scheduledItem && items) {
-            const updatedIndex = this.schedule.findItemIndex(scheduledItem);
-            this.advanceSchedule(updatedIndex, items, assetListIndex, currentItem, playingLastItem);
+          const updatedScheduleItems = (_this$schedule3 = this.schedule) == null ? void 0 : _this$schedule3.items;
+          if (scheduledItem && updatedScheduleItems) {
+            const updatedIndex = this.findItemIndex(scheduledItem);
+            this.advanceSchedule(updatedIndex, updatedScheduleItems, assetListIndex, currentItem, playingLastItem);
           }
           return;
         }
@@ -25239,14 +25810,18 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     this.advanceSchedule(index, scheduleItems, assetListIndex, currentItem, playingLastItem);
   }
   advanceSchedule(index, scheduleItems, assetListIndex, currentItem, playedLastItem) {
-    const scheduledItem = index >= 0 ? scheduleItems[index] : null;
+    const schedule = this.schedule;
+    if (!schedule) {
+      return;
+    }
+    const scheduledItem = scheduleItems[index] || null;
     const media = this.primaryMedia;
     // Cleanup out of range Interstitials
     const playerQueue = this.playerQueue;
     if (playerQueue.length) {
       playerQueue.forEach(player => {
         const interstitial = player.interstitial;
-        const queuedIndex = this.schedule.findEventIndex(interstitial.identifier);
+        const queuedIndex = schedule.findEventIndex(interstitial.identifier);
         if (queuedIndex < index || queuedIndex > index + 1) {
           this.clearInterstitial(interstitial, scheduledItem);
         }
@@ -25259,9 +25834,9 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
       const interstitial = scheduledItem.event;
       // find asset index
       if (assetListIndex === undefined) {
-        assetListIndex = this.schedule.findAssetIndex(interstitial, this.timelinePos);
+        assetListIndex = schedule.findAssetIndex(interstitial, this.timelinePos);
         const assetIndexCandidate = getNextAssetIndex(interstitial, assetListIndex - 1);
-        if (interstitial.isAssetPastPlayoutLimit(assetIndexCandidate)) {
+        if (interstitial.isAssetPastPlayoutLimit(assetIndexCandidate) || interstitial.appendInPlace && this.timelinePos === scheduledItem.end) {
           this.advanceAfterAssetEnded(interstitial, index, assetListIndex);
           return;
         }
@@ -25303,11 +25878,6 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
       // If asset-list is empty or missing asset index, advance to next item
       const assetItem = interstitial.assetList[assetListIndex];
       if (!assetItem) {
-        const nextItem = scheduleItems[index + 1];
-        const _media2 = this.media;
-        if (nextItem && _media2 && !this.isInterstitial(nextItem) && _media2.currentTime < nextItem.start) {
-          _media2.currentTime = this.timelinePos = nextItem.start;
-        }
         this.advanceAfterAssetEnded(interstitial, index, assetListIndex || 0);
         return;
       }
@@ -25320,6 +25890,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
         const assetListLength = interstitial.assetList.length;
         this.warn(`asset ${assetListIndex + 1}/${assetListLength} player destroyed ${interstitial}`);
         player = this.createAssetPlayer(interstitial, assetItem, assetListIndex);
+        player.loadSource();
       }
       if (!this.eventItemsMatch(scheduledItem, this.bufferingItem)) {
         if (interstitial.appendInPlace && this.isAssetBuffered(assetItem)) {
@@ -25330,7 +25901,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
       if (this.shouldPlay) {
         playWithCatch(player.media);
       }
-    } else if (scheduledItem !== null) {
+    } else if (scheduledItem) {
       this.resumePrimary(scheduledItem, index, currentItem);
       if (this.shouldPlay) {
         playWithCatch(this.hls.media);
@@ -25342,7 +25913,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
       this.playingItem = currentItem;
       if (!currentItem.event.appendInPlace) {
         // Media must be re-attached to resume primary schedule if not sharing source
-        this.attachPrimary(this.schedule.durations.primary, null);
+        this.attachPrimary(schedule.durations.primary, null);
       }
     }
   }
@@ -25350,15 +25921,15 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     return this.hls.config.enableInterstitialPlayback === false;
   }
   get primaryDetails() {
-    var _this$mediaSelection, _this$mediaSelection$;
-    return (_this$mediaSelection = this.mediaSelection) == null ? void 0 : (_this$mediaSelection$ = _this$mediaSelection.main) == null ? void 0 : _this$mediaSelection$.details;
+    var _this$mediaSelection;
+    return (_this$mediaSelection = this.mediaSelection) == null ? void 0 : _this$mediaSelection.main.details;
   }
   get primaryLive() {
     var _this$primaryDetails;
     return !!((_this$primaryDetails = this.primaryDetails) != null && _this$primaryDetails.live);
   }
   resumePrimary(scheduledItem, index, fromItem) {
-    var _this$detachedData4;
+    var _this$detachedData4, _this$schedule4;
     this.playingItem = scheduledItem;
     this.playingAsset = this.endedAsset = null;
     this.waitingItem = this.endedItem = null;
@@ -25368,6 +25939,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
       let timelinePos = this.timelinePos;
       if (timelinePos < scheduledItem.start || timelinePos >= scheduledItem.end) {
         timelinePos = this.getPrimaryResumption(scheduledItem, index);
+        this.log(timelineMessage('resumePrimary', timelinePos));
         this.timelinePos = timelinePos;
       }
       this.attachPrimary(timelinePos, scheduledItem);
@@ -25375,7 +25947,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     if (!fromItem) {
       return;
     }
-    const scheduleItems = this.schedule.items;
+    const scheduleItems = (_this$schedule4 = this.schedule) == null ? void 0 : _this$schedule4.items;
     if (!scheduleItems) {
       return;
     }
@@ -25428,6 +26000,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     }
     if (!skipSeekToStartPosition) {
       // Set primary position to resume time
+      this.log(timelineMessage('attachPrimary', timelinePos));
       this.timelinePos = timelinePos;
       this.startLoadingPrimaryAt(timelinePos, skipSeekToStartPosition);
     }
@@ -25444,8 +26017,9 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
 
   // HLS.js event callbacks
   onManifestLoading() {
+    var _this$schedule5;
     this.stopLoad();
-    this.schedule.reset();
+    (_this$schedule5 = this.schedule) == null || _this$schedule5.reset();
     this.emptyPlayerQueue();
     this.clearScheduleState();
     this.shouldPlay = false;
@@ -25456,7 +26030,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     this.hls.on(Events.BUFFER_CODECS, this.onBufferCodecs, this);
   }
   onLevelUpdated(event, data) {
-    if (data.level === -1) {
+    if (data.level === -1 || !this.schedule) {
       // level was removed
       return;
     }
@@ -25500,11 +26074,15 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
   }
   onAudioTrackSwitching(event, data) {
     const audioOption = getBasicSelectionOption(data);
-    this.playerQueue.forEach(player => player.hls.setAudioOption(data) || player.hls.setAudioOption(audioOption));
+    this.playerQueue.forEach(({
+      hls
+    }) => hls && (hls.setAudioOption(data) || hls.setAudioOption(audioOption)));
   }
   onSubtitleTrackSwitch(event, data) {
     const subtitleOption = getBasicSelectionOption(data);
-    this.playerQueue.forEach(player => player.hls.setSubtitleOption(data) || data.id !== -1 && player.hls.setSubtitleOption(subtitleOption));
+    this.playerQueue.forEach(({
+      hls
+    }) => hls && (hls.setSubtitleOption(data) || data.id !== -1 && hls.setSubtitleOption(subtitleOption)));
   }
   onBufferCodecs(event, data) {
     const requiredTracks = data.tracks;
@@ -25524,15 +26102,18 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     }
   }
   onBufferedToEnd(event) {
+    if (!this.schedule) {
+      return;
+    }
     // Buffered to post-roll
     const interstitialEvents = this.schedule.events;
     if (this.bufferedPos < Number.MAX_VALUE && interstitialEvents) {
       for (let i = 0; i < interstitialEvents.length; i++) {
         const interstitial = interstitialEvents[i];
         if (interstitial.cue.post) {
-          var _this$schedule$items;
+          var _this$schedule$items2;
           const scheduleIndex = this.schedule.findEventIndex(interstitial.identifier);
-          const item = (_this$schedule$items = this.schedule.items) == null ? void 0 : _this$schedule$items[scheduleIndex];
+          const item = (_this$schedule$items2 = this.schedule.items) == null ? void 0 : _this$schedule$items2[scheduleIndex];
           if (this.isInterstitial(item) && this.eventItemsMatch(item, this.bufferingItem)) {
             this.bufferedToItem(item, 0);
           }
@@ -25552,8 +26133,9 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     }
   }
   updateItem(previousItem, time) {
+    var _this$schedule6;
     // find item in this.schedule.items;
-    const items = this.schedule.items;
+    const items = (_this$schedule6 = this.schedule) == null ? void 0 : _this$schedule6.items;
     if (previousItem && items) {
       const index = this.findItemIndex(previousItem, time);
       return items[index] || null;
@@ -25570,7 +26152,9 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
       const flushStart = updatedItem.end + 0.25;
       const bufferInfo = BufferHelper.bufferInfo(this.primaryMedia, flushStart, 0);
       if (bufferInfo.end > flushStart || (bufferInfo.nextStart || 0) > flushStart) {
-        this.attachPrimary(flushStart, null);
+        this.log(`trim buffered interstitial ${segmentToString(updatedItem)} (was ${segmentToString(itemBeforeUpdate)})`);
+        const skipSeekToStartPosition = true;
+        this.attachPrimary(flushStart, null, skipSeekToStartPosition);
         this.flushFrontBuffer(flushStart);
       }
     }
@@ -25583,19 +26167,21 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     return !!b && (a === b || a.event.identifier === ((_b$event = b.event) == null ? void 0 : _b$event.identifier));
   }
   findItemIndex(item, time) {
-    return item ? this.schedule.findItemIndex(item, time) : -1;
+    return item && this.schedule ? this.schedule.findItemIndex(item, time) : -1;
   }
-  updateSchedule() {
+  updateSchedule(forceUpdate = false) {
+    var _this$schedule7;
     const mediaSelection = this.mediaSelection;
     if (!mediaSelection) {
       return;
     }
-    this.schedule.updateSchedule(mediaSelection, []);
+    (_this$schedule7 = this.schedule) == null || _this$schedule7.updateSchedule(mediaSelection, [], forceUpdate);
   }
 
   // Schedule buffer control
   checkBuffer(starved) {
-    const items = this.schedule.items;
+    var _this$schedule8;
+    const items = (_this$schedule8 = this.schedule) == null ? void 0 : _this$schedule8.items;
     if (!items) {
       return;
     }
@@ -25610,7 +26196,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
   updateBufferedPos(bufferEnd, items, bufferIsEmpty) {
     const schedule = this.schedule;
     const bufferingItem = this.bufferingItem;
-    if (this.bufferedPos > bufferEnd) {
+    if (this.bufferedPos > bufferEnd || !schedule) {
       return;
     }
     if (items.length === 1 && this.itemsMatch(items[0], bufferingItem)) {
@@ -25621,16 +26207,23 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     const playingIndex = this.findItemIndex(playingItem);
     let bufferEndIndex = schedule.findItemIndexAtTime(bufferEnd);
     if (this.bufferedPos < bufferEnd) {
-      var _nextItemToBuffer$eve, _bufferingItem$event;
+      var _nextItemToBuffer$eve;
       const bufferingIndex = this.findItemIndex(bufferingItem);
       const nextToBufferIndex = Math.min(bufferingIndex + 1, items.length - 1);
       const nextItemToBuffer = items[nextToBufferIndex];
       if (bufferEndIndex === -1 && bufferingItem && bufferEnd >= bufferingItem.end || (_nextItemToBuffer$eve = nextItemToBuffer.event) != null && _nextItemToBuffer$eve.appendInPlace && bufferEnd + 0.01 >= nextItemToBuffer.start) {
         bufferEndIndex = nextToBufferIndex;
       }
-      if (nextToBufferIndex - playingIndex > 1 && (bufferingItem == null ? void 0 : (_bufferingItem$event = bufferingItem.event) == null ? void 0 : _bufferingItem$event.appendInPlace) === false) {
-        // do not advance buffering item past Interstitial that requires source reset
-        return;
+      if (this.isInterstitial(bufferingItem)) {
+        const interstitial = bufferingItem.event;
+        if (nextToBufferIndex - playingIndex > 1 && interstitial.appendInPlace === false) {
+          // do not advance buffering item past Interstitial that requires source reset
+          return;
+        }
+        if (interstitial.assetList.length === 0 && interstitial.assetListLoader) {
+          // do not advance buffering item past Interstitial loading asset-list
+          return;
+        }
       }
       this.bufferedPos = bufferEnd;
       if (bufferEndIndex > bufferingIndex && bufferEndIndex > playingIndex) {
@@ -25663,7 +26256,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
   setBufferingItem(item) {
     const bufferingLast = this.bufferingItem;
     const schedule = this.schedule;
-    if (!this.itemsMatch(item, bufferingLast)) {
+    if (!this.itemsMatch(item, bufferingLast) && schedule) {
       const {
         items,
         events
@@ -25679,10 +26272,14 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
       this.log(`INTERSTITIALS_BUFFERED_TO_BOUNDARY ${segmentToString(item)}` + (bufferingLast ? ` (${timeRemaining.toFixed(2)} remaining)` : ''));
       if (!this.playbackDisabled) {
         if (isInterstitial) {
+          const bufferIndex = schedule.findAssetIndex(item.event, this.bufferedPos);
           // primary fragment loading will exit early in base-stream-controller while `bufferingItem` is set to an Interstitial block
-          item.event.assetList.forEach(asset => {
+          item.event.assetList.forEach((asset, i) => {
             const player = this.getAssetPlayer(asset.identifier);
             if (player) {
+              if (i === bufferIndex) {
+                player.loadSource();
+              }
               player.resumeBuffering();
             }
           });
@@ -25740,10 +26337,8 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
       // Buffered to Interstitial boundary
       const player = this.preloadAssets(interstitial, assetListIndex);
       if (player != null && player.interstitial.appendInPlace) {
-        // If we have a player and asset list info, start buffering
-        const assetItem = interstitial.assetList[assetListIndex];
         const media = this.primaryMedia;
-        if (assetItem && media) {
+        if (media) {
           this.bufferAssetPlayer(player, media);
         }
       }
@@ -25759,7 +26354,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
       if (interstitial.appendInPlace) {
         var _playingItem$nextEven;
         const playingItem = this.playingItem;
-        if (!this.isInterstitial(playingItem) && (playingItem == null ? void 0 : (_playingItem$nextEven = playingItem.nextEvent) == null ? void 0 : _playingItem$nextEven.identifier) === interstitial.identifier) {
+        if (!this.isInterstitial(playingItem) && (playingItem == null || (_playingItem$nextEven = playingItem.nextEvent) == null ? void 0 : _playingItem$nextEven.identifier) === interstitial.identifier) {
           this.flushFrontBuffer(timelineStart + 0.25);
         }
       }
@@ -25788,13 +26383,21 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     } else if (!playOnce && assetListLength) {
       // Re-buffered to Interstitial boundary, re-create asset player(s)
       for (let i = assetListIndex; i < assetListLength; i++) {
-        const asset = interstitial.assetList[i];
-        const playerIndex = this.getAssetPlayerQueueIndex(asset.identifier);
-        if ((playerIndex === -1 || this.playerQueue[playerIndex].destroyed) && !asset.error) {
-          this.createAssetPlayer(interstitial, asset, i);
+        const _asset = interstitial.assetList[i];
+        const playerIndex = this.getAssetPlayerQueueIndex(_asset.identifier);
+        if ((playerIndex === -1 || this.playerQueue[playerIndex].destroyed) && !_asset.error) {
+          this.createAssetPlayer(interstitial, _asset, i);
         }
       }
-      return this.getAssetPlayer(interstitial.assetList[assetListIndex].identifier);
+      const asset = interstitial.assetList[assetListIndex];
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      if (asset) {
+        const player = this.getAssetPlayer(asset.identifier);
+        if (player) {
+          player.loadSource();
+        }
+        return player;
+      }
     }
     return null;
   }
@@ -25859,11 +26462,13 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     const userConfig = primary.userConfig;
     let videoPreference = userConfig.videoPreference;
     const currentLevel = primary.loadLevelObj || primary.levels[primary.currentLevel];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (videoPreference || currentLevel) {
       videoPreference = _extends({}, videoPreference);
       if (currentLevel.videoCodec) {
         videoPreference.videoCodec = currentLevel.videoCodec;
       }
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (currentLevel.videoRange) {
         videoPreference.allowedVideoRanges = [currentLevel.videoRange];
       }
@@ -25882,6 +26487,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     }
     const assetId = assetItem.identifier;
     const playerConfig = _objectSpread2(_objectSpread2({}, userConfig), {}, {
+      maxMaxBufferLength: Math.min(180, primary.config.maxMaxBufferLength),
       autoStartLoad: true,
       startFragPrefetch: true,
       primarySessionId: primary.sessionId,
@@ -25895,6 +26501,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
       audioPreference: selectedAudio || userConfig.audioPreference,
       subtitlePreference: selectedSubtitle || userConfig.subtitlePreference
     });
+    // TODO: limit maxMaxBufferLength in asset players to prevent QEE
     if (interstitial.appendInPlace) {
       interstitial.appendInPlaceStarted = true;
       if (assetItem.timelineStart) {
@@ -25914,8 +26521,10 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     this.playerQueue.push(player);
     interstitial.assetList[assetListIndex] = assetItem;
     // Listen for LevelDetails and PTS change to update duration
+    let initialDuration = true;
     const updateAssetPlayerDetails = details => {
       if (details.live) {
+        var _this$schedule9;
         const error = new Error(`Interstitials MUST be VOD assets ${interstitial}`);
         const errorData = {
           fatal: true,
@@ -25923,13 +26532,15 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
           details: ErrorDetails.INTERSTITIAL_ASSET_ITEM_ERROR,
           error
         };
-        this.handleAssetItemError(errorData, interstitial, this.schedule.findEventIndex(interstitial.identifier), assetListIndex, error.message);
+        const scheduleIndex = ((_this$schedule9 = this.schedule) == null ? void 0 : _this$schedule9.findEventIndex(interstitial.identifier)) || -1;
+        this.handleAssetItemError(errorData, interstitial, scheduleIndex, assetListIndex, error.message);
         return;
       }
       // Get time at end of last fragment
       const duration = details.edge - details.fragmentStart;
       const currentAssetDuration = assetItem.duration;
-      if (currentAssetDuration === null || duration > currentAssetDuration) {
+      if (initialDuration || currentAssetDuration === null || duration > currentAssetDuration) {
+        initialDuration = false;
         this.log(`Interstitial asset "${assetId}" duration change ${currentAssetDuration} > ${duration}`);
         assetItem.duration = duration;
         // Update schedule with new event and asset duration
@@ -25942,6 +26553,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     player.on(Events.LEVEL_PTS_UPDATED, (event, {
       details
     }) => updateAssetPlayerDetails(details));
+    player.on(Events.EVENT_CUE_ENTER, () => this.onInterstitialCueEnter());
     const onBufferCodecs = (event, data) => {
       const inQueuPlayer = this.getAssetPlayer(assetId);
       if (inQueuPlayer && data.tracks) {
@@ -25955,34 +26567,24 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     };
     player.on(Events.BUFFER_CODECS, onBufferCodecs);
     const bufferedToEnd = () => {
-      var _this$schedule$items2;
+      var _this$schedule$items3;
       const inQueuPlayer = this.getAssetPlayer(assetId);
       this.log(`buffered to end of asset ${inQueuPlayer}`);
-      if (!inQueuPlayer) {
+      if (!inQueuPlayer || !this.schedule) {
         return;
       }
       // Preload at end of asset
       const scheduleIndex = this.schedule.findEventIndex(interstitial.identifier);
-      const item = (_this$schedule$items2 = this.schedule.items) == null ? void 0 : _this$schedule$items2[scheduleIndex];
+      const item = (_this$schedule$items3 = this.schedule.items) == null ? void 0 : _this$schedule$items3[scheduleIndex];
       if (this.isInterstitial(item)) {
-        const assetListIndex = interstitial.findAssetIndex(assetItem);
-        const nextAssetIndex = getNextAssetIndex(interstitial, assetListIndex);
-        if (!interstitial.isAssetPastPlayoutLimit(nextAssetIndex)) {
-          this.bufferedToItem(item, nextAssetIndex);
-        } else {
-          var _this$schedule$items3;
-          const nextItem = (_this$schedule$items3 = this.schedule.items) == null ? void 0 : _this$schedule$items3[scheduleIndex + 1];
-          if (nextItem) {
-            this.bufferedToItem(nextItem);
-          }
-        }
+        this.advanceAssetBuffering(item, assetItem);
       }
     };
     player.on(Events.BUFFERED_TO_END, bufferedToEnd);
     const endedWithAssetIndex = assetIndex => {
       return () => {
         const inQueuPlayer = this.getAssetPlayer(assetId);
-        if (!inQueuPlayer) {
+        if (!inQueuPlayer || !this.schedule) {
           return;
         }
         this.shouldPlay = true;
@@ -25993,27 +26595,24 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     player.once(Events.MEDIA_ENDED, endedWithAssetIndex(assetListIndex));
     player.once(Events.PLAYOUT_LIMIT_REACHED, endedWithAssetIndex(Infinity));
     player.on(Events.ERROR, (event, data) => {
+      if (!this.schedule) {
+        return;
+      }
       const inQueuPlayer = this.getAssetPlayer(assetId);
       if (data.details === ErrorDetails.BUFFER_STALLED_ERROR) {
-        if (inQueuPlayer != null && inQueuPlayer.media) {
-          const assetCurrentTime = inQueuPlayer.currentTime;
-          const distanceFromEnd = inQueuPlayer.duration - assetCurrentTime;
-          if (assetCurrentTime && interstitial.appendInPlace && distanceFromEnd / inQueuPlayer.media.playbackRate < 0.5) {
-            this.log(`Advancing buffer past end of asset ${assetId} ${interstitial} at ${inQueuPlayer.media.currentTime}`);
-            bufferedToEnd();
-          } else {
-            this.warn(`Stalled at ${assetCurrentTime} of ${assetCurrentTime + distanceFromEnd} in asset ${assetId} ${interstitial}`);
-            this.onTimeupdate();
-            this.checkBuffer(true);
-          }
+        if (inQueuPlayer != null && inQueuPlayer.appendInPlace) {
+          this.handleInPlaceStall(interstitial);
+          return;
         }
+        this.onTimeupdate();
+        this.checkBuffer(true);
         return;
       }
       this.handleAssetItemError(data, interstitial, this.schedule.findEventIndex(interstitial.identifier), assetListIndex, `Asset player error ${data.error} ${interstitial}`);
     });
     player.on(Events.DESTROYING, () => {
       const inQueuPlayer = this.getAssetPlayer(assetId);
-      if (!inQueuPlayer) {
+      if (!inQueuPlayer || !this.schedule) {
         return;
       }
       const error = new Error(`Asset player destroyed unexpectedly ${assetId}`);
@@ -26054,8 +26653,8 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
   clearAssetPlayer(assetId, toSegment) {
     const playerIndex = this.getAssetPlayerQueueIndex(assetId);
     if (playerIndex !== -1) {
-      this.log(`clear asset player "${assetId}" toSegment: ${toSegment ? segmentToString(toSegment) : toSegment}`);
       const player = this.playerQueue[playerIndex];
+      this.log(`clear ${player} toSegment: ${toSegment ? segmentToString(toSegment) : toSegment}`);
       this.transferMediaFromPlayer(player, toSegment);
       this.playerQueue.splice(playerIndex, 1);
       player.destroy();
@@ -26100,6 +26699,9 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
   }
   bufferAssetPlayer(player, media) {
     var _this$schedule$items4, _this$detachedData5;
+    if (!this.schedule) {
+      return;
+    }
     const {
       interstitial,
       assetItem
@@ -26109,6 +26711,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     if (!item) {
       return;
     }
+    player.loadSource();
     this.setBufferingItem(item);
     this.bufferingAsset = assetItem;
     const bufferingPlayer = this.getBufferingPlayer();
@@ -26124,6 +26727,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     if (appendInPlaceNext && assetItem !== this.playingAsset) {
       // Do not buffer another item if tracks are unknown or incompatible
       if (!player.tracks) {
+        this.log(`Waiting for track info before buffering ${player}`);
         return;
       }
       if (activeTracks && !isCompatibleTrackChange(activeTracks, player.tracks)) {
@@ -26141,13 +26745,44 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     }
     this.transferMediaTo(player, media);
   }
+  handleInPlaceStall(interstitial) {
+    const schedule = this.schedule;
+    const media = this.primaryMedia;
+    if (!schedule || !media) {
+      return;
+    }
+    const currentTime = media.currentTime;
+    const foundAssetIndex = schedule.findAssetIndex(interstitial, currentTime);
+    const stallingAsset = interstitial.assetList[foundAssetIndex];
+    if (stallingAsset) {
+      const player = this.getAssetPlayer(stallingAsset.identifier);
+      if (player) {
+        const assetCurrentTime = player.currentTime || currentTime - stallingAsset.timelineStart;
+        const distanceFromEnd = player.duration - assetCurrentTime;
+        this.warn(`Stalled at ${assetCurrentTime} of ${assetCurrentTime + distanceFromEnd} in ${player} ${interstitial} (media.currentTime: ${currentTime})`);
+        if (assetCurrentTime && (distanceFromEnd / media.playbackRate < 0.5 || player.bufferedInPlaceToEnd(media)) && player.hls) {
+          const scheduleIndex = schedule.findEventIndex(interstitial.identifier);
+          this.advanceAfterAssetEnded(interstitial, scheduleIndex, foundAssetIndex);
+        }
+      }
+    }
+  }
+  advanceInPlace(time) {
+    const media = this.primaryMedia;
+    if (media && media.currentTime < time) {
+      media.currentTime = time;
+    }
+  }
   handleAssetItemError(data, interstitial, scheduleIndex, assetListIndex, errorMessage) {
     if (data.details === ErrorDetails.BUFFER_STALLED_ERROR) {
       return;
     }
-    const assetItem = interstitial.assetList[assetListIndex];
+    const assetItem = interstitial.assetList[assetListIndex] || null;
     this.warn(`INTERSTITIAL_ASSET_ERROR ${assetItem ? eventAssetToString(assetItem) : assetItem} ${data.error}`);
-    const assetId = assetItem == null ? void 0 : assetItem.identifier;
+    if (!this.schedule) {
+      return;
+    }
+    const assetId = (assetItem == null ? void 0 : assetItem.identifier) || '';
     const playerIndex = this.getAssetPlayerQueueIndex(assetId);
     const player = this.playerQueue[playerIndex] || null;
     const items = this.schedule.items;
@@ -26166,6 +26801,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
       return;
     }
     const playingAsset = this.playingAsset;
+    const bufferingAsset = this.bufferingAsset;
     const error = new Error(errorMessage);
     if (assetItem) {
       this.clearAssetPlayer(assetId, null);
@@ -26175,17 +26811,19 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     // If all assets in interstitial fail, mark the interstitial with an error
     if (!interstitial.assetList.some(asset => !asset.error)) {
       interstitial.error = error;
-    } else if (interstitial.appendInPlace) {
+    } else {
       // Reset level details and reload/parse media playlists to align with updated schedule
       for (let i = assetListIndex; i < interstitial.assetList.length; i++) {
         this.resetAssetPlayer(interstitial.assetList[i].identifier);
       }
-      this.updateSchedule();
     }
+    this.updateSchedule(true);
     if (interstitial.error) {
       this.primaryFallback(interstitial);
     } else if (playingAsset && playingAsset.identifier === assetId) {
       this.advanceAfterAssetEnded(interstitial, scheduleIndex, assetListIndex);
+    } else if (bufferingAsset && bufferingAsset.identifier === assetId && this.isInterstitial(this.bufferingItem)) {
+      this.advanceAssetBuffering(this.bufferingItem, bufferingAsset);
     }
   }
   primaryFallback(interstitial) {
@@ -26193,9 +26831,8 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     const flushStart = interstitial.timelineStart;
     const playingItem = this.effectivePlayingItem;
     // Update schedule now that interstitial/assets are flagged with `error` for fallback
-    this.updateSchedule();
     if (playingItem) {
-      this.log(`Fallback to primary from event "${interstitial.identifier}" start: ${flushStart} pos: ${this.timelinePos} playing: ${playingItem ? segmentToString(playingItem) : '<none>'} error: ${interstitial.error}`);
+      this.log(`Fallback to primary from event "${interstitial.identifier}" start: ${flushStart} pos: ${this.timelinePos} playing: ${segmentToString(playingItem)} error: ${interstitial.error}`);
       let timelinePos = this.timelinePos;
       if (timelinePos === -1) {
         timelinePos = this.hls.startPosition;
@@ -26208,6 +26845,9 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
         this.attachPrimary(flushStart, null);
         this.flushFrontBuffer(flushStart);
       }
+      if (!this.schedule) {
+        return;
+      }
       const scheduleIndex = this.schedule.findItemIndexAtTime(timelinePos);
       this.setSchedulePosition(scheduleIndex);
     } else {
@@ -26217,11 +26857,11 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
 
   // Asset List loading
   onAssetListLoaded(event, data) {
-    var _this$bufferingItem2;
+    var _this$schedule0, _this$bufferingItem2;
     const interstitial = data.event;
     const interstitialId = interstitial.identifier;
     const assets = data.assetListResponse.ASSETS;
-    if (!this.schedule.hasEvent(interstitialId)) {
+    if (!((_this$schedule0 = this.schedule) != null && _this$schedule0.hasEvent(interstitialId))) {
       // Interstitial with id was removed
       return;
     }
@@ -26254,6 +26894,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
           const index = this.schedule.findItemIndexAtTime(this.timelinePos);
           if (index !== scheduleIndex) {
             interstitial.error = new Error(`Interstitial no longer within playback range ${this.timelinePos} ${interstitial}`);
+            this.updateSchedule(true);
             this.primaryFallback(interstitial);
             return;
           }
@@ -26261,17 +26902,27 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
         this.setBufferingItem(item);
       }
       this.setSchedulePosition(scheduleIndex);
-    } else if ((bufferingEvent == null ? void 0 : bufferingEvent.identifier) === interstitialId && bufferingEvent.appendInPlace) {
-      // If buffering (but not playback) has reached this item transfer media-source
+    } else if ((bufferingEvent == null ? void 0 : bufferingEvent.identifier) === interstitialId) {
       const assetItem = interstitial.assetList[0];
-      const player = this.getAssetPlayer(assetItem.identifier);
-      const media = this.primaryMedia;
-      if (assetItem && player && media) {
-        this.bufferAssetPlayer(player, media);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      if (assetItem) {
+        const player = this.getAssetPlayer(assetItem.identifier);
+        if (bufferingEvent.appendInPlace) {
+          // If buffering (but not playback) has reached this item transfer media-source
+          const media = this.primaryMedia;
+          if (player && media) {
+            this.bufferAssetPlayer(player, media);
+          }
+        } else if (player) {
+          player.loadSource();
+        }
       }
     }
   }
   onError(event, data) {
+    if (!this.schedule) {
+      return;
+    }
     switch (data.details) {
       case ErrorDetails.ASSET_LIST_PARSING_ERROR:
       case ErrorDetails.ASSET_LIST_LOAD_ERROR:
@@ -26279,12 +26930,19 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
         {
           const interstitial = data.interstitial;
           if (interstitial) {
+            this.updateSchedule(true);
             this.primaryFallback(interstitial);
           }
           break;
         }
       case ErrorDetails.BUFFER_STALLED_ERROR:
         {
+          const stallingItem = this.endedItem || this.waitingItem || this.playingItem;
+          if (this.isInterstitial(stallingItem) && stallingItem.event.appendInPlace) {
+            this.handleInPlaceStall(stallingItem.event);
+            return;
+          }
+          this.log(`Primary player stall @${this.timelinePos} bufferedPos: ${this.bufferedPos}`);
           this.onTimeupdate();
           this.checkBuffer(true);
           break;
@@ -26356,10 +27014,12 @@ class SubtitleStreamController extends BaseStreamController {
       frag,
       success
     } = data;
-    if (isMediaFragment(frag)) {
-      this.fragPrevious = frag;
+    if (!this.fragContextChanged(frag)) {
+      if (isMediaFragment(frag)) {
+        this.fragPrevious = frag;
+      }
+      this.state = State.IDLE;
     }
-    this.state = State.IDLE;
     if (!success) {
       return;
     }
@@ -26499,8 +27159,12 @@ class SubtitleStreamController extends BaseStreamController {
     this.mediaBuffer = this.mediaBufferTimeRanges;
     let sliding = 0;
     if (newDetails.live || (_track$details = track.details) != null && _track$details.live) {
+      if (newDetails.deltaUpdateFailed) {
+        return;
+      }
       const mainDetails = this.mainDetails;
-      if (newDetails.deltaUpdateFailed || !mainDetails) {
+      if (!mainDetails) {
+        this.startFragRequested = false;
         return;
       }
       const mainSlidingStartFragment = mainDetails.fragments[0];
@@ -26521,6 +27185,10 @@ class SubtitleStreamController extends BaseStreamController {
           sliding = mainSlidingStartFragment.start;
           addSliding(newDetails, sliding);
         }
+      }
+      // compute start position if we are aligned with the main playlist
+      if (mainDetails && !this.startFragRequested) {
+        this.setStartPosition(mainDetails, sliding);
       }
     }
     track.details = newDetails;
@@ -29082,7 +29750,8 @@ class TimelineController {
     frag,
     id,
     initPTS,
-    timescale
+    timescale,
+    trackId
   }) {
     const {
       unparsedVttFrags
@@ -29090,7 +29759,8 @@ class TimelineController {
     if (id === PlaylistLevelType.MAIN) {
       this.initPTS[frag.cc] = {
         baseTime: initPTS,
-        timescale
+        timescale,
+        trackId
       };
     }
 
@@ -29098,8 +29768,16 @@ class TimelineController {
     // Parse any unparsed fragments upon receiving the initial PTS.
     if (unparsedVttFrags.length) {
       this.unparsedVttFrags = [];
-      unparsedVttFrags.forEach(frag => {
-        this.onFragLoaded(Events.FRAG_LOADED, frag);
+      unparsedVttFrags.forEach(data => {
+        if (this.initPTS[data.frag.cc]) {
+          this.onFragLoaded(Events.FRAG_LOADED, data);
+        } else {
+          this.hls.trigger(Events.SUBTITLE_FRAG_PROCESSED, {
+            success: false,
+            frag: data.frag,
+            error: new Error('Subtitle discontinuity domain does not match main')
+          });
+        }
       });
     }
   }
@@ -29812,7 +30490,7 @@ class FetchLoader {
       if (onProgress && !isFiniteNumber(config.highWaterMark)) {
         onProgress(stats, context, responseData, response);
       }
-      (_this$callbacks4 = this.callbacks) == null ? void 0 : _this$callbacks4.onSuccess(loaderResponse, stats, context, response);
+      (_this$callbacks4 = this.callbacks) == null || _this$callbacks4.onSuccess(loaderResponse, stats, context, response);
     }).catch(error => {
       var _this$callbacks5;
       self.clearTimeout(this.requestTimeout);
@@ -29823,7 +30501,7 @@ class FetchLoader {
       // when destroying, 'error' itself can be undefined
       const code = !error ? 0 : error.code || 0;
       const text = !error ? null : error.message;
-      (_this$callbacks5 = this.callbacks) == null ? void 0 : _this$callbacks5.onError({
+      (_this$callbacks5 = this.callbacks) == null || _this$callbacks5.onError({
         code,
         text
       }, context, error ? error.details : null, stats);
@@ -30003,7 +30681,7 @@ class XhrLoader {
       }).catch(error => {
         var _this$callbacks2;
         // IE11 throws an exception on xhr.open if attempting to access an HTTP resource over HTTPS
-        (_this$callbacks2 = this.callbacks) == null ? void 0 : _this$callbacks2.onError({
+        (_this$callbacks2 = this.callbacks) == null || _this$callbacks2.onError({
           code: xhr.status,
           text: error.message
         }, context, xhr, stats);
@@ -30091,7 +30769,7 @@ class XhrLoader {
               data: data,
               code: status
             };
-            (_this$callbacks4 = this.callbacks) == null ? void 0 : _this$callbacks4.onSuccess(_response, stats, context, xhr);
+            (_this$callbacks4 = this.callbacks) == null || _this$callbacks4.onSuccess(_response, stats, context, xhr);
             return;
           }
         }
@@ -30110,7 +30788,7 @@ class XhrLoader {
         } else {
           var _this$callbacks5;
           logger.error(`${status} while loading ${context.url}`);
-          (_this$callbacks5 = this.callbacks) == null ? void 0 : _this$callbacks5.onError({
+          (_this$callbacks5 = this.callbacks) == null || _this$callbacks5.onError({
             code: status,
             text: xhr.statusText
           }, context, xhr, stats);
@@ -30601,8 +31279,8 @@ const TICK_INTERVAL$1 = 100;
 class GapController extends TaskLoop {
   constructor(hls, fragmentTracker) {
     super('gap-controller', hls.logger);
-    this.hls = null;
-    this.fragmentTracker = null;
+    this.hls = void 0;
+    this.fragmentTracker = void 0;
     this.media = null;
     this.mediaSource = void 0;
     this.nudgeRetry = 0;
@@ -30808,10 +31486,10 @@ class GapController extends TaskLoop {
       // that begins over 1 target duration after the video start position.
       const isLive = !!(levelDetails != null && levelDetails.live);
       const maxStartGapJump = isLive ? levelDetails.targetduration * 2 : MAX_START_GAP_JUMP;
-      const partialOrGap = fragmentTracker.getPartialFragment(currentTime);
-      if (startJump > 0 && (startJump <= maxStartGapJump || partialOrGap)) {
+      const appended = appendedFragAtPosition(currentTime, fragmentTracker);
+      if (startJump > 0 && (startJump <= maxStartGapJump || appended)) {
         if (!media.paused) {
-          this._trySkipBufferHole(partialOrGap);
+          this._trySkipBufferHole(appended);
         }
         return;
       }
@@ -30894,7 +31572,12 @@ class GapController extends TaskLoop {
             this.warn(error.message);
             // Magic number to flush the pipeline without interuption to audio playback:
             this.media.currentTime += 0.000001;
-            const frag = this.fragmentTracker.getPartialFragment(currentTime) || undefined;
+            let frag = appendedFragAtPosition(currentTime, this.fragmentTracker);
+            if (frag && 'fragment' in frag) {
+              frag = frag.fragment;
+            } else if (!frag) {
+              frag = undefined;
+            }
             const bufferInfo = BufferHelper.bufferInfo(this.media, currentTime, 0);
             this.hls.trigger(Events.ERROR, {
               type: ErrorTypes.MEDIA_ERROR,
@@ -30929,11 +31612,11 @@ class GapController extends TaskLoop {
       return;
     }
     const levelDetails = (_this$hls4 = this.hls) == null ? void 0 : _this$hls4.latestLevelDetails;
-    const partial = fragmentTracker.getPartialFragment(currentTime);
-    if (partial || levelDetails != null && levelDetails.live && currentTime < levelDetails.fragmentStart) {
+    const appended = appendedFragAtPosition(currentTime, fragmentTracker);
+    if (appended || levelDetails != null && levelDetails.live && currentTime < levelDetails.fragmentStart) {
       // Try to skip over the buffer hole caused by a partial fragment
       // This method isn't limited by the size of the gap between buffered ranges
-      const targetTime = this._trySkipBufferHole(partial);
+      const targetTime = this._trySkipBufferHole(appended);
       // we return here in this case, meaning
       // the branch below only executes when we haven't seeked to a new position
       if (targetTime || !this.media) {
@@ -31000,10 +31683,10 @@ class GapController extends TaskLoop {
 
   /**
    * Attempts to fix buffer stalls by jumping over known gaps caused by partial fragments
-   * @param partial - The partial fragment found at the current time (where playback is stalling).
+   * @param appended - The fragment or part found at the current time (where playback is stalling).
    * @private
    */
-  _trySkipBufferHole(partial) {
+  _trySkipBufferHole(appended) {
     var _this$hls5;
     const {
       fragmentTracker,
@@ -31032,34 +31715,31 @@ class GapController extends TaskLoop {
               startGap = true;
             }
           }
-          if (!startGap) {
-            const startProvisioned = partial || fragmentTracker.getAppendedFrag(currentTime, PlaylistLevelType.MAIN);
-            if (startProvisioned) {
-              var _this$hls$loadLevelOb;
-              // Do not seek when selected variant playlist is unloaded
-              if (!((_this$hls$loadLevelOb = this.hls.loadLevelObj) != null && _this$hls$loadLevelOb.details)) {
-                return 0;
+          if (!startGap && appended) {
+            var _this$hls$loadLevelOb;
+            // Do not seek when selected variant playlist is unloaded
+            if (!((_this$hls$loadLevelOb = this.hls.loadLevelObj) != null && _this$hls$loadLevelOb.details)) {
+              return 0;
+            }
+            // Do not seek when required fragments are inflight or appending
+            const inFlightDependency = getInFlightDependency(this.hls.inFlightFragments, startTime);
+            if (inFlightDependency) {
+              return 0;
+            }
+            // Do not seek if we can't walk tracked fragments to end of gap
+            let moreToLoad = false;
+            let pos = appended.end;
+            while (pos < startTime) {
+              const provisioned = appendedFragAtPosition(pos, fragmentTracker);
+              if (provisioned) {
+                pos += provisioned.duration;
+              } else {
+                moreToLoad = true;
+                break;
               }
-              // Do not seek when required fragments are inflight or appending
-              const inFlightDependency = getInFlightDependency(this.hls.inFlightFragments, startTime);
-              if (inFlightDependency) {
-                return 0;
-              }
-              // Do not seek if we can't walk tracked fragments to end of gap
-              let moreToLoad = false;
-              let pos = startProvisioned.end;
-              while (pos < startTime) {
-                const provisioned = fragmentTracker.getPartialFragment(pos);
-                if (provisioned) {
-                  pos += provisioned.duration;
-                } else {
-                  moreToLoad = true;
-                  break;
-                }
-              }
-              if (moreToLoad) {
-                return 0;
-              }
+            }
+            if (moreToLoad) {
+              return 0;
             }
           }
         }
@@ -31067,18 +31747,25 @@ class GapController extends TaskLoop {
         this.warn(`skipping hole, adjusting currentTime from ${currentTime} to ${targetTime}`);
         this.moved = true;
         media.currentTime = targetTime;
-        if (!(partial != null && partial.gap)) {
+        if (!(appended != null && appended.gap)) {
           const error = new Error(`fragment loaded with buffer holes, seeking from ${currentTime} to ${targetTime}`);
-          this.hls.trigger(Events.ERROR, {
+          const errorData = {
             type: ErrorTypes.MEDIA_ERROR,
             details: ErrorDetails.BUFFER_SEEK_OVER_HOLE,
             fatal: false,
             error,
             reason: error.message,
-            frag: partial || undefined,
             buffer: bufferInfo.len,
             bufferInfo
-          });
+          };
+          if (appended) {
+            if ('fragment' in appended) {
+              errorData.part = appended;
+            } else {
+              errorData.frag = appended;
+            }
+          }
+          this.hls.trigger(Events.ERROR, errorData);
         }
         return targetTime;
       }
@@ -31154,6 +31841,9 @@ function inFlight(inFlightData) {
   }
   return inFlightData.frag;
 }
+function appendedFragAtPosition(pos, fragmentTracker) {
+  return fragmentTracker.getAppendedFrag(pos, PlaylistLevelType.MAIN) || fragmentTracker.getPartialFragment(pos);
+}
 
 const MIN_CUE_DURATION = 0.25;
 function getCueClass() {
@@ -31186,9 +31876,6 @@ const MAX_CUE_ENDTIME = (() => {
   }
   return Number.POSITIVE_INFINITY;
 })();
-function hexToArrayBuffer(str) {
-  return Uint8Array.from(str.replace(/^0x/, '').replace(/([\da-fA-F]{2}) ?/g, '0x$1 ').replace(/ +$/, '').split(' ')).buffer;
-}
 class ID3TrackController {
   constructor(hls) {
     this.hls = void 0;
@@ -31196,6 +31883,7 @@ class ID3TrackController {
     this.media = null;
     this.dateRangeCuesAppended = {};
     this.removeCues = true;
+    this.assetCue = void 0;
     this.onEventCueEnter = () => {
       if (!this.hls) {
         return;
@@ -31217,27 +31905,31 @@ class ID3TrackController {
     const {
       hls
     } = this;
-    hls.on(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
-    hls.on(Events.MEDIA_ATTACHED, this.onMediaAttached, this);
-    hls.on(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
-    hls.on(Events.MANIFEST_LOADING, this.onManifestLoading, this);
-    hls.on(Events.FRAG_PARSING_METADATA, this.onFragParsingMetadata, this);
-    hls.on(Events.BUFFER_FLUSHING, this.onBufferFlushing, this);
-    hls.on(Events.LEVEL_UPDATED, this.onLevelUpdated, this);
-    hls.on(Events.LEVEL_PTS_UPDATED, this.onLevelPtsUpdated, this);
+    if (hls) {
+      hls.on(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
+      hls.on(Events.MEDIA_ATTACHED, this.onMediaAttached, this);
+      hls.on(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
+      hls.on(Events.MANIFEST_LOADING, this.onManifestLoading, this);
+      hls.on(Events.FRAG_PARSING_METADATA, this.onFragParsingMetadata, this);
+      hls.on(Events.BUFFER_FLUSHING, this.onBufferFlushing, this);
+      hls.on(Events.LEVEL_UPDATED, this.onLevelUpdated, this);
+      hls.on(Events.LEVEL_PTS_UPDATED, this.onLevelPtsUpdated, this);
+    }
   }
   _unregisterListeners() {
     const {
       hls
     } = this;
-    hls.off(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
-    hls.off(Events.MEDIA_ATTACHED, this.onMediaAttached, this);
-    hls.off(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
-    hls.off(Events.MANIFEST_LOADING, this.onManifestLoading, this);
-    hls.off(Events.FRAG_PARSING_METADATA, this.onFragParsingMetadata, this);
-    hls.off(Events.BUFFER_FLUSHING, this.onBufferFlushing, this);
-    hls.off(Events.LEVEL_UPDATED, this.onLevelUpdated, this);
-    hls.off(Events.LEVEL_PTS_UPDATED, this.onLevelPtsUpdated, this);
+    if (hls) {
+      hls.off(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
+      hls.off(Events.MEDIA_ATTACHED, this.onMediaAttached, this);
+      hls.off(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
+      hls.off(Events.MANIFEST_LOADING, this.onManifestLoading, this);
+      hls.off(Events.FRAG_PARSING_METADATA, this.onFragParsingMetadata, this);
+      hls.off(Events.BUFFER_FLUSHING, this.onBufferFlushing, this);
+      hls.off(Events.LEVEL_UPDATED, this.onLevelUpdated, this);
+      hls.off(Events.LEVEL_PTS_UPDATED, this.onLevelPtsUpdated, this);
+    }
   }
   // Add ID3 metatadata text track.
   onMediaAttaching(event, data) {
@@ -31248,7 +31940,8 @@ class ID3TrackController {
     }
   }
   onMediaAttached() {
-    const details = this.hls.latestLevelDetails;
+    var _this$hls;
+    const details = (_this$hls = this.hls) == null ? void 0 : _this$hls.latestLevelDetails;
     if (details) {
       this.updateDateRangeCues(details);
     }
@@ -31291,17 +31984,13 @@ class ID3TrackController {
     return this.media.addTextTrack('metadata', 'id3');
   }
   onFragParsingMetadata(event, data) {
-    if (!this.media) {
+    if (!this.media || !this.hls) {
       return;
     }
     const {
-      hls: {
-        config: {
-          enableEmsgMetadataCues,
-          enableID3MetadataCues
-        }
-      }
-    } = this;
+      enableEmsgMetadataCues,
+      enableID3MetadataCues
+    } = this.hls.config;
     if (!enableEmsgMetadataCues && !enableID3MetadataCues) {
       return;
     }
@@ -31323,26 +32012,24 @@ class ID3TrackController {
         continue;
       }
       const frames = getId3Frames(samples[i].data);
-      if (frames) {
-        const startTime = samples[i].pts;
-        let endTime = startTime + samples[i].duration;
-        if (endTime > MAX_CUE_ENDTIME) {
-          endTime = MAX_CUE_ENDTIME;
-        }
-        const timeDiff = endTime - startTime;
-        if (timeDiff <= 0) {
-          endTime = startTime + MIN_CUE_DURATION;
-        }
-        for (let j = 0; j < frames.length; j++) {
-          const frame = frames[j];
-          // Safari doesn't put the timestamp frame in the TextTrack
-          if (!isId3TimestampFrame(frame)) {
-            // add a bounds to any unbounded cues
-            this.updateId3CueEnds(startTime, type);
-            const cue = createCueWithDataFields(Cue, startTime, endTime, frame, type);
-            if (cue) {
-              this.id3Track.addCue(cue);
-            }
+      const startTime = samples[i].pts;
+      let endTime = startTime + samples[i].duration;
+      if (endTime > MAX_CUE_ENDTIME) {
+        endTime = MAX_CUE_ENDTIME;
+      }
+      const timeDiff = endTime - startTime;
+      if (timeDiff <= 0) {
+        endTime = startTime + MIN_CUE_DURATION;
+      }
+      for (let j = 0; j < frames.length; j++) {
+        const frame = frames[j];
+        // Safari doesn't put the timestamp frame in the TextTrack
+        if (!isId3TimestampFrame(frame)) {
+          // add a bounds to any unbounded cues
+          this.updateId3CueEnds(startTime, type);
+          const cue = createCueWithDataFields(Cue, startTime, endTime, frame, type);
+          if (cue) {
+            this.id3Track.addCue(cue);
           }
         }
       }
@@ -31401,7 +32088,41 @@ class ID3TrackController {
     }
   }
   updateDateRangeCues(details, removeOldCues) {
-    if (!this.media || !details.hasProgramDateTime || !this.hls.config.enableDateRangeMetadataCues) {
+    if (!this.hls || !this.media) {
+      return;
+    }
+    const {
+      assetPlayerId,
+      timelineOffset,
+      enableDateRangeMetadataCues,
+      interstitialsController
+    } = this.hls.config;
+    if (!enableDateRangeMetadataCues) {
+      return;
+    }
+    const Cue = getCueClass();
+    if (assetPlayerId && timelineOffset && !interstitialsController) {
+      const {
+        fragmentStart,
+        fragmentEnd
+      } = details;
+      let cue = this.assetCue;
+      if (cue) {
+        cue.startTime = fragmentStart;
+        cue.endTime = fragmentEnd;
+      } else if (Cue) {
+        cue = this.assetCue = createCueWithDataFields(Cue, fragmentStart, fragmentEnd, {
+          assetPlayerId: this.hls.config.assetPlayerId
+        }, 'hlsjs.interstitial.asset');
+        if (cue) {
+          cue.id = assetPlayerId;
+          this.id3Track || (this.id3Track = this.createTrack(this.media));
+          this.id3Track.addCue(cue);
+          cue.addEventListener('enter', this.onEventCueEnter);
+        }
+      }
+    }
+    if (!details.hasProgramDateTime) {
       return;
     }
     const {
@@ -31418,18 +32139,23 @@ class ID3TrackController {
       if ((_id3Track$cues = id3Track.cues) != null && _id3Track$cues.length) {
         const idsToRemove = Object.keys(dateRangeCuesAppended).filter(id => !ids.includes(id));
         for (let i = idsToRemove.length; i--;) {
+          var _dateRangeCuesAppende;
           const id = idsToRemove[i];
-          const cues = dateRangeCuesAppended[id].cues;
+          const cues = (_dateRangeCuesAppende = dateRangeCuesAppended[id]) == null ? void 0 : _dateRangeCuesAppende.cues;
           delete dateRangeCuesAppended[id];
-          Object.keys(cues).forEach(key => {
-            try {
+          if (cues) {
+            Object.keys(cues).forEach(key => {
               const cue = cues[key];
-              cue.removeEventListener('enter', this.onEventCueEnter);
-              id3Track.removeCue(cue);
-            } catch (e) {
-              /* no-op */
-            }
-          });
+              if (cue) {
+                cue.removeEventListener('enter', this.onEventCueEnter);
+                try {
+                  id3Track.removeCue(cue);
+                } catch (e) {
+                  /* no-op */
+                }
+              }
+            });
+          }
         }
       } else {
         dateRangeCuesAppended = this.dateRangeCuesAppended = {};
@@ -31440,10 +32166,7 @@ class ID3TrackController {
     if (ids.length === 0 || !isFiniteNumber(lastFragment == null ? void 0 : lastFragment.programDateTime)) {
       return;
     }
-    if (!this.id3Track) {
-      this.id3Track = this.createTrack(this.media);
-    }
-    const Cue = getCueClass();
+    this.id3Track || (this.id3Track = this.createTrack(this.media));
     for (let i = 0; i < ids.length; i++) {
       const id = ids[i];
       const dateRange = dateRanges[id];
@@ -31487,7 +32210,7 @@ class ID3TrackController {
         }
         const cue = cues[key];
         if (cue) {
-          if (durationKnown && !appendedDateRangeCues.durationKnown) {
+          if (durationKnown && !(appendedDateRangeCues != null && appendedDateRangeCues.durationKnown)) {
             cue.endTime = endTime;
           } else if (Math.abs(cue.startTime - startTime) > 0.01) {
             cue.startTime = startTime;
@@ -31507,7 +32230,7 @@ class ID3TrackController {
             _cue.id = id;
             this.id3Track.addCue(_cue);
             cues[key] = _cue;
-            if (this.hls.config.interstitialsController) {
+            if (interstitialsController) {
               if (key === 'X-ASSET-LIST' || key === 'X-ASSET-URL') {
                 _cue.addEventListener('enter', this.onEventCueEnter);
               }
@@ -31738,7 +32461,7 @@ class LatencyController {
     if (media.playbackRate === playbackRate) {
       return;
     }
-    (_this$hls2 = this.hls) == null ? void 0 : _this$hls2.logger.debug(`[latency-controller]: latency=${this.latency.toFixed(3)}, targetLatency=${(_this$targetLatency = this.targetLatency) == null ? void 0 : _this$targetLatency.toFixed(3)}, forwardBufferLength=${this.forwardBufferLength.toFixed(3)}: adjusting playback rate from ${media.playbackRate} to ${playbackRate}`);
+    (_this$hls2 = this.hls) == null || _this$hls2.logger.debug(`[latency-controller]: latency=${this.latency.toFixed(3)}, targetLatency=${(_this$targetLatency = this.targetLatency) == null ? void 0 : _this$targetLatency.toFixed(3)}, forwardBufferLength=${this.forwardBufferLength.toFixed(3)}: adjusting playback rate from ${media.playbackRate} to ${playbackRate}`);
     media.playbackRate = playbackRate;
   }
   estimateLiveEdge() {
@@ -31935,6 +32658,7 @@ class LevelController extends BasePlaylistController {
     }
     if (levels.length === 0) {
       // Dispatch error after MANIFEST_LOADED is done propagating
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       Promise.resolve().then(() => {
         if (this.hls) {
           let message = 'no level with compatible codecs found in manifest';
@@ -32381,7 +33105,7 @@ function isSupported() {
 function changeTypeSupported() {
   var _sourceBuffer$prototy;
   const sourceBuffer = getSourceBuffer();
-  return typeof (sourceBuffer == null ? void 0 : (_sourceBuffer$prototy = sourceBuffer.prototype) == null ? void 0 : _sourceBuffer$prototy.changeType) === 'function';
+  return typeof (sourceBuffer == null || (_sourceBuffer$prototy = sourceBuffer.prototype) == null ? void 0 : _sourceBuffer$prototy.changeType) === 'function';
 }
 
 const TICK_INTERVAL = 100; // how often to tick in ms
@@ -32533,21 +33257,7 @@ class StreamController extends BaseStreamController {
           break;
         }
       case State.FRAG_LOADING_WAITING_RETRY:
-        {
-          var _this$media;
-          const now = self.performance.now();
-          const retryDate = this.retryDate;
-          // if current time is gt than retryDate, or if media seeking let's switch to IDLE state to retry loading
-          if (!retryDate || now >= retryDate || (_this$media = this.media) != null && _this$media.seeking) {
-            const {
-              levels,
-              level
-            } = this;
-            const currentLevel = levels == null ? void 0 : levels[level];
-            this.resetStartWhenNotLoaded(currentLevel || null);
-            this.state = State.IDLE;
-          }
-        }
+        this.checkRetryDate();
         break;
     }
     if (this.state === State.IDLE) {
@@ -32556,9 +33266,9 @@ class StreamController extends BaseStreamController {
     this.onTickEnd();
   }
   onTickEnd() {
-    var _this$media2;
+    var _this$media;
     super.onTickEnd();
-    if ((_this$media2 = this.media) != null && _this$media2.readyState && this.media.seeking === false) {
+    if ((_this$media = this.media) != null && _this$media.readyState && this.media.seeking === false) {
       this.lastCurrentTime = this.media.currentTime;
     }
     this.checkFragmentChanged();
@@ -32828,13 +33538,13 @@ class StreamController extends BaseStreamController {
     // detect if we have different kind of audio codecs used amongst playlists
     let aac = false;
     let heaac = false;
-    data.levels.forEach(level => {
-      const codec = level.audioCodec;
+    for (let i = 0; i < data.levels.length; i++) {
+      const codec = data.levels[i].audioCodec;
       if (codec) {
         aac = aac || codec.indexOf('mp4a.40.2') !== -1;
         heaac = heaac || codec.indexOf('mp4a.40.5') !== -1;
       }
-    });
+    }
     this.audioCodecSwitch = aac && heaac && !changeTypeSupported();
     if (this.audioCodecSwitch) {
       this.log('Both AAC/HE-AAC audio found in levels; declaring level codec as HE-AAC');
@@ -32937,7 +33647,7 @@ class StreamController extends BaseStreamController {
           if (this.config.liveSyncMode === 'buffered') {
             var _bufferInfo$buffered;
             const bufferInfo = BufferHelper.bufferInfo(media, liveSyncPosition, 0);
-            if (!(bufferInfo != null && (_bufferInfo$buffered = bufferInfo.buffered) != null && _bufferInfo$buffered.length)) {
+            if (!((_bufferInfo$buffered = bufferInfo.buffered) != null && _bufferInfo$buffered.length)) {
               media.currentTime = liveSyncPosition;
               return;
             }
@@ -33031,8 +33741,10 @@ class StreamController extends BaseStreamController {
       if (fromAltAudio) {
         this.fragmentTracker.removeAllFragments();
         hls.once(Events.BUFFER_FLUSHED, () => {
-          var _this$hls;
-          (_this$hls = this.hls) == null ? void 0 : _this$hls.trigger(Events.AUDIO_TRACK_SWITCHED, data);
+          if (!this.hls) {
+            return;
+          }
+          this.hls.trigger(Events.AUDIO_TRACK_SWITCHED, data);
         });
         hls.trigger(Events.BUFFER_FLUSHING, {
           startOffset: 0,
@@ -33154,14 +33866,22 @@ class StreamController extends BaseStreamController {
         if (data.parent !== 'main') {
           return;
         }
-        this.resetLoadingState();
+        if (this.reduceLengthAndFlushBuffer(data)) {
+          this.resetLoadingState();
+        }
         break;
       case ErrorDetails.BUFFER_FULL_ERROR:
         if (data.parent !== 'main') {
           return;
         }
         if (this.reduceLengthAndFlushBuffer(data)) {
-          this.flushMainBuffer(0, Number.POSITIVE_INFINITY);
+          const isAssetPlayer = !this.config.interstitialsController && this.config.assetPlayerId;
+          if (isAssetPlayer) {
+            // Use currentTime in buffer estimate to prevent loading more until playback advances
+            this._hasEnoughToStart = true;
+          } else {
+            this.flushMainBuffer(0, Number.POSITIVE_INFINITY);
+          }
         }
         break;
       case ErrorDetails.INTERNAL_EXCEPTION:
@@ -33275,10 +33995,15 @@ class StreamController extends BaseStreamController {
       stats.parsing.start = stats.parsing.end = stats.buffering.start = stats.buffering.end = self.performance.now();
       hls.trigger(Events.FRAG_LOADED, data);
       frag.bitrateTest = false;
+    }).catch(reason => {
+      if (this.state === State.STOPPED || this.state === State.ERROR) {
+        return;
+      }
+      this.warn(reason);
+      this.resetFragmentLoading(fragment);
     });
   }
   _handleTransmuxComplete(transmuxResult) {
-    var _id3$samples;
     const id = this.playlistType;
     const {
       hls
@@ -33317,29 +34042,35 @@ class StreamController extends BaseStreamController {
     }
     this.state = State.PARSING;
     if (initSegment) {
-      if (initSegment != null && initSegment.tracks) {
+      const tracks = initSegment.tracks;
+      if (tracks) {
         const mapFragment = frag.initSegment || frag;
-        this._bufferInitSegment(level, initSegment.tracks, mapFragment, chunkMeta);
+        if (this.unhandledEncryptionError(initSegment, frag)) {
+          return;
+        }
+        this._bufferInitSegment(level, tracks, mapFragment, chunkMeta);
         hls.trigger(Events.FRAG_PARSING_INIT_SEGMENT, {
           frag: mapFragment,
           id,
-          tracks: initSegment.tracks
+          tracks
         });
       }
-
-      // This would be nice if Number.isFinite acted as a typeguard, but it doesn't. See: https://github.com/Microsoft/TypeScript/issues/10038
-      const initPTS = initSegment.initPTS;
+      const baseTime = initSegment.initPTS;
       const timescale = initSegment.timescale;
-      if (isFiniteNumber(initPTS)) {
+      const initPTS = this.initPTS[frag.cc];
+      if (isFiniteNumber(baseTime) && (!initPTS || initPTS.baseTime !== baseTime || initPTS.timescale !== timescale)) {
+        const trackId = initSegment.trackId;
         this.initPTS[frag.cc] = {
-          baseTime: initPTS,
-          timescale
+          baseTime,
+          timescale,
+          trackId
         };
         hls.trigger(Events.INIT_PTS_FOUND, {
           frag,
           id,
-          initPTS,
-          timescale
+          initPTS: baseTime,
+          timescale,
+          trackId
         });
       }
     }
@@ -33421,7 +34152,7 @@ class StreamController extends BaseStreamController {
       frag.setElementaryStreamInfo(ElementaryStreamTypes.AUDIO, startPTS, endPTS, startDTS, endDTS);
       this.bufferFragmentData(audio, frag, part, chunkMeta);
     }
-    if (details && id3 != null && (_id3$samples = id3.samples) != null && _id3$samples.length) {
+    if (details && id3 != null && id3.samples.length) {
       const emittedID3 = {
         id,
         frag,
@@ -33463,8 +34194,9 @@ class StreamController extends BaseStreamController {
       audiovideo
     } = tracks;
     if (audio) {
-      let audioCodec = pickMostCompleteCodecName(audio.codec, currentLevel.audioCodec);
-      // Add level and profile to make up for passthrough-remuxer not being able to parse full codec
+      const levelCodec = currentLevel.audioCodec;
+      let audioCodec = pickMostCompleteCodecName(audio.codec, levelCodec);
+      // Add level and profile to make up for remuxer not being able to parse full codec
       // (logger warning "Unhandled audio codec...")
       if (audioCodec === 'mp4a') {
         audioCodec = 'mp4a.40.5';
@@ -33493,12 +34225,12 @@ class StreamController extends BaseStreamController {
         audioCodec = 'mp4a.40.2';
         this.log(`Android: force audio codec to ${audioCodec}`);
       }
-      if (currentLevel.audioCodec && currentLevel.audioCodec !== audioCodec) {
-        this.log(`Swapping manifest audio codec "${currentLevel.audioCodec}" for "${audioCodec}"`);
+      if (levelCodec && levelCodec !== audioCodec) {
+        this.log(`Swapping manifest audio codec "${levelCodec}" for "${audioCodec}"`);
       }
       audio.levelCodec = audioCodec;
       audio.id = PlaylistLevelType.MAIN;
-      this.log(`Init audio buffer, container:${audio.container}, codecs[selected/level/parsed]=[${audioCodec || ''}/${currentLevel.audioCodec || ''}/${audio.codec}]`);
+      this.log(`Init audio buffer, container:${audio.container}, codecs[selected/level/parsed]=[${audioCodec || ''}/${levelCodec || ''}/${audio.codec}]`);
       delete tracks.audiovideo;
     }
     if (video) {
@@ -33630,19 +34362,19 @@ class StreamController extends BaseStreamController {
     return -1;
   }
   get currentFrag() {
-    var _this$media3;
+    var _this$media2;
     if (this.fragPlaying) {
       return this.fragPlaying;
     }
-    const currentTime = ((_this$media3 = this.media) == null ? void 0 : _this$media3.currentTime) || this.lastCurrentTime;
+    const currentTime = ((_this$media2 = this.media) == null ? void 0 : _this$media2.currentTime) || this.lastCurrentTime;
     if (isFiniteNumber(currentTime)) {
       return this.getAppendedFrag(currentTime);
     }
     return null;
   }
   get currentProgramDateTime() {
-    var _this$media4;
-    const currentTime = ((_this$media4 = this.media) == null ? void 0 : _this$media4.currentTime) || this.lastCurrentTime;
+    var _this$media3;
+    const currentTime = ((_this$media3 = this.media) == null ? void 0 : _this$media3.currentTime) || this.lastCurrentTime;
     if (isFiniteNumber(currentTime)) {
       const details = this.getLevelDetails();
       const frag = this.currentFrag || (details ? findFragmentByPTS(null, details.fragments, currentTime) : null);
@@ -33675,16 +34407,17 @@ class StreamController extends BaseStreamController {
   }
 }
 
-class KeyLoader {
-  constructor(config) {
+class KeyLoader extends Logger {
+  constructor(config, logger) {
+    super('key-loader', logger);
     this.config = void 0;
-    this.keyUriToKeyInfo = {};
+    this.keyIdToKeyInfo = {};
     this.emeController = null;
     this.config = config;
   }
   abort(type) {
-    for (const uri in this.keyUriToKeyInfo) {
-      const loader = this.keyUriToKeyInfo[uri].loader;
+    for (const id in this.keyIdToKeyInfo) {
+      const loader = this.keyIdToKeyInfo[id].loader;
       if (loader) {
         var _loader$context;
         if (type && type !== ((_loader$context = loader.context) == null ? void 0 : _loader$context.frag.type)) {
@@ -33695,23 +34428,23 @@ class KeyLoader {
     }
   }
   detach() {
-    for (const uri in this.keyUriToKeyInfo) {
-      const keyInfo = this.keyUriToKeyInfo[uri];
+    for (const id in this.keyIdToKeyInfo) {
+      const keyInfo = this.keyIdToKeyInfo[id];
       // Remove cached EME keys on detach
       if (keyInfo.mediaKeySessionContext || keyInfo.decryptdata.isCommonEncryption) {
-        delete this.keyUriToKeyInfo[uri];
+        delete this.keyIdToKeyInfo[id];
       }
     }
   }
   destroy() {
     this.detach();
-    for (const uri in this.keyUriToKeyInfo) {
-      const loader = this.keyUriToKeyInfo[uri].loader;
+    for (const id in this.keyIdToKeyInfo) {
+      const loader = this.keyIdToKeyInfo[id].loader;
       if (loader) {
         loader.destroy();
       }
     }
-    this.keyUriToKeyInfo = {};
+    this.keyIdToKeyInfo = {};
   }
   createKeyLoadError(frag, details = ErrorDetails.KEY_LOAD_ERROR, error, networkDetails, response) {
     return new LoadError({
@@ -33724,29 +34457,28 @@ class KeyLoader {
       networkDetails
     });
   }
-  loadClear(loadingFrag, encryptedFragments) {
+  loadClear(loadingFrag, encryptedFragments, startFragRequested) {
     if (this.emeController && this.config.emeEnabled && !this.emeController.getSelectedKeySystemFormats().length) {
-      // access key-system with nearest key on start (loading frag is unencrypted)
+      // Access key-system with nearest key on start (loading frag is unencrypted)
       if (encryptedFragments.length) {
-        const {
-          sn,
-          cc
-        } = loadingFrag;
-        for (let i = 0; i < encryptedFragments.length; i++) {
+        for (let i = 0, l = encryptedFragments.length; i < l; i++) {
           const frag = encryptedFragments[i];
-          if (cc <= frag.cc && (sn === 'initSegment' || frag.sn === 'initSegment' || sn < frag.sn)) {
+          // Loading at or before segment with EXT-X-KEY, or first frag loading and last EXT-X-KEY
+          if (loadingFrag.cc <= frag.cc && (!isMediaFragment(loadingFrag) || !isMediaFragment(frag) || loadingFrag.sn < frag.sn) || !startFragRequested && i == l - 1) {
             return this.emeController.selectKeySystemFormat(frag).then(keySystemFormat => {
+              if (!this.emeController) {
+                return;
+              }
               frag.setKeyFormat(keySystemFormat);
-              if (this.emeController && this.config.requireKeySystemAccessOnStart) {
-                const keySystem = keySystemFormatToKeySystemDomain(keySystemFormat);
-                if (keySystem) {
-                  return this.emeController.getKeySystemAccess([keySystem]);
-                }
+              const keySystem = keySystemFormatToKeySystemDomain(keySystemFormat);
+              if (keySystem) {
+                return this.emeController.getKeySystemAccess([keySystem]);
               }
             });
           }
         }
-      } else if (this.config.requireKeySystemAccessOnStart) {
+      }
+      if (this.config.requireKeySystemAccessOnStart) {
         const keySystemsInConfig = getKeySystemsForConfig(this.config);
         if (keySystemsInConfig.length) {
           return this.emeController.getKeySystemAccess(keySystemsInConfig);
@@ -33778,7 +34510,8 @@ class KeyLoader {
     if (!uri) {
       return Promise.reject(this.createKeyLoadError(frag, ErrorDetails.KEY_LOAD_ERROR, new Error(`Invalid key URI: "${uri}"`)));
     }
-    let keyInfo = this.keyUriToKeyInfo[uri];
+    const id = getKeyId(decryptdata);
+    let keyInfo = this.keyIdToKeyInfo[id];
     if ((_keyInfo = keyInfo) != null && _keyInfo.decryptdata.key) {
       decryptdata.key = keyInfo.decryptdata.key;
       return Promise.resolve({
@@ -33786,17 +34519,19 @@ class KeyLoader {
         keyInfo
       });
     }
-    // Return key load promise as long as it does not have a mediakey session with an unusable key status
+    // Return key load promise once it has a mediakey session with an usable key status
     if ((_keyInfo2 = keyInfo) != null && _keyInfo2.keyLoadPromise) {
       var _keyInfo$mediaKeySess;
-      switch ((_keyInfo$mediaKeySess = keyInfo.mediaKeySessionContext) == null ? void 0 : _keyInfo$mediaKeySess.keyStatus) {
-        case undefined:
-        case 'status-pending':
+      const keyStatus = (_keyInfo$mediaKeySess = keyInfo.mediaKeySessionContext) == null ? void 0 : _keyInfo$mediaKeySess.keyStatus;
+      switch (keyStatus) {
         case 'usable':
         case 'usable-in-future':
           return keyInfo.keyLoadPromise.then(keyLoadedData => {
             // Return the correct fragment with updated decryptdata key and loaded keyInfo
-            decryptdata.key = keyLoadedData.keyInfo.decryptdata.key;
+            const {
+              keyInfo
+            } = keyLoadedData;
+            decryptdata.key = keyInfo.decryptdata.key;
             return {
               frag,
               keyInfo
@@ -33808,14 +34543,14 @@ class KeyLoader {
     }
 
     // Load the key or return the loading promise
-    keyInfo = this.keyUriToKeyInfo[uri] = {
+    this.log(`Loading key ${arrayToHex(decryptdata.keyId || [])} from ${frag.type} ${frag.level}`);
+    keyInfo = this.keyIdToKeyInfo[id] = {
       decryptdata,
       keyLoadPromise: null,
       loader: null,
       mediaKeySessionContext: null
     };
     switch (decryptdata.method) {
-      case 'ISO-23001-7':
       case 'SAMPLE-AES':
       case 'SAMPLE-AES-CENC':
       case 'SAMPLE-AES-CTR':
@@ -33839,16 +34574,17 @@ class KeyLoader {
     };
     if (this.emeController && this.config.emeEnabled) {
       const keySessionContextPromise = this.emeController.loadKey(keyLoadedData);
-      if (keySessionContextPromise) {
-        return (keyInfo.keyLoadPromise = keySessionContextPromise.then(keySessionContext => {
-          keyInfo.mediaKeySessionContext = keySessionContext;
-          return keyLoadedData;
-        })).catch(error => {
-          // Remove promise for license renewal or retry
-          keyInfo.keyLoadPromise = null;
-          throw error;
-        });
-      }
+      return (keyInfo.keyLoadPromise = keySessionContextPromise.then(keySessionContext => {
+        keyInfo.mediaKeySessionContext = keySessionContext;
+        return keyLoadedData;
+      })).catch(error => {
+        // Remove promise for license renewal or retry
+        keyInfo.keyLoadPromise = null;
+        if (error.data) {
+          error.data.frag = frag;
+        }
+        throw error;
+      });
     }
     return Promise.resolve(keyLoadedData);
   }
@@ -33883,7 +34619,8 @@ class KeyLoader {
             keyInfo,
             url: uri
           } = context;
-          if (!frag.decryptdata || keyInfo !== this.keyUriToKeyInfo[uri]) {
+          const id = getKeyId(keyInfo.decryptdata) || uri;
+          if (!frag.decryptdata || keyInfo !== this.keyIdToKeyInfo[id]) {
             return reject(this.createKeyLoadError(frag, ErrorDetails.KEY_LOAD_ERROR, new Error('after key load, decryptdata unset or changed'), networkDetails));
           }
           keyInfo.decryptdata.key = frag.decryptdata.key = new Uint8Array(response.data);
@@ -33926,11 +34663,19 @@ class KeyLoader {
       frag.keyLoader = null;
       keyInfo.loader = null;
     }
-    delete this.keyUriToKeyInfo[uri];
+    const id = getKeyId(keyInfo.decryptdata) || uri;
+    delete this.keyIdToKeyInfo[id];
     if (loader) {
       loader.destroy();
     }
   }
+}
+function getKeyId(decryptdata) {
+  const keyId = decryptdata.keyId;
+  if (keyId) {
+    return arrayToHex(keyId);
+  }
+  return decryptdata.uri;
 }
 
 function mapContextToLevelType(context) {
@@ -34437,7 +35182,7 @@ class PlaylistLoader {
     }
     const error = levelDetails.playlistParsingError;
     if (error) {
-      this.hls.logger.warn(error);
+      this.hls.logger.warn(`${error} ${levelDetails.url}`);
       if (!hls.config.ignorePlaylistParsingErrors) {
         hls.trigger(Events.ERROR, {
           type: ErrorTypes.NETWORK_ERROR,
@@ -34638,7 +35383,7 @@ class Hls {
     const contentSteering = _ContentSteeringController ? new _ContentSteeringController(this) : null;
     const levelController = this.levelController = new LevelController(this, contentSteering);
     const id3TrackController = new ID3TrackController(this);
-    const keyLoader = new KeyLoader(this.config);
+    const keyLoader = new KeyLoader(this.config, this.logger);
     const streamController = this.streamController = new StreamController(this, fragmentTracker, keyLoader);
     const gapController = this.gapController = new GapController(this, fragmentTracker);
 
