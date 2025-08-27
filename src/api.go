@@ -1302,10 +1302,12 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 
 	ws, err := server.conns.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		respondBadRequest(w, "Failed to establish websocket connection.")
+		respondBadRequest(w, "Failed to establish WebSocket connection.")
 		server.users.mutex.Unlock()
 		return
 	}
+
+	go server.readEventMessages(ws, user.Id)
 
 	went_online := !user.Online
 	user.connections += 1
@@ -1375,4 +1377,63 @@ outer:
 	}
 
 	LogInfo("Connection id:%v of user id:%v dropped. Current connection count: %d", conn.id, conn.userId, connectionCount)
+}
+
+func (server *Server) readEventMessages(ws *websocket.Conn, userId uint64) {
+	for {
+		msgType, data, err := ws.ReadMessage()
+		if err != nil {
+			break
+		}
+
+		if msgType == websocket.CloseMessage {
+			break
+		}
+
+		if msgType == websocket.TextMessage {
+			var message json.RawMessage
+			event := WebsocketEvent{
+				Data: &message,
+			}
+
+			if err := json.Unmarshal(data, &event); err != nil {
+				LogError("Failed to deserialize WebSocket event: %v", err)
+			}
+
+			switch event.Type {
+			case "play":
+				var sync SyncRequest
+				if err := json.Unmarshal(message, &sync); err != nil {
+					LogError("Failed to deserialize play event: %v", err)
+					break
+				}
+
+				server.updatePlayerState(true, sync.Timestamp)
+				event := server.createSyncEvent("play", userId)
+				server.writeEventToAllConnections("sync", event)
+
+			case "pause":
+				var sync SyncRequest
+				if err := json.Unmarshal(message, &sync); err != nil {
+					LogError("Failed to deserialize pause event: %v", err)
+					break
+				}
+
+				server.updatePlayerState(false, sync.Timestamp)
+				event := server.createSyncEvent("pause", userId)
+				server.writeEventToAllConnections("sync", event)
+
+			case "seek":
+				var sync SyncRequest
+				if err := json.Unmarshal(message, &sync); err != nil {
+					LogError("Failed to deserialize pause event: %v", err)
+					break
+				}
+
+				server.playerSeek(sync.Timestamp, userId)
+			default:
+				LogError("Server caught unknown event '%v'", event.Type)
+			}
+		}
+	}
 }

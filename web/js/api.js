@@ -1,3 +1,4 @@
+let websocket = null;
 let token = null;
 
 export class JsonResponse {
@@ -171,6 +172,10 @@ export function setToken(t) {
 
 export function getToken() {
     return token;
+}
+
+export function setWebSocket(ws) {
+    websocket = ws;
 }
 
 export async function version() {
@@ -464,4 +469,56 @@ export async function chatDelete(messageId) {
     };
     console.info("INFO: Deleting chat message.");
     return await httpPost("/watch/api/chat/delete", data);
+}
+
+export function wsPlay(timestamp) {
+    if (!websocket) {
+        console.error("ERROR: Failed to send WS play. Server connection is closed.");
+        return;
+    }
+
+    let event = {
+        type: "play",
+        data: {
+            timestamp: timestamp,
+        }
+    };
+
+    let json = JSON.stringify(event);
+    websocket.send(json);
+}
+
+export function wsPause(timestamp) {
+    if (!websocket) {
+        console.error("ERROR: Failed to send WS pause. Server connection is closed.");
+        return;
+    }
+
+    let event = {
+        type: "pause",
+        data: {
+            timestamp: timestamp,
+        }
+    };
+
+    let json = JSON.stringify(event);
+    websocket.send(json);
+}
+
+
+export function wsSeek(timestamp) {
+    if (!websocket) {
+        console.error("ERROR: Failed to send WS seek. Server connection is closed.");
+        return;
+    }
+
+    let event = {
+        type: "seek",
+        data: {
+            timestamp: timestamp,
+        }
+    };
+
+    let json = JSON.stringify(event);
+    websocket.send(json);
 }

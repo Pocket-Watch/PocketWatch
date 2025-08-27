@@ -344,18 +344,18 @@ class Room {
             }
 
             if (this.player.getCurrentTime() >= this.player.getDuration()) {
-                api.playerPlay(0);
+                api.wsPlay(0);
             } else {
-                api.playerPlay(this.player.getCurrentTime());
+                api.wsPlay(this.player.getCurrentTime());
             }
         });
 
         this.player.onControlsPause(_ => {
-            api.playerPause(this.player.getCurrentTime());
+            api.wsPause(this.player.getCurrentTime());
         });
 
         this.player.onControlsSeeked(timestamp => {
-            api.playerSeek(timestamp);
+            api.wsSeek(timestamp);
         });
 
         this.player.onControlsSeeking(timestamp => {
@@ -406,7 +406,7 @@ class Room {
                     endTime = 0;
                 }
 
-                api.playerPause(endTime);
+                api.wsPause(endTime);
             }
         });
 
@@ -426,14 +426,14 @@ class Room {
 
             if (exception.name === "AbortError") {
                 this.player.setToast("AbortError: Likely the video is slowly loading. Pausing playback!");
-                api.playerPause(this.player.getCurrentTime());
+                api.wsPause(this.player.getCurrentTime());
                 return;
             }
 
             if (!error) {
                 this.player.setToast("UNKNOWN ERROR, press F12 to see what happened!");
                 console.error(exception.name + ":", exception.message);
-                api.playerPause(this.player.getCurrentTime());
+                api.wsPause(this.player.getCurrentTime());
                 return;
             }
 
@@ -451,7 +451,7 @@ class Room {
                 }
                 if (errMsg.startsWith("NS_ERROR_DOM_INVALID") || errMsg.includes("Empty src")) {
                     this.player.setToast("Nothing is set!");
-                    api.playerPause(this.player.getCurrentTime());
+                    api.wsPause(this.player.getCurrentTime());
                     return;
                 }
 
@@ -461,7 +461,7 @@ class Room {
                     this.player.setToast("Unsupported src: '" + this.player.getCurrentUrl() + "' " + error.message);
                 }
 
-                api.playerPause(this.player.getCurrentTime());
+                api.wsPause(this.player.getCurrentTime());
             }
         });
 
@@ -1411,6 +1411,7 @@ class Room {
             console.info("INFO: Connection to events opened.");
 
             hide(this.connectionLostPopup);
+            api.setWebSocket(ws);
 
             await this.loadUsersData();
             this.loadPlayerData();
@@ -1421,26 +1422,16 @@ class Room {
             api.version().then(version => this.settingsMenu.websiteVersion.textContent = version);
         };
 
-        // ws.onerror = event => {
-        //     console.error("ERROR: WebSocket connection errored with:", event);
-        // };
-        
         ws.onclose = _ => {
             console.error("ERROR: Connection to the server was lost. Attempting to reconnect in", RECONNECT_AFTER, "ms");
+            api.setWebSocket(null);
             this.handleDisconnect();
-        }
+        };
 
         ws.onmessage = event => {
             let wsEvent = JSON.parse(event.data);
             this.handleServerEvent(wsEvent.type, wsEvent.data);
         }
-
-        // NOTE(kihau): Event "beforeunload" was needed with regular SSE
-        // TODO(kihau): Check whether "beforeunload" is still needed for WebSockets.
-        //
-        // window.addEventListener("beforeunload", _ => {
-        //     ws.close();
-        // });
     }
 
     updateRoomSubtitlesHtml(entry) {
@@ -1471,10 +1462,6 @@ class Room {
 
     handleServerEvent(wsType, wsData) {
         switch (wsType) {
-            default: {
-                console.warn("WARN: Unhandled event of type:", wsType);
-            } break;
-
             case "ping": {
                 // TODO(kihau): Respond with pong.
             } break;
@@ -1837,6 +1824,10 @@ class Room {
                         break;
                     }
                 }
+            } break;
+
+            default: {
+                console.warn("WARN: Unhandled event of type:", wsType);
             } break;
         }
     }
