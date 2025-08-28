@@ -669,6 +669,25 @@ func (server *Server) readJsonDataFromWebSocket(eventType EventType, message jso
 	return true
 }
 
+func (server *Server) writeEventToOneConnection(eventType string, eventData any, conn Connection) {
+	data := WebsocketEventResponse{
+		Type: eventType,
+		Data: eventData,
+	}
+
+	event, err := json.Marshal(data)
+	if err != nil {
+		LogError("Failed to serialize data for event '%v': %v", eventType, err)
+		return
+	}
+
+	select {
+	case conn.events <- event:
+	default:
+		LogWarn("Channel event write failed for connection: %v", conn.id)
+	}
+}
+
 func (server *Server) writeEventToAllConnections(eventType string, eventData any) {
 	data := WebsocketEventResponse{
 		Type: eventType,

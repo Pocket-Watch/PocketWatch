@@ -18,8 +18,8 @@ import (
 )
 
 func (server *Server) apiVersion(w http.ResponseWriter, r *http.Request) {
-	uptimeString := fmt.Sprintf("%v_%v", VERSION, BuildTime)
-	response, _ := json.Marshal(uptimeString)
+	buildTime := fmt.Sprintf("%v_%v", VERSION, BuildTime)
+	response, _ := json.Marshal(buildTime)
 	w.Write(response)
 }
 
@@ -1288,6 +1288,7 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 		DatabaseUpdateUserLastOnline(server.db, user.Id, time.Now())
 	}
 
+	server.writeEventToOneConnection("welcome", WelcomeMessage{BuildTime}, conn)
 outer:
 	for {
 		select {

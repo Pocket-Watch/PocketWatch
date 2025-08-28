@@ -8,6 +8,7 @@ import { Storage, button, div, formatTime, formatByteCount, getById, dynamicImg,
 
 const SERVER_ID = 0;
 
+const VERSION                = "version";
 const SELECTED_THEME         = "selected_theme";
 const USER_AVATAR_ANIMATIONS = "user_avatar_animations";
 const NEW_MESSAGE_SOUND      = "new_message_sound";
@@ -1462,6 +1463,21 @@ class Room {
 
     handleServerEvent(wsType, wsData) {
         switch (wsType) {
+            case "welcome": {
+                let lastVersion = Storage.get(VERSION);
+                let version = wsData.version;
+
+                if (!lastVersion) {
+                    Storage.set(VERSION, version);
+                    return;
+                }
+                if (lastVersion !== version) {
+                    Storage.set(VERSION, version);
+                    console.log("INFO: Reloading because the server version changed:", lastVersion, "->", version);
+                    window.location.reload();
+                }
+            } break;
+
             case "ping": {
                 // TODO(kihau): Respond with pong.
             } break;

@@ -952,6 +952,7 @@ func (ring *RingBuffer) Clear() {
 var zeroTime = time.Unix(0, 0)
 
 const TIME_LAYOUT = "Mon, 02 Jan 2006 15:04:05 GMT"
+const VERSION_LAYOUT = "02-Jan-2006-15:04:05"
 
 func shareFile(w http.ResponseWriter, r *http.Request, path string) {
 	rangeHeader := r.Header.Get("Range")

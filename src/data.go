@@ -89,6 +89,10 @@ type PlayerState struct {
 	Timestamp float64 `json:"timestamp"`
 }
 
+type WelcomeMessage struct {
+	Version string `json:"version"`
+}
+
 type Subtitle struct {
 	Id    uint64  `json:"id"`
 	Name  string  `json:"name"`

@@ -75,7 +75,8 @@ func main() {
 	exePath, _ := os.Executable()
 	file, err := os.Stat(exePath)
 	if err == nil {
-		BuildTime = file.ModTime().String()
+		exeModTime := file.ModTime()
+		BuildTime = exeModTime.Format(VERSION_LAYOUT)
 	}
 
 	PrettyPrintConfig(config)
