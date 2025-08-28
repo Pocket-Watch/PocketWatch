@@ -85,13 +85,23 @@ func (users *Users) findByToken(token string) int {
 	return -1
 }
 
+func (users *Users) findById(userId uint64) int {
+	for i, user := range users.slice {
+		if user.Id == userId {
+			return i
+		}
+	}
+
+	return -1
+}
+
 func makeConnections() *Connections {
 	conns := new(Connections)
 	conns.slice = make([]Connection, 0)
 	conns.idCounter = 1
 	conns.upgrader = websocket.Upgrader{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
+		ReadBufferSize:  4096,
+		WriteBufferSize: 4096,
 	}
 	return conns
 }
@@ -616,6 +626,15 @@ func (server *Server) findUser(token string) *User {
 	return &server.users.slice[index]
 }
 
+func (server *Server) findUserById(userId uint64) *User {
+	index := server.users.findById(userId)
+	if index == -1 {
+		return nil
+	}
+
+	return &server.users.slice[index]
+}
+
 func (server *Server) readJsonDataFromRequest(w http.ResponseWriter, r *http.Request, data any) bool {
 	if r.ContentLength > BODY_LIMIT {
 		http.Error(w, "Request body too large", http.StatusRequestEntityTooLarge)
@@ -639,8 +658,19 @@ func (server *Server) readJsonDataFromRequest(w http.ResponseWriter, r *http.Req
 	return true
 }
 
+func (server *Server) readJsonDataFromWebSocket(eventType EventType, message json.RawMessage, eventData any) bool {
+	if err := json.Unmarshal(message, eventData); err != nil {
+		LogError("Failed to deserialize pause %v: %v", eventType, err)
+		return false
+	}
+
+	// TODO?(kihau): Inform about error via WebSocket.
+
+	return true
+}
+
 func (server *Server) writeEventToAllConnections(eventType string, eventData any) {
-	data := WebsocketEvent{
+	data := WebsocketEventResponse{
 		Type: eventType,
 		Data: eventData,
 	}
@@ -1568,14 +1598,21 @@ func (server *Server) smartSleep() {
 	}
 }
 
-func (server *Server) updatePlayerState(isPlaying bool, newTimestamp float64) {
+func (server *Server) playerUpdateState(isPlaying bool, newTimestamp float64, userId uint64) {
 	server.state.mutex.Lock()
-
 	server.state.player.Playing = isPlaying
 	server.state.player.Timestamp = newTimestamp
 	server.state.lastUpdate = time.Now()
-
 	server.state.mutex.Unlock()
+
+	var event SyncEvent
+	if isPlaying {
+		event = server.createSyncEvent("play", userId)
+	} else {
+		event = server.createSyncEvent("pause", userId)
+	}
+
+	server.writeEventToAllConnections("sync", event)
 }
 
 func (server *Server) getCurrentTimestamp() float64 {
@@ -1836,4 +1873,49 @@ func (server *Server) historyRemove(index int) Entry {
 	server.writeEventToAllConnections("historyremove", entry.Id)
 
 	return entry
+}
+
+func (server *Server) chatCreateMessage(message string, userId uint64) error {
+	if len([]rune(message)) > MAX_MESSAGE_CHARACTERS {
+		return fmt.Errorf("Message exceeds 1000 chars")
+	}
+
+	server.state.mutex.Lock()
+	server.state.messageId++
+	chatMessage := ChatMessage{
+		Id:       server.state.messageId,
+		Message:  message,
+		AuthorId: userId,
+		UnixTime: time.Now().UnixMilli(),
+		Edited:   false,
+	}
+	server.state.messages = append(server.state.messages, chatMessage)
+	server.state.mutex.Unlock()
+
+	server.writeEventToAllConnections("messagecreate", chatMessage)
+	return nil
+}
+
+func (server *Server) chatDeleteMessage(messageId uint64, userId uint64) error {
+	server.state.mutex.Lock()
+	defer server.state.mutex.Unlock()
+
+	messages := server.state.messages
+
+	index := indexOfMessageById(messages, messageId)
+	if index == -1 {
+		return fmt.Errorf("No message found of id %v", messageId)
+	}
+
+	msg := messages[index]
+	if msg.AuthorId != userId {
+		user := server.findUserById(userId)
+		LogWarn("User '%v' (id:%v) tried to remove a stranger's message", user.Username, userId)
+		return fmt.Errorf("You're not the author of this message")
+	}
+
+	server.state.messages = append(messages[:index], messages[index+1:]...)
+	server.writeEventToAllConnections("messagedelete", msg.Id)
+
+	return nil
 }

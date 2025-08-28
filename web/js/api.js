@@ -1,13 +1,66 @@
+/* Event response constants for (potential) future use.
+export const EVENT_PING     = 0;
+export const EVENT_USER     = 1;
+export const EVENT_PLAYER   = 2;
+export const EVENT_PLAYLIST = 3;
+export const EVENT_HISTORY  = 4;
+export const EVENT_CHAT     = 5;
+export const EVENT_SUBTITLE = 6;
+
+export const EVENT_USER_CREATE       = 0;
+export const EVENT_USER_DELETE       = 1;
+export const EVENT_USER_CONNECTED    = 2;
+export const EVENT_USER_DISCONNECTED = 3;
+export const EVENT_USER_UPDATE       = 4;
+
+export const EVENT_PLAYER_SET          = 0;
+export const EVENT_PLAYER_LOOPING      = 1;
+export const EVENT_PLAYER_AUTOPLAY     = 2;
+export const EVENT_PLAYER_UPDATE_TITLE = 3;
+export const EVENT_PLAYER_WAITING      = 4;
+export const EVENT_PLAYER_ERROR        = 5;
+export const EVENT_PLAYER_SYNC         = 6;
+
+export const EVENT_PLAYLIST_ADD          = 0;
+export const EVENT_PLAYLIST_ADD_TOP      = 1;
+export const EVENT_PLAYLIST_ADD_MANY     = 2;
+export const EVENT_PLAYLIST_ADD_MANY_TOP = 3;
+export const EVENT_PLAYLIST_CLEAR        = 4;
+export const EVENT_PLAYLIST_REMOVE       = 5;
+export const EVENT_PLAYLIST_SHUFFLE      = 6;
+export const EVENT_PLAYLIST_MOVE         = 7;
+export const EVENT_PLAYLIST_UPDATE       = 8;
+
+export const EVENT_HISTORY_ADD    = 0;
+export const EVENT_HISTORY_CLEAR  = 1;
+export const EVENT_HISTORY_DELETE = 2;
+
+export const EVENT_CHAT_MESSAGE_CREATE = 0;
+export const EVENT_CHAT_MESSAGE_DELETE = 1;
+export const EVENT_CHAT_MESSAGE_EDIT   = 2;
+
+export const EVENT_SUBTITLE_ATTACH = 0;
+export const EVENT_SUBTITLE_DELETE = 1;
+export const EVENT_SUBTITLE_UPDATE = 2;
+export const EVENT_SUBTITLE_SHIFT  = 3;
+*/
+
+export const EVENT_PLAY        = 0;
+export const EVENT_PAUSE       = 1;
+export const EVENT_SEEK        = 2;
+export const EVENT_CHAT_SEND   = 3;
+export const EVENT_CHAT_DELETE = 4;
+
 let websocket = null;
 let token = null;
 
 export class JsonResponse {
     constructor(status, method, endpoint) {
-        this.ok = status >= 200 && status < 300;
-        this.status = status;
-        this.method = method;
-        this.endpoint = endpoint;
-        this.json = null;
+        this.ok           = status >= 200 && status < 300;
+        this.status       = status;
+        this.method       = method;
+        this.endpoint     = endpoint;
+        this.json         = null;
         this.errorMessage = null;
     }
 
@@ -172,10 +225,6 @@ export function setToken(t) {
 
 export function getToken() {
     return token;
-}
-
-export function setWebSocket(ws) {
-    websocket = ws;
 }
 
 export async function version() {
@@ -463,6 +512,25 @@ export async function chatGet(count, backwardOffset) {
     return await httpPost("/watch/api/chat/get", data);
 }
 
+export function setWebSocket(ws) {
+    websocket = ws;
+}
+
+function wsSendEvent(type, data) {
+    if (!websocket) {
+        console.error("ERROR: Failed to send WebSocket '" + type + "'. Server connection is closed.");
+        return;
+    }
+
+    const event = {
+        type: type,
+        data: data,
+    };
+
+    let json = JSON.stringify(event);
+    websocket.send(json);
+}
+
 export async function chatDelete(messageId) {
     let data = {
         id: messageId
@@ -472,53 +540,26 @@ export async function chatDelete(messageId) {
 }
 
 export function wsPlay(timestamp) {
-    if (!websocket) {
-        console.error("ERROR: Failed to send WS play. Server connection is closed.");
-        return;
-    }
-
-    let event = {
-        type: "play",
-        data: {
-            timestamp: timestamp,
-        }
-    };
-
-    let json = JSON.stringify(event);
-    websocket.send(json);
+    const data = { timestamp: timestamp };
+    wsSendEvent(EVENT_PLAY, data);
 }
 
 export function wsPause(timestamp) {
-    if (!websocket) {
-        console.error("ERROR: Failed to send WS pause. Server connection is closed.");
-        return;
-    }
-
-    let event = {
-        type: "pause",
-        data: {
-            timestamp: timestamp,
-        }
-    };
-
-    let json = JSON.stringify(event);
-    websocket.send(json);
+    const data = { timestamp: timestamp };
+    wsSendEvent(EVENT_PAUSE, data);
 }
 
-
 export function wsSeek(timestamp) {
-    if (!websocket) {
-        console.error("ERROR: Failed to send WS seek. Server connection is closed.");
-        return;
-    }
+    const data = { timestamp: timestamp };
+    wsSendEvent(EVENT_SEEK, data);
+}
 
-    let event = {
-        type: "seek",
-        data: {
-            timestamp: timestamp,
-        }
-    };
+export function wsChatSend(message) {
+    const data = { message: message };
+    wsSendEvent(EVENT_CHAT_SEND, data);
+}
 
-    let json = JSON.stringify(event);
-    websocket.send(json);
+export function wsChatDelete(messageId) {
+    const data = { Id: messageId };
+    wsSendEvent(EVENT_CHAT_DELETE, data);
 }

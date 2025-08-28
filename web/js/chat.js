@@ -121,7 +121,7 @@ class Chat {
         this.contextMenuCopy.onclick    = _ => navigator.clipboard.writeText(this.contextMenuMessage.message);
         this.contextMenuCopyUrl.onclick = _ => navigator.clipboard.writeText(this.contextMenuUrl);
         this.contextMenuOpen.onclick    = _ => window.open(this.contextMenuUrl, '_blank').focus();
-        this.contextMenuDelete.onclick  = _ => api.chatDelete(this.contextMenuMessage.id);
+        this.contextMenuDelete.onclick  = _ => api.wsChatDelete(this.contextMenuMessage.id);
 
         this.chatList.oncontextmenu = _ => { return false };
         document.addEventListener("click", _ => this.hideContextMenu());
@@ -434,7 +434,7 @@ class Chat {
             return;
         }
 
-        api.chatSend(content);
+        api.wsChatSend(content);
         this.chatInput.value = "";
     }
 

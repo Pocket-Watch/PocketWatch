@@ -60,6 +60,16 @@ const M3U8_CONTENT_TYPE = "application/vnd.apple.mpegurl"
 const MAX_MESSAGE_CHARACTERS = 1000
 const GENERIC_CHUNK_SIZE = 1 * MB
 
+type EventType uint64
+
+const (
+	EVENT_PLAY        EventType = 0
+	EVENT_PAUSE       EventType = 1
+	EVENT_SEEK        EventType = 2
+	EVENT_CHAT_SEND   EventType = 3
+	EVENT_CHAT_DELETE EventType = 4
+)
+
 // Constants - assignable only once!
 var serverRootAddress string
 var startTime = time.Now()
@@ -300,9 +310,14 @@ type SubtitleDownloadRequest struct {
 	Referer string `json:"referer"`
 }
 
-type WebsocketEvent struct {
+type WebsocketEventResponse struct {
 	Type string `json:"type"`
 	Data any    `json:"data"`
+}
+
+type WebsocketEvent struct {
+	Type EventType `json:"type"`
+	Data any       `json:"data"`
 }
 
 type PlaylistEvent struct {

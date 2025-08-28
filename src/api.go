@@ -388,9 +388,7 @@ func (server *Server) apiPlayerPlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server.updatePlayerState(true, data.Timestamp)
-	event := server.createSyncEvent("play", user.Id)
-	server.writeEventToAllConnections("sync", event)
+	server.playerUpdateState(true, data.Timestamp, user.Id)
 }
 
 func (server *Server) apiPlayerPause(w http.ResponseWriter, r *http.Request) {
@@ -404,9 +402,7 @@ func (server *Server) apiPlayerPause(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server.updatePlayerState(false, data.Timestamp)
-	event := server.createSyncEvent("pause", user.Id)
-	server.writeEventToAllConnections("sync", event)
+	server.playerUpdateState(false, data.Timestamp, user.Id)
 }
 
 func (server *Server) apiPlayerSeek(w http.ResponseWriter, r *http.Request) {
@@ -1038,28 +1034,7 @@ func (server *Server) apiChatDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server.state.mutex.Lock()
-	messages := server.state.messages
-
-	index := indexOfMessageById(messages, data.Id)
-	if index == -1 {
-		server.state.mutex.Unlock()
-		respondBadRequest(w, "No message found of id %v", data.Id)
-		return
-	}
-
-	msg := messages[index]
-	if msg.AuthorId != user.Id {
-		server.state.mutex.Unlock()
-		LogWarn("User %v (id:%v) tried to remove a stranger's message", user.Username, user.Id)
-		http.Error(w, "You're not the author of this message", http.StatusBadRequest)
-		return
-	}
-
-	server.state.messages = append(messages[:index], messages[index+1:]...)
-	server.state.mutex.Unlock()
-
-	server.writeEventToAllConnections("messagedelete", msg.Id)
+	server.chatDeleteMessage(data.Id, user.Id)
 }
 
 func (server *Server) apiHistoryClear(w http.ResponseWriter, r *http.Request) {
@@ -1121,23 +1096,10 @@ func (server *Server) apiChatSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len([]rune(newMessage.Message)) > MAX_MESSAGE_CHARACTERS {
-		http.Error(w, "Message exceeds 1000 chars", http.StatusForbidden)
+	if err := server.chatCreateMessage(newMessage.Message, user.Id); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
-
-	server.state.mutex.Lock()
-	server.state.messageId++
-	chatMessage := ChatMessage{
-		Id:       server.state.messageId,
-		Message:  newMessage.Message,
-		AuthorId: user.Id,
-		UnixTime: time.Now().UnixMilli(),
-		Edited:   false,
-	}
-	server.state.messages = append(server.state.messages, chatMessage)
-	server.state.mutex.Unlock()
-	server.writeEventToAllConnections("messagecreate", chatMessage)
 }
 
 func (server *Server) apiChatEdit(w http.ResponseWriter, r *http.Request) {
@@ -1401,36 +1363,51 @@ func (server *Server) readEventMessages(ws *websocket.Conn, userId uint64) {
 			}
 
 			switch event.Type {
-			case "play":
+			case EVENT_PLAY:
 				var sync SyncRequest
 				if err := json.Unmarshal(message, &sync); err != nil {
 					LogError("Failed to deserialize play event: %v", err)
 					break
 				}
 
-				server.updatePlayerState(true, sync.Timestamp)
-				event := server.createSyncEvent("play", userId)
-				server.writeEventToAllConnections("sync", event)
+				server.playerUpdateState(true, sync.Timestamp, userId)
 
-			case "pause":
+			case EVENT_PAUSE:
 				var sync SyncRequest
 				if err := json.Unmarshal(message, &sync); err != nil {
 					LogError("Failed to deserialize pause event: %v", err)
 					break
 				}
 
-				server.updatePlayerState(false, sync.Timestamp)
-				event := server.createSyncEvent("pause", userId)
-				server.writeEventToAllConnections("sync", event)
+				server.playerUpdateState(false, sync.Timestamp, userId)
 
-			case "seek":
+			case EVENT_SEEK:
 				var sync SyncRequest
 				if err := json.Unmarshal(message, &sync); err != nil {
-					LogError("Failed to deserialize pause event: %v", err)
+					LogError("Failed to deserialize seek event: %v", err)
 					break
 				}
 
 				server.playerSeek(sync.Timestamp, userId)
+
+			case EVENT_CHAT_SEND:
+				var chatMessage ChatMessageFromUser
+				if err := json.Unmarshal(message, &chatMessage); err != nil {
+					LogError("Failed to deserialize chat send event: %v", err)
+					break
+				}
+
+				server.chatCreateMessage(chatMessage.Message, userId)
+
+			case EVENT_CHAT_DELETE:
+				var data ChatMessageDeleteRequest
+				if err := json.Unmarshal(message, &data); err != nil {
+					LogError("Failed to deserialize chat send event: %v", err)
+					break
+				}
+
+				server.chatDeleteMessage(data.Id, userId)
+
 			default:
 				LogError("Server caught unknown event '%v'", event.Type)
 			}
