@@ -589,3 +589,21 @@ export function wsChatDelete(messageId) {
     const data = { id: messageId };
     wsSendEvent(EVENT_CHAT_DELETE, data);
 }
+
+export function wsPlaylistAdd(requestEntry) {
+    const data = { request_entry: requestEntry };
+    wsSendEvent(EVENT_PLAYLIST_ADD, data);
+}
+
+export async function wsPlaylistMove(entryId, dest) {
+    const data = {
+        entry_id:   entryId,
+        dest_index: dest,
+    };
+
+    wsSendEvent(EVENT_PLAYLIST_MOVE, data);
+}
+
+export async function wsPlaylistClear() {
+    wsSendEvent(EVENT_PLAYLIST_CLEAR, null);
+}

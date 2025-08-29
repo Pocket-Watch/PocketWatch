@@ -885,7 +885,7 @@ class Room {
         area.addPlaylistButton.onclick = async _ => {
             let entry = await this.createNewRequestEntry();
             if (entry.url) {
-                api.playlistAdd(entry);
+                api.wsPlaylistAdd(entry);
                 this.resetEntryAreaElements();
             }
         };
@@ -1131,6 +1131,10 @@ class Room {
         let onlineBoxes = [];
         let offlineBoxes = [];
         let selfBox = null;
+
+        if (!this.allUsers) {
+            return;
+        }
 
         // Sorting dates in descending order
         this.allUsers.sort((a, b) => {

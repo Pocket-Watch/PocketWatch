@@ -555,7 +555,7 @@ func (server *Server) setNewEntry(entry Entry, requested RequestEntry) {
 	defer server.state.mutex.Unlock()
 
 	if server.state.player.Looping {
-		server.playlistAdd(server.state.entry, false)
+		server.playlistAddOne(server.state.entry, false)
 	}
 
 	server.historyAdd(server.state.entry)
@@ -1789,7 +1789,64 @@ func (server *Server) playerSeek(timestamp float64, userId uint64) {
 	server.writeEventToAllConnections("sync", event)
 }
 
-func (server *Server) playlistAdd(entry Entry, toTop bool) {
+func (server *Server) playlistAdd(requested RequestEntry, userId uint64) {
+	entry := Entry{
+		Url:        requested.Url,
+		UserId:     userId,
+		Title:      requested.Title,
+		UseProxy:   requested.UseProxy,
+		RefererUrl: requested.RefererUrl,
+		Subtitles:  requested.Subtitles,
+	}
+
+	localDirectory, path := server.isLocalDirectory(requested.Url)
+	if localDirectory {
+		LogInfo("Adding directory '%s' to the playlist.", path)
+		localEntries := server.getEntriesFromDirectory(path, userId)
+		server.state.mutex.Lock()
+		server.playlistAddMany(localEntries, requested.AddToTop)
+		server.state.mutex.Unlock()
+		return
+	}
+
+	if isYoutube(entry, requested) {
+		err := loadYoutubeEntry(&entry, requested)
+		if err != nil {
+			LogWarn("Failed to load entry in playlist add: %v", err)
+			return
+		}
+	} else if isTwitch(entry) {
+		err := loadTwitchEntry(&entry)
+		if err != nil {
+			LogWarn("Failed to load entry in playlist add: %v", err)
+			return
+		}
+	}
+
+	LogInfo("Adding '%s' url to the playlist.", requested.Url)
+	server.state.mutex.Lock()
+	server.playlistAddOne(entry, requested.AddToTop)
+	server.state.mutex.Unlock()
+
+	if requested.IsPlaylist {
+		requested.Url = entry.Url
+		entries, err := server.loadYoutubePlaylist(requested, entry.UserId)
+
+		if err != nil {
+			return
+		}
+
+		if len(entries) > 0 {
+			entries = entries[1:]
+		}
+
+		server.state.mutex.Lock()
+		server.playlistAddMany(entries, requested.AddToTop)
+		server.state.mutex.Unlock()
+	}
+}
+
+func (server *Server) playlistAddOne(entry Entry, toTop bool) {
 	newEntry := server.constructEntry(entry)
 	if newEntry.Id == 0 {
 		return
@@ -1830,6 +1887,46 @@ func (server *Server) playlistAddMany(entries []Entry, toTop bool) {
 	server.writeEventToAllConnections("playlist", event)
 }
 
+func (server *Server) playlistMove(data PlaylistMoveRequest) error {
+	server.state.mutex.Lock()
+	defer server.state.mutex.Unlock()
+
+	index := FindEntryIndex(server.state.playlist, data.EntryId)
+	if index == -1 {
+		return fmt.Errorf("Failed to move playlist element. Entry with ID %v is not in the playlist.", data.EntryId)
+	}
+
+	if data.DestIndex < 0 || data.DestIndex >= len(server.state.playlist) {
+		return fmt.Errorf("Failed to move playlist element id:%v. Dest index %v out of bounds.", data.EntryId, data.DestIndex)
+	}
+
+	entry := server.state.playlist[index]
+
+	// Remove element from the slice:
+	server.state.playlist = slices.Delete(server.state.playlist, index, index+1)
+
+	list := make([]Entry, 0)
+
+	// Appned removed element to a new list:
+	list = append(list, server.state.playlist[:data.DestIndex]...)
+	list = append(list, entry)
+	list = append(list, server.state.playlist[data.DestIndex:]...)
+
+	server.state.playlist = list
+
+	eventData := PlaylistMoveEvent{
+		EntryId:   data.EntryId,
+		DestIndex: data.DestIndex,
+	}
+
+	event := createPlaylistEvent("move", eventData)
+	server.writeEventToAllConnections("playlist", event)
+
+	go server.preloadYoutubeSourceOnNextEntry()
+
+	return nil
+}
+
 func (server *Server) playlistRemove(index int) Entry {
 	entry := server.state.playlist[index]
 
@@ -1840,6 +1937,16 @@ func (server *Server) playlistRemove(index int) Entry {
 	server.writeEventToAllConnections("playlist", event)
 
 	return entry
+}
+
+func (server *Server) playlistClear() {
+	server.state.mutex.Lock()
+	server.state.playlist = server.state.playlist[:0]
+	DatabasePlaylistClear(server.db)
+	server.state.mutex.Unlock()
+
+	event := createPlaylistEvent("clear", nil)
+	server.writeEventToAllConnections("playlist", event)
 }
 
 func compareEntries(entry1 Entry, entry2 Entry) bool {

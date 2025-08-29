@@ -122,7 +122,7 @@ class Playlist {
         };
 
         this.controlsShuffleButton.onclick  = _ => api.playlistShuffle();
-        this.controlsClearButton.onclick    = _ => api.playlistClear();
+        this.controlsClearButton.onclick    = _ => api.wsPlaylistClear();
         this.controlsSettingsButton.onclick = _ => this.onSettingsClick();
 
         document.addEventListener("click", _ => this.hideContextMenu());
@@ -133,8 +133,8 @@ class Playlist {
         };
 
         this.contextMenuPlayNow.onclick    = _ => api.playlistPlay(this.contextMenuEntry.id);
-        this.contextMenuMoveTop.onclick    = _ => api.playlistMove(this.contextMenuEntry.id, 0);
-        this.contextMenuMoveBottom.onclick = _ => api.playlistMove(this.contextMenuEntry.id, this.entries.length - 1);
+        this.contextMenuMoveTop.onclick    = _ => api.wsPlaylistMove(this.contextMenuEntry.id, 0);
+        this.contextMenuMoveBottom.onclick = _ => api.wsPlaylistMove(this.contextMenuEntry.id, this.entries.length - 1);
         this.contextMenuExpand.onclick     = _ => this.toggleEntryDropdown(this.contextMenuHtmlEntry, this.contextMenuEntry, this.contextMenuUser);
         this.contextMenuCopyUrl.onclick    = _ => navigator.clipboard.writeText(this.contextMenuEntry.url);
         this.contextMenuEdit.onclick       = _ => this.toggleEntryEdit(this.contextMenuHtmlEntry, this.contextMenuEntry);
@@ -821,7 +821,7 @@ class Playlist {
         if (this.dragStartIndex !== this.dragCurrentIndex) {
             let entry = this.entries[this.dragCurrentIndex];
             this.revertDragging(this.dragCurrentIndex, this.dragStartIndex);
-            api.playlistMove(entry.id, this.dragCurrentIndex);
+            api.wsPlaylistMove(entry.id, this.dragCurrentIndex);
         }
 
         this.draggableEntry            = null;

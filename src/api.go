@@ -781,72 +781,11 @@ func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requested := data.RequestEntry
-
-	entry := Entry{
-		Url:        requested.Url,
-		UserId:     user.Id,
-		Title:      requested.Title,
-		UseProxy:   requested.UseProxy,
-		RefererUrl: requested.RefererUrl,
-		Subtitles:  requested.Subtitles,
-	}
-
-	localDirectory, path := server.isLocalDirectory(requested.Url)
-	if localDirectory {
-		LogInfo("Adding directory '%s' to the playlist.", path)
-		localEntries := server.getEntriesFromDirectory(path, user.Id)
-		server.state.mutex.Lock()
-		server.playlistAddMany(localEntries, requested.AddToTop)
-		server.state.mutex.Unlock()
-		return
-	}
-
-	if isYoutube(entry, requested) {
-		err := loadYoutubeEntry(&entry, requested)
-		if err != nil {
-			LogWarn("Failed to load entry in playlist add: %v", err)
-			return
-		}
-	} else if isTwitch(entry) {
-		err := loadTwitchEntry(&entry)
-		if err != nil {
-			LogWarn("Failed to load entry in playlist add: %v", err)
-			return
-		}
-	}
-
-	LogInfo("Adding '%s' url to the playlist.", requested.Url)
-	server.state.mutex.Lock()
-	server.playlistAdd(entry, requested.AddToTop)
-	server.state.mutex.Unlock()
-
-	if requested.IsPlaylist {
-		requested.Url = entry.Url
-		entries, err := server.loadYoutubePlaylist(requested, entry.UserId)
-
-		if err != nil {
-			return
-		}
-
-		if len(entries) > 0 {
-			entries = entries[1:]
-		}
-
-		server.state.mutex.Lock()
-		server.playlistAddMany(entries, requested.AddToTop)
-		server.state.mutex.Unlock()
-	}
+	server.playlistAdd(data.RequestEntry, user.Id)
 }
 
 func (server *Server) apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
-	server.state.mutex.Lock()
-	server.state.playlist = server.state.playlist[:0]
-	DatabasePlaylistClear(server.db)
-	server.state.mutex.Unlock()
-
-	event := createPlaylistEvent("clear", nil)
-	server.writeEventToAllConnections("playlist", event)
+	server.playlistClear()
 }
 
 func (server *Server) apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
@@ -893,43 +832,9 @@ func (server *Server) apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server.state.mutex.Lock()
-	index := FindEntryIndex(server.state.playlist, data.EntryId)
-	if index == -1 {
-		server.state.mutex.Unlock()
-		respondBadRequest(w, "Failed to move playlist element. Entry with ID %v is not in the playlist.", data.EntryId)
-		return
+	if err := server.playlistMove(data); err != nil {
+		respondBadRequest(w, "%v", err)
 	}
-
-	if data.DestIndex < 0 || data.DestIndex >= len(server.state.playlist) {
-		respondBadRequest(w, "Failed to move playlist element id:%v. Dest index %v out of bounds.", data.EntryId, data.DestIndex)
-		server.state.mutex.Unlock()
-		return
-	}
-
-	entry := server.state.playlist[index]
-
-	// Remove element from the slice:
-	server.state.playlist = slices.Delete(server.state.playlist, index, index+1)
-
-	list := make([]Entry, 0)
-
-	// Appned removed element to a new list:
-	list = append(list, server.state.playlist[:data.DestIndex]...)
-	list = append(list, entry)
-	list = append(list, server.state.playlist[data.DestIndex:]...)
-
-	server.state.playlist = list
-	server.state.mutex.Unlock()
-
-	eventData := PlaylistMoveEvent{
-		EntryId:   data.EntryId,
-		DestIndex: data.DestIndex,
-	}
-
-	event := createPlaylistEvent("move", eventData)
-	server.writeEventToAllConnections("playlist", event)
-	go server.preloadYoutubeSourceOnNextEntry()
 }
 
 func (server *Server) apiPlaylistUpdate(w http.ResponseWriter, r *http.Request) {
@@ -1340,10 +1245,6 @@ func (server *Server) readEventMessages(ws *websocket.Conn, userId uint64) {
 			break
 		}
 
-		if msgType == websocket.CloseMessage {
-			break
-		}
-
 		if msgType == websocket.TextMessage {
 			var message json.RawMessage
 			event := WebsocketEvent{
@@ -1410,9 +1311,28 @@ func (server *Server) readEventMessages(ws *websocket.Conn, userId uint64) {
 				server.chatDeleteMessage(data.Id, userId)
 
 			case EVENT_PLAYLIST_ADD:
+				var data PlaylistAddRequest
+				if err := json.Unmarshal(message, &data); err != nil {
+					LogError("Failed to deserialize playlist add event: %v", err)
+					return
+				}
+
+				server.playlistAdd(data.RequestEntry, userId)
+
 			case EVENT_PLAYLIST_PLAY:
+
 			case EVENT_PLAYLIST_MOVE:
+				var data PlaylistMoveRequest
+				if err := json.Unmarshal(message, &data); err != nil {
+					LogError("Failed to deserialize playlist move event: %v", err)
+					return
+				}
+
+				server.playlistMove(data);
+
 			case EVENT_PLAYLIST_CLEAR:
+				server.playlistClear()
+
 			case EVENT_PLAYLIST_DELETE:
 			case EVENT_PLAYLIST_UPDATE:
 			case EVENT_PLAYLIST_SHUFFLE:

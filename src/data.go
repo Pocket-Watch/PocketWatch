@@ -358,7 +358,6 @@ type PlaylistPlayRequest struct {
 }
 
 type PlaylistAddRequest struct {
-	ConnectionId uint64       `json:"connection_id"`
 	RequestEntry RequestEntry `json:"request_entry"`
 }
 
@@ -378,7 +377,6 @@ type PlaylistLoopingRequest struct {
 }
 
 type PlaylistMoveRequest struct {
-	ConnectionId uint64 `json:"connection_id"`
 	EntryId      uint64 `json:"entry_id"`
 	DestIndex    int    `json:"dest_index"`
 }
