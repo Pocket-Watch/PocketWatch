@@ -345,18 +345,18 @@ class Room {
             }
 
             if (this.player.getCurrentTime() >= this.player.getDuration()) {
-                api.wsPlay(0);
+                api.wsPlayerPlay(0);
             } else {
-                api.wsPlay(this.player.getCurrentTime());
+                api.wsPlayerPlay(this.player.getCurrentTime());
             }
         });
 
         this.player.onControlsPause(_ => {
-            api.wsPause(this.player.getCurrentTime());
+            api.wsPlayerPause(this.player.getCurrentTime());
         });
 
         this.player.onControlsSeeked(timestamp => {
-            api.wsSeek(timestamp);
+            api.wsPlayerSeek(timestamp);
         });
 
         this.player.onControlsSeeking(timestamp => {
@@ -799,6 +799,18 @@ class Room {
             this.roomSelectedSubId = sub.id;
         };
 
+        room.subsEditInput.onkeydown = event => {
+            if (event.key === "Enter") {
+                let subtitle = this.currentEntry.subtitles.find(sub => sub.id === this.roomSelectedSubId);
+                if (!subtitle) {
+                    return;
+                }
+
+                let newName = room.subsEditInput.value.trim();
+                api.subtitleUpdate(subtitle.id, newName);
+            }
+        };
+
         room.subsUpdateButton.onclick = _ => {
             let subtitle = this.currentEntry.subtitles.find(sub => sub.id === this.roomSelectedSubId);
             if (!subtitle) {
@@ -913,6 +925,31 @@ class Room {
         area.subtitleReattachToggle.onclick = _ => area.subtitleReattachToggle.classList.toggle("active");
     }
 
+    async setNewToken() {
+        let newToken = this.settingsMenu.tokenSetInput.value;
+        if (!newToken || newToken === "") {
+            console.warn("WARN: Provided token is empty.");
+            return;
+        }
+
+        let currToken = api.getToken();
+        if (newToken === currToken) {
+            console.warn("WARN: Provided token is the same as currently set token.");
+            return;
+        }
+
+        let result = await api.userVerify(newToken);
+        if (!result.ok) {
+            console.warn("WARN: User with provided token does not exist.");
+            return;
+        }
+
+        await api.userDelete(currToken);
+        Storage.set("token", newToken);
+        this.settingsMenu.tokenSetInput.value = "";
+        window.location.reload();
+    }
+
     attachSettingsMenuEvents() {
         const menu = this.settingsMenu;
         menu.modal.onclick = _ => this.hideSettingsMenu();
@@ -934,29 +971,14 @@ class Room {
             }
         };
 
+        menu.tokenSetInput.onkeypress = event => {
+            if (event.key === "Enter") {
+                this.setNewToken();
+            }
+        };
+
         menu.tokenSetButton.onclick = async _ => {
-            let newToken = menu.tokenSetInput.value;
-            if (!newToken || newToken === "") {
-                console.warn("WARN: Provided token is empty.");
-                return;
-            }
-
-            let currToken = api.getToken();
-            if (newToken === currToken) {
-                console.warn("WARN: Provided token is the same as currently set token.");
-                return;
-            }
-
-            let result = await api.userVerify(newToken);
-            if (!result.ok) {
-                console.warn("WARN: User with provided token does not exist.");
-                return;
-            }
-
-            await api.userDelete(currToken);
-            Storage.set("token", newToken);
-            menu.tokenSetInput.value = "";
-            window.location.reload();
+            this.setNewToken();
         };
 
         menu.animatedAvatarsToggle.onclick = _ => {
@@ -1501,10 +1523,8 @@ class Room {
                 let index = this.allUsers.findIndex(user => user.id === target.id);
 
                 if (this.currentUserId === target.id) {
-                    events.close();
+                    api.closeWebSocket();
                     this.markAllUsersOffline();
-                    this.clearUsersArea();
-                    this.updateUsersArea();
                 }
 
                 let user = this.allUsers.splice(index, 1)[0];

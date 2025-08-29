@@ -63,11 +63,22 @@ const GENERIC_CHUNK_SIZE = 1 * MB
 type EventType uint64
 
 const (
-	EVENT_PLAY        EventType = 0
-	EVENT_PAUSE       EventType = 1
-	EVENT_SEEK        EventType = 2
-	EVENT_CHAT_SEND   EventType = 3
-	EVENT_CHAT_DELETE EventType = 4
+	EVENT_PLAYER_PLAY  EventType = 0
+	EVENT_PLAYER_PAUSE EventType = 1
+	EVENT_PLAYER_SEEK  EventType = 2
+	EVENT_PLAYER_SET   EventType = 3
+
+	EVENT_CHAT_SEND   EventType = 4
+	EVENT_CHAT_EDIT   EventType = 4
+	EVENT_CHAT_DELETE EventType = 5
+
+	EVENT_PLAYLIST_ADD     EventType = 6
+	EVENT_PLAYLIST_PLAY    EventType = 7
+	EVENT_PLAYLIST_MOVE    EventType = 8
+	EVENT_PLAYLIST_CLEAR   EventType = 9
+	EVENT_PLAYLIST_DELETE  EventType = 10
+	EVENT_PLAYLIST_UPDATE  EventType = 11
+	EVENT_PLAYLIST_SHUFFLE EventType = 12
 )
 
 // Constants - assignable only once!

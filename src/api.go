@@ -312,16 +312,7 @@ func (server *Server) apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entry := Entry{
-		Url:        data.RequestEntry.Url,
-		UserId:     user.Id,
-		Title:      data.RequestEntry.Title,
-		UseProxy:   data.RequestEntry.UseProxy,
-		RefererUrl: data.RequestEntry.RefererUrl,
-		Subtitles:  data.RequestEntry.Subtitles,
-	}
-
-	go server.setNewEntry(entry, data.RequestEntry)
+	server.playerSet(data.RequestEntry, user.Id)
 }
 
 func (server *Server) apiPlayerEnd(w http.ResponseWriter, r *http.Request) {
@@ -1364,32 +1355,41 @@ func (server *Server) readEventMessages(ws *websocket.Conn, userId uint64) {
 			}
 
 			switch event.Type {
-			case EVENT_PLAY:
+			case EVENT_PLAYER_PLAY:
 				var sync SyncRequest
 				if err := json.Unmarshal(message, &sync); err != nil {
-					LogError("Failed to deserialize play event: %v", err)
+					LogError("Failed to deserialize player play event: %v", err)
 					break
 				}
 
 				server.playerUpdateState(true, sync.Timestamp, userId)
 
-			case EVENT_PAUSE:
+			case EVENT_PLAYER_PAUSE:
 				var sync SyncRequest
 				if err := json.Unmarshal(message, &sync); err != nil {
-					LogError("Failed to deserialize pause event: %v", err)
+					LogError("Failed to deserialize player pause event: %v", err)
 					break
 				}
 
 				server.playerUpdateState(false, sync.Timestamp, userId)
 
-			case EVENT_SEEK:
+			case EVENT_PLAYER_SEEK:
 				var sync SyncRequest
 				if err := json.Unmarshal(message, &sync); err != nil {
-					LogError("Failed to deserialize seek event: %v", err)
+					LogError("Failed to deserialize player seek event: %v", err)
 					break
 				}
 
 				server.playerSeek(sync.Timestamp, userId)
+
+			case EVENT_PLAYER_SET:
+				var data PlayerSetRequest
+				if err := json.Unmarshal(message, &data); err != nil {
+					LogError("Failed to deserialize player set event: %v", err)
+					break
+				}
+
+				server.playerSet(data.RequestEntry, userId)
 
 			case EVENT_CHAT_SEND:
 				var chatMessage ChatMessageFromUser
@@ -1408,6 +1408,14 @@ func (server *Server) readEventMessages(ws *websocket.Conn, userId uint64) {
 				}
 
 				server.chatDeleteMessage(data.Id, userId)
+
+			case EVENT_PLAYLIST_ADD:
+			case EVENT_PLAYLIST_PLAY:
+			case EVENT_PLAYLIST_MOVE:
+			case EVENT_PLAYLIST_CLEAR:
+			case EVENT_PLAYLIST_DELETE:
+			case EVENT_PLAYLIST_UPDATE:
+			case EVENT_PLAYLIST_SHUFFLE:
 
 			default:
 				LogError("Server caught unknown event '%v'", event.Type)

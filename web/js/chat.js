@@ -142,9 +142,11 @@ class Chat {
 
         // Handle shiftKey + Enter as 'new line' for formatting
         this.chatInput.onkeydown = event => {
-            if (event.key === 'Enter' && !event.shiftKey) {
+            if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
                 this.processMessageSendIntent();
+            } else if (event.key === "Escape") {
+                this.chatInput.blur();
             }
         };
 

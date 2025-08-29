@@ -45,11 +45,22 @@ export const EVENT_SUBTITLE_UPDATE = 2;
 export const EVENT_SUBTITLE_SHIFT  = 3;
 */
 
-export const EVENT_PLAY        = 0;
-export const EVENT_PAUSE       = 1;
-export const EVENT_SEEK        = 2;
-export const EVENT_CHAT_SEND   = 3;
-export const EVENT_CHAT_DELETE = 4;
+export const EVENT_PLAYER_PLAY  = 0
+export const EVENT_PLAYER_PAUSE = 1
+export const EVENT_PLAYER_SEEK  = 2
+export const EVENT_PLAYER_SET   = 3
+
+export const EVENT_CHAT_SEND   = 4
+export const EVENT_CHAT_EDIT   = 4
+export const EVENT_CHAT_DELETE = 5
+
+export const EVENT_PLAYLIST_ADD     = 6
+export const EVENT_PLAYLIST_PLAY    = 7
+export const EVENT_PLAYLIST_MOVE    = 8
+export const EVENT_PLAYLIST_CLEAR   = 9
+export const EVENT_PLAYLIST_DELETE  = 10
+export const EVENT_PLAYLIST_UPDATE  = 11
+export const EVENT_PLAYLIST_SHUFFLE = 12
 
 let websocket = null;
 let token = null;
@@ -512,8 +523,26 @@ export async function chatGet(count, backwardOffset) {
     return await httpPost("/watch/api/chat/get", data);
 }
 
+export async function chatDelete(messageId) {
+    let data = {
+        id: messageId
+    };
+    console.info("INFO: Deleting chat message.");
+    return await httpPost("/watch/api/chat/delete", data);
+}
+
 export function setWebSocket(ws) {
     websocket = ws;
+}
+
+export function closeWebSocket() {
+    if (!websocket) {
+        return
+    }
+
+    websocket.onclose = _ => {};
+    websocket.close();
+    websocket = null;
 }
 
 function wsSendEvent(type, data) {
@@ -531,35 +560,32 @@ function wsSendEvent(type, data) {
     websocket.send(json);
 }
 
-export async function chatDelete(messageId) {
-    let data = {
-        id: messageId
-    };
-    console.info("INFO: Deleting chat message.");
-    return await httpPost("/watch/api/chat/delete", data);
+export function wsPlayerSet(entry) {
+    const data = { request_entry: entry };
+    wsSendEvent(EVENT_PLAYER_SET, data);
 }
 
-export function wsPlay(timestamp) {
+export function wsPlayerPlay(timestamp) {
     const data = { timestamp: timestamp };
-    wsSendEvent(EVENT_PLAY, data);
+    wsSendEvent(EVENT_PLAYER_PLAY, data);
 }
 
-export function wsPause(timestamp) {
+export function wsPlayerPause(timestamp) {
     const data = { timestamp: timestamp };
-    wsSendEvent(EVENT_PAUSE, data);
+    wsSendEvent(EVENT_PLAYER_PAUSE, data);
 }
 
-export function wsSeek(timestamp) {
+export function wsPlayerSeek(timestamp) {
     const data = { timestamp: timestamp };
-    wsSendEvent(EVENT_SEEK, data);
+    wsSendEvent(EVENT_PLAYER_SEEK, data);
 }
 
-export function wsChatSend(message) {
-    const data = { message: message };
+export function wsChatSend(messageText) {
+    const data = { message: messageText };
     wsSendEvent(EVENT_CHAT_SEND, data);
 }
 
 export function wsChatDelete(messageId) {
-    const data = { Id: messageId };
+    const data = { id: messageId };
     wsSendEvent(EVENT_CHAT_DELETE, data);
 }

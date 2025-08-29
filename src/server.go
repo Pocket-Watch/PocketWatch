@@ -1766,6 +1766,19 @@ func (server *Server) constructEntry(entry Entry) Entry {
 	return entry
 }
 
+func (server *Server) playerSet(requested RequestEntry, userId uint64) {
+	entry := Entry{
+		Url:        requested.Url,
+		UserId:     userId,
+		Title:      requested.Title,
+		UseProxy:   requested.UseProxy,
+		RefererUrl: requested.RefererUrl,
+		Subtitles:  requested.Subtitles,
+	}
+
+	go server.setNewEntry(entry, requested)
+}
+
 func (server *Server) playerSeek(timestamp float64, userId uint64) {
 	server.state.mutex.Lock()
 	server.state.player.Timestamp = timestamp
