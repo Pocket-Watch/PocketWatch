@@ -407,7 +407,7 @@ class Room {
                     endTime = 0;
                 }
 
-                api.wsPause(endTime);
+                api.wsPlayerPause(endTime);
             }
         });
 
@@ -427,14 +427,14 @@ class Room {
 
             if (exception.name === "AbortError") {
                 this.player.setToast("AbortError: Likely the video is slowly loading. Pausing playback!");
-                api.wsPause(this.player.getCurrentTime());
+                api.wsPlayerPause(this.player.getCurrentTime());
                 return;
             }
 
             if (!error) {
                 this.player.setToast("UNKNOWN ERROR, press F12 to see what happened!");
                 console.error(exception.name + ":", exception.message);
-                api.wsPause(this.player.getCurrentTime());
+                api.wsPlayerPause(this.player.getCurrentTime());
                 return;
             }
 
@@ -452,7 +452,7 @@ class Room {
                 }
                 if (errMsg.startsWith("NS_ERROR_DOM_INVALID") || errMsg.includes("Empty src")) {
                     this.player.setToast("Nothing is set!");
-                    api.wsPause(this.player.getCurrentTime());
+                    api.wsPlayerPause(this.player.getCurrentTime());
                     return;
                 }
 
@@ -462,7 +462,7 @@ class Room {
                     this.player.setToast("Unsupported src: '" + this.player.getCurrentUrl() + "' " + error.message);
                 }
 
-                api.wsPause(this.player.getCurrentTime());
+                api.wsPlayerPause(this.player.getCurrentTime());
             }
         });
 
