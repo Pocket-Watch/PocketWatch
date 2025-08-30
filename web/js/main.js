@@ -298,6 +298,11 @@ class Room {
             this.player.setVolume(volume);
         }
 
+        let muted = Storage.getBool("muted");
+        if (muted !== null && muted && volume > 0) {
+            this.player.toggleMute();
+        }
+
         let lastSub = Storage.get(LAST_SELECTED_SUBTITLE);
         if (lastSub !== null) {
             this.player.switchSubtitleTrackByUrl(lastSub);
@@ -367,9 +372,15 @@ class Room {
             api.playerNext(this.currentEntryId);
         });
 
+        // Maybe browsers optimize calls to localStorage and don't write to disk 30 times a second?
         this.player.onControlsVolumeSet(volume => {
-            // Maybe browsers optimize calls to localStorage and don't write to disk 30 times a second?
             Storage.set("volume", volume);
+            console.log("Volume set to", volume)
+        });
+
+        this.player.onControlsMute(muted => {
+            Storage.setBool("muted", muted);
+            console.log(muted ? "MUTED" : "UNMUTED")
         });
 
         this.player.onSettingsChange((key, value) => {

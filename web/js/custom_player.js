@@ -42,6 +42,10 @@ class Player {
         this.internals.setVolume(volume);
     }
 
+    toggleMute() {
+        this.internals.toggleMute();
+    }
+
     setTitle(title) {
         this.internals.setTitle(title);
     }
@@ -244,6 +248,12 @@ class Player {
         }
     }
 
+    onControlsMute(func) {
+        if (isFunction(func)) {
+            this.internals.fireControlsMute = func;
+        }
+    }
+
     onSettingsChange(func) {
         if (isFunction(func)) {
             this.internals.fireSettingsChange = func;
@@ -335,6 +345,7 @@ class Internals {
         this.isDraggingProgressBar = false;
         this.isUIVisible           = true;
         this.volumeBeforeMute      = 0.0;
+        this.lastMuted             = false;
         this.subtitles             = [];
         this.selectedSubtitle      = null;
         this.activeCues            = [];
@@ -577,6 +588,7 @@ class Internals {
     fireControlsSeeking(_timestamp) {}
     fireControlsSeeked(_timestamp) {}
     fireControlsVolumeSet(_volume) {}
+    fireControlsMute(_muted) {}
     fireSettingsChange(_key, _value) {}
     firePlaybackError(_exception, _mediaError) {}
     firePlaybackEnd() {}
@@ -853,23 +865,31 @@ class Internals {
             this.htmlVideo.volume = volume;
         }
 
-        this.fireControlsVolumeSet(volume);
         this.updateHtmlVolume(volume);
     }
 
-    toggleVolume() {
+    toggleMute() {
         let volume = this.getVolume();
         if (volume === 0.0) {
-            this.setVolume(this.volumeBeforeMute);
+                this.setVolume(this.volumeBeforeMute);
+            this.lastMuted = false;
         } else {
             this.volumeBeforeMute = volume;
             this.setVolume(0.0);
+            this.lastMuted = true;
         }
+        this.fireControlsMute(this.lastMuted);
     }
 
     setVolumeRelative(relativeVolume) {
         let volume = this.getVolume();
-        this.setVolume(volume + relativeVolume);
+        let nextVolume = volume + relativeVolume;
+        this.setVolume(nextVolume);
+        this.fireControlsVolumeSet(nextVolume)
+        if (this.lastMuted && nextVolume > 0.0) {
+            this.lastMuted = false;
+            this.fireControlsMute(false)
+        }
     }
 
     setTitle(title) {
@@ -1409,7 +1429,7 @@ class Internals {
                 this.toggleFullscreen();
                 consumeEvent(event);
             } else if (event.key === "m") {
-                this.toggleVolume();
+                this.toggleMute();
             }
         });
 
@@ -1546,7 +1566,7 @@ class Internals {
         });
 
         this.htmlControls.buttons.volumeButton.addEventListener("click", _ => {
-            this.toggleVolume();
+            this.toggleMute();
         });
 
         // This roughly simulates a click on an invisible anchor as there's no practical way to trigger "Save As" dialog
@@ -1615,6 +1635,11 @@ class Internals {
         this.htmlControls.buttons.volumeInput.addEventListener("input", _event => {
             let volume = this.getVolume();
             this.setVolume(volume);
+            this.fireControlsVolumeSet(volume);
+            if (this.lastMuted && volume > 0.0) {
+                this.lastMuted = false;
+                this.fireControlsMute(false)
+            }
         });
 
         let calculateProgress = (event, element) => {
