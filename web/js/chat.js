@@ -69,6 +69,14 @@ class Chat {
             this.contextMenuOpen.classList.add("hide");
         }
 
+        if (message.authorId === this.currentUserId) {
+            this.contextMenuDelete.classList.remove("hide");
+            this.contextMenuEdit.classList.remove("hide");
+        } else {
+            this.contextMenuDelete.classList.add("hide");
+            this.contextMenuEdit.classList.add("hide");
+        }
+
         show(this.contextMenu);
 
         const msgRect    = htmlMessage.root.getBoundingClientRect();
