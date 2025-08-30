@@ -199,6 +199,7 @@
 .chat_edit_input,
 #chat_input_box {
     width: 100%;
+    height: 100%;
     background: none;
     color: var(--fg_3);
     padding: 0 6px;
