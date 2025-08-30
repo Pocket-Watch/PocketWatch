@@ -21,6 +21,8 @@ class Chat {
         this.contextMenuCopyUrl = getById("chat_context_copy_url");
         this.contextMenuOpen    = getById("chat_context_open");
 
+        this.currentUserId = -1;
+
         this.prevUserId     = -1;
         this.prevDate       = new Date();
 
@@ -432,8 +434,14 @@ class Chat {
     }
 
     startMessageEdit(message, htmlMessage) {
+        if (message.authorId !== this.currentUserId) {
+            console.warn("WARN: User ID", this.currentUserId, "is not allowed to edit message:", message);
+            return;
+        }
+
         if (this.editingMessage) {
             if (this.editingMessage.id === message.id) {
+                this.editingInput.focus();
                 return;
             } else {
                 this.cancelMessageEdit();

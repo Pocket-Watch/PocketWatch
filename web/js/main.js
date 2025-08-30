@@ -1099,7 +1099,8 @@ class Room {
             return false;
         }
 
-        this.currentUserId = verification.json;
+        this.currentUserId      = verification.json;
+        this.chat.currentUserId = verification.json;
         return true;
     }
 
