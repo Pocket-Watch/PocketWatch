@@ -871,7 +871,7 @@ class Internals {
     toggleMute() {
         let volume = this.getVolume();
         if (volume === 0.0) {
-                this.setVolume(this.volumeBeforeMute);
+            this.setVolume(this.volumeBeforeMute);
             this.lastMuted = false;
         } else {
             this.volumeBeforeMute = volume;

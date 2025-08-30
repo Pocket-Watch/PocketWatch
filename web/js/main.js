@@ -375,12 +375,10 @@ class Room {
         // Maybe browsers optimize calls to localStorage and don't write to disk 30 times a second?
         this.player.onControlsVolumeSet(volume => {
             Storage.set("volume", volume);
-            console.log("Volume set to", volume)
         });
 
         this.player.onControlsMute(muted => {
             Storage.setBool("muted", muted);
-            console.log(muted ? "MUTED" : "UNMUTED")
         });
 
         this.player.onSettingsChange((key, value) => {

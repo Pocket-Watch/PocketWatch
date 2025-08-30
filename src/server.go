@@ -892,6 +892,14 @@ func setupDualTrackProxy(originalM3U *M3U, referer string) (bool, *HlsProxy, *Hl
 	return true, vidProxy, audioProxy
 }
 
+func ytAudioFilter(track *Track) bool {
+	urlStruct, err := net_url.Parse(track.url)
+	if err != nil {
+		return false
+	}
+	return strings.Contains(urlStruct.Path, "acont=original")
+}
+
 func prepareMediaPlaylistFromMasterPlaylist(m3u *M3U, referer string, depth int) *M3U {
 	if len(m3u.tracks) == 0 {
 		LogError("Master playlist contains 0 tracks!")
@@ -901,7 +909,13 @@ func prepareMediaPlaylistFromMasterPlaylist(m3u *M3U, referer string, depth int)
 	masterUrl, _ := net_url.Parse(m3u.url)
 	prefix := stripLastSegment(masterUrl)
 	LogInfo("A master playlist was provided. The best track will be chosen based on quality.")
-	bestTrack := m3u.getBestTrack()
+	var bestTrack *Track
+	if masterUrl.Host == "manifest.googlevideo.com" {
+		bestTrack = m3u.getBestTrack(ytAudioFilter)
+	} else {
+		bestTrack = m3u.getBestTrack(nil)
+	}
+
 	bestUrl := bestTrack.url
 	isRelative := !isAbsolute(bestUrl)
 	if isRelative {

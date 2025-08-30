@@ -418,9 +418,9 @@ func (m3u *M3U) totalDuration() float64 {
 	return seconds
 }
 
-// Fetches highest resolution from m3u.tracks
-// this method should only be used if the m3u is a master playlist
-func (m3u *M3U) getBestTrack() *Track {
+// Chooses best track based on highest resolution and provided filter.
+// This method should only be called on master playlists.
+func (m3u *M3U) getBestTrack(filter func(track *Track) bool) *Track {
 	if len(m3u.tracks) == 0 {
 		return nil
 	}
@@ -436,7 +436,7 @@ func (m3u *M3U) getBestTrack() *Track {
 		if !success {
 			continue
 		}
-		if width > bestWidth {
+		if width > bestWidth && (filter == nil || filter(track)) {
 			bestWidth = width
 			bestTrack = track
 		}
