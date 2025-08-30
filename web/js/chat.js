@@ -1,5 +1,5 @@
 import * as api from "./api.js";
-import { getById, div, img, span, a, isSameDay, isLocalImage, show, hide } from "./util.js";
+import { getById, div, img, span, a, isSameDay, isLocalImage, show, hide, clearContent } from "./util.js";
 
 export { Chat }
 
@@ -15,6 +15,7 @@ class Chat {
         this.uploadButton       = getById("chat_input_upload_button");
         this.uploadImageInput   = getById("chat_input_upload_image");
         this.contextMenu        = getById("chat_context_menu");
+        this.contextMenuEdit    = getById("chat_context_edit");
         this.contextMenuDelete  = getById("chat_context_delete");
         this.contextMenuCopy    = getById("chat_context_copy");
         this.contextMenuCopyUrl = getById("chat_context_copy_url");
@@ -30,11 +31,15 @@ class Chat {
         this.contextMenuHtmlMessage = null;
         this.contextMenuUrl         = "";
         this.contextMenuShowUrl     = false;
+
+        this.editingMessage     = null;
+        this.editingHtmlMessage = null;
+        this.editingInput       = null;
     }
 
     hideContextMenu() {
         if (this.contextMenuHtmlMessage) {
-            this.contextMenuHtmlMessage.classList.remove("highlight");
+            this.contextMenuHtmlMessage.root.classList.remove("highlight");
         }
 
         this.contextMenuCopyUrl.classList.add("hide");
@@ -50,7 +55,7 @@ class Chat {
 
     showContextMenu(event, message, htmlMessage) {
         if (this.contextMenuHtmlMessage) {
-            this.contextMenuHtmlMessage.classList.remove("highlight");
+            this.contextMenuHtmlMessage.root.classList.remove("highlight");
         }
 
         if (this.contextMenuShowUrl) {
@@ -64,11 +69,11 @@ class Chat {
 
         show(this.contextMenu);
 
-        const msgRect  = htmlMessage.getBoundingClientRect();
-        const rootRect = this.chatListRoot.getBoundingClientRect();
-        const list = this.chatList.getBoundingClientRect();
-        const menuHeight   = this.contextMenu.offsetHeight;
-        const width    = this.contextMenu.offsetWidth;
+        const msgRect    = htmlMessage.root.getBoundingClientRect();
+        const rootRect   = this.chatListRoot.getBoundingClientRect();
+        const list       = this.chatList.getBoundingClientRect();
+        const menuHeight = this.contextMenu.offsetHeight;
+        const width      = this.contextMenu.offsetWidth;
 
         let contextMenuX = event.clientX;
         let protrusion = contextMenuX + width - msgRect.right;
@@ -90,7 +95,7 @@ class Chat {
         this.contextMenuMessage     = message;
         this.contextMenuHtmlMessage = htmlMessage;
 
-        this.contextMenuHtmlMessage.classList.add("highlight");
+        this.contextMenuHtmlMessage.root.classList.add("highlight");
     }
 
     async uploadAndPasteImage(files) {
@@ -121,6 +126,7 @@ class Chat {
         this.contextMenuCopy.onclick    = _ => navigator.clipboard.writeText(this.contextMenuMessage.message);
         this.contextMenuCopyUrl.onclick = _ => navigator.clipboard.writeText(this.contextMenuUrl);
         this.contextMenuOpen.onclick    = _ => window.open(this.contextMenuUrl, '_blank').focus();
+        this.contextMenuEdit.onclick    = _ => this.startMessageEdit(this.contextMenuMessage, this.contextMenuHtmlMessage);
         this.contextMenuDelete.onclick  = _ => api.wsChatDelete(this.contextMenuMessage.id);
 
         this.chatList.oncontextmenu = _ => { return false };
@@ -179,6 +185,10 @@ class Chat {
         }
 
         this.hideContextMenu();
+
+        this.editingMessage     = null;
+        this.editingHtmlMessage = null;
+        this.editingInput       = null;
     }
 
     findUser(userId, allUsers) {
@@ -232,13 +242,18 @@ class Chat {
             date.textContent = `${Y}/${M}/${D}, ${h}:${m}`;
         }
 
+        let html = {
+            root: root,
+            text: text,
+        };
+
         root.oncontextmenu = event => {
             event.preventDefault();
 
             if (this.contextMenuMessage && this.contextMenuMessage.id === message.id) {
                 this.hideContextMenu();
             } else {
-                this.showContextMenu(event, message, root);
+                this.showContextMenu(event, message, html);
             }
         };
 
@@ -255,7 +270,7 @@ class Chat {
             }
         }
 
-        return root
+        return html
     }
 
     createSubMessage(message) {
@@ -271,13 +286,18 @@ class Chat {
 
         date.textContent = `${h}:${m}`;
 
+        let html = {
+            root: root,
+            text: text,
+        };
+
         root.oncontextmenu = event => {
             event.preventDefault();
 
             if (this.contextMenuMessage && this.contextMenuMessage.id === message.id) {
                 this.hideContextMenu();
             } else {
-                this.showContextMenu(event, message, root);
+                this.showContextMenu(event, message, html);
             }
         };
 
@@ -286,7 +306,7 @@ class Chat {
             text.append(...segments);
         }
 
-        return root;
+        return html
     }
 
     contextUrlShow(url) {
@@ -377,7 +397,100 @@ class Chat {
 
         this.messages.push(chatMsg);
         this.htmlMessages.push(message);
-        this.chatList.appendChild(message);
+        this.chatList.appendChild(message.root);
+    }
+
+    createEditInputBox(messageContent) {
+        let root       = div("chat_edit_container");
+        let inputBox   = input("chat_edit_input", messageContent, "Edit your message.");
+        let sendButton = button("chat_edit_send_button", "Send message.");
+        let sendSvg    = svg("svg/main_icons.svg#send");
+
+        let html = {
+            root: root,
+            input: inputBox,
+        };
+
+        inputBox.onkeydown = event => {
+            if (event.key === "Enter") {
+                this.stopMessageEdit();
+            } else if (event.key === "Escape") {
+                this.cancelMessageEdit();
+            }
+        };
+
+        sendButton.onclick = _ => {
+            this.stopMessageEdit();
+        };
+
+        root.appendChild(inputBox);
+        root.appendChild(sendButton); {
+            sendButton.appendChild(sendSvg);
+        }
+
+        return html;
+    }
+
+    startMessageEdit(message, htmlMessage) {
+        if (this.editingMessage) {
+            if (this.editingMessage.id === message.id) {
+                return;
+            } else {
+                this.cancelMessageEdit();
+            }
+        }
+
+        let editHtml = this.createEditInputBox(message.message);
+
+        clearContent(htmlMessage.text);
+        htmlMessage.text.appendChild(editHtml.root);
+        editHtml.input.focus();
+
+        this.editingMessage     = message;
+        this.editingHtmlMessage = htmlMessage;
+        this.editingInput       = editHtml.input;
+    }
+
+    cancelMessageEdit() {
+        clearContent(this.editingHtmlMessage.text);
+
+        let segments = this.linkify(this.editingMessage.message);
+        this.editingHtmlMessage.text.append(...segments);
+
+        this.editingMessage     = null;
+        this.editingHtmlMessage = null;
+        this.editingInput       = null;
+    }
+
+    stopMessageEdit() {
+        let content = this.editingInput.value;
+        clearContent(this.editingHtmlMessage.text);
+        api.wsChatEdit(this.editingMessage.id, content);
+
+        this.editingMessage     = null;
+        this.editingHtmlMessage = null;
+        this.editingInput       = null;
+    }
+
+    editMessageById(messageId, messageContent) {
+        let index = this.messages.findIndex(message => message.id === messageId);
+        if (index === -1) {
+            console.warn("WARN: Chat::edit failed. Failed to find message with ID =", messageId);
+            return;
+        }
+
+        let message = this.messages[index];
+        let html    = this.htmlMessages[index];
+
+        message.message = messageContent;
+
+        if (this.editingMessage && this.editingMessage.id === message.id) {
+            return;
+        }
+
+        clearContent(html.text);
+        let segments = this.linkify(messageContent);
+        html.text.append(...segments);
     }
 
     removeMessageById(messageId, allUsers) {
@@ -388,7 +501,7 @@ class Chat {
         }
 
         let message = this.messages[index];
-        let htmlMessage = this.htmlMessages[index];
+        let html    = this.htmlMessages[index];
 
         if (index === this.messages.length - 1) {
             let prev = this.messages[index - 1];
@@ -402,20 +515,20 @@ class Chat {
             }
         }
 
-        if (htmlMessage.classList.contains("chat_message")) {
+        if (html.root.classList.contains("chat_message")) {
             let next     = this.messages[index + 1];
             let nextHtml = this.htmlMessages[index + 1];
-            if (next && !nextHtml.classList.contains("chat_message")) {
+            if (next && !nextHtml.root.classList.contains("chat_message")) {
                 let user = this.findUser(next.authorId, allUsers);
                 let newHtml = this.createMessage(next, user);
 
                 if (this.contextMenuMessage && this.contextMenuMessage.id === next.id) {
                     this.contextMenuHtmlMessage = newHtml;
-                    newHtml.classList.add("highlight");
+                    newHtml.root.classList.add("highlight");
                 }
 
                 this.htmlMessages[index + 1] = newHtml;
-                this.chatList.replaceChild(newHtml, nextHtml);
+                this.chatList.replaceChild(newHtml.root, nextHtml.root);
             }
         }
 
@@ -423,9 +536,15 @@ class Chat {
             this.hideContextMenu();
         }
 
+        if (this.editingMessage && this.editingMessage.id === message.id) {
+            this.editingMessage     = null;
+            this.editingHtmlMessage = null;
+            this.editingInput       = null;
+        }
+
         this.messages.splice(index, 1);
         this.htmlMessages.splice(index, 1);
-        this.chatList.removeChild(htmlMessage);
+        this.chatList.removeChild(html.root);
     }
 
     processMessageSendIntent() {

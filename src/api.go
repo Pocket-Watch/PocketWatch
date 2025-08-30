@@ -994,7 +994,6 @@ func (server *Server) apiChatSend(w http.ResponseWriter, r *http.Request) {
 
 	if err := server.chatCreateMessage(newMessage.Message, user.Id); err != nil {
 		http.Error(w, err.Error(), http.StatusForbidden)
-		return
 	}
 }
 
@@ -1009,33 +1008,9 @@ func (server *Server) apiChatEdit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len([]rune(messageEdit.EditedMessage)) > MAX_MESSAGE_CHARACTERS {
-		http.Error(w, "Message edit exceeds 1000 chars", http.StatusForbidden)
-		return
+	if err := server.chatEditMessage(messageEdit, user.Id); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
 	}
-
-	server.state.mutex.Lock()
-	messages := server.state.messages
-
-	index := indexOfMessageById(messages, messageEdit.Id)
-	if index == -1 {
-		server.state.mutex.Unlock()
-		respondBadRequest(w, "No message found of id %v", messageEdit.Id)
-		return
-	}
-
-	msg := &messages[index]
-	if msg.AuthorId != user.Id {
-		server.state.mutex.Unlock()
-		LogWarn("User %v (id:%v) tried to edit a stranger's message", user.Username, user.Id)
-		http.Error(w, "You're not the author of this message", http.StatusBadRequest)
-		return
-	}
-
-	msg.Message = messageEdit.EditedMessage
-	server.state.mutex.Unlock()
-
-	server.writeEventToAllConnections("messageedit", messageEdit)
 }
 
 func (server *Server) apiStreamStart(w http.ResponseWriter, r *http.Request) {
@@ -1245,101 +1220,90 @@ func (server *Server) readEventMessages(ws *websocket.Conn, userId uint64) {
 			break
 		}
 
-		if msgType == websocket.TextMessage {
-			var message json.RawMessage
-			event := WebsocketEvent{
-				Data: &message,
-			}
+		if msgType != websocket.TextMessage {
+			continue
+		}
 
-			if err := json.Unmarshal(data, &event); err != nil {
-				LogError("Failed to deserialize WebSocket event: %v", err)
-			}
+		var message json.RawMessage
+		event := WebsocketEvent{
+			Data: &message,
+		}
 
-			switch event.Type {
-			case EVENT_PLAYER_PLAY:
-				var sync SyncRequest
-				if err := json.Unmarshal(message, &sync); err != nil {
-					LogError("Failed to deserialize player play event: %v", err)
-					break
-				}
+		if err := json.Unmarshal(data, &event); err != nil {
+			LogError("Failed to deserialize WebSocket event: %v", err)
+			continue
+		}
 
+		switch event.Type {
+		case EVENT_PLAYER_PLAY:
+			var sync SyncRequest
+			if err = json.Unmarshal(message, &sync); err == nil {
 				server.playerUpdateState(true, sync.Timestamp, userId)
-
-			case EVENT_PLAYER_PAUSE:
-				var sync SyncRequest
-				if err := json.Unmarshal(message, &sync); err != nil {
-					LogError("Failed to deserialize player pause event: %v", err)
-					break
-				}
-
-				server.playerUpdateState(false, sync.Timestamp, userId)
-
-			case EVENT_PLAYER_SEEK:
-				var sync SyncRequest
-				if err := json.Unmarshal(message, &sync); err != nil {
-					LogError("Failed to deserialize player seek event: %v", err)
-					break
-				}
-
-				server.playerSeek(sync.Timestamp, userId)
-
-			case EVENT_PLAYER_SET:
-				var data PlayerSetRequest
-				if err := json.Unmarshal(message, &data); err != nil {
-					LogError("Failed to deserialize player set event: %v", err)
-					break
-				}
-
-				server.playerSet(data.RequestEntry, userId)
-
-			case EVENT_CHAT_SEND:
-				var chatMessage ChatMessageFromUser
-				if err := json.Unmarshal(message, &chatMessage); err != nil {
-					LogError("Failed to deserialize chat send event: %v", err)
-					break
-				}
-
-				server.chatCreateMessage(chatMessage.Message, userId)
-
-			case EVENT_CHAT_DELETE:
-				var data ChatMessageDeleteRequest
-				if err := json.Unmarshal(message, &data); err != nil {
-					LogError("Failed to deserialize chat send event: %v", err)
-					break
-				}
-
-				server.chatDeleteMessage(data.Id, userId)
-
-			case EVENT_PLAYLIST_ADD:
-				var data PlaylistAddRequest
-				if err := json.Unmarshal(message, &data); err != nil {
-					LogError("Failed to deserialize playlist add event: %v", err)
-					return
-				}
-
-				server.playlistAdd(data.RequestEntry, userId)
-
-			case EVENT_PLAYLIST_PLAY:
-
-			case EVENT_PLAYLIST_MOVE:
-				var data PlaylistMoveRequest
-				if err := json.Unmarshal(message, &data); err != nil {
-					LogError("Failed to deserialize playlist move event: %v", err)
-					return
-				}
-
-				server.playlistMove(data);
-
-			case EVENT_PLAYLIST_CLEAR:
-				server.playlistClear()
-
-			case EVENT_PLAYLIST_DELETE:
-			case EVENT_PLAYLIST_UPDATE:
-			case EVENT_PLAYLIST_SHUFFLE:
-
-			default:
-				LogError("Server caught unknown event '%v'", event.Type)
 			}
+
+		case EVENT_PLAYER_PAUSE:
+			var sync SyncRequest
+			if err = json.Unmarshal(message, &sync); err == nil {
+				server.playerUpdateState(false, sync.Timestamp, userId)
+			}
+
+		case EVENT_PLAYER_SEEK:
+			var sync SyncRequest
+			if err = json.Unmarshal(message, &sync); err == nil {
+				server.playerSeek(sync.Timestamp, userId)
+			}
+
+		case EVENT_PLAYER_SET:
+			var data PlayerSetRequest
+			if err = json.Unmarshal(message, &data); err == nil {
+				server.playerSet(data.RequestEntry, userId)
+			}
+
+		case EVENT_CHAT_SEND:
+			var chatMessage ChatMessageFromUser
+			if err = json.Unmarshal(message, &chatMessage); err == nil {
+				server.chatCreateMessage(chatMessage.Message, userId)
+			}
+
+		case EVENT_CHAT_EDIT:
+			var data ChatMessageEdit
+			if err = json.Unmarshal(message, &data); err == nil {
+				server.chatEditMessage(data, userId)
+			}
+
+		case EVENT_CHAT_DELETE:
+			var data ChatMessageDeleteRequest
+			if err = json.Unmarshal(message, &data); err == nil {
+				server.chatDeleteMessage(data.Id, userId)
+			}
+
+		case EVENT_PLAYLIST_ADD:
+			var data PlaylistAddRequest
+			if err = json.Unmarshal(message, &data); err == nil {
+				server.playlistAdd(data.RequestEntry, userId)
+			}
+
+		case EVENT_PLAYLIST_PLAY:
+
+		case EVENT_PLAYLIST_MOVE:
+			var data PlaylistMoveRequest
+			if err = json.Unmarshal(message, &data); err == nil {
+				server.playlistMove(data)
+			}
+
+		case EVENT_PLAYLIST_CLEAR:
+			server.playlistClear()
+
+		case EVENT_PLAYLIST_DELETE:
+		case EVENT_PLAYLIST_UPDATE:
+		case EVENT_PLAYLIST_SHUFFLE:
+
+		default:
+			LogError("Server caught unknown event '%v'", event.Type)
+		}
+
+		if err != nil {
+			LogError("Failed to deserialize event '%v': %v", event.Type, err)
 		}
 	}
 }

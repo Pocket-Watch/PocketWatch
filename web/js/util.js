@@ -14,6 +14,12 @@ export function isHidden(element) {
     element.classList.contains("show")
 }
 
+export function clearContent(element) {
+    while (element.firstChild) {
+        element.removeChild(element.firstChild);
+    }
+}
+
 export function widget_input(id, labelText, text, readonly) {
     let root  = document.createElement("div");
     let input = document.createElement("input");

@@ -45,22 +45,22 @@ export const EVENT_SUBTITLE_UPDATE = 2;
 export const EVENT_SUBTITLE_SHIFT  = 3;
 */
 
-export const EVENT_PLAYER_PLAY  = 0
-export const EVENT_PLAYER_PAUSE = 1
-export const EVENT_PLAYER_SEEK  = 2
-export const EVENT_PLAYER_SET   = 3
+export const EVENT_PLAYER_PLAY  = 0;
+export const EVENT_PLAYER_PAUSE = 1;
+export const EVENT_PLAYER_SEEK  = 2;
+export const EVENT_PLAYER_SET   = 3;
 
-export const EVENT_CHAT_SEND   = 4
-export const EVENT_CHAT_EDIT   = 4
-export const EVENT_CHAT_DELETE = 5
+export const EVENT_CHAT_SEND   = 4;
+export const EVENT_CHAT_EDIT   = 5;
+export const EVENT_CHAT_DELETE = 6;
 
-export const EVENT_PLAYLIST_ADD     = 6
-export const EVENT_PLAYLIST_PLAY    = 7
-export const EVENT_PLAYLIST_MOVE    = 8
-export const EVENT_PLAYLIST_CLEAR   = 9
-export const EVENT_PLAYLIST_DELETE  = 10
-export const EVENT_PLAYLIST_UPDATE  = 11
-export const EVENT_PLAYLIST_SHUFFLE = 12
+export const EVENT_PLAYLIST_ADD     = 7;
+export const EVENT_PLAYLIST_PLAY    = 8;
+export const EVENT_PLAYLIST_MOVE    = 9;
+export const EVENT_PLAYLIST_CLEAR   = 10;
+export const EVENT_PLAYLIST_DELETE  = 11;
+export const EVENT_PLAYLIST_UPDATE  = 12;
+export const EVENT_PLAYLIST_SHUFFLE = 13;
 
 let websocket = null;
 let token = null;
@@ -583,6 +583,15 @@ export function wsPlayerSeek(timestamp) {
 export function wsChatSend(messageText) {
     const data = { message: messageText };
     wsSendEvent(EVENT_CHAT_SEND, data);
+}
+
+export function wsChatEdit(messageId, messageContent) {
+    const data = {
+        id: messageId,
+        editedMessage: messageContent,
+    };
+
+    wsSendEvent(EVENT_CHAT_EDIT, data);
 }
 
 export function wsChatDelete(messageId) {

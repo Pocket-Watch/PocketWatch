@@ -69,16 +69,16 @@ const (
 	EVENT_PLAYER_SET   EventType = 3
 
 	EVENT_CHAT_SEND   EventType = 4
-	EVENT_CHAT_EDIT   EventType = 4
-	EVENT_CHAT_DELETE EventType = 5
+	EVENT_CHAT_EDIT   EventType = 5
+	EVENT_CHAT_DELETE EventType = 6
 
-	EVENT_PLAYLIST_ADD     EventType = 6
-	EVENT_PLAYLIST_PLAY    EventType = 7
-	EVENT_PLAYLIST_MOVE    EventType = 8
-	EVENT_PLAYLIST_CLEAR   EventType = 9
-	EVENT_PLAYLIST_DELETE  EventType = 10
-	EVENT_PLAYLIST_UPDATE  EventType = 11
-	EVENT_PLAYLIST_SHUFFLE EventType = 12
+	EVENT_PLAYLIST_ADD     EventType = 7
+	EVENT_PLAYLIST_PLAY    EventType = 8
+	EVENT_PLAYLIST_MOVE    EventType = 9
+	EVENT_PLAYLIST_CLEAR   EventType = 10
+	EVENT_PLAYLIST_DELETE  EventType = 11
+	EVENT_PLAYLIST_UPDATE  EventType = 12
+	EVENT_PLAYLIST_SHUFFLE EventType = 13
 )
 
 // Constants - assignable only once!

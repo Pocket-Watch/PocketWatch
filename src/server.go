@@ -2035,6 +2035,34 @@ func (server *Server) chatCreateMessage(message string, userId uint64) error {
 	return nil
 }
 
+func (server *Server) chatEditMessage(messageEdit ChatMessageEdit, userId uint64) error {
+	if len([]rune(messageEdit.EditedMessage)) > MAX_MESSAGE_CHARACTERS {
+		return fmt.Errorf("Message edit exceeds 1000 chars")
+	}
+
+	server.state.mutex.Lock()
+	defer server.state.mutex.Unlock()
+
+	messages := server.state.messages
+
+	index := indexOfMessageById(messages, messageEdit.Id)
+	if index == -1 {
+		return fmt.Errorf("No message found of id %v", messageEdit.Id)
+	}
+
+	msg := &messages[index]
+	if msg.AuthorId != userId {
+		user := server.findUserById(userId)
+		LogWarn("User %v (id:%v) tried to edit a stranger's message", user.Username, userId)
+		return fmt.Errorf("You're not the author of this message")
+	}
+
+	msg.Message = messageEdit.EditedMessage
+	server.writeEventToAllConnections("messageedit", messageEdit)
+
+	return nil
+}
+
 func (server *Server) chatDeleteMessage(messageId uint64, userId uint64) error {
 	server.state.mutex.Lock()
 	defer server.state.mutex.Unlock()

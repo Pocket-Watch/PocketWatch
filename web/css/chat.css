@@ -80,6 +80,7 @@
     flex-direction: column;
     justify-content: center;
     row-gap: 2px;
+    flex-grow: 1;
 }
 
 .chat_message_info {
@@ -104,6 +105,7 @@
 }
 
 .chat_message_text {
+    width: 100%;
     color: var(--fg_2);
     font-size: 16px;
     overflow-wrap: break-word;
@@ -146,6 +148,7 @@
 }
 
 .chat_sub_message_text {
+    width: 100%;
     font-size: 16px;
     overflow-wrap: break-word;
     word-break: break-word;
@@ -171,6 +174,7 @@
     text-decoration: underline;
 }
 
+.chat_edit_container,
 #chat_input_container {
     width: calc(100% - 12px);
     height: 38px;
@@ -186,6 +190,13 @@
     margin-left: 6px;
 }
 
+.chat_edit_container {
+    width: 100%;
+    margin-right: 0px;
+    margin-left: 0px;
+}
+
+.chat_edit_input,
 #chat_input_box {
     width: 100%;
     background: none;
@@ -198,6 +209,7 @@
     display: none;
 }
 
+.chat_edit_send_button,
 #chat_input_upload_button,
 #chat_input_send_button {
     height: 28px;
@@ -213,11 +225,13 @@
     background-color: var(--bg_2);
 }
 
+.chat_edit_send_button:hover,
 #chat_input_upload_button:hover,
 #chat_input_send_button:hover {
     background-color: var(--bg_3);
 }
 
+.chat_edit_send_button:active,
 #chat_input_upload_button:active,
 #chat_input_send_button:active {
     background-color: var(--bg_4);
@@ -229,22 +243,26 @@
     min-width: 18px;
 }
 
+.chat_edit_send_button svg,
 #chat_input_send_button svg {
     height: 22px;
     width: 22px;
     min-width: 22px;
 }
 
+.chat_edit_send_button svg,
 #chat_input_upload_button svg,
 #chat_input_send_button svg {
     fill: var(--fg_4);
 }
 
+.chat_edit_send_button:hover svg,
 #chat_input_upload_button:hover svg,
 #chat_input_send_button:hover svg {
     fill: var(--fg_3);
 }
 
+.chat_edit_send_button:active svg,
 #chat_input_upload_button:active svg,
 #chat_input_send_button:active svg {
     fill: var(--fg_2);

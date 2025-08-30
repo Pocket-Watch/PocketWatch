@@ -971,7 +971,7 @@ class Room {
             }
         };
 
-        menu.tokenSetInput.onkeypress = event => {
+        menu.tokenSetInput.onkeydown = event => {
             if (event.key === "Enter") {
                 this.setNewToken();
             }
@@ -1754,7 +1754,7 @@ class Room {
             case "messageedit": {
                 let msgEdit = wsData;
                 console.info("INFO: A message has been edited:", msgEdit);
-                // this.chat.editMessage()
+                this.chat.editMessageById(msgEdit.id, msgEdit.editedMessage);
             } break;
 
             case "messagedelete": {

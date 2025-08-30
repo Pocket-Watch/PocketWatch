@@ -19,7 +19,7 @@ let MIME_TYPE = "audio/webm; codecs=vorbis";
 
 async function processStream() {
     if (!mediaStream) {
-        console.warn("Can't execute processStream because mediaStream is", mediaStream)
+        console.warn("Can't execute processStream because mediaStream is", mediaStream);
         return;
     }
     audioContext = new AudioContext();
@@ -55,9 +55,9 @@ async function enumerateDevices() {
     let [outputs, inputs] = getAudioDevices(devices);
     // Filter and display output devices (including headphones)
 
-    console.log("OUT", outputs)
-    console.log("IN", inputs)
-    setIntoList(outputsList, outputs)
+    console.log("OUT", outputs);
+    console.log("IN", inputs);
+    setIntoList(outputsList, outputs);
     setIntoList(inputsList, inputs)
 }
 
@@ -79,7 +79,7 @@ function removeAllChildren(htmlElement) {
 const AUDIO_INPUT = "audioinput";
 const AUDIO_OUTPUT = "audiooutput";
 function getAudioDevices(devices) {
-    console.log(devices)
+    console.log(devices);
     let outputDevices = [];
     let inputDevices = [];
     for (const device of devices) {
@@ -97,7 +97,7 @@ function getAudioDevices(devices) {
 
 async function requestPermission() {
     if (!navigator.mediaDevices) {
-        console.warn("mediaDevices are unavailable in insecure contexts (HTTP)")
+        console.warn("mediaDevices are unavailable in insecure contexts (HTTP)");
         return;
     }
     navigator.mediaDevices
@@ -136,7 +136,7 @@ async function forwardToSelf() {
     }
     let inputDeviceId = inputs[0].deviceId;
     let outputDeviceId = outputs[0].deviceId;
-    console.log("Attempting to get micStream")
+    console.log("Attempting to get micStream");
     const micStream = await navigator.mediaDevices.getUserMedia({
         audio: { deviceId: inputDeviceId }
     });
@@ -158,7 +158,7 @@ let sourceBuffer;
 // When the MediaSource is open, create a SourceBuffer
 mediaSource.addEventListener('sourceopen', () => {
     // Create a SourceBuffer for the audio format
-    console.debug("Creating a source buffer because media source was opened!")
+    console.debug("Creating a source buffer because media source was opened!");
     let supported = MediaSource.isTypeSupported(MIME_TYPE);
     console.debug("Mime type ", MIME_TYPE, "is", supported ? "supported" : "not supported", "by MediaSource");
     sourceBuffer = mediaSource.addSourceBuffer(MIME_TYPE);
@@ -178,11 +178,11 @@ async function startVoiceChat() {
         return;
     }
     let inputDeviceId = inputs[0].deviceId;
-    console.log("Attempting to get micStream")
+    console.log("Attempting to get micStream");
     const micStream = await navigator.mediaDevices.getUserMedia({
         audio: { deviceId: inputDeviceId }
     });
-    console.log("Received micStream", micStream)
+    console.log("Received micStream", micStream);
 
     // Initialize WebSocket
     discardWebSocket(webSocket);
