@@ -1743,14 +1743,14 @@ class Room {
             } break;
 
             case "messagecreate": {
-                let data = wsData;
+                let message = wsData;
                 console.info("INFO: New message received from server");
 
                 if (this.selected_tab !== TAB_CHAT) {
                     show(this.chatNewMessage);
                 }
 
-                if (this.shouldPlayNotificationSound(data.authorId)) {
+                if (this.shouldPlayNotificationSound(message.authorId)) {
                     this.newMessageAudio.play();
                 }
 
@@ -1758,19 +1758,19 @@ class Room {
                     this.pageIcon.href = "img/favicon_unread.ico";
                 }
 
-                this.chat.addMessage(data, this.allUsers);
+                this.chat.addMessage(message, this.allUsers);
             } break;
 
             case "messageedit": {
                 let msgEdit = wsData;
                 console.info("INFO: A message has been edited:", msgEdit);
-                this.chat.editMessageById(msgEdit.id, msgEdit.editedMessage);
+                this.chat.edit(msgEdit.id, msgEdit.editedMessage);
             } break;
 
             case "messagedelete": {
                 let msgId = wsData;
                 console.info("INFO: Deleting message with ID =", msgId);
-                this.chat.removeMessageById(msgId, this.allUsers);
+                this.chat.delete(msgId, this.allUsers);
             } break;
 
             case "historyclear": {
@@ -1780,14 +1780,14 @@ class Room {
 
             case "historyadd": {
                 let entry = wsData;
-                console.info("INFO: Received history addevent: ", entry);
+                console.info("INFO: Received history add event: ", entry);
                 this.history.add(entry);
             } break;
 
-            case "historyremove": {
+            case "historydelete": {
                 let entryId = wsData;
-                console.info("INFO: Received history addremove: ", entryId);
-                this.history.remove(entryId);
+                console.info("INFO: Received history delete event: ", entryId);
+                this.history.delete(entryId);
             } break;
 
             case "subtitledelete": {
@@ -1864,14 +1864,14 @@ class Room {
             } break;
 
             case "subtitleshift": {
-                let data = wsData;
+                let shift = wsData;
 
                 let subs = this.currentEntry.subtitles;
                 for (let i = 0; i < subs.length; i++) {
                     let sub = subs[i];
-                    if (sub.id === data.id) {
-                        this.player.setSubtitleShiftByUrl(sub.url, data.shift);
-                        subs[i].shift = data.shift;
+                    if (sub.id === shift.id) {
+                        this.player.setSubtitleShiftByUrl(sub.url, shift.shift);
+                        subs[i].shift = shift.shift;
                         break;
                     }
                 }

@@ -455,7 +455,7 @@ func databaseEntryAdd(db *sql.DB, entry Entry) bool {
 	return true
 }
 
-func databaseEntryRemove(db *sql.DB, entryId uint64) bool {
+func databaseEntryDelete(db *sql.DB, entryId uint64) bool {
 	_, err := db.Exec("DELETE FROM entries WHERE id = $1", entryId)
 	if err != nil {
 		LogError("SQL query failed: %v", err)
@@ -814,12 +814,12 @@ func DatabasePlaylistAddMany(db *sql.DB, entries []Entry) bool {
 	return true
 }
 
-func DatabasePlaylistRemove(db *sql.DB, entryId uint64) bool {
+func DatabasePlaylistDelete(db *sql.DB, entryId uint64) bool {
 	if db == nil {
 		return true
 	}
 
-	return databaseEntryRemove(db, entryId)
+	return databaseEntryDelete(db, entryId)
 }
 
 func DatabasePlaylistClear(db *sql.DB) bool {
@@ -933,12 +933,12 @@ func DatabaseHistoryAdd(db *sql.DB, entry Entry) bool {
 	return true
 }
 
-func DatabaseHistoryRemove(db *sql.DB, entryId uint64) bool {
+func DatabaseHistoryDelete(db *sql.DB, entryId uint64) bool {
 	if db == nil {
 		return true
 	}
 
-	return databaseEntryRemove(db, entryId)
+	return databaseEntryDelete(db, entryId)
 }
 
 func DatabaseHistoryClear(db *sql.DB) bool {

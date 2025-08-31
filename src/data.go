@@ -361,7 +361,7 @@ type PlaylistAddRequest struct {
 	RequestEntry RequestEntry `json:"request_entry"`
 }
 
-type PlaylistRemoveRequest struct {
+type PlaylistDeleteRequest struct {
 	ConnectionId uint64 `json:"connection_id"`
 	EntryId      uint64 `json:"entry_id"`
 }

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -361,7 +360,7 @@ func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(server.state.playlist) != 0 {
-		entry = server.playlistRemove(0)
+		entry = server.playlistDeleteAt(0)
 	}
 	server.state.mutex.Unlock()
 
@@ -756,18 +755,9 @@ func (server *Server) apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server.state.mutex.Lock()
-	index := FindEntryIndex(server.state.playlist, data.EntryId)
-	if index == -1 {
-		server.state.mutex.Unlock()
-		respondBadRequest(w, "Failed to play playlist element. Entry with ID %v is not in the playlist.", data.EntryId)
-		return
+	if err := server.playlistPlay(data.EntryId); err != nil {
+		respondBadRequest(w, "%v", err)
 	}
-
-	entry := server.playlistRemove(index)
-	server.state.mutex.Unlock()
-
-	go server.setNewEntry(entry, RequestEntry{})
 }
 
 func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
@@ -788,37 +778,19 @@ func (server *Server) apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
 	server.playlistClear()
 }
 
-func (server *Server) apiPlaylistRemove(w http.ResponseWriter, r *http.Request) {
-	var data PlaylistRemoveRequest
+func (server *Server) apiPlaylistDelete(w http.ResponseWriter, r *http.Request) {
+	var data PlaylistDeleteRequest
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
-	server.state.mutex.Lock()
-	index := FindEntryIndex(server.state.playlist, data.EntryId)
-	if index == -1 {
-		server.state.mutex.Unlock()
-		respondBadRequest(w, "Failed to remove playlist element. Entry with ID %v is not in the playlist.", data.EntryId)
-		return
+	if err := server.playlistDelete(data.EntryId); err != nil {
+		respondBadRequest(w, "%v", err)
 	}
-
-	server.playlistRemove(index)
-	server.state.mutex.Unlock()
-
-	go server.preloadYoutubeSourceOnNextEntry()
 }
 
 func (server *Server) apiPlaylistShuffle(w http.ResponseWriter, r *http.Request) {
-	server.state.mutex.Lock()
-	for i := range server.state.playlist {
-		j := rand.Intn(i + 1)
-		server.state.playlist[i], server.state.playlist[j] = server.state.playlist[j], server.state.playlist[i]
-	}
-	server.state.mutex.Unlock()
-
-	event := createPlaylistEvent("shuffle", server.state.playlist)
-	server.writeEventToAllConnections("playlist", event)
-	go server.preloadYoutubeSourceOnNextEntry()
+	server.playlistShuffle();
 }
 
 func (server *Server) apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
@@ -843,24 +815,9 @@ func (server *Server) apiPlaylistUpdate(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	server.state.mutex.Lock()
-	index := FindEntryIndex(server.state.playlist, data.Entry.Id)
-	if index == -1 {
-		server.state.mutex.Unlock()
-		respondBadRequest(w, "Entry with id:%v is not in the playlist.", data.Entry.Id)
-		return
+	if err := server.playlistUpdate(data.Entry); err != nil {
+		respondBadRequest(w, "%v", err)
 	}
-
-	updated := server.state.playlist[index]
-	updated.Title = data.Entry.Title
-	updated.Url = data.Entry.Url
-	DatabasePlaylistUpdate(server.db, updated.Id, updated.Title, updated.Url)
-	server.state.playlist[index] = updated
-
-	server.state.mutex.Unlock()
-
-	event := createPlaylistEvent("update", updated)
-	server.writeEventToAllConnections("playlist", event)
 }
 
 func (server *Server) apiHistoryGet(w http.ResponseWriter, r *http.Request) {
@@ -963,7 +920,7 @@ func (server *Server) apiHistoryPlay(w http.ResponseWriter, r *http.Request) {
 	go server.setNewEntry(entry, RequestEntry{})
 }
 
-func (server *Server) apiHistoryRemove(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiHistoryDelete(w http.ResponseWriter, r *http.Request) {
 	var entryId uint64
 	if !server.readJsonDataFromRequest(w, r, &entryId) {
 		return
@@ -977,7 +934,7 @@ func (server *Server) apiHistoryRemove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server.historyRemove(index)
+	server.historyDelete(index)
 	server.state.mutex.Unlock()
 }
 
@@ -1284,6 +1241,10 @@ func (server *Server) readEventMessages(ws *websocket.Conn, userId uint64) {
 			}
 
 		case EVENT_PLAYLIST_PLAY:
+			var data PlaylistPlayRequest
+			if err = json.Unmarshal(message, &data); err == nil {
+				server.playlistPlay(data.EntryId)
+			}
 
 		case EVENT_PLAYLIST_MOVE:
 			var data PlaylistMoveRequest
@@ -1295,8 +1256,19 @@ func (server *Server) readEventMessages(ws *websocket.Conn, userId uint64) {
 			server.playlistClear()
 
 		case EVENT_PLAYLIST_DELETE:
-		case EVENT_PLAYLIST_UPDATE:
+			var data PlaylistDeleteRequest
+			if err = json.Unmarshal(message, &data); err == nil {
+				server.playlistDelete(data.EntryId)
+			}
+
 		case EVENT_PLAYLIST_SHUFFLE:
+			server.playlistShuffle();
+
+		case EVENT_PLAYLIST_UPDATE:
+			var data PlaylistUpdateRequest
+			if err = json.Unmarshal(message, &data); err == nil {
+				server.playlistUpdate(data.Entry)
+			}
 
 		default:
 			LogError("Server caught unknown event '%v'", event.Type)

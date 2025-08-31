@@ -72,7 +72,7 @@ class History {
         this.contextMenuCopyUrl.onclick     = _ => navigator.clipboard.writeText(this.contextMenuEntry.url);
         this.contextMenuCopyEntry.onclick   = _ => this.onContextEntryCopy(this.contextMenuEntry);
         this.contextMenuAddPlaylist.onclick = _ => api.wsPlaylistAdd(createRequestEntry(this.contextMenuEntry));
-        this.contextMenuDelete.onclick      = _ => api.historyRemove(this.contextMenuEntry.id);
+        this.contextMenuDelete.onclick      = _ => api.historyDelete(this.contextMenuEntry.id);
     }
 
     hideContextMenu() {
@@ -188,10 +188,10 @@ class History {
         }
     }
 
-    remove(entryId) {
+    delete(entryId) {
         let index = this.entries.findIndex(item => item.id === entryId);
         if (index === -1) {
-            console.error("ERROR: History::remove failed. Entry with id", entryId, "is not in the history.");
+            console.error("ERROR: History::delete failed. Entry with id", entryId, "is not in the history.");
             return;
         }
 

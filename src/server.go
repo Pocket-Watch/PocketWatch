@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	net_url "net/url"
 	"os"
@@ -386,7 +387,7 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	server.HandleEndpoint(mux, "/watch/api/playlist/play", server.apiPlaylistPlay, "POST", true)
 	server.HandleEndpoint(mux, "/watch/api/playlist/add", server.apiPlaylistAdd, "POST", true)
 	server.HandleEndpoint(mux, "/watch/api/playlist/clear", server.apiPlaylistClear, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/playlist/remove", server.apiPlaylistRemove, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/playlist/delete", server.apiPlaylistDelete, "POST", true)
 	server.HandleEndpoint(mux, "/watch/api/playlist/shuffle", server.apiPlaylistShuffle, "POST", true)
 	server.HandleEndpoint(mux, "/watch/api/playlist/move", server.apiPlaylistMove, "POST", true)
 	server.HandleEndpoint(mux, "/watch/api/playlist/update", server.apiPlaylistUpdate, "POST", true)
@@ -395,7 +396,7 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	server.HandleEndpoint(mux, "/watch/api/history/get", server.apiHistoryGet, "GET", true)
 	server.HandleEndpoint(mux, "/watch/api/history/clear", server.apiHistoryClear, "POST", true)
 	server.HandleEndpoint(mux, "/watch/api/history/play", server.apiHistoryPlay, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/history/remove", server.apiHistoryRemove, "POST", true)
+	server.HandleEndpoint(mux, "/watch/api/history/delete", server.apiHistoryDelete, "POST", true)
 
 	server.HandleEndpoint(mux, "/watch/api/chat/send", server.apiChatSend, "POST", true)
 	server.HandleEndpoint(mux, "/watch/api/chat/edit", server.apiChatEdit, "POST", true)
@@ -1901,6 +1902,21 @@ func (server *Server) playlistAddMany(entries []Entry, toTop bool) {
 	server.writeEventToAllConnections("playlist", event)
 }
 
+func (server *Server) playlistPlay(entryId uint64) error {
+	server.state.mutex.Lock()
+	defer server.state.mutex.Unlock()
+
+	index := FindEntryIndex(server.state.playlist, entryId)
+	if index == -1 {
+		return fmt.Errorf("Failed to play playlist element. Entry with ID %v is not in the playlist.", entryId)
+	}
+
+	entry := server.playlistDeleteAt(index)
+	go server.setNewEntry(entry, RequestEntry{})
+
+	return nil
+}
+
 func (server *Server) playlistMove(data PlaylistMoveRequest) error {
 	server.state.mutex.Lock()
 	defer server.state.mutex.Unlock()
@@ -1941,13 +1957,29 @@ func (server *Server) playlistMove(data PlaylistMoveRequest) error {
 	return nil
 }
 
-func (server *Server) playlistRemove(index int) Entry {
+func (server *Server) playlistDelete(entryId uint64) error {
+	server.state.mutex.Lock()
+	defer server.state.mutex.Unlock()
+
+	index := FindEntryIndex(server.state.playlist, entryId)
+	if index == -1 {
+		return fmt.Errorf("Failed to remove playlist element. Entry with ID %v is not in the playlist.", entryId)
+	}
+
+	server.playlistDeleteAt(index)
+
+	go server.preloadYoutubeSourceOnNextEntry()
+
+	return nil
+}
+
+func (server *Server) playlistDeleteAt(index int) Entry {
 	entry := server.state.playlist[index]
 
 	server.state.playlist = slices.Delete(server.state.playlist, index, index+1)
-	DatabasePlaylistRemove(server.db, entry.Id)
+	DatabasePlaylistDelete(server.db, entry.Id)
 
-	event := createPlaylistEvent("remove", entry.Id)
+	event := createPlaylistEvent("delete", entry.Id)
 	server.writeEventToAllConnections("playlist", event)
 
 	return entry
@@ -1961,6 +1993,41 @@ func (server *Server) playlistClear() {
 
 	event := createPlaylistEvent("clear", nil)
 	server.writeEventToAllConnections("playlist", event)
+}
+
+func (server *Server) playlistShuffle() {
+	server.state.mutex.Lock()
+	for i := range server.state.playlist {
+		j := rand.Intn(i + 1)
+		server.state.playlist[i], server.state.playlist[j] = server.state.playlist[j], server.state.playlist[i]
+	}
+	server.state.mutex.Unlock()
+
+	event := createPlaylistEvent("shuffle", server.state.playlist)
+	server.writeEventToAllConnections("playlist", event)
+
+	go server.preloadYoutubeSourceOnNextEntry()
+}
+
+func (server *Server) playlistUpdate(entry Entry) error {
+	server.state.mutex.Lock()
+	defer server.state.mutex.Unlock()
+
+	index := FindEntryIndex(server.state.playlist, entry.Id)
+	if index == -1 {
+		return fmt.Errorf("Entry with id:%v is not in the playlist.", entry.Id)
+	}
+
+	updated := server.state.playlist[index]
+	updated.Title = entry.Title
+	updated.Url = entry.Url
+	DatabasePlaylistUpdate(server.db, updated.Id, updated.Title, updated.Url)
+	server.state.playlist[index] = updated
+
+	event := createPlaylistEvent("update", updated)
+	server.writeEventToAllConnections("playlist", event)
+
+	return nil
 }
 
 func compareEntries(entry1 Entry, entry2 Entry) bool {
@@ -1998,8 +2065,8 @@ func (server *Server) historyAdd(entry Entry) {
 		// De-duplicate history entries.
 		removed := server.state.history[index]
 		server.state.history = slices.Delete(server.state.history, index, index+1)
-		DatabaseHistoryRemove(server.db, removed.Id)
-		server.writeEventToAllConnections("historyremove", removed.Id)
+		DatabaseHistoryDelete(server.db, removed.Id)
+		server.writeEventToAllConnections("historydelete", removed.Id)
 
 		// Select newer subtitles from the new entry
 		removed.Subtitles = newEntry.Subtitles
@@ -2012,18 +2079,18 @@ func (server *Server) historyAdd(entry Entry) {
 	if len(server.state.history) > MAX_HISTORY_SIZE {
 		removed := server.state.history[0]
 		server.state.history = slices.Delete(server.state.history, 0, 1)
-		DatabaseHistoryRemove(server.db, removed.Id)
+		DatabaseHistoryDelete(server.db, removed.Id)
 	}
 
 	server.writeEventToAllConnections("historyadd", newEntry)
 }
 
-func (server *Server) historyRemove(index int) Entry {
+func (server *Server) historyDelete(index int) Entry {
 	entry := server.state.history[index]
 
 	server.state.history = slices.Delete(server.state.history, index, index+1)
-	DatabasePlaylistRemove(server.db, entry.Id)
-	server.writeEventToAllConnections("historyremove", entry.Id)
+	DatabasePlaylistDelete(server.db, entry.Id)
+	server.writeEventToAllConnections("historydelete", entry.Id)
 
 	return entry
 }

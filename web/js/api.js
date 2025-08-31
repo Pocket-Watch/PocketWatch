@@ -440,13 +440,13 @@ export async function playlistClear() {
     return await httpPost("/watch/api/playlist/clear");
 }
 
-export async function playlistRemove(entryId) {
+export async function playlistDelete(entryId) {
     const payload = {
         entry_id: entryId,
     };
 
-    console.info("INFO: Sending playlist remove request.");
-    return await httpPost("/watch/api/playlist/remove", payload);
+    console.info("INFO: Sending playlist delete request.");
+    return await httpPost("/watch/api/playlist/delete", payload);
 }
 
 export async function playlistShuffle() {
@@ -488,9 +488,9 @@ export async function historyPlay(entryId) {
     return await httpPost("/watch/api/history/play", entryId);
 }
 
-export async function historyRemove(entryId) {
-    console.info("INFO: Sending history remove request for entry id =", entryId);
-    return await httpPost("/watch/api/history/remove", entryId);
+export async function historyDelete(entryId) {
+    console.info("INFO: Sending history delete request for entry id =", entryId);
+    return await httpPost("/watch/api/history/delete", entryId);
 }
 
 // CHAT requests
@@ -604,7 +604,7 @@ export function wsPlaylistAdd(requestEntry) {
     wsSendEvent(EVENT_PLAYLIST_ADD, data);
 }
 
-export async function wsPlaylistMove(entryId, dest) {
+export function wsPlaylistMove(entryId, dest) {
     const data = {
         entry_id:   entryId,
         dest_index: dest,
@@ -613,6 +613,25 @@ export async function wsPlaylistMove(entryId, dest) {
     wsSendEvent(EVENT_PLAYLIST_MOVE, data);
 }
 
-export async function wsPlaylistClear() {
+export function wsPlaylistClear() {
     wsSendEvent(EVENT_PLAYLIST_CLEAR, null);
+}
+
+export function wsPlaylistPlay(entryId) {
+    const data = { entry_id: entryId };
+    wsSendEvent(EVENT_PLAYLIST_PLAY, data);
+}
+
+export function wsPlaylistShuffle() {
+    wsSendEvent(EVENT_PLAYLIST_SHUFFLE, null);
+}
+
+export function wsPlaylistDelete(entryId) {
+    const data = { entry_id: entryId };
+    wsSendEvent(EVENT_PLAYLIST_DELETE, data);
+}
+
+export function wsPlaylistUpdate(entry) {
+    const data = { entry: entry };
+    wsSendEvent(EVENT_PLAYLIST_UPDATE, data);
 }

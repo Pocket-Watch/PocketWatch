@@ -488,7 +488,7 @@ class Chat {
         this.editingInput       = null;
     }
 
-    editMessageById(messageId, messageContent) {
+    edit(messageId, messageContent) {
         let index = this.messages.findIndex(message => message.id === messageId);
         if (index === -1) {
             console.warn("WARN: Chat::edit failed. Failed to find message with ID =", messageId);
@@ -509,10 +509,10 @@ class Chat {
         html.text.append(...segments);
     }
 
-    removeMessageById(messageId, allUsers) {
+    delete(messageId, allUsers) {
         let index = this.messages.findIndex(message => message.id === messageId);
         if (index === -1) {
-            console.warn("WARN: Chat::remove failed. Failed to find message with ID =", messageId);
+            console.warn("WARN: Chat::delete failed. Failed to find message with ID =", messageId);
             return;
         }
 

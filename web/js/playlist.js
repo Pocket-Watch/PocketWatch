@@ -121,7 +121,7 @@ class Playlist {
             api.playerLooping(this.loopingEnabled);
         };
 
-        this.controlsShuffleButton.onclick  = _ => api.playlistShuffle();
+        this.controlsShuffleButton.onclick  = _ => api.wsPlaylistShuffle();
         this.controlsClearButton.onclick    = _ => api.wsPlaylistClear();
         this.controlsSettingsButton.onclick = _ => this.onSettingsClick();
 
@@ -132,13 +132,13 @@ class Playlist {
             this.hideContextMenu();
         };
 
-        this.contextMenuPlayNow.onclick    = _ => api.playlistPlay(this.contextMenuEntry.id);
+        this.contextMenuPlayNow.onclick    = _ => api.wsPlaylistPlay(this.contextMenuEntry.id);
         this.contextMenuMoveTop.onclick    = _ => api.wsPlaylistMove(this.contextMenuEntry.id, 0);
         this.contextMenuMoveBottom.onclick = _ => api.wsPlaylistMove(this.contextMenuEntry.id, this.entries.length - 1);
         this.contextMenuExpand.onclick     = _ => this.toggleEntryDropdown(this.contextMenuHtmlEntry, this.contextMenuEntry, this.contextMenuUser);
         this.contextMenuCopyUrl.onclick    = _ => navigator.clipboard.writeText(this.contextMenuEntry.url);
         this.contextMenuEdit.onclick       = _ => this.toggleEntryEdit(this.contextMenuHtmlEntry, this.contextMenuEntry);
-        this.contextMenuDelete.onclick     = _ => api.playlistRemove(this.contextMenuEntry.id);
+        this.contextMenuDelete.onclick     = _ => api.wsPlaylistDelete(this.contextMenuEntry.id);
 
         this.htmlEntryList.oncontextmenu = _ => { return false };
     }
@@ -236,10 +236,10 @@ class Playlist {
         this.updateFooter();
     }
 
-    remove(entryId) {
+   delete(entryId) {
         let index = this.entries.findIndex(item => item.id === entryId);
         if (index === -1) {
-            console.error("ERROR: Playlist::remove failed. Entry with id", entryId, "is not in the playlist.");
+            console.error("ERROR: Playlist::delete failed. Entry with id", entryId, "is not in the playlist.");
             return null;
         }
 
@@ -691,7 +691,7 @@ class Playlist {
         if (this.isEditingEntry) {
             let newEntry = this.stopEntryEdit();
             prevId = newEntry.id;
-            api.playlistUpdate(newEntry);
+            api.wsPlaylistUpdate(newEntry);
         } 
 
         if (prevId !== entry.id) {
@@ -1005,9 +1005,9 @@ class Playlist {
             }
         };
 
-        entryThumbnail.onclick = _ => api.playlistPlay(entry.id);
+        entryThumbnail.onclick = _ => api.wsPlaylistPlay(entry.id);
         editButton.onclick     = _ => this.toggleEntryEdit(entryRoot, entry);
-        deleteButton.onclick   = _ => api.playlistRemove(entry.id);
+        deleteButton.onclick   = _ => api.wsPlaylistDelete(entry.id);
         dropdownButton.onclick = _ => this.toggleEntryDropdown(entryRoot, entry, user);
 
         //
@@ -1061,8 +1061,8 @@ class Playlist {
                 this.clear();
             } break;
 
-            case "remove": {
-                this.remove(data)
+            case "delete": {
+                this.delete(data)
             } break;
 
             case "shuffle": {
