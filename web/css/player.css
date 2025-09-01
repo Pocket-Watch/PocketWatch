@@ -693,7 +693,7 @@
 
 .subtitle_track_text::-webkit-scrollbar {
     background: transparent;
-    width: 0px;
+    width: 0;
 }
 
 .player_toggle_root {

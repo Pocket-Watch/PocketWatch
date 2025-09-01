@@ -314,57 +314,15 @@ func (server *Server) apiPlayerSet(w http.ResponseWriter, r *http.Request) {
 	server.playerSet(data.RequestEntry, user.Id)
 }
 
-func (server *Server) apiPlayerEnd(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection %s reported that video ended.", r.RemoteAddr)
-
-	var data PlaybackEnded
-	if !server.readJsonDataFromRequest(w, r, &data) {
-		return
-	}
-
-	server.state.mutex.Lock()
-	defer server.state.mutex.Unlock()
-
-	if data.EntryId == server.state.entry.Id {
-		server.state.player.Playing = false
-	}
-}
-
 func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
 	var data PlayerNextRequest
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
-	if server.state.isLoading.Load() {
-		return
+	if err := server.playerNext(data.EntryId); err != nil {
+		respondBadRequest(w, "%v", err)
 	}
-
-	// NOTE(kihau):
-	//     Checking whether currently set entry ID on the client side matches current entry ID on the server side.
-	//     This check is necessary because multiple clients can send "playlist next" request on video end,
-	//     resulting in multiple playlist skips, which is not an intended behaviour.
-
-	server.state.mutex.Lock()
-	if server.state.entry.Id != data.EntryId {
-		server.state.mutex.Unlock()
-		respondBadRequest(w, "Entry ID provided in the request is not equal to the current entry ID on the server")
-		return
-	}
-
-	entry := Entry{}
-	if len(server.state.playlist) == 0 && server.state.player.Looping {
-		server.state.mutex.Unlock()
-		server.playerSeek(0, 0)
-		return
-	}
-
-	if len(server.state.playlist) != 0 {
-		entry = server.playlistDeleteAt(0)
-	}
-	server.state.mutex.Unlock()
-
-	go server.setNewEntry(entry, RequestEntry{})
 }
 
 func (server *Server) apiPlayerPlay(w http.ResponseWriter, r *http.Request) {
@@ -415,14 +373,7 @@ func (server *Server) apiPlayerAutoplay(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	LogInfo("Setting playlist autoplay to %v.", autoplay)
-
-	server.state.mutex.Lock()
-	server.state.player.Autoplay = autoplay
-	DatabaseSetAutoplay(server.db, autoplay)
-	server.state.mutex.Unlock()
-
-	server.writeEventToAllConnections("playerautoplay", autoplay)
+	server.playerAutoplay(autoplay)
 }
 
 func (server *Server) apiPlayerLooping(w http.ResponseWriter, r *http.Request) {
@@ -431,14 +382,7 @@ func (server *Server) apiPlayerLooping(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	LogInfo("Setting playlist looping to %v.", looping)
-
-	server.state.mutex.Lock()
-	server.state.player.Looping = looping
-	DatabaseSetLooping(server.db, looping)
-	server.state.mutex.Unlock()
-
-	server.writeEventToAllConnections("playerlooping", looping)
+	server.playerLooping(looping)
 }
 
 func (server *Server) apiPlayerUpdateTitle(w http.ResponseWriter, r *http.Request) {
@@ -447,12 +391,7 @@ func (server *Server) apiPlayerUpdateTitle(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	server.state.mutex.Lock()
-	server.state.entry.Title = title
-	DatabaseCurrentEntryUpdateTitle(server.db, title)
-	server.state.mutex.Unlock()
-
-	server.writeEventToAllConnections("playerupdatetitle", title)
+	server.playerUpdateTitle(title)
 }
 
 func (server *Server) apiSubtitleDelete(w http.ResponseWriter, r *http.Request) {
@@ -1214,6 +1153,30 @@ func (server *Server) readEventMessages(ws *websocket.Conn, userId uint64) {
 			var data PlayerSetRequest
 			if err = json.Unmarshal(message, &data); err == nil {
 				server.playerSet(data.RequestEntry, userId)
+			}
+
+		case EVENT_PLAYER_NEXT:
+			var data PlayerNextRequest
+			if err = json.Unmarshal(message, &data); err == nil {
+				server.playerNext(data.EntryId)
+			}
+
+		case EVENT_PLAYER_AUTOPLAY:
+			var autoplay bool
+			if err = json.Unmarshal(message, &autoplay); err == nil {
+				server.playerAutoplay(autoplay)
+			}
+
+		case EVENT_PLAYER_LOOPING:
+			var looping bool
+			if err = json.Unmarshal(message, &looping); err == nil {
+				server.playerLooping(looping)
+			}
+
+		case EVENT_PLAYER_UPDATE_TITLE:
+			var title string
+			if err = json.Unmarshal(message, &title); err == nil {
+				server.playerUpdateTitle(title)
 			}
 
 		case EVENT_CHAT_SEND:

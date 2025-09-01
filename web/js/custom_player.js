@@ -885,7 +885,7 @@ class Internals {
         let volume = this.getVolume();
         let nextVolume = volume + relativeVolume;
         this.setVolume(nextVolume);
-        this.fireControlsVolumeSet(nextVolume)
+        this.fireControlsVolumeSet(nextVolume);
         if (this.lastMuted && nextVolume > 0.0) {
             this.lastMuted = false;
             this.fireControlsMute(false)

@@ -63,22 +63,26 @@ const GENERIC_CHUNK_SIZE = 1 * MB
 type EventType uint64
 
 const (
-	EVENT_PLAYER_PLAY  EventType = 0
-	EVENT_PLAYER_PAUSE EventType = 1
-	EVENT_PLAYER_SEEK  EventType = 2
-	EVENT_PLAYER_SET   EventType = 3
+	EVENT_PLAYER_PLAY         EventType = 0
+	EVENT_PLAYER_PAUSE        EventType = 1
+	EVENT_PLAYER_SEEK         EventType = 2
+	EVENT_PLAYER_SET          EventType = 3
+	EVENT_PLAYER_NEXT         EventType = 4
+	EVENT_PLAYER_AUTOPLAY     EventType = 5
+	EVENT_PLAYER_LOOPING      EventType = 6
+	EVENT_PLAYER_UPDATE_TITLE EventType = 7
 
-	EVENT_CHAT_SEND   EventType = 4
-	EVENT_CHAT_EDIT   EventType = 5
-	EVENT_CHAT_DELETE EventType = 6
+	EVENT_CHAT_SEND   EventType = 8
+	EVENT_CHAT_EDIT   EventType = 9
+	EVENT_CHAT_DELETE EventType = 10
 
-	EVENT_PLAYLIST_ADD     EventType = 7
-	EVENT_PLAYLIST_PLAY    EventType = 8
-	EVENT_PLAYLIST_MOVE    EventType = 9
-	EVENT_PLAYLIST_CLEAR   EventType = 10
-	EVENT_PLAYLIST_DELETE  EventType = 11
-	EVENT_PLAYLIST_UPDATE  EventType = 12
-	EVENT_PLAYLIST_SHUFFLE EventType = 13
+	EVENT_PLAYLIST_ADD     EventType = 11
+	EVENT_PLAYLIST_PLAY    EventType = 12
+	EVENT_PLAYLIST_MOVE    EventType = 13
+	EVENT_PLAYLIST_CLEAR   EventType = 14
+	EVENT_PLAYLIST_DELETE  EventType = 15
+	EVENT_PLAYLIST_UPDATE  EventType = 16
+	EVENT_PLAYLIST_SHUFFLE EventType = 17
 )
 
 // Constants - assignable only once!
@@ -274,7 +278,6 @@ type LiveSegment struct {
 type PlayerGetResponse struct {
 	Player PlayerState `json:"player"`
 	Entry  Entry       `json:"entry"`
-	// Subtitles []string    `json:"subtitles"`
 }
 
 type SyncRequest struct {
@@ -294,10 +297,6 @@ type PlayerSetRequest struct {
 type PlayerSetEvent struct {
 	PrevEntry Entry `json:"prev_entry"`
 	NewEntry  Entry `json:"new_entry"`
-}
-
-type PlaybackEnded struct {
-	EntryId uint64 `json:"entry_id"`
 }
 
 type PlayerNextRequest struct {
@@ -377,8 +376,8 @@ type PlaylistLoopingRequest struct {
 }
 
 type PlaylistMoveRequest struct {
-	EntryId      uint64 `json:"entry_id"`
-	DestIndex    int    `json:"dest_index"`
+	EntryId   uint64 `json:"entry_id"`
+	DestIndex int    `json:"dest_index"`
 }
 
 type PlaylistMoveEvent struct {

@@ -364,7 +364,6 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	// API calls that change state of the player.
 	server.HandleEndpoint(mux, "/watch/api/player/get", server.apiPlayerGet, "GET", true)
 	server.HandleEndpoint(mux, "/watch/api/player/set", server.apiPlayerSet, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/player/end", server.apiPlayerEnd, "POST", true)
 	server.HandleEndpoint(mux, "/watch/api/player/next", server.apiPlayerNext, "POST", true)
 	server.HandleEndpoint(mux, "/watch/api/player/play", server.apiPlayerPlay, "POST", true)
 	server.HandleEndpoint(mux, "/watch/api/player/pause", server.apiPlayerPause, "POST", true)
@@ -655,17 +654,6 @@ func (server *Server) readJsonDataFromRequest(w http.ResponseWriter, r *http.Req
 		respondBadRequest(w, "Failed to deserialize request body data: %v", err)
 		return false
 	}
-
-	return true
-}
-
-func (server *Server) readJsonDataFromWebSocket(eventType EventType, message json.RawMessage, eventData any) bool {
-	if err := json.Unmarshal(message, eventData); err != nil {
-		LogError("Failed to deserialize pause %v: %v", eventType, err)
-		return false
-	}
-
-	// TODO?(kihau): Inform about error via WebSocket.
 
 	return true
 }
@@ -1802,6 +1790,68 @@ func (server *Server) playerSeek(timestamp float64, userId uint64) {
 
 	event := server.createSyncEvent("seek", userId)
 	server.writeEventToAllConnections("sync", event)
+}
+
+func (server *Server) playerNext(entryId uint64) error {
+	if server.state.isLoading.Load() {
+		return nil
+	}
+
+	// NOTE(kihau):
+	//     Checking whether currently set entry ID on the client side matches current entry ID on the server side.
+	//     This check is necessary because multiple clients can send "playlist next" request on video end,
+	//     resulting in multiple playlist skips, which is not an intended behaviour.
+
+	server.state.mutex.Lock()
+	defer server.state.mutex.Unlock()
+
+	if server.state.entry.Id != entryId {
+		return fmt.Errorf("Entry ID provided in the request is not equal to the current entry ID on the server")
+	}
+
+	entry := Entry{}
+	if len(server.state.playlist) == 0 && server.state.player.Looping {
+		server.playerSeek(0, 0)
+		return nil
+	}
+
+	if len(server.state.playlist) != 0 {
+		entry = server.playlistDeleteAt(0)
+	}
+
+	go server.setNewEntry(entry, RequestEntry{})
+	return nil
+}
+
+func (server *Server) playerAutoplay(autoplay bool) {
+	LogInfo("Setting playlist autoplay to %v.", autoplay)
+
+	server.state.mutex.Lock()
+	defer server.state.mutex.Unlock()
+
+	server.state.player.Autoplay = autoplay
+	DatabaseSetAutoplay(server.db, autoplay)
+	server.writeEventToAllConnections("playerautoplay", autoplay)
+}
+
+func (server *Server) playerLooping(looping bool) {
+	LogInfo("Setting playlist looping to %v.", looping)
+
+	server.state.mutex.Lock()
+	defer server.state.mutex.Unlock()
+
+	server.state.player.Looping = looping
+	DatabaseSetLooping(server.db, looping)
+	server.writeEventToAllConnections("playerlooping", looping)
+}
+
+func (server *Server) playerUpdateTitle(title string) {
+	server.state.mutex.Lock()
+	defer server.state.mutex.Unlock()
+
+	server.state.entry.Title = title
+	DatabaseCurrentEntryUpdateTitle(server.db, title)
+	server.writeEventToAllConnections("playerupdatetitle", title)
 }
 
 func (server *Server) playlistAdd(requested RequestEntry, userId uint64) {

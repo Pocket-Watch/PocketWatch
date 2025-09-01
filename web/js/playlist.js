@@ -105,20 +105,20 @@ class Playlist {
     attachPlaylistEvents() {
         this.controlsNextButton.onclick = _ => {
             if (this.entries.length > 0) {
-                api.playerNext(this.currentEntryId);
+                api.wsPlayerNext(this.currentEntryId);
             }
         };
 
         this.controlsAutoplayButton.onclick = _ => {
             this.controlsAutoplayButton.classList.toggle("active");
             this.autoplayEnabled = !this.autoplayEnabled;
-            api.playerAutoplay(this.autoplayEnabled);
+            api.wsPlayerAutoplay(this.autoplayEnabled);
         };
 
         this.controlsLoopingButton.onclick = _ => {
             this.controlsLoopingButton.classList.toggle("active");
             this.loopingEnabled = !this.loopingEnabled;
-            api.playerLooping(this.loopingEnabled);
+            api.wsPlayerLooping(this.loopingEnabled);
         };
 
         this.controlsShuffleButton.onclick  = _ => api.wsPlaylistShuffle();

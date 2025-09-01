@@ -369,7 +369,7 @@ class Room {
         });
 
         this.player.onControlsNext(_ => {
-            api.playerNext(this.currentEntryId);
+            api.wsPlayerNext(this.currentEntryId);
         });
 
         // Maybe browsers optimize calls to localStorage and don't write to disk 30 times a second?
@@ -408,7 +408,7 @@ class Room {
 
         this.player.onPlaybackEnd(_ => {
             if (this.playlist.autoplayEnabled) {
-                api.playerNext(this.currentEntryId);
+                api.wsPlayerNext(this.currentEntryId);
             } else {
                 console.info("INFO: Playback ended! Informing the server");
                 let endTime = this.player.getDuration();
@@ -722,14 +722,14 @@ class Room {
             if (event.key === "Enter") {
                 let title = room.titleInput.value.trim();
                 room.titleInput.value = title;
-                api.playerUpdateTitle(title);
+                api.wsPlayerUpdateTitle(title);
             }
         };
 
         room.titleUpdateButton.onclick = _ => {
             let title = room.titleInput.value.trim();
             room.titleInput.value = title;
-            api.playerUpdateTitle(title);
+            api.wsPlayerUpdateTitle(title);
         };
 
         room.urlCopyButton.onclick = _ => {

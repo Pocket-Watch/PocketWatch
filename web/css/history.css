@@ -132,7 +132,7 @@
 
 .history_entry.highlight {
     border-color: var(--gray_2);
-    box-shadow: 0px 0px 12px var(--bg_0);
+    box-shadow: 0 0 12px var(--bg_0);
 }
 
 .history_entry.show {
@@ -145,7 +145,7 @@
     width: calc(100% - 4px);
     height: auto;
     border-radius: 6px;
-    box-shadow: 0px 0px 3px 0px var(--bg_1);
+    box-shadow: 0 0 3px 0 var(--bg_1);
     border: 2px solid var(--bg_6);
     z-index: 0;
     display: inline-block;
@@ -262,7 +262,7 @@
 
 .history_entry_title::-webkit-scrollbar {
     background: transparent;
-    width: 0px;
+    width: 0;
 }
 
 .history_entry_url {
@@ -281,7 +281,7 @@
 
 .history_entry_url::-webkit-scrollbar {
     background: transparent;
-    width: 0px;
+    width: 0;
 }
 
 .history_entry_buttons {

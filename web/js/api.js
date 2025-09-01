@@ -1,69 +1,26 @@
-/* Event response constants for (potential) future use.
-export const EVENT_PING     = 0;
-export const EVENT_USER     = 1;
-export const EVENT_PLAYER   = 2;
-export const EVENT_PLAYLIST = 3;
-export const EVENT_HISTORY  = 4;
-export const EVENT_CHAT     = 5;
-export const EVENT_SUBTITLE = 6;
+export const EVENT_PLAYER_PLAY         = 0;
+export const EVENT_PLAYER_PAUSE        = 1;
+export const EVENT_PLAYER_SEEK         = 2;
+export const EVENT_PLAYER_SET          = 3;
+export const EVENT_PLAYER_NEXT         = 4;
+export const EVENT_PLAYER_AUTOPLAY     = 5;
+export const EVENT_PLAYER_LOOPING      = 6;
+export const EVENT_PLAYER_UPDATE_TITLE = 7;
 
-export const EVENT_USER_CREATE       = 0;
-export const EVENT_USER_DELETE       = 1;
-export const EVENT_USER_CONNECTED    = 2;
-export const EVENT_USER_DISCONNECTED = 3;
-export const EVENT_USER_UPDATE       = 4;
+export const EVENT_CHAT_SEND   = 8;
+export const EVENT_CHAT_EDIT   = 9;
+export const EVENT_CHAT_DELETE = 10;
 
-export const EVENT_PLAYER_SET          = 0;
-export const EVENT_PLAYER_LOOPING      = 1;
-export const EVENT_PLAYER_AUTOPLAY     = 2;
-export const EVENT_PLAYER_UPDATE_TITLE = 3;
-export const EVENT_PLAYER_WAITING      = 4;
-export const EVENT_PLAYER_ERROR        = 5;
-export const EVENT_PLAYER_SYNC         = 6;
-
-export const EVENT_PLAYLIST_ADD          = 0;
-export const EVENT_PLAYLIST_ADD_TOP      = 1;
-export const EVENT_PLAYLIST_ADD_MANY     = 2;
-export const EVENT_PLAYLIST_ADD_MANY_TOP = 3;
-export const EVENT_PLAYLIST_CLEAR        = 4;
-export const EVENT_PLAYLIST_REMOVE       = 5;
-export const EVENT_PLAYLIST_SHUFFLE      = 6;
-export const EVENT_PLAYLIST_MOVE         = 7;
-export const EVENT_PLAYLIST_UPDATE       = 8;
-
-export const EVENT_HISTORY_ADD    = 0;
-export const EVENT_HISTORY_CLEAR  = 1;
-export const EVENT_HISTORY_DELETE = 2;
-
-export const EVENT_CHAT_MESSAGE_CREATE = 0;
-export const EVENT_CHAT_MESSAGE_DELETE = 1;
-export const EVENT_CHAT_MESSAGE_EDIT   = 2;
-
-export const EVENT_SUBTITLE_ATTACH = 0;
-export const EVENT_SUBTITLE_DELETE = 1;
-export const EVENT_SUBTITLE_UPDATE = 2;
-export const EVENT_SUBTITLE_SHIFT  = 3;
-*/
-
-export const EVENT_PLAYER_PLAY  = 0;
-export const EVENT_PLAYER_PAUSE = 1;
-export const EVENT_PLAYER_SEEK  = 2;
-export const EVENT_PLAYER_SET   = 3;
-
-export const EVENT_CHAT_SEND   = 4;
-export const EVENT_CHAT_EDIT   = 5;
-export const EVENT_CHAT_DELETE = 6;
-
-export const EVENT_PLAYLIST_ADD     = 7;
-export const EVENT_PLAYLIST_PLAY    = 8;
-export const EVENT_PLAYLIST_MOVE    = 9;
-export const EVENT_PLAYLIST_CLEAR   = 10;
-export const EVENT_PLAYLIST_DELETE  = 11;
-export const EVENT_PLAYLIST_UPDATE  = 12;
-export const EVENT_PLAYLIST_SHUFFLE = 13;
+export const EVENT_PLAYLIST_ADD     = 11;
+export const EVENT_PLAYLIST_PLAY    = 12;
+export const EVENT_PLAYLIST_MOVE    = 13;
+export const EVENT_PLAYLIST_CLEAR   = 14;
+export const EVENT_PLAYLIST_DELETE  = 15;
+export const EVENT_PLAYLIST_UPDATE  = 16;
+export const EVENT_PLAYLIST_SHUFFLE = 17;
 
 let websocket = null;
-let token = null;
+let token     = null;
 
 export class JsonResponse {
     constructor(status, method, endpoint) {
@@ -578,6 +535,23 @@ export function wsPlayerPause(timestamp) {
 export function wsPlayerSeek(timestamp) {
     const data = { timestamp: timestamp };
     wsSendEvent(EVENT_PLAYER_SEEK, data);
+}
+
+export function wsPlayerNext(currentEntryId) {
+    const data = { entry_id: currentEntryId };
+    wsSendEvent(EVENT_PLAYER_NEXT, data);
+}
+
+export function wsPlayerAutoplay(state) {
+    wsSendEvent(EVENT_PLAYER_AUTOPLAY, state);
+}
+
+export function wsPlayerLooping(state) {
+    wsSendEvent(EVENT_PLAYER_LOOPING, state);
+}
+
+export function wsPlayerUpdateTitle(title) {
+    wsSendEvent(EVENT_PLAYER_UPDATE_TITLE, title);
 }
 
 export function wsChatSend(messageText) {

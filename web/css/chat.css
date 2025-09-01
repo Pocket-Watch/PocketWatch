@@ -65,7 +65,7 @@
     width: 38px;
     border-radius: 8px;
     overflow: hidden;
-    box-shadow: 1px 1px 3px 0px var(--bg_0);
+    box-shadow: 1px 1px 3px 0 var(--bg_0);
 }
 
 .chat_message_avatar img {
@@ -192,8 +192,8 @@
 
 .chat_edit_container {
     width: 100%;
-    margin-right: 0px;
-    margin-left: 0px;
+    margin-right: 0;
+    margin-left: 0;
 }
 
 .chat_edit_input,
