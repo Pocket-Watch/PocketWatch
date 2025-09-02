@@ -748,7 +748,7 @@ class Room {
             }
 
             let subtitle = await api.subtitleUpload(files[0], files[0].name);
-            api.subtitleAttach(subtitle);
+            await api.subtitleAttach(subtitle);
         };
 
         room.upload.placeholderRoot.onclick = _ => {
@@ -987,7 +987,7 @@ class Room {
         };
 
         menu.tokenSetButton.onclick = async _ => {
-            this.setNewToken();
+            await this.setNewToken();
         };
 
         menu.animatedAvatarsToggle.onclick = _ => {

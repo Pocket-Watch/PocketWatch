@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"net/http"
 	"os"
 	"sync"
@@ -253,14 +254,6 @@ type ChatMessageEdit struct {
 	Id            uint64 `json:"id"`
 }
 
-type ChatMessageDeleteRequest struct {
-	Id uint64 `json:"id"`
-}
-
-type ChatMessageFromUser struct {
-	Message string `json:"message"`
-}
-
 type MessageHistoryRequest struct {
 	Count          uint32 `json:"count"`
 	BackwardOffset uint64 `json:"backwardOffset"`
@@ -280,27 +273,15 @@ type PlayerGetResponse struct {
 	Entry  Entry       `json:"entry"`
 }
 
-type SyncRequest struct {
-	Timestamp float64 `json:"timestamp"`
-}
-
 type SyncEvent struct {
 	Timestamp float64 `json:"timestamp"`
 	Action    string  `json:"action"`
 	UserId    uint64  `json:"user_id"`
 }
 
-type PlayerSetRequest struct {
-	RequestEntry RequestEntry `json:"request_entry"`
-}
-
 type PlayerSetEvent struct {
 	PrevEntry Entry `json:"prev_entry"`
 	NewEntry  Entry `json:"new_entry"`
-}
-
-type PlayerNextRequest struct {
-	EntryId uint64 `json:"entry_id"`
 }
 
 type PlayerNextEvent struct {
@@ -330,8 +311,8 @@ type WebsocketEventResponse struct {
 }
 
 type WebsocketEvent struct {
-	Type EventType `json:"type"`
-	Data any       `json:"data"`
+	Type EventType       `json:"type"`
+	Data json.RawMessage `json:"data"`
 }
 
 type PlaylistEvent struct {
@@ -352,29 +333,6 @@ type RequestEntry struct {
 	PlaylistMaxSize   uint       `json:"playlist_max_size"`
 }
 
-type PlaylistPlayRequest struct {
-	EntryId uint64 `json:"entry_id"`
-}
-
-type PlaylistAddRequest struct {
-	RequestEntry RequestEntry `json:"request_entry"`
-}
-
-type PlaylistDeleteRequest struct {
-	ConnectionId uint64 `json:"connection_id"`
-	EntryId      uint64 `json:"entry_id"`
-}
-
-type PlaylistAutoplayRequest struct {
-	ConnectionId uint64 `json:"connection_id"`
-	Autoplay     bool   `json:"autoplay"`
-}
-
-type PlaylistLoopingRequest struct {
-	ConnectionId uint64 `json:"connection_id"`
-	Looping      bool   `json:"looping"`
-}
-
 type PlaylistMoveRequest struct {
 	EntryId   uint64 `json:"entry_id"`
 	DestIndex int    `json:"dest_index"`
@@ -383,10 +341,6 @@ type PlaylistMoveRequest struct {
 type PlaylistMoveEvent struct {
 	EntryId   uint64 `json:"entry_id"`
 	DestIndex int    `json:"dest_index"`
-}
-
-type PlaylistUpdateRequest struct {
-	Entry Entry `json:"entry"`
 }
 
 type MediaUploadResponse struct {

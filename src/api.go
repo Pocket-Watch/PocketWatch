@@ -34,7 +34,7 @@ func (server *Server) apiLogin(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, "This is unimplemented")
 }
 
-func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request, userId uint64) {
 	inputFile, headers, err := r.FormFile("file")
 	if err != nil {
 		respondBadRequest(w, "Failed to read formdata from the request: %v", err)
@@ -89,7 +89,7 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonData)
 }
 
-func (server *Server) apiUserCreate(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiUserCreate(w http.ResponseWriter, r *http.Request, userId uint64) {
 	server.users.mutex.Lock()
 	user := server.users.create()
 	DatabaseAddUser(server.db, user)
@@ -105,7 +105,7 @@ func (server *Server) apiUserCreate(w http.ResponseWriter, r *http.Request) {
 	w.Write(tokenJson)
 }
 
-func (server *Server) apiUserVerify(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiUserVerify(w http.ResponseWriter, r *http.Request, userId uint64) {
 	var token string
 	if !server.readJsonDataFromRequest(w, r, &token) {
 		return
@@ -128,7 +128,7 @@ func (server *Server) apiUserVerify(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonData)
 }
 
-func (server *Server) apiUserDelete(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiUserDelete(w http.ResponseWriter, r *http.Request, userId uint64) {
 	var token string
 	if !server.readJsonDataFromRequest(w, r, &token) {
 		return
@@ -155,7 +155,7 @@ func (server *Server) apiUserDelete(w http.ResponseWriter, r *http.Request) {
 	server.conns.mutex.Unlock()
 }
 
-func (server *Server) apiUserGetAll(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiUserGetAll(w http.ResponseWriter, r *http.Request, userId uint64) {
 	server.users.mutex.Lock()
 	usersJson, err := json.Marshal(server.users.slice)
 	server.users.mutex.Unlock()
@@ -168,7 +168,7 @@ func (server *Server) apiUserGetAll(w http.ResponseWriter, r *http.Request) {
 	w.Write(usersJson)
 }
 
-func (server *Server) apiUserUpdateName(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiUserUpdateName(w http.ResponseWriter, r *http.Request, userId uint64) {
 	var newUsername string
 	if !server.readJsonDataFromRequest(w, r, &newUsername) {
 		return
@@ -201,7 +201,7 @@ func (server *Server) apiUserUpdateName(w http.ResponseWriter, r *http.Request) 
 	server.writeEventToAllConnections("userupdate", user)
 }
 
-func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request, userId uint64) {
 	server.users.mutex.Lock()
 	userIndex := server.getAuthorizedIndex(w, r)
 	if userIndex == -1 {
@@ -278,7 +278,7 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 	w.Write(jsonData)
 }
 
-func (server *Server) apiPlayerGet(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiPlayerGet(w http.ResponseWriter, r *http.Request, userId uint64) {
 	server.state.mutex.Lock()
 	player := server.state.player
 	server.state.mutex.Unlock()
@@ -300,101 +300,81 @@ func (server *Server) apiPlayerGet(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonData)
 }
 
-func (server *Server) apiPlayerSet(w http.ResponseWriter, r *http.Request) {
-	user := server.getAuthorized(w, r)
-	if user == nil {
+func (server *Server) apiPlayerSet(w http.ResponseWriter, r *http.Request, userId uint64) {
+	var requested RequestEntry
+	if !server.readJsonDataFromRequest(w, r, &requested) {
 		return
 	}
 
-	var data PlayerSetRequest
-	if !server.readJsonDataFromRequest(w, r, &data) {
-		return
-	}
-
-	server.playerSet(data.RequestEntry, user.Id)
+	server.playerSet(requested, userId)
 }
 
-func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request) {
-	var data PlayerNextRequest
-	if !server.readJsonDataFromRequest(w, r, &data) {
+func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request, userId uint64) {
+	var entryId uint64
+	if !server.readJsonDataFromRequest(w, r, &entryId) {
 		return
 	}
 
-	if err := server.playerNext(data.EntryId); err != nil {
+	if err := server.playerNext(entryId, userId); err != nil {
 		respondBadRequest(w, "%v", err)
 	}
 }
 
-func (server *Server) apiPlayerPlay(w http.ResponseWriter, r *http.Request) {
-	user := server.getAuthorized(w, r)
-	if user == nil {
+func (server *Server) apiPlayerPlay(w http.ResponseWriter, r *http.Request, userId uint64) {
+	var timestamp float64
+	if !server.readJsonDataFromRequest(w, r, &timestamp) {
 		return
 	}
 
-	var data SyncRequest
-	if !server.readJsonDataFromRequest(w, r, &data) {
-		return
-	}
-
-	server.playerUpdateState(true, data.Timestamp, user.Id)
+	server.playerPlay(timestamp, userId)
 }
 
-func (server *Server) apiPlayerPause(w http.ResponseWriter, r *http.Request) {
-	user := server.getAuthorized(w, r)
-	if user == nil {
+func (server *Server) apiPlayerPause(w http.ResponseWriter, r *http.Request, userId uint64) {
+	var timestamp float64
+	if !server.readJsonDataFromRequest(w, r, &timestamp) {
 		return
 	}
 
-	var data SyncRequest
-	if !server.readJsonDataFromRequest(w, r, &data) {
-		return
-	}
-
-	server.playerUpdateState(false, data.Timestamp, user.Id)
+	server.playerPause(timestamp, userId)
 }
 
-func (server *Server) apiPlayerSeek(w http.ResponseWriter, r *http.Request) {
-	user := server.getAuthorized(w, r)
-	if user == nil {
+func (server *Server) apiPlayerSeek(w http.ResponseWriter, r *http.Request, userId uint64) {
+	var timestamp float64
+	if !server.readJsonDataFromRequest(w, r, &timestamp) {
 		return
 	}
 
-	var data SyncRequest
-	if !server.readJsonDataFromRequest(w, r, &data) {
-		return
-	}
-
-	server.playerSeek(data.Timestamp, user.Id)
+	server.playerSeek(timestamp, userId)
 }
 
-func (server *Server) apiPlayerAutoplay(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiPlayerAutoplay(w http.ResponseWriter, r *http.Request, userId uint64) {
 	var autoplay bool
 	if !server.readJsonDataFromRequest(w, r, &autoplay) {
 		return
 	}
 
-	server.playerAutoplay(autoplay)
+	server.playerAutoplay(autoplay, userId)
 }
 
-func (server *Server) apiPlayerLooping(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiPlayerLooping(w http.ResponseWriter, r *http.Request, userId uint64) {
 	var looping bool
 	if !server.readJsonDataFromRequest(w, r, &looping) {
 		return
 	}
 
-	server.playerLooping(looping)
+	server.playerLooping(looping, userId)
 }
 
-func (server *Server) apiPlayerUpdateTitle(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiPlayerUpdateTitle(w http.ResponseWriter, r *http.Request, userId uint64) {
 	var title string
 	if !server.readJsonDataFromRequest(w, r, &title) {
 		return
 	}
 
-	server.playerUpdateTitle(title)
+	server.playerUpdateTitle(title, userId)
 }
 
-func (server *Server) apiSubtitleDelete(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiSubtitleDelete(w http.ResponseWriter, r *http.Request, userId uint64) {
 	var subId uint64
 	if !server.readJsonDataFromRequest(w, r, &subId) {
 		return
@@ -414,7 +394,7 @@ func (server *Server) apiSubtitleDelete(w http.ResponseWriter, r *http.Request) 
 	server.writeEventToAllConnections("subtitledelete", subId)
 }
 
-func (server *Server) apiSubtitleUpdate(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiSubtitleUpdate(w http.ResponseWriter, r *http.Request, userId uint64) {
 	var data SubtitleUpdateRequest
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
@@ -434,7 +414,7 @@ func (server *Server) apiSubtitleUpdate(w http.ResponseWriter, r *http.Request) 
 	server.writeEventToAllConnections("subtitleupdate", data)
 }
 
-func (server *Server) apiSubtitleAttach(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiSubtitleAttach(w http.ResponseWriter, r *http.Request, userId uint64) {
 	var subtitle Subtitle
 	if !server.readJsonDataFromRequest(w, r, &subtitle) {
 		return
@@ -451,7 +431,7 @@ func (server *Server) apiSubtitleAttach(w http.ResponseWriter, r *http.Request) 
 	server.writeEventToAllConnections("subtitleattach", subtitle)
 }
 
-func (server *Server) apiSubtitleShift(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiSubtitleShift(w http.ResponseWriter, r *http.Request, userId uint64) {
 	var data SubtitleShiftRequest
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
@@ -471,7 +451,7 @@ func (server *Server) apiSubtitleShift(w http.ResponseWriter, r *http.Request) {
 	server.writeEventToAllConnections("subtitleshift", data)
 }
 
-func (server *Server) apiSubtitleUpload(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiSubtitleUpload(w http.ResponseWriter, r *http.Request, userId uint64) {
 	// Ensure that file content doesn't exceed maximum subtitle size limit.
 	r.Body = http.MaxBytesReader(w, r.Body, SUBTITLE_SIZE_LIMIT)
 
@@ -524,7 +504,7 @@ func (server *Server) apiSubtitleUpload(w http.ResponseWriter, r *http.Request) 
 	w.Write(jsonData)
 }
 
-func (server *Server) apiSubtitleDownload(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiSubtitleDownload(w http.ResponseWriter, r *http.Request, userId uint64) {
 	var data SubtitleDownloadRequest
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
@@ -610,7 +590,7 @@ func (server *Server) apiSubtitleDownload(w http.ResponseWriter, r *http.Request
 	w.Write(jsonData)
 }
 
-func (server *Server) apiSubtitleSearch(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiSubtitleSearch(w http.ResponseWriter, r *http.Request, userId uint64) {
 	if !server.config.EnableSubs {
 		http.Error(w, "Feature unavailable", http.StatusServiceUnavailable)
 		return
@@ -675,7 +655,7 @@ func (server *Server) apiSubtitleSearch(w http.ResponseWriter, r *http.Request) 
 	server.writeEventToAllConnections("subtitleattach", subtitle)
 }
 
-func (server *Server) apiPlaylistGet(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiPlaylistGet(w http.ResponseWriter, r *http.Request, userId uint64) {
 	server.state.mutex.Lock()
 	jsonData, err := json.Marshal(server.state.playlist)
 	server.state.mutex.Unlock()
@@ -688,78 +668,68 @@ func (server *Server) apiPlaylistGet(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonData)
 }
 
-func (server *Server) apiPlaylistPlay(w http.ResponseWriter, r *http.Request) {
-	var data PlaylistPlayRequest
-	if !server.readJsonDataFromRequest(w, r, &data) {
+func (server *Server) apiPlaylistPlay(w http.ResponseWriter, r *http.Request, userId uint64) {
+	var entryId uint64
+	if !server.readJsonDataFromRequest(w, r, &entryId) {
 		return
 	}
 
-	if err := server.playlistPlay(data.EntryId); err != nil {
+	if err := server.playlistPlay(entryId, userId); err != nil {
 		respondBadRequest(w, "%v", err)
 	}
 }
 
-func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request) {
-	user := server.getAuthorized(w, r)
-	if user == nil {
+func (server *Server) apiPlaylistAdd(w http.ResponseWriter, r *http.Request, userId uint64) {
+	var requested RequestEntry
+	if !server.readJsonDataFromRequest(w, r, &requested) {
 		return
 	}
 
-	var data PlaylistAddRequest
-	if !server.readJsonDataFromRequest(w, r, &data) {
-		return
-	}
-
-	server.playlistAdd(data.RequestEntry, user.Id)
+	server.playlistAdd(requested, userId)
 }
 
-func (server *Server) apiPlaylistClear(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiPlaylistClear(w http.ResponseWriter, r *http.Request, userId uint64) {
 	server.playlistClear()
 }
 
-func (server *Server) apiPlaylistDelete(w http.ResponseWriter, r *http.Request) {
-	var data PlaylistDeleteRequest
-	if !server.readJsonDataFromRequest(w, r, &data) {
+func (server *Server) apiPlaylistDelete(w http.ResponseWriter, r *http.Request, userId uint64) {
+	var entryId uint64
+	if !server.readJsonDataFromRequest(w, r, &entryId) {
 		return
 	}
 
-	if err := server.playlistDelete(data.EntryId); err != nil {
+	if err := server.playlistDelete(entryId, userId); err != nil {
 		respondBadRequest(w, "%v", err)
 	}
 }
 
-func (server *Server) apiPlaylistShuffle(w http.ResponseWriter, r *http.Request) {
-	server.playlistShuffle();
+func (server *Server) apiPlaylistShuffle(w http.ResponseWriter, r *http.Request, userId uint64) {
+	server.playlistShuffle()
 }
 
-func (server *Server) apiPlaylistMove(w http.ResponseWriter, r *http.Request) {
-	user := server.getAuthorized(w, r)
-	if user == nil {
-		return
-	}
-
+func (server *Server) apiPlaylistMove(w http.ResponseWriter, r *http.Request, userId uint64) {
 	var data PlaylistMoveRequest
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
-	if err := server.playlistMove(data); err != nil {
+	if err := server.playlistMove(data, userId); err != nil {
 		respondBadRequest(w, "%v", err)
 	}
 }
 
-func (server *Server) apiPlaylistUpdate(w http.ResponseWriter, r *http.Request) {
-	var data PlaylistUpdateRequest
-	if !server.readJsonDataFromRequest(w, r, &data) {
+func (server *Server) apiPlaylistUpdate(w http.ResponseWriter, r *http.Request, userId uint64) {
+	var entry Entry
+	if !server.readJsonDataFromRequest(w, r, &entry) {
 		return
 	}
 
-	if err := server.playlistUpdate(data.Entry); err != nil {
+	if err := server.playlistUpdate(entry, userId); err != nil {
 		respondBadRequest(w, "%v", err)
 	}
 }
 
-func (server *Server) apiHistoryGet(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiHistoryGet(w http.ResponseWriter, r *http.Request, userId uint64) {
 	server.state.mutex.Lock()
 	jsonData, err := json.Marshal(server.state.history)
 	server.state.mutex.Unlock()
@@ -772,7 +742,7 @@ func (server *Server) apiHistoryGet(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonData)
 }
 
-func (server *Server) apiChatGet(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiChatGet(w http.ResponseWriter, r *http.Request, userId uint64) {
 	var data MessageHistoryRequest
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
@@ -814,22 +784,16 @@ func indexOfMessageById(messages []ChatMessage, messageId uint64) int {
 	return -1
 }
 
-func (server *Server) apiChatDelete(w http.ResponseWriter, r *http.Request) {
-	var data ChatMessageDeleteRequest
-	if !server.readJsonDataFromRequest(w, r, &data) {
+func (server *Server) apiChatDelete(w http.ResponseWriter, r *http.Request, userId uint64) {
+	var messageId uint64
+	if !server.readJsonDataFromRequest(w, r, &messageId) {
 		return
 	}
 
-	user := server.getAuthorized(w, r)
-	if user == nil {
-		http.Error(w, "No longer authorized", http.StatusUnauthorized)
-		return
-	}
-
-	server.chatDeleteMessage(data.Id, user.Id)
+	server.chatDelete(messageId, userId)
 }
 
-func (server *Server) apiHistoryClear(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiHistoryClear(w http.ResponseWriter, r *http.Request, userId uint64) {
 	server.state.mutex.Lock()
 	server.state.history = server.state.history[:0]
 	server.state.mutex.Unlock()
@@ -839,7 +803,7 @@ func (server *Server) apiHistoryClear(w http.ResponseWriter, r *http.Request) {
 	server.writeEventToAllConnections("historyclear", nil)
 }
 
-func (server *Server) apiHistoryPlay(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiHistoryPlay(w http.ResponseWriter, r *http.Request, userId uint64) {
 	var entryId uint64
 	if !server.readJsonDataFromRequest(w, r, &entryId) {
 		return
@@ -859,7 +823,7 @@ func (server *Server) apiHistoryPlay(w http.ResponseWriter, r *http.Request) {
 	go server.setNewEntry(entry, RequestEntry{})
 }
 
-func (server *Server) apiHistoryDelete(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiHistoryDelete(w http.ResponseWriter, r *http.Request, userId uint64) {
 	var entryId uint64
 	if !server.readJsonDataFromRequest(w, r, &entryId) {
 		return
@@ -877,39 +841,29 @@ func (server *Server) apiHistoryDelete(w http.ResponseWriter, r *http.Request) {
 	server.state.mutex.Unlock()
 }
 
-func (server *Server) apiChatSend(w http.ResponseWriter, r *http.Request) {
-	user := server.getAuthorized(w, r)
-	if user == nil {
+func (server *Server) apiChatSend(w http.ResponseWriter, r *http.Request, userId uint64) {
+	var messageContent string
+	if !server.readJsonDataFromRequest(w, r, &messageContent) {
 		return
 	}
 
-	var newMessage ChatMessageFromUser
-	if !server.readJsonDataFromRequest(w, r, &newMessage) {
-		return
-	}
-
-	if err := server.chatCreateMessage(newMessage.Message, user.Id); err != nil {
+	if err := server.chatCreate(messageContent, userId); err != nil {
 		http.Error(w, err.Error(), http.StatusForbidden)
 	}
 }
 
-func (server *Server) apiChatEdit(w http.ResponseWriter, r *http.Request) {
-	user := server.getAuthorized(w, r)
-	if user == nil {
-		return
-	}
-
+func (server *Server) apiChatEdit(w http.ResponseWriter, r *http.Request, userId uint64) {
 	var messageEdit ChatMessageEdit
 	if !server.readJsonDataFromRequest(w, r, &messageEdit) {
 		return
 	}
 
-	if err := server.chatEditMessage(messageEdit, user.Id); err != nil {
+	if err := server.chatEdit(messageEdit, userId); err != nil {
 		http.Error(w, err.Error(), http.StatusForbidden)
 	}
 }
 
-func (server *Server) apiStreamStart(w http.ResponseWriter, r *http.Request) {
+func (server *Server) apiStreamStart(w http.ResponseWriter, r *http.Request, userId uint64) {
 	LogInfo("Connection %s started stream.", r.RemoteAddr)
 
 	server.state.setupLock.Lock()
@@ -956,19 +910,12 @@ func (server *Server) apiStreamStart(w http.ResponseWriter, r *http.Request) {
 	go server.setNewEntry(entry, RequestEntry{})
 }
 
-func (server *Server) apiStreamUpload(w http.ResponseWriter, r *http.Request) {
-	user := server.getAuthorized(w, r)
-	if user == nil {
-		LogWarn("User not found for connection %v", r.RemoteAddr)
-		http.Error(w, "User not found", http.StatusUnauthorized)
-		return
-	}
-
+func (server *Server) apiStreamUpload(w http.ResponseWriter, r *http.Request, userId uint64) {
 	server.state.mutex.Lock()
-	userId := server.state.entry.UserId
+	entryUserId := server.state.entry.UserId
 	server.state.mutex.Unlock()
 
-	if userId != user.Id {
+	if entryUserId != userId {
 		LogWarn("User ID mismatch on stream upload from %v", r.RemoteAddr)
 		http.Error(w, "You're not the owner of this stream", http.StatusUnauthorized)
 		return
@@ -1109,6 +1056,22 @@ outer:
 	LogInfo("Connection id:%v of user id:%v dropped. Current connection count: %d", conn.id, conn.userId, connectionCount)
 }
 
+func handleWsEvent[T any](event WebsocketEvent, userId uint64, handleEvent func(T, uint64) error) {
+	var data T
+	err := json.Unmarshal(event.Data, &data)
+	if err != nil {
+		LogError("Failed to deserialize event '%v' with data %v: %v", event.Type, string(event.Data), err)
+		return
+	}
+
+	err = handleEvent(data, userId)
+	if err != nil {
+		// NOTE(kihau): We could respond with a custom websocket "error" event (similar to playererror?) to inform the client that something went wrong.
+		LogError("Failed to handle event %v: %v", event.Type, err)
+		return
+	}
+}
+
 func (server *Server) readEventMessages(ws *websocket.Conn, userId uint64) {
 	for {
 		msgType, data, err := ws.ReadMessage()
@@ -1120,10 +1083,7 @@ func (server *Server) readEventMessages(ws *websocket.Conn, userId uint64) {
 			continue
 		}
 
-		var message json.RawMessage
-		event := WebsocketEvent{
-			Data: &message,
-		}
+		var event WebsocketEvent
 
 		if err := json.Unmarshal(data, &event); err != nil {
 			LogError("Failed to deserialize WebSocket event: %v", err)
@@ -1132,113 +1092,61 @@ func (server *Server) readEventMessages(ws *websocket.Conn, userId uint64) {
 
 		switch event.Type {
 		case EVENT_PLAYER_PLAY:
-			var sync SyncRequest
-			if err = json.Unmarshal(message, &sync); err == nil {
-				server.playerUpdateState(true, sync.Timestamp, userId)
-			}
+			handleWsEvent(event, userId, server.playerPlay)
 
 		case EVENT_PLAYER_PAUSE:
-			var sync SyncRequest
-			if err = json.Unmarshal(message, &sync); err == nil {
-				server.playerUpdateState(false, sync.Timestamp, userId)
-			}
+			handleWsEvent(event, userId, server.playerPause)
 
 		case EVENT_PLAYER_SEEK:
-			var sync SyncRequest
-			if err = json.Unmarshal(message, &sync); err == nil {
-				server.playerSeek(sync.Timestamp, userId)
-			}
+			handleWsEvent(event, userId, server.playerSeek)
 
 		case EVENT_PLAYER_SET:
-			var data PlayerSetRequest
-			if err = json.Unmarshal(message, &data); err == nil {
-				server.playerSet(data.RequestEntry, userId)
-			}
+			handleWsEvent(event, userId, server.playerSet)
 
 		case EVENT_PLAYER_NEXT:
-			var data PlayerNextRequest
-			if err = json.Unmarshal(message, &data); err == nil {
-				server.playerNext(data.EntryId)
-			}
+			handleWsEvent(event, userId, server.playerNext)
 
 		case EVENT_PLAYER_AUTOPLAY:
-			var autoplay bool
-			if err = json.Unmarshal(message, &autoplay); err == nil {
-				server.playerAutoplay(autoplay)
-			}
+			handleWsEvent(event, userId, server.playerAutoplay)
 
 		case EVENT_PLAYER_LOOPING:
-			var looping bool
-			if err = json.Unmarshal(message, &looping); err == nil {
-				server.playerLooping(looping)
-			}
+			handleWsEvent(event, userId, server.playerLooping)
 
 		case EVENT_PLAYER_UPDATE_TITLE:
-			var title string
-			if err = json.Unmarshal(message, &title); err == nil {
-				server.playerUpdateTitle(title)
-			}
+			handleWsEvent(event, userId, server.playerUpdateTitle)
 
 		case EVENT_CHAT_SEND:
-			var chatMessage ChatMessageFromUser
-			if err = json.Unmarshal(message, &chatMessage); err == nil {
-				server.chatCreateMessage(chatMessage.Message, userId)
-			}
+			handleWsEvent(event, userId, server.chatCreate)
 
 		case EVENT_CHAT_EDIT:
-			var data ChatMessageEdit
-			if err = json.Unmarshal(message, &data); err == nil {
-				server.chatEditMessage(data, userId)
-			}
+			handleWsEvent(event, userId, server.chatEdit)
 
 		case EVENT_CHAT_DELETE:
-			var data ChatMessageDeleteRequest
-			if err = json.Unmarshal(message, &data); err == nil {
-				server.chatDeleteMessage(data.Id, userId)
-			}
+			handleWsEvent(event, userId, server.chatDelete)
 
 		case EVENT_PLAYLIST_ADD:
-			var data PlaylistAddRequest
-			if err = json.Unmarshal(message, &data); err == nil {
-				server.playlistAdd(data.RequestEntry, userId)
-			}
+			handleWsEvent(event, userId, server.playlistAdd)
 
 		case EVENT_PLAYLIST_PLAY:
-			var data PlaylistPlayRequest
-			if err = json.Unmarshal(message, &data); err == nil {
-				server.playlistPlay(data.EntryId)
-			}
+			handleWsEvent(event, userId, server.playlistPlay)
 
 		case EVENT_PLAYLIST_MOVE:
-			var data PlaylistMoveRequest
-			if err = json.Unmarshal(message, &data); err == nil {
-				server.playlistMove(data)
-			}
+			handleWsEvent(event, userId, server.playlistMove)
 
 		case EVENT_PLAYLIST_CLEAR:
 			server.playlistClear()
 
 		case EVENT_PLAYLIST_DELETE:
-			var data PlaylistDeleteRequest
-			if err = json.Unmarshal(message, &data); err == nil {
-				server.playlistDelete(data.EntryId)
-			}
+			handleWsEvent(event, userId, server.playlistDelete)
 
 		case EVENT_PLAYLIST_SHUFFLE:
-			server.playlistShuffle();
+			server.playlistShuffle()
 
 		case EVENT_PLAYLIST_UPDATE:
-			var data PlaylistUpdateRequest
-			if err = json.Unmarshal(message, &data); err == nil {
-				server.playlistUpdate(data.Entry)
-			}
+			handleWsEvent(event, userId, server.playlistUpdate)
 
 		default:
 			LogError("Server caught unknown event '%v'", event.Type)
-		}
-
-		if err != nil {
-			LogError("Failed to deserialize event '%v': %v", event.Type, err)
 		}
 	}
 }

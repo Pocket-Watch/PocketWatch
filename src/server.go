@@ -326,12 +326,6 @@ func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// The no-cache directive does not prevent the storing of responses
 	// but instead prevents the reuse of responses without revalidation.
 	w.Header().Add("Cache-Control", "no-cache")
-
-	/*if resource == "/media/video/Cats.webm" {
-		LogDebug("Serving using shareFile() function")
-		shareFile(w, r, "web"+resource)
-		return
-	}*/
 	cache.fsHandler.ServeHTTP(w, r)
 }
 
@@ -348,75 +342,75 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	mux.HandleFunc("/favicon.ico", serveFavicon)
 
 	// Unrelated API calls.
-	server.HandleEndpoint(mux, "/watch/api/version", server.apiVersion, "GET", false)
-	server.HandleEndpoint(mux, "/watch/api/uptime", server.apiUptime, "GET", false)
-	server.HandleEndpoint(mux, "/watch/api/login", server.apiLogin, "GET", false)
-	server.HandleEndpoint(mux, "/watch/api/uploadmedia", server.apiUploadMedia, "POST", true)
+	server.handleEndpoint(mux, "/watch/api/version", server.apiVersion, "GET")
+	server.handleEndpoint(mux, "/watch/api/uptime", server.apiUptime, "GET")
+	server.handleEndpoint(mux, "/watch/api/login", server.apiLogin, "GET")
+	server.handleEndpointAuthorized(mux, "/watch/api/uploadmedia", server.apiUploadMedia, "POST")
 
 	// User related API calls.
-	server.HandleEndpoint(mux, "/watch/api/user/create", server.apiUserCreate, "GET", false)
-	server.HandleEndpoint(mux, "/watch/api/user/verify", server.apiUserVerify, "POST", false)
-	server.HandleEndpoint(mux, "/watch/api/user/delete", server.apiUserDelete, "POST", false)
-	server.HandleEndpoint(mux, "/watch/api/user/getall", server.apiUserGetAll, "GET", true)
-	server.HandleEndpoint(mux, "/watch/api/user/updatename", server.apiUserUpdateName, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/user/updateavatar", server.apiUserUpdateAvatar, "POST", true)
+	server.handleEndpointAuthorized(mux, "/watch/api/user/create", server.apiUserCreate, "GET")
+	server.handleEndpointAuthorized(mux, "/watch/api/user/verify", server.apiUserVerify, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/user/delete", server.apiUserDelete, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/user/getall", server.apiUserGetAll, "GET")
+	server.handleEndpointAuthorized(mux, "/watch/api/user/updatename", server.apiUserUpdateName, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/user/updateavatar", server.apiUserUpdateAvatar, "POST")
 
 	// API calls that change state of the player.
-	server.HandleEndpoint(mux, "/watch/api/player/get", server.apiPlayerGet, "GET", true)
-	server.HandleEndpoint(mux, "/watch/api/player/set", server.apiPlayerSet, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/player/next", server.apiPlayerNext, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/player/play", server.apiPlayerPlay, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/player/pause", server.apiPlayerPause, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/player/seek", server.apiPlayerSeek, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/player/autoplay", server.apiPlayerAutoplay, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/player/looping", server.apiPlayerLooping, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/player/updatetitle", server.apiPlayerUpdateTitle, "POST", true)
+	server.handleEndpointAuthorized(mux, "/watch/api/player/get", server.apiPlayerGet, "GET")
+	server.handleEndpointAuthorized(mux, "/watch/api/player/set", server.apiPlayerSet, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/player/next", server.apiPlayerNext, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/player/play", server.apiPlayerPlay, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/player/pause", server.apiPlayerPause, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/player/seek", server.apiPlayerSeek, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/player/autoplay", server.apiPlayerAutoplay, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/player/looping", server.apiPlayerLooping, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/player/updatetitle", server.apiPlayerUpdateTitle, "POST")
 
 	// Subtitle API calls.
-	server.HandleEndpoint(mux, "/watch/api/subtitle/delete", server.apiSubtitleDelete, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/subtitle/update", server.apiSubtitleUpdate, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/subtitle/attach", server.apiSubtitleAttach, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/subtitle/shift", server.apiSubtitleShift, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/subtitle/upload", server.apiSubtitleUpload, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/subtitle/download", server.apiSubtitleDownload, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/subtitle/search", server.apiSubtitleSearch, "POST", true)
+	server.handleEndpointAuthorized(mux, "/watch/api/subtitle/delete", server.apiSubtitleDelete, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/subtitle/update", server.apiSubtitleUpdate, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/subtitle/attach", server.apiSubtitleAttach, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/subtitle/shift", server.apiSubtitleShift, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/subtitle/upload", server.apiSubtitleUpload, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/subtitle/download", server.apiSubtitleDownload, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/subtitle/search", server.apiSubtitleSearch, "POST")
 
 	// API calls that change state of the playlist.
-	server.HandleEndpoint(mux, "/watch/api/playlist/get", server.apiPlaylistGet, "GET", true)
-	server.HandleEndpoint(mux, "/watch/api/playlist/play", server.apiPlaylistPlay, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/playlist/add", server.apiPlaylistAdd, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/playlist/clear", server.apiPlaylistClear, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/playlist/delete", server.apiPlaylistDelete, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/playlist/shuffle", server.apiPlaylistShuffle, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/playlist/move", server.apiPlaylistMove, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/playlist/update", server.apiPlaylistUpdate, "POST", true)
+	server.handleEndpointAuthorized(mux, "/watch/api/playlist/get", server.apiPlaylistGet, "GET")
+	server.handleEndpointAuthorized(mux, "/watch/api/playlist/play", server.apiPlaylistPlay, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/playlist/add", server.apiPlaylistAdd, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/playlist/clear", server.apiPlaylistClear, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/playlist/delete", server.apiPlaylistDelete, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/playlist/shuffle", server.apiPlaylistShuffle, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/playlist/move", server.apiPlaylistMove, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/playlist/update", server.apiPlaylistUpdate, "POST")
 
 	// API calls that change state of the history.
-	server.HandleEndpoint(mux, "/watch/api/history/get", server.apiHistoryGet, "GET", true)
-	server.HandleEndpoint(mux, "/watch/api/history/clear", server.apiHistoryClear, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/history/play", server.apiHistoryPlay, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/history/delete", server.apiHistoryDelete, "POST", true)
+	server.handleEndpointAuthorized(mux, "/watch/api/history/get", server.apiHistoryGet, "GET")
+	server.handleEndpointAuthorized(mux, "/watch/api/history/clear", server.apiHistoryClear, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/history/play", server.apiHistoryPlay, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/history/delete", server.apiHistoryDelete, "POST")
 
-	server.HandleEndpoint(mux, "/watch/api/chat/send", server.apiChatSend, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/chat/edit", server.apiChatEdit, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/chat/get", server.apiChatGet, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/chat/delete", server.apiChatDelete, "POST", true)
+	server.handleEndpointAuthorized(mux, "/watch/api/chat/send", server.apiChatSend, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/chat/edit", server.apiChatEdit, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/chat/get", server.apiChatGet, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/chat/delete", server.apiChatDelete, "POST")
 
-	server.HandleEndpoint(mux, "/watch/api/stream/start", server.apiStreamStart, "POST", true)
-	server.HandleEndpoint(mux, "/watch/api/stream/upload/{filename}", server.apiStreamUpload, "POST", true)
+	server.handleEndpointAuthorized(mux, "/watch/api/stream/start", server.apiStreamStart, "POST")
+	server.handleEndpointAuthorized(mux, "/watch/api/stream/upload/{filename}", server.apiStreamUpload, "POST")
 	// Server events and proxy.
-	server.HandleEndpoint(mux, "/watch/api/events", server.apiEvents, "GET", false)
+	server.handleEndpoint(mux, "/watch/api/events", server.apiEvents, "GET")
 
-	server.HandleEndpoint(mux, PROXY_ROUTE, server.watchProxy, "GET", false)
-	server.HandleEndpoint(mux, STREAM_ROUTE, server.watchStream, "GET", false)
+	server.handleEndpoint(mux, PROXY_ROUTE, server.watchProxy, "GET")
+	server.handleEndpoint(mux, STREAM_ROUTE, server.watchStream, "GET")
 
 	// Voice chat
-	server.HandleEndpoint(mux, "/watch/vc", voiceChat, "GET", false)
+	server.handleEndpoint(mux, "/watch/vc", voiceChat, "GET")
 
 	return mux
 }
 
-func (server *Server) HandleEndpoint(mux *http.ServeMux, endpoint string, endpointHandler func(w http.ResponseWriter, r *http.Request), method string, requireAuth bool) {
+func (server *Server) handleEndpointAuthorized(mux *http.ServeMux, endpoint string, endpointHandler func(w http.ResponseWriter, r *http.Request, userId uint64), method string) {
 	genericHandler := func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
@@ -432,7 +426,30 @@ func (server *Server) HandleEndpoint(mux *http.ServeMux, endpoint string, endpoi
 			return
 		}
 
-		if requireAuth && !server.isAuthorized(w, r) {
+		user := server.getAuthorized(w, r)
+		if user == nil {
+			return
+		}
+
+		endpointHandler(w, r, user.Id)
+	}
+
+	mux.HandleFunc(endpoint, genericHandler)
+}
+
+func (server *Server) handleEndpoint(mux *http.ServeMux, endpoint string, endpointHandler func(w http.ResponseWriter, r *http.Request), method string) {
+	genericHandler := func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				LogFatalUp(2, "Panic in endpoint handler for %v serving %v: %v", endpoint, r.RemoteAddr, err)
+				// stack := strings.TrimSpace(string(debug.Stack()))
+				// LogFatalUp(2, "Panic in endpoint handler for %v serving %v: %v\n%v", endpoint, r.RemoteAddr, err, stack)
+			}
+		}()
+
+		if r.Method != method {
+			errMsg := fmt.Sprintf("Method not allowed. %v was expected.", method)
+			http.Error(w, errMsg, http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -1620,7 +1637,15 @@ func (server *Server) smartSleep() {
 	}
 }
 
-func (server *Server) playerUpdateState(isPlaying bool, newTimestamp float64, userId uint64) {
+func (server *Server) playerPlay(timestamp float64, userId uint64) error {
+	return server.playerUpdateState(true, timestamp, userId)
+}
+
+func (server *Server) playerPause(timestamp float64, userId uint64) error {
+	return server.playerUpdateState(false, timestamp, userId)
+}
+
+func (server *Server) playerUpdateState(isPlaying bool, newTimestamp float64, userId uint64) error {
 	server.state.mutex.Lock()
 	server.state.player.Playing = isPlaying
 	server.state.player.Timestamp = newTimestamp
@@ -1635,6 +1660,8 @@ func (server *Server) playerUpdateState(isPlaying bool, newTimestamp float64, us
 	}
 
 	server.writeEventToAllConnections("sync", event)
+
+	return nil
 }
 
 func (server *Server) getCurrentTimestamp() float64 {
@@ -1769,7 +1796,7 @@ func (server *Server) constructEntry(entry Entry) Entry {
 	return entry
 }
 
-func (server *Server) playerSet(requested RequestEntry, userId uint64) {
+func (server *Server) playerSet(requested RequestEntry, userId uint64) error {
 	entry := Entry{
 		Url:        requested.Url,
 		UserId:     userId,
@@ -1780,9 +1807,11 @@ func (server *Server) playerSet(requested RequestEntry, userId uint64) {
 	}
 
 	go server.setNewEntry(entry, requested)
+
+	return nil
 }
 
-func (server *Server) playerSeek(timestamp float64, userId uint64) {
+func (server *Server) playerSeek(timestamp float64, userId uint64) error {
 	server.state.mutex.Lock()
 	server.state.player.Timestamp = timestamp
 	server.state.lastUpdate = time.Now()
@@ -1790,9 +1819,10 @@ func (server *Server) playerSeek(timestamp float64, userId uint64) {
 
 	event := server.createSyncEvent("seek", userId)
 	server.writeEventToAllConnections("sync", event)
+	return nil
 }
 
-func (server *Server) playerNext(entryId uint64) error {
+func (server *Server) playerNext(entryId uint64, userId uint64) error {
 	if server.state.isLoading.Load() {
 		return nil
 	}
@@ -1823,38 +1853,40 @@ func (server *Server) playerNext(entryId uint64) error {
 	return nil
 }
 
-func (server *Server) playerAutoplay(autoplay bool) {
-	LogInfo("Setting playlist autoplay to %v.", autoplay)
-
+func (server *Server) playerAutoplay(autoplay bool, userId uint64) error {
 	server.state.mutex.Lock()
 	defer server.state.mutex.Unlock()
 
 	server.state.player.Autoplay = autoplay
 	DatabaseSetAutoplay(server.db, autoplay)
 	server.writeEventToAllConnections("playerautoplay", autoplay)
+
+	return nil
 }
 
-func (server *Server) playerLooping(looping bool) {
-	LogInfo("Setting playlist looping to %v.", looping)
-
+func (server *Server) playerLooping(looping bool, userId uint64) error {
 	server.state.mutex.Lock()
 	defer server.state.mutex.Unlock()
 
 	server.state.player.Looping = looping
 	DatabaseSetLooping(server.db, looping)
 	server.writeEventToAllConnections("playerlooping", looping)
+
+	return nil
 }
 
-func (server *Server) playerUpdateTitle(title string) {
+func (server *Server) playerUpdateTitle(title string, userId uint64) error {
 	server.state.mutex.Lock()
 	defer server.state.mutex.Unlock()
 
 	server.state.entry.Title = title
 	DatabaseCurrentEntryUpdateTitle(server.db, title)
 	server.writeEventToAllConnections("playerupdatetitle", title)
+
+	return nil
 }
 
-func (server *Server) playlistAdd(requested RequestEntry, userId uint64) {
+func (server *Server) playlistAdd(requested RequestEntry, userId uint64) error {
 	entry := Entry{
 		Url:        requested.Url,
 		UserId:     userId,
@@ -1871,20 +1903,20 @@ func (server *Server) playlistAdd(requested RequestEntry, userId uint64) {
 		server.state.mutex.Lock()
 		server.playlistAddMany(localEntries, requested.AddToTop)
 		server.state.mutex.Unlock()
-		return
+		return nil
 	}
 
 	if isYoutube(entry, requested) {
 		err := loadYoutubeEntry(&entry, requested)
 		if err != nil {
 			LogWarn("Failed to load entry in playlist add: %v", err)
-			return
+			return nil
 		}
 	} else if isTwitch(entry) {
 		err := loadTwitchEntry(&entry)
 		if err != nil {
 			LogWarn("Failed to load entry in playlist add: %v", err)
-			return
+			return nil
 		}
 	}
 
@@ -1898,7 +1930,7 @@ func (server *Server) playlistAdd(requested RequestEntry, userId uint64) {
 		entries, err := server.loadYoutubePlaylist(requested, entry.UserId)
 
 		if err != nil {
-			return
+			return nil
 		}
 
 		if len(entries) > 0 {
@@ -1909,6 +1941,8 @@ func (server *Server) playlistAdd(requested RequestEntry, userId uint64) {
 		server.playlistAddMany(entries, requested.AddToTop)
 		server.state.mutex.Unlock()
 	}
+
+	return nil
 }
 
 func (server *Server) playlistAddOne(entry Entry, toTop bool) {
@@ -1952,7 +1986,7 @@ func (server *Server) playlistAddMany(entries []Entry, toTop bool) {
 	server.writeEventToAllConnections("playlist", event)
 }
 
-func (server *Server) playlistPlay(entryId uint64) error {
+func (server *Server) playlistPlay(entryId uint64, userId uint64) error {
 	server.state.mutex.Lock()
 	defer server.state.mutex.Unlock()
 
@@ -1967,7 +2001,7 @@ func (server *Server) playlistPlay(entryId uint64) error {
 	return nil
 }
 
-func (server *Server) playlistMove(data PlaylistMoveRequest) error {
+func (server *Server) playlistMove(data PlaylistMoveRequest, userId uint64) error {
 	server.state.mutex.Lock()
 	defer server.state.mutex.Unlock()
 
@@ -2007,7 +2041,7 @@ func (server *Server) playlistMove(data PlaylistMoveRequest) error {
 	return nil
 }
 
-func (server *Server) playlistDelete(entryId uint64) error {
+func (server *Server) playlistDelete(entryId uint64, userId uint64) error {
 	server.state.mutex.Lock()
 	defer server.state.mutex.Unlock()
 
@@ -2059,7 +2093,7 @@ func (server *Server) playlistShuffle() {
 	go server.preloadYoutubeSourceOnNextEntry()
 }
 
-func (server *Server) playlistUpdate(entry Entry) error {
+func (server *Server) playlistUpdate(entry Entry, userId uint64) error {
 	server.state.mutex.Lock()
 	defer server.state.mutex.Unlock()
 
@@ -2145,7 +2179,7 @@ func (server *Server) historyDelete(index int) Entry {
 	return entry
 }
 
-func (server *Server) chatCreateMessage(message string, userId uint64) error {
+func (server *Server) chatCreate(message string, userId uint64) error {
 	if len([]rune(message)) > MAX_MESSAGE_CHARACTERS {
 		return fmt.Errorf("Message exceeds 1000 chars")
 	}
@@ -2166,7 +2200,7 @@ func (server *Server) chatCreateMessage(message string, userId uint64) error {
 	return nil
 }
 
-func (server *Server) chatEditMessage(messageEdit ChatMessageEdit, userId uint64) error {
+func (server *Server) chatEdit(messageEdit ChatMessageEdit, userId uint64) error {
 	if len([]rune(messageEdit.EditedMessage)) > MAX_MESSAGE_CHARACTERS {
 		return fmt.Errorf("Message edit exceeds 1000 chars")
 	}
@@ -2194,7 +2228,7 @@ func (server *Server) chatEditMessage(messageEdit ChatMessageEdit, userId uint64
 	return nil
 }
 
-func (server *Server) chatDeleteMessage(messageId uint64, userId uint64) error {
+func (server *Server) chatDelete(messageId uint64, userId uint64) error {
 	server.state.mutex.Lock()
 	defer server.state.mutex.Unlock()
 

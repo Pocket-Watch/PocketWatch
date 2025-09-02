@@ -1072,7 +1072,7 @@ class Internals {
                 cues = parseSrt(text);
             }
 
-            console.debug("Parsed", ext, "track, cue count:", cues.length, "in", performance.now() - parseStart, "ms");
+            console.debug("DEBUG: Parsed", ext, "track, cue count:", cues.length, "in", performance.now() - parseStart, "ms");
 
             if (cues.length === 0) {
                 return
@@ -1084,7 +1084,7 @@ class Internals {
                     cues[i].text = sanitizeHTMLForDisplay(cues[i].text);
                 }
 
-                console.debug("Sanitized in", performance.now() - sanitizeStart, "ms")
+                console.debug("DEBUG: Sanitized in", performance.now() - sanitizeStart, "ms");
             }
 
             let subtitle = new Subtitle(cues, info.filename, info.extension, url, shift);

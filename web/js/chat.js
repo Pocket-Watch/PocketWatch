@@ -153,7 +153,7 @@ class Chat {
 
         this.uploadImageInput.onchange = async event => {
             let files = event.target.files;
-            this.uploadAndPasteImage(files);
+            await this.uploadAndPasteImage(files);
         };
 
         // Handle shiftKey + Enter as 'new line' for formatting
