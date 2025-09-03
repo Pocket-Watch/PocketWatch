@@ -972,17 +972,17 @@ class Room {
 
         menu.closeButton.onclick = _ => this.hideSettingsMenu();
 
-        menu.tokenCopyButton.onclick = _ => {
+        menu.tokenCopyButton.onclick = async _ => {
             if (navigator.clipboard) {
-                navigator.clipboard.writeText(api.getToken());
+                await navigator.clipboard.writeText(api.getToken());
             } else {
                 menu.tokenSetInput.value = api.getToken();
             }
         };
 
-        menu.tokenSetInput.onkeydown = event => {
+        menu.tokenSetInput.onkeydown = async event => {
             if (event.key === "Enter") {
-                this.setNewToken();
+                await this.setNewToken();
             }
         };
 
@@ -1115,6 +1115,9 @@ class Room {
 
     async loadPlayerData() {
         let state = await api.playerGet();
+        if (!state) {
+            return;
+        }
 
         this.playlist.setAutoplay(state.player.autoplay);
         this.playlist.setLooping(state.player.looping);
@@ -1141,10 +1144,6 @@ class Room {
         let onlineBoxes = [];
         let offlineBoxes = [];
         let selfBox = null;
-
-        if (!this.allUsers) {
-            return;
-        }
 
         // Sorting dates in descending order
         this.allUsers.sort((a, b) => {
@@ -1173,7 +1172,9 @@ class Room {
             this.allUserBoxes.push(userbox);
         }
 
-        userList.appendChild(selfBox.root);
+        if (selfBox) {
+            userList.appendChild(selfBox.root);
+        }
 
         for (let i = 0; i < onlineBoxes.length; i++) {
             let box = onlineBoxes[i].root;
@@ -1206,6 +1207,10 @@ class Room {
 
     async loadUsersData() {
         this.allUsers = await api.userGetAll();
+        if (!this.allUsers) {
+            this.allUsers = [];
+        }
+
         console.info("INFO: Loaded users:", this.allUsers);
 
         this.clearUsersArea();
@@ -1231,34 +1236,34 @@ class Room {
         changeAvatarButton.onclick = _ => {
             let input = fileInput(".png,.jpg,.jpeg,.gif,.webp");
 
-            input.onchange = event => {
+            input.onchange = async event => {
                 let file = event.target.files[0];
                 console.log("Picked file:", file);
-                api.userUpdateAvatar(file);
+                await api.userUpdateAvatar(file);
             };
 
             input.click();
         };
-        userbox.nameInput.addEventListener("focusout", _ => {
+        userbox.nameInput.addEventListener("focusout", async _ => {
             userbox.nameInput.readOnly = true;
 
             let user = this.allUsers.find(user => this.currentUserId === user.id);
             let newUsername = userbox.nameInput.value.trim();
             if (newUsername && newUsername !== user.username) {
-                api.userUpdateName(newUsername);
+                await api.userUpdateName(newUsername);
             } else {
                 userbox.nameInput.value = user.username;
             }
         });
 
-        userbox.nameInput.addEventListener("keypress", event => {
+        userbox.nameInput.addEventListener("keypress", async event => {
             if (event.key === "Enter") {
                 userbox.nameInput.readOnly = true;
 
                 let user = this.allUsers.find(user => this.currentUserId === user.id);
                 let newUsername = userbox.nameInput.value.trim();
                 if (newUsername && newUsername !== user.username) {
-                    api.userUpdateName(newUsername);
+                    await api.userUpdateName(newUsername);
                 } else {
                     userbox.nameInput.value = user.username;
                 }

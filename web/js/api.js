@@ -21,6 +21,33 @@ export const EVENT_PLAYLIST_DELETE  = 15;
 export const EVENT_PLAYLIST_UPDATE  = 16;
 export const EVENT_PLAYLIST_SHUFFLE = 17;
 
+function getEventName(type) {
+    switch (type) {
+        case EVENT_PLAYER_PLAY:         return "player play";
+        case EVENT_PLAYER_PAUSE:        return "player pause";
+        case EVENT_PLAYER_SEEK:         return "player seek";
+        case EVENT_PLAYER_SET:          return "player set";
+        case EVENT_PLAYER_NEXT:         return "player next";
+        case EVENT_PLAYER_AUTOPLAY:     return "player autoplay";
+        case EVENT_PLAYER_LOOPING:      return "player looping";
+        case EVENT_PLAYER_UPDATE_TITLE: return "player update title";
+
+        case EVENT_CHAT_SEND:   return "chat send";
+        case EVENT_CHAT_EDIT:   return "chat edit";
+        case EVENT_CHAT_DELETE: return "chat delete";
+
+        case EVENT_PLAYLIST_ADD:     return "playlist add";
+        case EVENT_PLAYLIST_PLAY:    return "playlist play";
+        case EVENT_PLAYLIST_MOVE:    return "playlist move";
+        case EVENT_PLAYLIST_CLEAR:   return "playlist clear";
+        case EVENT_PLAYLIST_DELETE:  return "playlist delete";
+        case EVENT_PLAYLIST_UPDATE:  return "playlist update";
+        case EVENT_PLAYLIST_SHUFFLE: return "playlist shuffle";
+
+        default: return "<unknown type:" + type + ">";
+    }
+}
+
 let websocket = null;
 let token     = null;
 
@@ -61,7 +88,10 @@ export class JsonResponse {
 }
 
 async function httpPostFile(endpoint, file, filename) {
+    let endpointName = endpoint.replace("/", " ");
     endpoint = API_PATH + endpoint;
+
+    console.info("INFO: Sending", endpointName, "API to post file:", file);
 
     const headers = new Headers();
     headers.set("Authorization", token);
@@ -74,30 +104,29 @@ async function httpPostFile(endpoint, file, filename) {
     }
 
     const options = {
-        method: "POST",
-        body: formdata,
+        method:  "POST",
+        body:    formdata,
         headers: headers,
     };
 
     try {
         const response = await fetch(endpoint, options);
         if (!response.ok) {
-            console.error("ERROR: POST request for endpoint: " + endpoint + " failed: " + response.status);
+            console.error("ERROR: POST request for endpoint", endpointName, "failed with:", response.status);
             return null;
         }
 
-        // TODO(kihau): 
-        //     Throws exception when response is not a valid json.
-        //     This should be handled this in a nicer way.
         return await response.json();
     } catch (error) {
-        // console.error("ERROR: POST request for endpoint: " + endpoint + " failed: " + error);
         return null;
     }
 }
 
 async function httpPostFileWithProgress(endpoint, file, onprogress) {
+    let endpointName = endpoint.replace("/", " ");
     endpoint = API_PATH + endpoint;
+
+    console.info("INFO: Sending", endpointName, "API to post file:", file);
 
     return new Promise((resolve, _) => {
         const request = new XMLHttpRequest();
@@ -137,17 +166,18 @@ async function httpPostFileWithProgress(endpoint, file, onprogress) {
 // It sends a JSON body and receives a JSON body, on error receives error as text (http.Error in go)
 // Unfortunately there does not seem to be an option to disable the ugly response status console log
 async function httpPost(endpoint, data) {
-    console.info("INFO: Sending", endpoint.replace("/", " "), "API request with data:", data);
-
+    let endpointName = endpoint.replace("/", " ");
     endpoint = API_PATH + endpoint;
+
+    console.info("INFO: Sending", endpointName, "API request with data:", data);
 
     const headers = new Headers();
     headers.set("Content-Type", "application/json");
     headers.set("Authorization", token);
 
     const options = {
-        method: "POST",
-        body: JSON.stringify(data),
+        method:  "POST",
+        body:    JSON.stringify(data),
         headers: headers,
     };
 
@@ -167,7 +197,7 @@ async function httpPost(endpoint, data) {
 
         return JsonResponse.fromPost(response.status, jsonResponse, endpoint);
     } catch (error) {
-        throw new Error("ERROR: POST request to endpoint: " + endpoint + " failed " + error);
+        throw new Error("ERROR: POST request to endpoint: " + endpointName + " failed with: " + error);
     }
 }
 
@@ -190,15 +220,15 @@ async function httpGet(endpoint) {
     try {
         const response = await fetch(endpoint, options);
         if (!response.ok) {
-            console.error("ERROR: GET request for endpoint: " + endpoint + " returned status: " + response.status);
+            console.error("ERROR: GET request for endpoint", endpoint, "returned status:", response.status);
             return null;
         }
 
         let data = await response.json();
-        console.info("INFO: Received data for", endpointName ,"request to the server: ", data);
+        console.info("INFO: Received data for", endpointName ,"request to the server:", data);
         return data;
     } catch (error) {
-        console.error("ERROR: GET request for endpoint: " + endpoint + " failed: " + error);
+        console.error("ERROR: GET request for endpoint", endpointName, "failed with:", error);
     }
 
     return null;
@@ -221,15 +251,11 @@ export async function uptime() {
 }
 
 export async function uploadMedia(file, filename) {
-    console.info("INFO: Uploading a file to the server.");
-    let fileUrl = await httpPostFile("uploadmedia", file, filename);
-    return fileUrl;
+    return await httpPostFile("uploadmedia", file, filename);
 }
 
 export async function uploadMediaWithProgress(file, onprogress) {
-    console.info("INFO: Uploading a file to the server (with progress callback).");
-    let fileUrl = await httpPostFileWithProgress("uploadmedia", file, onprogress);
-    return fileUrl;
+    return await httpPostFileWithProgress("uploadmedia", file, onprogress);
 }
 
 export async function userCreate() {
@@ -241,11 +267,11 @@ export async function userGetAll() {
 }
 
 export async function userVerify(token) {
-    return httpPost("user/verify", token);
+    return await httpPost("user/verify", token);
 }
 
 export async function userUpdateName(username) {
-    return httpPost("user/updatename", username);
+    return await httpPost("user/updatename", username);
 }
 
 export async function userUpdateAvatar(file) {
@@ -261,7 +287,7 @@ export async function playerGet() {
 }
 
 export async function playerSet(requestEntry) {
-    return httpPost("player/set", requestEntry);
+    return await httpPost("player/set", requestEntry);
 }
 
 export async function playerNext(currentEntryId) {
@@ -269,31 +295,31 @@ export async function playerNext(currentEntryId) {
 }
 
 export async function playerPlay(timestamp) {
-    await httpPost("player/play", timestamp);
+    return await httpPost("player/play", timestamp);
 }
 
 export async function playerPause(timestamp) {
-    await httpPost("player/pause", timestamp);
+    return await httpPost("player/pause", timestamp);
 }
 
 export async function playerSeek(timestamp) {
-    await httpPost("player/seek", timestamp);
+    return await httpPost("player/seek", timestamp);
 }
 
 export async function playerAutoplay(state) {
-    await httpPost("player/autoplay", state);
+    return await httpPost("player/autoplay", state);
 }
 
 export async function playerLooping(state) {
-    await httpPost("player/looping", state);
+    return await httpPost("player/looping", state);
 }
 
 export async function playerUpdateTitle(title) {
-    await httpPost("player/updatetitle", title);
+    return await httpPost("player/updatetitle", title);
 }
 
 export async function subtitleDelete(subtitleId) {
-    await httpPost("subtitle/delete", subtitleId);
+    return await httpPost("subtitle/delete", subtitleId);
 }
 
 export async function subtitleUpdate(id, name) {
@@ -302,11 +328,11 @@ export async function subtitleUpdate(id, name) {
         name:  name,
     };
 
-    await httpPost("subtitle/update", data);
+    return await httpPost("subtitle/update", data);
 }
 
 export async function subtitleAttach(subtitle) {
-    await httpPost("subtitle/attach", subtitle);
+    return await httpPost("subtitle/attach", subtitle);
 }
 
 export async function subtitleShift(id, shift) {
@@ -315,23 +341,21 @@ export async function subtitleShift(id, shift) {
         shift: shift,
     };
 
-    await httpPost("subtitle/shift", data);
+    return await httpPost("subtitle/shift", data);
 }
 
 export async function subtitleSearch(search) {
-    return httpPost("subtitle/search", search);
+    return await httpPost("subtitle/search", search);
 }
 
 export async function subtitleUpload(file, filename) {
-    console.info("INFO: Uploading a subtitle file to the server.");
-    let subtitle = await httpPostFile("subtitle/upload", file, filename);
-    return subtitle;
+    return await httpPostFile("subtitle/upload", file, filename);
 }
 
 export async function subtitleDownload(url, name, referer) {
     let data = {
-        url:  url,
-        name: name,
+        url:     url,
+        name:    name,
         referer: referer
     };
 
@@ -391,10 +415,8 @@ export async function historyDelete(entryId) {
     return await httpPost("history/delete", entryId);
 }
 
-// CHAT requests
-
 export async function chatSend(messageContent) {
-    await httpPost("chat/send", messageContent);
+    return await httpPost("chat/send", messageContent);
 }
 
 export async function chatEdit(message, messageId) {
@@ -403,7 +425,7 @@ export async function chatEdit(message, messageId) {
         id: messageId
     };
 
-    await httpPost("chat/edit", payload);
+    return await httpPost("chat/edit", payload);
 }
 
 export async function chatGet(count, backwardOffset) {
@@ -425,7 +447,7 @@ export function setWebSocket(ws) {
 
 export function closeWebSocket() {
     if (!websocket) {
-        return
+        return;
     }
 
     websocket.onclose = _ => {};
@@ -434,12 +456,14 @@ export function closeWebSocket() {
 }
 
 function wsSendEvent(type, data) {
+    let eventName = getEventName(type);
+
     if (!websocket) {
-        console.error("ERROR: Failed to send WebSocket '" + type + "'. Server connection is closed.");
+        console.error("ERROR: Failed to send WS", eventName, " event . Server connection is closed.");
         return;
     }
 
-    console.info("INFO: Sending WS event '" + type + "' with data:", data);
+    console.info("INFO: Sending WS", eventName, "event with data:", data);
 
     const event = {
         type: type,

@@ -348,9 +348,9 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	server.handleEndpointAuthorized(mux, "/watch/api/uploadmedia", server.apiUploadMedia, "POST")
 
 	// User related API calls.
-	server.handleEndpointAuthorized(mux, "/watch/api/user/create", server.apiUserCreate, "GET")
-	server.handleEndpointAuthorized(mux, "/watch/api/user/verify", server.apiUserVerify, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/user/delete", server.apiUserDelete, "POST")
+	server.handleEndpoint(mux, "/watch/api/user/create", server.apiUserCreate, "GET")
+	server.handleEndpoint(mux, "/watch/api/user/verify", server.apiUserVerify, "POST")
+	server.handleEndpoint(mux, "/watch/api/user/delete", server.apiUserDelete, "POST")
 	server.handleEndpointAuthorized(mux, "/watch/api/user/getall", server.apiUserGetAll, "GET")
 	server.handleEndpointAuthorized(mux, "/watch/api/user/updatename", server.apiUserUpdateName, "POST")
 	server.handleEndpointAuthorized(mux, "/watch/api/user/updateavatar", server.apiUserUpdateAvatar, "POST")
@@ -415,8 +415,6 @@ func (server *Server) handleEndpointAuthorized(mux *http.ServeMux, endpoint stri
 		defer func() {
 			if err := recover(); err != nil {
 				LogFatalUp(2, "Panic in endpoint handler for %v serving %v: %v", endpoint, r.RemoteAddr, err)
-				// stack := strings.TrimSpace(string(debug.Stack()))
-				// LogFatalUp(2, "Panic in endpoint handler for %v serving %v: %v\n%v", endpoint, r.RemoteAddr, err, stack)
 			}
 		}()
 
@@ -442,8 +440,6 @@ func (server *Server) handleEndpoint(mux *http.ServeMux, endpoint string, endpoi
 		defer func() {
 			if err := recover(); err != nil {
 				LogFatalUp(2, "Panic in endpoint handler for %v serving %v: %v", endpoint, r.RemoteAddr, err)
-				// stack := strings.TrimSpace(string(debug.Stack()))
-				// LogFatalUp(2, "Panic in endpoint handler for %v serving %v: %v\n%v", endpoint, r.RemoteAddr, err, stack)
 			}
 		}()
 

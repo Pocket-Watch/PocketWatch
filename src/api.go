@@ -89,7 +89,7 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request, use
 	w.Write(jsonData)
 }
 
-func (server *Server) apiUserCreate(w http.ResponseWriter, r *http.Request, userId uint64) {
+func (server *Server) apiUserCreate(w http.ResponseWriter, r *http.Request) {
 	server.users.mutex.Lock()
 	user := server.users.create()
 	DatabaseAddUser(server.db, user)
@@ -105,7 +105,7 @@ func (server *Server) apiUserCreate(w http.ResponseWriter, r *http.Request, user
 	w.Write(tokenJson)
 }
 
-func (server *Server) apiUserVerify(w http.ResponseWriter, r *http.Request, userId uint64) {
+func (server *Server) apiUserVerify(w http.ResponseWriter, r *http.Request) {
 	var token string
 	if !server.readJsonDataFromRequest(w, r, &token) {
 		return
@@ -128,7 +128,7 @@ func (server *Server) apiUserVerify(w http.ResponseWriter, r *http.Request, user
 	w.Write(jsonData)
 }
 
-func (server *Server) apiUserDelete(w http.ResponseWriter, r *http.Request, userId uint64) {
+func (server *Server) apiUserDelete(w http.ResponseWriter, r *http.Request) {
 	var token string
 	if !server.readJsonDataFromRequest(w, r, &token) {
 		return
@@ -1056,18 +1056,68 @@ outer:
 	LogInfo("Connection id:%v of user id:%v dropped. Current connection count: %d", conn.id, conn.userId, connectionCount)
 }
 
+func getEventName(eventType EventType) string {
+	switch eventType {
+	case EVENT_PLAYER_PLAY:
+		return "player play"
+	case EVENT_PLAYER_PAUSE:
+		return "player pause"
+	case EVENT_PLAYER_SEEK:
+		return "player seek"
+	case EVENT_PLAYER_SET:
+		return "player set"
+	case EVENT_PLAYER_NEXT:
+		return "player next"
+	case EVENT_PLAYER_AUTOPLAY:
+		return "player autoplay"
+	case EVENT_PLAYER_LOOPING:
+		return "player looping"
+	case EVENT_PLAYER_UPDATE_TITLE:
+		return "player update title"
+
+	case EVENT_CHAT_SEND:
+		return "chat send"
+	case EVENT_CHAT_EDIT:
+		return "chat edit"
+	case EVENT_CHAT_DELETE:
+		return "chat delete"
+
+	case EVENT_PLAYLIST_ADD:
+		return "playlist add"
+	case EVENT_PLAYLIST_PLAY:
+		return "playlist play"
+	case EVENT_PLAYLIST_MOVE:
+		return "playlist move"
+	case EVENT_PLAYLIST_CLEAR:
+		return "playlist clear"
+	case EVENT_PLAYLIST_DELETE:
+		return "playlist delete"
+	case EVENT_PLAYLIST_UPDATE:
+		return "playlist update"
+	case EVENT_PLAYLIST_SHUFFLE:
+		return "playlist shuffle"
+
+	default:
+		return fmt.Sprintf("<unknown type:%v>", eventType)
+	}
+}
+
 func handleWsEvent[T any](event WebsocketEvent, userId uint64, handleEvent func(T, uint64) error) {
+	eventName := getEventName(event.Type)
+
 	var data T
 	err := json.Unmarshal(event.Data, &data)
 	if err != nil {
-		LogError("Failed to deserialize event '%v' with data %v: %v", event.Type, string(event.Data), err)
+		LogError("Failed to deserialize %v event with data %v: %v", eventName, string(event.Data), err)
 		return
 	}
+
+	LogInfo("Recieved WS %v event from userId:%v", eventName, userId)
 
 	err = handleEvent(data, userId)
 	if err != nil {
 		// NOTE(kihau): We could respond with a custom websocket "error" event (similar to playererror?) to inform the client that something went wrong.
-		LogError("Failed to handle event %v: %v", event.Type, err)
+		LogError("Failed to handle %v event: %v", eventName, err)
 		return
 	}
 }
