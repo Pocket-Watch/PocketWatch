@@ -73,6 +73,12 @@ export class JsonResponse {
         return response;
     }
 
+    static fromPostException(error, endpoint) {
+        let response = new JsonResponse(0, "POST", endpoint);
+        response.errorMessage = error.message;
+        return response;
+    }
+
     checkError() {
         if (this.ok) {
             return false;
@@ -197,7 +203,7 @@ async function httpPost(endpoint, data) {
 
         return JsonResponse.fromPost(response.status, jsonResponse, endpoint);
     } catch (error) {
-        throw new Error("ERROR: POST request to endpoint: " + endpointName + " failed with: " + error);
+        return JsonResponse.fromPostException(error, endpoint);
     }
 }
 

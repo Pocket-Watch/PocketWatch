@@ -183,9 +183,6 @@ class Room {
         // Self user id. Server User structure.
         this.currentUserId = -1;
 
-        // User token string.
-        this.token = "";
-
         // List of all users in current room.
         this.allUsers = [];
 
@@ -1089,27 +1086,38 @@ class Room {
         return index === -1 ? userId : this.allUsers[index].username;
     }
 
-    async createNewAccount() {
-        this.token = await api.userCreate();
-        api.setToken(this.token);
-        Storage.set("token", this.token);
-    }
+    async authenticateAccount() {
+        let token = Storage.get("token");
+        api.setToken(token);
 
-    async authenticateAccount(firstTry) {
-        this.token = Storage.get("token");
-        api.setToken(this.token);
+        let result = await api.userVerify(token);
+        if (result.ok) {
+            this.currentUserId      = result.json;
+            this.chat.currentUserId = result.json;
+            return true;
+        }
 
-        let verification = await api.userVerify(this.token);
-        if (firstTry && !verification.ok) {
+        // Server returned code 400 (Bad Request). That means, user token was not found.
+        if (result.status !== 400) {
             return false;
         }
 
-        if (verification.checkError()) {
+        // Temporary workaround for lack of persistent server-side account storage.
+        token = await api.userCreate();
+        if (token === null) {
             return false;
         }
 
-        this.currentUserId      = verification.json;
-        this.chat.currentUserId = verification.json;
+        api.setToken(token);
+        Storage.set("token", token);
+
+        result = await api.userVerify(token);
+        if (!result.ok) {
+            return false;
+        }
+
+        this.currentUserId      = result.json;
+        this.chat.currentUserId = result.json;
         return true;
     }
 
@@ -1449,7 +1457,7 @@ class Room {
 
     listenToServerEvents() {
         let wsPrefix = window.location.protocol.startsWith("https:") ? "wss://" : "ws://";
-        let ws = new WebSocket(wsPrefix + window.location.host + "/watch/api/events?token=" + this.token);
+        let ws = new WebSocket(wsPrefix + window.location.host + "/watch/api/events?token=" + api.getToken());
         ws.onopen = async _ => {
             console.info("INFO: Connection to events opened.");
 
@@ -1903,13 +1911,8 @@ class Room {
     }
 
     async connectToServer() {
-        try {
-            // Temporary workaround for lack of persistent server-side account storage
-            if (!await this.authenticateAccount(true)) {
-                await this.createNewAccount();
-                await this.authenticateAccount();
-            }
-        } catch (_) {
+        let success = await this.authenticateAccount(true);
+        if (!success) {
             this.handleDisconnect();
             return;
         }
