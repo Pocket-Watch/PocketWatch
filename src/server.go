@@ -152,9 +152,11 @@ func StartServer(config ServerConfig, db *sql.DB) {
 
 	maxEntryId := DatabaseMaxEntryId(db)
 	maxSubId := DatabaseMaxSubtitleId(db)
+	maxMsgId := DatabaseMaxMessageId(db)
 
 	history, _ := DatabaseHistoryGet(db)
 	playlist, _ := DatabasePlaylistGet(db)
+	messages, _ := DatabaseMessageGet(db, 100, 0)
 
 	autoplay := DatabaseGetAutoplay(db)
 	looping := DatabaseGetLooping(db)
@@ -165,7 +167,7 @@ func StartServer(config ServerConfig, db *sql.DB) {
 			entry:    Entry{},
 			playlist: playlist,
 			history:  history,
-			messages: make([]ChatMessage, 0),
+			messages: messages,
 			player: PlayerState{
 				Autoplay: autoplay,
 				Looping:  looping,
@@ -179,6 +181,7 @@ func StartServer(config ServerConfig, db *sql.DB) {
 
 	server.state.subsId.Store(maxSubId)
 	server.state.entryId.Store(maxEntryId)
+	server.state.messageId = maxMsgId;
 
 	server.state.lastUpdate = time.Now()
 	handler := registerEndpoints(&server)
@@ -2175,29 +2178,33 @@ func (server *Server) historyDelete(index int) Entry {
 	return entry
 }
 
-func (server *Server) chatCreate(message string, userId uint64) error {
-	if len([]rune(message)) > MAX_MESSAGE_CHARACTERS {
+func (server *Server) chatCreate(messageContent string, userId uint64) error {
+	if len([]rune(messageContent)) > MAX_MESSAGE_CHARACTERS {
 		return fmt.Errorf("Message exceeds 1000 chars")
 	}
 
+	createdAt := time.Now().UnixMilli()
+
 	server.state.mutex.Lock()
 	server.state.messageId++
-	chatMessage := ChatMessage{
-		Id:       server.state.messageId,
-		Message:  message,
-		AuthorId: userId,
-		UnixTime: time.Now().UnixMilli(),
-		Edited:   false,
+	message := ChatMessage{
+		Id:        server.state.messageId,
+		Content:   messageContent,
+		CreatedAt: createdAt,
+		EditedAt:  createdAt,
+		UserId:    userId,
 	}
-	server.state.messages = append(server.state.messages, chatMessage)
+	server.state.messages = append(server.state.messages, message)
 	server.state.mutex.Unlock()
 
-	server.writeEventToAllConnections("messagecreate", chatMessage)
+	DatabaseMessageAdd(server.db, message)
+
+	server.writeEventToAllConnections("messagecreate", message)
 	return nil
 }
 
-func (server *Server) chatEdit(messageEdit ChatMessageEdit, userId uint64) error {
-	if len([]rune(messageEdit.EditedMessage)) > MAX_MESSAGE_CHARACTERS {
+func (server *Server) chatEdit(data ChatMessageEdit, userId uint64) error {
+	if len([]rune(data.Content)) > MAX_MESSAGE_CHARACTERS {
 		return fmt.Errorf("Message edit exceeds 1000 chars")
 	}
 
@@ -2206,20 +2213,24 @@ func (server *Server) chatEdit(messageEdit ChatMessageEdit, userId uint64) error
 
 	messages := server.state.messages
 
-	index := indexOfMessageById(messages, messageEdit.Id)
+	index := indexOfMessageById(messages, data.MessageId)
 	if index == -1 {
-		return fmt.Errorf("No message found of id %v", messageEdit.Id)
+		return fmt.Errorf("No message found of id %v", data.MessageId)
 	}
 
-	msg := &messages[index]
-	if msg.AuthorId != userId {
+	message := &messages[index]
+	if message.UserId != userId {
 		user := server.findUserById(userId)
 		LogWarn("User %v (id:%v) tried to edit a stranger's message", user.Username, userId)
 		return fmt.Errorf("You're not the author of this message")
 	}
 
-	msg.Message = messageEdit.EditedMessage
-	server.writeEventToAllConnections("messageedit", messageEdit)
+	message.Content  = data.Content
+	message.EditedAt = time.Now().UnixMilli()
+
+	DatabaseMessageEdit(server.db, *message)
+
+	server.writeEventToAllConnections("messageedit", data)
 
 	return nil
 }
@@ -2235,15 +2246,17 @@ func (server *Server) chatDelete(messageId uint64, userId uint64) error {
 		return fmt.Errorf("No message found of id %v", messageId)
 	}
 
-	msg := messages[index]
-	if msg.AuthorId != userId {
+	message := messages[index]
+	if message.UserId != userId {
 		user := server.findUserById(userId)
 		LogWarn("User '%v' (id:%v) tried to remove a stranger's message", user.Username, userId)
 		return fmt.Errorf("You're not the author of this message")
 	}
 
+	DatabaseMessageDelete(server.db, message.Id)
+
 	server.state.messages = append(messages[:index], messages[index+1:]...)
-	server.writeEventToAllConnections("messagedelete", msg.Id)
+	server.writeEventToAllConnections("messagedelete", message.Id)
 
 	return nil
 }

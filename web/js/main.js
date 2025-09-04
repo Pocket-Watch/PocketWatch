@@ -1767,15 +1767,15 @@ class Room {
             } break;
 
             case "messageedit": {
-                let msgEdit = wsData;
-                console.info("INFO: A message has been edited:", msgEdit);
-                this.chat.edit(msgEdit.id, msgEdit.editedMessage);
+                let message = wsData;
+                console.info("INFO: A message has been edited:", message);
+                this.chat.edit(message.message_id, message.content);
             } break;
 
             case "messagedelete": {
-                let msgId = wsData;
-                console.info("INFO: Deleting message with ID =", msgId);
-                this.chat.delete(msgId, this.allUsers);
+                let messageId = wsData;
+                console.info("INFO: Deleting message with ID =", messageId);
+                this.chat.delete(messageId, this.allUsers);
             } break;
 
             case "historyclear": {

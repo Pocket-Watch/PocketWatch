@@ -242,16 +242,16 @@ type Users struct {
 }
 
 type ChatMessage struct {
-	Message  string `json:"message"`
-	UnixTime int64  `json:"unixTime"`
-	Id       uint64 `json:"id"`
-	AuthorId uint64 `json:"authorId"`
-	Edited   bool   `json:"edited"`
+	Id        uint64 `json:"id"`
+	Content   string `json:"content"`
+	CreatedAt int64  `json:"created_at"`
+	EditedAt  int64  `json:"edited_at"`
+	UserId    uint64 `json:"user_id"`
 }
 
 type ChatMessageEdit struct {
-	EditedMessage string `json:"editedMessage"`
-	Id            uint64 `json:"id"`
+	MessageId uint64 `json:"message_id"`
+	Content   string `json:"content"`
 }
 
 type MessageHistoryRequest struct {

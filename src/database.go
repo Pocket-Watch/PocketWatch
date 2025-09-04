@@ -954,3 +954,82 @@ func DatabaseHistoryClear(db *sql.DB) bool {
 
 	return true
 }
+
+func DatabaseMaxMessageId(db *sql.DB) uint64 {
+	if db == nil {
+		return 0
+	}
+
+	return databaseFindMaxId(db, "messages")
+}
+
+func DatabaseMessageGet(db *sql.DB, count int, skip int) ([]ChatMessage, bool) {
+	if db == nil {
+		return []ChatMessage{}, true
+	}
+
+	query := fmt.Sprintf("SELECT * from messages ORDER BY created_at LIMIT %v OFFSET %v", count, skip)
+	rows, err := db.Query(query)
+	if err != nil {
+		LogError("SQL query failed: %v", err)
+		return []ChatMessage{}, false
+	}
+
+	messages := make([]ChatMessage, 0)
+
+	for rows.Next() {
+		var temp ChatMessage
+
+		err := rows.Scan(&temp.Id, &temp.Content, &temp.CreatedAt, &temp.EditedAt, &temp.UserId)
+		if err != nil {
+			LogError("SQL query failed: %v", err)
+			return []ChatMessage{}, false
+		}
+
+		messages = append(messages, temp)
+	}
+
+	return messages, true
+}
+
+func DatabaseMessageAdd(db *sql.DB, message ChatMessage) bool {
+	if db == nil {
+		return true
+	}
+
+	_, err := db.Exec("INSERT INTO messages (id, content, created_at, edited_at, user_id) VALUES ($1, $2, $3, $4, $5)", message.Id, message.Content, message.CreatedAt, message.EditedAt, message.UserId)
+	if err != nil {
+		LogError("SQL query failed: %v", err)
+		return false
+	}
+
+	return true
+}
+
+func DatabaseMessageEdit(db *sql.DB, message ChatMessage) bool {
+	if db == nil {
+		return true
+	}
+
+	_, err := db.Exec("UPDATE messages SET content = $1, edited_at = $2 WHERE id = $3", message.Content, message.EditedAt, message.Id)
+	if err != nil {
+		LogError("Failed to update message id:%v in the database: %v", message.Id, err)
+		return false
+	}
+
+	return false
+}
+
+func DatabaseMessageDelete(db *sql.DB, messageId uint64) bool {
+	if db == nil {
+		return true
+	}
+
+	_, err := db.Exec("DELETE FROM messages WHERE id = $1", messageId)
+	if err != nil {
+		LogError("SQL query failed: %v", err)
+		return false
+	}
+
+	return true
+}

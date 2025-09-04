@@ -69,7 +69,7 @@ class Chat {
             this.contextMenuOpen.classList.add("hide");
         }
 
-        if (message.authorId === this.currentUserId) {
+        if (message.user_id === this.currentUserId) {
             this.contextMenuDelete.classList.remove("hide");
             this.contextMenuEdit.classList.remove("hide");
         } else {
@@ -133,7 +133,7 @@ class Chat {
             this.hideContextMenu();
         };
 
-        this.contextMenuCopy.onclick    = _ => navigator.clipboard.writeText(this.contextMenuMessage.message);
+        this.contextMenuCopy.onclick    = _ => navigator.clipboard.writeText(this.contextMenuMessage.content);
         this.contextMenuCopyUrl.onclick = _ => navigator.clipboard.writeText(this.contextMenuUrl);
         this.contextMenuOpen.onclick    = _ => window.open(this.contextMenuUrl, '_blank').focus();
         this.contextMenuEdit.onclick    = _ => this.startMessageEdit(this.contextMenuMessage, this.contextMenuHtmlMessage);
@@ -228,7 +228,7 @@ class Chat {
         let date      = div("chat_message_date");
         let text      = div("chat_message_text");
 
-        let segments = this.linkify(message.message);
+        let segments = this.linkify(message.content);
         username.textContent = user.username;
 
         if (user.id !== 0) {
@@ -236,7 +236,7 @@ class Chat {
             username.style.color = `hsl(${color} 70% 50%)`
         } 
 
-        let d = new Date(message.unixTime);
+        let d = new Date(message.created_at);
 
         let Y = d.getFullYear() % 100;
         let M = d.getMonth().toString().padStart(2, "0");
@@ -288,9 +288,9 @@ class Chat {
         let date = div("chat_sub_message_date");
         let text = div("chat_sub_message_text");
 
-        let segments = this.linkify(message.message);
+        let segments = this.linkify(message.content);
 
-        let d = new Date(message.unixTime);
+        let d = new Date(message.created_at);
         let h = d.getHours().toString().padStart(2, "0");
         let m = d.getMinutes().toString().padStart(2, "0");
 
@@ -392,8 +392,8 @@ class Chat {
     }
 
     addMessage(chatMsg, allUsers) {
-        let user = this.findUser(chatMsg.authorId, allUsers);
-        let date = new Date(chatMsg.unixTime);
+        let user = this.findUser(chatMsg.user_id, allUsers);
+        let date = new Date(chatMsg.created_at);
 
         let message;
         if (this.prevUserId !== user.id || !isSameDay(this.prevDate, date)) {
@@ -442,7 +442,7 @@ class Chat {
     }
 
     startMessageEdit(message, htmlMessage) {
-        if (message.authorId !== this.currentUserId) {
+        if (message.user_id !== this.currentUserId) {
             console.warn("WARN: User ID", this.currentUserId, "is not allowed to edit message:", message);
             return;
         }
@@ -456,7 +456,7 @@ class Chat {
             }
         }
 
-        let editHtml = this.createEditInputBox(message.message);
+        let editHtml = this.createEditInputBox(message.content);
 
         clearContent(htmlMessage.text);
         htmlMessage.text.appendChild(editHtml.root);
@@ -470,7 +470,7 @@ class Chat {
     cancelMessageEdit() {
         clearContent(this.editingHtmlMessage.text);
 
-        let segments = this.linkify(this.editingMessage.message);
+        let segments = this.linkify(this.editingMessage.content);
         this.editingHtmlMessage.text.append(...segments);
 
         this.editingMessage     = null;
@@ -498,7 +498,7 @@ class Chat {
         let message = this.messages[index];
         let html    = this.htmlMessages[index];
 
-        message.message = messageContent;
+        message.content = messageContent;
 
         if (this.editingMessage && this.editingMessage.id === message.id) {
             return;
@@ -523,8 +523,8 @@ class Chat {
             let prev = this.messages[index - 1];
 
             if (prev) {
-                this.prevUserId = prev.authorId;
-                this.prevDate   = new Date(prev.unixTime);
+                this.prevUserId = prev.user_id;
+                this.prevDate   = new Date(prev.created_at);
             } else {
                 this.prevUserId = -1;
                 this.prevDate   = new Date();
@@ -535,7 +535,7 @@ class Chat {
             let next     = this.messages[index + 1];
             let nextHtml = this.htmlMessages[index + 1];
             if (next && !nextHtml.root.classList.contains("chat_message")) {
-                let user = this.findUser(next.authorId, allUsers);
+                let user = this.findUser(next.user_id, allUsers);
                 let newHtml = this.createMessage(next, user);
 
                 if (this.contextMenuMessage && this.contextMenuMessage.id === next.id) {

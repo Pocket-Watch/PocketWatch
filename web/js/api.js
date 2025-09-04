@@ -419,13 +419,13 @@ export async function chatSend(messageContent) {
     return await httpPost("chat/send", messageContent);
 }
 
-export async function chatEdit(message, messageId) {
-    const payload = {
-        editedMessage: message,
-        id: messageId
+export async function chatEdit(messageId, messageContent) {
+    const data = {
+        message_id: messageId,
+        content:    messageContent,
     };
 
-    return await httpPost("chat/edit", payload);
+    return await httpPost("chat/edit", data);
 }
 
 export async function chatGet(count, backwardOffset) {
@@ -512,8 +512,8 @@ export function wsChatSend(messageContent) {
 
 export function wsChatEdit(messageId, messageContent) {
     const data = {
-        id: messageId,
-        editedMessage: messageContent,
+        message_id: messageId,
+        content:    messageContent,
     };
 
     wsSendEvent(EVENT_CHAT_EDIT, data);
