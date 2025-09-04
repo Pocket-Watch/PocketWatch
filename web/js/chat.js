@@ -479,7 +479,12 @@ class Chat {
     }
 
     stopMessageEdit() {
-        let content = this.editingInput.value;
+        let content = this.editingInput.value.trim();
+        if (content === "") {
+            this.cancelMessageEdit();
+            return;
+        }
+
         clearContent(this.editingHtmlMessage.text);
         api.wsChatEdit(this.editingMessage.id, content);
 
@@ -564,7 +569,9 @@ class Chat {
     }
 
     processMessageSendIntent() {
-        let content = this.chatInput.value;
+        let content = this.chatInput.value.trim();
+        this.chatInput.value = "";
+
         if (content.length === 0 || content.length > CHARACTER_LIMIT) {
             console.warn("WARN: Message is empty or exceeds", CHARACTER_LIMIT, "characters");
             // This is handled server side for length
@@ -572,7 +579,6 @@ class Chat {
         }
 
         api.wsChatSend(content);
-        this.chatInput.value = "";
     }
 
     loadMessages(messages, allUsers) {
