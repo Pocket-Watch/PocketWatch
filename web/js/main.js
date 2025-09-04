@@ -1909,7 +1909,10 @@ class Room {
                 await this.createNewAccount();
                 await this.authenticateAccount();
             }
-        } catch (_) {}
+        } catch (_) {
+            this.handleDisconnect();
+            return;
+        }
 
         this.listenToServerEvents();
     }
