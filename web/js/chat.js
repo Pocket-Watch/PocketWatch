@@ -127,7 +127,53 @@ class Chat {
         this.chatInput.value += fullUrl;
     }
 
+    async loadMessagesBefore() {
+        let users    = await api.userGetAll();
+        let response = await api.chatGet(100, this.messages.length);
+        let messages = response.json;
+
+        let prevUserId = -1;
+        let prevDate   = new Date();
+
+        let htmlMessages = []
+
+        for (let i = 0; i < messages.length; i++) {
+            let message = messages[i];
+            let user    = this.findUser(message.user_id, users);
+            let date    = new Date(message.created_at);
+
+            let html;
+            if (prevUserId !== user.id || !isSameDay(prevDate, date)) {
+                html = this.createMessage(message, user);
+            } else {
+                html = this.createSubMessage(message, user);
+            }
+
+            prevUserId = user.id;
+            prevDate   = date;
+
+            htmlMessages.push(html.root);
+        }
+
+        for (let i = htmlMessages.length - 1; i >= 0; i--) {
+            let html = htmlMessages[i];
+            this.chatList.insertBefore(html, this.chatList.firstChild);
+        }
+
+        messages.push(...this.messages);
+        this.messages = messages;
+    }
+
     attachChatEvents() {
+        this.chatListRoot.onscroll = async _ => {
+            let list = this.chatListRoot;
+            let abs  = Math.abs(list.offsetHeight - list.scrollHeight - list.scrollTop);
+
+            if (Math.floor(abs) === 0.0) {
+                await this.loadMessagesBefore();
+            }
+        };
+
         this.contextMenu.oncontextmenu = event => {
             event.preventDefault();
             this.hideContextMenu();

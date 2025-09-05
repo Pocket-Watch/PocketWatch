@@ -968,7 +968,18 @@ func DatabaseMessageGet(db *sql.DB, count int, skip int) ([]ChatMessage, bool) {
 		return []ChatMessage{}, true
 	}
 
-	query := fmt.Sprintf("SELECT * from messages ORDER BY created_at LIMIT %v OFFSET %v", count, skip)
+
+	queryText := `
+		SELECT * FROM (
+			SELECT * FROM messages
+			ORDER BY created_at DESC
+			LIMIT %v OFFSET %v
+		) rows ORDER BY created_at ASC;
+	`
+
+	query := fmt.Sprintf(queryText, count, skip)
+	// query := fmt.Sprintf("SELECT * from messages ORDER BY created_at LIMIT %v OFFSET %v", count, skip)
+
 	rows, err := db.Query(query)
 	if err != nil {
 		LogError("SQL query failed: %v", err)

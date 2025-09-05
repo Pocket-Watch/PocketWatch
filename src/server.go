@@ -156,7 +156,7 @@ func StartServer(config ServerConfig, db *sql.DB) {
 
 	history, _ := DatabaseHistoryGet(db)
 	playlist, _ := DatabasePlaylistGet(db)
-	messages, _ := DatabaseMessageGet(db, 100, 0)
+	messages, _ := DatabaseMessageGet(db, 10000, 0)
 
 	autoplay := DatabaseGetAutoplay(db)
 	looping := DatabaseGetLooping(db)
