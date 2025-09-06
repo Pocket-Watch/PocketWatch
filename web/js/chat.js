@@ -440,7 +440,7 @@ class Chat {
 
             let segment;
             if (isLocalImage(url)) {
-                segment = img(url, true);
+                segment = img(url);
             } else {
                 segment = a(null, url)
             }

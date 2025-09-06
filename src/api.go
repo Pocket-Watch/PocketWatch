@@ -757,7 +757,7 @@ func (server *Server) apiChatGet(w http.ResponseWriter, r *http.Request, userId 
 	server.state.mutex.Lock()
 	availableCount := len(server.state.messages) - backwardOffset
 
-	// NOTE(kihau): Because messages are never stored in-memory, they are read-only for the user.
+	// NOTE(kihau): Messages loaded from DB are never stored in-memory and because of that, they are read-only to the user.
 	if availableCount < int(data.Count) {
 		server.state.mutex.Unlock()
 		messages, _ := DatabaseMessageGet(server.db, int(data.Count), int(data.BackwardOffset))
