@@ -26,6 +26,8 @@ class Chat {
         this.prevUserId     = -1;
         this.prevDate       = new Date();
 
+        // NOTE(kihau): Maximum of 200-1000 html message elements will be within the chatList DOM at any given time.
+        // NOTE(kihau): Maybe those could be ring buffers with 10000 messages?
         this.messages     = [];
         this.htmlMessages = [];
 
@@ -37,6 +39,9 @@ class Chat {
         this.editingMessage     = null;
         this.editingHtmlMessage = null;
         this.editingInput       = null;
+
+        this.loadingMessages = false;
+        this.reachedChatTop  = false;
     }
 
     hideContextMenu() {
@@ -127,10 +132,22 @@ class Chat {
         this.chatInput.value += fullUrl;
     }
 
-    async loadMessagesBefore() {
+    async loadMoreMessages() {
+        if (this.loadingMessages) {
+            return;
+        }
+
+        this.loadingMessages = true;
+        console.info("INFO: Trying to load more messages from the server.")
+
         let users    = await api.userGetAll();
         let response = await api.chatGet(100, this.messages.length);
         let messages = response.json;
+
+        if (!messages || messages.length === 0) {
+            this.reachedChatTop = true;
+            return;
+        }
 
         let prevUserId = -1;
         let prevDate   = new Date();
@@ -152,25 +169,28 @@ class Chat {
             prevUserId = user.id;
             prevDate   = date;
 
-            htmlMessages.push(html.root);
+            htmlMessages.push(html);
         }
 
         for (let i = htmlMessages.length - 1; i >= 0; i--) {
             let html = htmlMessages[i];
-            this.chatList.insertBefore(html, this.chatList.firstChild);
+            this.chatList.insertBefore(html.root, this.chatList.firstChild);
         }
 
-        messages.push(...this.messages);
-        this.messages = messages;
+        this.messages.unshift(...messages);
+        this.htmlMessages.unshift(...htmlMessages);
+
+        this.loadingMessages = false;
     }
 
     attachChatEvents() {
         this.chatListRoot.onscroll = async _ => {
-            let list = this.chatListRoot;
-            let abs  = Math.abs(list.offsetHeight - list.scrollHeight - list.scrollTop);
+            let list     = this.chatListRoot;
+            let scroll   = Math.abs(list.offsetHeight - list.scrollHeight - list.scrollTop);
+            let progress = (scroll / list.scrollHeight) * 100.0;
 
-            if (Math.floor(abs) === 0.0) {
-                await this.loadMessagesBefore();
+            if (progress < 10.0 && !this.reachedChatTop) {
+                await this.loadMoreMessages();
             }
         };
 
@@ -402,7 +422,7 @@ class Chat {
 
                 let segment;
                 if (isLocalImage(url)) {
-                    segment = img(url, true);
+                    segment = img(url);
                 } else {
                     segment = a(null, url)
                 }

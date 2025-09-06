@@ -756,6 +756,22 @@ func (server *Server) apiChatGet(w http.ResponseWriter, r *http.Request, userId 
 	backwardOffset := int(data.BackwardOffset)
 	server.state.mutex.Lock()
 	availableCount := len(server.state.messages) - backwardOffset
+
+	// NOTE(kihau): Because messages are never stored in-memory, they are read-only for the user.
+	if availableCount < int(data.Count) {
+		server.state.mutex.Unlock()
+		messages, _ := DatabaseMessageGet(server.db, int(data.Count), int(data.BackwardOffset))
+
+		jsonData, err := json.Marshal(messages)
+		if err != nil {
+			respondInternalError(w, "Serialization failed during chat retrieval: %v", err)
+			return
+		}
+
+		w.Write(jsonData)
+		return
+	}
+
 	servedCount := minOf(availableCount, int(data.Count))
 	if servedCount <= 0 {
 		server.state.mutex.Unlock()
