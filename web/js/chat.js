@@ -138,7 +138,7 @@ class Chat {
         }
 
         this.loadingMessages = true;
-        console.info("INFO: Trying to load more messages from the server.")
+        console.info("INFO: Trying to load more messages from the server.");
 
         let users    = await api.userGetAll();
         let response = await api.chatGet(100, this.messages.length);
@@ -152,7 +152,7 @@ class Chat {
         let prevUserId = -1;
         let prevDate   = new Date();
 
-        let htmlMessages = []
+        let htmlMessages = [];
 
         for (let i = 0; i < messages.length; i++) {
             let message = messages[i];

@@ -689,7 +689,8 @@ func (server *Server) writeEventToOneConnection(eventType string, eventData any,
 	select {
 	case conn.events <- event:
 	default:
-		LogWarn("Channel event write failed for connection: %v", conn.id)
+		LogWarn("Event queue for connection %v is full. Sending channel close...", conn.id)
+		conn.close <- true;
 	}
 }
 
@@ -710,7 +711,8 @@ func (server *Server) writeEventToAllConnections(eventType string, eventData any
 		select {
 		case conn.events <- event:
 		default:
-			LogWarn("Channel event write failed for connection: %v", conn.id)
+			LogWarn("Event queue for connection %v is full. Sending channel close...", conn.id)
+			conn.close <- true;
 		}
 	}
 	server.conns.mutex.Unlock()
