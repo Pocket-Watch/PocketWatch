@@ -181,7 +181,7 @@ func StartServer(config ServerConfig, db *sql.DB) {
 
 	server.state.subsId.Store(maxSubId)
 	server.state.entryId.Store(maxEntryId)
-	server.state.messageId = maxMsgId;
+	server.state.messageId = maxMsgId
 
 	server.state.lastUpdate = time.Now()
 	handler := registerEndpoints(&server)
@@ -689,8 +689,11 @@ func (server *Server) writeEventToOneConnection(eventType string, eventData any,
 	select {
 	case conn.events <- event:
 	default:
-		LogWarn("Event queue for connection %v is full. Sending channel close...", conn.id)
-		conn.close <- true;
+		select {
+		case conn.close <- true:
+			LogWarn("Event queue for connection %v is full. Sending channel close...", conn.id)
+		default:
+		}
 	}
 }
 
@@ -711,8 +714,11 @@ func (server *Server) writeEventToAllConnections(eventType string, eventData any
 		select {
 		case conn.events <- event:
 		default:
-			LogWarn("Event queue for connection %v is full. Sending channel close...", conn.id)
-			conn.close <- true;
+			select {
+			case conn.close <- true:
+				LogWarn("Event queue for connection %v is full. Sending channel close...", conn.id)
+			default:
+			}
 		}
 	}
 	server.conns.mutex.Unlock()
@@ -2227,7 +2233,7 @@ func (server *Server) chatEdit(data ChatMessageEdit, userId uint64) error {
 		return fmt.Errorf("You're not the author of this message")
 	}
 
-	message.Content  = data.Content
+	message.Content = data.Content
 	message.EditedAt = time.Now().UnixMilli()
 
 	DatabaseMessageEdit(server.db, *message)

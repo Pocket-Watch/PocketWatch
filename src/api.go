@@ -149,7 +149,10 @@ func (server *Server) apiUserDelete(w http.ResponseWriter, r *http.Request) {
 	server.conns.mutex.Lock()
 	for _, conn := range server.conns.slice {
 		if conn.userId == user.Id {
-			conn.close <- true
+			select {
+			case conn.close <- true:
+			default:
+			}
 		}
 	}
 	server.conns.mutex.Unlock()
