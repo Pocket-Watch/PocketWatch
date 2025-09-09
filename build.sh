@@ -14,8 +14,8 @@ cd ..
 if test ! -f "secret/config.json"; then
     mkdir -p "secret/"
     ./build/pocketwatch --generate-config --config-path "secret/config.json" "$@"
-else 
-    ./build/pocketwatch --config-path "secret/config.json" "$@"
 fi
+
+./build/pocketwatch --config-path "secret/config.json" "$@"
 
 

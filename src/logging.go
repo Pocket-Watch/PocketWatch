@@ -89,15 +89,14 @@ const (
 	COLOR_GREEN_DARK  = "\x1b[0;92m"
 )
 
+// TODO(kihau): Store last log date to split latest.log by days/weeks/months?, archive and compress old logs.
 type Logger struct {
 	enabled      bool
 	logToConsole atomic.Bool
 	printColors  bool
 	logLevel     atomic.Uint32
 	saveToFile   bool
-	outputFile   os.File
-	outputDir    string
-	outputPath   string
+	outputFile   *os.File
 }
 
 func (*Logger) Write(p []byte) (n int, err error) {
@@ -120,11 +119,39 @@ func SetupGlobalLogger(config LoggingConfig) bool {
 	logger = Logger{
 		enabled:     config.Enabled,
 		printColors: config.EnableColors,
-		saveToFile:  config.SaveToFile,
 	}
 
 	logger.logLevel.Store(uint32(config.LogLevel))
 	logger.logToConsole.Store(true)
+
+	if config.SaveToFile {
+		if err := os.MkdirAll(config.LogDirectory, os.ModePerm); err != nil {
+			reason := err
+			if err := err.(*os.PathError); err != nil {
+				reason = err.Err
+			}
+
+			LogError("Failed to create log directory at %v: %v", config.LogDirectory, reason)
+			return false
+		}
+
+		logpath := path.Join(config.LogDirectory, "latest.log")
+
+		file, err := os.OpenFile(logpath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+		if err != nil {
+			reason := err
+			if err := err.(*os.PathError); err != nil {
+				reason = err.Err
+			}
+
+			LogError("Failed to create log file at path %v: %v", logpath, reason)
+			return false
+		}
+
+		logger.outputFile = file
+		logger.saveToFile = true
+	}
+
 	return true
 }
 
@@ -161,6 +188,9 @@ func printStackTrace(skip int) {
 
 	maxName += 1
 
+	var outputConsole strings.Builder
+	var outputFile strings.Builder
+
 	for i := 0; i < count-1; i += 1 {
 		callerFunc := runtime.FuncForPC(callers[i])
 
@@ -174,11 +204,21 @@ func printStackTrace(skip int) {
 
 		if logger.printColors {
 			levelColor := LogLevelColor(LOG_FATAL)
-			fmt.Printf("%v[%v] %v[%-16s] %v[%v]%v   at %-*v %v:%v\n", COLOR_GREEN_LIGHT, date, COLOR_CYAN, codeLocation, levelColor, levelString, COLOR_RESET, maxName, funcname, filepath, line)
+			text := fmt.Sprintf("%v[%v] %v[%-16s] %v[%v]%v   at %-*v %v:%v\n", COLOR_GREEN_LIGHT, date, COLOR_CYAN, codeLocation, levelColor, levelString, COLOR_RESET, maxName, funcname, filepath, line)
+			outputConsole.WriteString(text)
 		} else {
-			fmt.Printf("[%v] [%-16s] [%v]   at %-*v %v:%v\n", date, codeLocation, levelString, maxName, funcname, filepath, line)
+			text := fmt.Sprintf("[%v] [%-16s] [%v]   at %-*v %v:%v\n", date, codeLocation, levelString, maxName, funcname, filepath, line)
+			outputConsole.WriteString(text)
+		}
+
+		if logger.saveToFile {
+			text := fmt.Sprintf("[%v] [%-16s] [%v]   at %-*v %v:%v\n", date, codeLocation, levelString, maxName, funcname, filepath, line)
+			outputFile.WriteString(text)
 		}
 	}
+
+	fmt.Print(outputConsole.String())
+	logger.outputFile.WriteString(outputFile.String())
 }
 
 func LogFatal(format string, args ...any) {
@@ -232,12 +272,6 @@ func logOutput(logLevel LogLevel, stackUp int, format string, args ...any) {
 		return
 	}
 
-	// TODO(kihau): Log to a file if file logging is enabled.
-
-	if !logger.logToConsole.Load() {
-		return
-	}
-
 	_, file, line, ok := runtime.Caller(stackUp + 2)
 
 	if !ok {
@@ -252,6 +286,16 @@ func logOutput(logLevel LogLevel, stackUp int, format string, args ...any) {
 	levelString := LogLevelToString(logLevel)
 
 	message := fmt.Sprintf(format, args...)
+
+	if logger.saveToFile {
+		text := fmt.Sprintf("[%v] [%-16s] [%v] %v\n", date, codeLocation, levelString, message)
+		logger.outputFile.WriteString(text)
+	}
+
+	if !logger.logToConsole.Load() {
+		return
+	}
+
 	if logger.printColors {
 		levelColor := LogLevelColor(logLevel)
 		fmt.Printf("%v[%v] %v[%-16s] %v[%v]%v %v\n", COLOR_GREEN_LIGHT, date, COLOR_CYAN, codeLocation, levelColor, levelString, COLOR_RESET, message)

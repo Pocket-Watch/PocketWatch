@@ -80,7 +80,9 @@ func main() {
 	}
 
 	PrettyPrintConfig(config)
-	SetupGlobalLogger(config.Logging)
+	if !SetupGlobalLogger(config.Logging) {
+		os.Exit(1)
+	}
 
 	db, success := ConnectToDatabase(config.Database)
 	if !success {

@@ -26,10 +26,8 @@ type LoggingConfig struct {
 	Enabled      bool   `json:"enabled"`
 	EnableColors bool   `json:"enable_colors"`
 	LogLevel     uint32 `json:"log_level"`
-	// NOTE(kihau): Placeholders, also log archiving will be added.
 	SaveToFile   bool   `json:"save_to_file"`
-	LogFile      string `json:"logfile"`
-	LogDirectory string `json:"logdirectory"`
+	LogDirectory string `json:"log_directory"`
 }
 
 type DatabaseConfig struct {
@@ -63,7 +61,6 @@ func createDefaultConfig() Config {
 		EnableColors: true,
 		LogLevel:     LOG_DEBUG,
 		SaveToFile:   false,
-		LogFile:      "latest.log",
 		LogDirectory: "logs/",
 	}
 
