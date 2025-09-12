@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"net/http/httputil"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -26,6 +27,7 @@ const BLACK_HOLE_PERIOD = 20 * time.Minute
 
 const MAX_NICKNAME_LENGTH = 255
 const MAX_UNKNOWN_PATH_LENGTH = 30
+const MAX_REFERER_LENGTH = 1000
 const MAX_HISTORY_SIZE = 120
 const MAX_CHAT_LOAD = 100
 
@@ -91,11 +93,12 @@ var serverRootAddress string
 var startTime = time.Now()
 
 type Server struct {
-	config ServerConfig
-	state  ServerState
-	users  *Users
-	conns  *Connections
-	db     *sql.DB
+	config  ServerConfig
+	state   ServerState
+	users   *Users
+	conns   *Connections
+	proxies []*httputil.ReverseProxy
+	db      *sql.DB
 }
 
 type PlayerState struct {

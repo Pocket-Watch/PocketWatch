@@ -11,6 +11,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"net/http/httputil"
 	net_url "net/url"
 	"os"
 	"path"
@@ -266,8 +267,11 @@ func createRedirectServer(config ServerConfig) {
 	}
 }
 
-func handleUnknownEndpoint(w http.ResponseWriter, r *http.Request) {
-	LogWarn("User %v requested unknown endpoint: %v", r.RemoteAddr, r.RequestURI)
+func (server *Server) handleUnknownEndpoint(w http.ResponseWriter, r *http.Request) {
+	if server.handleProxies(w, r) {
+		return
+	}
+	LogWarn("%v requested unknown endpoint: %v", r.RemoteAddr, r.RequestURI)
 	if len(r.RequestURI) > MAX_UNKNOWN_PATH_LENGTH {
 		blackholeRequest(r)
 		http.Error(w, "¯\\_(ツ)_/¯", http.StatusTeapot)
@@ -291,6 +295,28 @@ func blackholeRequest(r *http.Request) {
 		LogDebug("%v exited black hole due to cancellation client side after %v.", r.RemoteAddr, time.Since(start))
 		return
 	}
+}
+
+// Returns true only if the request was recognized, indicating that it has been handled.
+func (server *Server) handleProxies(w http.ResponseWriter, r *http.Request) bool {
+	referer := r.Referer()
+	if len(referer) > MAX_REFERER_LENGTH || referer == "" {
+		return false
+	}
+	refererUrl, err := net_url.Parse(referer)
+	if err != nil {
+		return false
+	}
+	for i, revProxy := range server.proxies {
+		proxyConfig := server.config.ReverseProxies[i]
+		configPath := strings.TrimSuffix(proxyConfig.Path, "/")
+		refererPath := strings.TrimSuffix(refererUrl.Path, "/")
+		if true || refererPath == configPath {
+			revProxy.ServeHTTP(w, r)
+			return true
+		}
+	}
+	return false
 }
 
 func serveFavicon(w http.ResponseWriter, r *http.Request) {
@@ -335,12 +361,15 @@ func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func registerEndpoints(server *Server) *http.ServeMux {
 	mux := http.NewServeMux()
 
+	// Register reverse proxies
+	server.registerReverseProxies(mux)
+
 	fileserver := http.FileServer(http.Dir("./web"))
 	fsHandler := http.StripPrefix("/watch/", fileserver)
 	cacheableFs := CacheHandler{fsHandler, make(map[string]*RateLimiter), &sync.Mutex{}}
 	mux.Handle("/watch/", cacheableFs)
 
-	mux.HandleFunc("/", handleUnknownEndpoint)
+	mux.HandleFunc("/", server.handleUnknownEndpoint)
 
 	mux.HandleFunc("/favicon.ico", serveFavicon)
 
@@ -463,6 +492,27 @@ func (server *Server) handleEndpoint(mux *http.ServeMux, endpoint string, endpoi
 	}
 
 	mux.HandleFunc(endpoint, genericHandler)
+}
+
+func (server *Server) registerReverseProxies(mux *http.ServeMux) {
+	proxyConfigs := server.config.ReverseProxies
+	for _, proxyConfig := range proxyConfigs {
+		targetUrl, err := net_url.Parse(proxyConfig.PassTo)
+		if err != nil {
+			LogError("Failed to register proxy %v -> %v, due to %v", proxyConfig.Path, proxyConfig.PassTo, err)
+			continue
+		}
+
+		proxy := &httputil.ReverseProxy{
+			Rewrite: func(r *httputil.ProxyRequest) {
+				r.SetURL(targetUrl)
+			},
+		}
+		server.proxies = append(server.proxies, proxy)
+		mux.HandleFunc(proxyConfig.Path, func(w http.ResponseWriter, r *http.Request) {
+			proxy.ServeHTTP(w, r)
+		})
+	}
 }
 
 func (server *Server) periodicResync() {
