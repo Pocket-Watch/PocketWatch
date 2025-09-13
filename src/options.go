@@ -25,7 +25,7 @@ type ServerConfig struct {
 type LoggingConfig struct {
 	Enabled      bool   `json:"enabled"`
 	EnableColors bool   `json:"enable_colors"`
-	LogLevel     uint32 `json:"log_level"`
+	LogLevel     string `json:"log_level"`
 	SaveToFile   bool   `json:"save_to_file"`
 	LogDirectory string `json:"log_directory"`
 }
@@ -59,7 +59,7 @@ func createDefaultConfig() Config {
 	logging := LoggingConfig{
 		Enabled:      true,
 		EnableColors: true,
-		LogLevel:     LOG_DEBUG,
+		LogLevel:     LogLevelToString(LOG_DEBUG),
 		SaveToFile:   false,
 		LogDirectory: "logs/",
 	}

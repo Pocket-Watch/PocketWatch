@@ -40,7 +40,8 @@ func LogLevelToString(level LogLevel) string {
 }
 
 func LogLevelFromString(levelString string) (LogLevel, bool) {
-	level := strings.ToLower(levelString)
+	strip := strings.TrimSpace(levelString)
+	level := strings.ToLower(strip)
 
 	switch level {
 	case "fatal":
@@ -115,41 +116,56 @@ func CreateInternalLoggerForHttpServer() *log.Logger {
 
 var logger Logger
 
+func setupFileLogging(logDirectory string) bool {
+	if err := os.MkdirAll(logDirectory, os.ModePerm); err != nil {
+		reason := err
+		if err := err.(*os.PathError); err != nil {
+			reason = err.Err
+		}
+
+		LogError("Failed to create log directory at %v: %v", logDirectory, reason)
+		return false
+	}
+
+	logpath := path.Join(logDirectory, "latest.log")
+
+	file, err := os.OpenFile(logpath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		reason := err
+		if err := err.(*os.PathError); err != nil {
+			reason = err.Err
+		}
+
+		LogError("Failed to create log file at path %v: %v", logpath, reason)
+		return false
+	}
+
+	logger.outputFile = file
+	logger.saveToFile = true
+	return true
+}
+
 func SetupGlobalLogger(config LoggingConfig) bool {
 	logger = Logger{
 		enabled:     config.Enabled,
 		printColors: config.EnableColors,
 	}
 
-	logger.logLevel.Store(uint32(config.LogLevel))
 	logger.logToConsole.Store(true)
 
+	level, ok := LogLevelFromString(config.LogLevel)
+	if !ok {
+		logger.logLevel.Store(LOG_ERROR)
+		LogError("Failed to set correct log level. Provided log level '%v' does not exist.", config.LogLevel)
+		return false
+	}
+
+	logger.logLevel.Store(level)
+
 	if config.SaveToFile {
-		if err := os.MkdirAll(config.LogDirectory, os.ModePerm); err != nil {
-			reason := err
-			if err := err.(*os.PathError); err != nil {
-				reason = err.Err
-			}
-
-			LogError("Failed to create log directory at %v: %v", config.LogDirectory, reason)
+		if !setupFileLogging(config.LogDirectory) {
 			return false
 		}
-
-		logpath := path.Join(config.LogDirectory, "latest.log")
-
-		file, err := os.OpenFile(logpath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
-		if err != nil {
-			reason := err
-			if err := err.(*os.PathError); err != nil {
-				reason = err.Err
-			}
-
-			LogError("Failed to create log file at path %v: %v", logpath, reason)
-			return false
-		}
-
-		logger.outputFile = file
-		logger.saveToFile = true
 	}
 
 	return true

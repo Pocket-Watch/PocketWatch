@@ -968,7 +968,6 @@ func DatabaseMessageGet(db *sql.DB, count int, skip int) ([]ChatMessage, bool) {
 		return []ChatMessage{}, true
 	}
 
-
 	queryText := `
 		SELECT * FROM (
 			SELECT * FROM messages
