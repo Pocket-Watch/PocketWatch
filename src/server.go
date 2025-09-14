@@ -334,6 +334,7 @@ func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func registerEndpoints(server *Server) *http.ServeMux {
 	mux := http.NewServeMux()
+	server.registerRedirects(mux, server.config)
 
 	fileserver := http.FileServer(http.Dir("./web"))
 	fsHandler := http.StripPrefix("/watch/", fileserver)
@@ -411,6 +412,29 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	server.handleEndpoint(mux, "/watch/vc", voiceChat, "GET")
 
 	return mux
+}
+
+func (server *Server) registerRedirects(mux *http.ServeMux, config ServerConfig) {
+	redirects := config.Redirects
+	patterns := NewSet[string](len(redirects))
+	for _, redirect := range redirects {
+		_, err := net_url.Parse(redirect.Location)
+		if err != nil {
+			LogError("Failed to parse redirect location %v", err)
+			continue
+		}
+		pathPattern := redirect.Path
+		if patterns.Contains(pathPattern) {
+			LogError("Pattern conflict! Redirect for %v is already registered. Skipping duplicate!", pathPattern)
+			continue
+		}
+		patterns.Add(pathPattern)
+		mux.HandleFunc(pathPattern, func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, redirect.Location, http.StatusMovedPermanently)
+		})
+		LogInfo("Configured redirect %v -> %v", pathPattern, redirect.Location)
+	}
+
 }
 
 func (server *Server) handleEndpointAuthorized(mux *http.ServeMux, endpoint string, endpointHandler func(w http.ResponseWriter, r *http.Request, userId uint64), method string) {

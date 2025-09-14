@@ -12,14 +12,20 @@ import (
 )
 
 type ServerConfig struct {
-	Address      string `json:"address"`
-	Port         uint16 `json:"port"`
-	RedirectPort uint16 `json:"redirect_port"`
-	RedirectTo   string `json:"redirect_to"`
-	Domain       string `json:"domain"`
-	EnableSsl    bool   `json:"enable_ssl"`
-	EnableSubs   bool   `json:"enable_subs"`
-	EnableShell  bool   `json:"enable_shell"`
+	Address      string           `json:"address"`
+	Port         uint16           `json:"port"`
+	RedirectPort uint16           `json:"redirect_port"`
+	RedirectTo   string           `json:"redirect_to"`
+	Domain       string           `json:"domain"`
+	EnableSsl    bool             `json:"enable_ssl"`
+	EnableSubs   bool             `json:"enable_subs"`
+	EnableShell  bool             `json:"enable_shell"`
+	Redirects    []RedirectConfig `json:"redirects"`
+}
+
+type RedirectConfig struct {
+	Path     string `json:"path"`
+	Location string `json:"location"`
 }
 
 type LoggingConfig struct {

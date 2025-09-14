@@ -1073,3 +1073,26 @@ func validateName(str string) bool {
 func isCombiningDiacriticalMark(r rune) bool {
 	return r >= 0x0300 && r <= 0x036F
 }
+
+type Set[T comparable] struct {
+	set map[T]struct{}
+}
+
+func (s *Set[T]) Contains(el T) bool {
+	_, contains := s.set[el]
+	return contains
+}
+
+func (s *Set[T]) Add(el T) {
+	s.set[el] = struct{}{}
+}
+
+func (s *Set[T]) Remove(el T) {
+	delete(s.set, el)
+}
+
+func NewSet[T comparable](capacity int) *Set[T] {
+	return &Set[T]{
+		make(map[T]struct{}, capacity),
+	}
+}
