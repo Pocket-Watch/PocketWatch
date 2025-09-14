@@ -222,6 +222,12 @@ type Connections struct {
 	upgrader  websocket.Upgrader
 }
 
+type MuxPortPatterns struct {
+	Mux      *http.ServeMux
+	Port     uint16
+	Patterns *Set[string]
+}
+
 type User struct {
 	Id         uint64    `json:"id"`
 	Username   string    `json:"username"`

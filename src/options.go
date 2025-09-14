@@ -22,6 +22,7 @@ type ServerConfig struct {
 }
 
 type RedirectConfig struct {
+	Port     uint16 `json:"port"`
 	Path     string `json:"path"`
 	Location string `json:"location"`
 }

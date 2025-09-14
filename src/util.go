@@ -1096,3 +1096,8 @@ func NewSet[T comparable](capacity int) *Set[T] {
 		make(map[T]struct{}, capacity),
 	}
 }
+
+type Pair[T1 any, T2 any] struct {
+	_1 T1
+	_2 T2
+}

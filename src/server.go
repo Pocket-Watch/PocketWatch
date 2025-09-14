@@ -390,27 +390,71 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	return mux
 }
 
-func (server *Server) registerRedirects(mux *http.ServeMux, config ServerConfig) {
+func (server *Server) registerRedirects(primaryMux *http.ServeMux, config ServerConfig) {
 	redirects := config.Redirects
-	patterns := NewSet[string](len(redirects))
+
+	primaryPatterns := NewSet[string](len(redirects))
+	var muxerList []MuxPortPatterns
 	for _, redirect := range redirects {
 		_, err := net_url.Parse(redirect.Location)
 		if err != nil {
 			LogError("Failed to parse redirect location %v", err)
 			continue
 		}
+
+		isPrimary := redirect.Port == 0 || config.Port == redirect.Port
+
+		newMux := false
+		// Select the primary mux, an existing one or create a new one. Repeat for patterns
+		var mux *http.ServeMux
+		var patterns *Set[string]
+		if isPrimary {
+			mux = primaryMux
+			patterns = primaryPatterns
+		} else {
+			index := slices.IndexFunc(muxerList, func(muxer MuxPortPatterns) bool {
+				return muxer.Port == redirect.Port
+			})
+			if index == -1 {
+				mux = http.NewServeMux()
+				patterns = NewSet[string](8)
+				newMux = true
+			} else {
+				mux = muxerList[index].Mux
+				patterns = muxerList[index].Patterns
+			}
+		}
+
 		pathPattern := redirect.Path
+		if pathPattern == "" {
+			LogWarn("Path pattern cannot be empty. It'll be treated as '/'")
+			pathPattern = "/"
+		}
 		if patterns.Contains(pathPattern) {
 			LogError("Pattern conflict! Redirect for %v is already registered. Skipping duplicate!", pathPattern)
 			continue
 		}
 		patterns.Add(pathPattern)
 		mux.HandleFunc(pathPattern, func(w http.ResponseWriter, r *http.Request) {
+			LogInfo("Redirecting from %v -> %v", pathPattern, redirect.Location)
 			http.Redirect(w, r, redirect.Location, http.StatusMovedPermanently)
 		})
+		if newMux {
+			muxerList = append(muxerList, MuxPortPatterns{Mux: mux, Port: redirect.Port, Patterns: patterns})
+		}
 		LogInfo("Configured redirect %v -> %v", pathPattern, redirect.Location)
 	}
+	for _, muxer := range muxerList {
+		var address = config.Address + ":" + toString(int(muxer.Port))
+		redirectServer := http.Server{Addr: address, Handler: muxer.Mux}
 
+		go func() {
+			err := redirectServer.ListenAndServe()
+			if err != nil {
+				LogError("Failed to start the redirect server: %v", err)
+			}
+		}()
+	}
 }
 
 func (server *Server) handleEndpointAuthorized(mux *http.ServeMux, endpoint string, endpointHandler func(w http.ResponseWriter, r *http.Request, userId uint64), method string) {
