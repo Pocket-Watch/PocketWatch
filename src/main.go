@@ -62,12 +62,13 @@ func main() {
 
 	config := createDefaultConfig()
 	success, errorMessage := LoadConfig(&config, configPath)
+	defautConfigExists := flags.ConfigPath != "" && ConfigExists(configPath)
 
-	// Log error when config path was explicitly set, but config loading failed.
-	if !success && flags.ConfigPath != "" {
+	if !success && defautConfigExists {
 		fmt.Fprintf(os.Stderr, "ERROR: %v\n", errorMessage)
 		os.Exit(1)
 	}
+
 
 	// Flags have priority over config and overwrite its values.
 	ApplyInputFlags(&config, flags)
