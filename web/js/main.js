@@ -1457,7 +1457,7 @@ class Room {
 
     listenToServerEvents() {
         let wsPrefix = window.location.protocol.startsWith("https:") ? "wss://" : "ws://";
-        let ws = new WebSocket(wsPrefix + window.location.host + "/watch/api/events?token=" + api.getToken());
+        let ws = new WebSocket(wsPrefix + window.location.host + "/api/events?token=" + api.getToken());
         ws.onopen = async _ => {
             console.info("INFO: Connection to events opened.");
 

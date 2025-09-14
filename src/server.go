@@ -346,70 +346,70 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	mux.HandleFunc("/favicon.ico", serveFavicon)
 
 	// Unrelated API calls.
-	server.handleEndpoint(mux, "/watch/api/version", server.apiVersion, "GET")
-	server.handleEndpoint(mux, "/watch/api/uptime", server.apiUptime, "GET")
-	server.handleEndpoint(mux, "/watch/api/login", server.apiLogin, "GET")
-	server.handleEndpointAuthorized(mux, "/watch/api/uploadmedia", server.apiUploadMedia, "POST")
+	server.handleEndpoint(mux, "/api/version", server.apiVersion, "GET")
+	server.handleEndpoint(mux, "/api/uptime", server.apiUptime, "GET")
+	server.handleEndpoint(mux, "/api/login", server.apiLogin, "GET")
+	server.handleEndpointAuthorized(mux, "/api/uploadmedia", server.apiUploadMedia, "POST")
 
 	// User related API calls.
-	server.handleEndpoint(mux, "/watch/api/user/create", server.apiUserCreate, "GET")
-	server.handleEndpoint(mux, "/watch/api/user/verify", server.apiUserVerify, "POST")
-	server.handleEndpoint(mux, "/watch/api/user/delete", server.apiUserDelete, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/user/getall", server.apiUserGetAll, "GET")
-	server.handleEndpointAuthorized(mux, "/watch/api/user/updatename", server.apiUserUpdateName, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/user/updateavatar", server.apiUserUpdateAvatar, "POST")
+	server.handleEndpoint(mux, "/api/user/create", server.apiUserCreate, "GET")
+	server.handleEndpoint(mux, "/api/user/verify", server.apiUserVerify, "POST")
+	server.handleEndpoint(mux, "/api/user/delete", server.apiUserDelete, "POST")
+	server.handleEndpointAuthorized(mux, "/api/user/getall", server.apiUserGetAll, "GET")
+	server.handleEndpointAuthorized(mux, "/api/user/updatename", server.apiUserUpdateName, "POST")
+	server.handleEndpointAuthorized(mux, "/api/user/updateavatar", server.apiUserUpdateAvatar, "POST")
 
 	// API calls that change state of the player.
-	server.handleEndpointAuthorized(mux, "/watch/api/player/get", server.apiPlayerGet, "GET")
-	server.handleEndpointAuthorized(mux, "/watch/api/player/set", server.apiPlayerSet, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/player/next", server.apiPlayerNext, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/player/play", server.apiPlayerPlay, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/player/pause", server.apiPlayerPause, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/player/seek", server.apiPlayerSeek, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/player/autoplay", server.apiPlayerAutoplay, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/player/looping", server.apiPlayerLooping, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/player/updatetitle", server.apiPlayerUpdateTitle, "POST")
+	server.handleEndpointAuthorized(mux, "/api/player/get", server.apiPlayerGet, "GET")
+	server.handleEndpointAuthorized(mux, "/api/player/set", server.apiPlayerSet, "POST")
+	server.handleEndpointAuthorized(mux, "/api/player/next", server.apiPlayerNext, "POST")
+	server.handleEndpointAuthorized(mux, "/api/player/play", server.apiPlayerPlay, "POST")
+	server.handleEndpointAuthorized(mux, "/api/player/pause", server.apiPlayerPause, "POST")
+	server.handleEndpointAuthorized(mux, "/api/player/seek", server.apiPlayerSeek, "POST")
+	server.handleEndpointAuthorized(mux, "/api/player/autoplay", server.apiPlayerAutoplay, "POST")
+	server.handleEndpointAuthorized(mux, "/api/player/looping", server.apiPlayerLooping, "POST")
+	server.handleEndpointAuthorized(mux, "/api/player/updatetitle", server.apiPlayerUpdateTitle, "POST")
 
 	// Subtitle API calls.
-	server.handleEndpointAuthorized(mux, "/watch/api/subtitle/delete", server.apiSubtitleDelete, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/subtitle/update", server.apiSubtitleUpdate, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/subtitle/attach", server.apiSubtitleAttach, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/subtitle/shift", server.apiSubtitleShift, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/subtitle/upload", server.apiSubtitleUpload, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/subtitle/download", server.apiSubtitleDownload, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/subtitle/search", server.apiSubtitleSearch, "POST")
+	server.handleEndpointAuthorized(mux, "/api/subtitle/delete", server.apiSubtitleDelete, "POST")
+	server.handleEndpointAuthorized(mux, "/api/subtitle/update", server.apiSubtitleUpdate, "POST")
+	server.handleEndpointAuthorized(mux, "/api/subtitle/attach", server.apiSubtitleAttach, "POST")
+	server.handleEndpointAuthorized(mux, "/api/subtitle/shift", server.apiSubtitleShift, "POST")
+	server.handleEndpointAuthorized(mux, "/api/subtitle/upload", server.apiSubtitleUpload, "POST")
+	server.handleEndpointAuthorized(mux, "/api/subtitle/download", server.apiSubtitleDownload, "POST")
+	server.handleEndpointAuthorized(mux, "/api/subtitle/search", server.apiSubtitleSearch, "POST")
 
 	// API calls that change state of the playlist.
-	server.handleEndpointAuthorized(mux, "/watch/api/playlist/get", server.apiPlaylistGet, "GET")
-	server.handleEndpointAuthorized(mux, "/watch/api/playlist/play", server.apiPlaylistPlay, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/playlist/add", server.apiPlaylistAdd, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/playlist/clear", server.apiPlaylistClear, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/playlist/delete", server.apiPlaylistDelete, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/playlist/shuffle", server.apiPlaylistShuffle, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/playlist/move", server.apiPlaylistMove, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/playlist/update", server.apiPlaylistUpdate, "POST")
+	server.handleEndpointAuthorized(mux, "/api/playlist/get", server.apiPlaylistGet, "GET")
+	server.handleEndpointAuthorized(mux, "/api/playlist/play", server.apiPlaylistPlay, "POST")
+	server.handleEndpointAuthorized(mux, "/api/playlist/add", server.apiPlaylistAdd, "POST")
+	server.handleEndpointAuthorized(mux, "/api/playlist/clear", server.apiPlaylistClear, "POST")
+	server.handleEndpointAuthorized(mux, "/api/playlist/delete", server.apiPlaylistDelete, "POST")
+	server.handleEndpointAuthorized(mux, "/api/playlist/shuffle", server.apiPlaylistShuffle, "POST")
+	server.handleEndpointAuthorized(mux, "/api/playlist/move", server.apiPlaylistMove, "POST")
+	server.handleEndpointAuthorized(mux, "/api/playlist/update", server.apiPlaylistUpdate, "POST")
 
 	// API calls that change state of the history.
-	server.handleEndpointAuthorized(mux, "/watch/api/history/get", server.apiHistoryGet, "GET")
-	server.handleEndpointAuthorized(mux, "/watch/api/history/clear", server.apiHistoryClear, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/history/play", server.apiHistoryPlay, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/history/delete", server.apiHistoryDelete, "POST")
+	server.handleEndpointAuthorized(mux, "/api/history/get", server.apiHistoryGet, "GET")
+	server.handleEndpointAuthorized(mux, "/api/history/clear", server.apiHistoryClear, "POST")
+	server.handleEndpointAuthorized(mux, "/api/history/play", server.apiHistoryPlay, "POST")
+	server.handleEndpointAuthorized(mux, "/api/history/delete", server.apiHistoryDelete, "POST")
 
-	server.handleEndpointAuthorized(mux, "/watch/api/chat/send", server.apiChatSend, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/chat/edit", server.apiChatEdit, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/chat/get", server.apiChatGet, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/chat/delete", server.apiChatDelete, "POST")
+	server.handleEndpointAuthorized(mux, "/api/chat/send", server.apiChatSend, "POST")
+	server.handleEndpointAuthorized(mux, "/api/chat/edit", server.apiChatEdit, "POST")
+	server.handleEndpointAuthorized(mux, "/api/chat/get", server.apiChatGet, "POST")
+	server.handleEndpointAuthorized(mux, "/api/chat/delete", server.apiChatDelete, "POST")
 
-	server.handleEndpointAuthorized(mux, "/watch/api/stream/start", server.apiStreamStart, "POST")
-	server.handleEndpointAuthorized(mux, "/watch/api/stream/upload/{filename}", server.apiStreamUpload, "POST")
+	server.handleEndpointAuthorized(mux, "/api/stream/start", server.apiStreamStart, "POST")
+	server.handleEndpointAuthorized(mux, "/api/stream/upload/{filename}", server.apiStreamUpload, "POST")
 	// Server events and proxy.
-	server.handleEndpoint(mux, "/watch/api/events", server.apiEvents, "GET")
+	server.handleEndpoint(mux, "/api/events", server.apiEvents, "GET")
 
 	server.handleEndpoint(mux, PROXY_ROUTE, server.watchProxy, "GET")
 	server.handleEndpoint(mux, STREAM_ROUTE, server.watchStream, "GET")
 
 	// Voice chat
-	server.handleEndpoint(mux, "/watch/vc", voiceChat, "GET")
+	server.handleEndpoint(mux, "/vc", voiceChat, "GET")
 
 	return mux
 }
@@ -478,7 +478,7 @@ func (server *Server) handleEndpoint(mux *http.ServeMux, endpoint string, endpoi
 
 		// NOTE(kihau): Hack to prevent console spam on proxy.
 		if PROXY_ROUTE != endpoint && STREAM_ROUTE != endpoint {
-			endpointTrim := strings.TrimPrefix(endpoint, "/watch/api/")
+			endpointTrim := strings.TrimPrefix(endpoint, "/api/")
 			requested := strings.ReplaceAll(endpointTrim, "/", " ")
 			LogInfo("Connection %s requested %v.", r.RemoteAddr, requested)
 		}

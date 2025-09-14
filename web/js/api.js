@@ -1,4 +1,4 @@
-const API_PATH = "/watch/api/";
+const API_PATH = "/api/";
 
 export const EVENT_PLAYER_PLAY         = 0;
 export const EVENT_PLAYER_PAUSE        = 1;
