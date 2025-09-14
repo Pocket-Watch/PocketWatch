@@ -62,7 +62,7 @@ func main() {
 
 	config := createDefaultConfig()
 	success, errorMessage := LoadConfig(&config, configPath)
-	defautConfigExists := flags.ConfigPath != "" && ConfigExists(configPath)
+	defautConfigExists := flags.ConfigPath == "" && ConfigExists(configPath)
 
 	if !success && defautConfigExists {
 		fmt.Fprintf(os.Stderr, "ERROR: %v\n", errorMessage)
