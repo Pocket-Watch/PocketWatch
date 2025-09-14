@@ -60,15 +60,20 @@ func main() {
 		return
 	}
 
+	success = true
+	errorMessage := ""
 	config := createDefaultConfig()
-	success, errorMessage := LoadConfig(&config, configPath)
-	defautConfigExists := flags.ConfigPath == "" && ConfigExists(configPath)
 
-	if !success && defautConfigExists {
+	if flags.ConfigPath != "" {
+		success, errorMessage = LoadConfig(&config, configPath)
+	} else if ConfigExists(configPath) {
+		success, errorMessage = LoadConfig(&config, configPath)
+	}
+
+	if !success {
 		fmt.Fprintf(os.Stderr, "ERROR: %v\n", errorMessage)
 		os.Exit(1)
 	}
-
 
 	// Flags have priority over config and overwrite its values.
 	ApplyInputFlags(&config, flags)

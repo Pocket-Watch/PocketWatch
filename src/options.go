@@ -12,15 +12,13 @@ import (
 )
 
 type ServerConfig struct {
-	Address      string           `json:"address"`
-	Port         uint16           `json:"port"`
-	RedirectPort uint16           `json:"redirect_port"`
-	RedirectTo   string           `json:"redirect_to"`
-	Domain       string           `json:"domain"`
-	EnableSsl    bool             `json:"enable_ssl"`
-	EnableSubs   bool             `json:"enable_subs"`
-	EnableShell  bool             `json:"enable_shell"`
-	Redirects    []RedirectConfig `json:"redirects"`
+	Address     string           `json:"address"`
+	Port        uint16           `json:"port"`
+	Domain      string           `json:"domain"`
+	EnableSsl   bool             `json:"enable_ssl"`
+	EnableSubs  bool             `json:"enable_subs"`
+	EnableShell bool             `json:"enable_shell"`
+	Redirects   []RedirectConfig `json:"redirects"`
 }
 
 type RedirectConfig struct {
@@ -53,13 +51,13 @@ type Config struct {
 
 func createDefaultConfig() Config {
 	server := ServerConfig{
-		Address:      "localhost",
-		Port:         1234,
-		RedirectPort: 0,
-		Domain:       "example.com",
-		EnableSsl:    false,
-		EnableSubs:   false,
-		EnableShell:  true,
+		Address:     "localhost",
+		Port:        1234,
+		Domain:      "example.com",
+		EnableSsl:   false,
+		EnableSubs:  false,
+		EnableShell: true,
+		Redirects:   []RedirectConfig{},
 	}
 
 	logging := LoggingConfig{

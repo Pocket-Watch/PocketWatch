@@ -212,10 +212,6 @@ func StartServer(config ServerConfig, db *sql.DB) {
 		Handler:  handler,
 	}
 
-	if config.RedirectPort != 0 {
-		go createRedirectServer(config)
-	}
-
 	if !config.EnableSsl || missing_ssl_keys {
 		serverRootAddress = "http://" + address
 	} else {
@@ -243,26 +239,6 @@ func StartServer(config ServerConfig, db *sql.DB) {
 
 	if server_start_error != nil {
 		LogError("Error starting the server: %v", server_start_error)
-	}
-}
-
-func createRedirectServer(config ServerConfig) {
-	LogInfo("Creating a redirect server to '%v'.", config.RedirectTo)
-
-	redirectFunc := func(w http.ResponseWriter, r *http.Request) {
-		var redirect = config.RedirectTo + r.RequestURI
-		http.Redirect(w, r, redirect, http.StatusMovedPermanently)
-	}
-
-	var address = config.Address + ":" + strconv.Itoa(int(config.RedirectPort))
-	redirectServer := http.Server{
-		Addr:    address,
-		Handler: http.HandlerFunc(redirectFunc),
-	}
-
-	err := redirectServer.ListenAndServe()
-	if err != nil {
-		LogError("Failed to start the redirect server: %v", err)
 	}
 }
 
