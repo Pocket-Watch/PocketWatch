@@ -496,6 +496,10 @@ func (server *Server) handleEndpointAuthorized(mux *http.ServeMux, endpoint stri
 			return
 		}
 
+		endpointTrim := strings.TrimPrefix(endpoint, "/api/")
+		requested := strings.ReplaceAll(endpointTrim, "/", " ")
+		LogInfo("Connection %s requested %v.", r.RemoteAddr, requested)
+
 		endpointHandler(w, r, user.Id)
 	}
 
