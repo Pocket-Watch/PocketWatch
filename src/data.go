@@ -89,6 +89,7 @@ const (
 // Constants - assignable only once!
 var serverRootAddress string
 var startTime = time.Now()
+var behindProxy bool
 
 type Server struct {
 	config ServerConfig

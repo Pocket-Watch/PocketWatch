@@ -18,6 +18,7 @@ type ServerConfig struct {
 	EnableSsl   bool             `json:"enable_ssl"`
 	EnableSubs  bool             `json:"enable_subs"`
 	EnableShell bool             `json:"enable_shell"`
+	BehindProxy bool             `json:"behind_proxy"`
 	Redirects   []RedirectConfig `json:"redirects"`
 }
 

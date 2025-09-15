@@ -186,6 +186,7 @@ func StartServer(config ServerConfig, db *sql.DB) {
 	server.state.lastUpdate = time.Now()
 	handler := registerEndpoints(&server)
 
+	behindProxy = config.BehindProxy
 	var address = config.Address + ":" + strconv.Itoa(int(config.Port))
 	LogInfo("Starting server on address: %s", address)
 
@@ -243,7 +244,7 @@ func StartServer(config ServerConfig, db *sql.DB) {
 }
 
 func handleUnknownEndpoint(w http.ResponseWriter, r *http.Request) {
-	LogWarn("User %v requested unknown endpoint: %v", r.RemoteAddr, r.RequestURI)
+	LogWarn("User %v requested unknown endpoint: %v", getIp(r), r.RequestURI)
 	if len(r.RequestURI) > MAX_UNKNOWN_PATH_LENGTH {
 		blackholeRequest(r)
 		http.Error(w, "¯\\_(ツ)_/¯", http.StatusTeapot)
@@ -262,9 +263,9 @@ func blackholeRequest(r *http.Request) {
 	context := r.Context()
 	select {
 	case <-time.After(BLACK_HOLE_PERIOD):
-		LogDebug("%v exited black hole after waiting period of %v.", r.RemoteAddr, BLACK_HOLE_PERIOD)
+		LogDebug("%v exited black hole after waiting period of %v.", getIp(r), BLACK_HOLE_PERIOD)
 	case <-context.Done():
-		LogDebug("%v exited black hole due to cancellation client side after %v.", r.RemoteAddr, time.Since(start))
+		LogDebug("%v exited black hole due to cancellation client side after %v.", getIp(r), time.Since(start))
 		return
 	}
 }
@@ -280,7 +281,7 @@ type CacheHandler struct {
 }
 
 func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ip := strings.Split(r.RemoteAddr, ":")[0]
+	ip := strings.Split(getIp(r), ":")[0]
 
 	cache.mapMutex.Lock()
 	rateLimiter, exists := cache.ipToLimiters[ip]
@@ -300,7 +301,7 @@ func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resource := strings.TrimPrefix(r.RequestURI, "/watch")
-	LogDebug("Connection %s requested resource %v", r.RemoteAddr, resource)
+	LogDebug("Connection %s requested resource %v", getIp(r), resource)
 
 	// The no-cache directive does not prevent the storing of responses
 	// but instead prevents the reuse of responses without revalidation.
@@ -462,11 +463,26 @@ func (server *Server) registerRedirects(primaryMux *http.ServeMux, config Server
 	}
 }
 
+// This method will fetch based on behindProxy
+func getIp(req *http.Request) string {
+	if !behindProxy {
+		return req.RemoteAddr
+	}
+	ip := req.Header.Get("X-Real-Ip")
+	if ip == "" {
+		ip = req.Header.Get("X-Forwarded-For")
+	}
+	if ip == "" {
+		return req.RemoteAddr
+	}
+	return ip
+}
+
 func (server *Server) handleEndpointAuthorized(mux *http.ServeMux, endpoint string, endpointHandler func(w http.ResponseWriter, r *http.Request, userId uint64), method string) {
 	genericHandler := func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				LogFatalUp(2, "Panic in endpoint handler for %v serving %v: %v", endpoint, r.RemoteAddr, err)
+				LogFatalUp(2, "Panic in endpoint handler for %v serving %v: %v", endpoint, getIp(r), err)
 			}
 		}()
 
@@ -491,7 +507,7 @@ func (server *Server) handleEndpoint(mux *http.ServeMux, endpoint string, endpoi
 	genericHandler := func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				LogFatalUp(2, "Panic in endpoint handler for %v serving %v: %v", endpoint, r.RemoteAddr, err)
+				LogFatalUp(2, "Panic in endpoint handler for %v serving %v: %v", endpoint, getIp(r), err)
 			}
 		}()
 
@@ -505,7 +521,7 @@ func (server *Server) handleEndpoint(mux *http.ServeMux, endpoint string, endpoi
 		if PROXY_ROUTE != endpoint && STREAM_ROUTE != endpoint {
 			endpointTrim := strings.TrimPrefix(endpoint, "/api/")
 			requested := strings.ReplaceAll(endpointTrim, "/", " ")
-			LogInfo("Connection %s requested %v.", r.RemoteAddr, requested)
+			LogInfo("Connection %s requested %v.", getIp(r), requested)
 		}
 
 		endpointHandler(w, r)
@@ -1612,7 +1628,7 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 		return
 	}
 
-	LogDebug("Serving proxied file at range [%v-%v] to %v", byteRange.start, byteRange.end, request.RemoteAddr)
+	LogDebug("Serving proxied file at range [%v-%v] to %v", byteRange.start, byteRange.end, getIp(request))
 	// If download offset is different from requested it's likely due to a seek and since everyone
 	// should be in sync anyway we can terminate the existing download and create a new one.
 
@@ -1642,7 +1658,7 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 		written, err := io.CopyN(writer, bytes.NewReader(chunkBytes), GENERIC_CHUNK_SIZE)
 		totalWritten += written
 		if err != nil {
-			LogInfo("Connection %v terminated download having written %v bytes", request.RemoteAddr, totalWritten)
+			LogInfo("Connection %v terminated download having written %v bytes", getIp(request), totalWritten)
 			return
 		}
 	}
