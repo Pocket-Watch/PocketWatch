@@ -197,6 +197,10 @@ func ApplyInputFlags(config *Config, flags InputFlags) {
 		config.Server.Domain = flags.ServerDomain
 	}
 
+	if flags.BehindProxy {
+		config.Server.BehindProxy = true
+	}
+
 	if flags.EnableSql {
 		config.Database.Enabled = true
 	}
@@ -245,6 +249,7 @@ type InputFlags struct {
 	ServerAddress  string
 	ServerDomain   string
 	ServerPort     int
+	BehindProxy    bool
 
 	EnableSql    bool
 	EnableSsl    bool
@@ -331,6 +336,8 @@ func ParseInputArgs() (InputFlags, bool) {
 			}
 
 			flags.ServerPort = port
+		case "-bp", "--behind-proxy":
+			flags.BehindProxy = true
 
 		case "-h", "--help":
 			flags.ShowHelp = true
@@ -425,6 +432,7 @@ func DisplayHelp() {
 	fmt.Println("    -gc,    --generate-config        Generates default config. Can also be use in combination with --config-path to specify output path. (default: ./config.json)")
 	fmt.Println("    -ip,    --address [10.0.0.1]     Binds server to an address. (default: localhost)")
 	fmt.Println("    -p,     --port [443]             Set address port to bind. (values between '0-65535') (default: 1234)")
+	fmt.Println("    -bp,    --behind-proxy           Changes the server behavior to rely on HTTP headers such as X-Real-Ip for rate-limiting (default: false)")
 	fmt.Println("    -sql,   --enable-database        Enables support for the Postgres SQL database persistence. (default: disabled)")
 	fmt.Println("    -ssl,   --enable-encryption      Enables encrypted connection between a defaultClient and the server. Secrets are read from:")
 	fmt.Println("                                       - CERTIFICATE: ./secret/certificate.pem")
@@ -443,7 +451,7 @@ func DisplayHelp() {
 	fmt.Println("    ", exe, "--port 8888")
 }
 
-const leftColumnWidth = 8
+const leftColumnWidth = 9
 
 func PrettyPrintConfig(config Config) {
 	width := 2 + MaxOf(
@@ -451,10 +459,10 @@ func PrettyPrintConfig(config Config) {
 		LengthOfInt(int(config.Server.Port)),
 		LengthOfBool(config.Server.EnableSsl),
 		LengthOfBool(config.Server.EnableSubs),
+		LengthOfBool(config.Server.BehindProxy),
 		LengthOfBool(config.Logging.EnableColors),
 		len(config.Server.Domain),
 		len("VALUE"),
-		len("-"),
 	)
 
 	format := &strings.Builder{}
@@ -473,6 +481,7 @@ func PrettyPrintConfig(config Config) {
 	RowFormatKeyValue(width, format, "domain", config.Server.Domain)
 	RowFormatKeyValue(width, format, "ssl", config.Server.EnableSsl)
 	RowFormatKeyValue(width, format, "subs", config.Server.EnableSubs)
+	RowFormatKeyValue(width, format, "proxied", config.Server.BehindProxy)
 	RowFormatKeyValue(width, format, "color", config.Logging.EnableColors)
 
 	format.WriteString("+")
