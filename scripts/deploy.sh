@@ -8,7 +8,7 @@ cd "$(dirname $(realpath "$0"))/.."
 session="pocketwatch"
 shutdown_wait_time=3
 
-function rebuild_latest {
+rebuild_latest() {
     echo "Building PocketWatch server."
     git pull
 
@@ -18,7 +18,7 @@ function rebuild_latest {
     cd ..
 }
 
-function shutdown_server {
+shutdown_server() {
     if ! tmux has-session -t "$session" 2>/dev/null; then
         return 0
     fi
@@ -30,7 +30,7 @@ function shutdown_server {
     while [ $waited -lt $shutdown_wait_time ]; do
         # Check if the pocketwatch process is sitll running.
         if ! pgrep -f -- "./build/pocketwatch" >/dev/null 2>&1; then
-            echo "PocktWatch server has been shutdown."
+            echo "PocketWatch server has been shutdown."
             return 0
         fi
 
@@ -39,12 +39,12 @@ function shutdown_server {
         sleep 1
     done
 
-    echo "PocktWatch did not shutdown gracefully. Killing it instead..."
+    echo "PocketWatch did not shutdown gracefully. Killing it instead..."
     tmux kill-window -t "$session:main_server" || true
 }
 
-function run_server {
-    echo "Startng PocketWatch server."
+run_server() {
+    echo "Starting PocketWatch server."
     main_server="./build/pocketwatch --config-path secret/config.json"
 
     # Prefer compiled internal server if one exists.
