@@ -425,6 +425,11 @@ func (server *Server) registerRedirects(primaryMux *http.ServeMux, config Server
 			}
 		}
 
+		if redirect.Location == "" {
+			LogWarn("Redirect location is empty. It'll be treated as '/'")
+			redirect.Location = "/"
+		}
+
 		pathPattern := redirect.Path
 		if pathPattern == "" {
 			LogWarn("Path pattern cannot be empty. It'll be treated as '/'")
