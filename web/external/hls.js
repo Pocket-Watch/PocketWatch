@@ -523,7 +523,7 @@ function enableLogs(debugConfig, context, id) {
     // Some browsers don't allow to use bind on console object anyway
     // fallback to default if needed
     try {
-      newLogger.log(`Debug logs enabled for "${context}" in hls.js version ${"1.6.11"}`);
+      newLogger.log(`Debug logs enabled for "${context}" in hls.js version ${"1.6.12"}`);
     } catch (e) {
       /* log fn threw an exception. All logger methods are no-ops. */
       return createLogger();
@@ -2302,6 +2302,88 @@ function mp4pssh(systemId, keyids, data) {
   ]), systemId,
   // 16 bytes
   kidCount, kids, dataSize, data);
+}
+function parseMultiPssh(initData) {
+  const results = [];
+  if (initData instanceof ArrayBuffer) {
+    const length = initData.byteLength;
+    let offset = 0;
+    while (offset + 32 < length) {
+      const view = new DataView(initData, offset);
+      const pssh = parsePssh(view);
+      results.push(pssh);
+      offset += pssh.size;
+    }
+  }
+  return results;
+}
+function parsePssh(view) {
+  const size = view.getUint32(0);
+  const offset = view.byteOffset;
+  const length = view.byteLength;
+  if (length < size) {
+    return {
+      offset,
+      size: length
+    };
+  }
+  const type = view.getUint32(4);
+  if (type !== 0x70737368) {
+    return {
+      offset,
+      size
+    };
+  }
+  const version = view.getUint32(8) >>> 24;
+  if (version !== 0 && version !== 1) {
+    return {
+      offset,
+      size
+    };
+  }
+  const buffer = view.buffer;
+  const systemId = arrayToHex(new Uint8Array(buffer, offset + 12, 16));
+  let kids = null;
+  let data = null;
+  let dataSizeOffset = 0;
+  if (version === 0) {
+    dataSizeOffset = 28;
+  } else {
+    const kidCounts = view.getUint32(28);
+    if (!kidCounts || length < 32 + kidCounts * 16) {
+      return {
+        offset,
+        size
+      };
+    }
+    kids = [];
+    for (let i = 0; i < kidCounts; i++) {
+      kids.push(new Uint8Array(buffer, offset + 32 + i * 16, 16));
+    }
+    dataSizeOffset = 32 + kidCounts * 16;
+  }
+  if (!dataSizeOffset) {
+    return {
+      offset,
+      size
+    };
+  }
+  const dataSizeOrKidCount = view.getUint32(dataSizeOffset);
+  if (size - 32 < dataSizeOrKidCount) {
+    return {
+      offset,
+      size
+    };
+  }
+  data = new Uint8Array(buffer, offset + dataSizeOffset + 4, dataSizeOrKidCount);
+  return {
+    version,
+    systemId,
+    kids,
+    data,
+    offset,
+    size
+  };
 }
 
 const userAgentHevcSupportIsInaccurate = () => {
@@ -4218,6 +4300,12 @@ function isTimeoutError(error) {
   }
   return false;
 }
+function isKeyError(error) {
+  return error.details.startsWith('key');
+}
+function isUnusableKeyError(error) {
+  return isKeyError(error) && !!error.frag && !error.frag.decryptdata;
+}
 function getRetryConfig(loadPolicy, error) {
   const isTimeout = isTimeoutError(error);
   return loadPolicy.default[`${isTimeout ? 'timeout' : 'error'}Retry`];
@@ -4474,21 +4562,23 @@ class ErrorController extends Logger {
       fragLoadPolicy,
       keyLoadPolicy
     } = hls.config;
-    const retryConfig = getRetryConfig(data.details.startsWith('key') ? keyLoadPolicy : fragLoadPolicy, data);
+    const retryConfig = getRetryConfig(isKeyError(data) ? keyLoadPolicy : fragLoadPolicy, data);
     const fragmentErrors = hls.levels.reduce((acc, level) => acc + level.fragmentError, 0);
     // Switch levels when out of retried or level index out of bounds
     if (level) {
       if (data.details !== ErrorDetails.FRAG_GAP) {
         level.fragmentError++;
       }
-      const retry = shouldRetry(retryConfig, fragmentErrors, isTimeoutError(data), data.response);
-      if (retry) {
-        return {
-          action: NetworkErrorAction.RetryRequest,
-          flags: ErrorActionFlags.None,
-          retryConfig,
-          retryCount: fragmentErrors
-        };
+      if (!isUnusableKeyError(data)) {
+        const retry = shouldRetry(retryConfig, fragmentErrors, isTimeoutError(data), data.response);
+        if (retry) {
+          return {
+            action: NetworkErrorAction.RetryRequest,
+            flags: ErrorActionFlags.None,
+            retryConfig,
+            retryCount: fragmentErrors
+          };
+        }
       }
     }
     // Reach max retry count, or Missing level reference
@@ -4626,7 +4716,9 @@ class ErrorController extends Logger {
           const level = hls.levels[levelIndex];
           const restrictedHdcpLevel = level == null ? void 0 : level.attrs['HDCP-LEVEL'];
           errorAction.hdcpLevel = restrictedHdcpLevel;
-          if (restrictedHdcpLevel) {
+          if (restrictedHdcpLevel === 'NONE') {
+            this.warn(`HDCP policy resticted output with HDCP-LEVEL=NONE`);
+          } else if (restrictedHdcpLevel) {
             hls.maxHdcpLevel = HdcpLevels[HdcpLevels.indexOf(restrictedHdcpLevel) - 1];
             errorAction.resolved = true;
             this.warn(`Restricting playback to HDCP-LEVEL of "${hls.maxHdcpLevel}" or lower`);
@@ -4641,7 +4733,8 @@ class ErrorController extends Logger {
           if (levelKey) {
             // Penalize all levels with key
             const levels = this.hls.levels;
-            for (let i = levels.length; i--;) {
+            const levelCountWithError = levels.length;
+            for (let i = levelCountWithError; i--;) {
               if (this.variantHasKey(levels[i], levelKey)) {
                 var _levels$i$audioGroups, _data$frag3;
                 this.log(`Banned key found in level ${i} (${levels[i].bitrate}bps) or audio group "${(_levels$i$audioGroups = levels[i].audioGroups) == null ? void 0 : _levels$i$audioGroups.join(',')}" (${(_data$frag3 = data.frag) == null ? void 0 : _data$frag3.type} fragment) ${arrayToHex(levelKey.keyId || [])}`);
@@ -4651,8 +4744,15 @@ class ErrorController extends Logger {
                 this.hls.removeLevel(i);
               }
             }
-            if (levels.length) {
+            const frag = data.frag;
+            if (this.hls.levels.length < levelCountWithError) {
               errorAction.resolved = true;
+            } else if (frag && frag.type !== PlaylistLevelType.MAIN) {
+              // Ignore key error for audio track with unmatched key (main session error)
+              const fragLevelKey = frag.decryptdata;
+              if (fragLevelKey && !levelKey.matches(fragLevelKey)) {
+                errorAction.resolved = true;
+              }
             }
           }
           break;
@@ -6947,6 +7047,9 @@ class LevelKey {
   static clearKeyUriToKeyIdMap() {
     keyUriToKeyIdMap = {};
   }
+  static setKeyIdForUri(uri, keyId) {
+    keyUriToKeyIdMap[uri] = keyId;
+  }
   constructor(method, uri, format, formatversions = [1], iv = null, keyId) {
     this.uri = void 0;
     this.method = void 0;
@@ -6997,17 +7100,20 @@ class LevelKey {
     if (!this.encrypted || !this.uri) {
       return null;
     }
-    if (isFullSegmentEncryption(this.method) && this.uri && !this.iv) {
-      if (typeof sn !== 'number') {
-        // We are fetching decryption data for a initialization segment
-        // If the segment was encrypted with AES-128/256
-        // It must have an IV defined. We cannot substitute the Segment Number in.
-        logger.warn(`missing IV for initialization segment with method="${this.method}" - compliance issue`);
+    if (isFullSegmentEncryption(this.method)) {
+      let iv = this.iv;
+      if (!iv) {
+        if (typeof sn !== 'number') {
+          // We are fetching decryption data for a initialization segment
+          // If the segment was encrypted with AES-128/256
+          // It must have an IV defined. We cannot substitute the Segment Number in.
+          logger.warn(`missing IV for initialization segment with method="${this.method}" - compliance issue`);
 
-        // Explicitly set sn to resulting value from implicit conversions 'initSegment' values for IV generation.
-        sn = 0;
+          // Explicitly set sn to resulting value from implicit conversions 'initSegment' values for IV generation.
+          sn = 0;
+        }
+        iv = createInitializationVector(sn);
       }
-      const iv = createInitializationVector(sn);
       const decryptdata = new LevelKey(this.method, this.uri, 'identity', this.keyFormatVersions, iv);
       return decryptdata;
     }
@@ -7024,7 +7130,15 @@ class LevelKey {
           // the playlist-key before the "encrypted" event. (Comment out to only use "encrypted" path.)
           this.pssh = keyBytes;
           // In case of Widevine, if KEYID is not in the playlist, assume only two fields in the pssh KEY tag URI.
-          if (!this.keyId && keyBytes.length >= 22) {
+          if (!this.keyId) {
+            const results = parseMultiPssh(keyBytes.buffer);
+            if (results.length) {
+              var _psshData$kids;
+              const psshData = results[0];
+              this.keyId = (_psshData$kids = psshData.kids) != null && _psshData$kids.length ? psshData.kids[0] : null;
+            }
+          }
+          if (!this.keyId) {
             const offset = keyBytes.length - 22;
             this.keyId = keyBytes.subarray(offset, offset + 16);
           }
@@ -7061,7 +7175,7 @@ class LevelKey {
         keyId = new Uint8Array(16);
         const dv = new DataView(keyId.buffer, 12, 4); // Just set the last 4 bytes
         dv.setUint32(0, val);
-        keyUriToKeyIdMap[this.uri] = keyId;
+        LevelKey.setKeyIdForUri(this.uri, keyId);
       }
       this.keyId = keyId;
     }
@@ -7118,6 +7232,10 @@ class M3U8Parser {
     };
     const levelsWithKnownCodecs = [];
     MASTER_PLAYLIST_REGEX.lastIndex = 0;
+    if (!string.startsWith('#EXTM3U')) {
+      parsed.playlistParsingError = new Error('no EXTM3U delimiter');
+      return parsed;
+    }
     let result;
     while ((result = MASTER_PLAYLIST_REGEX.exec(string)) != null) {
       if (result[1]) {
@@ -7529,7 +7647,7 @@ class M3U8Parser {
                   levelkeys[levelKey.keyFormat] = levelKey;
                 }
               } else {
-                logger.warn(`[Keys] Ignoring invalid EXT-X-KEY tag: "${value1}"`);
+                logger.warn(`[Keys] Ignoring unsupported EXT-X-KEY tag: "${value1}"${'' }`);
               }
               break;
             }
@@ -7637,7 +7755,7 @@ class M3U8Parser {
       }
     }
     if (!level.targetduration) {
-      level.playlistParsingError = new Error(`#EXT-X-TARGETDURATION is required`);
+      level.playlistParsingError = new Error(`Missing Target Duration`);
     }
     const fragmentLength = fragments.length;
     const firstFragment = fragments[0];
@@ -8908,7 +9026,7 @@ class BaseStreamController extends TaskLoop {
     const tracks = initSegment.tracks;
     if (tracks && !frag.encrypted && ((_tracks$audio = tracks.audio) != null && _tracks$audio.encrypted || (_tracks$video = tracks.video) != null && _tracks$video.encrypted) && (!this.config.emeEnabled || !this.keyLoader.emeController)) {
       const media = this.media;
-      const error = new Error(`Encrypted track with no key in ${this.fragInfo(frag)} (media ${media ? 'attached mediaKeys: ' + media.mediaKeys : 'detached'})`);
+      const error = new Error(`Encrypted track with no key in ${this.fragInfo(frag)} (media ${media ? 'attached mediaKeys: ' + media.mediaKeys : 'detached'})` );
       this.warn(error.message);
       // Ignore if media is detached or mediaKeys are set
       if (!media || media.mediaKeys) {
@@ -9129,6 +9247,7 @@ class BaseStreamController extends TaskLoop {
         this.handleFragLoadAborted(data.frag, data.part);
       } else if (data.frag && data.type === ErrorTypes.KEY_SYSTEM_ERROR) {
         data.frag.abortRequests();
+        this.resetStartWhenNotLoaded();
         this.resetFragmentLoading(data.frag);
       } else {
         this.hls.trigger(Events.ERROR, data);
@@ -9743,7 +9862,7 @@ class BaseStreamController extends TaskLoop {
     const retry = couldRetry && action === NetworkErrorAction.RetryRequest;
     const noAlternate = couldRetry && !errorAction.resolved && flags === ErrorActionFlags.MoveAllAlternatesMatchingHost;
     const live = (_this$hls$latestLevel = this.hls.latestLevelDetails) == null ? void 0 : _this$hls$latestLevel.live;
-    if (!retry && noAlternate && isMediaFragment(frag) && !frag.endList && live) {
+    if (!retry && noAlternate && isMediaFragment(frag) && !frag.endList && live && !isUnusableKeyError(data)) {
       this.resetFragmentErrors(filterType);
       this.treatAsGap(frag);
       errorAction.resolved = true;
@@ -10381,7 +10500,7 @@ function requireEventemitter3 () {
 var eventemitter3Exports = requireEventemitter3();
 var EventEmitter = /*@__PURE__*/getDefaultExportFromCjs(eventemitter3Exports);
 
-const version = "1.6.11";
+const version = "1.6.12";
 
 // ensure the worker ends up in the bundle
 // If the worker should not be included this gets aliased to empty.js
@@ -18686,6 +18805,7 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
     this.operationQueue = new BufferOperationQueue(this.tracks);
   }
   onBufferCodecs(event, data) {
+    var _data$audio;
     const tracks = this.tracks;
     const trackNames = Object.keys(data);
     this.log(`BUFFER_CODECS: "${trackNames}" (current SB count ${this.sourceBufferCount})`);
@@ -18750,6 +18870,11 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
     // if sourcebuffers already created, do nothing ...
     if (this.sourceBufferCount) {
       return;
+    }
+    if (this.bufferCodecEventsTotal > 1 && !this.tracks.video && !data.video && ((_data$audio = data.audio) == null ? void 0 : _data$audio.id) === 'main') {
+      // MVP is missing CODECS and only audio was found in main segment (#7524)
+      this.log(`Main audio-only`);
+      this.bufferCodecEventsTotal = 1;
     }
     if (this.mediaSourceOpenOrEnded) {
       this.checkPendingTracks();
@@ -18992,6 +19117,7 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
         this.hls.trigger(Events.ERROR, event);
       }
     };
+    this.log(`queuing "${type}" append sn: ${sn}${part ? ' p: ' + part.index : ''} of ${frag.type === PlaylistLevelType.MAIN ? 'level' : 'track'} ${frag.level} cc: ${cc}`);
     this.append(operation, type, this.isPending(this.tracks[type]));
   }
   getFlushOp(type, start, end) {
@@ -22125,7 +22251,7 @@ class EMEController extends Logger {
             continue;
           }
           const oldKeyIdHex = arrayToHex(decryptdata.keyId);
-          if (keyIdHex === oldKeyIdHex || decryptdata.uri.replace(/-/g, '').indexOf(keyIdHex) !== -1) {
+          if (arrayValuesMatch(keyId, decryptdata.keyId) || decryptdata.uri.replace(/-/g, '').indexOf(keyIdHex) !== -1) {
             keySessionContextPromise = keyIdToKeySessionPromise[oldKeyIdHex];
             if (!keySessionContextPromise) {
               continue;
@@ -22302,7 +22428,7 @@ class EMEController extends Logger {
     keySystem,
     mediaKeys
   }) {
-    this.log(`Creating key-system session "${keySystem}" keyId: ${arrayToHex(decryptdata.keyId || [])}`);
+    this.log(`Creating key-system session "${keySystem}" keyId: ${arrayToHex(decryptdata.keyId || [])} keyUri: ${decryptdata.uri}`);
     const mediaKeysSession = mediaKeys.createSession();
     const mediaKeySessionContext = {
       decryptdata,
@@ -22318,7 +22444,7 @@ class EMEController extends Logger {
     const decryptdata = mediaKeySessionContext.decryptdata;
     if (decryptdata.pssh) {
       const keySessionContext = this.createMediaKeySessionContext(mediaKeySessionContext);
-      const keyId = this.getKeyIdString(decryptdata);
+      const keyId = getKeyIdString(decryptdata);
       const scheme = 'cenc';
       this.keyIdToKeySessionPromise[keyId] = this.generateRequestWithPreferredKeySession(keySessionContext, scheme, decryptdata.pssh.buffer, 'expired');
     } else {
@@ -22326,15 +22452,6 @@ class EMEController extends Logger {
     }
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.removeSession(mediaKeySessionContext);
-  }
-  getKeyIdString(decryptdata) {
-    if (!decryptdata) {
-      throw new Error('Could not read keyId of undefined decryptdata');
-    }
-    if (decryptdata.keyId === null) {
-      throw new Error('keyId is null');
-    }
-    return arrayToHex(decryptdata.keyId);
   }
   updateKeySession(mediaKeySessionContext, data) {
     const keySession = mediaKeySessionContext.mediaKeysSession;
@@ -22387,12 +22504,24 @@ class EMEController extends Logger {
     const keySystemsToAttempt = keyFormats.map(keySystemFormatToKeySystemDomain).filter(value => !!value && keySystemsInConfig.indexOf(value) !== -1);
     return this.selectKeySystem(keySystemsToAttempt);
   }
+  getKeyStatus(decryptdata) {
+    const {
+      mediaKeySessions
+    } = this;
+    for (let i = 0; i < mediaKeySessions.length; i++) {
+      const status = getKeyStatus(decryptdata, mediaKeySessions[i]);
+      if (status) {
+        return status;
+      }
+    }
+    return undefined;
+  }
   loadKey(data) {
     const decryptdata = data.keyInfo.decryptdata;
-    const keyId = this.getKeyIdString(decryptdata);
+    const keyId = getKeyIdString(decryptdata);
     const badStatus = this.bannedKeyIds[keyId];
-    if (badStatus) {
-      const error = getKeyStatusError(badStatus, decryptdata);
+    if (badStatus || this.getKeyStatus(decryptdata) === 'internal-error') {
+      const error = getKeyStatusError(badStatus || 'internal-error', decryptdata);
       this.handleError(error, data.frag);
       return Promise.reject(error);
     }
@@ -22423,6 +22552,18 @@ class EMEController extends Logger {
       this.keyIdToKeySessionPromise[keyId] = keySessionContextPromise;
       return keySessionContextPromise;
     }
+
+    // Re-emit error for playlist key loading
+    keyContextPromise.catch(error => {
+      if (error instanceof EMEKeyError) {
+        const errorData = _objectSpread2({}, error.data);
+        if (this.getKeyStatus(decryptdata) === 'internal-error') {
+          errorData.decryptdata = decryptdata;
+        }
+        const clonedError = new EMEKeyError(errorData, error.message);
+        this.handleError(clonedError, data.frag);
+      }
+    });
     return keyContextPromise;
   }
   throwIfDestroyed(message = 'Invalid state') {
@@ -22434,13 +22575,15 @@ class EMEController extends Logger {
     if (!this.hls) {
       return;
     }
-    this.error(error.message);
     if (error instanceof EMEKeyError) {
       if (frag) {
         error.data.frag = frag;
       }
+      const levelKey = error.data.decryptdata;
+      this.error(`${error.message}${levelKey ? ` (${arrayToHex(levelKey.keyId || [])})` : ''}`);
       this.hls.trigger(Events.ERROR, error.data);
     } else {
+      this.error(error.message);
       this.hls.trigger(Events.ERROR, {
         type: ErrorTypes.KEY_SYSTEM_ERROR,
         details: ErrorDetails.KEY_SYSTEM_NO_KEYS,
@@ -22450,7 +22593,7 @@ class EMEController extends Logger {
     }
   }
   getKeySystemForKeyPromise(decryptdata) {
-    const keyId = this.getKeyIdString(decryptdata);
+    const keyId = getKeyIdString(decryptdata);
     const mediaKeySessionContext = this.keyIdToKeySessionPromise[keyId];
     if (!mediaKeySessionContext) {
       const keySystem = keySystemFormatToKeySystemDomain(decryptdata.keyFormat);
@@ -22520,8 +22663,9 @@ class EMEController extends Logger {
       this.log(`Skipping key-session request for "${reason}" (no initData)`);
       return Promise.resolve(context);
     }
-    const keyId = this.getKeyIdString(context.decryptdata);
-    this.log(`Generating key-session request for "${reason}": ${keyId} (init data type: ${initDataType} length: ${initData.byteLength})`);
+    const keyId = getKeyIdString(context.decryptdata);
+    const keyUri = context.decryptdata.uri;
+    this.log(`Generating key-session request for "${reason}" keyId: ${keyId} URI: ${keyUri} (init data type: ${initDataType} length: ${initData.byteLength})`);
     const licenseStatus = new EventEmitter();
     const onmessage = context._onmessage = event => {
       const keySession = context.mediaKeysSession;
@@ -22544,13 +22688,32 @@ class EMEController extends Logger {
         });
       } else if (messageType === 'license-release') {
         if (context.keySystem === KeySystems.FAIRPLAY) {
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          this.updateKeySession(context, strToUtf8array('acknowledged'));
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          this.removeSession(context);
+          this.updateKeySession(context, strToUtf8array('acknowledged')).then(() => this.removeSession(context)).catch(error => this.handleError(error));
         }
       } else {
         this.warn(`unhandled media key message type "${messageType}"`);
+      }
+    };
+    const handleKeyStatus = (keyStatus, context) => {
+      context.keyStatus = keyStatus;
+      let keyError;
+      if (keyStatus.startsWith('usable')) {
+        licenseStatus.emit('resolved');
+      } else if (keyStatus === 'internal-error' || keyStatus === 'output-restricted' || keyStatus === 'output-downscaled') {
+        keyError = getKeyStatusError(keyStatus, context.decryptdata);
+      } else if (keyStatus === 'expired') {
+        keyError = new Error(`key expired (keyId: ${keyId})`);
+      } else if (keyStatus === 'released') {
+        keyError = new Error(`key released`);
+      } else if (keyStatus === 'status-pending') ; else {
+        this.warn(`unhandled key status change "${keyStatus}" (keyId: ${keyId})`);
+      }
+      if (keyError) {
+        if (licenseStatus.eventNames().length) {
+          licenseStatus.emit('error', keyError);
+        } else {
+          this.handleError(keyError);
+        }
       }
     };
     const onkeystatuseschange = context._onkeystatuseschange = event => {
@@ -22559,37 +22722,58 @@ class EMEController extends Logger {
         licenseStatus.emit('error', new Error('invalid state'));
         return;
       }
-      const initialStatus = context.keyStatus;
-      this.onKeyStatusChange(context);
-      const status = context.keyStatus;
-      if (status !== initialStatus) {
-        licenseStatus.emit('keyStatus', status, context);
-        if (status === 'expired') {
-          this.log(`${context.keySystem} expired for key ${keyId}`);
-          this.renewKeySession(context);
-        }
+      const keyStatuses = this.getKeyStatuses(context);
+      const keyIds = Object.keys(keyStatuses);
+
+      // exit if all keys are status-pending
+      if (!keyIds.some(id => keyStatuses[id] !== 'status-pending')) {
+        return;
+      }
+
+      // renew when a key status for a levelKey comes back expired
+      if (keyStatuses[keyId] === 'expired') {
+        // renew when a key status comes back expired
+        this.log(`Expired key ${stringify(keyStatuses)} in key-session "${context.mediaKeysSession.sessionId}"`);
+        this.renewKeySession(context);
+        return;
+      }
+      let keyStatus = keyStatuses[keyId];
+      if (keyStatus) {
+        // handle status of current key
+        handleKeyStatus(keyStatus, context);
+      } else {
+        var _context$keyStatusTim;
+        // Timeout key-status
+        const timeout = 0;
+        context.keyStatusTimeouts || (context.keyStatusTimeouts = {});
+        (_context$keyStatusTim = context.keyStatusTimeouts)[keyId] || (_context$keyStatusTim[keyId] = self.setTimeout(() => {
+          if (!context.mediaKeysSession || !this.mediaKeys) {
+            return;
+          }
+
+          // Find key status in another session if missing (PlayReady #7519 no key-status "single-key" setup with shared key)
+          const sessionKeyStatus = this.getKeyStatus(context.decryptdata);
+          if (sessionKeyStatus && sessionKeyStatus !== 'status-pending') {
+            this.log(`No status for keyId ${keyId} in key-session "${context.mediaKeysSession.sessionId}". Using session key-status ${sessionKeyStatus} from other session.`);
+            return handleKeyStatus(sessionKeyStatus, context);
+          }
+
+          // Timeout key with internal-error
+          this.log(`key status for ${keyId} in key-session "${context.mediaKeysSession.sessionId}" timed out after ${timeout}ms`);
+          keyStatus = 'internal-error';
+          handleKeyStatus(keyStatus, context);
+        }, timeout));
+        this.log(`No status for keyId ${keyId} (${stringify(keyStatuses)}).`);
       }
     };
     addEventListener(context.mediaKeysSession, 'message', onmessage);
     addEventListener(context.mediaKeysSession, 'keystatuseschange', onkeystatuseschange);
     const keyUsablePromise = new Promise((resolve, reject) => {
       licenseStatus.on('error', reject);
-      licenseStatus.on('keyStatus', (keyStatus, {
-        decryptdata
-      }) => {
-        if (keyStatus.startsWith('usable')) {
-          resolve();
-        } else if (keyStatus === 'internal-error' || keyStatus === 'output-restricted') {
-          reject(getKeyStatusError(keyStatus, decryptdata));
-        } else if (keyStatus === 'expired') {
-          reject(new Error(`key expired while generating request (keyId: ${keyId})`));
-        } else {
-          this.warn(`unhandled key status change "${keyStatus}" (keyId: ${keyId})`);
-        }
-      });
+      licenseStatus.on('resolved', resolve);
     });
     return context.mediaKeysSession.generateRequest(initDataType, initData).then(() => {
-      this.log(`Request generated for key-session "${context.mediaKeysSession.sessionId}" keyId: ${keyId}`);
+      this.log(`Request generated for key-session "${context.mediaKeysSession.sessionId}" keyId: ${keyId} URI: ${keyUri}`);
     }).catch(error => {
       throw new EMEKeyError({
         type: ErrorTypes.KEY_SYSTEM_ERROR,
@@ -22600,16 +22784,16 @@ class EMEController extends Logger {
       }, `Error generating key-session request: ${error}`);
     }).then(() => keyUsablePromise).catch(error => {
       licenseStatus.removeAllListeners();
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      this.removeSession(context);
-      throw error;
+      return this.removeSession(context).then(() => {
+        throw error;
+      });
     }).then(() => {
       licenseStatus.removeAllListeners();
       return context;
     });
   }
-  onKeyStatusChange(mediaKeySessionContext) {
-    const sessionLevelKeyId = arrayToHex(new Uint8Array(mediaKeySessionContext.decryptdata.keyId || []));
+  getKeyStatuses(mediaKeySessionContext) {
+    const keyStatuses = {};
     mediaKeySessionContext.mediaKeysSession.keyStatuses.forEach((status, keyId) => {
       // keyStatuses.forEach is not standard API so the callback value looks weird on xboxone
       // xboxone callback(keyId, status) so we need to exchange them
@@ -22618,20 +22802,19 @@ class EMEController extends Logger {
         keyId = status;
         status = temp;
       }
-      const keyIdWithStatusChange = arrayToHex('buffer' in keyId ? new Uint8Array(keyId.buffer, keyId.byteOffset, keyId.byteLength) : new Uint8Array(keyId));
-
-      // Error immediately when encountering a key ID with this status again
+      const keyIdArray = 'buffer' in keyId ? new Uint8Array(keyId.buffer, keyId.byteOffset, keyId.byteLength) : new Uint8Array(keyId);
+      if (mediaKeySessionContext.keySystem === KeySystems.PLAYREADY && keyIdArray.length === 16) {
+        changeEndianness(keyIdArray);
+      }
+      const keyIdWithStatusChange = arrayToHex(keyIdArray);
+      // Add to banned keys to prevent playlist usage and license requests
       if (status === 'internal-error') {
         this.bannedKeyIds[keyIdWithStatusChange] = status;
       }
-
-      // Only acknowledge status changes for level-key ID
-      const matched = keyIdWithStatusChange === sessionLevelKeyId;
-      this.log(`${matched ? '' : 'un'}matched key status change "${status}" for keyStatuses keyId: ${keyIdWithStatusChange} session keyId: ${sessionLevelKeyId} uri: ${mediaKeySessionContext.decryptdata.uri}`);
-      if (matched) {
-        mediaKeySessionContext.keyStatus = status;
-      }
+      this.log(`key status change "${status}" for keyStatuses keyId: ${keyIdWithStatusChange} key-session "${mediaKeySessionContext.mediaKeysSession.sessionId}"`);
+      keyStatuses[keyIdWithStatusChange] = status;
     });
+    return keyStatuses;
   }
   fetchServerCertificate(keySystem) {
     const config = this.config;
@@ -22895,7 +23078,7 @@ class EMEController extends Logger {
 
     // Close all sessions and remove media keys from the video element.
     const keySessionCount = mediaKeysList.length;
-    EMEController.CDMCleanupPromise = Promise.all(mediaKeysList.map(mediaKeySessionContext => this.removeSession(mediaKeySessionContext)).concat(media == null || (_media$setMediaKeys = media.setMediaKeys(null)) == null ? void 0 : _media$setMediaKeys.catch(error => {
+    EMEController.CDMCleanupPromise = Promise.all(mediaKeysList.map(mediaKeySessionContext => this.removeSession(mediaKeySessionContext)).concat((media == null || (_media$setMediaKeys = media.setMediaKeys(null)) == null ? void 0 : _media$setMediaKeys.catch(error => {
       this.log(`Could not clear media keys: ${error}`);
       if (!this.hls) return;
       this.hls.trigger(Events.ERROR, {
@@ -22904,7 +23087,7 @@ class EMEController extends Logger {
         fatal: false,
         error: new Error(`Could not clear media keys: ${error}`)
       });
-    }))).catch(error => {
+    })) || Promise.resolve())).catch(error => {
       this.log(`Could not close sessions and clear media keys: ${error}`);
       if (!this.hls) return;
       this.hls.trigger(Events.ERROR, {
@@ -22965,6 +23148,12 @@ class EMEController extends Logger {
         this.mediaKeySessions.splice(index, 1);
       }
       const {
+        keyStatusTimeouts
+      } = mediaKeySessionContext;
+      if (keyStatusTimeouts) {
+        Object.keys(keyStatusTimeouts).forEach(keyId => self.clearTimeout(keyStatusTimeouts[keyId]));
+      }
+      const {
         drmSystemOptions
       } = this.config;
       const removePromise = isPersistentSessionType(drmSystemOptions) ? new Promise((resolve, reject) => {
@@ -22993,9 +23182,28 @@ class EMEController extends Logger {
         });
       });
     }
+    return Promise.resolve();
   }
 }
 EMEController.CDMCleanupPromise = void 0;
+function getKeyIdString(decryptdata) {
+  if (!decryptdata) {
+    throw new Error('Could not read keyId of undefined decryptdata');
+  }
+  if (decryptdata.keyId === null) {
+    throw new Error('keyId is null');
+  }
+  return arrayToHex(decryptdata.keyId);
+}
+function getKeyStatus(decryptdata, keyContext) {
+  if (decryptdata.keyId && keyContext.mediaKeysSession.keyStatuses.has(decryptdata.keyId)) {
+    return keyContext.mediaKeysSession.keyStatuses.get(decryptdata.keyId);
+  }
+  if (decryptdata.matches(keyContext.decryptdata)) {
+    return keyContext.keyStatus;
+  }
+  return undefined;
+}
 class EMEKeyError extends Error {
   constructor(data, message) {
     super(message);
@@ -26035,6 +26243,9 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
       return;
     }
     const main = this.hls.levels[data.level];
+    if (!main.details) {
+      return;
+    }
     const currentSelection = _objectSpread2(_objectSpread2({}, this.mediaSelection || this.altSelection), {}, {
       main
     });
@@ -32572,23 +32783,7 @@ class LevelController extends BasePlaylistController {
         height,
         unknownCodecs
       } = levelParsed;
-      let unknownUnsupportedCodecCount = unknownCodecs ? unknownCodecs.length : 0;
-      if (unknownCodecs) {
-        // Treat unknown codec as audio or video codec based on passing `isTypeSupported` check
-        // (allows for playback of any supported codec even if not indexed in utils/codecs)
-        for (let i = unknownUnsupportedCodecCount; i--;) {
-          const unknownCodec = unknownCodecs[i];
-          if (this.isAudioSupported(unknownCodec)) {
-            levelParsed.audioCodec = audioCodec = audioCodec ? `${audioCodec},${unknownCodec}` : unknownCodec;
-            unknownUnsupportedCodecCount--;
-            sampleEntryCodesISO.audio[audioCodec.substring(0, 4)] = 2;
-          } else if (this.isVideoSupported(unknownCodec)) {
-            levelParsed.videoCodec = videoCodec = videoCodec ? `${videoCodec},${unknownCodec}` : unknownCodec;
-            unknownUnsupportedCodecCount--;
-            sampleEntryCodesISO.video[videoCodec.substring(0, 4)] = 2;
-          }
-        }
-      }
+      const unknownUnsupportedCodecCount = (unknownCodecs == null ? void 0 : unknownCodecs.length) || 0;
       resolutionFound || (resolutionFound = !!(width && height));
       videoCodecFound || (videoCodecFound = !!videoCodec);
       audioCodecFound || (audioCodecFound = !!audioCodec);
@@ -32643,9 +32838,11 @@ class LevelController extends BasePlaylistController {
     return areCodecsMediaSourceSupported(codec, 'video', this.hls.config.preferManagedMediaSource);
   }
   filterAndSortMediaOptions(filteredLevels, data, resolutionFound, videoCodecFound, audioCodecFound) {
+    var _data$stats;
     let audioTracks = [];
     let subtitleTracks = [];
     let levels = filteredLevels;
+    const statsParsing = ((_data$stats = data.stats) == null ? void 0 : _data$stats.parsing) || {};
 
     // remove audio-only and invalid video-range levels if we also have levels with video codecs or RESOLUTION signalled
     if ((resolutionFound || videoCodecFound) && audioCodecFound) {
@@ -32679,6 +32876,7 @@ class LevelController extends BasePlaylistController {
           });
         }
       });
+      statsParsing.end = performance.now();
       return;
     }
     if (data.audioTracks) {
@@ -32776,6 +32974,7 @@ class LevelController extends BasePlaylistController {
       video: videoCodecFound,
       altAudio: altAudioEnabled && !audioOnly && audioTracks.some(t => !!t.url)
     };
+    statsParsing.end = performance.now();
     this.hls.trigger(Events.MANIFEST_PARSED, edata);
   }
   get levels() {
@@ -34503,7 +34702,7 @@ class KeyLoader extends Logger {
     }
     const decryptdata = frag.decryptdata;
     if (!decryptdata) {
-      const error = new Error(keySystemFormat ? `Expected frag.decryptdata to be defined after setting format ${keySystemFormat}` : 'Missing decryption data on fragment in onKeyLoading');
+      const error = new Error(keySystemFormat ? `Expected frag.decryptdata to be defined after setting format ${keySystemFormat}` : `Missing decryption data on fragment in onKeyLoading (emeEnabled with controller: ${this.emeController && this.config.emeEnabled})`);
       return Promise.reject(this.createKeyLoadError(frag, ErrorDetails.KEY_LOAD_ERROR, error));
     }
     const uri = decryptdata.uri;
@@ -34520,9 +34719,8 @@ class KeyLoader extends Logger {
       });
     }
     // Return key load promise once it has a mediakey session with an usable key status
-    if ((_keyInfo2 = keyInfo) != null && _keyInfo2.keyLoadPromise) {
-      var _keyInfo$mediaKeySess;
-      const keyStatus = (_keyInfo$mediaKeySess = keyInfo.mediaKeySessionContext) == null ? void 0 : _keyInfo$mediaKeySess.keyStatus;
+    if (this.emeController && (_keyInfo2 = keyInfo) != null && _keyInfo2.keyLoadPromise) {
+      const keyStatus = this.emeController.getKeyStatus(keyInfo.decryptdata);
       switch (keyStatus) {
         case 'usable':
         case 'usable-in-future':
@@ -34543,7 +34741,7 @@ class KeyLoader extends Logger {
     }
 
     // Load the key or return the loading promise
-    this.log(`Loading key ${arrayToHex(decryptdata.keyId || [])} from ${frag.type} ${frag.level}`);
+    this.log(`${this.keyIdToKeyInfo[id] ? 'Rel' : 'L'}oading${decryptdata.keyId ? ' keyId: ' + arrayToHex(decryptdata.keyId) : ''} URI: ${decryptdata.uri} from ${frag.type} ${frag.level}`);
     keyInfo = this.keyIdToKeyInfo[id] = {
       decryptdata,
       keyLoadPromise: null,
@@ -34580,7 +34778,7 @@ class KeyLoader extends Logger {
       })).catch(error => {
         // Remove promise for license renewal or retry
         keyInfo.keyLoadPromise = null;
-        if (error.data) {
+        if ('data' in error) {
           error.data.frag = frag;
         }
         throw error;
@@ -34616,10 +34814,9 @@ class KeyLoader extends Logger {
         onSuccess: (response, stats, context, networkDetails) => {
           const {
             frag,
-            keyInfo,
-            url: uri
+            keyInfo
           } = context;
-          const id = getKeyId(keyInfo.decryptdata) || uri;
+          const id = getKeyId(keyInfo.decryptdata);
           if (!frag.decryptdata || keyInfo !== this.keyIdToKeyInfo[id]) {
             return reject(this.createKeyLoadError(frag, ErrorDetails.KEY_LOAD_ERROR, new Error('after key load, decryptdata unset or changed'), networkDetails));
           }
@@ -34671,9 +34868,11 @@ class KeyLoader extends Logger {
   }
 }
 function getKeyId(decryptdata) {
-  const keyId = decryptdata.keyId;
-  if (keyId) {
-    return arrayToHex(keyId);
+  if (decryptdata.keyFormat !== KeySystemFormats.FAIRPLAY) {
+    const keyId = decryptdata.keyId;
+    if (keyId) {
+      return arrayToHex(keyId);
+    }
   }
   return decryptdata.uri;
 }
@@ -34930,12 +35129,6 @@ class PlaylistLoader {
         const loader = this.getInternalLoader(context);
         this.resetInternalLoader(context.type);
         const string = response.data;
-
-        // Validate if it is an M3U8 at all
-        if (string.indexOf('#EXTM3U') !== 0) {
-          this.handleManifestParsingError(response, context, new Error('no EXTM3U delimiter'), networkDetails || null, stats);
-          return;
-        }
         stats.parsing.start = performance.now();
         if (M3U8Parser.isMediaPlaylist(string) || context.type !== PlaylistContextType.MANIFEST) {
           this.handleTrackOrLevelPlaylist(response, stats, context, networkDetails || null, loader);
@@ -34977,6 +35170,7 @@ class PlaylistLoader {
     const url = getResponseUrl(response, context);
     const parsedResult = M3U8Parser.parseMasterPlaylist(string, url);
     if (parsedResult.playlistParsingError) {
+      stats.parsing.end = performance.now();
       this.handleManifestParsingError(response, context, parsedResult.playlistParsingError, networkDetails, stats);
       return;
     }
@@ -34989,6 +35183,35 @@ class PlaylistLoader {
       variableList
     } = parsedResult;
     this.variableList = variableList;
+
+    // Treat unknown codec as audio or video codec based on passing `isTypeSupported` check
+    // (allows for playback of any supported codec even if not indexed in utils/codecs)
+    levels.forEach(levelParsed => {
+      const {
+        unknownCodecs
+      } = levelParsed;
+      if (unknownCodecs) {
+        const {
+          preferManagedMediaSource
+        } = this.hls.config;
+        let {
+          audioCodec,
+          videoCodec
+        } = levelParsed;
+        for (let i = unknownCodecs.length; i--;) {
+          const unknownCodec = unknownCodecs[i];
+          if (areCodecsMediaSourceSupported(unknownCodec, 'audio', preferManagedMediaSource)) {
+            levelParsed.audioCodec = audioCodec = audioCodec ? `${audioCodec},${unknownCodec}` : unknownCodec;
+            sampleEntryCodesISO.audio[audioCodec.substring(0, 4)] = 2;
+            unknownCodecs.splice(i, 1);
+          } else if (areCodecsMediaSourceSupported(unknownCodec, 'video', preferManagedMediaSource)) {
+            levelParsed.videoCodec = videoCodec = videoCodec ? `${videoCodec},${unknownCodec}` : unknownCodec;
+            sampleEntryCodesISO.video[videoCodec.substring(0, 4)] = 2;
+            unknownCodecs.splice(i, 1);
+          }
+        }
+      }
+    });
     const {
       AUDIO: audioTracks = [],
       SUBTITLES: subtitles,
@@ -35152,34 +35375,14 @@ class PlaylistLoader {
     const {
       type,
       level,
+      levelOrTrack,
       id,
       groupId,
       deliveryDirectives
     } = context;
     const url = getResponseUrl(response, context);
     const parent = mapContextToLevelType(context);
-    const levelIndex = typeof context.level === 'number' && parent === PlaylistLevelType.MAIN ? level : undefined;
-    if (!levelDetails.fragments.length) {
-      const _error = levelDetails.playlistParsingError = new Error('No Segments found in Playlist');
-      hls.trigger(Events.ERROR, {
-        type: ErrorTypes.NETWORK_ERROR,
-        details: ErrorDetails.LEVEL_EMPTY_ERROR,
-        fatal: false,
-        url,
-        error: _error,
-        reason: _error.message,
-        response,
-        context,
-        level: levelIndex,
-        parent,
-        networkDetails,
-        stats
-      });
-      return;
-    }
-    if (!levelDetails.targetduration) {
-      levelDetails.playlistParsingError = new Error('Missing Target Duration');
-    }
+    let levelIndex = typeof context.level === 'number' && parent === PlaylistLevelType.MAIN ? level : undefined;
     const error = levelDetails.playlistParsingError;
     if (error) {
       this.hls.logger.warn(`${error} ${levelDetails.url}`);
@@ -35202,6 +35405,24 @@ class PlaylistLoader {
       }
       levelDetails.playlistParsingError = null;
     }
+    if (!levelDetails.fragments.length) {
+      const _error = levelDetails.playlistParsingError = new Error('No Segments found in Playlist');
+      hls.trigger(Events.ERROR, {
+        type: ErrorTypes.NETWORK_ERROR,
+        details: ErrorDetails.LEVEL_EMPTY_ERROR,
+        fatal: false,
+        url,
+        error: _error,
+        reason: _error.message,
+        response,
+        context,
+        level: levelIndex,
+        parent,
+        networkDetails,
+        stats
+      });
+      return;
+    }
     if (levelDetails.live && loader) {
       if (loader.getCacheAge) {
         levelDetails.ageHeader = loader.getCacheAge() || 0;
@@ -35213,9 +35434,23 @@ class PlaylistLoader {
     switch (type) {
       case PlaylistContextType.MANIFEST:
       case PlaylistContextType.LEVEL:
+        if (levelIndex) {
+          if (!levelOrTrack) {
+            // fall-through to hls.levels[0]
+            levelIndex = 0;
+          } else {
+            if (levelOrTrack !== hls.levels[levelIndex]) {
+              // correct levelIndex when lower levels were removed from hls.levels
+              const updatedIndex = hls.levels.indexOf(levelOrTrack);
+              if (updatedIndex > -1) {
+                levelIndex = updatedIndex;
+              }
+            }
+          }
+        }
         hls.trigger(Events.LEVEL_LOADED, {
           details: levelDetails,
-          levelInfo: context.levelOrTrack || hls.levels[0],
+          levelInfo: levelOrTrack || hls.levels[0],
           level: levelIndex || 0,
           id: id || 0,
           stats,
@@ -35227,7 +35462,7 @@ class PlaylistLoader {
       case PlaylistContextType.AUDIO_TRACK:
         hls.trigger(Events.AUDIO_TRACK_LOADED, {
           details: levelDetails,
-          track: context.levelOrTrack,
+          track: levelOrTrack,
           id: id || 0,
           groupId: groupId || '',
           stats,
@@ -35238,7 +35473,7 @@ class PlaylistLoader {
       case PlaylistContextType.SUBTITLE_TRACK:
         hls.trigger(Events.SUBTITLE_TRACK_LOADED, {
           details: levelDetails,
-          track: context.levelOrTrack,
+          track: levelOrTrack,
           id: id || 0,
           groupId: groupId || '',
           stats,
