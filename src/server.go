@@ -468,14 +468,13 @@ func getIp(req *http.Request) string {
 	if !behindProxy {
 		return req.RemoteAddr
 	}
-	ip := req.Header.Get("X-Real-Ip")
-	if ip == "" {
-		ip = req.Header.Get("X-Forwarded-For")
+	if ip := req.Header.Get("X-Real-Ip"); ip != "" {
+		return ip
 	}
-	if ip == "" {
-		return req.RemoteAddr
+	if ip := req.Header.Get("X-Forwarded-For"); ip != "" {
+		return ip
 	}
-	return ip
+	return req.RemoteAddr
 }
 
 func (server *Server) handleEndpointAuthorized(mux *http.ServeMux, endpoint string, endpointHandler func(w http.ResponseWriter, r *http.Request, userId uint64), method string) {

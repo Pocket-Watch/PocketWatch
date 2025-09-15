@@ -30,7 +30,7 @@ func (server *Server) apiUptime(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) apiLogin(w http.ResponseWriter, r *http.Request) {
-	LogInfo("Connection %s attempted to log in.", r.RemoteAddr)
+	LogInfo("Connection %s attempted to log in.", getIp(r))
 	io.WriteString(w, "This is unimplemented")
 }
 
@@ -883,7 +883,7 @@ func (server *Server) apiChatEdit(w http.ResponseWriter, r *http.Request, userId
 }
 
 func (server *Server) apiStreamStart(w http.ResponseWriter, r *http.Request, userId uint64) {
-	LogInfo("Connection %s started stream.", r.RemoteAddr)
+	LogInfo("Connection %s started stream.", getIp(r))
 
 	server.state.setupLock.Lock()
 	defer server.state.setupLock.Unlock()
@@ -935,7 +935,7 @@ func (server *Server) apiStreamUpload(w http.ResponseWriter, r *http.Request, us
 	server.state.mutex.Unlock()
 
 	if entryUserId != userId {
-		LogWarn("User ID mismatch on stream upload from %v", r.RemoteAddr)
+		LogWarn("User ID mismatch on stream upload from %v", getIp(r))
 		http.Error(w, "You're not the owner of this stream", http.StatusUnauthorized)
 		return
 	}
@@ -1014,7 +1014,7 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 	connectionCount := len(server.conns.slice)
 	server.conns.mutex.Unlock()
 
-	LogInfo("New connection id:%v established with user id:%v on %s. Current connection count: %d", conn.id, user.Id, r.RemoteAddr, connectionCount)
+	LogInfo("New connection id:%v established with user id:%v on %s. Current connection count: %d", conn.id, user.Id, getIp(r), connectionCount)
 
 	if went_online {
 		server.writeEventToAllConnections("userconnected", user.Id)
