@@ -973,6 +973,18 @@ class Internals {
         }
     }
 
+    endPlayback() {
+        this.bufferingTimeout.cancel();
+        hide(this.bufferingSvg);
+
+        if (this.options.showControlsOnPause) {
+            this.showPlayerUI();
+        }
+
+        this.svgs.playback.setHref(this.icons.replay);
+        this.firePlaybackEnd();
+    }
+
     async setVideoTrack(url) {
         if (URL.canParse && !URL.canParse(url, document.baseURI)) {
             console.warn("Failed to set a new URL. It's not parsable.");
@@ -1510,18 +1522,16 @@ class Internals {
             }
 
             this.updateTimestamps(timestamp);
+
+            // HACK: Fix for broken HLS "ended" event...
+            let duration = this.htmlVideo.duration;
+            if (this.isPlayingHls && !this.isLive && duration === timestamp) {
+                this.endPlayback();
+            }
         });
 
         this.htmlVideo.addEventListener("ended", _ => {
-            this.bufferingTimeout.cancel();
-            hide(this.bufferingSvg);
-
-            if (this.options.showControlsOnPause) {
-                this.showPlayerUI();
-            }
-
-            this.svgs.playback.setHref(this.icons.replay);
-            this.firePlaybackEnd();
+            this.endPlayback();
         });
 
         this.htmlVideo.addEventListener("play", _ => {
