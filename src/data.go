@@ -16,7 +16,7 @@ const KB = 1024
 const MB = 1024 * KB
 const GB = 1024 * MB
 
-const LIMITER_HITS = 80
+const LIMITER_HITS = 800
 const LIMITER_PER_SECOND = 5
 const RETRY = 5000 // Retry time in milliseconds
 const TOKEN_LENGTH = 32
