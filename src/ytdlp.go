@@ -248,6 +248,7 @@ type YoutubeVideo struct {
 	Thumbnail   string `json:"thumbnail"`
 	OriginalUrl string `json:"original_url"`
 	SourceUrl   string `json:"manifest_url"`
+	AvailableAt int64  `json:"available_at"`
 }
 
 type YoutubeContent struct {
@@ -268,6 +269,20 @@ type YoutubePlaylistVideo struct {
 
 type YoutubePlaylist struct {
 	Entries []YoutubePlaylistVideo `json:"entries"`
+}
+
+func waitForAvailibility(availableAtUnix int64) {
+	availableAt := time.Unix(availableAtUnix, 0)
+	currentTime := time.Now()
+
+	if availableAt.Before(currentTime) {
+		return
+	}
+
+	waitTime := availableAt.Sub(currentTime)
+
+	LogInfo("Waiting for YouTube source to become available in %vs", waitTime.Seconds())
+	time.Sleep(waitTime)
 }
 
 func (server *Server) preloadYoutubeSourceOnNextEntry() {
@@ -293,6 +308,8 @@ func (server *Server) preloadYoutubeSourceOnNextEntry() {
 	if !ok {
 		return
 	}
+
+	waitForAvailibility(video.AvailableAt)
 
 	server.state.mutex.Lock()
 	defer server.state.mutex.Unlock()
@@ -406,8 +423,7 @@ func fetchVideoWithYtdlp(query string) (bool, YoutubeVideo) {
 	args := []string{
 		query, "--playlist-items", "1",
 		"--extractor-args", "youtube:player_client=web_safari",
-		// "--format", "(bv*[vcodec~='^((he|a)vc|h26[45])']+ba)",
-		"--print", "%(.{id,title,thumbnail,original_url,manifest_url})j",
+		"--print", "%(.{id,title,thumbnail,original_url,manifest_url,available_at})j",
 	}
 
 	command := exec.Command("yt-dlp", args...)
@@ -526,6 +542,8 @@ func loadYoutubeEntry(entry *Entry, requested RequestEntry) error {
 	if !ok {
 		return fmt.Errorf("Failed to fetch youtube video")
 	}
+
+	waitForAvailibility(video.AvailableAt)
 
 	entry.Url = video.OriginalUrl
 	entry.Title = video.Title

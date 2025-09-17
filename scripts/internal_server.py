@@ -4,12 +4,13 @@ import json
 import http.server
 
 class YoutubeVideo:
-    def __init__(self, id: str, title: str, thumbnail: str, original_url: str, manifest_url: str):
+    def __init__(self, id: str, title: str, thumbnail: str, original_url: str, manifest_url: str, available_at: int):
         self.id           = id
         self.title        = title
         self.thumbnail    = thumbnail
         self.original_url = original_url
         self.manifest_url = manifest_url
+        self.available_at = available_at
 
 class YoutubePlaylistVideo:
     def __init__(self, url: str, title: str, thumbnails: list):
@@ -88,8 +89,9 @@ def get_youtube_video(query: str):
     thumbnail    = entry["thumbnail"]
     original_url = entry["original_url"]
     manifest_url = entry["manifest_url"]
+    available_at = entry["available_at"]
 
-    return YoutubeVideo(id, title, thumbnail, original_url, manifest_url)
+    return YoutubeVideo(id, title, thumbnail, original_url, manifest_url, available_at)
 
 class TwitchStream:
     def __init__(self, id: str, title: str, thumbnail: str, original_url: str, url: str):
