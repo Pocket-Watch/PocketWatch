@@ -229,6 +229,18 @@ class Chat {
                 this.processMessageSendIntent();
             } else if (event.key === "Escape") {
                 this.chatInput.blur();
+            } else if (event.key === "ArrowUp") {
+                let min = Math.min(this.messages.length, 100);
+
+                for (let i = this.messages.length - 1; i >= this.messages.length - min; i--) {
+                    const message = this.messages[i];
+                    if (message.user_id === this.currentUserId) {
+                        const html = this.htmlMessages[i];
+                        this.chatInput.scrollTo(html);
+                        this.startMessageEdit(message, html);
+                        break;
+                    }
+                }
             }
         };
 
