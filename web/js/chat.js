@@ -569,6 +569,8 @@ class Chat {
         this.editingMessage     = null;
         this.editingHtmlMessage = null;
         this.editingInput       = null;
+
+        this.chatInput.focus();
     }
 
     edit(messageId, messageContent) {
