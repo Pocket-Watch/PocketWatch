@@ -421,6 +421,10 @@ export async function historyDelete(entryId) {
     return await httpPost("history/delete", entryId);
 }
 
+export async function historyPlaylistAdd(entryId) {
+    return await httpPost("history/playlistadd", entryId);
+}
+
 export async function chatSend(messageContent) {
     return await httpPost("chat/send", messageContent);
 }

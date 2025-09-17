@@ -71,7 +71,7 @@ class History {
         this.contextMenuExpand.onclick      = _ => console.warn("TODO");
         this.contextMenuCopyUrl.onclick     = _ => navigator.clipboard.writeText(this.contextMenuEntry.url);
         this.contextMenuCopyEntry.onclick   = _ => this.onContextEntryCopy(this.contextMenuEntry);
-        this.contextMenuAddPlaylist.onclick = _ => api.wsPlaylistAdd(createRequestEntry(this.contextMenuEntry));
+        this.contextMenuAddPlaylist.onclick = _ => api.historyPlaylistAdd(this.contextMenuEntry.id);
         this.contextMenuDelete.onclick      = _ => api.historyDelete(this.contextMenuEntry.id);
     }
 

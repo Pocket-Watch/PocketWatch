@@ -860,6 +860,17 @@ func (server *Server) apiHistoryDelete(w http.ResponseWriter, r *http.Request, u
 	server.state.mutex.Unlock()
 }
 
+func (server *Server) apiHistoryPlaylistAdd(w http.ResponseWriter, r *http.Request, userId uint64) {
+	var entryId uint64
+	if !server.readJsonDataFromRequest(w, r, &entryId) {
+		return
+	}
+
+	if err := server.historyPlaylistAdd(entryId); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+	}
+}
+
 func (server *Server) apiChatSend(w http.ResponseWriter, r *http.Request, userId uint64) {
 	var messageContent string
 	if !server.readJsonDataFromRequest(w, r, &messageContent) {

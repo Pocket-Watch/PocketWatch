@@ -371,6 +371,7 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	server.handleEndpointAuthorized(mux, "/api/history/clear", server.apiHistoryClear, "POST")
 	server.handleEndpointAuthorized(mux, "/api/history/play", server.apiHistoryPlay, "POST")
 	server.handleEndpointAuthorized(mux, "/api/history/delete", server.apiHistoryDelete, "POST")
+	server.handleEndpointAuthorized(mux, "/api/history/playlistadd", server.apiHistoryPlaylistAdd, "POST")
 
 	server.handleEndpointAuthorized(mux, "/api/chat/send", server.apiChatSend, "POST")
 	server.handleEndpointAuthorized(mux, "/api/chat/edit", server.apiChatEdit, "POST")
@@ -1961,6 +1962,25 @@ func (server *Server) playerUpdateTitle(title string, userId uint64) error {
 	DatabaseCurrentEntryUpdateTitle(server.db, title)
 	server.writeEventToAllConnections("playerupdatetitle", title)
 
+	return nil
+}
+
+// NOTE(kihau): 
+//     This could become a more generalized "cloneEntry" function that takes source (history, playlist, currentEntry)
+//     and clones entry with a given ID to a provided destination (history, playlist).
+func (server *Server) historyPlaylistAdd(entryId uint64) error {
+	server.state.mutex.Lock()
+	defer server.state.mutex.Unlock()
+
+	index := FindEntryIndex(server.state.history, entryId)
+	if index == -1 {
+		return fmt.Errorf("Failed to clone histoey element. Entry with ID %v is not in the history.", entryId)
+	}
+
+	oldEntry := server.state.history[index];
+	newEntry := server.constructEntry(oldEntry)
+
+	server.playlistAddOne(newEntry, false)
 	return nil
 }
 
