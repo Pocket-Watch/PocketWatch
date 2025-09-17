@@ -4,7 +4,7 @@ const MAX_TITLE_LENGTH = 200;
 
 class Player {
     constructor(videoElement, options) {
-        if (!videoElement || videoElement.tagName.toLowerCase() !== "video") {
+        if (!videoElement || videoElement.tagName.toLowerCase() !== "video" && videoElement.tagName.toLowerCase() !== "audio") {
             throw new Error("An invalid video element was passed!");
         }
 
@@ -409,6 +409,7 @@ class Internals {
 
         // Div container where either the player or the placeholder resides.
         this.htmlPlayerRoot     = newDiv("player_container");
+        this.htmlPoster         = newImg("player_poster")
         this.htmlVideo          = videoElement;
         this.htmlTitleContainer = newDiv("player_title_container");
         this.htmlTitleText      = newElement("span", "player_title_text");
@@ -515,6 +516,7 @@ class Internals {
         let videoParent = this.htmlVideo.parentNode;
         videoParent.insertBefore(this.htmlPlayerRoot, this.htmlVideo);
 
+        this.htmlPlayerRoot.appendChild(this.htmlPoster);
         this.htmlPlayerRoot.appendChild(this.htmlVideo);
         this.htmlPlayerRoot.appendChild(this.htmlTitleContainer); {
             this.htmlTitleContainer.appendChild(this.htmlTitleText);
@@ -914,9 +916,9 @@ class Internals {
 
     setPoster(url) {
         if (url) {
-            this.htmlVideo.poster = url;
+            this.htmlPoster.src = url;
         } else {
-            this.htmlVideo.poster = "";
+            this.htmlPoster.src = "";
         }
     }
 
@@ -2163,6 +2165,7 @@ class Internals {
         let brightness      = new Slider("Brightness", 0.2, 2, 0.05, 1.0);
         let fitToScreen     = this.fitToScreen;
         let stretchToScreen = this.stretchToScreen;
+        let disableVideo    = new Switcher("Disable video");
 
         let selectedTab  = generalTab;
         let selectedView = generalView;
@@ -2170,6 +2173,11 @@ class Internals {
         hide(menuRoot);
         alwaysShow.setState(this.options.alwaysShowControls);
         showOnPause.setState(this.options.showControlsOnPause);
+        disableVideo.setState(this.options.disableVideo);
+
+        if (this.options.disableVideo) {
+            this.htmlVideo.classList.add("disable");
+        }
 
         generalTab.textContent    = "General";
         appearanceTab.textContent = "Appearance";
@@ -2241,6 +2249,20 @@ class Internals {
             }
         };
 
+        disableVideo.onAction = state => {
+            this.options.disableVideo = state;
+            this.fireSettingsChange(Options.VIDEO_DISABLED, state);
+
+            // NOTE(kihau): 
+            //     Instead, an <audio/> could be used to replace the htmlVideo element which in return would reduce the CPU load.
+            //     This, however, would not reduce the bandwidth used. That is something that the server needs to handle instead.
+            if (state) {
+                this.htmlVideo.classList.add("disable");
+            } else {
+                this.htmlVideo.classList.remove("disable");
+            }
+        };
+
         menuRoot.append(menuTabs); {
             menuTabs.append(generalTab);
             menuTabs.append(appearanceTab);
@@ -2257,6 +2279,7 @@ class Internals {
                 appearanceView.append(showOnPause.root);
                 appearanceView.append(fitToScreen.root);
                 appearanceView.append(stretchToScreen.root);
+                appearanceView.append(disableVideo.root);
             }
         }
     }
@@ -2729,6 +2752,19 @@ function newDiv(id, className) {
     return div;
 }
 
+function newImg(id, src) {
+    let img = document.createElement("img");
+    if (id) {
+        img.id = id;
+    }
+
+    if (src) {
+        img.src = src;
+    }
+
+    return img;
+}
+
 function newLabel(labelText) {
     let label = document.createElement("label");
     label.textContent = labelText;
@@ -2934,6 +2970,8 @@ class Options {
             subtitleTrackController: null,
             subtitleStreamController: null,
         }
+
+        this.disableVideo = false;
     }
 
     // Ensure values are the intended type and within some reasonable range
@@ -2966,6 +3004,7 @@ class Options {
     static SHOW_CONTROLS_ON_PAUSE      = "show_controls_on_pause";
     static BRIGHTNESS                  = "brightness";
     static VIDEO_FIT                   = "video_fit";
+    static VIDEO_DISABLED              = "video_disabled";
     static PLAYBACK_SPEED              = "playback_speed";
     static SUBTITLES_ENABLED           = "subtitles_enabled";
     static SUBTITLE_FONT_SIZE          = "subtitle_font_size";

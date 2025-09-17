@@ -54,9 +54,27 @@
     -webkit-user-select: none;
 }
 
-#player_container video {
+#player_container img {
+    left: 0;
+    top: 0;
     width: 100%;
     height: 100%;
+    object-fit: cover;
+    position: absolute;
+}
+
+#player_container video {
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+}
+
+#player_container video.disable {
+    width: 0;
+    height: 0;
 }
 
 #player_container video.fit {

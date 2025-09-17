@@ -239,6 +239,11 @@ class Room {
         if (enabled) {
             options.hlsConfig.debug = enabled;
         }
+
+        let disabled = Storage.getBool(Options.VIDEO_DISABLED);
+        if (disabled) {
+            options.disableVideo = disabled;
+        }
     }
 
     applyUserPreferences() {
@@ -383,6 +388,7 @@ class Room {
                 case Options.SHOW_CONTROLS_ON_PAUSE:
                 case Options.ALWAYS_SHOW_CONTROLS:
                 case Options.SUBTITLES_ENABLED:
+                case Options.VIDEO_DISABLED:
                     Storage.setBool(key, value);
                     break;
 
