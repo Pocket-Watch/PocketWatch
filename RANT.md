@@ -70,3 +70,8 @@ programmatically resumed (for example, by calling [play()](https://developer.moz
  - [getDay()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/getDay) doesn't return the day number but a 0-indexed week day
  - [getDate()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/getDate) doesn't return the date but the day number (1-31)
  - there's no **unfocus()** method, instead there's [blur()](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/blur)
+
+## FFmpeg 
+The most commonly used utility for video/audio transcoding does not pass a `Host` header in HTTP requests,
+even if one is explicitly provided under the `-headers` flag. 
+Due to this issue a proxy might fail to route the request to the correct server.
