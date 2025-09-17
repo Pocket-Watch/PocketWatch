@@ -1525,7 +1525,7 @@ class Internals {
 
             // HACK: Fix for broken HLS "ended" event...
             let duration = this.htmlVideo.duration;
-            if (this.isPlayingHls && !this.isLive && duration === timestamp) {
+            if (this.playingHls && !this.isLive && timestamp >= (duration - 0.2)) {
                 this.endPlayback();
             }
         });
