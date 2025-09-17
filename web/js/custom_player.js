@@ -916,9 +916,10 @@ class Internals {
 
     setPoster(url) {
         if (url) {
+            this.htmlPoster.style.display = "block";
             this.htmlPoster.src = url;
         } else {
-            this.htmlPoster.src = "";
+            hide(this.htmlPoster)
         }
     }
 

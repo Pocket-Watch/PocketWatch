@@ -61,6 +61,7 @@
     height: 100%;
     object-fit: cover;
     position: absolute;
+    display: none;
 }
 
 #player_container video {
