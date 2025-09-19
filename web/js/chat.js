@@ -495,7 +495,7 @@ class Chat {
         let sendSvg    = svg("svg/main_icons.svg#send");
 
         let html = {
-            root: root,
+            root:  root,
             input: inputBox,
         };
 
@@ -538,7 +538,12 @@ class Chat {
 
         clearContent(htmlMessage.text);
         htmlMessage.text.appendChild(editHtml.root);
+
         editHtml.input.focus();
+        setTimeout(_ => {
+            let length = editHtml.input.value.length;
+            editHtml.input.setSelectionRange(length, length)
+        }, 0);
 
         this.editingMessage     = message;
         this.editingHtmlMessage = htmlMessage;
