@@ -534,22 +534,17 @@ class Chat {
             }
         }
 
-       
         let editHtml = this.createEditInputBox(message.content);
         let inputBox = editHtml.input;
         
         clearContent(htmlMessage.text);
         htmlMessage.text.appendChild(editHtml.root);
 
-        let beforeFocus = performance.now();
         inputBox.focus();
-        setTimeout(_ => {
-            let length = inputBox.value.length;
-            inputBox.setSelectionRange(length, length);
-            let afterSet = performance.now();
-            let range0 = window.getSelection().getRangeAt(0);
-            console.debug("Time taken:", (afterSet - beforeFocus) + "ms", "range:", range0);
-        }, 16);
+        // HACK: 
+        //     Input box won't set the cursor position immediately after it is appended to DOM (because web reasons),
+        //     so we need to wait an [[[arbitrary]]] amount of time, for it become interactive.
+        setTimeout(_ => inputBox.setSelectionRange(inputBox.value.length, inputBox.value.length), 16);
 
         this.editingMessage     = message;
         this.editingHtmlMessage = htmlMessage;
