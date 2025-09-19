@@ -534,15 +534,21 @@ class Chat {
             }
         }
 
+       
         let editHtml = this.createEditInputBox(message.content);
-
+        let inputBox = editHtml.input;
+        
         clearContent(htmlMessage.text);
         htmlMessage.text.appendChild(editHtml.root);
 
-        editHtml.input.focus();
+        let beforeFocus = performance.now();
+        inputBox.focus();
         setTimeout(_ => {
-            let length = editHtml.input.value.length;
-            editHtml.input.setSelectionRange(length, length)
+            let length = inputBox.value.length;
+            inputBox.setSelectionRange(length, length);
+            let afterSet = performance.now();
+            let range0 = window.getSelection().getRangeAt(0);
+            console.debug("Time taken:", (afterSet - beforeFocus) + "ms", "range:", range0);
         }, 0);
 
         this.editingMessage     = message;
