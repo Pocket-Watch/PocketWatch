@@ -761,7 +761,7 @@ func (server *Server) apiChatGet(w http.ResponseWriter, r *http.Request, userId 
 	availableCount := len(server.state.messages) - backwardOffset
 
 	// NOTE(kihau): Messages loaded from DB are never stored in-memory and because of that, they are read-only to the user.
-	if availableCount < int(data.Count) {
+	if availableCount < int(data.Count) && server.db != nil {
 		server.state.mutex.Unlock()
 		messages, _ := DatabaseMessageGet(server.db, int(data.Count), int(data.BackwardOffset))
 
