@@ -433,25 +433,51 @@ func testGetResponse(url string, referer string) (bool, *bytes.Buffer) {
 	return success, buffer
 }
 
-func downloadFile(url string, filename string, referer string, hasty bool) error {
-	request, _ := http.NewRequest("GET", url, nil)
+type DownloadOptions struct {
+	referer   string
+	hasty     bool
+	bodyLimit int64
+	method    string
+	writer    http.ResponseWriter
+}
+
+var defaultDownloadOptions = DownloadOptions{
+	bodyLimit: 32 * GB,
+	method:    "GET",
+}
+
+func downloadFile(url string, path string, options *DownloadOptions) error {
+	if options == nil {
+		options = &defaultDownloadOptions
+	}
+	if options.bodyLimit == 0 {
+		options.bodyLimit = defaultDownloadOptions.bodyLimit
+	}
+
+	request, _ := http.NewRequest(options.method, url, nil)
 	request.Header.Set("User-Agent", userAgent)
-	if referer != "" {
-		request.Header.Set("Referer", referer)
-		request.Header.Set("Origin", inferOrigin(referer))
+	if options.referer != "" {
+		request.Header.Set("Referer", options.referer)
+		request.Header.Set("Origin", inferOrigin(options.referer))
 	}
 
 	client := defaultClient
-	if hasty {
+	if options.hasty {
 		client = hastyClient
 	}
 	response, err := client.Do(request)
-
 	if err != nil {
 		return err
 	}
+	defer response.Body.Close()
+
+	if response.ContentLength > options.bodyLimit {
+		return fmt.Errorf("file is too large")
+	}
+	limitedBody := io.LimitReader(response.Body, options.bodyLimit)
+
 	if response.StatusCode != 200 && response.StatusCode != 206 {
-		errBody, err := io.ReadAll(response.Body)
+		errBody, err := io.ReadAll(limitedBody)
 		var bodyError = ""
 		if err == nil {
 			bodyError = string(errBody)
@@ -461,20 +487,19 @@ func downloadFile(url string, filename string, referer string, hasty bool) error
 			Message: "Failed to download file. " + bodyError,
 		}
 	}
-	defer response.Body.Close()
 
-	out, err := os.Create(filename)
+	out, err := os.Create(path)
 	if err != nil {
 		return err
 	}
 	defer out.Close()
 
-	if !fileExists(filename) {
-		LogError("Sanity check failed for %v", filename)
+	if !fileExists(path) {
+		LogError("File created but doesn't exist at %v", path)
 		return err
 	}
 
-	_, err = io.Copy(out, response.Body)
+	_, err = io.Copy(out, limitedBody)
 	if err != nil {
 		return err
 	}

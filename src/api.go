@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -530,49 +531,23 @@ func (server *Server) apiSubtitleDownload(w http.ResponseWriter, r *http.Request
 	serverUrl := data.Url
 
 	if url.IsAbs() {
-		request, err := http.NewRequest("GET", data.Url, nil)
-		if err != nil {
-			respondBadRequest(w, "Error creating request: %v", err)
-			return
+		downloadOptions := DownloadOptions{
+			hasty:     true,
+			referer:   data.Referer,
+			bodyLimit: SUBTITLE_SIZE_LIMIT,
 		}
-		if data.Referer != "" {
-			request.Header.Set("Referer", data.Referer)
-		}
-
-		response, err := hastyClient.Do(request)
-		if err != nil {
-			respondBadRequest(w, "Failed to download subtitle for url %v; %v", data.Url, err)
-			return
-		}
-		defer response.Body.Close()
-
-		if response.StatusCode != http.StatusOK {
-			respondBadRequest(w, "Failed to download subtitle for url %v; %v", data.Url, response.StatusCode)
-			return
-		}
-
-		response.Body = http.MaxBytesReader(w, response.Body, SUBTITLE_SIZE_LIMIT)
-		if response.ContentLength > SUBTITLE_SIZE_LIMIT {
-			http.Error(w, "Subtitle file is too large", http.StatusRequestEntityTooLarge)
-			return
-		}
-
-		outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
-		outputPath := path.Join("web", "subs", outputName)
-		serverUrl = path.Join("subs", outputName)
 		os.MkdirAll("web/subs/", 0750)
-
-		outputFile, err := os.Create(outputPath)
+		outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
+		serverUrl = path.Join("subs", outputName)
+		outputPath := path.Join("web", "subs", outputName)
+		err = downloadFile(data.Url, outputPath, &downloadOptions)
 		if err != nil {
-			respondInternalError(w, "Failed to created file for the subtitle file '%v': %v", data.Url, err)
-			return
-		}
-		defer outputFile.Close()
-
-		_, err = io.Copy(outputFile, response.Body)
-		if err != nil {
-			respondInternalError(w, "Failed to save downloaded subtitle %v: %v", data.Url, err)
-			return
+			var downloadErr *DownloadError
+			if errors.As(err, &downloadErr) {
+				respondBadRequest(w, "Failed to download subtitle from '%v', status %v", data.Url, downloadErr.Code)
+			} else {
+				respondBadRequest(w, "Failed to download subtitle from '%v', due to %v", data.Url, err)
+			}
 		}
 	}
 

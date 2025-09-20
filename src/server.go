@@ -1165,7 +1165,7 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 
 func setupMapUri(segment *Segment, referer, fileName string) error {
 	if segment.mapUri != "" {
-		err := downloadFile(segment.mapUri, WEB_PROXY+fileName, referer, true)
+		err := downloadFile(segment.mapUri, WEB_PROXY+fileName, &DownloadOptions{referer: referer, hasty: true})
 		if err != nil {
 			LogWarn("Failed to obtain map uri key: %v", err.Error())
 			return err
@@ -1421,7 +1421,12 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 		return
 	}
 
-	fetchErr := downloadFile(fetchedChunk.realUrl, WEB_PROXY+chunk, proxy.referer, false)
+	options := &DownloadOptions{
+		referer:   proxy.referer,
+		hasty:     false,
+		bodyLimit: MAX_CHUNK_SIZE,
+	}
+	fetchErr := downloadFile(fetchedChunk.realUrl, WEB_PROXY+chunk, options)
 	if fetchErr != nil {
 		mutex.Unlock()
 		LogError("Failed to fetch live chunk %v", fetchErr)
@@ -1466,7 +1471,12 @@ func fetchOrServeMediaInitSection(writer http.ResponseWriter, request *http.Requ
 		http.ServeFile(writer, request, initKeyPath)
 		return
 	}
-	fetchErr := downloadFile(liveSegment.realMapUri, initKeyPath, referer, true)
+	options := &DownloadOptions{
+		referer:   referer,
+		hasty:     true,
+		bodyLimit: MAX_CHUNK_SIZE,
+	}
+	fetchErr := downloadFile(liveSegment.realMapUri, initKeyPath, options)
 	if fetchErr != nil {
 		mutex.Unlock()
 		LogError("Failed to fetch media init section %v", fetchErr)
@@ -1587,7 +1597,12 @@ func serveHlsChunk(writer http.ResponseWriter, request *http.Request, proxy *Hls
 	}
 
 	destinationUrl := proxy.originalChunks[chunkId]
-	fetchErr := downloadFile(destinationUrl, WEB_PROXY+chunk, proxy.referer, false)
+	options := &DownloadOptions{
+		referer:   proxy.referer,
+		hasty:     false,
+		bodyLimit: MAX_CHUNK_SIZE,
+	}
+	fetchErr := downloadFile(destinationUrl, WEB_PROXY+chunk, options)
 	if fetchErr != nil {
 		mutex.Unlock()
 		if chunkLogsite.atMostEvery(time.Second) {
@@ -1965,9 +1980,10 @@ func (server *Server) playerUpdateTitle(title string, userId uint64) error {
 	return nil
 }
 
-// NOTE(kihau): 
-//     This could become a more generalized "cloneEntry" function that takes source (history, playlist, currentEntry)
-//     and clones entry with a given ID to a provided destination (history, playlist).
+// NOTE(kihau):
+//
+//	This could become a more generalized "cloneEntry" function that takes source (history, playlist, currentEntry)
+//	and clones entry with a given ID to a provided destination (history, playlist).
 func (server *Server) historyPlaylistAdd(entryId uint64) error {
 	server.state.mutex.Lock()
 	defer server.state.mutex.Unlock()
@@ -1977,7 +1993,7 @@ func (server *Server) historyPlaylistAdd(entryId uint64) error {
 		return fmt.Errorf("Failed to clone histoey element. Entry with ID %v is not in the history.", entryId)
 	}
 
-	oldEntry := server.state.history[index];
+	oldEntry := server.state.history[index]
 	newEntry := server.constructEntry(oldEntry)
 
 	server.playlistAddOne(newEntry, false)

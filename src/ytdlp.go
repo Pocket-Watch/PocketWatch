@@ -271,7 +271,7 @@ type YoutubePlaylist struct {
 	Entries []YoutubePlaylistVideo `json:"entries"`
 }
 
-func waitForAvailibility(availableAtUnix int64) {
+func waitForAvailability(availableAtUnix int64) {
 	availableAt := time.Unix(availableAtUnix, 0)
 	currentTime := time.Now()
 
@@ -309,7 +309,7 @@ func (server *Server) preloadYoutubeSourceOnNextEntry() {
 		return
 	}
 
-	waitForAvailibility(video.AvailableAt)
+	waitForAvailability(video.AvailableAt)
 
 	server.state.mutex.Lock()
 	defer server.state.mutex.Unlock()
@@ -543,7 +543,7 @@ func loadYoutubeEntry(entry *Entry, requested RequestEntry) error {
 		return fmt.Errorf("Failed to fetch youtube video")
 	}
 
-	waitForAvailibility(video.AvailableAt)
+	waitForAvailability(video.AvailableAt)
 
 	entry.Url = video.OriginalUrl
 	entry.Title = video.Title
