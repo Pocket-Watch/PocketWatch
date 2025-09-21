@@ -444,3 +444,71 @@ func TestWithSpaceOnly(t *testing.T) {
 		t.Errorf("%v should be a valid string", input)
 	}
 }
+
+func TestIpV4Range_Contains_OnInvalidIp(t *testing.T) {
+	start := "152.61.11.10"
+	end := "152.61.11.20"
+	ipRange := newIpV4Range(start, end)
+	if ipRange == nil {
+		t.Errorf("%v -> %v range should be valid", start, end)
+		return
+	}
+	if ipRange.Contains("121.21") {
+		t.Errorf("%v -> %v range shouldn't contain invalid IP", start, end)
+		return
+	}
+}
+
+func TestIpV4Range_Contains_IpInRange(t *testing.T) {
+	start := "252.61.11.10"
+	end := "252.61.11.20"
+	ipRange := newIpV4Range(start, end)
+	if ipRange == nil {
+		t.Errorf("%v -> %v range should be valid", start, end)
+		return
+	}
+	ip := "252.61.11.15"
+	if !ipRange.Contains(ip) {
+		t.Errorf("%v -> %v range should contain %v", start, end, ip)
+		return
+	}
+}
+
+func TestIpV4Range_Contains_IpInRangeEdgeCaseStart(t *testing.T) {
+	ipRange := newIpV4Range("252.61.11.10", "252.61.11.20")
+	if !ipRange.Contains("252.61.11.10") {
+		t.Errorf("should contain ip")
+		return
+	}
+}
+
+func TestIpV4Range_Contains_IpInRangeEdgeCaseEnd(t *testing.T) {
+	ipRange := newIpV4Range("252.61.11.10", "252.61.11.20")
+	if !ipRange.Contains("252.61.11.20") {
+		t.Errorf("should contain ip")
+		return
+	}
+}
+
+func TestIpV4Range_Contains_IpBarelyOutsideRange(t *testing.T) {
+	ipRange := newIpV4Range("252.61.11.10", "252.61.11.20")
+	if ipRange.Contains("252.61.11.21") {
+		t.Errorf("should not contain ip")
+		return
+	}
+}
+
+func TestIpV4Range_Contains_IpOutsideRange(t *testing.T) {
+	start := "100.61.11.10"
+	end := "152.61.11.20"
+	ipRange := newIpV4Range(start, end)
+	if ipRange == nil {
+		t.Errorf("%v -> %v range should be valid", start, end)
+		return
+	}
+	ip := "99.2.2.2"
+	if ipRange.Contains(ip) {
+		t.Errorf("%v -> %v range shouldn't contain %v", start, end, ip)
+		return
+	}
+}

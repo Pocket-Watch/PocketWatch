@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"math/rand"
+	"net"
 	"net/http"
 	net_url "net/url"
 	"os"
@@ -187,8 +188,8 @@ func GeneratePrettyTableAsciiExtended(headers []string, data []string) string {
 	for row := 0; row < rowCount; row += 1 {
 		for column := 0; column < columnCount; column += 1 {
 			value := data[row*columnCount+column]
-			string := fmt.Sprintf("│ %*s ", paddings[column], value)
-			table.WriteString(string)
+			format := fmt.Sprintf("│ %*s ", paddings[column], value)
+			table.WriteString(format)
 		}
 
 		table.WriteString("│\n")
@@ -808,7 +809,7 @@ func generateRandomNickname() string {
 		"Viridian", "Wheat", "White", "Wisteria", "Yellow",
 	}
 
-	sufixes := []string{
+	suffixes := []string{
 		// Fruits
 		"Apple", "Apricot", "Avocado", "Banana", "Blackberry", "Blueberry", "Carambola", "Cherry", "Clementine",
 		"Cloudberry", "Coconut", "Cranberry", "Cucumber", "Currant", "Eggplant", "Grapes", "Grapefruit", "Jackfruit",
@@ -832,7 +833,7 @@ func generateRandomNickname() string {
 	}
 
 	prefix := prefixes[rand.Intn(len(prefixes))]
-	suffix := sufixes[rand.Intn(len(sufixes))]
+	suffix := suffixes[rand.Intn(len(suffixes))]
 
 	return prefix + " " + suffix
 }
@@ -1125,4 +1126,39 @@ func NewSet[T comparable](capacity int) *Set[T] {
 type Pair[T1 any, T2 any] struct {
 	_1 T1
 	_2 T2
+}
+
+// IpV4Range - start & end IPs are inclusive
+type IpV4Range struct {
+	start, end net.IP
+}
+
+func newIpV4Range(start, end string) *IpV4Range {
+	startIp := net.ParseIP(start).To4()
+	if startIp == nil {
+		return nil
+	}
+	endIp := net.ParseIP(end).To4()
+	if endIp == nil {
+		return nil
+	}
+	return &IpV4Range{startIp, endIp}
+}
+
+func (r *IpV4Range) Contains(ipv4Raw string) bool {
+	ip := net.ParseIP(ipv4Raw).To4()
+	if ip == nil {
+		return false
+	}
+	for i := 0; i < 4; i++ {
+		if r.start[i] > ip[i] {
+			return false
+		}
+	}
+	for i := 0; i < 4; i++ {
+		if r.end[i] < ip[i] {
+			return false
+		}
+	}
+	return true
 }

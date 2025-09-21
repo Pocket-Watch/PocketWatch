@@ -12,14 +12,15 @@ import (
 )
 
 type ServerConfig struct {
-	Address     string           `json:"address"`
-	Port        uint16           `json:"port"`
-	Domain      string           `json:"domain"`
-	EnableSsl   bool             `json:"enable_ssl"`
-	EnableSubs  bool             `json:"enable_subs"`
-	EnableShell bool             `json:"enable_shell"`
-	BehindProxy bool             `json:"behind_proxy"`
-	Redirects   []RedirectConfig `json:"redirects"`
+	Address             string           `json:"address"`
+	Port                uint16           `json:"port"`
+	Domain              string           `json:"domain"`
+	EnableSsl           bool             `json:"enable_ssl"`
+	EnableSubs          bool             `json:"enable_subs"`
+	EnableShell         bool             `json:"enable_shell"`
+	BehindProxy         bool             `json:"behind_proxy"`
+	Redirects           []RedirectConfig `json:"redirects"`
+	BlacklistedIpRanges [][]string       `json:"blacklisted_ip_ranges"`
 }
 
 type RedirectConfig struct {

@@ -275,13 +275,21 @@ func serveFavicon(w http.ResponseWriter, r *http.Request) {
 }
 
 type CacheHandler struct {
-	fsHandler    http.Handler
-	ipToLimiters map[string]*RateLimiter
-	mapMutex     *sync.Mutex
+	fsHandler           http.Handler
+	ipToLimiters        map[string]*RateLimiter
+	mapMutex            *sync.Mutex
+	BlacklistedIpRanges []IpV4Range
 }
 
 func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ip := strings.Split(getIp(r), ":")[0]
+	for _, blacklistedRange := range cache.BlacklistedIpRanges {
+		if blacklistedRange.Contains(ip) {
+			blackholeRequest(r)
+			http.Error(w, "¯\\_(ツ)_/¯", http.StatusTeapot)
+			return
+		}
+	}
 
 	cache.mapMutex.Lock()
 	rateLimiter, exists := cache.ipToLimiters[ip]
@@ -311,11 +319,17 @@ func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func registerEndpoints(server *Server) *http.ServeMux {
 	mux := http.NewServeMux()
-	server.registerRedirects(mux, server.config)
+	server.registerRedirects(mux)
+	ipv4Ranges := compileIpRanges(server.config.BlacklistedIpRanges)
 
-	fileserver := http.FileServer(http.Dir("./web"))
-	fsHandler := http.StripPrefix("/watch/", fileserver)
-	cacheableFs := CacheHandler{fsHandler, make(map[string]*RateLimiter), &sync.Mutex{}}
+	fileServer := http.FileServer(http.Dir("./web"))
+	fsHandler := http.StripPrefix("/watch/", fileServer)
+	cacheableFs := CacheHandler{
+		fsHandler:           fsHandler,
+		ipToLimiters:        make(map[string]*RateLimiter),
+		mapMutex:            &sync.Mutex{},
+		BlacklistedIpRanges: ipv4Ranges,
+	}
 	mux.Handle("/watch/", cacheableFs)
 
 	mux.HandleFunc("/", handleUnknownEndpoint)
@@ -392,7 +406,26 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	return mux
 }
 
-func (server *Server) registerRedirects(primaryMux *http.ServeMux, config ServerConfig) {
+func compileIpRanges(ranges [][]string) []IpV4Range {
+	v4Ranges := make([]IpV4Range, 0, len(ranges))
+	for i := 0; i < len(ranges); i++ {
+		twoIps := ranges[i]
+		if len(twoIps) != 2 {
+			LogError("An IPv4 range must contain exactly two IP addresses but %v were given", len(twoIps))
+			os.Exit(1)
+		}
+		ipv4Range := newIpV4Range(twoIps[0], twoIps[1])
+		if ipv4Range == nil {
+			LogWarn("Ignoring invalid IPv4 range %v -> %v", twoIps[0], twoIps[1])
+			continue
+		}
+		v4Ranges = append(v4Ranges, *ipv4Range)
+	}
+	return v4Ranges
+}
+
+func (server *Server) registerRedirects(primaryMux *http.ServeMux) {
+	config := server.config
 	redirects := config.Redirects
 
 	primaryPatterns := NewSet[string](len(redirects))
