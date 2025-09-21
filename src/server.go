@@ -278,12 +278,12 @@ type CacheHandler struct {
 	fsHandler           http.Handler
 	ipToLimiters        map[string]*RateLimiter
 	mapMutex            *sync.Mutex
-	BlacklistedIpRanges []IpV4Range
+	blacklistedIpRanges []IpV4Range
 }
 
 func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ip := strings.Split(getIp(r), ":")[0]
-	for _, blacklistedRange := range cache.BlacklistedIpRanges {
+	for _, blacklistedRange := range cache.blacklistedIpRanges {
 		if blacklistedRange.Contains(ip) {
 			blackholeRequest(r)
 			http.Error(w, "¯\\_(ツ)_/¯", http.StatusTeapot)
@@ -328,7 +328,7 @@ func registerEndpoints(server *Server) *http.ServeMux {
 		fsHandler:           fsHandler,
 		ipToLimiters:        make(map[string]*RateLimiter),
 		mapMutex:            &sync.Mutex{},
-		BlacklistedIpRanges: ipv4Ranges,
+		blacklistedIpRanges: ipv4Ranges,
 	}
 	mux.Handle("/watch/", cacheableFs)
 
@@ -421,6 +421,7 @@ func compileIpRanges(ranges [][]string) []IpV4Range {
 		}
 		v4Ranges = append(v4Ranges, *ipv4Range)
 	}
+	LogDebug("Compiled %v ipv4 range(s)", len(v4Ranges))
 	return v4Ranges
 }
 
