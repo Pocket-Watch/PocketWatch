@@ -1117,7 +1117,7 @@ func handleWsEvent[T any](event WebsocketEvent, userId uint64, handleEvent func(
 		return
 	}
 
-	LogInfo("Recieved WS %v event from userId:%v", eventName, userId)
+	LogInfo("Received WS %v event from userId:%v", eventName, userId)
 
 	err = handleEvent(data, userId)
 	if err != nil {
