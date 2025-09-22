@@ -1,7 +1,9 @@
 package main
 
 import (
+	"compress/gzip"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path"
@@ -96,8 +98,12 @@ type Logger struct {
 	logToConsole atomic.Bool
 	printColors  bool
 	logLevel     atomic.Uint32
-	saveToFile   bool
-	outputFile   *os.File
+
+	saveToFile       bool
+	fileLock         sync.Mutex
+	outputDir        string
+	outputFile       *os.File
+	lastCompressTime time.Time
 }
 
 func (*Logger) Write(p []byte) (n int, err error) {
@@ -129,7 +135,13 @@ func setupFileLogging(logDirectory string) bool {
 
 	logpath := path.Join(logDirectory, "latest.log")
 
-	file, err := os.OpenFile(logpath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	// NOTE(kihau): This is technically not correct, should instead be CreateTime, but there is not such function in Go.
+	lastModified := time.Now()
+	if info, err := os.Stat(logpath); err == nil {
+		lastModified = info.ModTime()
+	}
+
+	file, err := os.OpenFile(logpath, os.O_APPEND|os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
 		reason := err
 		if err := err.(*os.PathError); err != nil {
@@ -142,6 +154,9 @@ func setupFileLogging(logDirectory string) bool {
 
 	logger.outputFile = file
 	logger.saveToFile = true
+	logger.outputDir = logDirectory
+	logger.lastCompressTime = lastModified
+
 	return true
 }
 
@@ -169,6 +184,63 @@ func SetupGlobalLogger(config LoggingConfig) bool {
 	}
 
 	return true
+}
+
+func CompressCurrentLogFile() {
+	date := logger.lastCompressTime.Format("2006.01.02")
+	newName := fmt.Sprintf("%v.gz", date)
+	newPath := path.Join(logger.outputDir, newName)
+
+	destination, err := os.OpenFile(newPath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		fmt.Printf("[INTERNAL LOGGER ERROR] Failed to create new log archive file at %v: %v", newPath, err)
+		return
+	}
+
+	zipper := gzip.NewWriter(destination)
+
+	if _, err := logger.outputFile.Seek(0, 0); err != nil {
+		fmt.Printf("[INTERNAL LOGGER ERROR] Failed to seek to the beginning of the current log file: %v", err)
+		return
+	}
+
+	if _, err = io.Copy(zipper, logger.outputFile); err != nil {
+		fmt.Printf("[INTERNAL LOGGER ERROR] Failed to compress current log file: %v", err)
+		return
+	}
+
+	if err = zipper.Close(); err != nil {
+		fmt.Printf("[INTERNAL LOGGER ERROR] Failed to close archive file compression stream: %v", err)
+		return
+	}
+
+	if err = destination.Close(); err != nil {
+		fmt.Printf("[INTERNAL LOGGER ERROR] Failed to close new log archive file: %v", err)
+		return
+	}
+
+	if err := logger.outputFile.Truncate(0); err != nil {
+		fmt.Printf("[INTERNAL LOGGER ERROR] Failed truncate current log file: %v", err)
+		return
+	}
+}
+
+func LogToFile(message string) {
+	if !logger.saveToFile {
+		return
+	}
+
+	logger.fileLock.Lock()
+	defer logger.fileLock.Unlock()
+
+	now := time.Now()
+
+	if now.Month() != logger.lastCompressTime.Month() {
+		CompressCurrentLogFile()
+		logger.lastCompressTime = now
+	}
+
+	logger.outputFile.WriteString(message)
 }
 
 func SetLogLevel(level LogLevel) {
@@ -204,8 +276,8 @@ func printStackTrace(skip int) {
 
 	maxName += 1
 
-	var outputConsole strings.Builder
-	var outputFile strings.Builder
+	var outputForConsole strings.Builder
+	var outputForFile strings.Builder
 
 	for i := 0; i < count-1; i += 1 {
 		callerFunc := runtime.FuncForPC(callers[i])
@@ -221,20 +293,20 @@ func printStackTrace(skip int) {
 		if logger.printColors {
 			levelColor := LogLevelColor(LOG_FATAL)
 			text := fmt.Sprintf("%v[%v] %v[%-16s] %v[%v]%v   at %-*v %v:%v\n", COLOR_GREEN_LIGHT, date, COLOR_CYAN, codeLocation, levelColor, levelString, COLOR_RESET, maxName, funcname, filepath, line)
-			outputConsole.WriteString(text)
+			outputForConsole.WriteString(text)
 		} else {
 			text := fmt.Sprintf("[%v] [%-16s] [%v]   at %-*v %v:%v\n", date, codeLocation, levelString, maxName, funcname, filepath, line)
-			outputConsole.WriteString(text)
+			outputForConsole.WriteString(text)
 		}
 
 		if logger.saveToFile {
 			text := fmt.Sprintf("[%v] [%-16s] [%v]   at %-*v %v:%v\n", date, codeLocation, levelString, maxName, funcname, filepath, line)
-			outputFile.WriteString(text)
+			outputForFile.WriteString(text)
 		}
 	}
 
-	fmt.Print(outputConsole.String())
-	logger.outputFile.WriteString(outputFile.String())
+	fmt.Print(outputForConsole.String())
+	LogToFile(outputForFile.String())
 }
 
 func LogFatal(format string, args ...any) {
@@ -305,7 +377,7 @@ func logOutput(logLevel LogLevel, stackUp int, format string, args ...any) {
 
 	if logger.saveToFile {
 		text := fmt.Sprintf("[%v] [%-16s] [%v] %v\n", date, codeLocation, levelString, message)
-		logger.outputFile.WriteString(text)
+		LogToFile(text)
 	}
 
 	if !logger.logToConsole.Load() {

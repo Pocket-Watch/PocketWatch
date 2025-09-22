@@ -67,7 +67,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "ERROR: %v\n", errorMessage)
 			os.Exit(1)
 		}
-	} 
+	}
 
 	// Flags have priority over config and overwrite its values.
 	ApplyInputFlags(&config, flags)
