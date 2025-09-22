@@ -771,6 +771,7 @@
     padding-bottom: 8px;
 }
 
+#player_settings_menu_appearance_view,
 #player_settings_menu_general_view {
     row-gap: 8px;
     display: flex;
