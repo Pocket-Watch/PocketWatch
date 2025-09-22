@@ -916,8 +916,13 @@ class Internals {
 
     setPoster(url) {
         if (url) {
-            this.htmlPoster.style.display = "block";
+            this.htmlVideo.poster = url;
             this.htmlPoster.src = url;
+
+            if (this.htmlVideo.classList.contains("disable")) {
+                this.htmlPoster.style.display = "block";
+            }
+
         } else {
             hide(this.htmlPoster)
         }
@@ -2178,6 +2183,9 @@ class Internals {
 
         if (this.options.disableVideo) {
             this.htmlVideo.classList.add("disable");
+            this.htmlPoster.style.display = "block";
+        } else {
+            hide(this.htmlPoster);
         }
 
         generalTab.textContent    = "General";
@@ -2259,8 +2267,10 @@ class Internals {
             //     This, however, would not reduce the bandwidth used. That is something that the server needs to handle instead.
             if (state) {
                 this.htmlVideo.classList.add("disable");
+                this.htmlPoster.style.display = "block";
             } else {
                 this.htmlVideo.classList.remove("disable");
+                hide(this.htmlPoster);
             }
         };
 
