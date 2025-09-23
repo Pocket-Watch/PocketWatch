@@ -92,7 +92,6 @@ const (
 	COLOR_GREEN_DARK  = "\x1b[0;92m"
 )
 
-// TODO(kihau): Store last log date to split latest.log by days/weeks/months?, archive and compress old logs.
 type Logger struct {
 	enabled      bool
 	logToConsole atomic.Bool
@@ -186,7 +185,7 @@ func SetupGlobalLogger(config LoggingConfig) bool {
 	return true
 }
 
-func CompressCurrentLogFile() {
+func archiveCurrentLogs() {
 	date := logger.lastCompressTime.Format("2006.01.02")
 	newName := fmt.Sprintf("%v.gz", date)
 	newPath := path.Join(logger.outputDir, newName)
@@ -236,7 +235,7 @@ func LogToFile(message string) {
 	now := time.Now()
 
 	if now.Month() != logger.lastCompressTime.Month() {
-		CompressCurrentLogFile()
+		archiveCurrentLogs()
 		logger.lastCompressTime = now
 	}
 

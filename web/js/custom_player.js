@@ -924,6 +924,7 @@ class Internals {
             }
 
         } else {
+            this.htmlVideo.poster = "";
             hide(this.htmlPoster)
         }
     }
