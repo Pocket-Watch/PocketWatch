@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net"
 	"runtime"
 	"slices"
 	"strings"
@@ -525,5 +526,23 @@ func TestIpV4Range_Contains_IpByFirstOctet(t *testing.T) {
 	if !ipRange.Contains(ip) {
 		t.Errorf("%v -> %v range must contain %v", start, end, ip)
 		return
+	}
+}
+
+func TestIpV4Range_Precedes_False(t *testing.T) {
+	start := net.ParseIP("12.255.0.0").To4()
+	end := net.ParseIP("12.11.1.1").To4()
+	precedes := Precedes(start, end)
+	if precedes {
+		t.Errorf("%v should not precede %v", start, end)
+	}
+}
+
+func TestIpV4Range_Precedes_TrueEdge(t *testing.T) {
+	start := net.ParseIP("12.1.1.1").To4()
+	end := net.ParseIP("12.1.1.1").To4()
+	precedes := Precedes(start, end)
+	if !precedes {
+		t.Errorf("%v should precede %v", start, end)
 	}
 }

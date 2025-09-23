@@ -1142,7 +1142,23 @@ func newIpV4Range(start, end string) *IpV4Range {
 	if endIp == nil {
 		return nil
 	}
-	return &IpV4Range{startIp, endIp}
+	if Precedes(startIp, endIp) {
+		return &IpV4Range{startIp, endIp}
+	} else {
+		return nil
+	}
+}
+
+func Precedes(start net.IP, end net.IP) bool {
+	for i := 0; i < 4; i++ {
+		if start[i] > end[i] {
+			return false
+		}
+		if start[i] < end[i] {
+			return true
+		}
+	}
+	return true
 }
 
 func (r *IpV4Range) Contains(ipv4Raw string) bool {

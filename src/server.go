@@ -423,7 +423,7 @@ func compileIpRanges(ranges [][]string) []IpV4Range {
 		}
 		v4Ranges = append(v4Ranges, *ipv4Range)
 	}
-	LogDebug("Compiled %v ipv4 range(s)", len(v4Ranges))
+	LogDebug("Compiled %v IPv4 range(s)", len(v4Ranges))
 	return v4Ranges
 }
 
