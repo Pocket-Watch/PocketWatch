@@ -283,8 +283,11 @@ type CacheHandler struct {
 
 func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ip := strings.Split(getIp(r), ":")[0]
+	resource := strings.TrimPrefix(r.RequestURI, "/watch")
+
 	for _, blacklistedRange := range cache.blacklistedIpRanges {
 		if blacklistedRange.Contains(ip) {
+			LogWarn("Blacklisted address %v attempted to access %v", ip, resource)
 			blackholeRequest(r)
 			http.Error(w, "¯\\_(ツ)_/¯", http.StatusTeapot)
 			return
@@ -308,7 +311,6 @@ func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		cache.mapMutex.Unlock()
 	}
 
-	resource := strings.TrimPrefix(r.RequestURI, "/watch")
 	LogDebug("Connection %s requested resource %v", getIp(r), resource)
 
 	// The no-cache directive does not prevent the storing of responses

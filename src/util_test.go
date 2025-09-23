@@ -512,3 +512,18 @@ func TestIpV4Range_Contains_IpOutsideRange(t *testing.T) {
 		return
 	}
 }
+
+func TestIpV4Range_Contains_IpByFirstOctet(t *testing.T) {
+	start := "0.0.0.0"
+	end := "200.0.0.0"
+	ipRange := newIpV4Range(start, end)
+	if ipRange == nil {
+		t.Errorf("%v -> %v range should be valid", start, end)
+		return
+	}
+	ip := "192.168.1.10"
+	if !ipRange.Contains(ip) {
+		t.Errorf("%v -> %v range must contain %v", start, end, ip)
+		return
+	}
+}

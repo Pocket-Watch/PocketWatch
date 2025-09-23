@@ -1154,10 +1154,16 @@ func (r *IpV4Range) Contains(ipv4Raw string) bool {
 		if r.start[i] > ip[i] {
 			return false
 		}
+		if r.start[i] < ip[i] {
+			break
+		}
 	}
 	for i := 0; i < 4; i++ {
 		if r.end[i] < ip[i] {
 			return false
+		}
+		if r.end[i] > ip[i] {
+			break
 		}
 	}
 	return true
