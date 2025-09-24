@@ -61,7 +61,7 @@ type TwitchStream struct {
 	StreamUrl   string `json:"url"`
 }
 
-func isTwitch(entry Entry) bool {
+func isTwitchEntry(entry Entry) bool {
 	if !YTDLP_ENABLED {
 		return false
 	}
@@ -152,16 +152,13 @@ func loadTwitchEntry(entry *Entry) error {
 	return nil
 }
 
-func isYoutube(entry Entry, requested RequestEntry) bool {
+func isYoutubeEntry(entry Entry, requested RequestEntry) bool {
 	if !YTDLP_ENABLED {
 		return false
 	}
 
+	// SearchVideo bool handles only YT searches
 	if !isYoutubeUrl(entry.Url) && !requested.SearchVideo {
-		return false
-	}
-
-	if !isYoutubeSourceExpired(entry.SourceUrl) {
 		return false
 	}
 
@@ -295,7 +292,7 @@ func (server *Server) preloadYoutubeSourceOnNextEntry() {
 	nextEntry := server.state.playlist[0]
 	server.state.mutex.Unlock()
 
-	if !isYoutubeUrl(nextEntry.Url) {
+	if !YTDLP_ENABLED || !isYoutubeUrl(nextEntry.Url) {
 		return
 	}
 
@@ -517,15 +514,8 @@ func fetchYoutubePlaylist(query string, start uint, end uint) (bool, YoutubePlay
 	return false, YoutubePlaylist{}
 }
 
+// loadYoutubeEntry can only be called after the entry was approved for further processing
 func loadYoutubeEntry(entry *Entry, requested RequestEntry) error {
-	if !YTDLP_ENABLED {
-		return nil
-	}
-
-	if !isYoutubeUrl(entry.Url) && !requested.SearchVideo {
-		return nil
-	}
-
 	if !isYoutubeSourceExpired(entry.SourceUrl) {
 		return nil
 	}

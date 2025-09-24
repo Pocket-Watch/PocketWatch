@@ -637,7 +637,7 @@ func (server *Server) setNewEntry(entry Entry, requested RequestEntry) {
 
 	entry = server.constructEntry(entry)
 
-	if isYoutube(entry, requested) {
+	if isYoutubeEntry(entry, requested) {
 		server.writeEventToAllConnections("playerwaiting", "Youtube video is loading. Please stand by!")
 
 		err := loadYoutubeEntry(&entry, requested)
@@ -658,7 +658,7 @@ func (server *Server) setNewEntry(entry Entry, requested RequestEntry) {
 				}
 			}()
 		}
-	} else if isTwitch(entry) {
+	} else if isTwitchEntry(entry) {
 		server.writeEventToAllConnections("playerwaiting", "Twitch stream is loading. Please stand by!")
 
 		err := loadTwitchEntry(&entry)
@@ -2056,13 +2056,13 @@ func (server *Server) playlistAdd(requested RequestEntry, userId uint64) error {
 		return nil
 	}
 
-	if isYoutube(entry, requested) {
+	if isYoutubeEntry(entry, requested) {
 		err := loadYoutubeEntry(&entry, requested)
 		if err != nil {
 			LogWarn("Failed to load entry in playlist add: %v", err)
 			return nil
 		}
-	} else if isTwitch(entry) {
+	} else if isTwitchEntry(entry) {
 		err := loadTwitchEntry(&entry)
 		if err != nil {
 			LogWarn("Failed to load entry in playlist add: %v", err)
