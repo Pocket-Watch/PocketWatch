@@ -1911,12 +1911,14 @@ func (server *Server) cleanupDummyUsers() []User {
 }
 
 func (server *Server) constructEntry(entry Entry) Entry {
+	// TODO Validate this before calling this function to be more clear about its intentions?
 	if entry.Url == "" {
 		return Entry{}
 	}
 
 	entry.Id = server.state.entryId.Add(1)
 	entry.Title = constructTitleWhenMissing(&entry)
+	// TODO Add SetAt and don't modify CreatedAt here
 	entry.Created = time.Now()
 
 	for i := range entry.Subtitles {

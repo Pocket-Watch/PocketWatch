@@ -519,6 +519,7 @@ func loadYoutubeEntry(entry *Entry, requested RequestEntry) error {
 	if !isYoutubeSourceExpired(entry.SourceUrl) {
 		return nil
 	}
+	LogInfo("Determined entry titled '%v' of source url %v is expired", entry.Title, entry.SourceUrl)
 
 	query := entry.Url
 	if requested.SearchVideo {
