@@ -69,6 +69,7 @@ programmatically resumed (for example, by calling [play()](https://developer.moz
 ## Other nonsense
  - [getDay()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/getDay) doesn't return the day number but a 0-indexed week day
  - [getDate()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/getDate) doesn't return the date but the day number (1-31)
+ - [getMonth()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/getMonth) is zero-indexed (???????)
  - there's no **unfocus()** method, instead there's [blur()](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/blur)
 
 ## FFmpeg 

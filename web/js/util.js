@@ -245,7 +245,8 @@ export function formatTime(seconds) {
 
 export function getDateStrings(date) {
     let Y = date.getFullYear().toString().padStart(4, "0");;
-    let M = date.getMonth().toString().padStart(2, "0");
+    // NOTE: vvvvvvvvvvvvvvvvvvv Months are ZERO INDEXED!!!!!! What a great language. Thank you W3.........
+    let M = (date.getMonth() + 1).toString().padStart(2, "0");
     let D = date.getDate().toString().padStart(2, "0");
 
     let h = date.getHours().toString().padStart(2, "0");
