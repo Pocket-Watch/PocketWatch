@@ -2304,9 +2304,10 @@ func (server *Server) historyAdd(entry Entry) {
 		DatabaseHistoryDelete(server.db, removed.Id)
 		server.writeEventToAllConnections("historydelete", removed.Id)
 
-		// Select newer subtitles from the new entry
-		removed.Subtitles = newEntry.Subtitles
-		newEntry = removed
+		// Preserve subtitles if new entry has none
+		if len(newEntry.Subtitles) == 0 && len(removed.Subtitles) > 0 {
+			newEntry.Subtitles = removed.Subtitles
+		}
 	}
 
 	server.state.history = append(server.state.history, newEntry)
