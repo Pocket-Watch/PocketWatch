@@ -940,7 +940,7 @@ func (server *Server) apiStreamUpload(w http.ResponseWriter, r *http.Request, us
 		respondBadRequest(w, "Path traversal attempted on %v", filename)
 		return
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, MAX_CHUNK_SIZE)
+	r.Body = http.MaxBytesReader(w, r.Body, MAX_STREAM_CHUNK_SIZE)
 
 	server.state.setupLock.Lock()
 	liveStream := &server.state.liveStream

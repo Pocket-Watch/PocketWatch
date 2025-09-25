@@ -2028,7 +2028,7 @@ func (server *Server) historyPlaylistAdd(entryId uint64) error {
 
 	index := FindEntryIndex(server.state.history, entryId)
 	if index == -1 {
-		return fmt.Errorf("Failed to clone histoey element. Entry with ID %v is not in the history.", entryId)
+		return fmt.Errorf("Failed to clone history element. Entry with ID %v is not in the history.", entryId)
 	}
 
 	oldEntry := server.state.history[index]
