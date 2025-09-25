@@ -364,47 +364,51 @@
                         </h2>
 
                         <div id="room_subtitle_select_root">
-                            <button id="room_subtitle_upload_button" class="widget_button">
+                            <button id="room_subtitle_upload_button" class="widget_button" title="Upload subtitle for everyone.">
                                 <svg><use href="svg/main_icons.svg#upload"/></svg>
                             </button>
 
                             <input type="file" id="room_subtitle_upload_input" accept=".srt,.vtt"/>
                             <select id="room_subtitle_select"></select>
 
-                            <button id="room_subtitle_delete_button" class="widget_button">
+                            <button id="room_subtitle_delete_button" class="widget_button" title="Delete selected subtitle.">
                                 <svg><use href="svg/main_icons.svg#delete"/></svg>
                             </button>
                         </div>
 
-                        <div id="room_subtitle_name" class="widget_input widget_input_extra_button"> 
-                            <input id="room_subtitle_name_input" placeholder="" title="Change selected subtitle name"/>
-                            <label for="room_subtitle_name_input">
-                                <svg><use href="svg/main_icons.svg#subtitles"/></svg>
-                                <span>Subtitle Name</span>
-                            </label>
-
-                            <button id="room_subtitle_update_button">
-                                <svg><use href="svg/main_icons.svg#edit2"/></svg>
+                        <div id="room_subtitle_name_root">
+                            <button id="room_set_shift_button" class="widget_button" title="Set shift for everyone.">
+                                <svg><use href="svg/main_icons.svg#arrow_up"/></svg>
                             </button>
-                        </div>
 
-                        <div id="room_set_shift"> 
-                            <span class="placeholder">Set shift for everyone:</span>
-                            <button id="room_set_shift_button" type="button">Set Shift</button>
+                            <div id="room_subtitle_name" class="widget_input widget_input_extra_button"> 
+                                <input id="room_subtitle_name_input" placeholder="" title="Change selected subtitle name."/>
+                                <label for="room_subtitle_name_input">
+                                    <svg><use href="svg/main_icons.svg#subtitles"/></svg>
+                                    <span>Subtitle Name</span>
+                                </label>
+
+                                <button id="room_subtitle_update_button" title="Update name for selected subtitle name.">
+                                    <svg><use href="svg/main_icons.svg#edit2"/></svg>
+                                </button>
+                            </div>
                         </div>
 
                         <h2 class="widget_separator">
                             <span>Extra Info</span>
                         </h2>
 
-                        <div id="room_created_by"> 
-                            <span class="placeholder">Created by:</span>
-                            <span id="room_created_by_username" class="placeholder"></span>
-                        </div>
+                        <div id="room_created_info">
+                            <div id="room_created_info_labels">
+                                <span id="room_created_by_label">Created by</span>
+                                <span id="room_created_at_label">Created at</span>
+                            </div>
 
-                        <div id="room_created_at">
-                            <span class="placeholder">Created at:</span>
-                            <span id="room_created_at_date" class="placeholder"></span>
+                            <div id="room_created_info_content">
+                                <img id="room_created_by_avatar"/>
+                                <span id="room_created_by_username"></span>
+                                <span id="room_created_at_date"></span>
+                            </div>
                         </div>
 
                         <div>
@@ -413,13 +417,11 @@
                         </div>
 
                         <h2 class="widget_separator">
-                            <span>Last Action</span>
-                            <!-- TOOD(kihau): <span>Recent Actions</span> -->
+                            <span>Recent Actions</span>
                         </h2>
 
-                        <div id="room_last_action"> 
-                            <span class="placeholder">Last action:</span>
-                            <span id="room_last_action_text" class="placeholder"></span>
+                        <div id="room_recent_actions_list"> 
+                            <!-- NOTE(kihau): Content of this list is dynamically generated in JavaScript -->
                         </div>
 
                         <div id="room_vertical_spacer"></div>

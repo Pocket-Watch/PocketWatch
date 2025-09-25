@@ -4,7 +4,10 @@ import { History } from "./history.js";
 import { Chat } from "./chat.js";
 import { sha256 } from "./auth.js";
 import * as api from "./api.js";
-import { Storage, button, div, formatTime, formatByteCount, getById, dynamicImg, svg, show, hide, fileInput, isLocalUrl, input } from "./util.js";
+import { 
+    Storage, button, div, formatTime, formatByteCount, getById, dynamicImg, img, svg, show, hide, 
+    fileInput, isLocalUrl, input, span, getDateStrings 
+} from "./util.js";
 
 const SERVER_ID = 0;
 
@@ -147,12 +150,15 @@ class Room {
             openSettingsButton: getById("room_open_settings_button"),
 
             usingProxyCheckbox: getById("room_entry_proxy_enabled"),
-            uploadFileProgress: getById("room_upload_file_progress"),
+
+            createdByAvatar:    getById("room_created_by_avatar"),
             createdByUsername:  getById("room_created_by_username"),
-            lastActionText:     getById("room_last_action_text"),
+            createdAtDate:      getById("room_created_at_date"),
+
+            recentActions:      getById("room_recent_actions_list"), 
+
             subtitlesSelect:    getById("room_subtitle_select"),
             videoResolution:    getById("room_video_resolution"),
-            createdAtDate:      getById("room_created_at_date"),
 
             upload: {
                 placeholderRoot: getById("room_upload_media_placeholder"),
@@ -1092,6 +1098,71 @@ class Room {
         return index === -1 ? userId : this.allUsers[index].username;
     }
 
+    findUser(userId) {
+        if (userId === SERVER_ID) {
+            const server = {
+                id: 0,
+                username: "Server",
+                avatar:   "img/default_avatar.png",
+                online:   false,
+            };
+
+            return server;
+        }
+
+        let user = this.allUsers.find(user => user.id === userId);
+
+        if (!user) {
+            const dummy = {
+                id: 0,
+                username: "Deleted user",
+                avatar:   "img/default_avatar.png",
+                online:   false,
+            };
+
+            user = dummy;
+        }
+
+        return user;
+    }
+
+    addRecentAction(userId, message) {
+        let user = this.findUser(userId);
+
+        let now = new Date();
+        let [Y, M, D, h, m] = getDateStrings(now);
+        let dateText = `${Y}.${M}.${D}, ${h}:${m}`;
+
+        let action   = div("room_recent_action");
+        let avatar   = img(user.avatar);
+        let username = span("room_recent_action_username", user.username);
+        let text     = span("room_recent_action_text", message);
+        let date     = span("room_recent_action_date", dateText);
+
+        action.appendChild(avatar);
+        action.appendChild(username);
+        action.appendChild(text);
+        action.appendChild(date);
+
+        let list = this.roomContent.recentActions;
+        list.appendChild(action);
+
+        if (list.children.length > 4) {
+            list.removeChild(list.firstElementChild);
+        }
+
+        let opacity = 1.0;
+
+        let child = list.lastChild;
+        while (child) {
+            child.style.opacity = opacity;
+            opacity -= 0.25;
+            child = child.previousElementSibling;
+        }
+
+        this.player.setToast(user.username + " " + message);
+    }
+
     async authenticateAccount() {
         let token = Storage.get("token");
         api.setToken(token);
@@ -1381,10 +1452,16 @@ class Room {
             this.roomContent.usingProxyCheckbox.classList.remove("active");
         }
 
-        this.roomContent.refererInput.value            = entry.referer_url;
-        this.roomContent.createdByUsername.textContent = this.getUsernameByUserId(entry.user_id);
-        // TODO(kihau): Nicer way to display the creation date.
-        this.roomContent.createdAtDate.textContent     = new Date(entry.created);
+        let user = this.findUser(entry.user_id);
+
+        this.roomContent.refererInput.value = entry.referer_url;
+
+        this.roomContent.createdByAvatar.src = user.avatar;
+        this.roomContent.createdByUsername.textContent = user.username;
+
+        let date = new Date(entry.created);
+        let [Y, M, D, h, m] = getDateStrings(date);
+        this.roomContent.createdAtDate.textContent = `${Y}.${M}.${D}, ${h}:${m}`;
 
         this.updateRoomSubtitlesHtml(entry);
     }
@@ -1714,13 +1791,11 @@ class Room {
 
                 let timestamp = data.timestamp;
                 let userId = data.user_id;
-                let username = this.getUsernameByUserId(userId);
 
                 switch (data.action) {
                     case "play": {
                         if (userId !== SERVER_ID) {
-                            this.player.setToast(username + " clicked play.");
-                            this.roomContent.lastActionText.textContent = username + " clicked play.";
+                            this.addRecentAction(userId, "clicked play.");
                         }
 
                         this.resyncPlayer(timestamp, userId);
@@ -1729,8 +1804,7 @@ class Room {
 
                     case "pause": {
                         if (userId !== SERVER_ID) {
-                            this.player.setToast(username + " clicked pause.");
-                            this.roomContent.lastActionText.textContent = username + " clicked pause.";
+                            this.addRecentAction(userId, "clicked pause.");
                         }
 
                         this.resyncPlayer(timestamp, userId);
@@ -1740,8 +1814,7 @@ class Room {
                     case "seek": {
                         if (userId !== SERVER_ID) {
                             let time = formatTime(timestamp);
-                            this.player.setToast(username + " seeked to " + time);
-                            this.roomContent.lastActionText.textContent = username + " seeked to " + time;
+                            this.addRecentAction(userId, "seeked to " + time);
                         }
 
                         if (!this.player.isLive()) {

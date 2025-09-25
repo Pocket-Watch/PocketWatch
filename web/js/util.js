@@ -1,5 +1,10 @@
 export function getById(id) {
-    return document.getElementById(id);
+    let element = document.getElementById(id);
+    if (!element) {
+        console.error("ERROR: The element is with id =", id, "is missing!");
+    }
+
+    return element;
 }
 
 export function show(element) {
@@ -236,6 +241,17 @@ export function formatTime(seconds) {
     time += (minutes < 10) ? "0" + minSuffix : minSuffix;
     time += (seconds < 10) ? "0" + seconds : seconds;
     return time;
+}
+
+export function getDateStrings(date) {
+    let Y = date.getFullYear().toString().padStart(4, "0");;
+    let M = date.getMonth().toString().padStart(2, "0");
+    let D = date.getDate().toString().padStart(2, "0");
+
+    let h = date.getHours().toString().padStart(2, "0");
+    let m = date.getMinutes().toString().padStart(2, "0");
+
+    return [Y, M, D, h, m];
 }
 
 export function isLocalUrl(url) {

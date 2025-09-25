@@ -314,17 +314,11 @@ class Chat {
             username.style.color = `hsl(${color} 70% 50%)`
         } 
 
-        let d = new Date(message.created_at);
-
-        let Y = d.getFullYear() % 100;
-        let M = d.getMonth().toString().padStart(2, "0");
-        let D = d.getDate().toString().padStart(2, "0");
-
-        let h = d.getHours().toString().padStart(2, "0");
-        let m = d.getMinutes().toString().padStart(2, "0");
+        let createdDate = new Date(message.created_at);
+        let [Y, M, D, h, m] = getDateStrings(createdDate);
 
         let now = new Date();
-        if (isSameDay(d, now)) {
+        if (isSameDay(createdDate, now)) {
             date.textContent = `${h}:${m}`;
         } else {
             date.textContent = `${Y}/${M}/${D}, ${h}:${m}`;

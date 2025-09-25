@@ -1,5 +1,7 @@
 export { Player, Options };
 
+// NOTE(kihau): Default blank placeholder image for the poster. We need it because empty string in <img> tag has a very broken styling.
+const DEFAULT_POSTER_IMAGE = "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=";
 const MAX_TITLE_LENGTH = 200;
 
 class Player {
@@ -409,7 +411,7 @@ class Internals {
 
         // Div container where either the player or the placeholder resides.
         this.htmlPlayerRoot     = newDiv("player_container");
-        this.htmlPoster         = newImg("player_poster")
+        this.htmlPoster         = newImg("player_poster", DEFAULT_POSTER_IMAGE);
         this.htmlVideo          = videoElement;
         this.htmlTitleContainer = newDiv("player_title_container");
         this.htmlTitleText      = newElement("span", "player_title_text");
@@ -917,7 +919,7 @@ class Internals {
     setPoster(url) {
         if (url) {
             this.htmlVideo.poster = url;
-            this.htmlPoster.src = url;
+            this.htmlPoster.src   = url;
 
             if (this.htmlVideo.classList.contains("disable")) {
                 this.htmlPoster.style.display = "block";
@@ -925,6 +927,7 @@ class Internals {
 
         } else {
             this.htmlVideo.poster = "";
+            this.htmlPoster.src   = "";
             hide(this.htmlPoster)
         }
     }
@@ -1775,6 +1778,11 @@ class Internals {
 
         this.htmlSeekForward.addEventListener("focusout",  event => this.regainPlayerFocus(event));
         this.htmlSeekBackward.addEventListener("focusout", event => this.regainPlayerFocus(event));
+
+        this.htmlPoster.onerror = _ => {
+            // NOTE(kihau): This loads a very simple placeholder image that results in fully black background.
+            this.htmlPoster.src = DEFAULT_POSTER_IMAGE;
+        };
     }
 
     attachPlayerEvents() {

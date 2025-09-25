@@ -874,6 +874,7 @@ html * {
     display: flex;
     flex-direction: column;
     overflow-y: auto;
+    scrollbar-color: var(--bg_5) var(--bg_2);
 }
 
 #room_entry_proxy {
@@ -1153,6 +1154,11 @@ html * {
     background-color: var(--orange_0);
 }
 
+#room_subtitle_name_root {
+    display: flex;
+    column-gap: 6px;
+}
+
 #room_entry_title,
 #room_entry_url,
 #room_entry_referer,
@@ -1165,6 +1171,7 @@ html * {
     display: none;
 }
 
+#room_set_shift_button,
 #room_subtitle_upload_button,
 #room_subtitle_delete_button {
     min-width: 38px;
@@ -1174,17 +1181,20 @@ html * {
     background-color: var(--fg_6);
 }
 
+#room_set_shift_button:hover,
 #room_subtitle_upload_button:hover,
 #room_subtitle_delete_button:hover {
     background-color: var(--fg_5);
 }
 
+#room_set_shift_button:active,
 #room_subtitle_upload_button:active,
 #room_subtitle_delete_button:active {
     box-shadow: none;
     background-color: var(--fg_4);
 }
 
+#room_set_shift_button svg,
 #room_subtitle_upload_button svg,
 #room_subtitle_delete_button svg {
     height: 16px;
@@ -1192,6 +1202,7 @@ html * {
     fill: var(--bg_3);
 }
 
+#room_set_shift_button:active svg,
 #room_subtitle_upload_button:active svg,
 #room_subtitle_delete_button:active svg {
     fill: var(--bg_1);
@@ -1223,6 +1234,89 @@ html * {
 
 #room_subtitle_select:empty {
     background-color: var(--bg_2);
+}
+
+#room_created_info {
+    display: flex;
+    row-gap: 4px;
+    flex-direction: column;
+    margin-bottom: 4px;
+}
+
+#room_created_info_labels {
+    width: 100%;
+    display: flex;
+}
+
+#room_created_info_content {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    column-gap: 6px;
+}
+
+#room_created_by_label {
+    color: var(--fg_5);
+}
+
+#room_created_at_label {
+    color: var(--fg_5);
+    margin-left: auto;
+}
+
+#room_created_by_avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 4px;
+    border: 2px solid var(--bg_5);
+}
+
+#room_created_by_username {
+    color: var(--fg_4);
+    font-weight: bold;
+}
+
+#room_created_at_date {
+    color: var(--fg_4);
+    font-weight: bold;
+    margin-left: auto;
+}
+
+#room_recent_actions_list {
+    width: 100%;
+    height: auto;
+    row-gap: 4px;
+    display: flex;
+    flex-direction: column-reverse;
+}
+
+.room_recent_action {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    column-gap: 6px;
+}
+
+.room_recent_action img {
+    width: 36px;
+    height: 36px;
+    border-radius: 4px;
+    border: 2px solid var(--bg_5);
+}
+
+.room_recent_action_username {
+    color: var(--fg_4);
+    font-weight: bold;
+}
+
+.room_recent_action_text {
+    color: var(--fg_4);
+}
+
+.room_recent_action_date {
+    color: var(--fg_6);
+    font-size: 12px;
+    margin-left: auto;
 }
 
 #room_upload_file {
