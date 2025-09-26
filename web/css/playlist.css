@@ -389,8 +389,7 @@
 }
 
 .playlist_entry_title::-webkit-scrollbar {
-    background: transparent;
-    width: 0;
+    display: none;
 }
 
 .playlist_entry_url {
@@ -408,8 +407,7 @@
 }
 
 .playlist_entry_url::-webkit-scrollbar {
-    background: transparent;
-    width: 0;
+    display: none;
 }
 
 .playlist_entry_buttons {

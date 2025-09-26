@@ -254,8 +254,7 @@ html * {
 }
 
 #left_panel::-webkit-scrollbar {
-    background: transparent;
-    width: 0;
+    display: none;
 }
 
 #player_area {

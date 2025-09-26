@@ -261,8 +261,7 @@
 }
 
 .history_entry_title::-webkit-scrollbar {
-    background: transparent;
-    width: 0;
+    display: none;
 }
 
 .history_entry_url {
@@ -280,8 +279,7 @@
 }
 
 .history_entry_url::-webkit-scrollbar {
-    background: transparent;
-    width: 0;
+    display: none;
 }
 
 .history_entry_buttons {
