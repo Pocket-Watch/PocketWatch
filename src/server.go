@@ -144,6 +144,21 @@ func createPlaylistEvent(action string, data any) PlaylistEvent {
 	return event
 }
 
+// This method rotates the small array of recent actions, keeping the most recent one at the end and the oldest one at the start.
+func (server *Server) addRecentAction(action SyncEvent) {
+	if len(server.state.actions) < cap(server.state.actions) {
+		server.state.actions = append(server.state.actions, action)
+		return
+	}
+
+	for i := 0; i < len(server.state.actions)-1; i++ {
+		server.state.actions[i] = server.state.actions[i+1]
+	}
+
+	last := len(server.state.actions) - 1
+	server.state.actions[last] = action
+}
+
 func StartServer(config ServerConfig, db *sql.DB) {
 	users, ok := DatabaseLoadUsers(db)
 	if !ok {
@@ -172,6 +187,8 @@ func StartServer(config ServerConfig, db *sql.DB) {
 				Autoplay: autoplay,
 				Looping:  looping,
 			},
+
+			actions: make([]SyncEvent, 0, 4),
 		},
 
 		users: users,
@@ -410,17 +427,19 @@ func registerEndpoints(server *Server) *http.ServeMux {
 
 func compileIpRanges(ranges [][]string) []IpV4Range {
 	v4Ranges := make([]IpV4Range, 0, len(ranges))
-	for i := 0; i < len(ranges); i++ {
+	for i := range ranges {
 		twoIps := ranges[i]
 		if len(twoIps) != 2 {
 			LogError("An IPv4 range must contain exactly two IP addresses but %v were given", len(twoIps))
 			os.Exit(1)
 		}
+
 		ipv4Range := newIpV4Range(twoIps[0], twoIps[1])
 		if ipv4Range == nil {
 			LogWarn("Ignoring invalid IPv4 range %v -> %v", twoIps[0], twoIps[1])
 			continue
 		}
+
 		v4Ranges = append(v4Ranges, *ipv4Range)
 	}
 	LogDebug("Compiled %v IPv4 range(s)", len(v4Ranges))
@@ -1789,6 +1808,10 @@ func (server *Server) playerUpdateState(isPlaying bool, newTimestamp float64, us
 		event = server.createSyncEvent("pause", userId)
 	}
 
+	server.state.mutex.Lock()
+	server.addRecentAction(event)
+	server.state.mutex.Unlock()
+
 	server.writeEventToAllConnections("sync", event)
 
 	return nil
@@ -1950,6 +1973,11 @@ func (server *Server) playerSeek(timestamp float64, userId uint64) error {
 	server.state.mutex.Unlock()
 
 	event := server.createSyncEvent("seek", userId)
+
+	server.state.mutex.Lock()
+	server.addRecentAction(event)
+	server.state.mutex.Unlock()
+
 	server.writeEventToAllConnections("sync", event)
 	return nil
 }

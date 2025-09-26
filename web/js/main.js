@@ -1211,6 +1211,16 @@ class Room {
         if (state.entry.id !== 0) {
             this.stateOnLoad = state.player;
         }
+
+        let actions = state.actions;
+        if (!actions) {
+            return;
+        }
+
+        for (let i = 0; i < actions.length; i++) {
+            let action = actions[i];
+            this.handleAction(action);
+        }
     }
 
     clearUsersArea() {
@@ -1591,6 +1601,42 @@ class Room {
             option.textContent = sub.name;
             option.value       = sub.id;
             select.appendChild(option);
+        }
+    }
+
+    handleAction(action) {
+        let data = action;
+        if (!data) {
+            console.error("ERROR: Failed to parse action data");
+            return;
+        }
+
+        let timestamp = data.timestamp;
+        let userId = data.user_id;
+
+        switch (data.action) {
+            case "play": {
+                if (userId !== SERVER_ID) {
+                    this.addRecentAction(userId, "clicked play.");
+                }
+            } break;
+
+            case "pause": {
+                if (userId !== SERVER_ID) {
+                    this.addRecentAction(userId, "clicked pause.");
+                }
+            } break;
+
+            case "seek": {
+                if (userId !== SERVER_ID) {
+                    let time = formatTime(timestamp);
+                    this.addRecentAction(userId, "seeked to " + time);
+                }
+            } break;
+
+            default: {
+                console.error("ERROR: Unknown sync action found", data.action)
+            } break;
         }
     }
 

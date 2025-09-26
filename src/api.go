@@ -285,14 +285,20 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 func (server *Server) apiPlayerGet(w http.ResponseWriter, r *http.Request, userId uint64) {
 	server.state.mutex.Lock()
 	player := server.state.player
+	entry := server.state.entry
 	server.state.mutex.Unlock()
 
 	player.Timestamp = server.getCurrentTimestamp()
 
+	server.conns.mutex.Lock()
+	actions := make([]SyncEvent, len(server.state.actions))
+	copy(actions, server.state.actions)
+	server.conns.mutex.Unlock()
+
 	getEvent := PlayerGetResponse{
-		Player: player,
-		Entry:  server.state.entry,
-		// Subtitles: getSubtitles(),
+		Player:  player,
+		Entry:   entry,
+		Actions: actions,
 	}
 
 	jsonData, err := json.Marshal(getEvent)

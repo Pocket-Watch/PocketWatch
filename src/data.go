@@ -167,6 +167,12 @@ type ServerState struct {
 	messageId uint64
 	subsId    atomic.Uint64
 
+	// Tiny array of recent actions that are displayed in client "Recent Actions" section in the room tab.
+	// Should be always kept relatively small (somewhere between 3 and 10 elements).
+	// 
+	// This field is currently of type "SyncEvent", because that's the only action type displayed on the client side.
+	actions []SyncEvent
+
 	setupLock    sync.Mutex
 	proxy        *HlsProxy
 	audioProxy   *HlsProxy
@@ -217,10 +223,16 @@ type Connection struct {
 }
 
 type Connections struct {
-	mutex     sync.Mutex
+	mutex sync.Mutex
+
+	// Connection ID counter incremented for each new server-client connection established.
 	idCounter uint64
-	slice     []Connection
-	upgrader  websocket.Upgrader
+
+	// An array of established connections with clients.
+	slice []Connection
+
+	// The gorilla WebSocket upgrader for HTTP websocket requests.
+	upgrader websocket.Upgrader
 }
 
 type MuxPortPatterns struct {
@@ -276,8 +288,9 @@ type LiveSegment struct {
 }
 
 type PlayerGetResponse struct {
-	Player PlayerState `json:"player"`
-	Entry  Entry       `json:"entry"`
+	Player  PlayerState `json:"player"`
+	Entry   Entry       `json:"entry"`
+	Actions []SyncEvent `json:"actions"`
 }
 
 type SyncEvent struct {
