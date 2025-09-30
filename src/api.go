@@ -916,7 +916,7 @@ func (server *Server) apiStreamStart(w http.ResponseWriter, r *http.Request, use
 		Title:     user.Username + "'s stream",
 		UseProxy:  false,
 		Subtitles: []Subtitle{},
-		CreatedAt:   time.Now(),
+		CreatedAt: time.Now(),
 	}
 
 	go server.setNewEntry(entry, RequestEntry{})
@@ -1134,6 +1134,74 @@ func handleWsEvent[T any](event WebsocketEvent, userId uint64, handleEvent func(
 	}
 }
 
+func (server *Server) handleWSMessage(data []byte, userId uint64) {
+	var event WebsocketEvent
+
+	if err := json.Unmarshal(data, &event); err != nil {
+		LogError("Failed to deserialize WebSocket event: %v", err)
+		return
+	}
+
+	switch event.Type {
+	case EVENT_PLAYER_PLAY:
+		handleWsEvent(event, userId, server.playerPlay)
+
+	case EVENT_PLAYER_PAUSE:
+		handleWsEvent(event, userId, server.playerPause)
+
+	case EVENT_PLAYER_SEEK:
+		handleWsEvent(event, userId, server.playerSeek)
+
+	case EVENT_PLAYER_SET:
+		handleWsEvent(event, userId, server.playerSet)
+
+	case EVENT_PLAYER_NEXT:
+		handleWsEvent(event, userId, server.playerNext)
+
+	case EVENT_PLAYER_AUTOPLAY:
+		handleWsEvent(event, userId, server.playerAutoplay)
+
+	case EVENT_PLAYER_LOOPING:
+		handleWsEvent(event, userId, server.playerLooping)
+
+	case EVENT_PLAYER_UPDATE_TITLE:
+		handleWsEvent(event, userId, server.playerUpdateTitle)
+
+	case EVENT_CHAT_SEND:
+		handleWsEvent(event, userId, server.chatCreate)
+
+	case EVENT_CHAT_EDIT:
+		handleWsEvent(event, userId, server.chatEdit)
+
+	case EVENT_CHAT_DELETE:
+		handleWsEvent(event, userId, server.chatDelete)
+
+	case EVENT_PLAYLIST_ADD:
+		handleWsEvent(event, userId, server.playlistAdd)
+
+	case EVENT_PLAYLIST_PLAY:
+		handleWsEvent(event, userId, server.playlistPlay)
+
+	case EVENT_PLAYLIST_MOVE:
+		handleWsEvent(event, userId, server.playlistMove)
+
+	case EVENT_PLAYLIST_CLEAR:
+		server.playlistClear()
+
+	case EVENT_PLAYLIST_DELETE:
+		handleWsEvent(event, userId, server.playlistDelete)
+
+	case EVENT_PLAYLIST_SHUFFLE:
+		server.playlistShuffle()
+
+	case EVENT_PLAYLIST_UPDATE:
+		handleWsEvent(event, userId, server.playlistUpdate)
+
+	default:
+		LogError("Server caught unknown event '%v'", event.Type)
+	}
+}
+
 func (server *Server) readEventMessages(ws *websocket.Conn, userId uint64) {
 	for {
 		msgType, data, err := ws.ReadMessage()
@@ -1145,70 +1213,6 @@ func (server *Server) readEventMessages(ws *websocket.Conn, userId uint64) {
 			continue
 		}
 
-		var event WebsocketEvent
-
-		if err := json.Unmarshal(data, &event); err != nil {
-			LogError("Failed to deserialize WebSocket event: %v", err)
-			continue
-		}
-
-		switch event.Type {
-		case EVENT_PLAYER_PLAY:
-			handleWsEvent(event, userId, server.playerPlay)
-
-		case EVENT_PLAYER_PAUSE:
-			handleWsEvent(event, userId, server.playerPause)
-
-		case EVENT_PLAYER_SEEK:
-			handleWsEvent(event, userId, server.playerSeek)
-
-		case EVENT_PLAYER_SET:
-			handleWsEvent(event, userId, server.playerSet)
-
-		case EVENT_PLAYER_NEXT:
-			handleWsEvent(event, userId, server.playerNext)
-
-		case EVENT_PLAYER_AUTOPLAY:
-			handleWsEvent(event, userId, server.playerAutoplay)
-
-		case EVENT_PLAYER_LOOPING:
-			handleWsEvent(event, userId, server.playerLooping)
-
-		case EVENT_PLAYER_UPDATE_TITLE:
-			handleWsEvent(event, userId, server.playerUpdateTitle)
-
-		case EVENT_CHAT_SEND:
-			handleWsEvent(event, userId, server.chatCreate)
-
-		case EVENT_CHAT_EDIT:
-			handleWsEvent(event, userId, server.chatEdit)
-
-		case EVENT_CHAT_DELETE:
-			handleWsEvent(event, userId, server.chatDelete)
-
-		case EVENT_PLAYLIST_ADD:
-			handleWsEvent(event, userId, server.playlistAdd)
-
-		case EVENT_PLAYLIST_PLAY:
-			handleWsEvent(event, userId, server.playlistPlay)
-
-		case EVENT_PLAYLIST_MOVE:
-			handleWsEvent(event, userId, server.playlistMove)
-
-		case EVENT_PLAYLIST_CLEAR:
-			server.playlistClear()
-
-		case EVENT_PLAYLIST_DELETE:
-			handleWsEvent(event, userId, server.playlistDelete)
-
-		case EVENT_PLAYLIST_SHUFFLE:
-			server.playlistShuffle()
-
-		case EVENT_PLAYLIST_UPDATE:
-			handleWsEvent(event, userId, server.playlistUpdate)
-
-		default:
-			LogError("Server caught unknown event '%v'", event.Type)
-		}
+		go server.handleWSMessage(data, userId)
 	}
 }
