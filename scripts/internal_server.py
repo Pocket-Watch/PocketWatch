@@ -76,13 +76,15 @@ def get_youtube_video(query: str):
         raise Exception("Yt-Dlp output data is missing")
 
     entries = info.get("entries")
-    if entries is None or len(entries) == 0:
+    entry   = None
+
+    if entries is None:
         entry = info
-    else:
+    elif len(entries) != 0:
         entry = entries[0]
 
     if entry is None:
-        raise Exception("Yt-Dlp did not return any YouTube videos")
+        raise Exception("No YouTube videos found.")
 
     id           = entry["id"]
     title        = entry["title"]
