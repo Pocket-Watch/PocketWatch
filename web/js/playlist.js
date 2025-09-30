@@ -606,7 +606,7 @@ class Playlist {
         let userAvatar     = div("playlist_dropdown_user_avatar");
         let userAvatarImg  = img(user.avatar);
         let userName       = span("playlist_dropdown_user_name", user.username);
-        let date           = new Date(entry.created);
+        let date           = new Date(entry.created_at);
         let creationDate   = span("playlist_dropdown_creation_date", date.toLocaleString());
 
         // 

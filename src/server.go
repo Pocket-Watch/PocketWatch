@@ -1910,7 +1910,7 @@ func (server *Server) getEntriesFromDirectory(path string, userId uint64) []Entr
 				UserId:    userId,
 				UseProxy:  false,
 				Subtitles: []Subtitle{},
-				Created:   time.Now(),
+				CreatedAt:   time.Now(),
 			}
 
 			entry.Title = constructTitleWhenMissing(&entry)
@@ -1948,7 +1948,7 @@ func (server *Server) constructEntry(entry Entry) Entry {
 	if entry.Url == "" {
 		entry := Entry{
 			UserId:  entry.UserId,
-			Created: time.Now(),
+			CreatedAt: time.Now(),
 		}
 
 		return entry
@@ -1957,7 +1957,7 @@ func (server *Server) constructEntry(entry Entry) Entry {
 	entry.Id = server.state.entryId.Add(1)
 	entry.Title = constructTitleWhenMissing(&entry)
 	// TODO Add SetAt and don't modify CreatedAt here
-	entry.Created = time.Now()
+	entry.CreatedAt = time.Now()
 
 	for i := range entry.Subtitles {
 		entry.Subtitles[i].Id = server.state.subsId.Add(1)

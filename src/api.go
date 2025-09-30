@@ -916,7 +916,7 @@ func (server *Server) apiStreamStart(w http.ResponseWriter, r *http.Request, use
 		Title:     user.Username + "'s stream",
 		UseProxy:  false,
 		Subtitles: []Subtitle{},
-		Created:   time.Now(),
+		CreatedAt:   time.Now(),
 	}
 
 	go server.setNewEntry(entry, RequestEntry{})

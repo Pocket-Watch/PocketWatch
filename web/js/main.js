@@ -1472,7 +1472,7 @@ class Room {
         this.roomContent.createdByAvatar.src = user.avatar;
         this.roomContent.createdByUsername.textContent = user.username;
 
-        let date = new Date(entry.created);
+        let date = new Date(entry.created_at);
         let [Y, M, D, h, m] = getDateStrings(date);
         this.roomContent.createdAtDate.textContent = `${Y}.${M}.${D}, ${h}:${m}`;
 
