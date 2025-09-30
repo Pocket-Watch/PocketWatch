@@ -16,6 +16,8 @@ const KB = 1024
 const MB = 1024 * KB
 const GB = 1024 * MB
 
+const SERVER_ID = 0
+
 const LIMITER_HITS = 800
 const LIMITER_PER_SECOND = 5
 const TOKEN_LENGTH = 32
@@ -91,29 +93,68 @@ var serverRootAddress string
 var startTime = time.Now()
 var behindProxy bool
 
+// Main server data structure.
 type Server struct {
+	// Server configuration loaded at startup.
 	config ServerConfig
-	state  ServerState
-	users  *Users
-	conns  *Connections
-	db     *sql.DB
+
+	// State of the server. Includes things such as current entry, playlist and history.
+	state ServerState
+
+	// User account data.
+	users *Users
+
+	// Currently open WebSocket connections.
+	conns *Connections
+
+	// Connection to the PostgreSQL database. When database support is disabled, this field is set to nil.
+	db *sql.DB
 }
 
+// Current state of the player.
 type PlayerState struct {
-	Playing   bool    `json:"playing"`
-	Autoplay  bool    `json:"autoplay"`
-	Looping   bool    `json:"looping"`
+	// Indicates whether player playback is on or off.
+	Playing bool `json:"playing"`
+
+	// Indicates whether autoplay is on or off.
+	// When autoplay is enabled and a playerNext event is received, first item from the playlist is set a current entry.
+	Autoplay bool `json:"autoplay"`
+
+	// Indicates whether looping is on or off.
+	// When looping is set to true and a playerNext event is received, the server adds current entry to the end of the playlist
+	// or if the playlist is empty - replay the current entry.
+	//
+	// In the future looping might include multiple modes such as:
+	//     - disabled
+	//     - player
+	//     - playlist
+	//     - ...
+	Looping bool `json:"looping"`
+
+	// Last saved player playback timestamp (in seconds).
+	// Note that, the timestamp is only updated on user interaction (such as playerPlay, playerPause and playerSeek).
+	// The actual player playback position can be calculated using the getCurrentTimestamp function.
 	Timestamp float64 `json:"timestamp"`
 }
 
+// Server welcome event, sent to the client as a first event when a WebSocket connection is opened.
 type WelcomeMessage struct {
+	// Current server version. Currently based on the server build time.
 	Version string `json:"version"`
 }
 
+// Subtitle data layout
 type Subtitle struct {
-	Id    uint64  `json:"id"`
-	Name  string  `json:"name"`
-	Url   string  `json:"url"`
+	// Unique ID of the subtitle, seeded by ServerState.subsId ID counter.
+	Id uint64 `json:"id"`
+
+	// Name of the subtitle displayed client side. Users are allowed to modify this name.
+	Name string `json:"name"`
+
+	// Resource URL to the subtitle.
+	Url string `json:"url"`
+
+	// Current subtitle shift, applied to all subtitle cues on the client side.
 	Shift float64 `json:"shift"`
 }
 
@@ -126,7 +167,12 @@ type Source struct {
 	Type      string `json:"type" `    // ex. "hls_vod", "live", "file"?
 }
 
-// TODO(kihau): Dynamically add/remove metadata from website room tab when needed.
+// TODO(kihau):
+//
+//	Dynamically add/remove metadata from website room tab when needed.
+//	The metadata will include additional information for entries loaded via YTDlp,
+//	as well as metadata for entries loaded from server storage (video and audio files)
+//
 // NOTE(kihau): Placeholder, Not used anywhere yet.
 type Metadata struct {
 	TrackNumber int    `json:"track_number"`
@@ -137,42 +183,72 @@ type Metadata struct {
 }
 
 type Entry struct {
-	Id         uint64 `json:"id"`
-	Url        string `json:"url"`
-	Title      string `json:"title"`
-	UserId     uint64 `json:"user_id"`
-	UseProxy   bool   `json:"use_proxy"`
+	Id uint64 `json:"id"`
+
+	// Original network URL path of the entry.
+	Url string `json:"url"`
+
+	// Entry title
+	Title string `json:"title"`
+
+	// ID of the user that created the entry.
+	UserId uint64 `json:"user_id"`
+
+	// Whether an entry should be loaded via a server proxy.
+	UseProxy bool `json:"use_proxy"`
+
+	// Proxy referrer URL.
 	RefererUrl string `json:"referer_url"`
 	SourceUrl  string `json:"source_url"`
 	ProxyUrl   string `json:"proxy_url"`
+
 	// NOTE(kihau): Placeholder until client side source switching is implemented.
 	// Sources    []Source   `json:"sources"`
 	Subtitles []Subtitle `json:"subtitles"`
-	Thumbnail string     `json:"thumbnail"`
-	Created   time.Time  `json:"created"`
+
+	// Entry network URL path of the thumbnal.
+	Thumbnail string `json:"thumbnail"`
+
+	// Time when the entry was set as current.
+	LastSetAt time.Time `json:"last_set_at"`
+
+	// Original creation time of the entry.
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type ServerState struct {
 	mutex sync.Mutex
 
-	player     PlayerState
-	entry      Entry
-	entryId    atomic.Uint64
-	isLoading  atomic.Bool
+	// Current state of the player.
+	player PlayerState
+
+	// Currently set entry.
+	entry Entry
+
+	// Entry ID seed counter, incremented for every new entry.
+	entryId atomic.Uint64
+
+	// Indicates whether the server is waiting for the entry to load. Loading includes both YouTube fetch and proxy setup.
+	isLoading atomic.Bool
+
+	// Last update time of player timestamp.
 	lastUpdate time.Time
 
-	playlist  []Entry
-	history   []Entry
-	messages  []ChatMessage
+	playlist []Entry
+	history  []Entry
+	messages []ChatMessage
+
+	// Message ID seed counter, incremented for every new chat message.
 	messageId uint64
-	subsId    atomic.Uint64
 
-	// Tiny array of recent actions that are displayed in client "Recent Actions" section in the room tab.
-	// Should be always kept relatively small (somewhere between 3 and 10 elements).
-	// 
-	// This field is currently of type "SyncEvent", because that's the only action type displayed on the client side.
-	actions []SyncEvent
+	// Subtitle ID seed counter, incremented for every new subtitle.
+	subsId atomic.Uint64
 
+	// Tiny array of recent actions which are displayed in "Recent Actions" section in the room tab.
+	// Should be kept relatively small (somewhere between 3 and 10 elements).
+	actions []Action
+
+	// Setup lock for the proxy.
 	setupLock    sync.Mutex
 	proxy        *HlsProxy
 	audioProxy   *HlsProxy
@@ -231,7 +307,7 @@ type Connections struct {
 	// An array of established connections with clients.
 	slice []Connection
 
-	// The gorilla WebSocket upgrader for HTTP websocket requests.
+	// The gorilla WebSocket upgrader for HTTP WebSocket requests.
 	upgrader websocket.Upgrader
 }
 
@@ -258,6 +334,13 @@ type Users struct {
 	mutex     sync.Mutex
 	idCounter uint64
 	slice     []User
+}
+
+type Action struct {
+	Action string    `json:"action"`
+	UserId uint64    `json:"user_id"`
+	Data   any       `json:"data"`
+	Date   time.Time `json:"date"`
 }
 
 type ChatMessage struct {
@@ -290,7 +373,7 @@ type LiveSegment struct {
 type PlayerGetResponse struct {
 	Player  PlayerState `json:"player"`
 	Entry   Entry       `json:"entry"`
-	Actions []SyncEvent `json:"actions"`
+	Actions []Action    `json:"actions"`
 }
 
 type SyncEvent struct {
@@ -326,8 +409,9 @@ type SubtitleDownloadRequest struct {
 }
 
 type WebsocketEventResponse struct {
-	Type string `json:"type"`
-	Data any    `json:"data"`
+	Type   string `json:"type"`
+	UserId uint64 `json:"user_id"`
+	Data   any    `json:"data"`
 }
 
 type WebsocketEvent struct {

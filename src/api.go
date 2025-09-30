@@ -102,7 +102,7 @@ func (server *Server) apiUserCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server.writeEventToAllConnections("usercreate", user)
+	server.writeEventToAllConnections("usercreate", user, SERVER_ID)
 	w.Write(tokenJson)
 }
 
@@ -145,7 +145,7 @@ func (server *Server) apiUserDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	DatabaseDeleteUser(server.db, *user)
-	server.writeEventToAllConnections("userdelete", user)
+	server.writeEventToAllConnections("userdelete", user, SERVER_ID)
 
 	server.conns.mutex.Lock()
 	for _, conn := range server.conns.slice {
@@ -202,7 +202,7 @@ func (server *Server) apiUserUpdateName(w http.ResponseWriter, r *http.Request, 
 	DatabaseUpdateUser(server.db, user)
 	server.users.mutex.Unlock()
 
-	server.writeEventToAllConnections("userupdate", user)
+	server.writeEventToAllConnections("userupdate", user, userId)
 }
 
 func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request, userId uint64) {
@@ -278,7 +278,7 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 
 	jsonData, _ := json.Marshal(avatarUrl)
 
-	server.writeEventToAllConnections("userupdate", user)
+	server.writeEventToAllConnections("userupdate", user, userId)
 	w.Write(jsonData)
 }
 
@@ -291,7 +291,7 @@ func (server *Server) apiPlayerGet(w http.ResponseWriter, r *http.Request, userI
 	player.Timestamp = server.getCurrentTimestamp()
 
 	server.conns.mutex.Lock()
-	actions := make([]SyncEvent, len(server.state.actions))
+	actions := make([]Action, len(server.state.actions))
 	copy(actions, server.state.actions)
 	server.conns.mutex.Unlock()
 
@@ -401,7 +401,7 @@ func (server *Server) apiSubtitleDelete(w http.ResponseWriter, r *http.Request, 
 	}
 	server.state.mutex.Unlock()
 
-	server.writeEventToAllConnections("subtitledelete", subId)
+	server.writeEventToAllConnections("subtitledelete", subId, userId)
 }
 
 func (server *Server) apiSubtitleUpdate(w http.ResponseWriter, r *http.Request, userId uint64) {
@@ -421,7 +421,7 @@ func (server *Server) apiSubtitleUpdate(w http.ResponseWriter, r *http.Request, 
 	DatabaseSubtitleUpdate(server.db, data.Id, data.Name)
 	server.state.mutex.Unlock()
 
-	server.writeEventToAllConnections("subtitleupdate", data)
+	server.writeEventToAllConnections("subtitleupdate", data, userId)
 }
 
 func (server *Server) apiSubtitleAttach(w http.ResponseWriter, r *http.Request, userId uint64) {
@@ -436,9 +436,10 @@ func (server *Server) apiSubtitleAttach(w http.ResponseWriter, r *http.Request, 
 	server.state.mutex.Lock()
 	server.state.entry.Subtitles = append(server.state.entry.Subtitles, subtitle)
 	DatabaseSubtitleAttach(server.db, server.state.entry.Id, subtitle)
+	server.addRecentAction("subtitleattach", userId, subtitle)
 	server.state.mutex.Unlock()
 
-	server.writeEventToAllConnections("subtitleattach", subtitle)
+	server.writeEventToAllConnections("subtitleattach", subtitle, userId)
 }
 
 func (server *Server) apiSubtitleShift(w http.ResponseWriter, r *http.Request, userId uint64) {
@@ -458,7 +459,7 @@ func (server *Server) apiSubtitleShift(w http.ResponseWriter, r *http.Request, u
 	DatabaseSubtitleShift(server.db, data.Id, data.Shift)
 	server.state.mutex.Unlock()
 
-	server.writeEventToAllConnections("subtitleshift", data)
+	server.writeEventToAllConnections("subtitleshift", data, userId)
 }
 
 func (server *Server) apiSubtitleUpload(w http.ResponseWriter, r *http.Request, userId uint64) {
@@ -636,7 +637,7 @@ func (server *Server) apiSubtitleSearch(w http.ResponseWriter, r *http.Request, 
 	server.state.entry.Subtitles = append(server.state.entry.Subtitles, subtitle)
 	server.state.mutex.Unlock()
 
-	server.writeEventToAllConnections("subtitleattach", subtitle)
+	server.writeEventToAllConnections("subtitleattach", subtitle, userId)
 }
 
 func (server *Server) apiPlaylistGet(w http.ResponseWriter, r *http.Request, userId uint64) {
@@ -800,7 +801,7 @@ func (server *Server) apiHistoryClear(w http.ResponseWriter, r *http.Request, us
 
 	DatabaseHistoryClear(server.db)
 
-	server.writeEventToAllConnections("historyclear", nil)
+	server.writeEventToAllConnections("historyclear", nil, userId)
 }
 
 func (server *Server) apiHistoryPlay(w http.ResponseWriter, r *http.Request, userId uint64) {
@@ -1009,7 +1010,7 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 	LogInfo("New connection id:%v established with user id:%v on %s. Current connection count: %d", conn.id, user.Id, getIp(r), connectionCount)
 
 	if went_online {
-		server.writeEventToAllConnections("userconnected", user.Id)
+		server.writeEventToAllConnections("userconnected", user.Id, SERVER_ID)
 		DatabaseUpdateUserLastOnline(server.db, user.Id, time.Now())
 	}
 
@@ -1061,7 +1062,7 @@ outer:
 	server.users.mutex.Unlock()
 
 	if went_offline {
-		server.writeEventToAllConnections("userdisconnected", conn.userId)
+		server.writeEventToAllConnections("userdisconnected", conn.userId, SERVER_ID)
 	}
 
 	LogInfo("Connection id:%v of user id:%v dropped. Current connection count: %d", conn.id, conn.userId, connectionCount)

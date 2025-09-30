@@ -1126,11 +1126,14 @@ class Room {
         return user;
     }
 
-    addRecentAction(userId, message) {
+    addRecentAction(userId, message, actionDate) {
         let user = this.findUser(userId);
 
-        let now = new Date();
-        let [Y, M, D, h, m] = getDateStrings(now);
+        if (!actionDate) {
+            actionDate = new Date();
+        }
+
+        let [Y, M, D, h, m] = getDateStrings(actionDate);
         let dateText = `${Y}.${M}.${D}, ${h}:${m}`;
 
         let action   = div("room_recent_action");
@@ -1574,7 +1577,7 @@ class Room {
 
         ws.onmessage = event => {
             let wsEvent = JSON.parse(event.data);
-            this.handleServerEvent(wsEvent.type, wsEvent.data);
+            this.handleServerEvent(wsEvent.type, wsEvent.data, wsEvent.user_id);
         }
     }
 
@@ -1605,42 +1608,50 @@ class Room {
     }
 
     handleAction(action) {
-        let data = action;
-        if (!data) {
+        if (!action) {
             console.error("ERROR: Failed to parse action data");
             return;
         }
 
-        let timestamp = data.timestamp;
-        let userId = data.user_id;
+        let userId = action.user_id;
+        let date   = new Date(action.date);
 
-        switch (data.action) {
+        switch (action.action) {
             case "play": {
                 if (userId !== SERVER_ID) {
-                    this.addRecentAction(userId, "clicked play.");
+                    this.addRecentAction(userId, "clicked play.", date);
                 }
             } break;
 
             case "pause": {
                 if (userId !== SERVER_ID) {
-                    this.addRecentAction(userId, "clicked pause.");
+                    this.addRecentAction(userId, "clicked pause.", date);
                 }
             } break;
 
             case "seek": {
+                let timestamp = action.data;
                 if (userId !== SERVER_ID) {
                     let time = formatTime(timestamp);
-                    this.addRecentAction(userId, "seeked to " + time);
+                    this.addRecentAction(userId, "seeked to " + time, date);
                 }
             } break;
 
+            case "updatetitle": {
+                this.addRecentAction(userId, "updated current title.", date);
+            } break;
+
+            case "subtitleattach": {
+                this.addRecentAction(userId, "added a subtitle.", date);
+            } break;
+
             default: {
-                console.error("ERROR: Unknown sync action found", data.action)
+                console.error("ERROR: Unknown recent action found", action.action)
             } break;
         }
     }
 
-    handleServerEvent(wsType, wsData) {
+    handleServerEvent(wsType, wsData, wsUserId) {
         switch (wsType) {
             case "welcome": {
                 let lastVersion = Storage.get(VERSION);
@@ -1808,6 +1819,7 @@ class Room {
                 this.player.setTitle(title);
                 this.currentEntry.title = title;
                 this.roomContent.titleInput.value = title;
+                this.addRecentAction(wsUserId, "updated current title.");
             } break;
 
             case "playerwaiting": {
@@ -1992,6 +2004,8 @@ class Room {
                 console.log(subtitle);
                 this.player.addSubtitle(subtitle.url, subtitle.name, subtitle.shift);
                 this.player.setToast("Subtitle added: " + subtitle.name);
+
+                this.addRecentAction(wsUserId, "added a subtitle.");
 
                 if (!this.currentEntry.subtitles) {
                     this.currentEntry.subtitles = [];

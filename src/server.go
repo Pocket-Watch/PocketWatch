@@ -145,7 +145,14 @@ func createPlaylistEvent(action string, data any) PlaylistEvent {
 }
 
 // This method rotates the small array of recent actions, keeping the most recent one at the end and the oldest one at the start.
-func (server *Server) addRecentAction(action SyncEvent) {
+func (server *Server) addRecentAction(actionType string, userId uint64, data any) {
+	action := Action{
+		Action: actionType,
+		UserId: userId,
+		Data:   data,
+		Date:   time.Now(),
+	}
+
 	if len(server.state.actions) < cap(server.state.actions) {
 		server.state.actions = append(server.state.actions, action)
 		return
@@ -188,7 +195,7 @@ func StartServer(config ServerConfig, db *sql.DB) {
 				Looping:  looping,
 			},
 
-			actions: make([]SyncEvent, 0, 4),
+			actions: make([]Action, 0, 4),
 		},
 
 		users: users,
@@ -621,7 +628,7 @@ func (server *Server) periodicResync() {
 			event = server.createSyncEvent("pause", 0)
 		}
 
-		server.writeEventToAllConnections("sync", event)
+		server.writeEventToAllConnections("sync", event, SERVER_ID)
 	}
 }
 
@@ -642,7 +649,7 @@ func (server *Server) periodicInactiveUserCleanup() {
 
 		for _, user := range toDelete {
 			user := server.users.removeByToken(user.token)
-			server.writeEventToAllConnections("userdelete", user)
+			server.writeEventToAllConnections("userdelete", user, SERVER_ID)
 		}
 
 		server.users.mutex.Unlock()
@@ -657,11 +664,11 @@ func (server *Server) setNewEntry(entry Entry, requested RequestEntry) {
 	entry = server.constructEntry(entry)
 
 	if isYoutubeEntry(entry, requested) {
-		server.writeEventToAllConnections("playerwaiting", "Youtube video is loading. Please stand by!")
+		server.writeEventToAllConnections("playerwaiting", "Youtube video is loading. Please stand by!", SERVER_ID)
 
 		err := loadYoutubeEntry(&entry, requested)
 		if err != nil {
-			server.writeEventToAllConnections("playererror", err.Error())
+			server.writeEventToAllConnections("playererror", err.Error(), SERVER_ID)
 			return
 		}
 
@@ -678,11 +685,11 @@ func (server *Server) setNewEntry(entry Entry, requested RequestEntry) {
 			}()
 		}
 	} else if isTwitchEntry(entry) {
-		server.writeEventToAllConnections("playerwaiting", "Twitch stream is loading. Please stand by!")
+		server.writeEventToAllConnections("playerwaiting", "Twitch stream is loading. Please stand by!", SERVER_ID)
 
 		err := loadTwitchEntry(&entry)
 		if err != nil {
-			server.writeEventToAllConnections("playererror", err.Error())
+			server.writeEventToAllConnections("playererror", err.Error(), SERVER_ID)
 			return
 		}
 	}
@@ -690,7 +697,7 @@ func (server *Server) setNewEntry(entry Entry, requested RequestEntry) {
 	err := server.setupProxy(&entry)
 	if err != nil {
 		LogWarn("%v", err)
-		server.writeEventToAllConnections("playererror", err.Error())
+		server.writeEventToAllConnections("playererror", err.Error(), SERVER_ID)
 		return
 	}
 
@@ -711,7 +718,7 @@ func (server *Server) setNewEntry(entry Entry, requested RequestEntry) {
 	server.state.player.Playing = server.state.player.Autoplay
 
 	LogInfo("New entry URL is now: '%s'.", entry.Url)
-	server.writeEventToAllConnections("playerset", entry)
+	server.writeEventToAllConnections("playerset", entry, SERVER_ID)
 
 	go server.preloadYoutubeSourceOnNextEntry()
 }
@@ -803,8 +810,9 @@ func (server *Server) readJsonDataFromRequest(w http.ResponseWriter, r *http.Req
 
 func (server *Server) writeEventToOneConnection(eventType string, eventData any, conn Connection) {
 	data := WebsocketEventResponse{
-		Type: eventType,
-		Data: eventData,
+		Type:   eventType,
+		Data:   eventData,
+		UserId: 0,
 	}
 
 	event, err := json.Marshal(data)
@@ -824,10 +832,11 @@ func (server *Server) writeEventToOneConnection(eventType string, eventData any,
 	}
 }
 
-func (server *Server) writeEventToAllConnections(eventType string, eventData any) {
+func (server *Server) writeEventToAllConnections(eventType string, eventData any, userId uint64) {
 	data := WebsocketEventResponse{
-		Type: eventType,
-		Data: eventData,
+		Type:   eventType,
+		Data:   eventData,
+		UserId: userId,
 	}
 
 	event, err := json.Marshal(data)
@@ -1809,10 +1818,10 @@ func (server *Server) playerUpdateState(isPlaying bool, newTimestamp float64, us
 	}
 
 	server.state.mutex.Lock()
-	server.addRecentAction(event)
+	server.addRecentAction(event.Action, event.UserId, event.Timestamp)
 	server.state.mutex.Unlock()
 
-	server.writeEventToAllConnections("sync", event)
+	server.writeEventToAllConnections("sync", event, userId)
 
 	return nil
 }
@@ -1927,16 +1936,22 @@ func (server *Server) cleanupDummyUsers() []User {
 	for _, user := range removed {
 		server.users.removeByToken(user.token)
 		DatabaseDeleteUser(server.db, user)
-		server.writeEventToAllConnections("userdelete", user)
+		server.writeEventToAllConnections("userdelete", user, SERVER_ID)
 	}
 
 	return removed
 }
 
 func (server *Server) constructEntry(entry Entry) Entry {
-	// TODO Validate this before calling this function to be more clear about its intentions?
+	entry.Url = strings.TrimSpace(entry.Url)
+
 	if entry.Url == "" {
-		return Entry{}
+		entry := Entry{
+			UserId:  entry.UserId,
+			Created: time.Now(),
+		}
+
+		return entry
 	}
 
 	entry.Id = server.state.entryId.Add(1)
@@ -1975,10 +1990,10 @@ func (server *Server) playerSeek(timestamp float64, userId uint64) error {
 	event := server.createSyncEvent("seek", userId)
 
 	server.state.mutex.Lock()
-	server.addRecentAction(event)
+	server.addRecentAction(event.Action, event.UserId, event.Timestamp)
 	server.state.mutex.Unlock()
 
-	server.writeEventToAllConnections("sync", event)
+	server.writeEventToAllConnections("sync", event, userId)
 	return nil
 }
 
@@ -2019,7 +2034,7 @@ func (server *Server) playerAutoplay(autoplay bool, userId uint64) error {
 
 	server.state.player.Autoplay = autoplay
 	DatabaseSetAutoplay(server.db, autoplay)
-	server.writeEventToAllConnections("playerautoplay", autoplay)
+	server.writeEventToAllConnections("playerautoplay", autoplay, userId)
 
 	return nil
 }
@@ -2030,7 +2045,7 @@ func (server *Server) playerLooping(looping bool, userId uint64) error {
 
 	server.state.player.Looping = looping
 	DatabaseSetLooping(server.db, looping)
-	server.writeEventToAllConnections("playerlooping", looping)
+	server.writeEventToAllConnections("playerlooping", looping, userId)
 
 	return nil
 }
@@ -2041,7 +2056,9 @@ func (server *Server) playerUpdateTitle(title string, userId uint64) error {
 
 	server.state.entry.Title = title
 	DatabaseCurrentEntryUpdateTitle(server.db, title)
-	server.writeEventToAllConnections("playerupdatetitle", title)
+
+	server.addRecentAction("updatetitle", userId, title)
+	server.writeEventToAllConnections("playerupdatetitle", title, userId)
 
 	return nil
 }
@@ -2144,7 +2161,7 @@ func (server *Server) playlistAddOne(entry Entry, toTop bool) {
 	}
 
 	DatabasePlaylistAdd(server.db, newEntry)
-	server.writeEventToAllConnections("playlist", event)
+	server.writeEventToAllConnections("playlist", event, newEntry.UserId)
 }
 
 func (server *Server) playlistAddMany(entries []Entry, toTop bool) {
@@ -2163,7 +2180,7 @@ func (server *Server) playlistAddMany(entries []Entry, toTop bool) {
 	}
 
 	DatabasePlaylistAddMany(server.db, entries)
-	server.writeEventToAllConnections("playlist", event)
+	server.writeEventToAllConnections("playlist", event, 0)
 }
 
 func (server *Server) playlistPlay(entryId uint64, userId uint64) error {
@@ -2214,7 +2231,7 @@ func (server *Server) playlistMove(data PlaylistMoveRequest, userId uint64) erro
 	}
 
 	event := createPlaylistEvent("move", eventData)
-	server.writeEventToAllConnections("playlist", event)
+	server.writeEventToAllConnections("playlist", event, userId)
 
 	go server.preloadYoutubeSourceOnNextEntry()
 
@@ -2244,7 +2261,7 @@ func (server *Server) playlistDeleteAt(index int) Entry {
 	DatabasePlaylistDelete(server.db, entry.Id)
 
 	event := createPlaylistEvent("delete", entry.Id)
-	server.writeEventToAllConnections("playlist", event)
+	server.writeEventToAllConnections("playlist", event, 0)
 
 	return entry
 }
@@ -2256,7 +2273,7 @@ func (server *Server) playlistClear() {
 	server.state.mutex.Unlock()
 
 	event := createPlaylistEvent("clear", nil)
-	server.writeEventToAllConnections("playlist", event)
+	server.writeEventToAllConnections("playlist", event, 0)
 }
 
 func (server *Server) playlistShuffle() {
@@ -2268,7 +2285,7 @@ func (server *Server) playlistShuffle() {
 	server.state.mutex.Unlock()
 
 	event := createPlaylistEvent("shuffle", server.state.playlist)
-	server.writeEventToAllConnections("playlist", event)
+	server.writeEventToAllConnections("playlist", event, 0)
 
 	go server.preloadYoutubeSourceOnNextEntry()
 }
@@ -2289,7 +2306,7 @@ func (server *Server) playlistUpdate(entry Entry, userId uint64) error {
 	server.state.playlist[index] = updated
 
 	event := createPlaylistEvent("update", updated)
-	server.writeEventToAllConnections("playlist", event)
+	server.writeEventToAllConnections("playlist", event, userId)
 
 	return nil
 }
@@ -2330,7 +2347,7 @@ func (server *Server) historyAdd(entry Entry) {
 		removed := server.state.history[index]
 		server.state.history = slices.Delete(server.state.history, index, index+1)
 		DatabaseHistoryDelete(server.db, removed.Id)
-		server.writeEventToAllConnections("historydelete", removed.Id)
+		server.writeEventToAllConnections("historydelete", removed.Id, 0)
 
 		// Preserve subtitles if new entry has none
 		if len(newEntry.Subtitles) == 0 && len(removed.Subtitles) > 0 {
@@ -2347,7 +2364,7 @@ func (server *Server) historyAdd(entry Entry) {
 		DatabaseHistoryDelete(server.db, removed.Id)
 	}
 
-	server.writeEventToAllConnections("historyadd", newEntry)
+	server.writeEventToAllConnections("historyadd", newEntry, 0)
 }
 
 func (server *Server) historyDelete(index int) Entry {
@@ -2355,7 +2372,7 @@ func (server *Server) historyDelete(index int) Entry {
 
 	server.state.history = slices.Delete(server.state.history, index, index+1)
 	DatabasePlaylistDelete(server.db, entry.Id)
-	server.writeEventToAllConnections("historydelete", entry.Id)
+	server.writeEventToAllConnections("historydelete", entry.Id, entry.UserId)
 
 	return entry
 }
@@ -2381,7 +2398,7 @@ func (server *Server) chatCreate(messageContent string, userId uint64) error {
 
 	DatabaseMessageAdd(server.db, message)
 
-	server.writeEventToAllConnections("messagecreate", message)
+	server.writeEventToAllConnections("messagecreate", message, userId)
 	return nil
 }
 
@@ -2412,7 +2429,7 @@ func (server *Server) chatEdit(data ChatMessageEdit, userId uint64) error {
 
 	DatabaseMessageEdit(server.db, *message)
 
-	server.writeEventToAllConnections("messageedit", data)
+	server.writeEventToAllConnections("messageedit", data, userId)
 
 	return nil
 }
@@ -2438,7 +2455,7 @@ func (server *Server) chatDelete(messageId uint64, userId uint64) error {
 	DatabaseMessageDelete(server.db, message.Id)
 
 	server.state.messages = append(messages[:index], messages[index+1:]...)
-	server.writeEventToAllConnections("messagedelete", message.Id)
+	server.writeEventToAllConnections("messagedelete", message.Id, userId)
 
 	return nil
 }
