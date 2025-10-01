@@ -18,6 +18,7 @@ type ServerConfig struct {
 	EnableSsl           bool             `json:"enable_ssl"`
 	EnableSubs          bool             `json:"enable_subs"`
 	EnableShell         bool             `json:"enable_shell"`
+	EnableYtdlp         bool             `json:"enable_ytdlp"`
 	BehindProxy         bool             `json:"behind_proxy"`
 	Redirects           []RedirectConfig `json:"redirects"`
 	BlacklistedIpRanges [][]string       `json:"blacklisted_ip_ranges"`
@@ -60,6 +61,7 @@ func createDefaultConfig() Config {
 		EnableSsl:   false,
 		EnableSubs:  false,
 		EnableShell: true,
+		EnableYtdlp: true,
 		Redirects:   []RedirectConfig{},
 	}
 

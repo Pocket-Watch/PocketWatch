@@ -79,6 +79,8 @@ func main() {
 		BuildTime = exeModTime.Format(VERSION_LAYOUT)
 	}
 
+	YTDLP_ENABLED = config.Server.EnableYtdlp
+
 	PrettyPrintConfig(config)
 	if !SetupGlobalLogger(config.Logging) {
 		os.Exit(1)
