@@ -1,4 +1,10 @@
 import yt_dlp
+from yt_dlp.utils import (
+    DownloadError,
+    GeoRestrictedError,
+    UnavailableVideoError,
+)
+
 import time
 import json
 import http.server
@@ -37,7 +43,10 @@ def get_youtube_playlist(query: str, start: int, end: int):
     if info is None:
         raise Exception("Yt-Dlp output data is missing")
 
-    entries = info['entries']
+    entries = info.get('entries')
+    if entries is None:
+        return YoutubePlaylist([])
+
     for entry in entries:
         url        = entry["url"]
         title      = entry["title"]
@@ -70,10 +79,28 @@ def get_youtube_video(query: str):
     }
 
     ytfetch = yt_dlp.YoutubeDL(ytfetch_opts)
-    info = bench("extract_info", lambda : ytfetch.extract_info(query, download=False))
+
+    try:
+        info = bench("extract_info", lambda : ytfetch.extract_info(query, download=False))
+    except DownloadError as error:
+        if error.msg is None:
+            return None, "Failed to find YouTube video." 
+        else:
+            items = error.msg.split(':')[2:]
+            error_message = ":".join(items)
+            return None, error_message
+
+    except UnavailableVideoError as error:
+        return None, "YouTube video is not available." 
+
+    except GeoRestrictedError as error:
+        return None, "Failed to load YouTube video due to geo-restriction." 
+
+    except Exception as exception:
+        return None, str(exception)
 
     if info is None:
-        raise Exception("Yt-Dlp output data is missing")
+        return None, "Failed to find YouTube video." 
 
     entries = info.get("entries")
     entry   = None
@@ -84,16 +111,34 @@ def get_youtube_video(query: str):
         entry = entries[0]
 
     if entry is None:
-        raise Exception("No YouTube videos found.")
+        return None, "No YouTube videos found."
 
-    id           = entry["id"]
-    title        = entry["title"]
-    thumbnail    = entry["thumbnail"]
-    original_url = entry["original_url"]
-    manifest_url = entry["manifest_url"]
-    available_at = entry["available_at"]
+    id           = entry.get("id")
+    title        = entry.get("title")
+    thumbnail    = entry.get("thumbnail")
+    original_url = entry.get("original_url")
+    manifest_url = entry.get("manifest_url")
+    available_at = entry.get("available_at")
 
-    return YoutubeVideo(id, title, thumbnail, original_url, manifest_url, available_at)
+    if not isinstance(id, str): 
+        id = ""
+
+    if not isinstance(title, str):
+        title = "Video title is missing :("
+
+    if not isinstance(thumbnail, str):
+        thumbnail = ""
+
+    if not isinstance(original_url, str):
+        original_url = ""
+
+    if not isinstance(manifest_url, str):
+        return None, "Failed to fetch YouTube video. Source URL is missing."
+
+    if not isinstance(available_at, int):
+        available_at = 0
+
+    return YoutubeVideo(id, title, thumbnail, original_url, manifest_url, available_at), ""
 
 class TwitchStream:
     def __init__(self, id: str, title: str, thumbnail: str, original_url: str, url: str):
@@ -114,29 +159,50 @@ def get_twitch_stream(url: str):
     if info is None:
         raise Exception("Yt-Dlp did not returned any Twitch streams")
 
-    id           = info["id"]
-    uploader     = info["uploader"]
-    description  = info["description"]
-    thumbnail    = info["thumbnail"]
-    original_url = info["original_url"]
-    url          = info["url"]
+    id           = info.get("id")
+    uploader     = info.get("uploader")
+    description  = info.get("description")
+    thumbnail    = info.get("thumbnail")
+    original_url = info.get("original_url")
+    source_url   = info.get("url")
 
-    title        = f"Twitch {uploader} (live) - {description}"
+    if uploader is None: 
+        uploader = "Unknown"
 
-    return TwitchStream(id, title, thumbnail, original_url, url)
+    if not isinstance(description, str): 
+        description = "[Stream title is missing]"
+
+    if thumbnail is None: 
+        thumbnail = ""
+
+    if not isinstance(original_url, str): 
+        original_url = ""
+
+    if source_url is None: 
+        source_url = ""
+
+    title = f"Twitch {uploader} (live) - {description}"
+    return TwitchStream(id, title, thumbnail, original_url, source_url)
 
 class InternalServer(http.server.BaseHTTPRequestHandler):
     def handle_request(self):
         if self.path == '/youtube/fetch':
             request = json.loads(self.rfile.read1())
-            data = bench('get_youtube_video', lambda : get_youtube_video(request["query"]))
+            output, errorMessage = bench('get_youtube_video', lambda : get_youtube_video(request["query"]))
 
-            self.send_response(200)
-            self.send_header("Content-type", "application/json")
-            self.end_headers()
+            if output is not None:
+                self.send_response(200)
+                data = output
+            else:
+                self.send_response(503)
+                data = errorMessage
 
             jsondata = json.dumps(data, default=vars)
             response = bytes(jsondata, "utf-8")
+
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+
             self.wfile.write(response)
 
         elif self.path == '/youtube/playlist':
@@ -169,6 +235,7 @@ class InternalServer(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             self.handle_request()
+
         except Exception as exception:
             self.send_response(503)
             self.send_header("Content-type", "application/json")
@@ -180,6 +247,7 @@ class InternalServer(http.server.BaseHTTPRequestHandler):
             self.wfile.write(response)
 
             raise exception
+
 
 hostname = "localhost"
 port = 2345
