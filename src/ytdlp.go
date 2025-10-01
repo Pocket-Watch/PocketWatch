@@ -16,41 +16,29 @@ import (
 
 var YTDLP_ENABLED bool = true
 
-func postToInternalServer(endpoint string, data any) ([]byte, bool) {
-	request, err := json.Marshal(data)
-	if err != nil {
-		LogError("Failed to marshal JSON request data for the internal server: %v", err)
-		return []byte{}, false
-	}
+type YoutubeVideo struct {
+	Id          string `json:"id"`
+	Title       string `json:"title"`
+	Thumbnail   string `json:"thumbnail"`
+	OriginalUrl string `json:"original_url"`
+	SourceUrl   string `json:"manifest_url"`
+	AvailableAt int64  `json:"available_at"`
+}
 
-	url := "http://localhost:2345" + endpoint
-	response, err := http.Post(url, "application/json", bytes.NewBuffer(request))
-	if err != nil {
-		LogError("Request POST %v to the internal server failed: %v", endpoint, err)
-		return []byte{}, false
-	}
+type YoutubeThumbnail struct {
+	Url    string `json:"url"`
+	Height uint64 `json:"height"`
+	Width  uint64 `json:"width"`
+}
 
-	if response.StatusCode != http.StatusOK {
-		responseData, err := io.ReadAll(response.Body)
+type YoutubePlaylistVideo struct {
+	Url        string             `json:"url"`
+	Title      string             `json:"title"`
+	Thumbnails []YoutubeThumbnail `json:"thumbnails"`
+}
 
-		if err != nil {
-			LogError("Failed to read body from the internal server: %v", err)
-		} else {
-			var errorMessage string
-			json.Unmarshal(responseData, &errorMessage)
-			LogError("Internal server returned status code %v with message: %v", response.StatusCode, errorMessage)
-		}
-
-		return []byte{}, false
-	}
-
-	responseData, err := io.ReadAll(response.Body)
-	if err != nil {
-		LogError("Failed to unmarshal data from the internal server: %v", err)
-		return []byte{}, false
-	}
-
-	return responseData, true
+type YoutubePlaylist struct {
+	Entries []YoutubePlaylistVideo `json:"entries"`
 }
 
 type TwitchStream struct {
@@ -59,6 +47,55 @@ type TwitchStream struct {
 	Thumbnail   string `json:"thumbnail"`
 	OriginalUrl string `json:"original_url"`
 	StreamUrl   string `json:"url"`
+}
+
+type InternalServerVideoFetch struct {
+	Query string `json:"query"`
+}
+
+type InternalServerPlaylistFetch struct {
+	Query string `json:"query"`
+	Start uint   `json:"start"`
+	End   uint   `json:"end"`
+}
+
+// Makes a request to the internal server that runs YtDlp.
+// Returns:
+// - A flag indicating whether the server request was successful. (Note that a non 200 response is still considered a success)
+// - JSON data received from the server.
+// - An error message when the server responded with a non 200 status code.
+func postToInternalServer[T any](endpoint string, data any) (bool, T, error) {
+	var output T
+
+	request, err := json.Marshal(data)
+	if err != nil {
+		LogError("Failed to marshal JSON request data for the internal server: %v", err)
+		return false, output, err
+	}
+
+	url := "http://localhost:2345" + endpoint
+	response, err := http.Post(url, "application/json", bytes.NewBuffer(request))
+	if err != nil {
+		// LogError("Request POST %v to the internal server failed: %v", endpoint, err)
+		return false, output, err
+	}
+
+	responseData, err := io.ReadAll(response.Body)
+	if err != nil {
+		LogError("Failed to unmarshal data from the internal server: %v", err)
+		return false, output, nil
+	}
+
+	if response.StatusCode != http.StatusOK {
+		var errorMessage string
+		json.Unmarshal(responseData, &errorMessage)
+
+		LogWarn("Internal server returned status code %v with message: %v", response.StatusCode, errorMessage)
+		return true, output, fmt.Errorf("%v", errorMessage)
+	}
+
+	json.Unmarshal(responseData, &output)
+	return true, output, err
 }
 
 func isTwitchEntry(entry Entry) bool {
@@ -87,17 +124,6 @@ func isTwitchUrl(url string) bool {
 	return strings.HasSuffix(host, "twitch.tv")
 }
 
-func fetchTwitchWithInternalServer(url string) (bool, TwitchStream) {
-	response, ok := postToInternalServer("/twitch/fetch", url)
-	if !ok {
-		return false, TwitchStream{}
-	}
-
-	var stream TwitchStream
-	json.Unmarshal(response, &stream)
-	return true, stream
-}
-
 func fetchTwitchWithYtdlp(url string) (bool, TwitchStream) {
 	args := []string{url, "--print", "%(.{id,title,thumbnail,original_url,url})j"}
 
@@ -119,19 +145,19 @@ func fetchTwitchWithYtdlp(url string) (bool, TwitchStream) {
 	return true, stream
 }
 
-func fetchTwitchStream(url string) (bool, TwitchStream) {
-	ok, stream := fetchTwitchWithInternalServer(url)
+func fetchTwitchStream(url string) (TwitchStream, error) {
+	ok, stream, err := postToInternalServer[TwitchStream]("/twitch/fetch", url)
 	if ok {
-		return true, stream
+		return stream, err
 	}
 
 	LogWarn("Internal server twitch stream fetch failed. Falling back to yt-dlp command fetch.")
 	ok, stream = fetchTwitchWithYtdlp(url)
 	if ok {
-		return true, stream
+		return stream, nil
 	}
 
-	return false, TwitchStream{}
+	return TwitchStream{}, nil
 }
 
 func loadTwitchEntry(entry *Entry) error {
@@ -139,9 +165,9 @@ func loadTwitchEntry(entry *Entry) error {
 		return nil
 	}
 
-	ok, stream := fetchTwitchStream(entry.Url)
-	if !ok {
-		return fmt.Errorf("Failed to fetch twitch stream")
+	stream, err := fetchTwitchStream(entry.Url)
+	if err != nil {
+		return err
 	}
 
 	entry.Url = stream.OriginalUrl
@@ -239,35 +265,6 @@ func isYoutubeSourceExpired(sourceUrl string) bool {
 	return isYoutubeSourceExpiredM3U(sourceUrl)
 }
 
-type YoutubeVideo struct {
-	Id          string `json:"id"`
-	Title       string `json:"title"`
-	Thumbnail   string `json:"thumbnail"`
-	OriginalUrl string `json:"original_url"`
-	SourceUrl   string `json:"manifest_url"`
-	AvailableAt int64  `json:"available_at"`
-}
-
-type YoutubeContent struct {
-	Type string `json:"_type"`
-}
-
-type YoutubeThumbnail struct {
-	Url    string `json:"url"`
-	Height uint64 `json:"height"`
-	Width  uint64 `json:"width"`
-}
-
-type YoutubePlaylistVideo struct {
-	Url        string             `json:"url"`
-	Title      string             `json:"title"`
-	Thumbnails []YoutubeThumbnail `json:"thumbnails"`
-}
-
-type YoutubePlaylist struct {
-	Entries []YoutubePlaylistVideo `json:"entries"`
-}
-
 func waitForAvailability(availableAtUnix int64) {
 	availableAt := time.Unix(availableAtUnix, 0)
 	currentTime := time.Now()
@@ -301,8 +298,8 @@ func (server *Server) preloadYoutubeSourceOnNextEntry() {
 	}
 
 	LogInfo("Preloading youtube source for an entry with an ID: %v", nextEntry.Id)
-	ok, video := fetchYoutubeVideo(nextEntry.Url)
-	if !ok {
+	video, err := fetchYoutubeVideo(nextEntry.Url)
+	if err != nil {
 		return
 	}
 
@@ -369,9 +366,9 @@ func (server *Server) loadYoutubePlaylist(requested RequestEntry, userId uint64)
 	}
 
 	query = url.String()
-	ok, playlist := fetchYoutubePlaylist(query, 1, size)
-	if !ok {
-		return []Entry{}, fmt.Errorf("Failed to fetch YouTube playlist.")
+	playlist, err := fetchYoutubePlaylist(query, 1, size)
+	if err != nil {
+		return []Entry{}, err
 	}
 
 	entries := make([]Entry, 0)
@@ -389,31 +386,6 @@ func (server *Server) loadYoutubePlaylist(requested RequestEntry, userId uint64)
 	}
 
 	return entries, nil
-}
-
-type InternalServerVideoFetch struct {
-	Query string `json:"query"`
-}
-
-type InternalServerPlaylistFetch struct {
-	Query string `json:"query"`
-	Start uint   `json:"start"`
-	End   uint   `json:"end"`
-}
-
-func fetchVideoWithInternalServer(query string) (bool, YoutubeVideo) {
-	data := InternalServerVideoFetch{
-		Query: query,
-	}
-
-	response, ok := postToInternalServer("/youtube/fetch", data)
-	if !ok {
-		return false, YoutubeVideo{}
-	}
-
-	var video YoutubeVideo
-	json.Unmarshal(response, &video)
-	return true, video
 }
 
 func fetchVideoWithYtdlp(query string) (bool, YoutubeVideo) {
@@ -441,36 +413,20 @@ func fetchVideoWithYtdlp(query string) (bool, YoutubeVideo) {
 	return true, video
 }
 
-func fetchYoutubeVideo(query string) (bool, YoutubeVideo) {
-	ok, video := fetchVideoWithInternalServer(query)
+func fetchYoutubeVideo(query string) (YoutubeVideo, error) {
+	data := InternalServerVideoFetch{Query: query}
+	ok, video, err := postToInternalServer[YoutubeVideo]("/youtube/fetch", data)
 	if ok {
-		return true, video
+		return video, err
 	}
 
 	LogWarn("Internal server video fetch failed. Falling back to yt-dlp command fetch.")
 	ok, video = fetchVideoWithYtdlp(query)
 	if ok {
-		return true, video
+		return video, nil
 	}
 
-	return false, YoutubeVideo{}
-}
-
-func fetchPlaylistWithInternalServer(query string, start uint, end uint) (bool, YoutubePlaylist) {
-	data := InternalServerPlaylistFetch{
-		Query: query,
-		Start: start,
-		End:   end,
-	}
-
-	response, ok := postToInternalServer("/youtube/playlist", data)
-	if !ok {
-		return false, YoutubePlaylist{}
-	}
-
-	var playlist YoutubePlaylist
-	json.Unmarshal(response, &playlist)
-	return true, playlist
+	return YoutubeVideo{}, nil
 }
 
 func fetchPlaylistWithYtdlp(query string, start uint, end uint) (bool, YoutubePlaylist) {
@@ -499,19 +455,25 @@ func fetchPlaylistWithYtdlp(query string, start uint, end uint) (bool, YoutubePl
 	return true, playlist
 }
 
-func fetchYoutubePlaylist(query string, start uint, end uint) (bool, YoutubePlaylist) {
-	ok, playlist := fetchPlaylistWithInternalServer(query, start, end)
+func fetchYoutubePlaylist(query string, start uint, end uint) (YoutubePlaylist, error) {
+	data := InternalServerPlaylistFetch{
+		Query: query,
+		Start: start,
+		End:   end,
+	}
+
+	ok, playlist, err := postToInternalServer[YoutubePlaylist]("/youtube/playlist", data)
 	if ok {
-		return true, playlist
+		return playlist, err
 	}
 
 	LogWarn("Internal server playlist fetch failed. Falling back to yt-dlp command fetch.")
 	ok, playlist = fetchPlaylistWithYtdlp(query, start, end)
 	if ok {
-		return true, playlist
+		return playlist, nil
 	}
 
-	return false, YoutubePlaylist{}
+	return YoutubePlaylist{}, nil
 }
 
 // loadYoutubeEntry can only be called after the entry was approved for further processing
@@ -529,9 +491,9 @@ func loadYoutubeEntry(entry *Entry, requested RequestEntry) error {
 		LogInfo("Loading youtube entry with url: %v.", entry.Url)
 	}
 
-	ok, video := fetchYoutubeVideo(query)
-	if !ok {
-		return fmt.Errorf("Failed to fetch youtube video")
+	video, err := fetchYoutubeVideo(query)
+	if err != nil {
+		return err
 	}
 
 	waitForAvailability(video.AvailableAt)
