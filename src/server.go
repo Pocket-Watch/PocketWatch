@@ -640,7 +640,7 @@ func (server *Server) periodicInactiveUserCleanup() {
 		for _, user := range server.users.slice {
 			if user.LastUpdate.Equal(user.CreatedAt) && time.Since(user.LastOnline) > time.Hour*24 && !user.Online {
 				// Remove users that are not active and that have not updated their user profile.
-				LogInfo("Removing dummy temp user with id = %v due to 24h of inactivity.", user.Id)
+				LogInfo("Removing dummy temp user with id = %v due to +24h of inactivity.", user.Id)
 
 				DatabaseDeleteUser(server.db, user)
 				toDelete = append(toDelete, user)

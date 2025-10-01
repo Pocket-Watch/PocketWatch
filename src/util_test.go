@@ -546,3 +546,14 @@ func TestIpV4Range_Precedes_TrueEdge(t *testing.T) {
 		t.Errorf("%v should precede %v", start, end)
 	}
 }
+
+func TestParseMigrationNumber(t *testing.T) {
+	name := "0035-something.sql"
+	success, num := parseMigrationNumber(name)
+	if !success {
+		t.Errorf("Parse should be successful for %v", name)
+	}
+	if num != 35 {
+		t.Errorf("Number should be 35, got %v", num)
+	}
+}

@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
+	"strings"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -24,7 +26,7 @@ const TABLE_USERS = "users"
 //   - Add migration grouping for migrations, so fresh database setups won't need to apply all migrations sequentially
 //     (ex. 001-create_user.migrate.sql, 002-alter_users.migrate.sql, ..., 007-create_messages.migrate.sql -> 007-create_data.init.sql which is equivalent to all migrations up to 007???)
 type DbMigration struct {
-	// number uint
+	number uint
 	// downgrade bool
 	name  string
 	query string
@@ -54,7 +56,7 @@ func ConnectToDatabase(config DatabaseConfig) (*sql.DB, bool) {
 		return nil, false
 	}
 
-	LogInfo("Connection to the database established.")
+	LogInfo("Connection to the database established on port %v.", port)
 	return db, true
 }
 
@@ -76,8 +78,8 @@ func createMigrationsTable(db *sql.DB) bool {
 	return true
 }
 
-func migCompare(a, b DbMigration) int {
-	return cmp.Compare(a.name, b.name)
+func migCompareByNumber(a, b DbMigration) int {
+	return cmp.Compare(a.number, b.number)
 }
 
 func loadLocalMigrations() ([]DbMigration, bool) {
@@ -106,16 +108,45 @@ func loadLocalMigrations() ([]DbMigration, bool) {
 			return migrations, false
 		}
 
+		success, number := parseMigrationNumber(name)
+		if !success {
+			LogError("Failed to parse migration number from %v", name)
+			return migrations, false
+		}
 		mig := DbMigration{
-			name:  name,
-			query: string(bytes),
+			number: number,
+			name:   name,
+			query:  string(bytes),
 		}
 
 		migrations = append(migrations, mig)
 	}
 
-	slices.SortFunc(migrations, migCompare)
+	slices.SortFunc(migrations, migCompareByNumber)
+	if !migrationsOk(migrations) {
+		return migrations, false
+	}
 	return migrations, true
+}
+
+func migrationsOk(migrations []DbMigration) bool {
+	if len(migrations) > 0 && migrations[0].number != 1 {
+		LogError("Migrations should be numbered starting at 1. Example: 001-init_tables.sql")
+		return false
+	}
+	for i := 0; i < len(migrations)-1; i++ {
+		left := migrations[i]
+		right := migrations[i+1]
+		if left.number == right.number {
+			LogError("Migration number %v is repeated.", left.number)
+			return false
+		}
+		if left.number != right.number-1 {
+			LogError("Gap found, migration numbers should be sequential, yet %v skips to %v", left.number, right.number)
+			return false
+		}
+	}
+	return true
 }
 
 func loadAppliedMigrations(db *sql.DB) ([]DbMigration, bool) {
@@ -138,7 +169,13 @@ func loadAppliedMigrations(db *sql.DB) ([]DbMigration, bool) {
 			LogError("Failed to read migration from the database migration table: %v", err)
 			return applied, false
 		}
-
+		// Currently full names of migrations are stored. Migrate migrations?
+		success, number := parseMigrationNumber(mig.name)
+		if !success {
+			LogError("Failed to parse migration number from %v", mig.name)
+			return applied, false
+		}
+		mig.number = number
 		applied = append(applied, mig)
 	}
 
@@ -147,8 +184,23 @@ func loadAppliedMigrations(db *sql.DB) ([]DbMigration, bool) {
 		return applied, false
 	}
 
-	slices.SortFunc(applied, migCompare)
+	slices.SortFunc(applied, migCompareByNumber)
+	if !migrationsOk(applied) {
+		return applied, false
+	}
 	return applied, true
+}
+
+func parseMigrationNumber(name string) (bool, uint) {
+	dash := strings.Index(name, "-")
+	if dash == -1 {
+		return false, 0
+	}
+	number, err := strconv.ParseUint(name[0:dash], 10, 64)
+	if err != nil {
+		return false, 0
+	}
+	return true, uint(number)
 }
 
 func applyMigration(db *sql.DB, mig DbMigration) bool {

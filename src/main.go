@@ -92,7 +92,7 @@ func main() {
 	}
 
 	if !MigrateDatabase(db) {
-		return
+		os.Exit(1)
 	}
 
 	StartServer(config.Server, db)
