@@ -55,14 +55,16 @@ type Config struct {
 
 func createDefaultConfig() Config {
 	server := ServerConfig{
-		Address:     "localhost",
-		Port:        1234,
-		Domain:      "example.com",
-		EnableSsl:   false,
-		EnableSubs:  false,
-		EnableShell: true,
-		EnableYtdlp: true,
-		Redirects:   []RedirectConfig{},
+		Address:             "localhost",
+		Port:                1234,
+		Domain:              "example.com",
+		EnableSsl:           false,
+		EnableSubs:          false,
+		EnableShell:         true,
+		EnableYtdlp:         true,
+		BehindProxy:         false,
+		Redirects:           []RedirectConfig{},
+		BlacklistedIpRanges: [][]string{},
 	}
 
 	logging := LoggingConfig{

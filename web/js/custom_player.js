@@ -379,6 +379,7 @@ class Internals {
             arrow_left:       iconsPath + "#arrow_left",
             arrow_right:      iconsPath + "#arrow_right",
             buffering:        iconsPath + "#buffering",
+            no_video:         iconsPath + "#no_video",
         };
 
         // 
@@ -403,6 +404,8 @@ class Internals {
             arrowRight: Svg.new(this.icons.arrow_right, 20, 20),
 
             buffering: Svg.new(this.icons.buffering, 70, 70),
+
+            noVideo: Svg.new(this.icons.no_video),
         };
 
         // 
@@ -419,6 +422,8 @@ class Internals {
         this.htmlToastText      = newElement("span", "player_toast_text");
         this.bufferingSvg       = this.svgs.buffering.svg;
         this.playbackPopupSvg   = this.svgs.playbackPopup.svg;
+        this.htmlNoVideoPopup   = newDiv("player_no_video", "hide", "unselectable");
+        this.noVideoSvg         = this.svgs.noVideo.svg;
         this.htmlSeekForward    = newDiv("player_forward_container", "hide", "unselectable");
         this.htmlSeekBackward   = newDiv("player_backward_container", "hide", "unselectable");
         this.subtitleContainer  = newDiv("player_subtitle_container");
@@ -493,6 +498,7 @@ class Internals {
         hide(this.htmlToastContainer);
         hide(this.bufferingSvg);
         hide(this.playbackPopupSvg);
+        hide(this.htmlNoVideoPopup)
         hide(this.subtitleContainer);
 
         // 
@@ -531,6 +537,9 @@ class Internals {
         }
         this.htmlPlayerRoot.appendChild(this.bufferingSvg);
         this.htmlPlayerRoot.appendChild(this.playbackPopupSvg);
+        this.htmlPlayerRoot.appendChild(this.htmlNoVideoPopup); {
+            this.htmlNoVideoPopup.appendChild(this.svgs.noVideo.svg);
+        }
         this.htmlPlayerRoot.appendChild(this.htmlSeekForward); {
             this.htmlSeekForward.appendChild(this.svgs.seekForward.svg);
         }
@@ -1312,6 +1321,7 @@ class Internals {
         this.htmlPlayerRoot.style.cursor = "auto";
         this.htmlControls.root.classList.remove("hide");
         this.htmlTitleContainer.classList.remove("hide");
+        this.htmlNoVideoPopup.classList.remove("hide");
         this.playerUIHideTimeout.schedule();
     }
 
@@ -1339,6 +1349,7 @@ class Internals {
         this.htmlPlayerRoot.style.cursor = "none";
         this.htmlControls.root.classList.add("hide");
         this.htmlTitleContainer.classList.add("hide");
+        this.htmlNoVideoPopup.classList.add("hide");
     }
 
     redrawBufferedBars() {
@@ -2193,8 +2204,10 @@ class Internals {
         if (this.options.disableVideo) {
             this.htmlVideo.classList.add("disable");
             this.htmlPoster.style.display = "block";
+            show(this.htmlNoVideoPopup);
         } else {
             hide(this.htmlPoster);
+            hide(this.htmlNoVideoPopup);
         }
 
         generalTab.textContent    = "General";
@@ -2277,9 +2290,11 @@ class Internals {
             if (state) {
                 this.htmlVideo.classList.add("disable");
                 this.htmlPoster.style.display = "block";
+                show(this.htmlNoVideoPopup);
             } else {
                 this.htmlVideo.classList.remove("disable");
                 hide(this.htmlPoster);
+                hide(this.htmlNoVideoPopup);
             }
         };
 

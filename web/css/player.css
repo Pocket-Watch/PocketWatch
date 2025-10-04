@@ -1011,6 +1011,38 @@
     fill: var(--player_color_fg1);
 }
 
+#player_no_video {
+    width: 48px; 
+    height: 48px;
+    border-radius: 3px;
+    top: 0;
+    bottom: 0;
+    position: absolute;
+    margin: auto;
+    padding: 8px;
+    margin-left: 10px;
+    display: flex;
+    box-sizing: border-box;
+    align-items: center;
+    text-align: center;
+    justify-content: center;
+    background-color: rgba(var(--player_color_bg1), var(--player_opacity_bg1));
+    opacity: 1;
+    transition: visibility 0.3s, opacity 0.3s;
+}
+
+#player_no_video.hide {
+    visibility: hidden;
+    opacity: 0;
+    transition: visibility 0.6s, opacity 0.6s;
+}
+
+#player_no_video svg {
+    width: 100%; 
+    height: 100%;
+    fill: var(--player_color_fg1);
+}
+
 @keyframes spin {
     100% { transform: rotate(360deg); }
 }
