@@ -10,13 +10,25 @@ import json
 import http.server
 
 class YoutubeVideo:
-    def __init__(self, id: str, title: str, thumbnail: str, original_url: str, manifest_url: str, available_at: int):
+    def __init__(self, 
+                 id: str, title: str, thumbnail: str, original_url: str, manifest_url: str, 
+                 available_at: int, duration: int, upload_date: str, uploader: str, 
+                 artist_name: str, album_name: str, release_date: str):
         self.id           = id
         self.title        = title
         self.thumbnail    = thumbnail
         self.original_url = original_url
         self.manifest_url = manifest_url
         self.available_at = available_at
+        self.duration     = duration
+        self.upload_date  = upload_date
+        self.uploader     = uploader
+
+        # NOTE(kihau): Extra metadata for tracks from YouTube Music. Might not exists, depending on the video.
+        self.artist_name  = artist_name
+        self.album_name   = album_name
+        self.release_date = release_date
+
 
 class YoutubePlaylistVideo:
     def __init__(self, url: str, title: str, thumbnails: list):
@@ -119,6 +131,14 @@ def get_youtube_video(query: str):
     original_url = entry.get("original_url")
     manifest_url = entry.get("manifest_url")
     available_at = entry.get("available_at")
+    duration     = entry.get("duration")
+    upload_date  = entry.get("upload_date")
+    uploader     = entry.get("uploader")
+
+    # NOTE(kihau): YouTube Music metadata
+    artist       = entry.get("artist")
+    album        = entry.get("album")
+    release_date = entry.get("release_date")
 
     if not isinstance(id, str): 
         id = ""
@@ -138,7 +158,40 @@ def get_youtube_video(query: str):
     if not isinstance(available_at, int):
         available_at = 0
 
-    return YoutubeVideo(id, title, thumbnail, original_url, manifest_url, available_at), ""
+    if not isinstance(duration, int):
+        duration = 0
+
+    if not isinstance(upload_date, str):
+        upload_date = ""
+
+    if not isinstance(uploader, str):
+        uploader = ""
+
+    if not isinstance(artist, str):
+        artist = ""
+
+    if not isinstance(album, str):
+        album = ""
+
+    if not isinstance(release_date, str):
+        release_date = ""
+
+    ytVideo = YoutubeVideo(
+        id           = id,
+        title        = title,
+        thumbnail    = thumbnail,
+        original_url = original_url,
+        manifest_url = manifest_url,
+        available_at = available_at,
+        duration     = duration,
+        upload_date  = upload_date,
+        uploader     = uploader,
+        artist_name  = artist,
+        album_name   = album,
+        release_date = release_date,
+    )
+
+    return ytVideo, None
 
 class TwitchStream:
     def __init__(self, id: str, title: str, thumbnail: str, original_url: str, url: str):

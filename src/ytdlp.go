@@ -23,6 +23,12 @@ type YoutubeVideo struct {
 	OriginalUrl string `json:"original_url"`
 	SourceUrl   string `json:"manifest_url"`
 	AvailableAt int64  `json:"available_at"`
+	Duration    int64  `json:"duration"`
+	UploadDate  string `json:"upload_date"`
+	Uploader    string `json:"uploader"`
+	ArtistName  string `json:"artist_name"`
+	AlbumName   string `json:"album_name"`
+	ReleaseDate string `json:"release_date"`
 }
 
 type YoutubeThumbnail struct {
@@ -392,7 +398,7 @@ func fetchVideoWithYtdlp(query string) (bool, YoutubeVideo) {
 	args := []string{
 		query, "--playlist-items", "1",
 		"--extractor-args", "youtube:player_client=web_safari",
-		"--print", "%(.{id,title,thumbnail,original_url,manifest_url,available_at})j",
+		"--print", "%(.{id,title,thumbnail,original_url,manifest_url,available_at,duration,uploader_date,uploader,artist,album,release_date})j",
 	}
 
 	command := exec.Command("yt-dlp", args...)
