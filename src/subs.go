@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-type SubtitleFile struct {
+type SubtitleCue struct {
 	Start, End Timecode
 	Content    string
 }
@@ -19,6 +19,7 @@ type Timecode struct {
 	Hours, Minutes, Seconds, Milliseconds int
 }
 
+var END_TIMECODE = Timecode{99, 59, 59, 999}
 var ZERO_TIMECODE = Timecode{0, 0, 0, 0}
 var INVALID_TIMECODE = Timecode{-1, -1, -1, -1}
 
@@ -85,8 +86,8 @@ func fromSrtTimestamp(timestamp string) (Timecode, error) {
 	return Timecode{hours, minutes, seconds, milliseconds}, nil
 }
 
-func newSubtitle(start, end Timecode, content string) SubtitleFile {
-	return SubtitleFile{start, end, content}
+func newSubtitleCue(start, end Timecode, content string) SubtitleCue {
+	return SubtitleCue{start, end, content}
 }
 
 //  Each subtitle has four parts in the SRT file.
@@ -95,16 +96,16 @@ func newSubtitle(start, end Timecode, content string) SubtitleFile {
 //    3. Subtitle text in one or more lines.
 //    4. A blank line indicating the end of the subtitle.
 
-func parseSRT(path string) ([]SubtitleFile, error) {
+func parseSRT(path string) ([]SubtitleCue, error) {
 
 	file, err := os.Open(path)
 	if err != nil {
-		return make([]SubtitleFile, 0), err
+		return make([]SubtitleCue, 0), err
 	}
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	subtitles := make([]SubtitleFile, 0, 2048)
+	subtitles := make([]SubtitleCue, 0, 2048)
 
 	for scanner.Scan() {
 		counter := scanner.Text()
@@ -120,7 +121,80 @@ func parseSRT(path string) ([]SubtitleFile, error) {
 			return subtitles, err
 		}
 		var content string = parseContent(scanner)
-		sub := newSubtitle(start, end, content)
+		sub := newSubtitleCue(start, end, content)
+		subtitles = append(subtitles, sub)
+	}
+	return subtitles, nil
+}
+
+var LRC_TAGS = []string{"ti", "ar", "al", "au", "lr", "length", "by", "offset", "re", "tool", "ve"}
+
+func parseLRC(path string) ([]SubtitleCue, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return make([]SubtitleCue, 0), err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	subtitles := make([]SubtitleCue, 0, 256)
+
+	firstCue := true
+	for scanner.Scan() {
+		line := scanner.Text()
+		line = strings.TrimSpace(line)
+		if line == "" || line[0] != '[' {
+			continue
+		}
+
+		lastIndex := len(line) - 1
+		if line[lastIndex] == ']' {
+			isTag := false
+			for _, tag := range LRC_TAGS {
+				if strings.HasPrefix(line[1:lastIndex], tag) {
+					isTag = true
+					break
+				}
+			}
+			if isTag {
+				continue
+			}
+		}
+
+		if len(line) < 11 {
+			// Silently skip empty cues
+			continue
+		}
+
+		minutes, err := strconv.Atoi(line[1:3])
+		if err != nil {
+			return subtitles, err
+		}
+		seconds, err := strconv.Atoi(line[4:6])
+		if err != nil {
+			return subtitles, err
+		}
+		hundredths, err := strconv.Atoi(line[7:9])
+		if err != nil {
+			return subtitles, err
+		}
+
+		hours := minutes / 60
+		minutes %= 60
+		start := Timecode{hours, minutes, seconds, hundredths * 10}
+		content := line[10:]
+		if content[0] == ' ' {
+			content = content[1:]
+		}
+
+		sub := newSubtitleCue(start, END_TIMECODE, content)
+		if firstCue {
+			firstCue = false
+			subtitles = append(subtitles, sub)
+			continue
+		}
+		lastSub := subtitles[len(subtitles)-1]
+		lastSub.End = sub.Start
 		subtitles = append(subtitles, sub)
 	}
 	return subtitles, nil
@@ -169,7 +243,7 @@ func parseTimestamps(timestamps string) (Timecode, Timecode, error) {
 	return start, end, nil
 }
 
-func serializeToVTT(subtitles []SubtitleFile, path string) error {
+func serializeToVTT(subtitles []SubtitleCue, path string) error {
 	file, err := os.Create(path)
 	if err != nil {
 		return err
@@ -195,7 +269,7 @@ func serializeToVTT(subtitles []SubtitleFile, path string) error {
 }
 
 // negative / positive
-func (sub *SubtitleFile) shiftBy(ms int) {
+func (sub *SubtitleCue) shiftBy(ms int) {
 	if ms > 0 {
 		sub.Start.shiftForwardBy(ms)
 		sub.End.shiftForwardBy(ms)
