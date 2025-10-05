@@ -2,12 +2,16 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type SubtitleCue struct {
@@ -129,14 +133,9 @@ func parseSRT(path string) ([]SubtitleCue, error) {
 
 var LRC_TAGS = []string{"ti", "ar", "al", "au", "lr", "length", "by", "offset", "re", "tool", "ve"}
 
-func parseLRC(path string) ([]SubtitleCue, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return make([]SubtitleCue, 0), err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
+func parseLRC(fileContents string) ([]SubtitleCue, error) {
+	stringReader := strings.NewReader(fileContents)
+	scanner := bufio.NewScanner(stringReader)
 	subtitles := make([]SubtitleCue, 0, 256)
 
 	firstCue := true
@@ -193,7 +192,7 @@ func parseLRC(path string) ([]SubtitleCue, error) {
 			subtitles = append(subtitles, sub)
 			continue
 		}
-		lastSub := subtitles[len(subtitles)-1]
+		lastSub := &subtitles[len(subtitles)-1]
 		lastSub.End = sub.Start
 		subtitles = append(subtitles, sub)
 	}
@@ -390,5 +389,70 @@ func downloadSubtitle(search *Search, outputDirectory string) (string, error) {
 	}
 
 	return "", errors.New(firstLine)
+}
 
+type LrcQuery struct {
+	TrackName  string `json:"track_name"`
+	ArtistName string `json:"artist_name"`
+	AlbumName  string `json:"album_name"`
+	Duration   int    `json:"duration"` // seconds
+}
+
+type LrcResponse struct {
+	Id           uint    `json:"id"`
+	TrackName    string  `json:"trackName"`
+	ArtistName   string  `json:"artistName"`
+	AlbumName    string  `json:"albumName"`
+	Duration     float32 `json:"duration"`
+	Instrumental bool    `json:"instrumental"`
+	SyncedLyrics string  `json:"syncedLyrics"`
+}
+
+type LrcErrorResponse struct {
+	Code    int    `json:"statusCode"`
+	Name    string `json:"name"`
+	Message string `json:"message"`
+}
+
+const LRC_LIB_URL = "https://lrclib.net/"
+
+func getLyrics(params LrcQuery) (*LrcResponse, error) {
+	req, _ := http.NewRequest("GET", LRC_LIB_URL+"api/get", nil)
+	req.Header.Set("User-Agent", userAgent)
+
+	q := req.URL.Query()
+	q.Add("artist_name", params.ArtistName)
+	q.Add("track_name", params.TrackName)
+	q.Add("album_name", params.AlbumName)
+	q.Add("duration", strconv.Itoa(params.Duration))
+	req.URL.RawQuery = q.Encode()
+
+	client := &http.Client{Timeout: 15 * time.Second}
+
+	response, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.StatusCode != 200 {
+		var errorResponse LrcErrorResponse
+		err = json.Unmarshal(body, &errorResponse)
+		if err != nil {
+			return nil, err
+		}
+		return nil, errors.New(errorResponse.Name + " -> " + errorResponse.Message)
+	}
+
+	var lrcResponse LrcResponse
+	err = json.Unmarshal(body, &lrcResponse)
+	if err != nil {
+		return nil, err
+	}
+	return &lrcResponse, nil
 }
