@@ -1048,13 +1048,12 @@ class Room {
         });
 
         this.pageRoot.addEventListener("keydown", event => {
-            if (event.key === "f" && event.target === this.pageRoot) {
+            let ctrl  = event.ctrlKey;
+            if (event.key === "f" && !ctrl && event.target === this.pageRoot) {
                 this.player.toggleFullscreen();
             }
 
-            let ctrl = event.getModifierState("Alt");
-            let alt  = event.getModifierState("Control");
-
+            let alt = event.altKey;
             if (!ctrl || !alt) {
                 return
             }
