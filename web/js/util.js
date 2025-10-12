@@ -214,6 +214,29 @@ export function fileInput(formats) {
     return element;
 }
 
+export function showNotification(title, body, timeoutMs) {
+    let notification;
+    try {
+        notification = new Notification(title, {
+            body: body,
+        });
+    } catch (e) {
+        console.error(e);
+        return
+    }
+    notification.onclick = () => {
+        notification.close();
+    };
+
+    const timeoutId = setTimeout(() => {
+        notification.close();
+    }, timeoutMs);
+
+    notification.onclose = () => {
+        clearTimeout(timeoutId);
+    };
+}
+
 export function formatTime(seconds) {
     let time = "";
     let hours = 0;

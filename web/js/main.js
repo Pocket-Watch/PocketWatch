@@ -6,7 +6,7 @@ import { sha256 } from "./auth.js";
 import * as api from "./api.js";
 import {
     Storage, button, div, formatTime, formatByteCount, getById, dynamicImg, img, svg, show, hide,
-    fileInput, isLocalUrl, input, span, getDateStrings
+    fileInput, isLocalUrl, input, span, getDateStrings, showNotification
 } from "./util.js";
 
 const SERVER_ID = 0;
@@ -2083,7 +2083,7 @@ class Room {
         this.markAllUsersOffline();
         this.player.setToast(CONNECTION_LOST_MESSAGE);
         if (this.settingsMenu.notificationsToggle.classList.contains("active")) {
-            new Notification(CONNECTION_LOST_MESSAGE);
+            showNotification(CONNECTION_LOST_MESSAGE, "", 2000);
         }
         show(this.connectionLostPopup);
         setTimeout(_ => this.connectToServer(), RECONNECT_AFTER);

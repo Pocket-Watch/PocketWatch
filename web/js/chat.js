@@ -1,5 +1,17 @@
 import * as api from "./api.js";
-import { getById, div, img, span, a, isSameDay, isLocalImage, show, hide, clearContent } from "./util.js";
+import {
+    getById,
+    div,
+    img,
+    span,
+    a,
+    isSameDay,
+    isLocalImage,
+    show,
+    hide,
+    clearContent,
+    showNotification
+} from "./util.js";
 
 export { Chat }
 
@@ -469,9 +481,7 @@ class Chat {
         let date = new Date(chatMsg.created_at);
 
         if (this.notifications && isNew && this.currentUserId !== chatMsg.user_id) {
-            new Notification(user.username, {
-                body: chatMsg.content,
-            });
+            showNotification(user.username, chatMsg.content, 5000);
         }
 
         let message;
