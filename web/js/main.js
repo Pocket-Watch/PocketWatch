@@ -1935,11 +1935,12 @@ class Room {
                     show(this.chatNewMessage);
                 }
 
-                if (this.shouldPlayNotificationSound(message.authorId)) {
+                let isSelf = this.currentUserId === message.user_id;
+                if (this.shouldPlayNotificationSound(isSelf)) {
                     this.newMessageAudio.play();
                 }
 
-                if (document.visibilityState === "hidden") {
+                if (!isSelf && document.visibilityState === "hidden") {
                     this.pageIcon.href = "img/favicon_unread.ico";
                 }
 
@@ -2070,11 +2071,10 @@ class Room {
         }
     }
 
-    shouldPlayNotificationSound(authorId) {
+    shouldPlayNotificationSound(isSelf) {
         let messageSoundEnabled = this.settingsMenu.newMessageSoundToggle.classList.contains("active");
         let isAway = this.selected_tab !== TAB_CHAT || document.visibilityState === "hidden";
-        let isSelf = this.currentUserId === authorId;
-        return messageSoundEnabled && !isSelf && (isAway || this.player.isFullscreen());
+        return !isSelf && messageSoundEnabled && (isAway || this.player.isFullscreen());
     }
 
     handleDisconnect() {

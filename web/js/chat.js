@@ -468,8 +468,8 @@ class Chat {
         let user = this.findUser(chatMsg.user_id, allUsers);
         let date = new Date(chatMsg.created_at);
 
-        if (this.notifications && isNew && this.currentUserId !== chatMsg.authorId) {
-            let n = new Notification(user.username, {
+        if (this.notifications && isNew && this.currentUserId !== chatMsg.user_id) {
+            new Notification(user.username, {
                 body: chatMsg.content,
             });
         }
