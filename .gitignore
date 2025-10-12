@@ -8,6 +8,7 @@ lib/*
 database/*
 scratch/*
 logs/*
+*.txt
 
 # Exclusions for web/ directory .
 web/stream/*

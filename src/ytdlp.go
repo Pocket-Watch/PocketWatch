@@ -104,6 +104,40 @@ func postToInternalServer[T any](endpoint string, data any) (bool, T, error) {
 	return true, output, err
 }
 
+func getToInternalServer[T any](endpoint string, pairs []Param, port int) (bool, T, error) {
+	var output T
+
+	url := "http://localhost:" + toString(port) + endpoint
+	u, _ := neturl.Parse(url)
+	params := neturl.Values{}
+	for _, pair := range pairs {
+		params.Add(pair.key, pair.value)
+	}
+
+	u.RawQuery = params.Encode()
+	response, err := http.Get(u.String())
+	if err != nil {
+		return false, output, err
+	}
+
+	responseData, err := io.ReadAll(response.Body)
+	if err != nil {
+		LogError("Failed to unmarshal data from the internal server: %v", err)
+		return false, output, nil
+	}
+
+	if response.StatusCode != http.StatusOK {
+		var errorMessage string
+		json.Unmarshal(responseData, &errorMessage)
+
+		LogWarn("Internal server returned status code %v with message: %v", response.StatusCode, errorMessage)
+		return true, output, fmt.Errorf("%v", errorMessage)
+	}
+
+	json.Unmarshal(responseData, &output)
+	return true, output, err
+}
+
 func isTwitchEntry(entry Entry) bool {
 	if !YTDLP_ENABLED {
 		return false
@@ -420,6 +454,12 @@ func fetchVideoWithYtdlp(query string) (bool, YoutubeVideo) {
 }
 
 func fetchYoutubeVideo(query string) (YoutubeVideo, error) {
+	if !strings.HasPrefix(query, "ytsearch:") {
+		ok, video, err := getToInternalServer[YoutubeVideo]("/fetch", []Param{{"url", query}}, 9090)
+		if ok {
+			return video, err
+		}
+	}
 	data := InternalServerVideoFetch{Query: query}
 	ok, video, err := postToInternalServer[YoutubeVideo]("/youtube/fetch", data)
 	if ok {
