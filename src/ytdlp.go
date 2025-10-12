@@ -457,8 +457,6 @@ func fetchYoutubeVideo(query string) (YoutubeVideo, error) {
 	if !strings.HasPrefix(query, "ytsearch:") {
 		ok, video, err := getToInternalServer[YoutubeVideo]("/fetch", []Param{{"url", query}}, 9090)
 		if ok {
-			LogDebug("(TODO: REMOVE) sleeping for 6s")
-			time.Sleep(6 * time.Second)
 			return video, err
 		}
 	}

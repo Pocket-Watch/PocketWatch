@@ -1001,6 +1001,10 @@ func setupDualTrackProxy(originalM3U *M3U, referer string) (bool, *HlsProxy, *Hl
 		LogError("Failed to download m3u8 video track: %v", err.Error())
 		return false, nil, nil
 	}
+	if !validateOrRepointPlaylist(videoM3U, referer) {
+		LogError("Chunk 0 was not available in video m3u!")
+		return false, nil, nil
+	}
 
 	audioM3U, err := downloadM3U(audioUrl, WEB_PROXY+AUDIO_M3U8, referer)
 	if err != nil {
@@ -1202,7 +1206,7 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 	}
 
 	// Test if the first chunk is available and the source operates as intended (prevents broadcasting broken entries)
-	if !server.validateOrRepointPlaylist(m3u, referer) {
+	if !validateOrRepointPlaylist(m3u, referer) {
 		LogError("Chunk 0 was not available!")
 		return false
 	}
@@ -1271,7 +1275,7 @@ func setupVodProxy(m3u *M3U, osPath, referer, chunkPrefix string) *HlsProxy {
 var EXTM3U_BYTES = []byte("#EXTM3U")
 
 // validateOrRepointPlaylist will also prefix segments appropriately or fail
-func (server *Server) validateOrRepointPlaylist(m3u *M3U, referer string) bool {
+func validateOrRepointPlaylist(m3u *M3U, referer string) bool {
 	// VODs or LIVEs are expected
 	if m3u.isMasterPlaylist {
 		return false
