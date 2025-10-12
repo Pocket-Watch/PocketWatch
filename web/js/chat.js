@@ -7,19 +7,19 @@ const CHARACTER_LIMIT = 1000;
 
 class Chat {
     constructor() {
-        this.contentRoot        = getById("content_chat");
-        this.chatInput          = getById("chat_input_box");
-        this.chatListRoot       = getById("chat_message_list_root");
-        this.chatList           = getById("chat_message_list");
-        this.sendMessageButton  = getById("chat_input_send_button");
-        this.uploadButton       = getById("chat_input_upload_button");
-        this.uploadImageInput   = getById("chat_input_upload_image");
-        this.contextMenu        = getById("chat_context_menu");
-        this.contextMenuEdit    = getById("chat_context_edit");
-        this.contextMenuDelete  = getById("chat_context_delete");
-        this.contextMenuCopy    = getById("chat_context_copy");
-        this.contextMenuCopyUrl = getById("chat_context_copy_url");
-        this.contextMenuOpen    = getById("chat_context_open");
+        this.contentRoot         = getById("content_chat");
+        this.chatInput           = getById("chat_input_box");
+        this.chatListRoot        = getById("chat_message_list_root");
+        this.chatList            = getById("chat_message_list");
+        this.sendMessageButton   = getById("chat_input_send_button");
+        this.uploadButton        = getById("chat_input_upload_button");
+        this.uploadImageInput    = getById("chat_input_upload_image");
+        this.contextMenu         = getById("chat_context_menu");
+        this.contextMenuEdit     = getById("chat_context_edit");
+        this.contextMenuDelete   = getById("chat_context_delete");
+        this.contextMenuCopy     = getById("chat_context_copy");
+        this.contextMenuCopyUrl  = getById("chat_context_copy_url");
+        this.contextMenuOpen     = getById("chat_context_open");
 
         this.currentUserId = -1;
 
@@ -42,6 +42,7 @@ class Chat {
 
         this.loadingMessages = false;
         this.reachedChatTop  = false;
+        this.notifications  = false;
     }
 
     hideContextMenu() {
@@ -463,9 +464,15 @@ class Chat {
         return segments
     }
 
-    addMessage(chatMsg, allUsers) {
+    addMessage(chatMsg, allUsers, isNew = false) {
         let user = this.findUser(chatMsg.user_id, allUsers);
         let date = new Date(chatMsg.created_at);
+
+        if (this.notifications && isNew && this.currentUserId !== chatMsg.authorId) {
+            let n = new Notification(user.username, {
+                body: chatMsg.content,
+            });
+        }
 
         let message;
         if (this.prevUserId !== user.id || !isSameDay(this.prevDate, date)) {

@@ -4,9 +4,9 @@ import { History } from "./history.js";
 import { Chat } from "./chat.js";
 import { sha256 } from "./auth.js";
 import * as api from "./api.js";
-import { 
-    Storage, button, div, formatTime, formatByteCount, getById, dynamicImg, img, svg, show, hide, 
-    fileInput, isLocalUrl, input, span, getDateStrings 
+import {
+    Storage, button, div, formatTime, formatByteCount, getById, dynamicImg, img, svg, show, hide,
+    fileInput, isLocalUrl, input, span, getDateStrings
 } from "./util.js";
 
 const SERVER_ID = 0;
@@ -17,6 +17,7 @@ const USER_AVATAR_ANIMATIONS = "user_avatar_animations";
 const NEW_MESSAGE_SOUND      = "new_message_sound";
 const ROOM_THEATER_MODE      = "room_theater_mode";
 const LOW_BANDWIDTH_MODE     = "low_bandwidth_mode";
+const NOTIFICATIONS_ENABLED  = "notifications_enabled";
 const LAST_SELECTED_TAB      = "last_selected_tab";
 const LAST_SELECTED_SUBTITLE = "last_selected_subtitle";
 const HLS_DEBUG              = "hls_debug";
@@ -69,6 +70,7 @@ class Room {
             theaterModeToggle:       getById("theater_mode_toggle"),
             hlsDebugToggle:          getById("hls_debug_toggle"),
             lowBandwidthModeToggle:  getById("low_bandwidth_mode_toggle"),
+            notificationsToggle:     getById("notifications_toggle"),
             themeSwitcherSelect:     getById("settings_switch_theme"),
             deleteYourAccountButton: getById("delete_your_account"),
             confirmAccountDelete:    getById("confirm_deletion_phrase"),
@@ -282,8 +284,7 @@ class Room {
             this.settingsMenu.theaterModeToggle.classList.remove("active");
         }
 
-        let enabled = Storage.getBool(HLS_DEBUG);
-        if (enabled) {
+        if (Storage.getBool(HLS_DEBUG)) {
             this.settingsMenu.hlsDebugToggle.classList.add("active");
         }
 
@@ -293,6 +294,11 @@ class Room {
         } else {
             this.settingsMenu.lowBandwidthModeToggle.classList.remove("active");
             // Now load the images or demand a page reload?
+        }
+
+        if (Storage.getBool(NOTIFICATIONS_ENABLED)) {
+            this.settingsMenu.notificationsToggle.classList.add("active");
+            this.chat.notifications = true;
         }
 
         let theme = Storage.get(SELECTED_THEME);
@@ -1026,6 +1032,29 @@ class Room {
             let isToggled = menu.lowBandwidthModeToggle.classList.toggle("active");
             Storage.setBool(LOW_BANDWIDTH_MODE, isToggled);
             // Do something or page reload?
+        };
+
+        menu.notificationsToggle.onclick = _ => {
+            if (!Notification) {
+                console.warn("Notifications are not supported. On Safari the page must be a web app saved to the home screen.");
+                return;
+            }
+            if (Notification.permission !== "granted") {
+                if (Notification.permission === "denied") {
+                    console.warn("Notifications permission is denied. Change browser settings for this webpage.");
+                }
+                Notification.requestPermission().then((permission) => {
+                    if (permission === "granted") {
+                        menu.notificationsToggle.classList.add("active");
+                        this.chat.notifications = true;
+                        Storage.setBool(NOTIFICATIONS_ENABLED, true);
+                    }
+                });
+                return;
+            }
+            let isToggled = menu.notificationsToggle.classList.toggle("active");
+            this.chat.notifications = isToggled;
+            Storage.setBool(NOTIFICATIONS_ENABLED, isToggled);
         };
 
         menu.themeSwitcherSelect.onchange = event => {
@@ -1914,7 +1943,7 @@ class Room {
                     this.pageIcon.href = "img/favicon_unread.ico";
                 }
 
-                this.chat.addMessage(message, this.allUsers);
+                this.chat.addMessage(message, this.allUsers, true);
             } break;
 
             case "messageedit": {
