@@ -22,6 +22,8 @@ const LAST_SELECTED_TAB      = "last_selected_tab";
 const LAST_SELECTED_SUBTITLE = "last_selected_subtitle";
 const HLS_DEBUG              = "hls_debug";
 
+const CONNECTION_LOST_MESSAGE= "Connection to the server was lost...";
+
 const TAB_DEFAULT  = 0;
 const TAB_ROOM     = 1;
 const TAB_PLAYLIST = 2;
@@ -2079,7 +2081,10 @@ class Room {
 
     handleDisconnect() {
         this.markAllUsersOffline();
-        this.player.setToast("Connection to the server was lost...");
+        this.player.setToast(CONNECTION_LOST_MESSAGE);
+        if (this.settingsMenu.notificationsToggle.classList.contains("active")) {
+            new Notification(CONNECTION_LOST_MESSAGE);
+        }
         show(this.connectionLostPopup);
         setTimeout(_ => this.connectToServer(), RECONNECT_AFTER);
     }
