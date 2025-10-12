@@ -157,8 +157,9 @@ class Room {
 
             recentActions:      getById("room_recent_actions_list"), 
 
-            subtitlesSelect:    getById("room_subtitle_select"),
-            videoResolution:    getById("room_video_resolution"),
+            subtitlesSelect:   getById("room_subtitle_select"),
+            setAtDate:         getById("room_set_at_date"),
+            currentResolution: getById("room_current_resolution"),
 
             upload: {
                 placeholderRoot: getById("room_upload_media_placeholder"),
@@ -434,7 +435,7 @@ class Room {
         });
 
         this.player.onMetadataLoad(_ => {
-            this.roomContent.videoResolution.textContent = this.player.getResolution();
+            this.roomContent.currentResolution.textContent = this.player.getResolution();
         });
 
         this.player.onPlaybackError((exception, error) => {
@@ -1475,6 +1476,10 @@ class Room {
         let [Y, M, D, h, m] = getDateStrings(date);
         this.roomContent.createdAtDate.textContent = `${Y}.${M}.${D}, ${h}:${m}`;
 
+        date = new Date(entry.last_set_at);
+        [Y, M, D, h, m] = getDateStrings(date);
+        this.roomContent.setAtDate.textContent = `${Y}.${M}.${D}, ${h}:${m}`;
+
         this.updateRoomSubtitlesHtml(entry);
     }
 
@@ -1519,6 +1524,8 @@ class Room {
 
     setNothing() {
         Storage.remove(LAST_SELECTED_SUBTITLE);
+
+        this.roomContent.currentResolution.textContent = "N/A";
 
         this.player.discardPlayback();
         this.player.setTitle(null);

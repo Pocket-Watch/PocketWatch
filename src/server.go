@@ -1895,6 +1895,8 @@ func (server *Server) getEntriesFromDirectory(path string, userId uint64) []Entr
 	entries := make([]Entry, 0)
 
 	items, _ := os.ReadDir("./web/" + path)
+
+	now := time.Now()
 	for _, item := range items {
 		if !item.IsDir() {
 			webpath := path + "/" + item.Name()
@@ -1910,7 +1912,8 @@ func (server *Server) getEntriesFromDirectory(path string, userId uint64) []Entr
 				UserId:    userId,
 				UseProxy:  false,
 				Subtitles: []Subtitle{},
-				CreatedAt: time.Now(),
+				CreatedAt: now,
+				LastSetAt: now,
 			}
 
 			entry.Title = constructTitleWhenMissing(&entry)
@@ -1945,10 +1948,12 @@ func (server *Server) cleanupDummyUsers() []User {
 func (server *Server) constructEntry(entry Entry) Entry {
 	entry.Url = strings.TrimSpace(entry.Url)
 
+	now := time.Now()
 	if entry.Url == "" {
 		entry := Entry{
 			UserId:    entry.UserId,
-			CreatedAt: time.Now(),
+			CreatedAt: now,
+			LastSetAt: now,
 		}
 
 		return entry
@@ -1957,7 +1962,7 @@ func (server *Server) constructEntry(entry Entry) Entry {
 	entry.Id = server.state.entryId.Add(1)
 	entry.Title = constructTitleWhenMissing(&entry)
 	// TODO Add SetAt and don't modify CreatedAt here
-	entry.CreatedAt = time.Now()
+	entry.LastSetAt = now
 
 	for i := range entry.Subtitles {
 		entry.Subtitles[i].Id = server.state.subsId.Add(1)

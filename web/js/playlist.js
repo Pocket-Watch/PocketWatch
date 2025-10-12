@@ -599,34 +599,62 @@ class Playlist {
         let proxyRoot      = div("playlist_dropdown_proxy_root");
         let proxyToggle    = widget_toggle(null, "Enable proxy", entry.use_proxy, true);
         let proxyReferer   = widget_input(null, "Referer", entry.referer_url, true);
-        let infoLabels     = div("playlist_dropdown_info_labels");
-        let addedByText    = span("playlist_dropdown_added_by", "Added by"); 
-        let createdAtText  = span("playlist_dropdown_created_at", "Created at");
-        let infoContent    = div("playlist_dropdown_info_content");
-        let userAvatar     = div("playlist_dropdown_user_avatar");
-        let userAvatarImg  = img(user.avatar);
-        let userName       = span("playlist_dropdown_user_name", user.username);
-        let date           = new Date(entry.created_at);
-        let creationDate   = span("playlist_dropdown_creation_date", date.toLocaleString());
 
-        // 
-        // TODO(kihau): Show subtitles.
-        //
+        let infoLabelsTop  = div("playlist_dropdown_info_labels");
+        let createdByLabel = span("playlist_dropdown_created_by_label", "Created by"); 
+        let createdAtLabel = span("playlist_dropdown_created_at_label", "Created at");
+
+        let infoLabelsBot  = div("playlist_dropdown_info_labels");
+        let subsCountLabel = span("playlist_dropdown_subtitle_count_label", "Attached subtitles");
+        let lastSetAtLabel = span("playlist_dropdown_last_set_at_label", "Last set at");
+
+        let createdAt      = new Date(entry.created_at);
+        let lastSetAt      = new Date(entry.last_set_at);
+        let userAvatarImg  = img(user.avatar);
+
+        let infoContentTop = div("playlist_dropdown_info_content");
+        let userAvatar     = div("playlist_dropdown_user_avatar");
+        let userName       = span("playlist_dropdown_user_name", user.username);
+        let createdAtDate  = span("playlist_dropdown_created_at_date", createdAt.toLocaleString());
+
+        let infoContentBot = div("playlist_dropdown_info_content");
+        let subsCount      = span("playlist_dropdown_subtitle_count", "0 subtitles");
+        let lastSetAtDate  = span("playlist_dropdown_last_set_at_date", lastSetAt.toLocaleString());
+
+
+        if (!entry.subtitles || entry.subtitles.length === 0) {
+            subsCount.textContent = "No subtitles";
+        } else if (entry.subtitles.length === 1) {
+            subsCount.textContent = entry.subtitles.length + " subtitle";
+        } else {
+            subsCount.textContent = entry.subtitles.length + " subtitles";
+        }
+
 
         entryDropdown.append(proxyRoot); {
             proxyRoot.append(proxyToggle);
             proxyRoot.append(proxyReferer);
         }
-        entryDropdown.append(infoLabels); {
-            infoLabels.append(addedByText);
-            infoLabels.append(createdAtText);
+
+        entryDropdown.append(infoLabelsTop); { 
+            infoLabelsTop.append(createdByLabel);
+            infoLabelsTop.append(createdAtLabel);
         }
-        entryDropdown.append(infoContent); {
-            infoContent.append(userAvatar); {
+        entryDropdown.append(infoContentTop); {
+            infoContentTop.append(userAvatar); {
                 userAvatar.append(userAvatarImg);
             }
-            infoContent.append(userName);
-            infoContent.append(creationDate);
+            infoContentTop.append(userName);
+            infoContentTop.append(createdAtDate);
+        }
+
+        entryDropdown.append(infoLabelsBot); { 
+            infoLabelsBot.append(subsCountLabel);
+            infoLabelsBot.append(lastSetAtLabel);
+        }
+        entryDropdown.append(infoContentBot); {
+            infoContentBot.append(subsCount);
+            infoContentBot.append(lastSetAtDate);
         }
 
         return entryDropdown;

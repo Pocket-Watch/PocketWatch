@@ -209,11 +209,11 @@ type Entry struct {
 	// Entry network URL path of the thumbnal.
 	Thumbnail string `json:"thumbnail"`
 
-	// Time when the entry was set as current.
-	LastSetAt time.Time `json:"last_set_at"`
-
 	// Original creation time of the entry.
 	CreatedAt time.Time `json:"created_at"`
+
+	// Time when the entry was set as current.
+	LastSetAt time.Time `json:"last_set_at"`
 }
 
 type ServerState struct {

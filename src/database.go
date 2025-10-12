@@ -475,8 +475,8 @@ func databaseFindMaxId(db *sql.DB, tableName string) uint64 {
 
 func databaseEntryAdd(db *sql.DB, entry Entry) bool {
 	_, err := db.Exec(
-		"INSERT INTO entries VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-		entry.Id, entry.Url, entry.Title, entry.UserId, entry.UseProxy, entry.RefererUrl, entry.SourceUrl, entry.Thumbnail, entry.CreatedAt,
+		"INSERT INTO entries VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+		entry.Id, entry.Url, entry.Title, entry.UserId, entry.UseProxy, entry.RefererUrl, entry.SourceUrl, entry.Thumbnail, entry.CreatedAt, entry.LastSetAt,
 	)
 
 	if err != nil {
@@ -657,8 +657,8 @@ func DatabaseCurrentEntrySet(db *sql.DB, entry Entry) bool {
 	}
 
 	_, err = db.Exec(
-		"INSERT INTO entries VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-		entry.Id, entry.Url, entry.Title, entry.UserId, entry.UseProxy, entry.RefererUrl, entry.SourceUrl, entry.Thumbnail, entry.CreatedAt,
+		"INSERT INTO entries VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+		entry.Id, entry.Url, entry.Title, entry.UserId, entry.UseProxy, entry.RefererUrl, entry.SourceUrl, entry.Thumbnail, entry.CreatedAt, entry.LastSetAt,
 	)
 
 	if err != nil {
@@ -793,7 +793,7 @@ func DatabasePlaylistGet(db *sql.DB) ([]Entry, bool) {
 
 		temp := Entry{}
 		err := rows.Scan(
-			&temp.Id, &temp.Url, &temp.Title, &temp.UserId, &temp.UseProxy, &temp.RefererUrl, &temp.SourceUrl, &temp.Thumbnail, &temp.CreatedAt,
+			&temp.Id, &temp.Url, &temp.Title, &temp.UserId, &temp.UseProxy, &temp.RefererUrl, &temp.SourceUrl, &temp.Thumbnail, &temp.CreatedAt, &temp.LastSetAt,
 			&subId, &entryId, &subName, &subUrl, &subShift,
 		)
 
@@ -926,7 +926,7 @@ func DatabaseHistoryGet(db *sql.DB) ([]Entry, bool) {
 
 		temp := Entry{}
 		err := rows.Scan(
-			&temp.Id, &temp.Url, &temp.Title, &temp.UserId, &temp.UseProxy, &temp.RefererUrl, &temp.SourceUrl, &temp.Thumbnail, &temp.CreatedAt,
+			&temp.Id, &temp.Url, &temp.Title, &temp.UserId, &temp.UseProxy, &temp.RefererUrl, &temp.SourceUrl, &temp.Thumbnail, &temp.CreatedAt, &temp.LastSetAt,
 			&subId, &entryId, &subName, &subUrl, &subShift,
 		)
 

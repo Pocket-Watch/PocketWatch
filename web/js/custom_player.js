@@ -422,7 +422,7 @@ class Internals {
         this.htmlToastText      = newElement("span", "player_toast_text");
         this.bufferingSvg       = this.svgs.buffering.svg;
         this.playbackPopupSvg   = this.svgs.playbackPopup.svg;
-        this.htmlNoVideoPopup   = newDiv("player_no_video", "hide", "unselectable");
+        this.htmlNoVideoPopup   = newDiv("player_no_video");
         this.noVideoSvg         = this.svgs.noVideo.svg;
         this.htmlSeekForward    = newDiv("player_forward_container", "hide", "unselectable");
         this.htmlSeekBackward   = newDiv("player_backward_container", "hide", "unselectable");
@@ -841,9 +841,11 @@ class Internals {
         if (timestamp < 0) {
             timestamp = 0;
         }
+
         if (timestamp > this.htmlVideo.duration) {
             timestamp = this.htmlVideo.duration;
         }
+
         return timestamp;
     }
 
@@ -853,7 +855,11 @@ class Internals {
 
     getResolution() {
         let video = this.htmlVideo;
-        return video.videoWidth + "x" + video.videoHeight;
+        if (video.videoWidth === 0 || video.videoHeight === 0) {
+            return "N/A";
+        } else {
+            return video.videoWidth + "x" + video.videoHeight;
+        }
     }
 
     setVolume(volume) {

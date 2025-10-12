@@ -1242,22 +1242,24 @@ html * {
     margin-bottom: 4px;
 }
 
-#room_created_info_labels {
+.room_created_info_labels {
     width: 100%;
     display: flex;
 }
 
-#room_created_info_content {
+.room_created_info_content {
     display: flex;
     align-items: center;
     width: 100%;
     column-gap: 6px;
 }
 
+#room_current_resolution_label,
 #room_created_by_label {
     color: var(--fg_5);
 }
 
+#room_set_at_label,
 #room_created_at_label {
     color: var(--fg_5);
     margin-left: auto;
@@ -1270,11 +1272,13 @@ html * {
     border: 2px solid var(--bg_5);
 }
 
+#room_current_resolution,
 #room_created_by_username {
     color: var(--fg_4);
     font-weight: bold;
 }
 
+#room_set_at_date,
 #room_created_at_date {
     color: var(--fg_4);
     font-weight: bold;
