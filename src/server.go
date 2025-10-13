@@ -898,7 +898,7 @@ func (server *Server) getSubtitles() []string {
 
 func (server *Server) setupGenericFileProxy(url string, referer string) bool {
 	_ = os.RemoveAll(CONTENT_PROXY)
-	_ = os.Mkdir(CONTENT_PROXY, os.ModePerm)
+	_ = os.MkdirAll(CONTENT_PROXY, os.ModePerm)
 	parsedUrl, err := net_url.Parse(url)
 	if err != nil {
 		LogError("The provided URL is invalid: %v", err)
@@ -1160,7 +1160,7 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 	defer server.state.setupLock.Unlock()
 	start := time.Now()
 	_ = os.RemoveAll(CONTENT_PROXY)
-	_ = os.Mkdir(CONTENT_PROXY, os.ModePerm)
+	_ = os.MkdirAll(CONTENT_PROXY, os.ModePerm)
 	var m3u *M3U
 	if server.isTrustedUrl(url, urlStruct) {
 		osPath := Conditional(isAbsolute(url), stripPathPrefix(urlStruct.Path, PAGE_ROOT), url)

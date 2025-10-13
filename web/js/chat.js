@@ -6,7 +6,6 @@ import {
     span,
     a,
     isSameDay,
-    isLocalImage,
     show,
     hide,
     clearContent,
@@ -141,7 +140,7 @@ class Chat {
         let filename = unix + file.name;
         let response = await api.uploadMedia(file, filename);
 
-        let fullUrl = document.location.href + response.url;
+        let fullUrl = "res://" + response.filename;
         this.chatInput.value += fullUrl;
     }
 
@@ -405,6 +404,11 @@ class Chat {
     }
 
     contextUrlShow(url) {
+        if (url.startsWith("res://")) {
+            let res = url.slice("res://".length);
+            url = document.location + api.MEDIA_IMAGE + res;
+        }
+
         this.contextMenuUrl     = url;
         this.contextMenuShowUrl = true;
     }
@@ -419,11 +423,12 @@ class Chat {
 
         let segmentStart = 0;
         let parsingUrl   = false;
+        let parsingRes   = false;
 
         for (let i = 0; i < content.length; i++) {
             let slice = content.slice(i);
 
-            if (!parsingUrl && (slice.startsWith("http://") || slice.startsWith("https://"))) {
+            if (!parsingUrl && (slice.startsWith("http://") || slice.startsWith("https://") || slice.startsWith("res://"))) {
                 if (segmentStart !== i) {
                     let text    = content.slice(segmentStart, i);
                     let segment = span(null, text);
@@ -433,15 +438,16 @@ class Chat {
 
                 segmentStart = i;
                 parsingUrl   = true;
-            }
+            } 
 
             let rune = content[i];
             if (rune === " " && parsingUrl) {
                 let url = content.slice(segmentStart, i);
 
                 let segment;
-                if (isLocalImage(url)) {
-                    segment = img(url);
+                if (url.startsWith("res://")) {
+                    let res = url.slice("res://".length);
+                    segment = img(api.MEDIA_IMAGE + res);
                 } else {
                     segment = a(null, url)
                 }
@@ -458,8 +464,9 @@ class Chat {
             let url = content.slice(segmentStart);
 
             let segment;
-            if (isLocalImage(url)) {
-                segment = img(url);
+            if (url.startsWith("res://")) {
+                let res = url.slice("res://".length);
+                segment = img(api.MEDIA_IMAGE + res);
             } else {
                 segment = a(null, url)
             }

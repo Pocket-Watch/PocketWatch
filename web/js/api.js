@@ -1,4 +1,15 @@
-const API_PATH = "/api/";
+export const PAGE_ROOT = "/watch/"
+export const API_PATH  = "/api/";
+
+export const CONTENT_PATH  = "content/"
+export const CONTENT_MEDIA = CONTENT_PATH + "media/"
+export const CONTENT_SUBS  = CONTENT_PATH + "subs/"
+export const CONTENT_USERS = CONTENT_PATH + "users/"
+
+export const MEDIA_VIDEO = CONTENT_MEDIA + "video/"
+export const MEDIA_AUDIO = CONTENT_MEDIA + "audio/"
+export const MEDIA_SUBS  = CONTENT_MEDIA + "subs/"
+export const MEDIA_IMAGE = CONTENT_MEDIA + "image/"
 
 export const EVENT_PLAYER_PLAY         = 0;
 export const EVENT_PLAYER_PAUSE        = 1;

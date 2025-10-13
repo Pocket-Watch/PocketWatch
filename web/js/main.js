@@ -177,6 +177,7 @@ class Room {
             },
 
             browse: {
+                anchor:          getById("room_media_browse_anchor"),
                 videoButton:     getById("room_media_browse_button_video"),
                 audioButton:     getById("room_media_browse_button_audio"),
                 subtitlesButton: getById("room_media_browse_button_subtitles"),
@@ -796,10 +797,11 @@ class Room {
             this.startMediaFileUpload(event.target.files[0]);
         };
 
-        room.browse.videoButton.onclick     = _ => window.open("content/media/video/", "_blank").focus();
-        room.browse.audioButton.onclick     = _ => window.open("content/media/audio/", "_blank").focus();
-        room.browse.subtitlesButton.onclick = _ => window.open("content/media/subs/",  "_blank").focus();
-        room.browse.imagesButton.onclick    = _ => window.open("content/media/image/", "_blank").focus();
+        room.browse.anchor.href = api.CONTENT_MEDIA;
+        room.browse.videoButton.onclick     = _ => window.open(api.MEDIA_VIDEO, "_blank").focus();
+        room.browse.audioButton.onclick     = _ => window.open(api.MEDIA_AUDIO, "_blank").focus();
+        room.browse.subtitlesButton.onclick = _ => window.open(api.MEDIA_SUBS,  "_blank").focus();
+        room.browse.imagesButton.onclick    = _ => window.open(api.MEDIA_IMAGE, "_blank").focus();
         room.copyEntryButton.onclick        = _ => this.copyEntryToEntryArea(this.currentEntry);
 
         room.setShiftButton.onclick = _ => {

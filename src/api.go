@@ -52,7 +52,7 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request, use
 		respondBadRequest(w, "Filename of the uploaded file is not allowed")
 		return
 	}
-	os.MkdirAll(CONTENT_MEDIA+directory, 0750)
+	os.MkdirAll(CONTENT_MEDIA+directory, os.ModePerm)
 
 	outputFile, err := os.Create(outputPath)
 	if err != nil {
@@ -75,7 +75,6 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request, use
 		return
 	}
 
-	filename = strings.TrimSuffix(filename, extension)
 	name := cleanupResourceName(filename)
 
 	response := MediaUploadResponse{
@@ -251,7 +250,7 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	os.Mkdir(CONTENT_USERS, os.ModePerm)
+	os.MkdirAll(CONTENT_USERS, os.ModePerm)
 	avatarUrl := fmt.Sprintf(CONTENT_USERS + "avatar%v", user.Id)
 
 	os.Remove(avatarUrl)
@@ -483,7 +482,7 @@ func (server *Server) apiSubtitleUpload(w http.ResponseWriter, r *http.Request, 
 
 	outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
 	outputPath := path.Join(CONTENT_SUBS, outputName)
-	os.MkdirAll(CONTENT_SUBS, 0750)
+	os.MkdirAll(CONTENT_SUBS, os.ModePerm)
 
 	outputFile, err := os.Create(outputPath)
 	if err != nil {
@@ -543,7 +542,7 @@ func (server *Server) apiSubtitleDownload(w http.ResponseWriter, r *http.Request
 			referer:   data.Referer,
 			bodyLimit: SUBTITLE_SIZE_LIMIT,
 		}
-		os.MkdirAll(CONTENT_SUBS, 0750)
+		os.MkdirAll(CONTENT_SUBS, os.ModePerm)
 		outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
 		serverUrl = path.Join(CONTENT_SUBS, outputName)
 		outputPath := path.Join(CONTENT_SUBS, outputName)
@@ -586,14 +585,14 @@ func (server *Server) apiSubtitleSearch(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	os.MkdirAll(CONTENT_SUBS, 0750)
+	os.MkdirAll(CONTENT_SUBS, os.ModePerm)
 	downloadPath, err := downloadSubtitle(&search, CONTENT_SUBS)
 	if err != nil {
 		respondBadRequest(w, "Subtitle download failed: %v", err)
 		return
 	}
 
-	os.MkdirAll(CONTENT_SUBS, 0750)
+	os.MkdirAll(CONTENT_SUBS, os.ModePerm)
 	inputSub, err := os.Open(downloadPath)
 	if err != nil {
 		respondInternalError(w, "Failed to open downloaded subtitle %v: %v", downloadPath, err)
@@ -882,7 +881,7 @@ func (server *Server) apiStreamStart(w http.ResponseWriter, r *http.Request, use
 	defer server.state.setupLock.Unlock()
 
 	_ = os.RemoveAll(CONTENT_STREAM)
-	_ = os.Mkdir(CONTENT_STREAM, os.ModePerm)
+	_ = os.MkdirAll(CONTENT_STREAM, os.ModePerm)
 
 	user := server.getAuthorized(w, r)
 	if user == nil {
