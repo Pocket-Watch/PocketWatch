@@ -307,7 +307,7 @@ type CacheHandler struct {
 
 func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ip := strings.Split(getIp(r), ":")[0]
-	resource := strings.TrimPrefix(r.RequestURI, "/watch")
+	resource := strings.TrimPrefix(r.RequestURI, PAGE_ROOT)
 
 	for _, blacklistedRange := range cache.blacklistedIpRanges {
 		if blacklistedRange.Contains(ip) {
@@ -346,20 +346,22 @@ func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func registerEndpoints(server *Server) *http.ServeMux {
 	mux := http.NewServeMux()
 	server.registerRedirects(mux)
-	ipv4Ranges := compileIpRanges(server.config.BlacklistedIpRanges)
 
-	fileServer := http.FileServer(http.Dir("./web"))
-	fsHandler := http.StripPrefix("/watch/", fileServer)
+	ipv4Ranges := compileIpRanges(server.config.BlacklistedIpRanges)
+	fileServer := http.FileServer(http.Dir(CONTENT_ROOT))
+	fsHandler := http.StripPrefix(CONTENT_ROUTE, fileServer)
 	cacheableFs := CacheHandler{
 		fsHandler:           fsHandler,
 		ipToLimiters:        make(map[string]*RateLimiter),
 		mapMutex:            &sync.Mutex{},
 		blacklistedIpRanges: ipv4Ranges,
 	}
-	mux.Handle("/watch/", cacheableFs)
+	mux.Handle(CONTENT_ROUTE, cacheableFs)
+
+	webFs := http.StripPrefix(PAGE_ROOT, http.FileServer(http.Dir(WEB_ROOT)))
+	mux.Handle(PAGE_ROOT, webFs)
 
 	mux.HandleFunc("/", handleUnknownEndpoint)
-
 	mux.HandleFunc("/favicon.ico", serveFavicon)
 
 	// Unrelated API calls.
@@ -863,7 +865,7 @@ func (server *Server) writeEventToAllConnections(eventType string, eventData any
 // It should be possible to use this list in a dropdown and attach to entry
 func (server *Server) getSubtitles() []string {
 	subtitles := make([]string, 0)
-	subsFolder := WEB_MEDIA + "subs"
+	subsFolder := CONTENT_MEDIA + "subs"
 	files, err := os.ReadDir(subsFolder)
 	if err != nil {
 		LogError("Failed to read directory %v", subsFolder)
@@ -875,25 +877,28 @@ func (server *Server) getSubtitles() []string {
 		if !file.Type().IsRegular() {
 			continue
 		}
+
 		for _, ext := range SUBTITLE_EXTENSIONS {
 			info, err := file.Info()
 			if err != nil {
 				break
 			}
+
 			if strings.HasSuffix(filename, ext) && info.Size() < SUBTITLE_SIZE_LIMIT {
-				subtitlePath := MEDIA + "subs/" + filename
+				subtitlePath := CONTENT_MEDIA + "subs/" + filename
 				subtitles = append(subtitles, subtitlePath)
 				break
 			}
 		}
 	}
+
 	LogInfo("Served subtitles: %v", subtitles)
 	return subtitles
 }
 
 func (server *Server) setupGenericFileProxy(url string, referer string) bool {
-	_ = os.RemoveAll(WEB_PROXY)
-	_ = os.Mkdir(WEB_PROXY, os.ModePerm)
+	_ = os.RemoveAll(CONTENT_PROXY)
+	_ = os.Mkdir(CONTENT_PROXY, os.ModePerm)
 	parsedUrl, err := net_url.Parse(url)
 	if err != nil {
 		LogError("The provided URL is invalid: %v", err)
@@ -919,7 +924,7 @@ func (server *Server) setupGenericFileProxy(url string, referer string) bool {
 	proxy.fileUrl = url
 	proxy.contentLength = size
 	proxy.extensionWithDot = path.Ext(parsedUrl.Path)
-	proxyFilename := WEB_PROXY + "proxy" + proxy.extensionWithDot
+	proxyFilename := CONTENT_PROXY + "proxy" + proxy.extensionWithDot
 	proxyFile, err := os.OpenFile(proxyFilename, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
 		LogError("Failed to open proxy file for writing: %v", err)
@@ -932,7 +937,7 @@ func (server *Server) setupGenericFileProxy(url string, referer string) bool {
 }
 
 func (server *Server) isTrustedUrl(url string, parsedUrl *net_url.URL) bool {
-	if strings.HasPrefix(url, MEDIA) || strings.HasPrefix(url, serverRootAddress) {
+	if strings.HasPrefix(url, CONTENT_MEDIA) || strings.HasPrefix(url, serverRootAddress) {
 		return true
 	}
 
@@ -996,7 +1001,7 @@ func setupDualTrackProxy(originalM3U *M3U, referer string) (bool, *HlsProxy, *Hl
 		return false, nil, nil
 	}
 
-	videoM3U, err := downloadM3U(bestTrack.url, WEB_PROXY+VIDEO_M3U8, referer)
+	videoM3U, err := downloadM3U(bestTrack.url, CONTENT_PROXY+VIDEO_M3U8, referer)
 	if err != nil {
 		LogError("Failed to download m3u8 video track: %v", err.Error())
 		return false, nil, nil
@@ -1006,7 +1011,7 @@ func setupDualTrackProxy(originalM3U *M3U, referer string) (bool, *HlsProxy, *Hl
 		return false, nil, nil
 	}
 
-	audioM3U, err := downloadM3U(audioUrl, WEB_PROXY+AUDIO_M3U8, referer)
+	audioM3U, err := downloadM3U(audioUrl, CONTENT_PROXY+AUDIO_M3U8, referer)
 	if err != nil {
 		LogError("Failed to download m3u8 audio track: %v", err.Error())
 		return false, nil, nil
@@ -1030,8 +1035,8 @@ func setupDualTrackProxy(originalM3U *M3U, referer string) (bool, *HlsProxy, *Hl
 		return false, nil, nil
 	}
 
-	vidProxy := setupVodProxy(videoM3U, WEB_PROXY+VIDEO_M3U8, referer, VIDEO_PREFIX)
-	audioProxy := setupVodProxy(audioM3U, WEB_PROXY+AUDIO_M3U8, referer, AUDIO_PREFIX)
+	vidProxy := setupVodProxy(videoM3U, CONTENT_PROXY+VIDEO_M3U8, referer, VIDEO_PREFIX)
+	audioProxy := setupVodProxy(audioM3U, CONTENT_PROXY+AUDIO_M3U8, referer, AUDIO_PREFIX)
 	// Craft proxied master playlist for the client
 	originalM3U.tracks = originalM3U.tracks[:0]
 	originalM3U.audioRenditions = originalM3U.audioRenditions[:0]
@@ -1041,7 +1046,7 @@ func setupDualTrackProxy(originalM3U *M3U, referer string) (bool, *HlsProxy, *Hl
 	originalM3U.tracks = append(originalM3U.tracks, *bestTrack)
 	originalM3U.audioRenditions = append(originalM3U.audioRenditions, audioRendition)
 
-	originalM3U.serialize(WEB_PROXY + PROXY_M3U8)
+	originalM3U.serialize(CONTENT_PROXY + PROXY_M3U8)
 	return true, vidProxy, audioProxy
 }
 
@@ -1076,13 +1081,13 @@ func prepareMediaPlaylistFromMasterPlaylist(m3u *M3U, referer string, depth int)
 	}
 
 	var err error = nil
-	m3u, err = downloadM3U(bestUrl, WEB_PROXY+ORIGINAL_M3U8, referer)
+	m3u, err = downloadM3U(bestUrl, CONTENT_PROXY+ORIGINAL_M3U8, referer)
 
 	if isRelative && isErrorStatus(err, 404) {
 		// Sometimes non-compliant playlists contain URLs which are relative to the root domain
 		domain := getRootDomain(masterUrl)
 		bestUrl = prefixUrl(domain, bestTrack.url)
-		m3u, err = downloadM3U(bestUrl, WEB_PROXY+ORIGINAL_M3U8, referer)
+		m3u, err = downloadM3U(bestUrl, CONTENT_PROXY+ORIGINAL_M3U8, referer)
 		if err != nil {
 			LogError("Root domain fallback failed: %v", err.Error())
 			return nil
@@ -1154,15 +1159,15 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 	server.state.setupLock.Lock()
 	defer server.state.setupLock.Unlock()
 	start := time.Now()
-	_ = os.RemoveAll(WEB_PROXY)
-	_ = os.Mkdir(WEB_PROXY, os.ModePerm)
+	_ = os.RemoveAll(CONTENT_PROXY)
+	_ = os.Mkdir(CONTENT_PROXY, os.ModePerm)
 	var m3u *M3U
 	if server.isTrustedUrl(url, urlStruct) {
-		osPath := Conditional(isAbsolute(url), stripPathPrefix(urlStruct.Path, "watch"), url)
-		m3u, err = parseM3U("web/" + osPath)
+		osPath := Conditional(isAbsolute(url), stripPathPrefix(urlStruct.Path, PAGE_ROOT), url)
+		m3u, err = parseM3U(CONTENT_ROOT + osPath)
 		m3u.url = url
 	} else {
-		m3u, err = downloadM3U(url, WEB_PROXY+ORIGINAL_M3U8, referer)
+		m3u, err = downloadM3U(url, CONTENT_PROXY+ORIGINAL_M3U8, referer)
 	}
 
 	if err != nil {
@@ -1223,7 +1228,7 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 	if m3u.isLive {
 		newProxy = setupLiveProxy(url, referer)
 	} else {
-		newProxy = setupVodProxy(m3u, WEB_PROXY+PROXY_M3U8, referer, VIDEO_PREFIX)
+		newProxy = setupVodProxy(m3u, CONTENT_PROXY+PROXY_M3U8, referer, VIDEO_PREFIX)
 	}
 	server.state.proxy = newProxy
 	setupDuration := time.Since(start)
@@ -1233,7 +1238,7 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 
 func setupMapUri(segment *Segment, referer, fileName string) error {
 	if segment.mapUri != "" {
-		err := downloadFile(segment.mapUri, WEB_PROXY+fileName, &DownloadOptions{referer: referer, hasty: true})
+		err := downloadFile(segment.mapUri, CONTENT_PROXY+fileName, &DownloadOptions{referer: referer, hasty: true})
 		if err != nil {
 			LogWarn("Failed to obtain map uri key: %v", err.Error())
 			return err
@@ -1402,11 +1407,11 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 		if refreshedAgo.Seconds() < 1.5 {
 			LogDebug("Serving unmodified %v", PROXY_M3U8)
 			writer.Header().Add("content-type", M3U8_CONTENT_TYPE)
-			http.ServeFile(writer, request, WEB_PROXY+PROXY_M3U8)
+			http.ServeFile(writer, request, CONTENT_PROXY+PROXY_M3U8)
 			return
 		}
 
-		liveM3U, err := downloadM3U(proxy.liveUrl, WEB_PROXY+ORIGINAL_M3U8, proxy.referer)
+		liveM3U, err := downloadM3U(proxy.liveUrl, CONTENT_PROXY+ORIGINAL_M3U8, proxy.referer)
 		var downloadErr *DownloadError
 		if errors.As(err, &downloadErr) {
 			LogError("Download error of the live url [%v] %v", proxy.liveUrl, err.Error())
@@ -1454,9 +1459,9 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 			id++
 		}
 
-		liveM3U.serialize(WEB_PROXY + PROXY_M3U8)
+		liveM3U.serialize(CONTENT_PROXY + PROXY_M3U8)
 		writer.Header().Add("content-type", M3U8_CONTENT_TYPE)
-		http.ServeFile(writer, request, WEB_PROXY+PROXY_M3U8)
+		http.ServeFile(writer, request, CONTENT_PROXY+PROXY_M3U8)
 		return
 	}
 
@@ -1485,7 +1490,7 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 	mutex.Lock()
 	if fetchedChunk.obtainedUrl {
 		mutex.Unlock()
-		http.ServeFile(writer, request, WEB_PROXY+chunk)
+		http.ServeFile(writer, request, CONTENT_PROXY+chunk)
 		return
 	}
 
@@ -1494,7 +1499,7 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 		hasty:     false,
 		bodyLimit: MAX_CHUNK_SIZE,
 	}
-	fetchErr := downloadFile(fetchedChunk.realUrl, WEB_PROXY+chunk, options)
+	fetchErr := downloadFile(fetchedChunk.realUrl, CONTENT_PROXY+chunk, options)
 	if fetchErr != nil {
 		mutex.Unlock()
 		LogError("Failed to fetch live chunk %v", fetchErr)
@@ -1510,7 +1515,7 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 
 	fetchedChunk.obtainedUrl = true
 	mutex.Unlock()
-	http.ServeFile(writer, request, WEB_PROXY+chunk)
+	http.ServeFile(writer, request, CONTENT_PROXY+chunk)
 }
 
 func fetchOrServeMediaInitSection(writer http.ResponseWriter, request *http.Request, init string, segmentMap *sync.Map, referer string) {
@@ -1533,7 +1538,7 @@ func fetchOrServeMediaInitSection(writer http.ResponseWriter, request *http.Requ
 	liveSegment := maybeChunk.(*LiveSegment)
 	mutex := &liveSegment.mutex
 	mutex.Lock()
-	initKeyPath := WEB_PROXY + init
+	initKeyPath := CONTENT_PROXY + init
 	if liveSegment.obtainedMapUri {
 		mutex.Unlock()
 		http.ServeFile(writer, request, initKeyPath)
@@ -1588,7 +1593,7 @@ func (server *Server) serveStream(writer http.ResponseWriter, request *http.Requ
 
 	if chunk == STREAM_M3U8 {
 		writer.Header().Add("content-type", M3U8_CONTENT_TYPE)
-		http.ServeFile(writer, request, WEB_STREAM+STREAM_M3U8)
+		http.ServeFile(writer, request, CONTENT_STREAM+STREAM_M3U8)
 		return
 	}
 
@@ -1601,7 +1606,7 @@ func (server *Server) serveStream(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 
-	http.ServeFile(writer, request, WEB_STREAM+chunk)
+	http.ServeFile(writer, request, CONTENT_STREAM+chunk)
 }
 
 func (server *Server) serveHlsVod(writer http.ResponseWriter, request *http.Request, chunk string) {
@@ -1611,11 +1616,11 @@ func (server *Server) serveHlsVod(writer http.ResponseWriter, request *http.Requ
 	case PROXY_M3U8, VIDEO_M3U8, AUDIO_M3U8:
 		LogDebug("Serving %v", chunk)
 		writer.Header().Add("content-type", M3U8_CONTENT_TYPE)
-		http.ServeFile(writer, request, WEB_PROXY+chunk)
+		http.ServeFile(writer, request, CONTENT_PROXY+chunk)
 		return
 	case MEDIA_INIT_SECTION:
 		LogDebug("Serving %v", chunk)
-		http.ServeFile(writer, request, WEB_PROXY+chunk)
+		http.ServeFile(writer, request, CONTENT_PROXY+chunk)
 		return
 	}
 
@@ -1660,7 +1665,7 @@ func serveHlsChunk(writer http.ResponseWriter, request *http.Request, proxy *Hls
 
 	if proxy.fetchedChunks[chunkId] {
 		mutex.Unlock()
-		http.ServeFile(writer, request, WEB_PROXY+chunk)
+		http.ServeFile(writer, request, CONTENT_PROXY+chunk)
 		return
 	}
 
@@ -1670,7 +1675,7 @@ func serveHlsChunk(writer http.ResponseWriter, request *http.Request, proxy *Hls
 		hasty:     false,
 		bodyLimit: MAX_CHUNK_SIZE,
 	}
-	fetchErr := downloadFile(destinationUrl, WEB_PROXY+chunk, options)
+	fetchErr := downloadFile(destinationUrl, CONTENT_PROXY+chunk, options)
 	if fetchErr != nil {
 		mutex.Unlock()
 		if chunkLogsite.atMostEvery(time.Second) {
@@ -1691,7 +1696,7 @@ func serveHlsChunk(writer http.ResponseWriter, request *http.Request, proxy *Hls
 	proxy.fetchedChunks[chunkId] = true
 	mutex.Unlock()
 
-	http.ServeFile(writer, request, WEB_PROXY+chunk)
+	http.ServeFile(writer, request, CONTENT_PROXY+chunk)
 }
 
 func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFile string) {
@@ -1866,21 +1871,22 @@ func (server *Server) isLocalDirectory(url string) (bool, string) {
 		return false, ""
 	}
 
-	path := parsedUrl.Path
+	urlPath := parsedUrl.Path
 
-	if after, ok := strings.CutPrefix(path, "/watch"); ok {
-		path = after
+	if after, ok := strings.CutPrefix(urlPath, PAGE_ROOT); ok {
+		urlPath = after
 	}
 
-	if after, ok := strings.CutPrefix(path, "/"); ok {
-		path = after
+	if after, ok := strings.CutPrefix(urlPath, "/"); ok {
+		urlPath = after
 	}
 
-	if !filepath.IsLocal(path) {
+	if !filepath.IsLocal(urlPath) {
 		return false, ""
 	}
 
-	stat, err := os.Stat("./web/" + path)
+	dir := path.Join(CONTENT_ROOT, urlPath)
+	stat, err := os.Stat(dir)
 	if err != nil {
 		return false, ""
 	}
@@ -1889,21 +1895,22 @@ func (server *Server) isLocalDirectory(url string) (bool, string) {
 		return false, ""
 	}
 
-	path = filepath.Clean(path)
-	LogDebug("PATH %v", path)
+	urlPath = filepath.Clean(urlPath)
+	LogDebug("PATH %v", urlPath)
 
-	return true, path
+	return true, urlPath
 }
 
-func (server *Server) getEntriesFromDirectory(path string, userId uint64) []Entry {
+func (server *Server) getEntriesFromDirectory(dir string, userId uint64) []Entry {
 	entries := make([]Entry, 0)
 
-	items, _ := os.ReadDir("./web/" + path)
+	contentPath := path.Join(CONTENT_ROOT, dir)
+	items, _ := os.ReadDir(contentPath)
 
 	now := time.Now()
 	for _, item := range items {
 		if !item.IsDir() {
-			webpath := path + "/" + item.Name()
+			webpath := dir + "/" + item.Name()
 			url := net_url.URL{
 				Path: webpath,
 			}

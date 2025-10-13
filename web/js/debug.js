@@ -29,12 +29,12 @@ async function setExampleEntry() {
     let subtitle = {
         id:    0,
         name:  "Big Buck Bunny",
-        url:   "media/subs/sample.srt",
+        url:   "content/media/subs/sample.srt",
         shift: 0.0,
     };
 
     const requestEntry = {
-        url:          "media/video/big_buck_bunny.mp4",
+        url:          "content/media/video/big_buck_bunny.mp4",
         title:        "Big Buck Bunny",
         use_proxy:    false,
         referer_url:  "",
@@ -55,7 +55,7 @@ async function setExampleProxy() {
     let subtitle = {
         id:    0,
         name:  "Big Buck Bunny",
-        url:   "media/subs/sample.srt",
+        url:   "content/media/subs/sample.srt",
         shift: 0.0,
     };
 

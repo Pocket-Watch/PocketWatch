@@ -47,12 +47,12 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request, use
 	extension := path.Ext(filename)
 	directory := getMediaType(extension)
 
-	outputPath, isSafe := safeJoin("web", "media", directory, filename)
+	outputPath, isSafe := safeJoin(CONTENT_MEDIA, directory, filename)
 	if !isSafe {
 		respondBadRequest(w, "Filename of the uploaded file is not allowed")
 		return
 	}
-	os.MkdirAll("web/media/"+directory, 0750)
+	os.MkdirAll(CONTENT_MEDIA+directory, 0750)
 
 	outputFile, err := os.Create(outputPath)
 	if err != nil {
@@ -69,7 +69,7 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request, use
 		return
 	}
 
-	networkPath, isSafe := safeJoin("media", directory, filename)
+	networkPath, isSafe := safeJoin(CONTENT_MEDIA, directory, filename)
 	if !isSafe {
 		respondBadRequest(w, "Filename of the uploaded file is not allowed")
 		return
@@ -251,8 +251,8 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	os.Mkdir("web/users/", os.ModePerm)
-	avatarUrl := fmt.Sprintf("web/users/avatar%v", user.Id)
+	os.Mkdir(CONTENT_USERS, os.ModePerm)
+	avatarUrl := fmt.Sprintf(CONTENT_USERS + "avatar%v", user.Id)
 
 	os.Remove(avatarUrl)
 	file, err := os.Create(avatarUrl)
@@ -267,7 +267,7 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 
 	// Unix timestamp is added because of HTML DOM URL caching.
 	now := time.Now()
-	avatarUrl = fmt.Sprintf("users/avatar%v?ext=%v&%v", user.Id, ext, now.UnixMilli())
+	avatarUrl = fmt.Sprintf(CONTENT_USERS + "avatar%v?ext=%v&%v", user.Id, ext, now.UnixMilli())
 
 	server.users.mutex.Lock()
 	server.users.slice[userIndex].Avatar = avatarUrl
@@ -482,8 +482,8 @@ func (server *Server) apiSubtitleUpload(w http.ResponseWriter, r *http.Request, 
 	subId := server.state.subsId.Add(1)
 
 	outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
-	outputPath := path.Join("web", "subs", outputName)
-	os.MkdirAll("web/subs/", 0750)
+	outputPath := path.Join(CONTENT_SUBS, outputName)
+	os.MkdirAll(CONTENT_SUBS, 0750)
 
 	outputFile, err := os.Create(outputPath)
 	if err != nil {
@@ -500,7 +500,7 @@ func (server *Server) apiSubtitleUpload(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	networkUrl := path.Join("subs", outputName)
+	networkUrl := path.Join(CONTENT_SUBS, outputName)
 	name := strings.TrimSuffix(filename, extension)
 	name = cleanupResourceName(name)
 
@@ -543,10 +543,10 @@ func (server *Server) apiSubtitleDownload(w http.ResponseWriter, r *http.Request
 			referer:   data.Referer,
 			bodyLimit: SUBTITLE_SIZE_LIMIT,
 		}
-		os.MkdirAll("web/subs/", 0750)
+		os.MkdirAll(CONTENT_SUBS, 0750)
 		outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
-		serverUrl = path.Join("subs", outputName)
-		outputPath := path.Join("web", "subs", outputName)
+		serverUrl = path.Join(CONTENT_SUBS, outputName)
+		outputPath := path.Join(CONTENT_SUBS, outputName)
 		err = downloadFile(data.Url, outputPath, &downloadOptions)
 		if err != nil {
 			var downloadErr *DownloadError
@@ -586,14 +586,14 @@ func (server *Server) apiSubtitleSearch(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	os.MkdirAll("web/media/subs", 0750)
-	downloadPath, err := downloadSubtitle(&search, "web/media/subs")
+	os.MkdirAll(CONTENT_SUBS, 0750)
+	downloadPath, err := downloadSubtitle(&search, CONTENT_SUBS)
 	if err != nil {
 		respondBadRequest(w, "Subtitle download failed: %v", err)
 		return
 	}
 
-	os.MkdirAll("web/subs/", 0750)
+	os.MkdirAll(CONTENT_SUBS, 0750)
 	inputSub, err := os.Open(downloadPath)
 	if err != nil {
 		respondInternalError(w, "Failed to open downloaded subtitle %v: %v", downloadPath, err)
@@ -605,7 +605,7 @@ func (server *Server) apiSubtitleSearch(w http.ResponseWriter, r *http.Request, 
 	subId := server.state.subsId.Add(1)
 
 	outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
-	outputPath := path.Join("web", "subs", outputName)
+	outputPath := path.Join(CONTENT_SUBS, outputName)
 
 	outputSub, err := os.Create(outputPath)
 	if err != nil {
@@ -621,7 +621,7 @@ func (server *Server) apiSubtitleSearch(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	outputUrl := path.Join("subs", outputName)
+	outputUrl := path.Join(CONTENT_SUBS, outputName)
 	baseName := filepath.Base(downloadPath)
 	subtitleName := strings.TrimSuffix(baseName, extension)
 	subtitleName = cleanupResourceName(subtitleName)
@@ -881,15 +881,15 @@ func (server *Server) apiStreamStart(w http.ResponseWriter, r *http.Request, use
 	server.state.setupLock.Lock()
 	defer server.state.setupLock.Unlock()
 
-	_ = os.RemoveAll(WEB_STREAM)
-	_ = os.Mkdir(WEB_STREAM, os.ModePerm)
+	_ = os.RemoveAll(CONTENT_STREAM)
+	_ = os.Mkdir(CONTENT_STREAM, os.ModePerm)
 
 	user := server.getAuthorized(w, r)
 	if user == nil {
 		return
 	}
 
-	entryUrl := "/watch/stream/stream.m3u8"
+	entryUrl := STREAM_ROUTE + "stream.m3u8"
 	m3u := M3U{
 		url:    entryUrl,
 		isLive: true,
@@ -899,7 +899,7 @@ func (server *Server) apiStreamStart(w http.ResponseWriter, r *http.Request, use
 	m3u.addPair(KeyValue{EXT_X_MEDIA_SEQUENCE, "0"})
 
 	// Create a dummy file so clients have something to munch on
-	file, err := os.Create(WEB_STREAM + STREAM_M3U8)
+	file, err := os.Create(CONTENT_STREAM + STREAM_M3U8)
 	if err != nil {
 		respondInternalError(w, "ERROR: %v", err)
 		return
@@ -944,7 +944,7 @@ func (server *Server) apiStreamUpload(w http.ResponseWriter, r *http.Request, us
 		return
 	}
 
-	safePath, safe := safeJoin(WEB_STREAM, filename)
+	safePath, safe := safeJoin(CONTENT_STREAM, filename)
 	if !safe {
 		respondBadRequest(w, "Path traversal attempted on %v", filename)
 		return

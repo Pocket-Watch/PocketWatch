@@ -419,17 +419,14 @@ func testGetResponse(url string, referer string) (bool, *bytes.Buffer) {
 	}
 	defer response.Body.Close()
 
-	length := 512
-	if int(response.ContentLength) < length {
-		length = int(response.ContentLength)
-	}
-
+	length := min(int(response.ContentLength), 512)
 	buffer := new(bytes.Buffer)
 	limitedResponse := io.LimitReader(response.Body, int64(length))
 	_, readErr := io.Copy(buffer, limitedResponse)
 	if readErr != nil && readErr != io.EOF {
 		return false, nil
 	}
+
 	success := response.StatusCode >= 200 && response.StatusCode < 300
 	return success, buffer
 }
@@ -1138,10 +1135,12 @@ func newIpV4Range(start, end string) *IpV4Range {
 	if startIp == nil {
 		return nil
 	}
+
 	endIp := net.ParseIP(end).To4()
 	if endIp == nil {
 		return nil
 	}
+
 	if Precedes(startIp, endIp) {
 		return &IpV4Range{startIp, endIp}
 	} else {
@@ -1150,14 +1149,16 @@ func newIpV4Range(start, end string) *IpV4Range {
 }
 
 func Precedes(start net.IP, end net.IP) bool {
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		if start[i] > end[i] {
 			return false
 		}
+
 		if start[i] < end[i] {
 			return true
 		}
 	}
+
 	return true
 }
 
@@ -1166,7 +1167,8 @@ func (r *IpV4Range) Contains(ipv4Raw string) bool {
 	if ip == nil {
 		return false
 	}
-	for i := 0; i < 4; i++ {
+
+	for i := range 4 {
 		if r.start[i] > ip[i] {
 			return false
 		}
@@ -1174,7 +1176,8 @@ func (r *IpV4Range) Contains(ipv4Raw string) bool {
 			break
 		}
 	}
-	for i := 0; i < 4; i++ {
+
+	for i := range 4 {
 		if r.end[i] < ip[i] {
 			return false
 		}
@@ -1182,5 +1185,6 @@ func (r *IpV4Range) Contains(ipv4Raw string) bool {
 			break
 		}
 	}
+
 	return true
 }

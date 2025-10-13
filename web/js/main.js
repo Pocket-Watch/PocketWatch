@@ -796,10 +796,10 @@ class Room {
             this.startMediaFileUpload(event.target.files[0]);
         };
 
-        room.browse.videoButton.onclick     = _ => window.open("media/video/", "_blank").focus();
-        room.browse.audioButton.onclick     = _ => window.open("media/audio/", "_blank").focus();
-        room.browse.subtitlesButton.onclick = _ => window.open("media/subs/",  "_blank").focus();
-        room.browse.imagesButton.onclick    = _ => window.open("media/image/", "_blank").focus();
+        room.browse.videoButton.onclick     = _ => window.open("content/media/video/", "_blank").focus();
+        room.browse.audioButton.onclick     = _ => window.open("content/media/audio/", "_blank").focus();
+        room.browse.subtitlesButton.onclick = _ => window.open("content/media/subs/",  "_blank").focus();
+        room.browse.imagesButton.onclick    = _ => window.open("content/media/image/", "_blank").focus();
         room.copyEntryButton.onclick        = _ => this.copyEntryToEntryArea(this.currentEntry);
 
         room.setShiftButton.onclick = _ => {
@@ -1864,7 +1864,7 @@ class Room {
                 console.info("INFO: Received player waiting event: ", message);
 
                 this.player.setToast(message);
-                this.player.setPoster("/watch/img/please_stand_by.webp");
+                this.player.setPoster("img/please_stand_by.webp");
                 this.player.setBuffering(true);
             } break;
 
