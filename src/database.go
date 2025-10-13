@@ -612,7 +612,7 @@ func DatabaseCurrentEntryGet(db *sql.DB) (Entry, bool) {
 		var subShift sql.NullFloat64
 
 		err := rows.Scan(
-			&entry.Id, &entry.Url, &entry.Title, &entry.UserId, &entry.UseProxy, &entry.RefererUrl, &entry.SourceUrl, &entry.Thumbnail, &entry.CreatedAt,
+			&entry.Id, &entry.Url, &entry.Title, &entry.UserId, &entry.UseProxy, &entry.RefererUrl, &entry.SourceUrl, &entry.Thumbnail, &entry.CreatedAt, &entry.LastSetAt,
 			&subId, &entryId, &subName, &subUrl, &subShift,
 		)
 

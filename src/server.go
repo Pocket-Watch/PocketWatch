@@ -1983,6 +1983,7 @@ func (server *Server) playerSet(requested RequestEntry, userId uint64) error {
 		UseProxy:   requested.UseProxy,
 		RefererUrl: requested.RefererUrl,
 		Subtitles:  requested.Subtitles,
+		CreatedAt:  time.Now(),
 	}
 
 	go server.setNewEntry(entry, requested)
@@ -2100,6 +2101,7 @@ func (server *Server) playlistAdd(requested RequestEntry, userId uint64) error {
 		UseProxy:   requested.UseProxy,
 		RefererUrl: requested.RefererUrl,
 		Subtitles:  requested.Subtitles,
+		CreatedAt:  time.Now(),
 	}
 
 	localDirectory, path := server.isLocalDirectory(requested.Url)

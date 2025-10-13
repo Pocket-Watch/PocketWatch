@@ -419,6 +419,7 @@ func (server *Server) loadYoutubePlaylist(requested RequestEntry, userId uint64)
 			Title:     ytEntry.Title,
 			UserId:    userId,
 			Thumbnail: pickSmallestThumbnail(ytEntry.Thumbnails),
+			CreatedAt: time.Now(),
 		}
 
 		entry = server.constructEntry(entry)
