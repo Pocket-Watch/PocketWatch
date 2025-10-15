@@ -748,9 +748,8 @@ func isSlash(char uint8) bool {
 func Conditional[T any](condition bool, trueResult, falseResult T) T {
 	if condition {
 		return trueResult
-	} else {
-		return falseResult
 	}
+	return falseResult
 }
 
 func respondBadRequest(writer http.ResponseWriter, format string, args ...any) {

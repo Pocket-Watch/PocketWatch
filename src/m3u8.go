@@ -665,7 +665,7 @@ func downloadM3U(url string, filename string, referer string) (*M3U, error) {
 		return nil, err
 	}
 	m3u, err := parseM3U(filename)
-	if m3u != nil {
+	if err == nil {
 		m3u.url = url
 	}
 	return m3u, err

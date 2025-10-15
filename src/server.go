@@ -1165,6 +1165,10 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 	if server.isTrustedUrl(url, urlStruct) {
 		osPath := Conditional(isAbsolute(url), stripPathPrefix(urlStruct.Path, PAGE_ROOT), url)
 		m3u, err = parseM3U(CONTENT_ROOT + osPath)
+		if err != nil {
+			LogError("Failed to parse m3u8: %v", err)
+			return false
+		}
 		m3u.url = url
 	} else {
 		m3u, err = downloadM3U(url, CONTENT_PROXY+ORIGINAL_M3U8, referer)
@@ -1679,7 +1683,7 @@ func serveHlsChunk(writer http.ResponseWriter, request *http.Request, proxy *Hls
 	if fetchErr != nil {
 		mutex.Unlock()
 		if chunkLogsite.atMostEvery(time.Second) {
-			LogError("Failed to fetch chunk %v from %v", fetchErr, destinationUrl)
+			LogError("Failed to fetch chunk #%v due to %v from %v", chunkId, fetchErr, destinationUrl)
 		}
 
 		code := 500
@@ -1760,8 +1764,7 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 }
 
 // Could make it insert with merge
-func (server *Server) insertContentRangeSequentially(newRange *Range) {
-	proxy := &server.state.genericProxy
+func (proxy *GenericProxy) insertContentRangeSequentially(newRange *Range) {
 	spot := 0
 	for i := range proxy.contentRanges {
 		r := &proxy.contentRanges[i]
@@ -1773,8 +1776,7 @@ func (server *Server) insertContentRangeSequentially(newRange *Range) {
 	proxy.contentRanges = slices.Insert(proxy.contentRanges, spot, *newRange)
 }
 
-func (server *Server) mergeContentRanges() {
-	proxy := &server.state.genericProxy
+func (proxy *GenericProxy) mergeContentRanges() {
 	for i := range len(proxy.contentRanges) - 1 {
 		leftRange := &proxy.contentRanges[i]
 		rightRange := &proxy.contentRanges[i+1]
