@@ -75,7 +75,8 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request, use
 		return
 	}
 
-	name := cleanupResourceName(filename)
+	trimmed := strings.TrimSuffix(filename, extension)
+	name := cleanupResourceName(trimmed)
 
 	response := MediaUploadResponse{
 		Url:      networkPath,
@@ -251,7 +252,7 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 	}
 
 	os.MkdirAll(CONTENT_USERS, os.ModePerm)
-	avatarUrl := fmt.Sprintf(CONTENT_USERS + "avatar%v", user.Id)
+	avatarUrl := fmt.Sprintf(CONTENT_USERS+"avatar%v", user.Id)
 
 	os.Remove(avatarUrl)
 	file, err := os.Create(avatarUrl)
@@ -266,7 +267,7 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 
 	// Unix timestamp is added because of HTML DOM URL caching.
 	now := time.Now()
-	avatarUrl = fmt.Sprintf(CONTENT_USERS + "avatar%v?ext=%v&%v", user.Id, ext, now.UnixMilli())
+	avatarUrl = fmt.Sprintf(CONTENT_USERS+"avatar%v?ext=%v&%v", user.Id, ext, now.UnixMilli())
 
 	server.users.mutex.Lock()
 	server.users.slice[userIndex].Avatar = avatarUrl

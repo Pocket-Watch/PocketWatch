@@ -295,7 +295,7 @@ func blackholeRequest(r *http.Request) {
 }
 
 func serveFavicon(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "web/img/favicon.ico")
+	http.ServeFile(w, r, WEB_ROOT + "img/favicon.ico")
 }
 
 type CacheHandler struct {
