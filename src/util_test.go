@@ -557,3 +557,50 @@ func TestParseMigrationNumber(t *testing.T) {
 		t.Errorf("Number should be 35, got %v", num)
 	}
 }
+
+func TestInvalidRange(t *testing.T) {
+	if newRange(5, 4) != nil {
+		t.Errorf("The range should be nil because start > end")
+	}
+	if newRange(-1, 1234) != nil {
+		t.Errorf("The range should be nil because one of the values is negative")
+	}
+}
+
+func TestRangeEncompassesTrue(t *testing.T) {
+	r := newRange(10, 100)
+	contained := newRange(20, 60)
+	if !r.encompasses(contained) {
+		t.Errorf("%v should encompass %v", r, contained)
+	}
+}
+
+func TestRangeEncompassesFalse(t *testing.T) {
+	r := newRange(10, 100)
+	contained := newRange(90, 101)
+	if r.encompasses(contained) {
+		t.Errorf("%v shouldn't encompass %v", r, contained)
+	}
+}
+
+func TestRangeOverlaps(t *testing.T) {
+	range1 := newRange(10, 20)
+	range2 := newRange(19, 1000)
+	if !range1.overlaps(range2) || !range2.overlaps(range1) {
+		t.Errorf("%v should overlap %v", range1, range2)
+	}
+}
+
+func TestRangeMerge(t *testing.T) {
+	range1 := newRange(10, 20)
+	range2 := newRange(15, 35)
+	merge12 := range1.mergeWith(range2)
+	merge21 := range2.mergeWith(range1)
+
+	if merge12.start != 10 || merge12.end != 35 {
+		t.Errorf("The merged range %v is different from expected", merge12)
+	}
+	if merge21.start != 10 || merge21.end != 35 {
+		t.Errorf("The merged range %v is different from expected", merge21)
+	}
+}

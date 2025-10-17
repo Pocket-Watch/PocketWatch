@@ -645,6 +645,10 @@ type Range struct {
 	end   int64
 }
 
+func (r *Range) String() string {
+	return fmt.Sprintf("[%v,%v]", r.start, r.end)
+}
+
 func (r *Range) toContentRange(length int64) string {
 	return fmt.Sprintf("bytes %v-%v/%v", r.start, r.end, length)
 }
