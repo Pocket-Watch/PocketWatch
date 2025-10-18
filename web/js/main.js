@@ -23,6 +23,7 @@ const LAST_SELECTED_SUBTITLE = "last_selected_subtitle";
 const HLS_DEBUG              = "hls_debug";
 
 const CONNECTION_LOST_MESSAGE= "Connection to the server was lost...";
+const DEFAULT_TITLE = "Pocket Watch";
 
 const TAB_DEFAULT  = 0;
 const TAB_ROOM     = 1;
@@ -1525,6 +1526,7 @@ class Room {
 
         let url = entry.url;
         if (!url) {
+            document.title = DEFAULT_TITLE;
             this.setNothing();
             return;
         }
@@ -1538,6 +1540,7 @@ class Room {
         this.player.setVideoTrack(url);
 
         if (entry.title) {
+            document.title = entry.title;
             this.player.setTitle(entry.title);
         }
 
