@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"net"
 	"net/http"
 	net_url "net/url"
 	"os"
@@ -32,15 +33,15 @@ func makeUsers() *Users {
 }
 
 func generateToken() string {
-	bytes := make([]byte, TOKEN_LENGTH)
-	_, err := cryptorand.Read(bytes)
+	tokenBytes := make([]byte, TOKEN_LENGTH)
+	_, err := cryptorand.Read(tokenBytes)
 
 	if err != nil {
 		LogError("Token generation failed, this should not happen!")
 		return ""
 	}
 
-	return base64.URLEncoding.EncodeToString(bytes)
+	return base64.URLEncoding.EncodeToString(tokenBytes)
 }
 
 func (users *Users) create() User {
@@ -295,18 +296,30 @@ func blackholeRequest(r *http.Request) {
 }
 
 func serveFavicon(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, WEB_ROOT + "img/favicon.ico")
+	http.ServeFile(w, r, WEB_ROOT+"img/favicon.ico")
 }
 
-type CacheHandler struct {
+type GatewayHandler struct {
 	fsHandler           http.Handler
 	ipToLimiters        map[string]*RateLimiter
 	mapMutex            *sync.Mutex
 	blacklistedIpRanges []IpV4Range
+	hits, perSecond     int
 }
 
-func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ip := strings.Split(getIp(r), ":")[0]
+func NewGatewayHandler(fsHandler http.Handler, hits, perSecond int, ipv4Ranges []IpV4Range) GatewayHandler {
+	return GatewayHandler{
+		fsHandler:           fsHandler,
+		ipToLimiters:        make(map[string]*RateLimiter),
+		mapMutex:            &sync.Mutex{},
+		blacklistedIpRanges: ipv4Ranges,
+		hits:                hits,
+		perSecond:           perSecond,
+	}
+}
+
+func (cache GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ip := stripPort(getIp(r))
 	resource := strings.TrimPrefix(r.RequestURI, PAGE_ROOT)
 
 	for _, blacklistedRange := range cache.blacklistedIpRanges {
@@ -331,7 +344,7 @@ func (cache CacheHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		rateLimiter.mutex.Unlock()
 	} else {
-		cache.ipToLimiters[ip] = NewLimiter(LIMITER_HITS, LIMITER_PER_SECOND)
+		cache.ipToLimiters[ip] = NewLimiter(cache.hits, cache.perSecond)
 		cache.mapMutex.Unlock()
 	}
 
@@ -348,18 +361,14 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	server.registerRedirects(mux)
 
 	ipv4Ranges := compileIpRanges(server.config.BlacklistedIpRanges)
-	fileServer := http.FileServer(http.Dir(CONTENT_ROOT))
-	fsHandler := http.StripPrefix(CONTENT_ROUTE, fileServer)
-	cacheableFs := CacheHandler{
-		fsHandler:           fsHandler,
-		ipToLimiters:        make(map[string]*RateLimiter),
-		mapMutex:            &sync.Mutex{},
-		blacklistedIpRanges: ipv4Ranges,
-	}
-	mux.Handle(CONTENT_ROUTE, cacheableFs)
+	contentRootFs := http.FileServer(http.Dir(CONTENT_ROOT))
+	contentFs := http.StripPrefix(CONTENT_ROUTE, contentRootFs)
+	contentHandler := NewGatewayHandler(contentFs, CONTENT_LIMITER_HITS, CONTENT_LIMITER_PER_SECOND, ipv4Ranges)
+	mux.Handle(CONTENT_ROUTE, contentHandler)
 
 	webFs := http.StripPrefix(PAGE_ROOT, http.FileServer(http.Dir(WEB_ROOT)))
-	mux.Handle(PAGE_ROOT, webFs)
+	staticHandler := NewGatewayHandler(webFs, STATIC_LIMITER_HITS, STATIC_LIMITER_PER_SECOND, ipv4Ranges)
+	mux.Handle(PAGE_ROOT, staticHandler)
 
 	mux.HandleFunc("/", handleUnknownEndpoint)
 	mux.HandleFunc("/favicon.ico", serveFavicon)
@@ -543,6 +552,17 @@ func getIp(req *http.Request) string {
 	}
 
 	return req.RemoteAddr
+}
+
+func stripPort(ip string) string {
+	if len(ip) < 2 {
+		return ip
+	}
+	host, _, err := net.SplitHostPort(ip)
+	if err != nil {
+		return ip
+	}
+	return host
 }
 
 func (server *Server) handleEndpointAuthorized(mux *http.ServeMux, endpoint string, endpointHandler func(w http.ResponseWriter, r *http.Request, userId uint64), method string) {

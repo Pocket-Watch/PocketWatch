@@ -18,8 +18,10 @@ const GB = 1024 * MB
 
 const SERVER_ID = 0
 
-const LIMITER_HITS = 800
-const LIMITER_PER_SECOND = 5
+const STATIC_LIMITER_HITS = 150
+const STATIC_LIMITER_PER_SECOND = 6
+const CONTENT_LIMITER_HITS = 440
+const CONTENT_LIMITER_PER_SECOND = 8
 const TOKEN_LENGTH = 32
 const BROADCAST_INTERVAL = 2 * time.Second
 const HEARTBEAT_INTERVAL = 2 * time.Second
@@ -39,19 +41,19 @@ const MAX_CHUNK_SIZE = 16 * MB
 
 var SUBTITLE_EXTENSIONS = [...]string{".vtt", ".srt"}
 
-const PAGE_ROOT      = "/watch/"
-const PROXY_ROUTE    = PAGE_ROOT + "proxy/"
-const STREAM_ROUTE   = PAGE_ROOT + "stream/"
-const CONTENT_ROUTE  = PAGE_ROOT + "content/"
+const PAGE_ROOT = "/watch/"
+const PROXY_ROUTE = PAGE_ROOT + "proxy/"
+const STREAM_ROUTE = PAGE_ROOT + "stream/"
+const CONTENT_ROUTE = PAGE_ROOT + "content/"
 
 const WEB_ROOT = "web/"
 
-const CONTENT_ROOT   = "content/"
-const CONTENT_MEDIA  = CONTENT_ROOT + "media/"
-const CONTENT_PROXY  = CONTENT_ROOT + "proxy/"
+const CONTENT_ROOT = "content/"
+const CONTENT_MEDIA = CONTENT_ROOT + "media/"
+const CONTENT_PROXY = CONTENT_ROOT + "proxy/"
 const CONTENT_STREAM = CONTENT_ROOT + "stream/"
-const CONTENT_SUBS   = CONTENT_ROOT + "subs/"
-const CONTENT_USERS  = CONTENT_ROOT + "users/"
+const CONTENT_SUBS = CONTENT_ROOT + "subs/"
+const CONTENT_USERS = CONTENT_ROOT + "users/"
 
 const ORIGINAL_M3U8 = "original.m3u8"
 const PROXY_M3U8 = "proxy.m3u8"
