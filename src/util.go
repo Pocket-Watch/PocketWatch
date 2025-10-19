@@ -686,6 +686,37 @@ func (r *Range) includes(value int64) bool {
 	return r.start <= value && value <= r.end
 }
 
+// difference gets the range-difference (relative complement) of 'r' with respect to 'other'
+// in simple words - what is in the current range that's not in the other range
+func (r *Range) difference(other *Range) []Range {
+	if !r.overlaps(other) {
+		return []Range{*r}
+	}
+	if other.encompasses(r) {
+		return []Range{}
+	}
+	if r.encompasses(other) {
+		if r.start == other.start {
+			return []Range{*newRange(other.end+1, r.end)}
+		}
+		if r.end == other.end {
+			return []Range{*newRange(r.start, other.start-1)}
+		}
+		return []Range{
+			*newRange(r.start, other.start-1),
+			*newRange(other.end+1, r.end),
+		}
+	}
+	if r.start < other.start {
+		return []Range{*newRange(r.start, other.start-1)}
+	}
+	return []Range{*newRange(other.end+1, r.end)}
+}
+
+func (r *Range) equals(other *Range) bool {
+	return r.start == other.start && r.end == other.end
+}
+
 func (r *Range) length() int64 {
 	return r.end - r.start + 1
 }
@@ -1003,8 +1034,6 @@ func shareFile(w http.ResponseWriter, r *http.Request, path string) {
 	}
 
 	fileSize := stats.Size()
-	// TODO: take care of empty files and respond with 200
-
 	byteRange, err := parseRangeHeader(rangeHeader, fileSize)
 	if err != nil {
 		LogInfo("Bad request: %v", err)
@@ -1012,6 +1041,15 @@ func shareFile(w http.ResponseWriter, r *http.Request, path string) {
 		return
 	}
 
+	shareFileInRange(w, r, byteRange, f, stats)
+}
+
+func shareFileInRange(w http.ResponseWriter, r *http.Request, byteRange *Range, f *os.File, stats os.FileInfo) {
+	fileSize := stats.Size()
+	if fileSize == 0 {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 	if byteRange.exceedsSize(fileSize) {
 		LogInfo("Range %v-%v is out of bounds", byteRange.start, byteRange.end)
 		http.Error(w, "Range out of bounds", http.StatusRequestedRangeNotSatisfiable)

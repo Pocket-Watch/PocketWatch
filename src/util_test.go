@@ -591,6 +591,61 @@ func TestRangeOverlaps(t *testing.T) {
 	}
 }
 
+func TestRangeOverlapsContained(t *testing.T) {
+	range1 := newRange(50, 60)
+	range2 := newRange(20, 80)
+	if !range1.overlaps(range2) || !range2.overlaps(range1) {
+		t.Errorf("%v should overlap %v", range1, range2)
+	}
+}
+
+func TestRangeDifferenceDisjoint(t *testing.T) {
+	left := newRange(1, 5)
+	right := newRange(6, 10)
+	diff := left.difference(right)
+
+	if !diff[0].equals(left) {
+		t.Errorf("The difference %v is different from expected", diff)
+	}
+}
+
+func TestRangeDifferenceJoint(t *testing.T) {
+	range1 := newRange(50, 100)
+	range2 := newRange(25, 75)
+	expected := newRange(76, 100)
+	diff := range1.difference(range2)
+
+	if !diff[0].equals(expected) {
+		t.Errorf("The difference %v is different from expected", diff)
+	}
+}
+
+func TestRangeDifferenceJointEdge(t *testing.T) {
+	left := newRange(1, 5)
+	right := newRange(5, 10)
+	expected := newRange(1, 4)
+	diff := left.difference(right)
+
+	if !diff[0].equals(expected) {
+		t.Errorf("The difference %v is different from expected", diff)
+	}
+}
+
+func TestRangeDifferenceContained(t *testing.T) {
+	outer := newRange(1, 10)
+	inner := newRange(5, 7)
+	expected := []Range{*newRange(1, 4), *newRange(8, 10)}
+	diff := outer.difference(inner)
+
+	if len(diff) != 2 {
+		t.Errorf("The difference should contain two separate ranges. Actual: %v", diff)
+		return
+	}
+	if !diff[0].equals(&expected[0]) || !diff[1].equals(&expected[1]) {
+		t.Errorf("The difference %v is different from expected %v", diff, expected)
+	}
+}
+
 func TestRangeMerge(t *testing.T) {
 	range1 := newRange(10, 20)
 	range2 := newRange(15, 35)
