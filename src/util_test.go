@@ -143,13 +143,14 @@ func TestShortPaths(t *testing.T) {
 
 func TestSuccessfulJoin(t *testing.T) {
 	sep := getPathSeparator()
+	expected := []string{"abc", "123", "45"}
 	path, isSafe := safeJoin("abc/", "/123/", "/45")
 	if !isSafe {
 		t.Errorf("Path should be safe!")
 		return
 	}
 	given := strings.Split(path, sep)
-	expected := []string{"abc", "123", "45"}
+
 	if !slices.Equal(given, expected) {
 		t.Errorf("Path is %v, different from expected %v", given, expected)
 		return
@@ -158,12 +159,13 @@ func TestSuccessfulJoin(t *testing.T) {
 
 func TestSafeDoubleDot(t *testing.T) {
 	sep := getPathSeparator()
+	expected := "Really..." + sep + "45"
 	path, isSafe := safeJoin("Really...", "/45")
+
 	if !isSafe {
 		t.Errorf("Path should be safe!")
 		return
 	}
-	expected := "Really..." + sep + "45"
 	if path != expected {
 		t.Errorf("Path %v is different from expected %v", path, expected)
 		return
@@ -207,7 +209,9 @@ func TestUnicodeTraversal(t *testing.T) {
 }
 
 func TestManySafeDots(t *testing.T) {
+	expected := []string{"ABC ..", "DEF", "...", "bin"}
 	input := "./.\\ABC ../DEF/.../bin"
+
 	joined, isSafe := safeJoin(input)
 	if !isSafe {
 		t.Errorf("Path %v is safe!", input)
@@ -215,7 +219,7 @@ func TestManySafeDots(t *testing.T) {
 	}
 	sep := getPathSeparator()
 	given := strings.Split(joined, sep)
-	expected := []string{"ABC ..", "DEF", "...", "bin"}
+
 	if !slices.Equal(given, expected) {
 		t.Errorf("Path is %v, different from expected %v", given, expected)
 		return
@@ -643,6 +647,26 @@ func TestRangeDifferenceContained(t *testing.T) {
 	}
 	if !diff[0].equals(&expected[0]) || !diff[1].equals(&expected[1]) {
 		t.Errorf("The difference %v is different from expected %v", diff, expected)
+	}
+}
+
+func TestRangeIntersection(t *testing.T) {
+	range1 := newRange(66, 99)
+	range2 := newRange(77, 111)
+	expected := newRange(77, 99)
+	intersection1, intersects1 := range1.intersection(range2)
+	intersection2, intersects2 := range2.intersection(range1)
+
+	if !intersects1 || !intersects2 {
+		t.Errorf("Intersection should be possible both ways")
+	}
+
+	if !intersection1.equals(expected) {
+		t.Errorf("Intersection %v is different from expected %v", intersection1, expected)
+	}
+
+	if !intersection1.equals(&intersection2) {
+		t.Errorf("Intersections should be the same both ways")
 	}
 }
 

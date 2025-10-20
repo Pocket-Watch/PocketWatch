@@ -1403,7 +1403,7 @@ func (server *Server) watchProxy(writer http.ResponseWriter, request *http.Reque
 			server.serveHlsVod(writer, request, chunk)
 		}
 	} else {
-		server.serveGenericFile(writer, request, chunk)
+		server.serveGenericFileNaive(writer, request, chunk)
 	}
 }
 
@@ -1723,7 +1723,7 @@ func serveHlsChunk(writer http.ResponseWriter, request *http.Request, proxy *Hls
 	http.ServeFile(writer, request, CONTENT_PROXY+chunk)
 }
 
-func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFile string) {
+func (server *Server) serveGenericFileNaive(writer http.ResponseWriter, request *http.Request, pathFile string) {
 	proxy := &server.state.genericProxy
 	if path.Ext(pathFile) != proxy.extensionWithDot {
 		http.Error(writer, "Failed to fetch generic chunk", 404)

@@ -645,6 +645,8 @@ type Range struct {
 	end   int64
 }
 
+var NO_RANGE = Range{-1, -1}
+
 func (r *Range) String() string {
 	return fmt.Sprintf("[%v,%v]", r.start, r.end)
 }
@@ -684,6 +686,16 @@ func (r *Range) encompasses(other *Range) bool {
 
 func (r *Range) includes(value int64) bool {
 	return r.start <= value && value <= r.end
+}
+
+// intersection returns the intersection of the two ranges, bool indicates if the ranges intersect at all
+func (r *Range) intersection(other *Range) (Range, bool) {
+	if !r.overlaps(other) {
+		return NO_RANGE, false
+	}
+	start := max(r.start, other.start)
+	end := min(r.end, other.end)
+	return Range{start, end}, true
 }
 
 // difference gets the range-difference (relative complement) of 'r' with respect to 'other'
