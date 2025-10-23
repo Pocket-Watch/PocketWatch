@@ -452,7 +452,7 @@
                                         <span id="room_upload_media_text_click">Click to browse</span>
                                     </div>
 
-                                    <input type="file" id="room_upload_media_filepicker"/>
+                                    <input id="room_upload_media_filepicker" type="file" accept="*" capture="environment"/>
                                 </div>
 
                                 <div id="room_upload_media_progress" class="hide">
@@ -635,7 +635,6 @@
                                 <svg><use href="svg/main_icons.svg#plus"/></svg>
                             </button>
                             <input id="chat_input_box" spellcheck="true" placeholder="Send a chat message." title="Send a chat message."/>
-                            <input type="file" id="chat_input_upload_image" accept="image/*"/>
                             <button id="chat_input_send_button">
                                 <svg><use href="svg/main_icons.svg#send"/></svg>
                             </button>

@@ -1,17 +1,7 @@
 import * as api from "./api.js";
-import {
-    getById,
-    div,
-    img,
-    span,
-    a,
-    isSameDay,
-    show,
-    hide,
-    clearContent,
-    showNotification
+import { 
+    getById, div, img, span, a, isSameDay, show, hide, clearContent, showNotification, input
 } from "./util.js";
-
 export { Chat }
 
 const CHARACTER_LIMIT = 1000;
@@ -24,7 +14,6 @@ class Chat {
         this.chatList            = getById("chat_message_list");
         this.sendMessageButton   = getById("chat_input_send_button");
         this.uploadButton        = getById("chat_input_upload_button");
-        this.uploadImageInput    = getById("chat_input_upload_image");
         this.contextMenu         = getById("chat_context_menu");
         this.contextMenuEdit     = getById("chat_context_edit");
         this.contextMenuDelete   = getById("chat_context_delete");
@@ -226,12 +215,18 @@ class Chat {
         };
 
         this.uploadButton.onclick = _ => {
-            this.uploadImageInput.click();
-        };
+            let picker = input();
 
-        this.uploadImageInput.onchange = async event => {
-            let files = event.target.files;
-            await this.uploadAndPasteImage(files);
+            picker.type    = "file";
+            picker.accept  = "image/*";
+            picker.capture = "environment";
+
+            picker.onchange = async event => {
+                let files = event.target.files;
+                await this.uploadAndPasteImage(files);
+            };
+
+            picker.click();
         };
 
         // Handle shiftKey + Enter as 'new line' for formatting
@@ -423,7 +418,6 @@ class Chat {
 
         let segmentStart = 0;
         let parsingUrl   = false;
-        let parsingRes   = false;
 
         for (let i = 0; i < content.length; i++) {
             let slice = content.slice(i);
