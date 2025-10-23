@@ -683,3 +683,19 @@ func TestRangeMerge(t *testing.T) {
 		t.Errorf("The merged range %v is different from expected", merge21)
 	}
 }
+
+func TestRangeIncorporate(t *testing.T) {
+	left := newRange(10, 20)
+	right := newRange(60, 70)
+	toIncorporate := newRange(15, 30)
+
+	result := incorporateRange(toIncorporate, []Range{*left, *right})
+	if len(result) != 2 {
+		t.Errorf("The merged range's length is not 2 but %v", len(result))
+		return
+	}
+	expected0 := newRange(10, 30)
+	if !expected0.equals(&result[0]) {
+		t.Errorf("The element at 0 %v is different from expected", result[0])
+	}
+}

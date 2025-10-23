@@ -725,6 +725,49 @@ func (r *Range) difference(other *Range) []Range {
 	return []Range{*newRange(other.end+1, r.end)}
 }
 
+// incorporateRange inserts range sequentially or merges with an overlapping range (slice of ranges must be sorted)
+func incorporateRange(newRange *Range, ranges []Range) []Range {
+	for i := 0; i < len(ranges); i++ {
+		r := &ranges[i]
+		if r.encompasses(newRange) {
+			return ranges
+		}
+
+		if newRange.encompasses(r) {
+			ranges = resolveMixedMerge(*newRange, ranges, i)
+			return ranges
+		}
+		if newRange.overlaps(r) {
+			ranges = resolveMixedMerge(*newRange, ranges, i)
+			return ranges
+		}
+		if newRange.end < r.start {
+			return slices.Insert(ranges, i, *newRange)
+		}
+	}
+	return append(ranges, *newRange)
+}
+
+// Resolves a mix of overlaps or contained ranges
+func resolveMixedMerge(result Range, ranges []Range, from int) []Range {
+	// The resolution always ends up at 'from' index
+	for i := from; i < len(ranges); i++ {
+		r := &ranges[i]
+
+		if result.encompasses(r) {
+			continue
+		}
+		if result.overlaps(r) {
+			result = r.mergeWith(&result)
+			continue
+		}
+		ranges[from] = result
+		return append(ranges[:from+1], ranges[i:]...)
+	}
+	ranges[from] = result
+	return ranges[:from+1]
+}
+
 func (r *Range) equals(other *Range) bool {
 	return r.start == other.start && r.end == other.end
 }

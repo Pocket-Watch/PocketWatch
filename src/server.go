@@ -1725,24 +1725,12 @@ func serveHlsChunk(writer http.ResponseWriter, request *http.Request, proxy *Hls
 func (server *Server) serveGenericFileNaive(writer http.ResponseWriter, request *http.Request, pathFile string) {
 	proxy := &server.state.genericProxy
 	if path.Ext(pathFile) != proxy.extensionWithDot {
-		http.Error(writer, "Failed to fetch generic chunk", 404)
+		http.Error(writer, "Extension is different from the proxied file", 404)
 		return
 	}
 
-	rangeHeader := request.Header.Get("Range")
-	if rangeHeader == "" {
-		http.Error(writer, "Expected 'Range' header. No range was specified.", 400)
-		return
-	}
-	byteRange, err := parseRangeHeader(rangeHeader, proxy.contentLength)
-	if err != nil {
-		LogInfo("Bad request: %v", err)
-		http.Error(writer, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	if byteRange.exceedsSize(proxy.contentLength) {
-		http.Error(writer, "Range out of bounds", http.StatusRequestedRangeNotSatisfiable)
+	byteRange, ok := ensureRangeHeader(writer, request, proxy.contentLength)
+	if !ok {
 		return
 	}
 
@@ -1782,17 +1770,72 @@ func (server *Server) serveGenericFileNaive(writer http.ResponseWriter, request 
 	}
 }
 
-// Could make it insert with merge
-func (proxy *GenericProxy) insertContentRangeSequentially(newRange *Range) {
-	spot := 0
-	for i := range proxy.contentRanges {
-		r := &proxy.contentRanges[i]
-		if newRange.start <= r.start {
-			break
-		}
-		spot++
+func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFile string) {
+	proxy := &server.state.genericProxy
+	if path.Ext(pathFile) != proxy.extensionWithDot {
+		http.Error(writer, "Extension is different from the proxied file", 404)
+		return
 	}
-	proxy.contentRanges = slices.Insert(proxy.contentRanges, spot, *newRange)
+
+	byteRange, ok := ensureRangeHeader(writer, request, proxy.contentLength)
+	if !ok {
+		return
+	}
+
+	LogDebug("Serving proxied file at range [%v-%v] to %v", byteRange.start, byteRange.end, getIp(request))
+	// If download offset is different from requested it's likely due to a seek and since everyone
+	// should be in sync anyway we can terminate the existing download and create a new one.
+
+	writer.Header().Set("Accept-Ranges", "bytes")
+	writer.Header().Set("Content-Length", int64ToString(byteRange.length()))
+	writer.Header().Set("Content-Range", byteRange.toContentRange(proxy.contentLength))
+
+	response, err := openFileDownload(proxy.fileUrl, byteRange.start, proxy.referer)
+	if err != nil {
+		http.Error(writer, "Unable to open file download", 500)
+		return
+	}
+
+	if request.Method == "HEAD" {
+		writer.WriteHeader(http.StatusOK)
+		return
+	}
+
+	writer.WriteHeader(http.StatusPartialContent)
+	var totalWritten int64
+	for {
+		chunkBytes, err := pullBytesFromResponse(response, GENERIC_CHUNK_SIZE)
+		if err != nil {
+			LogError("An error occurred while pulling from source: %v", err)
+			return
+		}
+		written, err := io.CopyN(writer, bytes.NewReader(chunkBytes), GENERIC_CHUNK_SIZE)
+		totalWritten += written
+		if err != nil {
+			LogInfo("Connection %v terminated download having written %v bytes", getIp(request), totalWritten)
+			return
+		}
+	}
+}
+
+func ensureRangeHeader(writer http.ResponseWriter, request *http.Request, contentLength int64) (Range, bool) {
+	rangeHeader := request.Header.Get("Range")
+	if rangeHeader == "" {
+		http.Error(writer, "Expected 'Range' header. No range was specified.", 400)
+		return NO_RANGE, false
+	}
+	byteRange, err := parseRangeHeader(rangeHeader, contentLength)
+	if err != nil {
+		LogInfo("Bad request: %v", err)
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return NO_RANGE, false
+	}
+
+	if byteRange.exceedsSize(contentLength) {
+		http.Error(writer, "Range out of bounds", http.StatusRequestedRangeNotSatisfiable)
+		return NO_RANGE, false
+	}
+	return *byteRange, true
 }
 
 func (proxy *GenericProxy) mergeContentRanges() {
