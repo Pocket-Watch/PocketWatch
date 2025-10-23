@@ -65,7 +65,9 @@ outer:
 		case "shutdown":
 			EnableConsoleLogging()
 
+			server.state.mutex.Lock()
 			timestamp := server.getCurrentTimestamp()
+			server.state.mutex.Unlock()
 			DatabaseSetTimestamp(server.db, timestamp)
 
 			LogInfo("Shutting down the server.")

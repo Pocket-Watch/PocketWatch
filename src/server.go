@@ -642,13 +642,12 @@ func (server *Server) periodicResync() {
 			continue
 		}
 
-		server.state.mutex.Unlock()
-
 		if playing {
 			event = server.createSyncEvent("play", 0)
 		} else {
 			event = server.createSyncEvent("pause", 0)
 		}
+		server.state.mutex.Unlock()
 
 		server.writeEventToAllConnections("sync", event, SERVER_ID)
 	}
@@ -1839,7 +1838,6 @@ func (server *Server) playerUpdateState(isPlaying bool, newTimestamp float64, us
 	server.state.player.Playing = isPlaying
 	server.state.player.Timestamp = newTimestamp
 	server.state.lastUpdate = time.Now()
-	server.state.mutex.Unlock()
 
 	var event SyncEvent
 	if isPlaying {
@@ -1848,7 +1846,6 @@ func (server *Server) playerUpdateState(isPlaying bool, newTimestamp float64, us
 		event = server.createSyncEvent("pause", userId)
 	}
 
-	server.state.mutex.Lock()
 	server.addRecentAction(event.Action, event.UserId, event.Timestamp)
 	server.state.mutex.Unlock()
 
@@ -1858,9 +1855,6 @@ func (server *Server) playerUpdateState(isPlaying bool, newTimestamp float64, us
 }
 
 func (server *Server) getCurrentTimestamp() float64 {
-	server.state.mutex.Lock()
-	defer server.state.mutex.Unlock()
-
 	var timestamp = server.state.player.Timestamp
 	if server.state.player.Playing {
 		now := time.Now()
@@ -2022,15 +2016,17 @@ func (server *Server) playerSet(requested RequestEntry, userId uint64) error {
 
 func (server *Server) playerSeek(timestamp float64, userId uint64) error {
 	server.state.mutex.Lock()
+	defer server.state.mutex.Unlock()
+
+	return server.playerSeekLockless(timestamp, userId)
+}
+
+func (server *Server) playerSeekLockless(timestamp float64, userId uint64) error {
 	server.state.player.Timestamp = timestamp
 	server.state.lastUpdate = time.Now()
-	server.state.mutex.Unlock()
 
 	event := server.createSyncEvent("seek", userId)
-
-	server.state.mutex.Lock()
 	server.addRecentAction(event.Action, event.UserId, event.Timestamp)
-	server.state.mutex.Unlock()
 
 	server.writeEventToAllConnections("sync", event, userId)
 	return nil
@@ -2053,16 +2049,15 @@ func (server *Server) playerNext(entryId uint64, userId uint64) error {
 		return fmt.Errorf("Entry ID provided in the request is not equal to the current entry ID on the server")
 	}
 
-	entry := Entry{}
-	if len(server.state.playlist) == 0 && server.state.player.Looping {
-		server.playerSeek(0, 0)
+	if len(server.state.playlist) == 0 {
+		if server.state.player.Looping {
+			server.playerSeekLockless(0, 0)
+		}
+
 		return nil
 	}
 
-	if len(server.state.playlist) != 0 {
-		entry = server.playlistDeleteAt(0)
-	}
-
+	entry := server.playlistDeleteAt(0)
 	go server.setNewEntry(entry, RequestEntry{})
 	return nil
 }

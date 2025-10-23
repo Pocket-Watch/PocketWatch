@@ -19,7 +19,10 @@ func CaptureCtrlC(server *Server) {
 			if server.config.EnableShell {
 				RunInteractiveShell(channel, server)
 			} else {
+				server.state.mutex.Lock()
 				timestamp := server.getCurrentTimestamp()
+				server.state.mutex.Unlock()
+
 				DatabaseSetTimestamp(server.db, timestamp)
 
 				LogInfo("Shutting down the server")
