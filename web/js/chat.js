@@ -217,9 +217,8 @@ class Chat {
         this.uploadButton.onclick = _ => {
             let picker = input();
 
-            picker.type    = "file";
-            picker.accept  = "image/*";
-            picker.capture = "environment";
+            picker.type   = "file";
+            picker.accept = "image/*";
 
             picker.onchange = async event => {
                 let files = event.target.files;
