@@ -1552,14 +1552,15 @@ class Internals {
 
             this.updateTimestamps(timestamp);
 
-            // HACK: Fix for broken HLS "ended" event...
+           /* // HACK: Fix for broken HLS "ended" event...
             let duration = this.htmlVideo.duration;
             if (this.playingHls && !this.isLive && timestamp >= (duration - 0.2)) {
                 this.endPlayback();
-            }
+            }*/
         });
 
         this.htmlVideo.addEventListener("ended", _ => {
+            console.info("Ended naturally fired")
             this.endPlayback();
         });
 

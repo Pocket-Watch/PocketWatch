@@ -418,6 +418,19 @@ func (m3u *M3U) totalDuration() float64 {
 	return seconds
 }
 
+func (m3u *M3U) removeTrailingSegment(minLength float64) bool {
+	length := len(m3u.segments)
+	if length == 0 {
+		return false
+	}
+	lastSeg := &m3u.segments[length-1]
+	if lastSeg.length < minLength {
+		m3u.segments = m3u.segments[:length-1]
+		return true
+	}
+	return false
+}
+
 // Chooses best track based on highest resolution and provided filter.
 // This method should only be called on master playlists.
 func (m3u *M3U) getBestTrack(filter func(track *Track) bool) *Track {

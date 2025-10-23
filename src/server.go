@@ -1029,11 +1029,17 @@ func setupDualTrackProxy(originalM3U *M3U, referer string) (bool, *HlsProxy, *Hl
 		LogError("Chunk 0 was not available in video m3u!")
 		return false, nil, nil
 	}
+	if videoM3U.removeTrailingSegment(MIN_SEGMENT_LENGTH) {
+		LogDebug("Removed trailing playlist segment in video track.")
+	}
 
 	audioM3U, err := downloadM3U(audioUrl, CONTENT_PROXY+AUDIO_M3U8, referer)
 	if err != nil {
 		LogError("Failed to download m3u8 audio track: %v", err.Error())
 		return false, nil, nil
+	}
+	if audioM3U.removeTrailingSegment(MIN_SEGMENT_LENGTH) {
+		LogDebug("Removed trailing playlist segment in audio track.")
 	}
 
 	if videoM3U.isMasterPlaylist || audioM3U.isMasterPlaylist {
@@ -1223,6 +1229,10 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 	LogDebug("LIVE:     %v", m3u.isLive)
 	LogDebug("Segments: %v", segmentCount)
 	LogDebug("Duration: %vs", duration)
+
+	if m3u.removeTrailingSegment(MIN_SEGMENT_LENGTH) {
+		LogDebug("Removed trailing playlist segment.")
+	}
 
 	if segmentCount == 0 {
 		LogWarn("No segments found")
