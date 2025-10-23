@@ -1826,15 +1826,20 @@ func (server *Server) smartSleep() {
 }
 
 func (server *Server) playerPlay(timestamp float64, userId uint64) error {
+	server.state.mutex.Lock()
+	defer server.state.mutex.Unlock()
+
 	return server.playerUpdateState(true, timestamp, userId)
 }
 
 func (server *Server) playerPause(timestamp float64, userId uint64) error {
+	server.state.mutex.Lock()
+	defer server.state.mutex.Unlock()
+
 	return server.playerUpdateState(false, timestamp, userId)
 }
 
 func (server *Server) playerUpdateState(isPlaying bool, newTimestamp float64, userId uint64) error {
-	server.state.mutex.Lock()
 	server.state.player.Playing = isPlaying
 	server.state.player.Timestamp = newTimestamp
 	server.state.lastUpdate = time.Now()
@@ -1847,8 +1852,6 @@ func (server *Server) playerUpdateState(isPlaying bool, newTimestamp float64, us
 	}
 
 	server.addRecentAction(event.Action, event.UserId, event.Timestamp)
-	server.state.mutex.Unlock()
-
 	server.writeEventToAllConnections("sync", event, userId)
 
 	return nil
@@ -2052,6 +2055,9 @@ func (server *Server) playerNext(entryId uint64, userId uint64) error {
 	if len(server.state.playlist) == 0 {
 		if server.state.player.Looping {
 			server.playerSeekLockless(0, 0)
+		} else {
+			timestamp := server.getCurrentTimestamp()
+			server.playerUpdateState(false, timestamp, 0)
 		}
 
 		return nil
