@@ -493,9 +493,12 @@
 
 .history_dropdown_subtitle_count,
 .history_dropdown_user_name {
-    /* margin-left: 6px; */
     color: var(--fg_1);
     font-weight: bold;
+}
+
+.history_dropdown_user_name {
+    margin-left: 6px;
 }
 
 .history_dropdown_last_set_at_date,

@@ -663,9 +663,12 @@
 
 .playlist_dropdown_subtitle_count,
 .playlist_dropdown_user_name {
-    /* margin-left: 6px; */
     color: var(--fg_1);
     font-weight: bold;
+}
+
+.playlist_dropdown_user_name {
+    margin-left: 6px;
 }
 
 .playlist_dropdown_last_set_at_date,

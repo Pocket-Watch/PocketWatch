@@ -486,7 +486,6 @@ class Playlist {
 
         this.htmlEntries   = [];
         this.entries       = [];
-        this.expandedEntry = null;
 
         this.updateHtmlListHeight();
         this.updateFooter();
