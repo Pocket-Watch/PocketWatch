@@ -699,3 +699,47 @@ func TestRangeIncorporate(t *testing.T) {
 		t.Errorf("The element at 0 %v is different from expected", result[0])
 	}
 }
+
+func TestRangeIncorporateComplex(t *testing.T) {
+	range1 := newRange(10, 20)
+	range2 := newRange(30, 40)
+	range3 := newRange(70, 90)
+	range4 := newRange(110, 200)
+	range5 := newRange(300, 400)
+	toIncorporate := newRange(25, 150)
+
+	result := incorporateRange(toIncorporate, []Range{*range1, *range2, *range3, *range4, *range5})
+	if len(result) != 3 {
+		t.Errorf("There should be 3 resulting ranges but instead there's %v", len(result))
+		return
+	}
+	if !newRange(10, 20).equals(&result[0]) {
+		t.Errorf("The element at 0 %v is different from expected", result[0])
+	}
+
+	if !newRange(25, 200).equals(&result[1]) {
+		t.Errorf("The element at 1 %v is different from expected", result[1])
+	}
+
+	if !newRange(300, 400).equals(&result[2]) {
+		t.Errorf("The element at 2 %v is different from expected", result[2])
+	}
+}
+
+func TestRangeIncorporateEncompassed(t *testing.T) {
+	r1 := newRange(100, 200)
+	r2 := newRange(300, 400)
+	toIncorporate := newRange(300, 400)
+
+	result := incorporateRange(toIncorporate, []Range{*r1, *r2})
+	if len(result) != 2 {
+		t.Errorf("There should be 2 resulting ranges but instead there's %v", len(result))
+		return
+	}
+	if !newRange(100, 200).equals(&result[0]) {
+		t.Errorf("The element at 0 %v is different from expected", result[0])
+	}
+	if !newRange(300, 400).equals(&result[1]) {
+		t.Errorf("The element at 1 %v is different from expected", result[1])
+	}
+}
