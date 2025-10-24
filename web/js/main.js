@@ -1486,7 +1486,7 @@ class Room {
         this.history.clear();
         for (let i = 0; i < entries.length; i++) {
             const entry = entries[i];
-            this.history.add(entry);
+            this.history.add(entry, this.allUsers);
         }
     }
 
@@ -1974,7 +1974,7 @@ class Room {
             case "historyadd": {
                 let entry = wsData;
                 console.info("INFO: Received history add event: ", entry);
-                this.history.add(entry);
+                this.history.add(entry, this.allUsers);
             } break;
 
             case "historydelete": {

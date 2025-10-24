@@ -3,7 +3,8 @@ import { getById, div, a, span, img, svg, show, hide } from "./util.js";
 
 export { History }
 
-const MAX_HISTORY_SIZE = 120;
+const MAX_HISTORY_SIZE     = 120;
+const DROPDOWN_EXPAND_TIME = 100;
 
 function createRequestEntry(entry) {
     const requestEntry = {
@@ -41,6 +42,7 @@ class History {
         this.contextMenu            = getById("history_context_menu");
         this.contextMenuPlayNow     = getById("history_context_play_now");
         this.contextMenuExpand      = getById("history_context_expand");
+        this.contextMenuExpandText  = getById("history_context_expand_text");
         this.contextMenuCopyUrl     = getById("history_context_copy_url");
         this.contextMenuCopyEntry   = getById("history_context_copy_entry");
         this.contextMenuAddPlaylist = getById("history_context_add_to_playlist");
@@ -49,6 +51,10 @@ class History {
         // Selected entry for an open context menu.
         this.contextMenuEntry     = null;
         this.contextMenuHtmlEntry = null;
+        this.contextMenuUser      = null;
+
+        // Currently expanded entry. Only one entry is allowed to be expanded at a time.
+        this.expandedEntry = null;
     }
 
     // NOTE(kihau): Attachable history events (similar to the custom player)
@@ -68,7 +74,7 @@ class History {
         document.addEventListener("click", _ => this.hideContextMenu());
 
         this.contextMenuPlayNow.onclick     = _ => api.historyPlay(this.contextMenuEntry.id);
-        this.contextMenuExpand.onclick      = _ => console.warn("TODO");
+        this.contextMenuExpand.onclick      = _ => this.toggleEntryDropdown(this.contextMenuHtmlEntry, this.contextMenuEntry, this.contextMenuUser)
         this.contextMenuCopyUrl.onclick     = _ => navigator.clipboard.writeText(this.contextMenuEntry.url);
         this.contextMenuCopyEntry.onclick   = _ => this.onContextEntryCopy(this.contextMenuEntry);
         this.contextMenuAddPlaylist.onclick = _ => api.historyPlaylistAdd(this.contextMenuEntry.id);
@@ -80,16 +86,27 @@ class History {
             this.contextMenuHtmlEntry.classList.remove("highlight");
         }
 
-        this.contextMenuEntry = null;
+        this.contextMenuEntry     = null;
+        this.contextMenuHtmlEntry = null;
+        this.contextMenuUser      = null;
+
         hide(this.contextMenu);
     }
 
-    showContextMenu(event, entry, htmlEntry) {
+    showContextMenu(event, entry, htmlEntry, user) {
         if (this.contextMenuHtmlEntry) {
             this.contextMenuHtmlEntry.classList.remove("highlight");
         }
 
         show(this.contextMenu);
+
+        if (this.expandedEntry === htmlEntry) {
+            this.contextMenuExpandText.textContent = "Collapse";
+            this.contextMenuExpand.classList.add("expanded");
+        } else {
+            this.contextMenuExpandText.textContent = "Expand";
+            this.contextMenuExpand.classList.remove("expanded");
+        }
 
         const entryRect = htmlEntry.getBoundingClientRect();
         const rootRect  = this.htmlEntryListRoot.getBoundingClientRect();
@@ -114,11 +131,123 @@ class History {
 
         this.contextMenuEntry     = entry;
         this.contextMenuHtmlEntry = htmlEntry;
+        this.contextMenuUser      = user;
 
         this.contextMenuHtmlEntry.classList.add("highlight");
     }
 
-    createHtmlEntry(entry) {
+    expandEntry(htmlEntry, entry, user) {
+        if (this.expandedEntry) {
+            this.expandedEntry.classList.remove("expand");
+
+            let expanded = this.expandedEntry;
+            let dropdown = expanded.getElementsByClassName("history_entry_dropdown")[0];
+            setTimeout(_ => expanded.removeChild(dropdown), DROPDOWN_EXPAND_TIME);
+        }
+
+        if (htmlEntry) {
+            let dropdown = this.createEntryDropdown(entry, user);
+
+            this.expandedEntry = htmlEntry;
+            this.expandedEntry.appendChild(dropdown);
+
+            window.getComputedStyle(dropdown).height;
+
+            this.expandedEntry.classList.add("expand");
+        }
+    }
+
+    collapseEntry(htmlEntry) {
+        if (htmlEntry !== this.expandedEntry) {
+            return;
+        }
+
+        if (this.expandedEntry) {
+            this.expandedEntry.classList.remove("expand");
+
+            let expanded = this.expandedEntry;
+            let dropdown = expanded.getElementsByClassName("history_entry_dropdown")[0];
+            setTimeout(_ => expanded.removeChild(dropdown), DROPDOWN_EXPAND_TIME);
+        }
+
+        this.expandedEntry = null;
+    }
+
+    toggleEntryDropdown(htmlEntry, entry, user) {
+        if (this.expandedEntry !== htmlEntry) {
+            this.expandEntry(htmlEntry, entry, user);
+        } else {
+            this.collapseEntry(htmlEntry);
+        }
+    }
+
+    createEntryDropdown(entry, user) {
+        let entryDropdown  = div("history_entry_dropdown");
+        let proxyRoot      = div("history_dropdown_proxy_root");
+        let proxyToggle    = widget_toggle(null, "Enable proxy", entry.use_proxy, true);
+        let proxyReferer   = widget_input(null, "Referer", entry.referer_url, true);
+
+        let infoLabelsTop  = div("history_dropdown_info_labels");
+        let createdByLabel = span("history_dropdown_created_by_label", "Created by"); 
+        let createdAtLabel = span("history_dropdown_created_at_label", "Created at");
+
+        let infoLabelsBot  = div("history_dropdown_info_labels");
+        let subsCountLabel = span("history_dropdown_subtitle_count_label", "Attached subtitles");
+        let lastSetAtLabel = span("history_dropdown_last_set_at_label", "Last set at");
+
+        let createdAt      = new Date(entry.created_at);
+        let lastSetAt      = new Date(entry.last_set_at);
+        let userAvatarImg  = img(user.avatar);
+
+        let infoContentTop = div("history_dropdown_info_content");
+        let userAvatar     = div("history_dropdown_user_avatar");
+        let userName       = span("history_dropdown_user_name", user.username);
+        let createdAtDate  = span("history_dropdown_created_at_date", createdAt.toLocaleString());
+
+        let infoContentBot = div("history_dropdown_info_content");
+        let subsCount      = span("history_dropdown_subtitle_count", "0 subtitles");
+        let lastSetAtDate  = span("history_dropdown_last_set_at_date", lastSetAt.toLocaleString());
+
+
+        if (!entry.subtitles || entry.subtitles.length === 0) {
+            subsCount.textContent = "No subtitles";
+        } else if (entry.subtitles.length === 1) {
+            subsCount.textContent = entry.subtitles.length + " subtitle";
+        } else {
+            subsCount.textContent = entry.subtitles.length + " subtitles";
+        }
+
+
+        entryDropdown.append(proxyRoot); {
+            proxyRoot.append(proxyToggle);
+            proxyRoot.append(proxyReferer);
+        }
+
+        entryDropdown.append(infoLabelsTop); { 
+            infoLabelsTop.append(createdByLabel);
+            infoLabelsTop.append(createdAtLabel);
+        }
+        entryDropdown.append(infoContentTop); {
+            infoContentTop.append(userAvatar); {
+                userAvatar.append(userAvatarImg);
+            }
+            infoContentTop.append(userName);
+            infoContentTop.append(createdAtDate);
+        }
+
+        entryDropdown.append(infoLabelsBot); { 
+            infoLabelsBot.append(subsCountLabel);
+            infoLabelsBot.append(lastSetAtLabel);
+        }
+        entryDropdown.append(infoContentBot); {
+            infoContentBot.append(subsCount);
+            infoContentBot.append(lastSetAtDate);
+        }
+
+        return entryDropdown;
+    }
+
+    createHtmlEntry(entry, user) {
         let entryRoot      = div("history_entry");
         let entryTop       = div("history_entry_top"); 
         let entryThumbnail = div("history_entry_thumbnail");
@@ -136,7 +265,7 @@ class History {
         //
 
         entryThumbnail.onclick = _ => api.historyPlay(entry.id);
-        dropdownButton.onclick = _ => console.warn("TODO");
+        dropdownButton.onclick = _ => this.toggleEntryDropdown(entryRoot, entry, user);
 
         entryRoot.oncontextmenu = event => {
             event.preventDefault();
@@ -144,7 +273,7 @@ class History {
             if (this.contextMenuEntry && this.contextMenuEntry.id === entry.id) {
                 this.hideContextMenu();
             } else {
-                this.showContextMenu(event, entry, entryRoot);
+                this.showContextMenu(event, entry, entryRoot, user);
             }
         };
 
@@ -168,10 +297,27 @@ class History {
         return entryRoot;
     }
 
-    add(entry) {
+    findUser(users, id) {
+        const user = users.find(user => user.id === id);
+        if (user) {
+            return user;
+        } else {
+            const dummy = {
+                id: 0,
+                username: "<Unknown user>",
+                avatar: "img/default_avatar.png",
+                online: false,
+            };
+
+            return dummy;
+        }
+    }
+
+    add(entry, users) {
         this.entries.push(entry);
 
-        const htmlEntry = this.createHtmlEntry(entry);
+        const user      = this.findUser(users, entry.user_id);
+        const htmlEntry = this.createHtmlEntry(entry, user);
         this.htmlEntries.push(htmlEntry);
         // this.htmlEntryList.appendChild(htmlEntry);
 
