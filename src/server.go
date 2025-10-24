@@ -949,9 +949,18 @@ func (server *Server) setupGenericFileProxy(url string, referer string) bool {
 		LogError("Failed to open proxy file for writing: %v", err)
 		return false
 	}
+	_, err = proxyFile.Seek(size, 0)
+	if err != nil {
+		LogError("Failed to seek in proxy file: %v", err)
+		return false
+	}
+	if _, err = proxyFile.Write([]byte{0}); err != nil {
+		LogError("Failed to set length of proxy file: %v", err)
+		return false
+	}
 	proxy.file = proxyFile
-	proxy.downloadBeginOffset = -1
 	proxy.contentRanges = make([]Range, 0)
+	LogInfo("Successfully setup proxy for file of size %v MB", formatFloat(float64(size)/MB, 2))
 	return true
 }
 
@@ -1744,9 +1753,7 @@ func (server *Server) serveGenericFileNaive(writer http.ResponseWriter, request 
 		return
 	}
 
-	LogDebug("Serving proxied file at range [%v-%v] to %v", byteRange.start, byteRange.end, getIp(request))
-	// If download offset is different from requested it's likely due to a seek and since everyone
-	// should be in sync anyway we can terminate the existing download and create a new one.
+	LogDebug("Serving proxied file at range %v to %v", byteRange.String(), getIp(request))
 
 	writer.Header().Set("Accept-Ranges", "bytes")
 	writer.Header().Set("Content-Length", int64ToString(byteRange.length()))
@@ -1774,7 +1781,8 @@ func (server *Server) serveGenericFileNaive(writer http.ResponseWriter, request 
 		written, err := io.CopyN(writer, bytes.NewReader(chunkBytes), GENERIC_CHUNK_SIZE)
 		totalWritten += written
 		if err != nil {
-			LogInfo("Connection %v terminated download having written %v bytes", getIp(request), totalWritten)
+			megabytes := formatFloat(float64(totalWritten/MB), 2)
+			LogInfo("Connection %v terminated having downloaded %v MB", getIp(request), megabytes)
 			return
 		}
 	}
@@ -1792,9 +1800,7 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 		return
 	}
 
-	LogDebug("Serving proxied file at range [%v-%v] to %v", byteRange.start, byteRange.end, getIp(request))
-	// If download offset is different from requested it's likely due to a seek and since everyone
-	// should be in sync anyway we can terminate the existing download and create a new one.
+	LogDebug("Serving proxied file at range %v to %v", byteRange.String(), getIp(request))
 
 	writer.Header().Set("Accept-Ranges", "bytes")
 	writer.Header().Set("Content-Length", int64ToString(byteRange.length()))
@@ -1813,16 +1819,21 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 
 	writer.WriteHeader(http.StatusPartialContent)
 	var totalWritten int64
+	nextRange := byteRange
 	for {
-		chunkBytes, err := pullBytesFromResponse(response, GENERIC_CHUNK_SIZE)
+		nextRange.shift(GENERIC_CHUNK_SIZE)
+
+		nextLength := nextRange.length()
+		chunkBytes, err := pullBytesFromResponse(response, int(nextLength))
 		if err != nil {
 			LogError("An error occurred while pulling from source: %v", err)
 			return
 		}
-		written, err := io.CopyN(writer, bytes.NewReader(chunkBytes), GENERIC_CHUNK_SIZE)
+		written, err := io.CopyN(writer, bytes.NewReader(chunkBytes), nextLength)
 		totalWritten += written
 		if err != nil {
-			LogInfo("Connection %v terminated download having written %v bytes", getIp(request), totalWritten)
+			megabytes := formatFloat(float64(totalWritten/MB), 2)
+			LogInfo("Connection %v terminated having downloaded %v MB", getIp(request), megabytes)
 			return
 		}
 	}

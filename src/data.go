@@ -284,16 +284,19 @@ type HlsProxy struct {
 }
 
 type GenericProxy struct {
-	contentLength       int64
-	extensionWithDot    string
-	fileUrl             string
-	file                *os.File
-	contentRanges       []Range // must remain sorted
-	rangesMutex         sync.Mutex
-	download            *http.Response
-	downloadMutex       sync.Mutex
-	downloadBeginOffset int64
-	referer             string
+	contentLength    int64
+	extensionWithDot string
+	fileUrl          string
+	referer          string
+	file             *os.File
+	contentRanges    []Range // must remain sorted
+	futureRanges     []FutureRange
+	rangeMutex       sync.Mutex
+}
+type FutureRange struct {
+	ready        chan bool
+	success      bool
+	fetchedRange *Range
 }
 
 type LiveStream struct {

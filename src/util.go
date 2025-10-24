@@ -365,7 +365,6 @@ func getParamUrl(url *net_url.URL) *net_url.URL {
 	return nil
 }
 
-// This will download a chunk of a file within the specified range
 func openFileDownload(url string, from int64, referer string) (*http.Response, error) {
 	request, _ := http.NewRequest("GET", url, nil)
 	request.Header.Set("User-Agent", userAgent)
@@ -376,7 +375,7 @@ func openFileDownload(url string, from int64, referer string) (*http.Response, e
 
 	request.Header.Set("Range", fmt.Sprintf("bytes=%v-", from))
 
-	response, err := defaultClient.Do(request)
+	response, err := hastyClient.Do(request)
 	if err != nil {
 		return nil, err
 	}
@@ -507,6 +506,10 @@ func downloadFile(url string, path string, options *DownloadOptions) error {
 func fileExists(filePath string) bool {
 	_, err := os.Stat(filePath)
 	return err == nil
+}
+
+func formatFloat(num float64, precision int) string {
+	return strconv.FormatFloat(num, 'f', precision, 64)
 }
 
 func getContentLength(url string, referer string) (int64, error) {
@@ -660,6 +663,11 @@ func (r *Range) exceedsSize(size int64) bool {
 		return true
 	}
 	return false
+}
+
+func (r *Range) shift(by int64) {
+	r.start += by
+	r.end += by
 }
 
 func newRange(start, end int64) *Range {
