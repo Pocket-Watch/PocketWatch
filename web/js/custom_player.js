@@ -81,7 +81,12 @@ class Player {
     }
 
     getDuration() {
-        return this.internals.htmlVideo.duration;
+        let duration = this.internals.htmlVideo.duration;
+        if (isNaN(duration)) {
+            duration = 0;
+        }
+
+        return duration;
     }
 
     getResolution() {

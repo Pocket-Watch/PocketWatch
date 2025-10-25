@@ -427,16 +427,13 @@ class Room {
         });
 
         this.player.onPlaybackEnd(_ => {
+            console.info("INFO: Playback ended! Informing the server");
+
+            let endTime = this.player.getDuration();
+            api.wsPlayerPause(endTime);
+
             if (this.playlist.autoplayEnabled) {
                 api.wsPlayerNext(this.currentEntryId);
-            } else {
-                console.info("INFO: Playback ended! Informing the server");
-                let endTime = this.player.getDuration();
-                if (isNaN(endTime)) {
-                    endTime = 0;
-                }
-
-                api.wsPlayerPause(endTime);
             }
         });
 

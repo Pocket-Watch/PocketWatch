@@ -2119,9 +2119,6 @@ func (server *Server) playerNext(entryId uint64, userId uint64) error {
 	if len(server.state.playlist) == 0 {
 		if server.state.player.Looping {
 			server.playerSeekLockless(0, 0)
-		} else {
-			timestamp := server.getCurrentTimestamp()
-			server.playerUpdateState(false, timestamp, 0)
 		}
 
 		return nil
