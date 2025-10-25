@@ -1235,7 +1235,7 @@ html * {
     background-color: var(--bg_2);
 }
 
-#room_created_info {
+.room_created_info {
     display: flex;
     row-gap: 4px;
     flex-direction: column;

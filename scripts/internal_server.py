@@ -13,7 +13,7 @@ class YoutubeVideo:
     def __init__(self, 
                  id: str, title: str, thumbnail: str, original_url: str, manifest_url: str, 
                  available_at: int, duration: int, upload_date: str, uploader: str, 
-                 artist_name: str, album_name: str, release_date: str):
+                 artist: str, album: str, release_date: str):
         self.id           = id
         self.title        = title
         self.thumbnail    = thumbnail
@@ -25,8 +25,8 @@ class YoutubeVideo:
         self.uploader     = uploader
 
         # NOTE(kihau): Extra metadata for tracks from YouTube Music. Might not exists, depending on the video.
-        self.artist_name  = artist_name
-        self.album_name   = album_name
+        self.artist       = artist
+        self.album        = album
         self.release_date = release_date
 
 

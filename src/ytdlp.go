@@ -26,8 +26,8 @@ type YoutubeVideo struct {
 	Duration    int64  `json:"duration"`
 	UploadDate  string `json:"upload_date"`
 	Uploader    string `json:"uploader"`
-	ArtistName  string `json:"artist_name"`
-	AlbumName   string `json:"album_name"`
+	ArtistName  string `json:"artist"`
+	AlbumName   string `json:"album"`
 	ReleaseDate string `json:"release_date"`
 }
 
@@ -549,6 +549,16 @@ func loadYoutubeEntry(entry *Entry, requested RequestEntry) error {
 	entry.Title = video.Title
 	entry.SourceUrl = video.SourceUrl
 	entry.Thumbnail = video.Thumbnail
+
+	metadata := Metadata{
+		TrackNumber: 0,
+		AlbumName:   video.AlbumName,
+		AuthorName:  video.ArtistName,
+		ReleaseDate: video.ReleaseDate,
+		Duration:    video.Duration,
+	}
+
+	entry.Metadata = metadata
 
 	return nil
 }

@@ -183,14 +183,14 @@ type Source struct {
 //	Dynamically add/remove metadata from website room tab when needed.
 //	The metadata will include additional information for entries loaded via YTDlp,
 //	as well as metadata for entries loaded from server storage (video and audio files)
-//
-// NOTE(kihau): Placeholder, Not used anywhere yet.
 type Metadata struct {
 	TrackNumber int    `json:"track_number"`
 	AlbumName   string `json:"album_name"`
 	AuthorName  string `json:"author_name"`
-	ReleaseDate int    `json:"release_date"`
-	Duration    int    `json:"duration"`
+
+	// TODO(kihau): Make those two time.Time instead.
+	ReleaseDate string `json:"release_date"`
+	Duration    int64  `json:"duration"`
 }
 
 type Entry struct {
@@ -225,6 +225,9 @@ type Entry struct {
 
 	// Time when the entry was set as current.
 	LastSetAt time.Time `json:"last_set_at"`
+
+	// Optional metadata added on YtDlp entry fetch.
+	Metadata Metadata `json:"metadata"`
 }
 
 type ServerState struct {
