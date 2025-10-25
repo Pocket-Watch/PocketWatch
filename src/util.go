@@ -677,7 +677,7 @@ func newRange(start, end int64) *Range {
 	return &Range{start, end}
 }
 
-// This can only be merged if they overlap
+// This can only be merged if they overlap or connect with no gap
 func (r *Range) mergeWith(other *Range) Range {
 	mergedStart := min(r.start, other.start)
 	mergedEnd := max(r.end, other.end)
@@ -686,6 +686,10 @@ func (r *Range) mergeWith(other *Range) Range {
 
 func (r *Range) overlaps(other *Range) bool {
 	return r.start <= other.end && other.start <= r.end
+}
+
+func (r *Range) connects(other *Range) bool {
+	return r.end+1 == other.start || r.start == other.end+1
 }
 
 func (r *Range) encompasses(other *Range) bool {
@@ -741,11 +745,7 @@ func incorporateRange(newRange *Range, ranges []Range) []Range {
 			return ranges
 		}
 
-		if newRange.encompasses(r) {
-			ranges = resolveMixedMerge(*newRange, ranges, i)
-			return ranges
-		}
-		if newRange.overlaps(r) {
+		if newRange.encompasses(r) || newRange.overlaps(r) || newRange.connects(r) {
 			ranges = resolveMixedMerge(*newRange, ranges, i)
 			return ranges
 		}
@@ -765,7 +765,7 @@ func resolveMixedMerge(result Range, ranges []Range, from int) []Range {
 		if result.encompasses(r) {
 			continue
 		}
-		if result.overlaps(r) {
+		if result.overlaps(r) || result.connects(r) {
 			result = r.mergeWith(&result)
 			continue
 		}

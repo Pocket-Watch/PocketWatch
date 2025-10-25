@@ -589,7 +589,7 @@ func TestRangeEncompassesFalse(t *testing.T) {
 
 func TestRangeOverlaps(t *testing.T) {
 	range1 := newRange(10, 20)
-	range2 := newRange(19, 1000)
+	range2 := newRange(20, 1000)
 	if !range1.overlaps(range2) || !range2.overlaps(range1) {
 		t.Errorf("%v should overlap %v", range1, range2)
 	}
@@ -600,6 +600,22 @@ func TestRangeOverlapsContained(t *testing.T) {
 	range2 := newRange(20, 80)
 	if !range1.overlaps(range2) || !range2.overlaps(range1) {
 		t.Errorf("%v should overlap %v", range1, range2)
+	}
+}
+
+func TestRangeConnects(t *testing.T) {
+	range1 := newRange(10, 30)
+	range2 := newRange(31, 100)
+	if !range1.connects(range2) || !range2.connects(range1) {
+		t.Errorf("%v should connect %v", range1, range2)
+	}
+}
+
+func TestRangeConnectsFalse(t *testing.T) {
+	range1 := newRange(10, 30)
+	range2 := newRange(32, 100)
+	if range1.connects(range2) || range2.connects(range1) {
+		t.Errorf("%v shouldn't connect %v", range1, range2)
 	}
 }
 
@@ -740,6 +756,26 @@ func TestRangeIncorporateEncompassed(t *testing.T) {
 		t.Errorf("The element at 0 %v is different from expected", result[0])
 	}
 	if !newRange(300, 400).equals(&result[1]) {
+		t.Errorf("The element at 1 %v is different from expected", result[1])
+	}
+}
+
+func TestRangeIncorporateConnectedRange(t *testing.T) {
+	r1 := newRange(2, 3)
+	r2 := newRange(100, 200)
+	toIncorporate := newRange(201, 299)
+	r3 := newRange(300, 400)
+	r4 := newRange(888, 999)
+
+	result := incorporateRange(toIncorporate, []Range{*r1, *r2, *r3, *r4})
+	if len(result) != 3 {
+		t.Errorf("There should be 3 resulting ranges but instead there's %v", len(result))
+		return
+	}
+	if !newRange(2, 3).equals(&result[0]) {
+		t.Errorf("The element at 0 %v is different from expected", result[0])
+	}
+	if !newRange(100, 400).equals(&result[1]) {
 		t.Errorf("The element at 1 %v is different from expected", result[1])
 	}
 }
