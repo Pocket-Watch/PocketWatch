@@ -1798,7 +1798,7 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 		return
 	}
 
-	LogDebug("Serving proxied file at range %v to %v", byteRange.String(), getIp(request))
+	LogDebug("Serving proxied file at range %v to %v", &byteRange, getIp(request))
 
 	writer.Header().Set("Accept-Ranges", "bytes")
 	writer.Header().Set("Content-Length", int64ToString(byteRange.length()))
@@ -1843,7 +1843,7 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 			case AWAIT:
 				<-aRange.future.ready
 				if !aRange.future.success {
-					LogWarn("Connection %v awaited range %v but it ended in failure", getIp(request), aRange.r)
+					LogWarn("Connection %v awaited range %v but it ended in failure", getIp(request), &aRange.r)
 					return
 				}
 				LogDebug("Connection %v is being served from disk after await", getIp(request))
@@ -1851,7 +1851,7 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 					return
 				}
 			case FETCH:
-				LogInfo("Connection %v fetching new range %v", getIp(request), aRange.r.String())
+				LogInfo("Connection %v fetching new range %v", getIp(request), &aRange.r)
 				length := aRange.r.length()
 				proxy.rangeMutex.Lock()
 				future := proxy.newFutureRange(aRange.r)
@@ -1955,7 +1955,7 @@ func (proxy *GenericProxy) determineRangeActions(nextRange Range) []*ActionableR
 			}
 			uncoveredDiff := aRange.r.difference(&futureRange.r)
 			if len(uncoveredDiff) == 0 {
-				LogDebug("Uncovered diff can be fully awaited at range %v", aRange.r)
+				LogDebug("Uncovered diff can be fully awaited at range %v", &aRange.r)
 				aRange.action = AWAIT
 				aRange.future = futureRange
 				break
@@ -1965,10 +1965,10 @@ func (proxy *GenericProxy) determineRangeActions(nextRange Range) []*ActionableR
 				diff := uncoveredDiff[0]
 				inProgress := &ActionableRange{action: AWAIT, r: futureRange.r, future: futureRange}
 				if diff.start == aRange.r.start {
-					LogDebug("Uncovered diff %v is at start", diff)
+					LogDebug("Uncovered diff %v is at start", &diff)
 					ranges = slices.Insert(ranges, i+1, inProgress)
 				} else {
-					LogDebug("Uncovered diff %v is at end", diff)
+					LogDebug("Uncovered diff %v is at end", &diff)
 					ranges = slices.Insert(ranges, i, inProgress)
 					i++
 				}
@@ -1976,7 +1976,7 @@ func (proxy *GenericProxy) determineRangeActions(nextRange Range) []*ActionableR
 				break
 			}
 			if len(uncoveredDiff) == 2 {
-				LogWarn("Uncovered diff is %v & %v", uncoveredDiff[0], uncoveredDiff[1])
+				LogWarn("Uncovered diff is %v & %v", &uncoveredDiff[0], &uncoveredDiff[1])
 				// It'd be possible to request separate ranges from the source at once
 				// For now leave as is
 			}
