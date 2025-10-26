@@ -291,15 +291,33 @@ type GenericProxy struct {
 	extensionWithDot string
 	fileUrl          string
 	referer          string
+	rangeSeed        atomic.Uint64
 	file             *os.File
+	fileMutex        sync.Mutex
 	contentRanges    []Range // must remain sorted
-	futureRanges     []FutureRange
+	futureRanges     []*FutureRange
 	rangeMutex       sync.Mutex
 }
+
 type FutureRange struct {
-	ready        chan bool
-	success      bool
-	fetchedRange *Range
+	ready   chan struct{}
+	success bool
+	id      uint64
+	r       Range
+}
+
+type RangeAction int
+
+const (
+	READ RangeAction = iota
+	AWAIT
+	FETCH
+)
+
+type ActionableRange struct {
+	action RangeAction
+	r      Range
+	future *FutureRange // Present if action is AWAIT
 }
 
 type LiveStream struct {

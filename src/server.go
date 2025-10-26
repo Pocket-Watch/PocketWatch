@@ -949,7 +949,7 @@ func (server *Server) setupGenericFileProxy(url string, referer string) bool {
 		LogError("Failed to open proxy file for writing: %v", err)
 		return false
 	}
-	_, err = proxyFile.Seek(size, 0)
+	_, err = proxyFile.Seek(size, io.SeekStart)
 	if err != nil {
 		LogError("Failed to seek in proxy file: %v", err)
 		return false
@@ -960,7 +960,7 @@ func (server *Server) setupGenericFileProxy(url string, referer string) bool {
 	}
 	proxy.file = proxyFile
 	proxy.contentRanges = make([]Range, 0)
-	LogInfo("Successfully setup proxy for file of size %v MB", formatFloat(float64(size)/MB, 2))
+	LogInfo("Successfully setup proxy for file of size %v MB", formatMegabytes(size, 2))
 	return true
 }
 
@@ -1421,7 +1421,7 @@ func (server *Server) watchProxy(writer http.ResponseWriter, request *http.Reque
 			server.serveHlsVod(writer, request, chunk)
 		}
 	} else {
-		server.serveGenericFileNaive(writer, request, chunk)
+		server.serveGenericFile(writer, request, chunk)
 	}
 }
 
@@ -1753,8 +1753,6 @@ func (server *Server) serveGenericFileNaive(writer http.ResponseWriter, request 
 		return
 	}
 
-	LogDebug("Serving proxied file at range %v to %v", byteRange.String(), getIp(request))
-
 	writer.Header().Set("Accept-Ranges", "bytes")
 	writer.Header().Set("Content-Length", int64ToString(byteRange.length()))
 	writer.Header().Set("Content-Range", byteRange.toContentRange(proxy.contentLength))
@@ -1781,7 +1779,7 @@ func (server *Server) serveGenericFileNaive(writer http.ResponseWriter, request 
 		written, err := io.CopyN(writer, bytes.NewReader(chunkBytes), GENERIC_CHUNK_SIZE)
 		totalWritten += written
 		if err != nil {
-			megabytes := formatFloat(float64(totalWritten/MB), 2)
+			megabytes := formatMegabytes(totalWritten, 2)
 			LogInfo("Connection %v terminated having downloaded %v MB", getIp(request), megabytes)
 			return
 		}
@@ -1806,36 +1804,228 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 	writer.Header().Set("Content-Length", int64ToString(byteRange.length()))
 	writer.Header().Set("Content-Range", byteRange.toContentRange(proxy.contentLength))
 
-	response, err := openFileDownload(proxy.fileUrl, byteRange.start, proxy.referer)
-	if err != nil {
-		http.Error(writer, "Unable to open file download", 500)
-		return
-	}
-
 	if request.Method == "HEAD" {
 		writer.WriteHeader(http.StatusOK)
 		return
 	}
 
 	writer.WriteHeader(http.StatusPartialContent)
+
+	// Debug VIEW --- start
+	view := strings.Builder{}
+	proxy.rangeMutex.Lock()
+	for _, contentRange := range proxy.contentRanges {
+		view.WriteString(contentRange.String())
+		view.WriteString(", ")
+	}
+	LogDebug("Disk ranges: %v", view.String())
+	proxy.rangeMutex.Unlock()
+	// Debug VIEW --- end
+
 	var totalWritten int64
 	nextRange := byteRange
+	nextRange.end = byteRange.start + GENERIC_CHUNK_SIZE - 1
 	for {
-		nextRange.shift(GENERIC_CHUNK_SIZE)
+		if nextRange.end >= proxy.contentLength {
+			nextRange.end = proxy.contentLength - 1
+		}
 
-		nextLength := nextRange.length()
-		chunkBytes, err := pullBytesFromResponse(response, int(nextLength))
-		if err != nil {
-			LogError("An error occurred while pulling from source: %v", err)
+		proxy.rangeMutex.Lock()
+		actionableRanges := proxy.determineRangeActions(nextRange)
+		proxy.rangeMutex.Unlock()
+
+		for _, aRange := range actionableRanges {
+			switch aRange.action {
+			case READ:
+				if !proxy.serveRangeFromDisk(writer, request, aRange, &totalWritten) {
+					return
+				}
+			case AWAIT:
+				<-aRange.future.ready
+				if !aRange.future.success {
+					LogWarn("Connection %v awaited range %v but it ended in failure", getIp(request), aRange.r)
+					return
+				}
+				LogDebug("Connection %v is being served from disk after await", getIp(request))
+				if !proxy.serveRangeFromDisk(writer, request, aRange, &totalWritten) {
+					return
+				}
+			case FETCH:
+				LogInfo("Connection %v fetching new range %v", getIp(request), aRange.r.String())
+				length := aRange.r.length()
+				proxy.rangeMutex.Lock()
+				future := proxy.newFutureRange(aRange.r)
+				proxy.futureRanges = append(proxy.futureRanges, &future)
+				proxy.rangeMutex.Unlock()
+
+				response, err := openFileDownload(proxy.fileUrl, aRange.r.start, proxy.referer)
+				if err != nil {
+					close(future.ready)
+					http.Error(writer, "Unable to open file download", 500)
+					return
+				}
+				chunkBytes, err := pullBytesFromResponse(response, int(length))
+				if err != nil {
+					close(future.ready)
+					LogError("An error occurred while pulling from source: %v", err)
+					return
+				}
+				response.Body.Close()
+
+				proxy.rangeMutex.Lock()
+				proxy.removeFutureRange(future)
+				proxy.fileMutex.Lock()
+				_, err = writeAtOffset(proxy.file, aRange.r.start, chunkBytes)
+				if err != nil {
+					proxy.fileMutex.Unlock()
+					proxy.rangeMutex.Unlock()
+					close(future.ready)
+					LogError("An error occurred while writing to destination: %v", err)
+					return
+				}
+				proxy.fileMutex.Unlock()
+				future.success = true
+				close(future.ready)
+				proxy.contentRanges = incorporateRange(&nextRange, proxy.contentRanges)
+				proxy.rangeMutex.Unlock()
+
+				written, err := io.CopyN(writer, bytes.NewReader(chunkBytes), length)
+				totalWritten += written
+				if err != nil {
+					megabytes := formatMegabytes(totalWritten, 2)
+					LogInfo("Connection %v terminated having downloaded %v MB", getIp(request), megabytes)
+					return
+				}
+			}
+		}
+
+		if nextRange.end == proxy.contentLength-1 {
+			megabytes := formatMegabytes(totalWritten, 2)
+			LogInfo("Connection %v fully served having downloaded %v MB", getIp(request), megabytes)
 			return
 		}
-		written, err := io.CopyN(writer, bytes.NewReader(chunkBytes), nextLength)
-		totalWritten += written
-		if err != nil {
-			megabytes := formatFloat(float64(totalWritten/MB), 2)
-			LogInfo("Connection %v terminated having downloaded %v MB", getIp(request), megabytes)
-			return
+		nextRange.shift(GENERIC_CHUNK_SIZE)
+	}
+}
+
+func (proxy *GenericProxy) determineRangeActions(nextRange Range) []*ActionableRange {
+	var ranges []*ActionableRange
+
+	for _, diskRange := range proxy.contentRanges {
+		commonPart, intersect := diskRange.intersection(&nextRange)
+		if !intersect {
+			continue
 		}
+
+		difference := nextRange.difference(&diskRange)
+		if len(difference) == 0 {
+			return []*ActionableRange{{action: READ, r: nextRange}}
+		}
+		if len(difference) == 1 {
+			diff := difference[0]
+			if diff.start == nextRange.start {
+				ranges = append(ranges,
+					&ActionableRange{action: FETCH, r: diff},
+					&ActionableRange{action: READ, r: commonPart},
+				)
+			} else {
+				ranges = append(ranges,
+					&ActionableRange{action: READ, r: commonPart},
+					&ActionableRange{action: FETCH, r: diff},
+				)
+			}
+			break
+		}
+		if len(difference) == 2 {
+			// Assume ranges cannot be requested in larger parts so the difference is always singular or none
+			LogFatal("Difference of two ranges shouldn't be possible with the current setup!")
+			break
+		}
+	}
+	ranges = append(ranges, &ActionableRange{action: FETCH, r: nextRange})
+
+	for i := 0; i < len(ranges); i++ {
+		aRange := ranges[i]
+		if aRange.action != FETCH {
+			continue
+		}
+		for _, futureRange := range proxy.futureRanges {
+			if !futureRange.r.overlaps(&aRange.r) {
+				continue
+			}
+			uncoveredDiff := aRange.r.difference(&futureRange.r)
+			if len(uncoveredDiff) == 0 {
+				LogDebug("Uncovered diff can be fully awaited at range %v", aRange.r)
+				aRange.action = AWAIT
+				aRange.future = futureRange
+				break
+			}
+
+			if len(uncoveredDiff) == 1 {
+				diff := uncoveredDiff[0]
+				inProgress := &ActionableRange{action: AWAIT, r: futureRange.r, future: futureRange}
+				if diff.start == aRange.r.start {
+					LogDebug("Uncovered diff %v is at start", diff)
+					ranges = slices.Insert(ranges, i+1, inProgress)
+				} else {
+					LogDebug("Uncovered diff %v is at end", diff)
+					ranges = slices.Insert(ranges, i, inProgress)
+					i++
+				}
+				aRange.r = diff
+				break
+			}
+			if len(uncoveredDiff) == 2 {
+				LogWarn("Uncovered diff is %v & %v", uncoveredDiff[0], uncoveredDiff[1])
+				// It'd be possible to request separate ranges from the source at once
+				// For now leave as is
+			}
+		}
+	}
+	return ranges
+}
+
+func (proxy *GenericProxy) serveRangeFromDisk(writer http.ResponseWriter, request *http.Request, aRange *ActionableRange, totalWritten *int64) bool {
+	length := aRange.r.length()
+	proxy.fileMutex.Lock()
+	rangeBytes, err := readAtOffset(proxy.file, aRange.r.start, int(length))
+	if err != nil {
+		proxy.fileMutex.Unlock()
+		LogInfo("Unable to serve bytes at %v: %v", aRange.r.start, err)
+		return false
+	}
+	proxy.fileMutex.Unlock()
+
+	written, err := io.CopyN(writer, bytes.NewReader(rangeBytes), length)
+	*totalWritten += written
+	if err != nil {
+		megabytes := formatMegabytes(*totalWritten, 2)
+		LogInfo("Connection %v terminated having downloaded %v MB", getIp(request), megabytes)
+		return false
+	}
+	return true
+}
+
+func (proxy *GenericProxy) removeFutureRange(future FutureRange) {
+	index := -1
+	for i, r := range proxy.futureRanges {
+		if r.id == future.id {
+			index = i
+			break
+		}
+	}
+	if index == -1 {
+		LogInfo("FutureRange %v was not found", future)
+		return
+	}
+	proxy.futureRanges = slices.Delete(proxy.futureRanges, index, index+1)
+}
+
+func (proxy *GenericProxy) newFutureRange(r Range) FutureRange {
+	return FutureRange{
+		id:    proxy.rangeSeed.Add(1),
+		ready: make(chan struct{}),
+		r:     r,
 	}
 }
 
@@ -1857,20 +2047,6 @@ func ensureRangeHeader(writer http.ResponseWriter, request *http.Request, conten
 		return NO_RANGE, false
 	}
 	return *byteRange, true
-}
-
-func (proxy *GenericProxy) mergeContentRanges() {
-	for i := range len(proxy.contentRanges) - 1 {
-		leftRange := &proxy.contentRanges[i]
-		rightRange := &proxy.contentRanges[i+1]
-		exclusiveRange := newRange(0, leftRange.end+1)
-		if !exclusiveRange.overlaps(rightRange) {
-			continue
-		}
-		merge := leftRange.mergeWith(rightRange)
-		// This removes the leftRange and rightRange and inserts merged range
-		proxy.contentRanges = slices.Replace(proxy.contentRanges, i, i+2, merge)
-	}
 }
 
 // this will prevent LAZY broadcasts when users make frequent updates

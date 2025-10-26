@@ -342,6 +342,32 @@ func downloadFileChunk(url string, r *Range, referer string) ([]byte, error) {
 	return buffer, nil
 }
 
+func readAtOffset(f *os.File, offset int64, count int) ([]byte, error) {
+	if _, err := f.Seek(offset, io.SeekStart); err != nil {
+		return nil, err
+	}
+	buffer := make([]byte, count)
+	_, err := io.ReadFull(f, buffer)
+	if err != nil {
+		if errors.Is(err, io.ErrUnexpectedEOF) || err == io.EOF {
+			return buffer, err
+		}
+		return nil, err
+	}
+	return buffer, nil
+}
+
+func writeAtOffset(f *os.File, offset int64, data []byte) (int, error) {
+	if _, err := f.Seek(offset, io.SeekStart); err != nil {
+		return 0, err
+	}
+	n, err := f.Write(data)
+	if err != nil && !errors.Is(err, io.ErrShortWrite) {
+		return n, err
+	}
+	return n, nil
+}
+
 func isAbsolute(url string) bool {
 	return strings.HasPrefix(url, "https://") || strings.HasPrefix(url, "http://")
 }
@@ -512,6 +538,10 @@ func formatFloat(num float64, precision int) string {
 	return strconv.FormatFloat(num, 'f', precision, 64)
 }
 
+func formatMegabytes(bytes int64, precision int) string {
+	return formatFloat(float64(bytes)/float64(1024*1024), precision)
+}
+
 func getContentLength(url string, referer string) (int64, error) {
 	// HEAD method returns metadata of a resource
 	request, err := http.NewRequest("HEAD", url, nil)
@@ -613,12 +643,6 @@ func parseInt(number string) (int, error) {
 		return 0, err
 	}
 	return int(num), nil
-}
-
-func generateUniqueId() uint64 {
-	src := rand.NewSource(time.Now().UnixNano())
-	entropy := rand.New(src).Uint64() // Generate a random number between 0 and 99
-	return entropy
 }
 
 type DownloadError struct {
