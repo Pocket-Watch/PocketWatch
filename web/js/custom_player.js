@@ -503,7 +503,7 @@ class Internals {
         hide(this.htmlToastContainer);
         hide(this.bufferingSvg);
         hide(this.playbackPopupSvg);
-        hide(this.htmlNoVideoPopup)
+        hide(this.htmlNoVideoPopup);
         hide(this.subtitleContainer);
 
         // 
@@ -1565,7 +1565,7 @@ class Internals {
         });
 
         this.htmlVideo.addEventListener("ended", _ => {
-            console.info("Ended naturally fired")
+            console.info("INFO: Ended naturally fired");
             this.endPlayback();
         });
 
@@ -2826,8 +2826,8 @@ class SeekIcon {
         this.svg = document.createElementNS(SVG_NAMESPACE, "svg");
         let svg = this.svg;
         svg.setAttribute("viewBox", "0 0 48 48");
-        svg.setAttribute("width", width);
-        svg.setAttribute("height", height);
+        svg.setAttribute("width", String(width));
+        svg.setAttribute("height", String(height));
         svg.innerHTML = `
              <path d="M24 4C12.97 4 4 12.97 4 24C4 35.03 12.97 44 24 44C35.03 44 44 35.03 44 24C44 23.83 43.998 23.66 43.994 23.49A1.5 1.5 0 0 0 40.994 23.56C40.998 23.71 41 23.85 41 24C41 33.41 33.41 41 24 41C14.59 41 7 33.41 7 24C7 14.59 14.59 7 24 7C29.38 7 34.16 9.5 37.27 13.38L35.96 13.15A1.5 1.5 0 0 0 35.44 16.11L40.37 16.98A1.5 1.5 0 0 0 42.11 15.76L42.97 10.84A1.5 1.5 0 0 0 41.44 9.06A1.5 1.5 0 0 0 40.02 10.32L39.77 11.72C36.11 7.03 30.4 4 24 4z"/>
              <text x="24" y="24" text-anchor="middle" font-weight="bold" font-size="17" dy=".35em">10s</text>
@@ -2872,8 +2872,8 @@ class Svg {
         let use = document.createElementNS(SVG_NAMESPACE, "use");
         use.setAttribute("href", initialHref);
 
-        svg.setAttribute("width", width);
-        svg.setAttribute("height", height);
+        svg.setAttribute("width", String(width));
+        svg.setAttribute("height", String(height));
         svg.appendChild(use);
         return new Svg(svg, use);
     }
@@ -3016,7 +3016,7 @@ class Options {
             timelineController: null,
             subtitleTrackController: null,
             subtitleStreamController: null,
-        }
+        };
 
         this.disableVideo = false;
     }

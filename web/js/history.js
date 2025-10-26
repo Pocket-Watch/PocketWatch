@@ -74,7 +74,7 @@ class History {
         document.addEventListener("click", _ => this.hideContextMenu());
 
         this.contextMenuPlayNow.onclick     = _ => api.historyPlay(this.contextMenuEntry.id);
-        this.contextMenuExpand.onclick      = _ => this.toggleEntryDropdown(this.contextMenuHtmlEntry, this.contextMenuEntry, this.contextMenuUser)
+        this.contextMenuExpand.onclick      = _ => this.toggleEntryDropdown(this.contextMenuHtmlEntry, this.contextMenuEntry, this.contextMenuUser);
         this.contextMenuCopyUrl.onclick     = _ => navigator.clipboard.writeText(this.contextMenuEntry.url);
         this.contextMenuCopyEntry.onclick   = _ => this.onContextEntryCopy(this.contextMenuEntry);
         this.contextMenuAddPlaylist.onclick = _ => api.historyPlaylistAdd(this.contextMenuEntry.id);
@@ -141,7 +141,7 @@ class History {
             this.expandedEntry.classList.remove("expand");
 
             let expanded = this.expandedEntry;
-            let dropdown = expanded.getElementsByClassName("history_entry_dropdown")[0];
+            let dropdown = expanded.getElementsByClassName("entry_dropdown")[0];
             setTimeout(_ => expanded.removeChild(dropdown), DROPDOWN_EXPAND_TIME);
         }
 
@@ -166,7 +166,7 @@ class History {
             this.expandedEntry.classList.remove("expand");
 
             let expanded = this.expandedEntry;
-            let dropdown = expanded.getElementsByClassName("history_entry_dropdown")[0];
+            let dropdown = expanded.getElementsByClassName("entry_dropdown")[0];
             setTimeout(_ => expanded.removeChild(dropdown), DROPDOWN_EXPAND_TIME);
         }
 
@@ -182,31 +182,31 @@ class History {
     }
 
     createEntryDropdown(entry, user) {
-        let entryDropdown  = div("history_entry_dropdown");
-        let proxyRoot      = div("history_dropdown_proxy_root");
+        let entryDropdown  = div("entry_dropdown");
+        let proxyRoot      = div("entry_dropdown_proxy_root");
         let proxyToggle    = widget_toggle(null, "Enable proxy", entry.use_proxy, true);
         let proxyReferer   = widget_input(null, "Referer", entry.referer_url, true);
 
-        let infoLabelsTop  = div("history_dropdown_info_labels");
-        let createdByLabel = span("history_dropdown_created_by_label", "Created by"); 
-        let createdAtLabel = span("history_dropdown_created_at_label", "Created at");
+        let infoLabelsTop  = div("entry_dropdown_info_labels");
+        let createdByLabel = span("entry_dropdown_created_by_label", "Created by"); 
+        let createdAtLabel = span("entry_dropdown_created_at_label", "Created at");
 
-        let infoLabelsBot  = div("history_dropdown_info_labels");
-        let subsCountLabel = span("history_dropdown_subtitle_count_label", "Attached subtitles");
-        let lastSetAtLabel = span("history_dropdown_last_set_at_label", "Last set at");
+        let infoLabelsBot  = div("entry_dropdown_info_labels");
+        let subsCountLabel = span("entry_dropdown_subtitle_count_label", "Attached subtitles");
+        let lastSetAtLabel = span("entry_dropdown_last_set_at_label", "Last set at");
 
         let createdAt      = new Date(entry.created_at);
         let lastSetAt      = new Date(entry.last_set_at);
         let userAvatarImg  = img(user.avatar);
 
-        let infoContentTop = div("history_dropdown_info_content");
-        let userAvatar     = div("history_dropdown_user_avatar");
-        let userName       = span("history_dropdown_user_name", user.username);
-        let createdAtDate  = span("history_dropdown_created_at_date", createdAt.toLocaleString());
+        let infoContentTop = div("entry_dropdown_info_content");
+        let userAvatar     = div("entry_dropdown_user_avatar");
+        let userName       = span("entry_dropdown_user_name", user.username);
+        let createdAtDate  = span("entry_dropdown_created_at_date", createdAt.toLocaleString());
 
-        let infoContentBot = div("history_dropdown_info_content");
-        let subsCount      = span("history_dropdown_subtitle_count", "0 subtitles");
-        let lastSetAtDate  = span("history_dropdown_last_set_at_date", lastSetAt.toLocaleString());
+        let infoContentBot = div("entry_dropdown_info_content");
+        let subsCount      = span("entry_dropdown_subtitle_count", "0 subtitles");
+        let lastSetAtDate  = span("entry_dropdown_last_set_at_date", lastSetAt.toLocaleString());
 
 
         if (!entry.subtitles || entry.subtitles.length === 0) {
@@ -258,7 +258,7 @@ class History {
         let entryTitle     = span("history_entry_title", entry.title);
         let entryUrl       = a("history_entry_url", entry.url);
         let dropdownSvg    = svg("svg/main_icons.svg#dropdown");
-        let dropdownButton = div("history_dropdown_button");
+        let dropdownButton = div("entry_dropdown_button");
 
         //
         // Attaching events to html elements.

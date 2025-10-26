@@ -2092,7 +2092,7 @@ class Room {
     }
 
     async connectToServer() {
-        let success = await this.authenticateAccount(true);
+        let success = await this.authenticateAccount();
         if (!success) {
             this.handleDisconnect();
             return;

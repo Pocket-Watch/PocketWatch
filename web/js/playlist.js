@@ -500,7 +500,7 @@ class Playlist {
             this.expandedEntry.classList.remove("expand");
 
             let expanded = this.expandedEntry;
-            let dropdown = expanded.getElementsByClassName("playlist_entry_dropdown")[0];
+            let dropdown = expanded.getElementsByClassName("entry_dropdown")[0];
             setTimeout(_ => expanded.removeChild(dropdown), DROPDOWN_EXPAND_TIME);
         }
 
@@ -525,7 +525,7 @@ class Playlist {
             this.expandedEntry.classList.remove("expand");
 
             let expanded = this.expandedEntry;
-            let dropdown = expanded.getElementsByClassName("playlist_entry_dropdown")[0];
+            let dropdown = expanded.getElementsByClassName("entry_dropdown")[0];
             setTimeout(_ => expanded.removeChild(dropdown), DROPDOWN_EXPAND_TIME);
         }
 
@@ -594,31 +594,31 @@ class Playlist {
     }
 
     createEntryDropdown(entry, user) {
-        let entryDropdown  = div("playlist_entry_dropdown");
-        let proxyRoot      = div("playlist_dropdown_proxy_root");
+        let entryDropdown  = div("entry_dropdown");
+        let proxyRoot      = div("entry_dropdown_proxy_root");
         let proxyToggle    = widget_toggle(null, "Enable proxy", entry.use_proxy, true);
         let proxyReferer   = widget_input(null, "Referer", entry.referer_url, true);
 
-        let infoLabelsTop  = div("playlist_dropdown_info_labels");
-        let createdByLabel = span("playlist_dropdown_created_by_label", "Created by"); 
-        let createdAtLabel = span("playlist_dropdown_created_at_label", "Created at");
+        let infoLabelsTop  = div("entry_dropdown_info_labels");
+        let createdByLabel = span("entry_dropdown_created_by_label", "Created by"); 
+        let createdAtLabel = span("entry_dropdown_created_at_label", "Created at");
 
-        let infoLabelsBot  = div("playlist_dropdown_info_labels");
-        let subsCountLabel = span("playlist_dropdown_subtitle_count_label", "Attached subtitles");
-        let lastSetAtLabel = span("playlist_dropdown_last_set_at_label", "Last set at");
+        let infoLabelsBot  = div("entry_dropdown_info_labels");
+        let subsCountLabel = span("entry_dropdown_subtitle_count_label", "Attached subtitles");
+        let lastSetAtLabel = span("entry_dropdown_last_set_at_label", "Last set at");
 
         let createdAt      = new Date(entry.created_at);
         let lastSetAt      = new Date(entry.last_set_at);
         let userAvatarImg  = img(user.avatar);
 
-        let infoContentTop = div("playlist_dropdown_info_content");
-        let userAvatar     = div("playlist_dropdown_user_avatar");
-        let userName       = span("playlist_dropdown_user_name", user.username);
-        let createdAtDate  = span("playlist_dropdown_created_at_date", createdAt.toLocaleString());
+        let infoContentTop = div("entry_dropdown_info_content");
+        let userAvatar     = div("entry_dropdown_user_avatar");
+        let userName       = span("entry_dropdown_user_name", user.username);
+        let createdAtDate  = span("entry_dropdown_created_at_date", createdAt.toLocaleString());
 
-        let infoContentBot = div("playlist_dropdown_info_content");
-        let subsCount      = span("playlist_dropdown_subtitle_count", "0 subtitles");
-        let lastSetAtDate  = span("playlist_dropdown_last_set_at_date", lastSetAt.toLocaleString());
+        let infoContentBot = div("entry_dropdown_info_content");
+        let subsCount      = span("entry_dropdown_subtitle_count", "0 subtitles");
+        let lastSetAtDate  = span("entry_dropdown_last_set_at_date", lastSetAt.toLocaleString());
 
 
         if (!entry.subtitles || entry.subtitles.length === 0) {
@@ -947,7 +947,7 @@ class Playlist {
         let editSvg        = svg("svg/main_icons.svg#edit");
         let deleteButton   = button("playlist_entry_delete_button", "Delete playlist entry");
         let deleteSvg      = svg("svg/main_icons.svg#delete");
-        let dropdownButton = div("playlist_dropdown_button");
+        let dropdownButton = div("entry_dropdown_button");
         let dropdownSvg    = svg("svg/main_icons.svg#dropdown");
 
         //
