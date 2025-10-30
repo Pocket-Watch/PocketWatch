@@ -959,7 +959,7 @@ func (server *Server) setupGenericFileProxy(url string, referer string) bool {
 		return false
 	}
 	proxy.file = proxyFile
-	proxy.contentRanges = make([]Range, 0)
+	proxy.diskRanges = make([]Range, 0)
 	LogInfo("Successfully setup proxy for file of size %v MB", formatMegabytes(size, 2))
 	return true
 }
@@ -1798,7 +1798,7 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 		return
 	}
 
-	LogDebug("Serving proxied file at range %v to %v", &byteRange, getIp(request))
+	LogDebug("Connection %v requested proxied file at range %v", getIp(request), &byteRange)
 
 	writer.Header().Set("Accept-Ranges", "bytes")
 	writer.Header().Set("Content-Length", int64ToString(byteRange.length()))
@@ -1814,8 +1814,8 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 	// Debug VIEW --- start
 	view := strings.Builder{}
 	proxy.rangeMutex.Lock()
-	for _, contentRange := range proxy.contentRanges {
-		view.WriteString(contentRange.String())
+	for _, diskRange := range proxy.diskRanges {
+		view.WriteString(diskRange.String())
 		view.WriteString(", ")
 	}
 	LogDebug("Disk ranges: %v", view.String())
@@ -1834,6 +1834,13 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 		actionableRanges := proxy.determineRangeActions(nextRange)
 		proxy.rangeMutex.Unlock()
 
+		actionView := strings.Builder{}
+		for _, ar := range actionableRanges {
+			actionView.WriteString(ar.actionName() + "=" + ar.r.String())
+			actionView.WriteString(", ")
+		}
+		LogDebug("Connection %v has actions: %v", getIp(request), actionView.String())
+
 		for _, aRange := range actionableRanges {
 			switch aRange.action {
 			case READ:
@@ -1846,12 +1853,11 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 					LogWarn("Connection %v awaited range %v but it ended in failure", getIp(request), &aRange.r)
 					return
 				}
-				LogDebug("Connection %v is being served from disk after await", getIp(request))
+				LogDebug("Connection %v is being served at %v from disk after await", getIp(request), &aRange.r)
 				if !proxy.serveRangeFromDisk(writer, request, aRange, &totalWritten) {
 					return
 				}
 			case FETCH:
-				LogInfo("Connection %v fetching new range %v", getIp(request), &aRange.r)
 				length := aRange.r.length()
 				proxy.rangeMutex.Lock()
 				future := proxy.newFutureRange(aRange.r)
@@ -1861,7 +1867,7 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 				response, err := openFileDownload(proxy.fileUrl, aRange.r.start, proxy.referer)
 				if err != nil {
 					close(future.ready)
-					http.Error(writer, "Unable to open file download", 500)
+					LogError("Unable to open file download: %v", err)
 					return
 				}
 				chunkBytes, err := pullBytesFromResponse(response, int(length))
@@ -1886,7 +1892,7 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 				proxy.fileMutex.Unlock()
 				future.success = true
 				close(future.ready)
-				proxy.contentRanges = incorporateRange(&nextRange, proxy.contentRanges)
+				proxy.diskRanges = incorporateRange(&nextRange, proxy.diskRanges)
 				proxy.rangeMutex.Unlock()
 
 				written, err := io.CopyN(writer, bytes.NewReader(chunkBytes), length)
@@ -1911,7 +1917,8 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 func (proxy *GenericProxy) determineRangeActions(nextRange Range) []*ActionableRange {
 	var ranges []*ActionableRange
 
-	for _, diskRange := range proxy.contentRanges {
+	fullFetch := true
+	for _, diskRange := range proxy.diskRanges {
 		commonPart, intersect := diskRange.intersection(&nextRange)
 		if !intersect {
 			continue
@@ -1934,6 +1941,7 @@ func (proxy *GenericProxy) determineRangeActions(nextRange Range) []*ActionableR
 					&ActionableRange{action: FETCH, r: diff},
 				)
 			}
+			fullFetch = false
 			break
 		}
 		if len(difference) == 2 {
@@ -1942,7 +1950,9 @@ func (proxy *GenericProxy) determineRangeActions(nextRange Range) []*ActionableR
 			break
 		}
 	}
-	ranges = append(ranges, &ActionableRange{action: FETCH, r: nextRange})
+	if fullFetch {
+		ranges = append(ranges, &ActionableRange{action: FETCH, r: nextRange})
+	}
 
 	for i := 0; i < len(ranges); i++ {
 		aRange := ranges[i]
@@ -1953,30 +1963,30 @@ func (proxy *GenericProxy) determineRangeActions(nextRange Range) []*ActionableR
 			if !futureRange.r.overlaps(&aRange.r) {
 				continue
 			}
-			uncoveredDiff := aRange.r.difference(&futureRange.r)
-			if len(uncoveredDiff) == 0 {
-				LogDebug("Uncovered diff can be fully awaited at range %v", &aRange.r)
+			missingDiff := aRange.r.difference(&futureRange.r)
+			if len(missingDiff) == 0 {
+				LogDebug("Converting FETCH to AWAIT for range %v", &aRange.r)
 				aRange.action = AWAIT
 				aRange.future = futureRange
 				break
 			}
 
-			if len(uncoveredDiff) == 1 {
-				diff := uncoveredDiff[0]
+			if len(missingDiff) == 1 {
+				diff := missingDiff[0]
 				inProgress := &ActionableRange{action: AWAIT, r: futureRange.r, future: futureRange}
 				if diff.start == aRange.r.start {
-					LogDebug("Uncovered diff %v is at start", &diff)
+					LogDebug("Missing diff %v is at start", &diff)
 					ranges = slices.Insert(ranges, i+1, inProgress)
 				} else {
-					LogDebug("Uncovered diff %v is at end", &diff)
+					LogDebug("Missing diff %v is at end", &diff)
 					ranges = slices.Insert(ranges, i, inProgress)
 					i++
 				}
 				aRange.r = diff
 				break
 			}
-			if len(uncoveredDiff) == 2 {
-				LogWarn("Uncovered diff is %v & %v", &uncoveredDiff[0], &uncoveredDiff[1])
+			if len(missingDiff) == 2 {
+				LogWarn("Missing diff is %v & %v", &missingDiff[0], &missingDiff[1])
 				// It'd be possible to request separate ranges from the source at once
 				// For now leave as is
 			}
@@ -2027,6 +2037,18 @@ func (proxy *GenericProxy) newFutureRange(r Range) FutureRange {
 		ready: make(chan struct{}),
 		r:     r,
 	}
+}
+
+func (a *ActionableRange) actionName() string {
+	switch a.action {
+	case READ:
+		return "READ"
+	case AWAIT:
+		return "AWAIT"
+	case FETCH:
+		return "FETCH"
+	}
+	return ""
 }
 
 func ensureRangeHeader(writer http.ResponseWriter, request *http.Request, contentLength int64) (Range, bool) {

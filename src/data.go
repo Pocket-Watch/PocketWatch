@@ -72,7 +72,7 @@ const MIN_SEGMENT_LENGTH = 0.035            // 35ms
 
 const M3U8_CONTENT_TYPE = "application/vnd.apple.mpegurl"
 const MAX_MESSAGE_CHARACTERS = 1000
-const GENERIC_CHUNK_SIZE = 1 * MB
+const GENERIC_CHUNK_SIZE = 1_000_000
 
 type EventType uint64
 
@@ -294,7 +294,7 @@ type GenericProxy struct {
 	rangeSeed        atomic.Uint64
 	file             *os.File
 	fileMutex        sync.Mutex
-	contentRanges    []Range // must remain sorted
+	diskRanges       []Range // must remain sorted
 	futureRanges     []*FutureRange
 	rangeMutex       sync.Mutex
 }
