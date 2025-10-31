@@ -1316,3 +1316,12 @@ func (r *IpV4Range) Contains(ipv4Raw string) bool {
 
 	return true
 }
+
+func isRequestDone(request *http.Request) bool {
+	select {
+	case <-request.Context().Done():
+		return true
+	default:
+		return false
+	}
+}

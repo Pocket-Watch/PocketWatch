@@ -949,15 +949,7 @@ func (server *Server) setupGenericFileProxy(url string, referer string) bool {
 		LogError("Failed to open proxy file for writing: %v", err)
 		return false
 	}
-	_, err = proxyFile.Seek(size, io.SeekStart)
-	if err != nil {
-		LogError("Failed to seek in proxy file: %v", err)
-		return false
-	}
-	if _, err = proxyFile.Write([]byte{0}); err != nil {
-		LogError("Failed to set length of proxy file: %v", err)
-		return false
-	}
+
 	proxy.file = proxyFile
 	proxy.diskRanges = make([]Range, 0)
 	LogInfo("Successfully setup proxy for file of size %v MB", formatMegabytes(size, 2))
@@ -1842,6 +1834,10 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 		LogDebug("Connection %v has actions: %v", getIp(request), actionView.String())
 
 		for _, aRange := range actionableRanges {
+			if isRequestDone(request) {
+				LogDebug("Connection %v closed", getIp(request))
+				return
+			}
 			switch aRange.action {
 			case READ:
 				if !proxy.serveRangeFromDisk(writer, request, aRange, &totalWritten) {
