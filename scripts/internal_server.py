@@ -186,8 +186,8 @@ def get_youtube_video(query: str):
         duration     = duration,
         upload_date  = upload_date,
         uploader     = uploader,
-        artist_name  = artist,
-        album_name   = album,
+        artist       = artist,
+        album        = album,
         release_date = release_date,
     )
 
@@ -238,25 +238,33 @@ def get_twitch_stream(url: str):
     return TwitchStream(id, title, thumbnail, original_url, source_url)
 
 class InternalServer(http.server.BaseHTTPRequestHandler):
+    def handle_youtube_request(self, query):
+        output, errorMessage = bench('get_youtube_video', lambda : get_youtube_video(query))
+
+        if output is not None:
+            self.send_response(200)
+            data = output
+        else:
+            self.send_response(503)
+            data = errorMessage
+
+        jsondata = json.dumps(data, default=vars)
+        response = bytes(jsondata, "utf-8")
+
+        self.send_header("Content-type", "application/json")
+        self.end_headers()
+
+        self.wfile.write(response)
+
     def handle_request(self):
         if self.path == '/youtube/fetch':
-            request = json.loads(self.rfile.read1())
-            output, errorMessage = bench('get_youtube_video', lambda : get_youtube_video(request["query"]))
+            data = json.loads(self.rfile.read1())
+            self.handle_youtube_request(data["query"])
 
-            if output is not None:
-                self.send_response(200)
-                data = output
-            else:
-                self.send_response(503)
-                data = errorMessage
-
-            jsondata = json.dumps(data, default=vars)
-            response = bytes(jsondata, "utf-8")
-
-            self.send_header("Content-type", "application/json")
-            self.end_headers()
-
-            self.wfile.write(response)
+        elif self.path == '/youtube/search':
+            data = json.loads(self.rfile.read1())
+            query = 'ytsearch:' + data["query"]
+            self.handle_youtube_request(query)
 
         elif self.path == '/youtube/playlist':
             request = json.loads(self.rfile.read1())

@@ -455,20 +455,36 @@ func fetchVideoWithYtdlp(query string) (bool, YoutubeVideo) {
 }
 
 func fetchYoutubeVideo(query string) (YoutubeVideo, error) {
-	if !strings.HasPrefix(query, "ytsearch:") {
-		ok, video, err := getToInternalServer[YoutubeVideo]("/fetch", []Param{{"url", query}}, 9090)
-		if ok {
-			return video, err
-		}
+	ok, video, err := getToInternalServer[YoutubeVideo]("/fetch", []Param{{"url", query}}, 9090)
+	if ok {
+		return video, err
 	}
+
 	data := InternalServerVideoFetch{Query: query}
-	ok, video, err := postToInternalServer[YoutubeVideo]("/youtube/fetch", data)
+	ok, video, err = postToInternalServer[YoutubeVideo]("/youtube/fetch", data)
 	if ok {
 		return video, err
 	}
 
 	LogWarn("Internal server video fetch failed. Falling back to yt-dlp command fetch.")
 	ok, video = fetchVideoWithYtdlp(query)
+	if ok {
+		return video, nil
+	}
+
+	return YoutubeVideo{}, nil
+}
+
+func searchYoutubeVideo(query string) (YoutubeVideo, error) {
+	data := InternalServerVideoFetch{Query: query}
+	ok, video, err := postToInternalServer[YoutubeVideo]("/youtube/search", data)
+	if ok {
+		return video, err
+	}
+
+	LogWarn("Internal server video fetch failed. Falling back to yt-dlp command fetch.")
+
+	ok, video = fetchVideoWithYtdlp("ytsearch:" + query)
 	if ok {
 		return video, nil
 	}
@@ -528,17 +544,21 @@ func loadYoutubeEntry(entry *Entry, requested RequestEntry) error {
 	if !isYoutubeSourceExpired(entry.SourceUrl) {
 		return nil
 	}
+
 	LogInfo("Determined entry titled '%v' of source url %v is expired", entry.Title, entry.SourceUrl)
+
+	var video YoutubeVideo
+	var err error 
 
 	query := entry.Url
 	if requested.SearchVideo {
-		query = "ytsearch:" + query
 		LogInfo("Searching for youtube video with query: %v.", entry.Url)
+		video, err = searchYoutubeVideo(query)
 	} else {
 		LogInfo("Loading youtube entry with url: %v.", entry.Url)
+		video, err = fetchYoutubeVideo(query)
 	}
 
-	video, err := fetchYoutubeVideo(query)
 	if err != nil {
 		return err
 	}

@@ -83,7 +83,6 @@ class Room {
 
         this.entryArea = {
             root:              getById("entry_area"),
-            dropdownContainer: getById("entry_dropdown_container"),
 
             // Top Controls
             dropdownButton:    getById("entry_dropdown_button"),
