@@ -1793,6 +1793,7 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 	LogDebug("Connection %v requested proxied file at range %v", getIp(request), &byteRange)
 
 	writer.Header().Set("Accept-Ranges", "bytes")
+	writer.Header().Set("Cache-Control", "no-cache")
 	writer.Header().Set("Content-Length", int64ToString(byteRange.length()))
 	writer.Header().Set("Content-Range", byteRange.toContentRange(proxy.contentLength))
 
