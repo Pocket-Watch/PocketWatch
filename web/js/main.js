@@ -6,7 +6,7 @@ import { sha256 } from "./auth.js";
 import * as api from "./api.js";
 import {
     Storage, button, div, formatTime, formatByteCount, getById, dynamicImg, img, svg, show, hide,
-    fileInput, isLocalUrl, input, span, getDateStrings, showNotification
+    fileInput, isLocalUrl, input, span, getDateStrings, showNotification, getBrowserInfo
 } from "./util.js";
 
 const SERVER_ID = 0;
@@ -33,6 +33,9 @@ const TAB_HISTORY  = 4;
 
 const RECONNECT_AFTER = 1500;
 const MAX_CHAT_LOAD = 100;
+const MIN_CHROMIUM_VERSION = 88; // Opera, Edge, Chrome
+const MIN_FIREFOX_VERSION = 85;
+const MIN_SAFARI_VERSION = 14.1;
 
 class Room {
     constructor() {
@@ -2101,7 +2104,37 @@ class Room {
     }
 }
 
+function checkBrowserCompatibility() {
+    let [name, version] = getBrowserInfo();
+    if (name === "Unknown") {
+        console.debug("Unknown browser agent:", navigator.userAgent);
+        return
+    }
+    if (Number.isNaN(version)) {
+        console.debug("User agent contains", name, "version that's not a number")
+        return
+    }
+    let minVersion;
+    switch (name) {
+        case "Chromium":
+            minVersion = MIN_CHROMIUM_VERSION
+            break
+        case "Firefox":
+            minVersion = MIN_FIREFOX_VERSION
+            break
+        case "Safari":
+            minVersion = MIN_SAFARI_VERSION
+            break
+    }
+    if (version < minVersion) {
+        console.warn("Your", name, "browser is too old to display or render the webpage correctly.",
+            "The page is designed for", name, minVersion, "or newer.")
+    }
+
+}
+
 async function main() {
+    checkBrowserCompatibility();
     let room = new Room();
     room.attachPlayerEvents();
     room.attachHtmlEvents();

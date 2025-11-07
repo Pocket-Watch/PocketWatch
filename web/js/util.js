@@ -391,3 +391,41 @@ export class Storage {
         return value === "1";
     }
 }
+
+export function getBrowserInfo() {
+    const ua = navigator.userAgent;
+    let nameIndex = ua.lastIndexOf("Chrome/");
+    if (nameIndex !== -1) {
+        return ["Chromium", parseBrowserVersion(ua, nameIndex+7)];
+    }
+    nameIndex = ua.lastIndexOf("Firefox/");
+    if (nameIndex !== -1) {
+        return ["Firefox", parseBrowserVersion(ua, nameIndex+8)];
+    }
+
+    nameIndex = ua.lastIndexOf("Version/");
+    if (nameIndex !== -1) {
+        return ["Safari", parseBrowserVersion(ua, nameIndex+8)];
+    }
+
+    return ["Unknown", NaN];
+}
+
+function parseBrowserVersion(str, from) {
+    let hasDot = false;
+    let end = str.length;
+    for (let i = from; i < end; i++) {
+        if (str[i] === ' ') {
+            end = i;
+            break;
+        }
+        if (str[i] === '.') {
+            if (hasDot) {
+                end = i;
+                break;
+            }
+            hasDot = true;
+        }
+    }
+    return Number(str.substring(from, end));
+}
