@@ -110,6 +110,7 @@ class Room {
             // Youtube
             youtubeSearchToggle:   getById("entry_youtube_search_toggle"),
             youtubePlaylistToggle: getById("entry_youtube_playlist_toggle"),
+            fetchLyricsToggle:     getById("fetch_lyrics_toggle"),
             ytCountInput:          getById("youtube_video_count_input"),
             ytSkipCountInput:      getById("youtube_video_skip_count_input"),
         };
@@ -524,6 +525,7 @@ class Room {
 
         entry.youtubeSearchToggle.classList.remove("active");
         entry.youtubePlaylistToggle.classList.remove("active");
+        entry.fetchLyricsToggle.classList.remove("active");
         entry.addToTopToggle.classList.remove("active");
         entry.proxyToggle.classList.remove("active");
         entry.subtitleReattachToggle.classList.remove("active");
@@ -575,6 +577,7 @@ class Room {
             use_proxy:    area.proxyToggle.classList.contains("active"),
             search_video: area.youtubeSearchToggle.classList.contains("active"),
             is_playlist:  area.youtubePlaylistToggle.classList.contains("active"),
+            fetch_lyrics: area.fetchLyricsToggle.classList.contains("active"),
             add_to_top:   area.addToTopToggle.classList.contains("active"),
             subtitles:    subtitles,
             playlist_skip_count: skipCount,
@@ -949,6 +952,7 @@ class Room {
         };
 
         area.youtubePlaylistToggle.onclick  = _ => area.youtubePlaylistToggle.classList.toggle("active");
+        area.fetchLyricsToggle.onclick      = _ => area.fetchLyricsToggle.classList.toggle("active");
         area.addToTopToggle.onclick         = _ => area.addToTopToggle.classList.toggle("active");
         area.proxyToggle.onclick            = _ => area.proxyToggle.classList.toggle("active");
         area.subtitleReattachToggle.onclick = _ => area.subtitleReattachToggle.classList.toggle("active");

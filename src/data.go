@@ -466,6 +466,7 @@ type RequestEntry struct {
 	RefererUrl        string     `json:"referer_url"`
 	SearchVideo       bool       `json:"search_video"`
 	IsPlaylist        bool       `json:"is_playlist"`
+	FetchLyrics       bool       `json:"fetch_lyrics"`
 	AddToTop          bool       `json:"add_to_top"`
 	Subtitles         []Subtitle `json:"subtitles"`
 	PlaylistSkipCount uint       `json:"playlist_skip_count"`
