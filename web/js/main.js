@@ -1079,6 +1079,10 @@ class Room {
     }
 
     attachHtmlEvents() {
+        window.addEventListener("beforeunload", _ => {
+            api.closeWebSocket();
+        });
+
         document.addEventListener("visibilitychange", _ => {
             if (document.visibilityState === "visible") {
                 this.pageIcon.href = "img/favicon.ico";
