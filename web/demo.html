@@ -11,20 +11,24 @@
         body {
             background-color: #282828;
         }
+        #page {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
     </style>
 </head>
 
 <body>
     <div id="page">
         <video id="video0"></video>
+        <br/>
+
+        <input type="url" id="input_url" size="100" />
+        <button onclick="setOnClick()">Set</button>
+        <button onclick="destroy()">Destroy</button>
+        <button onclick="attach()">Attach</button>
     </div>
-
-    <br/>
-
-    <input type="url" id="input_url" size="100" />
-    <button onclick="setOnClick()">Set</button>
-    <button onclick="destroy()">Destroy</button>
-    <button onclick="attach()">Attach</button>
 
     <script type="module" src="js/scratch.js"></script>
 </body>
