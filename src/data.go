@@ -152,6 +152,9 @@ type PlayerState struct {
 type WelcomeMessage struct {
 	// Current server version. Currently based on the server build time.
 	Version  string            `json:"version"`
+}
+
+type GetAllMessage struct {
 	Users    []User            `json:"users"`
 	Player   PlayerGetResponse `json:"player"`
 	Playlist []Entry           `json:"playlist"`

@@ -968,14 +968,15 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 	connectionCount := len(server.conns.slice)
 	server.conns.mutex.Unlock()
 
-	player := server.playerGet()
+	welcome := WelcomeMessage{BuildTime}
+	server.writeEventToOneConnection("welcome", welcome, conn)
 
+	player := server.playerGet()
 	server.state.mutex.Lock()
 	server.users.mutex.Lock()
 	messages, _ := server.chatGet(MessageHistoryRequest{100, 0}, user.Id)
 
-	welcome := WelcomeMessage{
-		Version:  BuildTime,
+	alldata := GetAllMessage{
 		Users:    server.users.slice,
 		Player:   player,
 		Playlist: server.state.playlist,
@@ -983,7 +984,7 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 		History:  server.state.history,
 	}
 
-	server.writeEventToOneConnection("welcome", welcome, conn)
+	server.writeEventToOneConnection("getall", alldata, conn)
 	server.state.mutex.Unlock()
 	server.users.mutex.Unlock()
 

@@ -1695,6 +1695,7 @@ class Room {
 
                 if (!lastVersion) {
                     Storage.set(VERSION, currentVersion);
+                    return;
                 }
 
                 if (lastVersion !== currentVersion) {
@@ -1702,7 +1703,9 @@ class Room {
                     console.log("INFO: Reloading because the server version changed:", lastVersion, "->", currentVersion);
                     window.location.reload();
                 }
+            } break;
 
+            case "getall": {
                 this.loadUsersData(wsData.users);
                 this.loadPlayerData(wsData.player);
                 this.loadPlaylistData(wsData.playlist);
