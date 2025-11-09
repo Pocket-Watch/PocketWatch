@@ -1238,8 +1238,7 @@ class Room {
         return true;
     }
 
-    async loadPlayerData() {
-        let state = await api.playerGet();
+    async loadPlayerData(state) {
         if (!state) {
             return;
         }
@@ -1340,8 +1339,8 @@ class Room {
         this.usersArea.offlineCount.textContent = String(this.allUsers.length - this.onlineCount);
     }
 
-    async loadUsersData() {
-        this.allUsers = await api.userGetAll();
+    loadUsersData(users) {
+        this.allUsers = users;
         if (!this.allUsers) {
             this.allUsers = [];
         }
@@ -1462,8 +1461,7 @@ class Room {
         return userbox;
     }
 
-    async loadPlaylistData() {
-        let entries = await api.playlistGet();
+    loadPlaylistData(entries) {
         console.info("INFO: Loaded playlist:", entries);
 
         this.playlist.clear();
@@ -1471,19 +1469,13 @@ class Room {
         this.playlist.loadEntries(entries, this.allUsers);
     }
 
-    async loadChatData() {
-        let messages = await api.chatGet(MAX_CHAT_LOAD, 0);
-        if (messages.checkError()) {
-            return;
-        }
-
-        console.info("INFO: Loaded chat messages:", messages.json);
+    async loadChatData(messages) {
+        console.info("INFO: Loaded chat messages:", messages);
         this.chat.clear();
-        this.chat.loadMessages(messages.json, this.allUsers);
+        this.chat.loadMessages(messages, this.allUsers);
     }
 
-    async loadHistoryData() {
-        let entries = await api.historyGet();
+    loadHistoryData(entries) {
         console.info("INFO: Loaded history:", entries);
 
         this.history.clear();
@@ -1605,11 +1597,6 @@ class Room {
             hide(this.connectionLostPopup);
             api.setWebSocket(ws);
 
-            await this.loadUsersData();
-            this.loadPlayerData();
-            this.loadPlaylistData();
-            this.loadChatData();
-            this.loadHistoryData();
             api.uptime().then(uptime   => this.settingsMenu.websiteUptime.textContent  = uptime);
             api.version().then(version => this.settingsMenu.websiteVersion.textContent = version);
         };
@@ -1706,11 +1693,18 @@ class Room {
                     Storage.set(VERSION, version);
                     return;
                 }
+
                 if (lastVersion !== version) {
                     Storage.set(VERSION, version);
                     console.log("INFO: Reloading because the server version changed:", lastVersion, "->", version);
                     window.location.reload();
                 }
+
+                this.loadUsersData(wsData.users);
+                this.loadPlayerData(wsData.player);
+                this.loadPlaylistData(wsData.playlist);
+                this.loadChatData(wsData.messages);
+                this.loadHistoryData(wsData.history);
             } break;
 
             case "ping": {

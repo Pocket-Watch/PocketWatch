@@ -283,23 +283,7 @@ func (server *Server) apiUserUpdateAvatar(w http.ResponseWriter, r *http.Request
 }
 
 func (server *Server) apiPlayerGet(w http.ResponseWriter, r *http.Request, userId uint64) {
-	server.state.mutex.Lock()
-	player := server.state.player
-	entry := server.state.entry
-	server.state.mutex.Unlock()
-
-	player.Timestamp = server.getCurrentTimestamp()
-
-	server.conns.mutex.Lock()
-	actions := make([]Action, len(server.state.actions))
-	copy(actions, server.state.actions)
-	server.conns.mutex.Unlock()
-
-	getEvent := PlayerGetResponse{
-		Player:  player,
-		Entry:   entry,
-		Actions: actions,
-	}
+	getEvent := server.playerGet()
 
 	jsonData, err := json.Marshal(getEvent)
 	if err != nil {
@@ -733,43 +717,18 @@ func (server *Server) apiChatGet(w http.ResponseWriter, r *http.Request, userId 
 		return
 	}
 
-	if MAX_CHAT_LOAD < data.Count {
-		respondBadRequest(w, "Too many messages were requested.")
-		return
-	}
-
-	backwardOffset := int(data.BackwardOffset)
 	server.state.mutex.Lock()
-	availableCount := len(server.state.messages) - backwardOffset
-
-	// NOTE(kihau): Messages loaded from DB are never stored in-memory and because of that, they are read-only to the user.
-	if availableCount < int(data.Count) && server.db != nil {
+	messages, err := server.chatGet(data, userId)
+	if err != nil {
 		server.state.mutex.Unlock()
-		messages, _ := DatabaseMessageGet(server.db, int(data.Count), int(data.BackwardOffset))
-
-		jsonData, err := json.Marshal(messages)
-		if err != nil {
-			respondInternalError(w, "Serialization failed during chat retrieval: %v", err)
-			return
-		}
-
-		w.Write(jsonData)
-		return
+		respondBadRequest(w, err.Error())
 	}
 
-	servedCount := minOf(availableCount, int(data.Count))
-	if servedCount <= 0 {
-		server.state.mutex.Unlock()
-		io.WriteString(w, "[]")
-		return
-	}
-	endOffset := len(server.state.messages) - backwardOffset
-	startOffset := endOffset - servedCount
-	jsonData, err := json.Marshal(server.state.messages[startOffset:endOffset])
+	jsonData, err := json.Marshal(messages)
 	server.state.mutex.Unlock()
 
 	if err != nil {
-		respondInternalError(w, "Serialization failed during chat retrieval: %v", err)
+		respondBadRequest(w, "Serialization failed during chat retrieval: %v", err)
 		return
 	}
 
@@ -1009,14 +968,31 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 	connectionCount := len(server.conns.slice)
 	server.conns.mutex.Unlock()
 
-	LogInfo("New connection id:%v established with user id:%v on %s. Current connection count: %d", conn.id, user.Id, getIp(r), connectionCount)
+	player := server.playerGet()
 
+	server.state.mutex.Lock()
+	server.users.mutex.Lock()
+	messages, _ := server.chatGet(MessageHistoryRequest{100, 0}, user.Id)
+
+	welcome := WelcomeMessage{
+		Version:  BuildTime,
+		Users:    server.users.slice,
+		Player:   player,
+		Playlist: server.state.playlist,
+		Messages: messages,
+		History:  server.state.history,
+	}
+
+	server.writeEventToOneConnection("welcome", welcome, conn)
+	server.state.mutex.Unlock()
+	server.users.mutex.Unlock()
+
+	LogInfo("New connection id:%v established with user id:%v on %s. Current connection count: %d", conn.id, user.Id, getIp(r), connectionCount)
 	if went_online {
 		server.writeEventToAllConnections("userconnected", user.Id, SERVER_ID)
 		DatabaseUpdateUserLastOnline(server.db, user.Id, time.Now())
 	}
 
-	server.writeEventToOneConnection("welcome", WelcomeMessage{BuildTime}, conn)
 outer:
 	for {
 		select {

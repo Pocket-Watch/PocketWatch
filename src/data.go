@@ -151,7 +151,12 @@ type PlayerState struct {
 // Server welcome event, sent to the client as a first event when a WebSocket connection is opened.
 type WelcomeMessage struct {
 	// Current server version. Currently based on the server build time.
-	Version string `json:"version"`
+	Version  string            `json:"version"`
+	Users    []User            `json:"users"`
+	Player   PlayerGetResponse `json:"player"`
+	Playlist []Entry           `json:"playlist"`
+	History  []Entry           `json:"history"`
+	Messages []ChatMessage     `json:"messages"`
 }
 
 // Subtitle data layout
@@ -447,6 +452,12 @@ type WebsocketEventResponse struct {
 	Type   string `json:"type"`
 	UserId uint64 `json:"user_id"`
 	Data   any    `json:"data"`
+}
+
+type WebsocketDataResponse struct {
+	Type   string          `json:"type"`
+	UserId uint64          `json:"user_id"`
+	Data   json.RawMessage `json:"data"`
 }
 
 type WebsocketEvent struct {

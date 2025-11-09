@@ -853,6 +853,30 @@ func (server *Server) writeEventToOneConnection(eventType string, eventData any,
 	}
 }
 
+func (server *Server) writeDataToOneConnection(eventType string, eventData []byte, conn Connection) {
+	data := WebsocketEventResponse{
+		Type:   eventType,
+		Data:   eventData,
+		UserId: 0,
+	}
+
+	event, err := json.Marshal(data)
+	if err != nil {
+		LogError("Failed to serialize data for event '%v': %v", eventType, err)
+		return
+	}
+
+	select {
+	case conn.events <- event:
+	default:
+		select {
+		case conn.close <- true:
+			LogWarn("Event queue for connection %v is full. Sending channel close...", conn.id)
+		default:
+		}
+	}
+}
+
 func (server *Server) writeEventToAllConnections(eventType string, eventData any, userId uint64) {
 	data := WebsocketEventResponse{
 		Type:   eventType,
@@ -2260,6 +2284,28 @@ func (server *Server) constructEntry(entry Entry) Entry {
 	return entry
 }
 
+func (server *Server) playerGet() PlayerGetResponse {
+	server.state.mutex.Lock()
+	player := server.state.player
+	entry := server.state.entry
+	server.state.mutex.Unlock()
+
+	player.Timestamp = server.getCurrentTimestamp()
+
+	server.conns.mutex.Lock()
+	actions := make([]Action, len(server.state.actions))
+	copy(actions, server.state.actions)
+	server.conns.mutex.Unlock()
+
+	data := PlayerGetResponse{
+		Player:  player,
+		Entry:   entry,
+		Actions: actions,
+	}
+
+	return data
+}
+
 func (server *Server) playerSet(requested RequestEntry, userId uint64) error {
 	entry := Entry{
 		Url:        requested.Url,
@@ -2672,6 +2718,32 @@ func (server *Server) historyDelete(index int) Entry {
 	server.writeEventToAllConnections("historydelete", entry.Id, entry.UserId)
 
 	return entry
+}
+
+func (server *Server) chatGet(data MessageHistoryRequest, userId uint64) ([]ChatMessage, error) {
+	if MAX_CHAT_LOAD < data.Count {
+		return nil, fmt.Errorf("Too many messages were requested.")
+	}
+
+	backwardOffset := int(data.BackwardOffset)
+	availableCount := len(server.state.messages) - backwardOffset
+
+	// NOTE(kihau): Messages loaded from DB are never stored in-memory and because of that, they are read-only to the user.
+	if availableCount < int(data.Count) && server.db != nil {
+		dbMessages, _ := DatabaseMessageGet(server.db, int(data.Count), int(data.BackwardOffset))
+		return dbMessages, nil
+	}
+
+	servedCount := minOf(availableCount, int(data.Count))
+	if servedCount <= 0 {
+		return []ChatMessage{}, nil
+	}
+
+	endOffset := len(server.state.messages) - backwardOffset
+	startOffset := endOffset - servedCount
+	messages := server.state.messages[startOffset:endOffset]
+
+	return messages, nil
 }
 
 func (server *Server) chatCreate(messageContent string, userId uint64) error {
