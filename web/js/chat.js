@@ -202,7 +202,7 @@ class Chat {
 
         this.contextMenuCopy.onclick    = _ => navigator.clipboard.writeText(this.contextMenuMessage.content);
         this.contextMenuCopyUrl.onclick = _ => navigator.clipboard.writeText(this.contextMenuUrl);
-        this.contextMenuOpen.onclick    = _ => window.open(this.contextMenuUrl, '_blank').focus();
+        this.contextMenuOpen.onclick    = _ => window.open(this.contextMenuUrl).focus();
         this.contextMenuEdit.onclick    = _ => this.startMessageEdit(this.contextMenuMessage, this.contextMenuHtmlMessage);
         this.contextMenuDelete.onclick  = _ => api.wsChatDelete(this.contextMenuMessage.id);
 

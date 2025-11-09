@@ -1516,3 +1516,30 @@ html * {
         column-gap: 6px;
     }
 }
+
+#compat_popup {
+    height: auto;
+    width: 30%;
+    position: fixed;
+    z-index: 1;
+    color: white;
+    border: 1px solid white;
+    border-radius: 5px;
+    padding: 5px;
+    margin-left: 25px;
+    margin-top: 25px;
+    background-color: black;
+}
+
+#compat_buttons {
+    display: flex;
+    column-gap: 5px;
+    justify-content: right;
+}
+
+#compat_buttons .widget_button {
+    height: auto;
+    width: 150px;
+    font-size: 20px;
+    background-color: #89CFF0;
+}

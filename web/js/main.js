@@ -801,10 +801,10 @@ class Room {
         };
 
         room.browse.anchor.href = api.CONTENT_MEDIA;
-        room.browse.videoButton.onclick     = _ => window.open(api.MEDIA_VIDEO, "_blank").focus();
-        room.browse.audioButton.onclick     = _ => window.open(api.MEDIA_AUDIO, "_blank").focus();
-        room.browse.subtitlesButton.onclick = _ => window.open(api.MEDIA_SUBS,  "_blank").focus();
-        room.browse.imagesButton.onclick    = _ => window.open(api.MEDIA_IMAGE, "_blank").focus();
+        room.browse.videoButton.onclick     = _ => window.open(api.MEDIA_VIDEO).focus();
+        room.browse.audioButton.onclick     = _ => window.open(api.MEDIA_AUDIO).focus();
+        room.browse.subtitlesButton.onclick = _ => window.open(api.MEDIA_SUBS).focus();
+        room.browse.imagesButton.onclick    = _ => window.open(api.MEDIA_IMAGE).focus();
         room.copyEntryButton.onclick        = _ => this.copyEntryToEntryArea(this.currentEntry);
 
         room.setShiftButton.onclick = _ => {
@@ -2118,23 +2118,37 @@ function checkBrowserCompatibility() {
         console.debug("User agent contains", name, "version that's not a number")
         return
     }
-    let minVersion;
+    let minVersion, isFirefox = false;
     switch (name) {
         case "Chromium":
             minVersion = MIN_CHROMIUM_VERSION
             break
         case "Firefox":
             minVersion = MIN_FIREFOX_VERSION
+            isFirefox = true
             break
         case "Safari":
             minVersion = MIN_SAFARI_VERSION
             break
     }
-    if (version < minVersion) {
-        console.warn("Your", name, "browser is too old to display or render the webpage correctly.",
-            "The page is designed for", name, minVersion, "or newer.")
+    if (version >= minVersion) {
+        return
     }
-
+    let infoMsg = `Your ${name} ${version} browser is too old to display or render the webpage correctly.
+    The page is designed for ${name} ${minVersion} or newer.`
+    console.warn(infoMsg)
+    const compatPopup = document.getElementById("compat_popup");
+    const compatInfo = document.getElementById("compat_info");
+    const compatOkButton = document.getElementById("compat_ok");
+    compatInfo.innerText = infoMsg;
+    compatOkButton.onclick = _ => compatPopup.style.display = "none";
+    if (isFirefox) {
+        let firefoxLink = "https://www.firefox.com/en-US/download/all";
+        const compatDownloadButton = document.getElementById("compat_download");
+        compatDownloadButton.onclick = _ => window.open(firefoxLink).focus();
+        compatDownloadButton.style.display = "";
+    }
+    compatPopup.style.display = "";
 }
 
 async function main() {
