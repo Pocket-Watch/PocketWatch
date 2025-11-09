@@ -1761,6 +1761,10 @@ class Room {
             // The server will always serve the up-to-date snapshot of User which should never exceed 1 kB in practice
             case "userconnected": {
                 let userId = wsData;
+                if (userId === this.currentUserId) {
+                    break;
+                }
+
                 console.info("INFO: User connected, ID: ", userId);
 
                 let userBoxes = this.usersArea.userList;
