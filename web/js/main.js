@@ -1591,7 +1591,7 @@ class Room {
     listenToServerEvents() {
         let wsPrefix = window.location.protocol.startsWith("https:") ? "wss://" : "ws://";
         let ws = new WebSocket(wsPrefix + window.location.host + "/api/events?token=" + api.getToken());
-        ws.onopen = async _ => {
+        ws.onopen = _ => {
             console.info("INFO: Connection to events opened.");
 
             hide(this.connectionLostPopup);
@@ -1686,17 +1686,16 @@ class Room {
     handleServerEvent(wsType, wsData, wsUserId) {
         switch (wsType) {
             case "welcome": {
-                let lastVersion = Storage.get(VERSION);
-                let version = wsData.version;
+                let lastVersion    = Storage.get(VERSION);
+                let currentVersion = wsData.version;
 
                 if (!lastVersion) {
-                    Storage.set(VERSION, version);
-                    return;
+                    Storage.set(VERSION, currentVersion);
                 }
 
-                if (lastVersion !== version) {
-                    Storage.set(VERSION, version);
-                    console.log("INFO: Reloading because the server version changed:", lastVersion, "->", version);
+                if (lastVersion !== currentVersion) {
+                    Storage.set(VERSION, currentVersion);
+                    console.log("INFO: Reloading because the server version changed:", lastVersion, "->", currentVersion);
                     window.location.reload();
                 }
 
