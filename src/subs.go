@@ -415,8 +415,13 @@ type LrcErrorResponse struct {
 }
 
 const LRC_LIB_URL = "https://lrclib.net/"
+const MAX_LYRICS_DURATION = 3600
 
 func getLyrics(params LrcQuery) (*LrcResponse, error) {
+	if params.Duration > MAX_LYRICS_DURATION {
+		return nil, errors.New("duration too long")
+	}
+
 	req, _ := http.NewRequest("GET", LRC_LIB_URL+"api/get", nil)
 	req.Header.Set("User-Agent", userAgent)
 

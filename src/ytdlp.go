@@ -8,9 +8,12 @@ import (
 	"math"
 	"net/http"
 	neturl "net/url"
+	"os"
 	"os/exec"
+	"path"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -548,7 +551,7 @@ func loadYoutubeEntry(entry *Entry, requested RequestEntry) error {
 	LogInfo("Determined entry titled '%v' of source url %v is expired", entry.Title, entry.SourceUrl)
 
 	var video YoutubeVideo
-	var err error 
+	var err error
 
 	query := entry.Url
 	if requested.SearchVideo {
@@ -563,6 +566,9 @@ func loadYoutubeEntry(entry *Entry, requested RequestEntry) error {
 		return err
 	}
 
+	if requested.FetchLyrics {
+		attachLyrics(entry, video)
+	}
 	waitForAvailability(video.AvailableAt)
 
 	entry.Url = video.OriginalUrl
@@ -581,4 +587,57 @@ func loadYoutubeEntry(entry *Entry, requested RequestEntry) error {
 	entry.Metadata = metadata
 
 	return nil
+}
+
+var subSeed *atomic.Uint64 = func() *atomic.Uint64 {
+	var a atomic.Uint64
+	a.Store(1000)
+	return &a
+}()
+
+func attachLyrics(entry *Entry, video YoutubeVideo) {
+	artist := video.ArtistName
+	if artist == "" {
+		artist = video.Uploader
+	}
+	// TODO: Parse title to extract artist, Artist - Song Title
+	LogInfo("Searching lyrics with artist=%v album=%v trackName=%v duration=%v",
+		artist, video.AlbumName, video.Title, video.Duration)
+
+	lyrics, err := getLyrics(LrcQuery{
+		ArtistName: artist,
+		AlbumName:  video.AlbumName,
+		TrackName:  video.Title,
+		Duration:   int(video.Duration),
+	})
+
+	if err != nil {
+		LogWarn("Lyrics fetch failed: %v.", err)
+		return
+	}
+	LogDebug("Fetched lyrics track name: %v", lyrics.TrackName)
+
+	cues, err := parseLRC(lyrics.SyncedLyrics)
+	if err != nil {
+		LogWarn("Lyrics parse failed: %v.", err)
+		return
+	}
+
+	subId := subSeed.Add(1)
+	os.MkdirAll(CONTENT_SUBS, os.ModePerm)
+	outputName := fmt.Sprintf("subtitle%v%v", subId, ".vtt")
+	subPath := path.Join(CONTENT_SUBS, outputName)
+
+	subtitle := Subtitle{
+		Id:   subId,
+		Name: video.Title,
+		Url:  subPath,
+	}
+
+	err = serializeToVTT(cues, subPath)
+	if err != nil {
+		LogWarn("Failed to convert lyrics: %v.", err)
+		return
+	}
+	entry.Subtitles = append(entry.Subtitles, subtitle)
 }
