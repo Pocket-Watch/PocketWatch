@@ -617,6 +617,11 @@ func attachLyrics(entry *Entry, video YoutubeVideo) {
 	}
 	LogDebug("Fetched lyrics track name: %v", lyrics.TrackName)
 
+	if lyrics.SyncedLyrics == "" {
+		LogInfo("No synced lyrics available for %v - %v.", lyrics.ArtistName, lyrics.TrackName)
+		return
+	}
+
 	cues, err := parseLRC(lyrics.SyncedLyrics)
 	if err != nil {
 		LogWarn("Lyrics parse failed: %v.", err)
