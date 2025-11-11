@@ -422,7 +422,8 @@ func getLyrics(params LrcQuery) (*LrcResponse, error) {
 		return nil, errors.New("duration too long")
 	}
 
-	req, _ := http.NewRequest("GET", LRC_LIB_URL+"api/get", nil)
+	// api/get expects to match the exact duration so it cannot be used
+	req, _ := http.NewRequest("GET", LRC_LIB_URL+"api/search", nil)
 	req.Header.Set("User-Agent", userAgent)
 
 	q := req.URL.Query()
@@ -432,6 +433,7 @@ func getLyrics(params LrcQuery) (*LrcResponse, error) {
 	q.Add("duration", strconv.Itoa(params.Duration))
 	req.URL.RawQuery = q.Encode()
 
+	LogInfo("Executing LRC GET %v", req.URL.String())
 	client := &http.Client{Timeout: 15 * time.Second}
 
 	response, err := client.Do(req)
@@ -439,6 +441,8 @@ func getLyrics(params LrcQuery) (*LrcResponse, error) {
 		return nil, err
 	}
 	defer response.Body.Close()
+
+	LogInfo("Received LRC response with status %v", response.StatusCode)
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
@@ -454,10 +458,14 @@ func getLyrics(params LrcQuery) (*LrcResponse, error) {
 		return nil, errors.New(errorResponse.Name + " -> " + errorResponse.Message)
 	}
 
-	var lrcResponse LrcResponse
+	var lrcResponse []LrcResponse
 	err = json.Unmarshal(body, &lrcResponse)
 	if err != nil {
 		return nil, err
 	}
-	return &lrcResponse, nil
+	if len(lrcResponse) == 0 {
+		return nil, errors.New("no results found")
+	}
+
+	return &lrcResponse[0], nil
 }
