@@ -793,3 +793,55 @@ func TestRangeIncorporateConnectedRange(t *testing.T) {
 		t.Errorf("The element at 1 %v is different from expected", result[1])
 	}
 }
+
+func TestParseSongTitleSimple(t *testing.T) {
+	artist, songTitle := parseSongTitle("Artist - Song Title")
+	if artist != "Artist" {
+		t.Errorf("The artist should be 'Artist' but actual is %v", artist)
+	}
+
+	if songTitle != "Song Title" {
+		t.Errorf("The song title should be 'Song Title' but actual is %v", songTitle)
+	}
+}
+
+func TestParseSongTitleJustTrackName(t *testing.T) {
+	artist, songTitle := parseSongTitle("Song Title")
+	if artist != "" {
+		t.Errorf("The artist should be empty but actual is %v", artist)
+	}
+
+	if songTitle != "Song Title" {
+		t.Errorf("The song title should be 'Song Title' but actual is %v", songTitle)
+	}
+}
+
+func TestParseSongTitleWithDescriptors(t *testing.T) {
+	expectedArtist := "Artist Name"
+	expectedTrackName := "Song Title"
+
+	artist, songTitle := parseSongTitle("Artist Name - Song Title (ft. Some) (Official) [Prod. DJ]")
+
+	if artist != expectedArtist {
+		t.Errorf("The artist should be '%v' but actual is %v", expectedArtist, artist)
+	}
+
+	if songTitle != expectedTrackName {
+		t.Errorf("The song title should be '%v' but actual is %v", expectedTrackName, songTitle)
+	}
+}
+
+func TestParseSongTitleWithNestedDescriptors(t *testing.T) {
+	expectedArtist := "Artist Name"
+	expectedTrackName := "Song Title"
+
+	artist, songTitle := parseSongTitle("Artist Name -     Song Title (Official Video (ft. Someone) [LIVE])")
+
+	if artist != expectedArtist {
+		t.Errorf("The artist should be '%v' but actual is %v", expectedArtist, artist)
+	}
+
+	if songTitle != expectedTrackName {
+		t.Errorf("The song title should be '%v' but actual is %v", expectedTrackName, songTitle)
+	}
+}

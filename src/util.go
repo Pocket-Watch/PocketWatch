@@ -1325,3 +1325,40 @@ func isRequestDone(request *http.Request) bool {
 		return false
 	}
 }
+
+// parseSongTitle returns artist and trackName from "Artist - Song Title" format.
+// The resulting track name is stripped of any title descriptors.
+// If there's no separator the track name becomes the title.
+func parseSongTitle(title string) (string, string) {
+	artist, trackName, found := strings.Cut(title, "-")
+	if !found {
+		return "", strings.TrimSpace(title)
+	}
+	cleanName := strings.Builder{}
+	trackChars := []rune(trackName)
+	openRoundBrackets := 0
+	openSquareBrackets := 0
+	for i := 0; i < len(trackChars); i++ {
+		switch trackChars[i] {
+		case '(':
+			openRoundBrackets++
+			continue
+		case ')':
+			openRoundBrackets--
+			continue
+		case '[':
+			openSquareBrackets++
+			continue
+		case ']':
+			openSquareBrackets--
+			continue
+		}
+
+		if openRoundBrackets > 0 || openSquareBrackets > 0 {
+			continue
+		}
+		cleanName.WriteRune(trackChars[i])
+	}
+
+	return strings.TrimSpace(artist), strings.TrimSpace(cleanName.String())
+}

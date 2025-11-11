@@ -597,17 +597,17 @@ var subSeed *atomic.Uint64 = func() *atomic.Uint64 {
 
 func attachLyrics(entry *Entry, video YoutubeVideo) {
 	artist := video.ArtistName
+	parsedArtist, trackName := parseSongTitle(video.Title)
 	if artist == "" {
-		artist = video.Uploader
+		artist = parsedArtist
 	}
-	// TODO: Parse title to extract artist, Artist - Song Title
 	LogInfo("Searching lyrics with artist=%v album=%v trackName=%v duration=%v",
-		artist, video.AlbumName, video.Title, video.Duration)
+		artist, video.AlbumName, trackName, video.Duration)
 
 	lyrics, err := getLyrics(LrcQuery{
 		ArtistName: artist,
 		AlbumName:  video.AlbumName,
-		TrackName:  video.Title,
+		TrackName:  trackName,
 		Duration:   int(video.Duration),
 	})
 
