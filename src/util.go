@@ -675,11 +675,11 @@ type Range struct {
 var NO_RANGE = Range{-1, -1}
 
 func (r *Range) String() string {
-	return fmt.Sprintf("[%v,%v]", r.start, r.end)
+	return fmt.Sprintf("[%d,%d]", r.start, r.end)
 }
 
 func (r *Range) toContentRange(length int64) string {
-	return fmt.Sprintf("bytes %v-%v/%v", r.start, r.end, length)
+	return fmt.Sprintf("bytes %d-%d/%d", r.start, r.end, length)
 }
 
 func (r *Range) exceedsSize(size int64) bool {

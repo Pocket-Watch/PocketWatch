@@ -969,6 +969,7 @@ func (server *Server) setupGenericFileProxy(url string, referer string) bool {
 	proxy.extensionWithDot = path.Ext(parsedUrl.Path)
 	proxyFilename := CONTENT_PROXY + "proxy" + proxy.extensionWithDot
 	proxyFile, err := os.OpenFile(proxyFilename, os.O_RDWR|os.O_CREATE, 0666)
+
 	if err != nil {
 		LogError("Failed to open proxy file for writing: %v", err)
 		return false
@@ -1162,10 +1163,21 @@ func prepareMediaPlaylistFromMasterPlaylist(m3u *M3U, referer string, depth int)
 
 // TODO(kihau): More explicit error output messages.
 func (server *Server) setupProxy(entry *Entry) error {
+	// This should be moved to some destructEntry() / unloadEntry() method
+	proxy := &server.state.genericProxy
+	server.state.setupLock.Lock()
+	if proxy.file != nil {
+		proxy.fileMutex.Lock()
+		_ = proxy.file.Close()
+		proxy.fileMutex.Unlock()
+	}
+	server.state.setupLock.Unlock()
+
 	urlStruct, err := net_url.Parse(entry.Url)
 	if err != nil {
 		return err
 	}
+
 	if isYoutubeUrl(entry.Url) || isTwitchUrl(entry.Url) {
 		success := server.setupHlsProxy(entry.SourceUrl, "")
 		if success {
@@ -1818,8 +1830,10 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 
 	writer.Header().Set("Accept-Ranges", "bytes")
 	writer.Header().Set("Cache-Control", "no-cache")
+	writer.Header().Set("Connection", "keep-alive")
 	writer.Header().Set("Content-Length", int64ToString(byteRange.length()))
 	writer.Header().Set("Content-Range", byteRange.toContentRange(proxy.contentLength))
+	writer.Header().Set("Content-Type", "video/"+proxy.extensionWithDot[1:])
 
 	if request.Method == "HEAD" {
 		writer.WriteHeader(http.StatusOK)
@@ -1842,6 +1856,7 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 	var totalWritten int64
 	nextRange := byteRange
 	nextRange.end = byteRange.start + GENERIC_CHUNK_SIZE - 1
+
 	for {
 		if nextRange.end >= proxy.contentLength {
 			nextRange.end = proxy.contentLength - 1
