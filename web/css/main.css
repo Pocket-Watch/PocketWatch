@@ -382,7 +382,8 @@ html * {
 
 #entry_youtube_toggles_group {
     width: auto;
-    display: flex   column-gap: inherit;
+    display: flex;
+    column-gap: inherit;
 }
 
 #entry_youtube_inputs_group {
