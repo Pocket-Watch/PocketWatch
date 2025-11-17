@@ -1408,9 +1408,6 @@ class Room {
             }
         });
 
-        // TODO(kihau):
-        //   Current edit behaviour is still pretty confusing.
-        //   Instead clicking edit name button should switch edit mode on and off (similar to the playlist entries)
         editNameButton.onclick = _ => {
             userbox.nameInput.readOnly = false;
             userbox.nameInput.focus();

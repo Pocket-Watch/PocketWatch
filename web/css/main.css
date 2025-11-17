@@ -372,6 +372,14 @@ html * {
     column-gap: inherit;
 }
 
+#entry_youtube_flex_group_1 {
+    width: auto;
+    display: flex;
+    box-sizing: border-box;
+    column-gap: inherit;
+    flex-grow: 1.0;
+}
+
 #entry_youtube_toggles_group {
     width: auto;
     display: flex;
@@ -384,11 +392,15 @@ html * {
     column-gap: inherit;
 }
 
-#entry_youtube_search_toggle {
-    min-width: 146px;
+#entry_youtube_flex_group_2 {
+    width: auto;
+    display: flex;
+    column-gap: inherit;
 }
 
-#entry_youtube_playlist_toggle {
+#entry_youtube_search_toggle,
+#entry_youtube_playlist_toggle,
+#fetch_lyrics_toggle {
     min-width: 146px;
 }
 
@@ -1457,7 +1469,7 @@ html * {
     }
 
     #entry_area.expand #entry_dropdown_container {
-        height: 412px;
+        height: 464px;
     }
 
     #entry_subtitle_section {
@@ -1473,6 +1485,12 @@ html * {
     #entry_subtitle_group_right {
         width: 100%;
         height: 46px;
+    }
+
+    #entry_youtube_section {
+        height: 148px;
+        flex-direction: column;
+        row-gap: 6px;
     }
 
     #users_area {

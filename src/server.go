@@ -2289,7 +2289,6 @@ func (server *Server) constructEntry(entry Entry) Entry {
 
 	entry.Id = server.state.entryId.Add(1)
 	entry.Title = constructTitleWhenMissing(&entry)
-	// TODO Add SetAt and don't modify CreatedAt here
 	entry.LastSetAt = now
 
 	for i := range entry.Subtitles {
