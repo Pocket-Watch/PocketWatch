@@ -156,6 +156,7 @@ class Room {
             subsUpdateButton:   getById("room_subtitle_update_button"),
             subsDeleteButton:   getById("room_subtitle_delete_button"),
             openSettingsButton: getById("room_open_settings_button"),
+            fetchLyricsButton:  getById("room_fetch_lyrics_button"),
 
             usingProxyCheckbox: getById("room_entry_proxy_enabled"),
 
@@ -863,6 +864,7 @@ class Room {
         };
 
         room.openSettingsButton.onclick = _ => this.showSettingsMenu();
+        room.fetchLyricsButton.onclick  = _ => api.subtitleFetch();
     }
 
     attachRightPanelEvents() {

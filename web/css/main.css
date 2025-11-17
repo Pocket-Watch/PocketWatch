@@ -382,8 +382,7 @@ html * {
 
 #entry_youtube_toggles_group {
     width: auto;
-    display: flex;
-    column-gap: inherit;
+    display: flex   column-gap: inherit;
 }
 
 #entry_youtube_inputs_group {
@@ -396,6 +395,10 @@ html * {
     width: auto;
     display: flex;
     column-gap: inherit;
+}
+
+#fetch_lyrics_toggle span {
+    width: 70%;
 }
 
 #entry_youtube_search_toggle,
@@ -1347,15 +1350,6 @@ html * {
     width: 140px;
     height: 36px;
     column-gap: 6px;
-    background-color: var(--fg_6);
-}
-
-#room_random_buttons_group button:hover {
-    background-color: var(--fg_5);
-}
-
-#room_random_buttons_group button:active {
-    background-color: var(--fg_4);
 }
 
 #room_random_buttons_group button svg {
@@ -1430,7 +1424,7 @@ html * {
     }
 
     #entry_youtube_inputs_group {
-        height: 46px;
+        height: 44px;
         flex-direction: column;
         box-sizing: border-box;
         row-gap: 8px;

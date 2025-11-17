@@ -335,6 +335,10 @@ export async function playerUpdateTitle(title) {
     return await httpPost("player/updatetitle", title);
 }
 
+export async function subtitleFetch() {
+    return await httpGet("subtitle/fetch");
+}
+
 export async function subtitleDelete(subtitleId) {
     return await httpPost("subtitle/delete", subtitleId);
 }

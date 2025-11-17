@@ -595,7 +595,9 @@ var subSeed *atomic.Uint64 = func() *atomic.Uint64 {
 	return &a
 }()
 
-func attachLyrics(entry *Entry, video YoutubeVideo) {
+func fetchLyrics(video YoutubeVideo) (Subtitle, error) {
+	subtitle := Subtitle{}
+
 	artist := video.ArtistName
 	parsedArtist, trackName := parseSongTitle(video.Title)
 	if artist == "" {
@@ -613,19 +615,19 @@ func attachLyrics(entry *Entry, video YoutubeVideo) {
 
 	if err != nil {
 		LogWarn("Lyrics fetch failed: %v.", err)
-		return
+		return subtitle, err
 	}
 	LogDebug("Fetched lyrics track name: %v", lyrics.TrackName)
 
 	if lyrics.SyncedLyrics == "" {
 		LogInfo("No synced lyrics available for %v - %v.", lyrics.ArtistName, lyrics.TrackName)
-		return
+		return subtitle, fmt.Errorf("No synced lyrics available")
 	}
 
 	cues, err := parseLRC(lyrics.SyncedLyrics)
 	if err != nil {
 		LogWarn("Lyrics parse failed: %v.", err)
-		return
+		return subtitle, err
 	}
 
 	subId := subSeed.Add(1)
@@ -633,16 +635,26 @@ func attachLyrics(entry *Entry, video YoutubeVideo) {
 	outputName := fmt.Sprintf("subtitle%v%v", subId, ".vtt")
 	subPath := path.Join(CONTENT_SUBS, outputName)
 
-	subtitle := Subtitle{
+	err = serializeToVTT(cues, subPath)
+	if err != nil {
+		LogWarn("Failed to convert lyrics: %v.", err)
+		return subtitle, err
+	}
+
+	subtitle = Subtitle{
 		Id:   subId,
 		Name: video.Title,
 		Url:  subPath,
 	}
 
-	err = serializeToVTT(cues, subPath)
-	if err != nil {
-		LogWarn("Failed to convert lyrics: %v.", err)
+	return subtitle, nil
+}
+
+func attachLyrics(entry *Entry, video YoutubeVideo) {
+	subtitle, err := fetchLyrics(video)
+	if (err != nil) {
 		return
 	}
+
 	entry.Subtitles = append(entry.Subtitles, subtitle)
 }

@@ -399,6 +399,7 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	server.handleEndpointAuthorized(mux, "/api/player/updatetitle", server.apiPlayerUpdateTitle, "POST")
 
 	// Subtitle API calls.
+	server.handleEndpointAuthorized(mux, "/api/subtitle/fetch", server.apiSubtitleFetch, "GET")
 	server.handleEndpointAuthorized(mux, "/api/subtitle/delete", server.apiSubtitleDelete, "POST")
 	server.handleEndpointAuthorized(mux, "/api/subtitle/update", server.apiSubtitleUpdate, "POST")
 	server.handleEndpointAuthorized(mux, "/api/subtitle/attach", server.apiSubtitleAttach, "POST")

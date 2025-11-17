@@ -279,17 +279,17 @@
     justify-content: center;
     align-items: center;
     transition: all 80ms ease;
-    background-color: var(--red_2);
+    background-color: var(--fg_6);
 }
 
 .widget_button:hover {
-    background-color: var(--red_1);
+    background-color: var(--fg_5);
 }
 
 .widget_button:active {
     box-shadow: none;
     transform: translate(1px, 2px);
-    background-color: var(--red_0);
+    background-color: var(--fg_4);
 }
 
 .widget_button svg {

@@ -368,6 +368,38 @@ func (server *Server) apiPlayerUpdateTitle(w http.ResponseWriter, r *http.Reques
 	server.playerUpdateTitle(title, userId)
 }
 
+func (server *Server) apiSubtitleFetch(w http.ResponseWriter, r *http.Request, userId uint64) {
+	if !server.config.EnableSubs {
+		http.Error(w, "Feature unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	server.state.mutex.Lock()
+	entry := server.state.entry
+	server.state.mutex.Unlock()
+
+	meta := entry.Metadata
+	video := YoutubeVideo{
+		Title:       entry.Title,
+		ArtistName:  meta.AuthorName,
+		AlbumName:   meta.AlbumName,
+		Duration:    meta.Duration,
+		ReleaseDate: meta.ReleaseDate,
+	}
+
+	subtitle, err := fetchLyrics(video)
+	if err != nil {
+		server.writeEventToAllConnections("playererror", err.Error(), SERVER_ID)
+		return
+	}
+
+	server.state.mutex.Lock()
+	server.state.entry.Subtitles = append(server.state.entry.Subtitles, subtitle)
+	server.state.mutex.Unlock()
+
+	server.writeEventToAllConnections("subtitleattach", subtitle, userId)
+}
+
 func (server *Server) apiSubtitleDelete(w http.ResponseWriter, r *http.Request, userId uint64) {
 	var subId uint64
 	if !server.readJsonDataFromRequest(w, r, &subId) {
