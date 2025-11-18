@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"os/exec"
@@ -398,7 +399,7 @@ type LrcQuery struct {
 	Duration   int    `json:"duration"` // seconds
 }
 
-type LrcResponse struct {
+type LrcResult struct {
 	Id           uint    `json:"id"`
 	TrackName    string  `json:"trackName"`
 	ArtistName   string  `json:"artistName"`
@@ -417,7 +418,7 @@ type LrcErrorResponse struct {
 const LRC_LIB_URL = "https://lrclib.net/"
 const MAX_LYRICS_DURATION = 3600
 
-func getLyrics(params LrcQuery) (*LrcResponse, error) {
+func getLyrics(params LrcQuery) (*LrcResult, error) {
 	if params.Duration > MAX_LYRICS_DURATION {
 		return nil, errors.New("duration too long")
 	}
@@ -427,9 +428,13 @@ func getLyrics(params LrcQuery) (*LrcResponse, error) {
 	req.Header.Set("User-Agent", userAgent)
 
 	q := req.URL.Query()
-	q.Add("artist_name", params.ArtistName)
 	q.Add("track_name", params.TrackName)
-	q.Add("album_name", params.AlbumName)
+	if params.ArtistName != "" {
+		q.Add("artist_name", params.ArtistName)
+	}
+	if params.AlbumName != "" {
+		q.Add("album_name", params.AlbumName)
+	}
 	q.Add("duration", strconv.Itoa(params.Duration))
 	req.URL.RawQuery = q.Encode()
 
@@ -458,14 +463,23 @@ func getLyrics(params LrcQuery) (*LrcResponse, error) {
 		return nil, errors.New(errorResponse.Name + " -> " + errorResponse.Message)
 	}
 
-	var lrcResponse []LrcResponse
-	err = json.Unmarshal(body, &lrcResponse)
+	var results []LrcResult
+	err = json.Unmarshal(body, &results)
 	if err != nil {
 		return nil, err
 	}
-	if len(lrcResponse) == 0 {
+	if len(results) == 0 {
 		return nil, errors.New("no results found")
 	}
 
-	return &lrcResponse[0], nil
+	minOffset := float64(MAX_LYRICS_DURATION)
+	var bestResult *LrcResult
+	for _, result := range results {
+		offset := math.Abs(float64(result.Duration) - float64(params.Duration))
+		if offset < minOffset && result.SyncedLyrics != "" {
+			minOffset = offset
+			bestResult = &result
+		}
+	}
+	return bestResult, nil
 }

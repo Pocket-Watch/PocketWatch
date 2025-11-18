@@ -398,6 +398,7 @@ func (server *Server) apiSubtitleFetch(w http.ResponseWriter, r *http.Request, u
 	server.state.mutex.Unlock()
 
 	server.writeEventToAllConnections("subtitleattach", subtitle, userId)
+	w.WriteHeader(http.StatusOK)
 }
 
 func (server *Server) apiSubtitleDelete(w http.ResponseWriter, r *http.Request, userId uint64) {
