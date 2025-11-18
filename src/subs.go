@@ -481,5 +481,8 @@ func getLyrics(params LrcQuery) (*LrcResult, error) {
 			bestResult = &result
 		}
 	}
+	if bestResult == nil {
+		return nil, errors.New("no synced lyrics available/found")
+	}
 	return bestResult, nil
 }
