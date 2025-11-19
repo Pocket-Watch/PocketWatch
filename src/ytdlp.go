@@ -13,7 +13,6 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 )
 
@@ -566,9 +565,6 @@ func loadYoutubeEntry(entry *Entry, requested RequestEntry) error {
 		return err
 	}
 
-	if requested.FetchLyrics {
-		attachLyrics(entry, video)
-	}
 	waitForAvailability(video.AvailableAt)
 
 	entry.Url = video.OriginalUrl
@@ -589,28 +585,22 @@ func loadYoutubeEntry(entry *Entry, requested RequestEntry) error {
 	return nil
 }
 
-var subSeed *atomic.Uint64 = func() *atomic.Uint64 {
-	var a atomic.Uint64
-	a.Store(1000)
-	return &a
-}()
-
-func fetchLyrics(video YoutubeVideo) (Subtitle, error) {
+func (state *ServerState) fetchLyrics(title string, meta Metadata) (Subtitle, error) {
 	subtitle := Subtitle{}
 
-	artist := video.ArtistName
-	parsedArtist, trackName := parseSongTitle(video.Title)
+	artist := meta.AuthorName
+	parsedArtist, trackName := parseSongTitle(title)
 	if artist == "" {
 		artist = parsedArtist
 	}
 	LogInfo("Searching lyrics with artist=%v album=%v trackName=%v duration=%v",
-		artist, video.AlbumName, trackName, video.Duration)
+		artist, meta.AlbumName, trackName, meta.Duration)
 
 	lyrics, err := getLyrics(LrcQuery{
 		ArtistName: artist,
-		AlbumName:  video.AlbumName,
+		AlbumName:  meta.AlbumName,
 		TrackName:  trackName,
-		Duration:   int(video.Duration),
+		Duration:   int(meta.Duration),
 	})
 
 	if err != nil {
@@ -630,7 +620,7 @@ func fetchLyrics(video YoutubeVideo) (Subtitle, error) {
 		return subtitle, err
 	}
 
-	subId := subSeed.Add(1)
+	subId := state.subsId.Add(1)
 	os.MkdirAll(CONTENT_SUBS, os.ModePerm)
 	outputName := fmt.Sprintf("subtitle%v%v", subId, ".vtt")
 	subPath := path.Join(CONTENT_SUBS, outputName)
@@ -643,18 +633,9 @@ func fetchLyrics(video YoutubeVideo) (Subtitle, error) {
 
 	subtitle = Subtitle{
 		Id:   subId,
-		Name: video.Title,
+		Name: title,
 		Url:  subPath,
 	}
 
 	return subtitle, nil
-}
-
-func attachLyrics(entry *Entry, video YoutubeVideo) {
-	subtitle, err := fetchLyrics(video)
-	if (err != nil) {
-		return
-	}
-
-	entry.Subtitles = append(entry.Subtitles, subtitle)
 }

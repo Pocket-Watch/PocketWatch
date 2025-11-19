@@ -253,6 +253,9 @@ type ServerState struct {
 	// Indicates whether the server is waiting for the entry to load. Loading includes both YouTube fetch and proxy setup.
 	isLoading atomic.Bool
 
+	// Indicates server is fetching or searching a subtitle for current entry.
+	isLoadingSubs atomic.Bool
+
 	// Last update time of player timestamp.
 	lastUpdate time.Time
 

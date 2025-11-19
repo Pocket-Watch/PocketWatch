@@ -374,31 +374,12 @@ func (server *Server) apiSubtitleFetch(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 
-	server.state.mutex.Lock()
-	entry := server.state.entry
-	server.state.mutex.Unlock()
-
-	meta := entry.Metadata
-	video := YoutubeVideo{
-		Title:       entry.Title,
-		ArtistName:  meta.AuthorName,
-		AlbumName:   meta.AlbumName,
-		Duration:    meta.Duration,
-		ReleaseDate: meta.ReleaseDate,
-	}
-
-	subtitle, err := fetchLyrics(video)
+	err := server.fetchSubtitleForCurrentEntry(userId)
 	if err != nil {
-		server.writeEventToAllConnections("playererror", err.Error(), SERVER_ID)
-		return
+		respondInternalError(w, err.Error())
+	} else {
+		io.WriteString(w, "{}")
 	}
-
-	server.state.mutex.Lock()
-	server.state.entry.Subtitles = append(server.state.entry.Subtitles, subtitle)
-	server.state.mutex.Unlock()
-
-	server.writeEventToAllConnections("subtitleattach", subtitle, userId)
-	_, _ = io.WriteString(w, "{}")
 }
 
 func (server *Server) apiSubtitleDelete(w http.ResponseWriter, r *http.Request, userId uint64) {

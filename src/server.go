@@ -694,6 +694,10 @@ func (server *Server) setNewEntry(entry Entry, requested RequestEntry) {
 			return
 		}
 
+		if requested.FetchLyrics {
+			go server.fetchSubtitleForCurrentEntry(entry.UserId)
+		}
+
 		if requested.IsPlaylist {
 			requested.Url = entry.Url
 
@@ -2463,9 +2467,17 @@ func (server *Server) playlistAdd(requested RequestEntry, userId uint64) error {
 
 	if isYoutubeEntry(entry, requested) {
 		err := loadYoutubeEntry(&entry, requested)
+
 		if err != nil {
 			LogWarn("Failed to load entry in playlist add: %v", err)
 			return nil
+		}
+
+		if requested.FetchLyrics {
+			subtitle, err := server.state.fetchLyrics(entry.Title, entry.Metadata)
+			if err != nil {
+				entry.Subtitles = append(entry.Subtitles, subtitle)
+			}
 		}
 	} else if isTwitchEntry(entry) {
 		err := loadTwitchEntry(&entry)
@@ -2840,6 +2852,35 @@ func (server *Server) chatDelete(messageId uint64, userId uint64) error {
 
 	server.state.messages = append(messages[:index], messages[index+1:]...)
 	server.writeEventToAllConnections("messagedelete", message.Id, userId)
+
+	return nil
+}
+
+func (server *Server) fetchSubtitleForCurrentEntry(userId uint64) error {
+	if (server.state.isLoadingSubs.Load()) {
+		return nil
+	}
+
+	server.state.isLoadingSubs.Store(true)
+	defer server.state.isLoadingSubs.Store(false)
+
+	server.state.mutex.Lock()
+	entry := server.state.entry
+	server.state.mutex.Unlock()
+
+	subtitle, err := server.state.fetchLyrics(entry.Title, entry.Metadata)
+	if err != nil {
+		server.writeEventToAllConnections("playererror", err.Error(), SERVER_ID)
+		return err
+	}
+
+	server.state.mutex.Lock()
+	defer server.state.mutex.Unlock()
+
+	if (server.state.entry.Id == entry.Id) {
+		server.state.entry.Subtitles = append(server.state.entry.Subtitles, subtitle)
+		server.writeEventToAllConnections("subtitleattach", subtitle, userId)
+	}
 
 	return nil
 }
