@@ -679,30 +679,28 @@ func (server *Server) periodicInactiveUserCleanup() {
 	}
 }
 
-func (server *Server) setNewEntry(entry Entry, requested RequestEntry) {
+func (server *Server) setNewEntry(newEntry Entry, requested RequestEntry) {
 	server.state.isLoading.Store(true)
 	defer server.state.isLoading.Store(false)
 
-	entry = server.constructEntry(entry)
+	newEntry = server.constructEntry(newEntry)
+	loadingYt := false
 
-	if isYoutubeEntry(entry, requested) {
+	if isYoutubeEntry(newEntry, requested) {
 		server.writeEventToAllConnections("playerwaiting", "Youtube video is loading. Please stand by!", SERVER_ID)
 
-		err := loadYoutubeEntry(&entry, requested)
+		err := loadYoutubeEntry(&newEntry, requested)
 		if err != nil {
 			server.writeEventToAllConnections("playererror", err.Error(), SERVER_ID)
 			return
 		}
-
-		if requested.FetchLyrics {
-			go server.fetchSubtitleForCurrentEntry(entry.UserId)
-		}
+		loadingYt = true
 
 		if requested.IsPlaylist {
-			requested.Url = entry.Url
+			requested.Url = newEntry.Url
 
 			go func() {
-				entries, err := server.loadYoutubePlaylist(requested, entry.UserId)
+				entries, err := server.loadYoutubePlaylist(requested, newEntry.UserId)
 				if err == nil {
 					server.state.mutex.Lock()
 					server.playlistAddMany(entries, requested.AddToTop)
@@ -710,17 +708,17 @@ func (server *Server) setNewEntry(entry Entry, requested RequestEntry) {
 				}
 			}()
 		}
-	} else if isTwitchEntry(entry) {
+	} else if isTwitchEntry(newEntry) {
 		server.writeEventToAllConnections("playerwaiting", "Twitch stream is loading. Please stand by!", SERVER_ID)
 
-		err := loadTwitchEntry(&entry)
+		err := loadTwitchEntry(&newEntry)
 		if err != nil {
 			server.writeEventToAllConnections("playererror", err.Error(), SERVER_ID)
 			return
 		}
 	}
 
-	err := server.setupProxy(&entry)
+	err := server.setupProxy(&newEntry)
 	if err != nil {
 		LogWarn("%v", err)
 		server.writeEventToAllConnections("playererror", err.Error(), SERVER_ID)
@@ -733,18 +731,23 @@ func (server *Server) setNewEntry(entry Entry, requested RequestEntry) {
 	if server.state.player.Looping {
 		server.playlistAddOne(server.state.entry, false)
 	}
-
 	server.historyAdd(server.state.entry)
 
-	server.state.entry = entry
-	DatabaseCurrentEntrySet(server.db, entry)
+	server.state.entry = newEntry
+
+	if requested.FetchLyrics && loadingYt {
+		// Because it's fetched for the "current entry" the process cannot be started before it's actually set
+		go server.fetchLyricsForCurrentEntry(newEntry.UserId)
+	}
+
+	DatabaseCurrentEntrySet(server.db, newEntry)
 
 	server.state.player.Timestamp = 0
 	server.state.lastUpdate = time.Now()
 	server.state.player.Playing = server.state.player.Autoplay
 
-	LogInfo("New entry URL is now: '%s'.", entry.Url)
-	server.writeEventToAllConnections("playerset", entry, SERVER_ID)
+	LogInfo("New entry URL is now: '%s'.", newEntry.Url)
+	server.writeEventToAllConnections("playerset", newEntry, SERVER_ID)
 
 	go server.preloadYoutubeSourceOnNextEntry()
 }
@@ -2856,13 +2859,13 @@ func (server *Server) chatDelete(messageId uint64, userId uint64) error {
 	return nil
 }
 
-func (server *Server) fetchSubtitleForCurrentEntry(userId uint64) error {
-	if (server.state.isLoadingSubs.Load()) {
+func (server *Server) fetchLyricsForCurrentEntry(userId uint64) error {
+	if server.state.isLoadingLyrics.Load() {
 		return nil
 	}
 
-	server.state.isLoadingSubs.Store(true)
-	defer server.state.isLoadingSubs.Store(false)
+	server.state.isLoadingLyrics.Store(true)
+	defer server.state.isLoadingLyrics.Store(false)
 
 	server.state.mutex.Lock()
 	entry := server.state.entry
@@ -2877,9 +2880,11 @@ func (server *Server) fetchSubtitleForCurrentEntry(userId uint64) error {
 	server.state.mutex.Lock()
 	defer server.state.mutex.Unlock()
 
-	if (server.state.entry.Id == entry.Id) {
+	if server.state.entry.Id == entry.Id {
 		server.state.entry.Subtitles = append(server.state.entry.Subtitles, subtitle)
 		server.writeEventToAllConnections("subtitleattach", subtitle, userId)
+	} else {
+		LogDebug("Found entry with id %v", entry.Id)
 	}
 
 	return nil

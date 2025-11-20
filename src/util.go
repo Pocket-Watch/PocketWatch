@@ -1326,9 +1326,12 @@ func isRequestDone(request *http.Request) bool {
 	}
 }
 
+var TITLE_CUT_OFF_RUNES = []rune{'|'}
+
 // parseSongTitle returns artist and trackName from "Artist - Song Title" format.
 // The resulting track name is stripped of any title descriptors.
 // If there's no separator the track name becomes the title.
+// If artist is given the track name terminates on any TITLE_CUT_OFF_RUNES
 func parseSongTitle(title string) (string, string) {
 	artist, trackName, found := strings.Cut(title, "-")
 	if !found {
@@ -1354,10 +1357,12 @@ func parseSongTitle(title string) (string, string) {
 			continue
 		}
 
-		if openRoundBrackets > 0 || openSquareBrackets > 0 {
-			continue
+		if openRoundBrackets == 0 && openSquareBrackets == 0 {
+			if slices.Contains(TITLE_CUT_OFF_RUNES, trackChars[i]) {
+				break
+			}
+			cleanName.WriteRune(trackChars[i])
 		}
-		cleanName.WriteRune(trackChars[i])
 	}
 
 	return strings.TrimSpace(artist), strings.TrimSpace(cleanName.String())

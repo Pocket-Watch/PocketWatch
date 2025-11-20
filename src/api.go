@@ -370,11 +370,12 @@ func (server *Server) apiPlayerUpdateTitle(w http.ResponseWriter, r *http.Reques
 
 func (server *Server) apiSubtitleFetch(w http.ResponseWriter, r *http.Request, userId uint64) {
 	if !server.config.EnableSubs {
+		// Subs is a different feature...
 		http.Error(w, "Feature unavailable", http.StatusServiceUnavailable)
 		return
 	}
 
-	err := server.fetchSubtitleForCurrentEntry(userId)
+	err := server.fetchLyricsForCurrentEntry(userId)
 	if err != nil {
 		respondInternalError(w, err.Error())
 	} else {

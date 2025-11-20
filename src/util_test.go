@@ -845,3 +845,18 @@ func TestParseSongTitleWithNestedDescriptors(t *testing.T) {
 		t.Errorf("The song title should be '%v' but actual is %v", expectedTrackName, songTitle)
 	}
 }
+
+func TestParseSongTitleWithPipes(t *testing.T) {
+	expectedArtist := "Artist1 | Artist2"
+	expectedTrackName := "Title"
+
+	artist, songTitle := parseSongTitle("Artist1 | Artist2 - Title | With a pipe")
+
+	if artist != expectedArtist {
+		t.Errorf("The artist should be '%v' but actual is %v", expectedArtist, artist)
+	}
+
+	if songTitle != expectedTrackName {
+		t.Errorf("The song title should be '%v' but actual is %v", expectedTrackName, songTitle)
+	}
+}

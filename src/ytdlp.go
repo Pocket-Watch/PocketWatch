@@ -575,7 +575,7 @@ func loadYoutubeEntry(entry *Entry, requested RequestEntry) error {
 	metadata := Metadata{
 		TrackNumber: 0,
 		AlbumName:   video.AlbumName,
-		AuthorName:  video.ArtistName,
+		ArtistName:  video.ArtistName,
 		ReleaseDate: video.ReleaseDate,
 		Duration:    video.Duration,
 	}
@@ -588,7 +588,7 @@ func loadYoutubeEntry(entry *Entry, requested RequestEntry) error {
 func (state *ServerState) fetchLyrics(title string, meta Metadata) (Subtitle, error) {
 	subtitle := Subtitle{}
 
-	artist := meta.AuthorName
+	artist := meta.ArtistName
 	parsedArtist, trackName := parseSongTitle(title)
 	if artist == "" {
 		artist = parsedArtist

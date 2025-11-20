@@ -151,7 +151,7 @@ type PlayerState struct {
 // Server welcome event, sent to the client as a first event when a WebSocket connection is opened.
 type WelcomeMessage struct {
 	// Current server version. Currently based on the server build time.
-	Version  string            `json:"version"`
+	Version string `json:"version"`
 }
 
 type GetAllMessage struct {
@@ -194,7 +194,7 @@ type Source struct {
 type Metadata struct {
 	TrackNumber int    `json:"track_number"`
 	AlbumName   string `json:"album_name"`
-	AuthorName  string `json:"author_name"`
+	ArtistName  string `json:"artist_name"`
 
 	// TODO(kihau): Make those two time.Time instead.
 	ReleaseDate string `json:"release_date"`
@@ -253,8 +253,8 @@ type ServerState struct {
 	// Indicates whether the server is waiting for the entry to load. Loading includes both YouTube fetch and proxy setup.
 	isLoading atomic.Bool
 
-	// Indicates server is fetching or searching a subtitle for current entry.
-	isLoadingSubs atomic.Bool
+	// Indicates whether the server is currently fetching or searching lyrics for current entry.
+	isLoadingLyrics atomic.Bool
 
 	// Last update time of player timestamp.
 	lastUpdate time.Time
