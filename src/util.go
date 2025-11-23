@@ -40,81 +40,54 @@ func FindEntryIndex(entries []Entry, targetId uint64) int {
 	return index
 }
 
-func GeneratePrettyTableStandard(headers []string, data []string) string {
-	if len(headers) == 0 {
-		return ""
+func GeneratePrettyTabelItem(header string, data string) string {
+	padding := utf8.RuneCountInString(header)
+	builder := strings.Builder{}
+
+	// Top part
+	builder.WriteString("┌")
+	for range padding + 2 {
+		builder.WriteString("─")
 	}
+	builder.WriteString("┐\n")
 
-	columnCount := len(headers)
-	rowCount := len(data) / columnCount
+	// Middle part
+	str := fmt.Sprintf("│ %*s │\n", padding, header)
+	builder.WriteString(str)
 
-	// Find max size of each column.
-
-	paddings := make([]int, columnCount)
-	for i, header := range headers {
-		paddings[i] = len(header)
+	// Bottom part
+	builder.WriteString("└")
+	for range padding + 2 {
+		builder.WriteString("─")
 	}
+	builder.WriteString("┘\n")
 
-	for row := 0; row < rowCount; row += 1 {
-		for column := 0; column < columnCount; column += 1 {
-			value := data[row*columnCount+column]
-
-			if len(value) > paddings[column] {
-				paddings[column] = len(value)
-			}
-		}
-	}
-
-	// Generate separator.
-
-	build := strings.Builder{}
-	for _, pad := range paddings {
-		build.WriteString("+")
-		for range pad + 2 {
-			build.WriteString("-")
-		}
-	}
-	build.WriteString("+\n")
-
-	separator := build.String()
-
-	// Pretty print the table.
-
-	table := strings.Builder{}
-
-	table.WriteString(separator)
-	for i, name := range headers {
-		str := fmt.Sprintf("| %*s ", paddings[i], name)
-		table.WriteString(str)
-	}
-	table.WriteString("|\n")
-	table.WriteString(separator)
-
-	if rowCount == 0 {
-		return table.String()
-	}
-
-	for row := 0; row < rowCount; row += 1 {
-		for column := 0; column < columnCount; column += 1 {
-			value := data[row*columnCount+column]
-			str := fmt.Sprintf("| %*s ", paddings[column], value)
-			table.WriteString(str)
-		}
-
-		table.WriteString("|\n")
-	}
-	table.WriteString(separator)
-
-	return table.String()
+	builder.WriteString(data)
+	return builder.String()
 }
 
-func GeneratePrettyTableAsciiExtended(headers []string, data []string) string {
+func GeneratePrettyTable(headers []string, data []string) string {
 	if len(headers) == 0 {
 		return ""
 	}
 
 	columnCount := len(headers)
 	rowCount := len(data) / columnCount
+
+	if columnCount == 1 && rowCount == 1 {
+		return GeneratePrettyTabelItem(headers[0], data[0])
+	}
+
+	// Trim string to fit in the console buffer (assuming that the column count is not too crazy)
+
+	for i := range data {
+		data[i] = strings.ReplaceAll(data[i], "\n", "")
+
+		runes := []rune(data[i])
+		if len(runes) > 80 { 
+			data[i] = string(runes[:80])
+		}
+	}
 
 	// Find max size of each column.
 
@@ -126,9 +99,10 @@ func GeneratePrettyTableAsciiExtended(headers []string, data []string) string {
 	for row := 0; row < rowCount; row += 1 {
 		for column := 0; column < columnCount; column += 1 {
 			value := data[row*columnCount+column]
+			length := utf8.RuneCountInString(value)
 
-			if len(value) > paddings[column] {
-				paddings[column] = len(value)
+			if length > paddings[column] {
+				paddings[column] = length
 			}
 		}
 	}
@@ -197,10 +171,6 @@ func GeneratePrettyTableAsciiExtended(headers []string, data []string) string {
 	table.WriteString(separatorBot)
 
 	return table.String()
-}
-
-func GeneratePrettyTable(headers []string, data []string) string {
-	return GeneratePrettyTableAsciiExtended(headers, data)
 }
 
 func constructTitleWhenMissing(entry *Entry) string {
