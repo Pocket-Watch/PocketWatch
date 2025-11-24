@@ -10,12 +10,16 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"sync/atomic"
 
 	_ "github.com/lib/pq"
 )
 
 const SQL_MIGRATIONS_DIR = "sql/"
 const TABLE_USERS = "users"
+
+// Used as an ID seeder when database disabled.
+var idSeeder atomic.Uint64
 
 type DbMigration struct {
 	number uint
@@ -302,9 +306,6 @@ func DatabaseLoadUsers(db *sql.DB) (*Users, bool) {
 
 	defer rows.Close()
 
-	// NOTE(kihau): This is kind of hacky, maybe seed counter should be stored in the database?
-	var maxId uint64 = 1
-
 	for rows.Next() {
 		var user User
 
@@ -312,10 +313,6 @@ func DatabaseLoadUsers(db *sql.DB) (*Users, bool) {
 		if err != nil {
 			LogError("Failed to load users from the database. An error occurred while reading a user from the database 'users' row: %v", err)
 			return users, false
-		}
-
-		if user.Id >= maxId {
-			maxId = user.Id + 1
 		}
 
 		users.slice = append(users.slice, user)
@@ -327,22 +324,37 @@ func DatabaseLoadUsers(db *sql.DB) (*Users, bool) {
 		return users, false
 	}
 
-	users.idCounter = maxId
 	return users, true
 }
 
-func DatabaseAddUser(db *sql.DB, user User) bool {
+func DatabaseAddUser(db *sql.DB, user User) (uint64, error) {
 	if db == nil {
-		return true
+		return idSeeder.Add(1), nil
 	}
 
-	_, err := db.Exec("INSERT INTO users VALUES ($1, $2, $3, $4, $5, $6, $7)", user.Id, user.Username, user.Avatar, user.token, user.CreatedAt, user.LastUpdate, user.LastOnline)
+	var lastInsertId uint64
+	query := `
+		INSERT INTO users (
+			username, avatar_path, token, created_at, last_update, last_online
+		) VALUES ($1, $2, $3, $4, $5, $6) 
+		RETURNING id
+	`
+
+	row := db.QueryRow(query, user.Username, user.Avatar, user.token, user.CreatedAt, user.LastUpdate, user.LastOnline)
+
+	err := row.Err()
 	if err != nil {
-		LogError("Failed to save user id:%v to the database: %v", user.Id, err)
-		return false
+		LogError("Failed to save user token:%v to the database: %v", user.token, err)
+		return 0, err
 	}
 
-	return true
+	err = row.Scan(&lastInsertId)
+	if err != nil {
+		LogError("Failed to get inserted id for user token:%v from the database: %v", user.token, err)
+		return 0, err
+	}
+
+	return lastInsertId, nil
 }
 
 func DatabaseDeleteUser(db *sql.DB, user User) bool {

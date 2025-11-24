@@ -28,7 +28,6 @@ import (
 func makeUsers() *Users {
 	users := new(Users)
 	users.slice = make([]User, 0)
-	users.idCounter = 1
 	return users
 }
 
@@ -44,13 +43,9 @@ func generateToken() string {
 	return base64.URLEncoding.EncodeToString(tokenBytes)
 }
 
-func (users *Users) create() User {
-	id := users.idCounter
-	users.idCounter += 1
-
+func (server *Server) createUser() (User, error) {
 	now := time.Now()
-	new_user := User{
-		Id:         id,
+	user := User{
 		Username:   generateRandomNickname(),
 		Avatar:     "img/default_avatar.png",
 		Online:     false,
@@ -60,8 +55,13 @@ func (users *Users) create() User {
 		token:      generateToken(),
 	}
 
-	users.slice = append(users.slice, new_user)
-	return new_user
+	server.users.mutex.Lock()
+	id, err := DatabaseAddUser(server.db, user)
+	user.Id = id
+	server.users.slice = append(server.users.slice, user)
+	server.users.mutex.Unlock()
+
+	return user, err
 }
 
 func (users *Users) removeByToken(token string) *User {

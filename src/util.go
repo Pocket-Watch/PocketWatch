@@ -40,7 +40,7 @@ func FindEntryIndex(entries []Entry, targetId uint64) int {
 	return index
 }
 
-func GeneratePrettyTabelItem(header string, data string) string {
+func GeneratePrettyTableItem(header string, data string) string {
 	padding := utf8.RuneCountInString(header)
 	builder := strings.Builder{}
 
@@ -75,7 +75,7 @@ func GeneratePrettyTable(headers []string, data []string) string {
 	rowCount := len(data) / columnCount
 
 	if columnCount == 1 && rowCount == 1 {
-		return GeneratePrettyTabelItem(headers[0], data[0])
+		return GeneratePrettyTableItem(headers[0], data[0])
 	}
 
 	// Trim string to fit in the console buffer (assuming that the column count is not too crazy)

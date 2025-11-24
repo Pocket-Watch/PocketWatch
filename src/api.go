@@ -91,10 +91,11 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request, use
 }
 
 func (server *Server) apiUserCreate(w http.ResponseWriter, r *http.Request) {
-	server.users.mutex.Lock()
-	user := server.users.create()
-	DatabaseAddUser(server.db, user)
-	server.users.mutex.Unlock()
+	user, err := server.createUser()
+	if err != nil {
+		respondInternalError(w, "Failed to create user. Database error occurred: %v", err)
+		return
+	}
 
 	tokenJson, err := json.Marshal(user.token)
 	if err != nil {

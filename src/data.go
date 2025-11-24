@@ -378,7 +378,6 @@ type User struct {
 
 type Users struct {
 	mutex     sync.Mutex
-	idCounter uint64
 	slice     []User
 }
 
