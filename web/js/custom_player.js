@@ -2949,8 +2949,8 @@ function addOpacityToColor(hexColor, opacity) {
 function getPlatform(ua) {
     let bracketOpen = ua.indexOf("(");
     if (bracketOpen === -1) return "";
-    let bracketClose = ua.indexOf(")", bracketOpen + 1);
-    return ua.substring(bracketOpen + 1, bracketClose).trim();
+    let semicolon = ua.indexOf(";", bracketOpen + 1);
+    return ua.substring(bracketOpen + 1, semicolon).trim();
 }
 
 // For example: Linux cannot be included as a desktop agent because it also appears along Android
