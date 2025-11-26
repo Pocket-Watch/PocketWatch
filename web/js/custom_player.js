@@ -433,6 +433,7 @@ class Internals {
         this.htmlSeekBackward   = newDiv("player_backward_container", "hide", "unselectable");
         this.subtitleContainer  = newDiv("player_subtitle_container");
         this.subtitleText       = newDiv("player_subtitle_text");
+        this.volumeRoot         = newDiv("player_volume_root");
 
         this.htmlControls = {
             root: newDiv("player_controls"),
@@ -592,7 +593,8 @@ class Internals {
             let platform = getPlatform(navigator.userAgent);
             let iPad = platform === "Macintosh" && navigator.maxTouchPoints && navigator.maxTouchPoints > 2;
             if (platform === "iPhone" || platform === "iPad" || iPad) {
-                console.debug("DEBUG: TODO Hiding volume root")
+                console.debug("DEBUG: Hiding volume root")
+                hide(this.volumeRoot);
             }
         }
     }
@@ -1865,7 +1867,7 @@ class Internals {
         let playbackButton   = this.htmlControls.buttons.playbackButton;
         let nextButton       = this.htmlControls.buttons.nextButton;
         let volumeButton     = this.htmlControls.buttons.volumeButton;
-        let volumeRoot       = newDiv("player_volume_root");
+        let volumeRoot       = this.volumeRoot;
         let volumeSlider     = this.htmlControls.buttons.volumeInput;
         let volumeBar        = newDiv("player_volume_bar");
         let volumeProgress   = this.htmlControls.buttons.volumeProgress;
