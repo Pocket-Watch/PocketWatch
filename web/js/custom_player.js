@@ -585,10 +585,15 @@ class Internals {
 
         this.setVolume(1.0);
 
-        let userAgent = navigator.userAgent;
-        let isSafari = userAgent.includes("Safari") && userAgent.includes("Mac OS");
+        let browserName = getBrowserName();
+        let isSafari = browserName === "Safari" && navigator.userAgent.includes("Mac OS");
         if (isSafari) {
             this.rebindFullscreenAPIFromWebkit();
+            let platform = getPlatform(navigator.userAgent);
+            let iPad = platform === "Macintosh" && navigator.maxTouchPoints && navigator.maxTouchPoints > 2;
+            if (platform === "iPhone" || platform === "iPad" || iPad) {
+                console.debug("DEBUG: TODO Hiding volume root")
+            }
         }
     }
 
@@ -2939,34 +2944,46 @@ function addOpacityToColor(hexColor, opacity) {
     return hexColor + hexOpacity;
 }
 
+function getPlatform(ua) {
+    let bracketOpen = ua.indexOf("(");
+    if (bracketOpen === -1) return "";
+    let bracketClose = ua.indexOf(")", bracketOpen + 1);
+    return ua.substring(bracketOpen + 1, bracketClose).trim();
+}
+
 // For example: Linux cannot be included as a desktop agent because it also appears along Android
 // Similarly: Macintosh cannot be included as a desktop agent because it also appears along iPad
 // What about TVs?
-const MOBILE_AGENTS = ["Mobile", "Tablet", "Android", "iPhone", "iPod", "iPad"];
+const PLATFORM_AGENTS = ["Mobile", "Tablet", "Android", "iPhone", "iPod", "iPad"];
 function isMobileAgent() {
-    let userAgent = navigator.userAgent.trim();
-    if (!userAgent || userAgent === "") {
+    let ua = navigator.userAgent;
+    if (!ua) {
         return false;
     }
 
-    let bracketOpen = userAgent.indexOf("(");
-    if (bracketOpen === -1) {
-        return false;
-    }
-
-    let bracketClose = userAgent.indexOf(")", bracketOpen + 1);
-    if (bracketClose === -1) {
-        return false;
-    }
-
-    let systemInfo = userAgent.substring(bracketOpen + 1, bracketClose).trim();
-    for (let i = 0; i < systemInfo.length; i++) {
-        if (systemInfo.includes(MOBILE_AGENTS[i])) {
+    let currentPlatform = getPlatform(ua)
+    for (let platform of PLATFORM_AGENTS) {
+        if (currentPlatform.includes(platform)) {
             return true;
         }
     }
 
     return false;
+}
+
+export function getBrowserName() {
+    const ua = navigator.userAgent;
+
+    let nameIndex = ua.lastIndexOf("Chrome/");
+    if (nameIndex !== -1) return "Chromium";
+
+    nameIndex = ua.lastIndexOf("Firefox/");
+    if (nameIndex !== -1) return "Firefox";
+
+    nameIndex = ua.lastIndexOf("Version/");
+    if (nameIndex !== -1) return "Safari";
+
+    return "Unknown";
 }
 
 // This is a separate class for more clarity
