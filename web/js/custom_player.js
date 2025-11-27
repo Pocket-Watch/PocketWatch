@@ -2963,9 +2963,13 @@ function isMobileAgent() {
         return false;
     }
 
-    let currentPlatform = getPlatform(ua)
+    let bracketOpen = ua.indexOf("(");
+    if (bracketOpen === -1) return false;
+    let bracketClose = ua.indexOf(")", bracketOpen + 1);
+    let sysInfo = ua.substring(bracketOpen + 1, bracketClose).trim();
+
     for (let platform of PLATFORM_AGENTS) {
-        if (currentPlatform.includes(platform)) {
+        if (sysInfo.includes(platform)) {
             return true;
         }
     }
