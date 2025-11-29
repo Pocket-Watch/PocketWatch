@@ -266,10 +266,6 @@ func MigrateDatabase(db *sql.DB) bool {
 }
 
 func databaseMoveUserToTable(db *sql.DB, fromTable string, toTable string, user User) bool {
-	if db == nil {
-		return true
-	}
-
 	query := fmt.Sprintf(`
 		WITH moved_users AS (
 			DELETE FROM %v
@@ -327,9 +323,10 @@ func DatabaseLoadUsers(db *sql.DB) (*Users, bool) {
 	return users, true
 }
 
-func DatabaseAddUser(db *sql.DB, user User) (uint64, error) {
+func DatabaseAddUser(db *sql.DB, user *User) error {
 	if db == nil {
-		return idSeeder.Add(1), nil
+		user.Id = idSeeder.Add(1)
+		return nil
 	}
 
 	var lastInsertId uint64
@@ -341,20 +338,20 @@ func DatabaseAddUser(db *sql.DB, user User) (uint64, error) {
 	`
 
 	row := db.QueryRow(query, user.Username, user.Avatar, user.token, user.CreatedAt, user.LastUpdate, user.LastOnline)
-
 	err := row.Err()
 	if err != nil {
 		LogError("Failed to save user token:%v to the database: %v", user.token, err)
-		return 0, err
+		return err
 	}
 
 	err = row.Scan(&lastInsertId)
 	if err != nil {
 		LogError("Failed to get inserted id for user token:%v from the database: %v", user.token, err)
-		return 0, err
+		return err
 	}
 
-	return lastInsertId, nil
+	user.Id = lastInsertId
+	return nil
 }
 
 func DatabaseDeleteUser(db *sql.DB, user User) bool {
@@ -471,44 +468,48 @@ func DatabasePrintTableLayout(db *sql.DB, tableName string) {
 	fmt.Print(prettyTable)
 }
 
-func databaseFindMaxId(db *sql.DB, tableName string) uint64 {
-	var maxId sql.NullInt64
+func databaseEntryAdd(db *sql.DB, entry *Entry) error {
+	if db == nil {
+		entry.Id = idSeeder.Add(1)
+		for i := range entry.Subtitles {
+			entry.Subtitles[i].Id = idSeeder.Add(1)
+		}
 
-	query := fmt.Sprintf("SELECT MAX(id) from %v", tableName)
-	err := db.QueryRow(query).Scan(&maxId)
-
-	if err != nil {
-		LogError("SQL query failed: %v", err)
-		return 0
+		return nil
 	}
 
-	return uint64(maxId.Int64)
-}
+	// Do a transaction here
 
-func databaseEntryAdd(db *sql.DB, entry Entry) bool {
-	_, err := db.Exec(
-		"INSERT INTO entries VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
-		entry.Id, entry.Url, entry.Title, entry.UserId, entry.UseProxy, entry.RefererUrl, entry.SourceUrl, entry.Thumbnail, entry.CreatedAt, entry.LastSetAt,
-	)
+	query := `
+		INSERT INTO entries (
+			url, title, user_id, use_proxy, referer_url, source_url, thumbnail, created_at, last_set_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+		RETURNING id
+	`
 
+	row := db.QueryRow(query, entry.Url, entry.Title, entry.UserId, entry.UseProxy, entry.RefererUrl, entry.SourceUrl, entry.Thumbnail, entry.CreatedAt, entry.LastSetAt)
+	err := row.Err()
 	if err != nil {
-		LogError("SQL query failed: %v", err)
-		return false
+		LogError("Failed to add entry to the database: %v", err)
+		return err
 	}
 
-	for _, sub := range entry.Subtitles {
-		_, err := db.Exec(
-			"INSERT INTO subtitles VALUES ($1, $2, $3, $4, $5)",
-			sub.Id, entry.Id, sub.Name, sub.Url, sub.Shift,
-		)
+	var lastEntryId uint64
+	err = row.Scan(&lastEntryId)
+	if err != nil {
+		LogError("Failed to get inserted entry id from the database: %v", err)
+		return err
+	}
 
-		if err != nil {
-			LogError("SQL query failed: %v", err)
-			return false
+	entry.Id = lastEntryId
+
+	for i := range entry.Subtitles {
+		if err := DatabaseSubtitleAdd(db, entry.Id, &entry.Subtitles[i]); err != nil {
+			return err
 		}
 	}
 
-	return true
+	return nil
 }
 
 func databaseEntryDelete(db *sql.DB, entryId uint64) bool {
@@ -519,22 +520,6 @@ func databaseEntryDelete(db *sql.DB, entryId uint64) bool {
 	}
 
 	return true
-}
-
-func DatabaseMaxEntryId(db *sql.DB) uint64 {
-	if db == nil {
-		return 0
-	}
-
-	return databaseFindMaxId(db, "entries")
-}
-
-func DatabaseMaxSubtitleId(db *sql.DB) uint64 {
-	if db == nil {
-		return 0
-	}
-
-	return databaseFindMaxId(db, "subtitles")
 }
 
 func DatabaseGetAutoplay(db *sql.DB) bool {
@@ -653,50 +638,33 @@ func DatabaseCurrentEntryGet(db *sql.DB) (Entry, bool) {
 	return entry, true
 }
 
-func DatabaseCurrentEntrySet(db *sql.DB, entry Entry) bool {
+func DatabaseCurrentEntrySet(db *sql.DB, entry *Entry) error {
 	if db == nil {
-		return true
+		entry.Id = idSeeder.Add(1)
+		for i := range entry.Subtitles {
+			entry.Subtitles[i].Id = idSeeder.Add(1)
+		}
+
+		return nil
 	}
 
 	_, err := db.Exec("DELETE FROM entries WHERE id = (SELECT entry_id FROM current_entry LIMIT 1)")
 	if err != nil {
 		LogError("SQL query failed: %v", err)
-		return false
+		return err
 	}
 
-	if entry.Id == 0 {
-		return true
-	}
-
-	_, err = db.Exec(
-		"INSERT INTO entries VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
-		entry.Id, entry.Url, entry.Title, entry.UserId, entry.UseProxy, entry.RefererUrl, entry.SourceUrl, entry.Thumbnail, entry.CreatedAt, entry.LastSetAt,
-	)
-
-	if err != nil {
-		LogError("SQL query failed: %v", err)
-		return false
-	}
-
-	for _, sub := range entry.Subtitles {
-		_, err := db.Exec(
-			"INSERT INTO subtitles VALUES ($1, $2, $3, $4, $5)",
-			sub.Id, entry.Id, sub.Name, sub.Url, sub.Shift,
-		)
-
-		if err != nil {
-			LogError("SQL query failed: %v", err)
-			return false
-		}
+	if err := databaseEntryAdd(db, entry); err != nil {
+		return err
 	}
 
 	_, err = db.Exec("INSERT INTO current_entry (entry_id) VALUES ($1)", entry.Id)
 	if err != nil {
 		LogError("SQL query failed: %v", err)
-		return false
+		return err
 	}
 
-	return true
+	return nil
 }
 
 func DatabaseCurrentEntryUpdateTitle(db *sql.DB, title string) bool {
@@ -741,22 +709,35 @@ func DatabaseSubtitleUpdate(db *sql.DB, id uint64, name string) bool {
 	return true
 }
 
-func DatabaseSubtitleAttach(db *sql.DB, entryId uint64, sub Subtitle) bool {
+func DatabaseSubtitleAdd(db *sql.DB, entryId uint64, sub *Subtitle) error {
 	if db == nil {
-		return true
+		sub.Id = idSeeder.Add(1)
+		return nil
 	}
 
-	_, err := db.Exec(
-		"INSERT INTO subtitles VALUES ($1, $2, $3, $4, $5)",
-		sub.Id, entryId, sub.Name, sub.Url, sub.Shift,
-	)
+	query := `
+		INSERT INTO subtitles (
+			entry_id, name, url, shift
+		) VALUES ($1, $2, $3, $4) 
+		RETURNING id
+	`
 
+	row := db.QueryRow(query, entryId, sub.Name, sub.Url, sub.Shift)
+	err := row.Err()
 	if err != nil {
-		LogError("SQL query failed: %v", err)
-		return false
+		LogError("Failed to add subtitle to the database: %v", err)
+		return err
 	}
 
-	return true
+	var lastSubId uint64
+	err = row.Scan(&lastSubId)
+	if err != nil {
+		LogError("Failed to get inserted subtitle id from the database: %v", err)
+		return err
+	}
+
+	sub.Id = lastSubId
+	return nil
 }
 
 func DatabaseSubtitleShift(db *sql.DB, id uint64, shift float64) bool {
@@ -840,34 +821,37 @@ func DatabasePlaylistGet(db *sql.DB) ([]Entry, bool) {
 	return entries, true
 }
 
-func DatabasePlaylistAdd(db *sql.DB, entry Entry) bool {
+func DatabasePlaylistAdd(db *sql.DB, entry *Entry) error {
 	if db == nil {
-		return true
+		entry.Id = idSeeder.Add(1)
+		for i := range entry.Subtitles {
+			entry.Subtitles[i].Id = idSeeder.Add(1)
+		}
+
+		return nil
 	}
 
-	databaseEntryAdd(db, entry)
+	if err := databaseEntryAdd(db, entry); err != nil {
+		return err
+	}
 
 	_, err := db.Exec("INSERT INTO playlist (entry_id) VALUES ($1)", entry.Id)
 	if err != nil {
 		LogError("SQL query failed: %v", err)
-		return false
+		return err
 	}
 
-	return true
+	return nil
 }
 
-func DatabasePlaylistAddMany(db *sql.DB, entries []Entry) bool {
-	if db == nil {
-		return true
-	}
-
-	for _, entry := range entries {
-		if !DatabasePlaylistAdd(db, entry) {
-			return false
+func DatabasePlaylistAddMany(db *sql.DB, entries []Entry) error {
+	for i := range entries {
+		if err := DatabasePlaylistAdd(db, &entries[i]); err != nil {
+			return err
 		}
 	}
 
-	return true
+	return nil
 }
 
 func DatabasePlaylistDelete(db *sql.DB, entryId uint64) bool {
@@ -973,20 +957,27 @@ func DatabaseHistoryGet(db *sql.DB) ([]Entry, bool) {
 	return entries, true
 }
 
-func DatabaseHistoryAdd(db *sql.DB, entry Entry) bool {
+func DatabaseHistoryAdd(db *sql.DB, entry *Entry) error {
 	if db == nil {
-		return true
+		entry.Id = idSeeder.Add(1)
+		for i := range entry.Subtitles {
+			entry.Subtitles[i].Id = idSeeder.Add(1)
+		}
+
+		return nil
 	}
 
-	databaseEntryAdd(db, entry)
+	if err := databaseEntryAdd(db, entry); err != nil {
+		return err
+	}
 
 	_, err := db.Exec("INSERT INTO history (entry_id) VALUES ($1)", entry.Id)
 	if err != nil {
 		LogError("SQL query failed: %v", err)
-		return false
+		return err
 	}
 
-	return true
+	return nil
 }
 
 func DatabaseHistoryDelete(db *sql.DB, entryId uint64) bool {
@@ -1009,14 +1000,6 @@ func DatabaseHistoryClear(db *sql.DB) bool {
 	}
 
 	return true
-}
-
-func DatabaseMaxMessageId(db *sql.DB) uint64 {
-	if db == nil {
-		return 0
-	}
-
-	return databaseFindMaxId(db, "messages")
 }
 
 func DatabaseMessageGet(db *sql.DB, count int, skip int) ([]ChatMessage, bool) {
@@ -1058,18 +1041,36 @@ func DatabaseMessageGet(db *sql.DB, count int, skip int) ([]ChatMessage, bool) {
 	return messages, true
 }
 
-func DatabaseMessageAdd(db *sql.DB, message ChatMessage) bool {
+func DatabaseMessageAdd(db *sql.DB, message *ChatMessage) error {
 	if db == nil {
-		return true
+		message.Id = idSeeder.Add(1)
+		return nil
 	}
 
-	_, err := db.Exec("INSERT INTO messages (id, content, created_at, edited_at, user_id) VALUES ($1, $2, $3, $4, $5)", message.Id, message.Content, message.CreatedAt, message.EditedAt, message.UserId)
+	var lastInsertId uint64
+	query := `
+		INSERT INTO messages (
+			content, created_at, edited_at, user_id
+		) VALUES ($1, $2, $3, $4) 
+		RETURNING id
+	`
+
+	row := db.QueryRow(query, message.Content, message.CreatedAt, message.EditedAt, message.UserId)
+
+	err := row.Err()
 	if err != nil {
-		LogError("SQL query failed: %v", err)
-		return false
+		LogError("Failed to save messages for user id:%v because of: %v", message.UserId, err)
+		return err
 	}
 
-	return true
+	err = row.Scan(&lastInsertId)
+	if err != nil {
+		LogError("Failed to get inserted message id for user id:%v from the database: %v", message.UserId, err)
+		return err
+	}
+
+	message.Id = lastInsertId
+	return nil
 }
 
 func DatabaseMessageEdit(db *sql.DB, message ChatMessage) bool {

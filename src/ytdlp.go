@@ -8,9 +8,7 @@ import (
 	"math"
 	"net/http"
 	neturl "net/url"
-	"os"
 	"os/exec"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -424,7 +422,6 @@ func (server *Server) loadYoutubePlaylist(requested RequestEntry, userId uint64)
 			CreatedAt: time.Now(),
 		}
 
-		entry = server.constructEntry(entry)
 		entries = append(entries, entry)
 	}
 
@@ -620,21 +617,12 @@ func (state *ServerState) fetchLyrics(title string, meta Metadata) (Subtitle, er
 		return subtitle, err
 	}
 
-	subId := state.subsId.Add(1)
-	os.MkdirAll(CONTENT_SUBS, os.ModePerm)
-	outputName := fmt.Sprintf("subtitle%v%v", subId, ".vtt")
-	subPath := path.Join(CONTENT_SUBS, outputName)
+	subtitle = createSubtitle(title, ".vtt")
 
-	err = serializeToVTT(cues, subPath)
+	err = serializeToVTT(cues, subtitle.Url)
 	if err != nil {
 		LogWarn("Failed to convert lyrics: %v.", err)
 		return subtitle, err
-	}
-
-	subtitle = Subtitle{
-		Id:   subId,
-		Name: title,
-		Url:  subPath,
 	}
 
 	return subtitle, nil

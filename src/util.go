@@ -1063,8 +1063,6 @@ func (ring *RingBuffer) Clear() {
 	ring.length = 0
 }
 
-var zeroTime = time.Unix(0, 0)
-
 const TIME_LAYOUT = "Mon, 02 Jan 2006 15:04:05 GMT"
 const VERSION_LAYOUT = "02-Jan-2006-15:04:05"
 
@@ -1311,7 +1309,7 @@ func parseSongTitle(title string) (string, string) {
 	trackChars := []rune(trackName)
 	openRoundBrackets := 0
 	openSquareBrackets := 0
-	for i := 0; i < len(trackChars); i++ {
+	for i := range trackChars {
 		switch trackChars[i] {
 		case '(':
 			openRoundBrackets++
@@ -1336,4 +1334,22 @@ func parseSongTitle(title string) (string, string) {
 	}
 
 	return strings.TrimSpace(artist), strings.TrimSpace(cleanName.String())
+}
+
+func createSubtitle(filename string, extension string) Subtitle {
+	os.MkdirAll(CONTENT_SUBS, os.ModePerm)
+
+	randomString := generateSubName()
+	outputName := fmt.Sprintf("%v%v", randomString, extension)
+	outputPath := path.Join(CONTENT_SUBS, outputName)
+
+	name := strings.TrimSuffix(filename, extension)
+	name = cleanupResourceName(name)
+
+	subtitle := Subtitle{
+		Name:  name,
+		Url:   outputPath,
+	}
+
+	return subtitle
 }

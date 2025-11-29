@@ -55,6 +55,11 @@ const CONTENT_STREAM = CONTENT_ROOT + "stream/"
 const CONTENT_SUBS = CONTENT_ROOT + "subs/"
 const CONTENT_USERS = CONTENT_ROOT + "users/"
 
+const MEDIA_VIDEO = CONTENT_MEDIA + "video/";
+const MEDIA_AUDIO = CONTENT_MEDIA + "audio/";
+const MEDIA_SUBS  = CONTENT_MEDIA + "subs/";
+const MEDIA_IMAGE = CONTENT_MEDIA + "image/";
+
 const ORIGINAL_M3U8 = "original.m3u8"
 const PROXY_M3U8 = "proxy.m3u8"
 const VIDEO_M3U8 = "video.m3u8"
@@ -247,11 +252,8 @@ type ServerState struct {
 	// Currently set entry.
 	entry Entry
 
-	// Entry ID seed counter, incremented for every new entry.
-	entryId atomic.Uint64
-
 	// Indicates whether the server is waiting for the entry to load. Loading includes both YouTube fetch and proxy setup.
-	isLoading atomic.Bool
+	isLoadingEntry atomic.Bool
 
 	// Indicates whether the server is currently fetching or searching lyrics for current entry.
 	isLoadingLyrics atomic.Bool
@@ -262,12 +264,6 @@ type ServerState struct {
 	playlist []Entry
 	history  []Entry
 	messages []ChatMessage
-
-	// Message ID seed counter, incremented for every new chat message.
-	messageId uint64
-
-	// Subtitle ID seed counter, incremented for every new subtitle.
-	subsId atomic.Uint64
 
 	// Tiny array of recent actions which are displayed in "Recent Actions" section in the room tab.
 	// Should be kept relatively small (somewhere between 3 and 10 elements).

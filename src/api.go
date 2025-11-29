@@ -430,14 +430,17 @@ func (server *Server) apiSubtitleAttach(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	// TODO(kihau): Validate subtitle URL
-	subtitle.Id = server.state.subsId.Add(1)
+	// TODO(kihau): Validate subtitle URL (but preferably change the entires subtitle upload/download/attach system)
 
 	server.state.mutex.Lock()
+	defer server.state.mutex.Unlock()
+
+	if err := DatabaseSubtitleAdd(server.db, server.state.entry.Id, &subtitle); err != nil {
+		respondInternalError(w, "Failed to attach a subtitle, looks like that database is broken: %v", err)
+		return
+	}
 	server.state.entry.Subtitles = append(server.state.entry.Subtitles, subtitle)
-	DatabaseSubtitleAttach(server.db, server.state.entry.Id, subtitle)
 	server.addRecentAction("subtitleattach", userId, subtitle)
-	server.state.mutex.Unlock()
 
 	server.writeEventToAllConnections("subtitleattach", subtitle, userId)
 }
@@ -477,38 +480,20 @@ func (server *Server) apiSubtitleUpload(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	filename := headers.Filename
-	extension := path.Ext(filename)
-	subId := server.state.subsId.Add(1)
-
-	outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
-	outputPath := path.Join(CONTENT_SUBS, outputName)
-	os.MkdirAll(CONTENT_SUBS, os.ModePerm)
-
-	outputFile, err := os.Create(outputPath)
+	subtitle := createSubtitle(headers.Filename, path.Ext(headers.Filename))
+	outputFile, err := os.Create(subtitle.Url)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer outputFile.Close()
 
-	LogInfo("Saving uploaded subtitle file to: %v.", outputPath)
+	LogInfo("Saving uploaded subtitle file to: %v.", subtitle.Url)
 
 	_, err = io.Copy(outputFile, inputFile)
 	if err != nil {
 		respondInternalError(w, "Failed to save the subtitle file file: %v", err)
 		return
-	}
-
-	networkUrl := path.Join(CONTENT_SUBS, outputName)
-	name := strings.TrimSuffix(filename, extension)
-	name = cleanupResourceName(name)
-
-	subtitle := Subtitle{
-		Id:    subId,
-		Name:  name,
-		Url:   networkUrl,
-		Shift: 0.0,
 	}
 
 	jsonData, _ := json.Marshal(subtitle)
@@ -527,7 +512,6 @@ func (server *Server) apiSubtitleDownload(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	subId := server.state.subsId.Add(1)
 	// Cut at fragment identifier if present
 	hash := strings.Index(data.Url, "#")
 	if hash >= 0 {
@@ -544,9 +528,12 @@ func (server *Server) apiSubtitleDownload(w http.ResponseWriter, r *http.Request
 			bodyLimit: SUBTITLE_SIZE_LIMIT,
 		}
 		os.MkdirAll(CONTENT_SUBS, os.ModePerm)
-		outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
+
+		randomString := generateToken()
+		outputName := fmt.Sprintf("%v%v", randomString, extension)
 		serverUrl = path.Join(CONTENT_SUBS, outputName)
 		outputPath := path.Join(CONTENT_SUBS, outputName)
+
 		err = downloadFile(data.Url, outputPath, &downloadOptions)
 		if err != nil {
 			var downloadErr *DownloadError
@@ -565,7 +552,6 @@ func (server *Server) apiSubtitleDownload(w http.ResponseWriter, r *http.Request
 	name = cleanupResourceName(name)
 
 	subtitle := Subtitle{
-		Id:    subId,
 		Name:  name,
 		Url:   serverUrl,
 		Shift: 0.0,
@@ -586,14 +572,13 @@ func (server *Server) apiSubtitleSearch(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	os.MkdirAll(CONTENT_SUBS, os.ModePerm)
-	downloadPath, err := downloadSubtitle(&search, CONTENT_SUBS)
+	os.MkdirAll(MEDIA_SUBS, os.ModePerm)
+	downloadPath, err := downloadSubtitle(&search, MEDIA_SUBS)
 	if err != nil {
 		respondBadRequest(w, "Subtitle download failed: %v", err)
 		return
 	}
 
-	os.MkdirAll(CONTENT_SUBS, os.ModePerm)
 	inputSub, err := os.Open(downloadPath)
 	if err != nil {
 		respondInternalError(w, "Failed to open downloaded subtitle %v: %v", downloadPath, err)
@@ -602,14 +587,12 @@ func (server *Server) apiSubtitleSearch(w http.ResponseWriter, r *http.Request, 
 	defer inputSub.Close()
 
 	extension := path.Ext(downloadPath)
-	subId := server.state.subsId.Add(1)
+	baseName := filepath.Base(downloadPath)
+	subtitle := createSubtitle(baseName, extension)
 
-	outputName := fmt.Sprintf("subtitle%v%v", subId, extension)
-	outputPath := path.Join(CONTENT_SUBS, outputName)
-
-	outputSub, err := os.Create(outputPath)
+	outputSub, err := os.Create(subtitle.Url)
 	if err != nil {
-		respondInternalError(w, "Failed to created output subtitle in %v: %v", outputPath, err)
+		respondInternalError(w, "Failed to created output subtitle in %v: %v", subtitle.Url, err)
 		return
 	}
 
@@ -621,22 +604,14 @@ func (server *Server) apiSubtitleSearch(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	outputUrl := path.Join(CONTENT_SUBS, outputName)
-	baseName := filepath.Base(downloadPath)
-	subtitleName := strings.TrimSuffix(baseName, extension)
-	subtitleName = cleanupResourceName(subtitleName)
-
-	subtitle := Subtitle{
-		Id:    subId,
-		Name:  subtitleName,
-		Url:   outputUrl,
-		Shift: 0.0,
-	}
-
 	server.state.mutex.Lock()
-	server.state.entry.Subtitles = append(server.state.entry.Subtitles, subtitle)
-	server.state.mutex.Unlock()
+	defer server.state.mutex.Unlock()
 
+	if err := DatabaseSubtitleAdd(server.db, server.state.entry.Id, &subtitle); err != nil {
+		respondInternalError(w, "Subtite search failed, looks like that database is broken: %v", err)
+		return
+	}
+	server.state.entry.Subtitles = append(server.state.entry.Subtitles, subtitle)
 	server.writeEventToAllConnections("subtitleattach", subtitle, userId)
 }
 

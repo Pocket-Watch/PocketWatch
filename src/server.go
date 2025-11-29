@@ -36,12 +36,25 @@ func generateToken() string {
 	_, err := cryptorand.Read(tokenBytes)
 
 	if err != nil {
-		LogError("Token generation failed, this should not happen!")
+		LogError("Token generation failed, this should not happen! %v", err)
 		return ""
 	}
 
 	return base64.URLEncoding.EncodeToString(tokenBytes)
 }
+
+func generateSubName() string {
+	bytes := make([]byte, 16)
+	_, err := cryptorand.Read(bytes)
+
+	if err != nil {
+		LogError("Faile to generate subtitle name, this should not happen! %v", err)
+		return "subtitle"
+	}
+
+	return base64.URLEncoding.EncodeToString(bytes)
+}
+
 
 func (server *Server) createUser() (User, error) {
 	now := time.Now()
@@ -56,12 +69,14 @@ func (server *Server) createUser() (User, error) {
 	}
 
 	server.users.mutex.Lock()
-	id, err := DatabaseAddUser(server.db, user)
-	user.Id = id
-	server.users.slice = append(server.users.slice, user)
-	server.users.mutex.Unlock()
+	defer server.users.mutex.Unlock()
 
-	return user, err
+	if err := DatabaseAddUser(server.db, &user); err != nil {
+		return user, err
+	}
+
+	server.users.slice = append(server.users.slice, user)
+	return user, nil
 }
 
 func (users *Users) removeByToken(token string) *User {
@@ -173,10 +188,6 @@ func StartServer(config ServerConfig, db *sql.DB) {
 		return
 	}
 
-	maxEntryId := DatabaseMaxEntryId(db)
-	maxSubId := DatabaseMaxSubtitleId(db)
-	maxMsgId := DatabaseMaxMessageId(db)
-
 	history, _ := DatabaseHistoryGet(db)
 	playlist, _ := DatabasePlaylistGet(db)
 	messages, _ := DatabaseMessageGet(db, 10000, 0)
@@ -203,10 +214,6 @@ func StartServer(config ServerConfig, db *sql.DB) {
 		conns: makeConnections(),
 		db:    db,
 	}
-
-	server.state.subsId.Store(maxSubId)
-	server.state.entryId.Store(maxEntryId)
-	server.state.messageId = maxMsgId
 
 	server.state.lastUpdate = time.Now()
 	handler := registerEndpoints(&server)
@@ -680,11 +687,8 @@ func (server *Server) periodicInactiveUserCleanup() {
 }
 
 func (server *Server) setNewEntry(newEntry Entry, requested RequestEntry) {
-	server.state.isLoading.Store(true)
-	defer server.state.isLoading.Store(false)
-
-	newEntry = server.constructEntry(newEntry)
-	loadingYt := false
+	server.state.isLoadingEntry.Store(true)
+	defer server.state.isLoadingEntry.Store(false)
 
 	if isYoutubeEntry(newEntry, requested) {
 		server.writeEventToAllConnections("playerwaiting", "Youtube video is loading. Please stand by!", SERVER_ID)
@@ -694,7 +698,6 @@ func (server *Server) setNewEntry(newEntry Entry, requested RequestEntry) {
 			server.writeEventToAllConnections("playererror", err.Error(), SERVER_ID)
 			return
 		}
-		loadingYt = true
 
 		if requested.IsPlaylist {
 			requested.Url = newEntry.Url
@@ -733,17 +736,18 @@ func (server *Server) setNewEntry(newEntry Entry, requested RequestEntry) {
 	}
 	server.historyAdd(server.state.entry)
 
+	now := time.Now()
+
+	newEntry.LastSetAt = now
+	DatabaseCurrentEntrySet(server.db, &newEntry)
 	server.state.entry = newEntry
 
-	if requested.FetchLyrics && loadingYt {
-		// Because it's fetched for the "current entry" the process cannot be started before it's actually set
+	if requested.FetchLyrics {
 		go server.fetchLyricsForCurrentEntry(newEntry.UserId)
 	}
 
-	DatabaseCurrentEntrySet(server.db, newEntry)
-
 	server.state.player.Timestamp = 0
-	server.state.lastUpdate = time.Now()
+	server.state.lastUpdate = now
 	server.state.player.Playing = server.state.player.Autoplay
 
 	LogInfo("New entry URL is now: '%s'.", newEntry.Url)
@@ -2243,7 +2247,6 @@ func (server *Server) getEntriesFromDirectory(dir string, userId uint64) []Entry
 			LogDebug("File URL: %v", url.String())
 
 			entry := Entry{
-				Id:        server.state.entryId.Add(1),
 				Url:       url.String(),
 				UserId:    userId,
 				UseProxy:  false,
@@ -2281,31 +2284,6 @@ func (server *Server) cleanupDummyUsers() []User {
 	return removed
 }
 
-func (server *Server) constructEntry(entry Entry) Entry {
-	entry.Url = strings.TrimSpace(entry.Url)
-
-	now := time.Now()
-	if entry.Url == "" {
-		entry := Entry{
-			UserId:    entry.UserId,
-			CreatedAt: now,
-			LastSetAt: now,
-		}
-
-		return entry
-	}
-
-	entry.Id = server.state.entryId.Add(1)
-	entry.Title = constructTitleWhenMissing(&entry)
-	entry.LastSetAt = now
-
-	for i := range entry.Subtitles {
-		entry.Subtitles[i].Id = server.state.subsId.Add(1)
-	}
-
-	return entry
-}
-
 func (server *Server) playerGet() PlayerGetResponse {
 	server.state.mutex.Lock()
 	player := server.state.player
@@ -2339,6 +2317,7 @@ func (server *Server) playerSet(requested RequestEntry, userId uint64) error {
 		CreatedAt:  time.Now(),
 	}
 
+	entry.Title = constructTitleWhenMissing(&entry)
 	go server.setNewEntry(entry, requested)
 
 	return nil
@@ -2363,7 +2342,8 @@ func (server *Server) playerSeekLockless(timestamp float64, userId uint64) error
 }
 
 func (server *Server) playerNext(entryId uint64, userId uint64) error {
-	if server.state.isLoading.Load() {
+	// TODO(kihau): Not fully thread safe. Fix it.
+	if server.state.isLoadingEntry.Load() {
 		return nil
 	}
 
@@ -2440,10 +2420,8 @@ func (server *Server) historyPlaylistAdd(entryId uint64) error {
 		return fmt.Errorf("Failed to clone history element. Entry with ID %v is not in the history.", entryId)
 	}
 
-	oldEntry := server.state.history[index]
-	newEntry := server.constructEntry(oldEntry)
-
-	server.playlistAddOne(newEntry, false)
+	entry := server.state.history[index]
+	server.playlistAddOne(entry, false)
 	return nil
 }
 
@@ -2457,6 +2435,8 @@ func (server *Server) playlistAdd(requested RequestEntry, userId uint64) error {
 		Subtitles:  requested.Subtitles,
 		CreatedAt:  time.Now(),
 	}
+
+	entry.Title = constructTitleWhenMissing(&entry)
 
 	localDirectory, path := server.isLocalDirectory(requested.Url)
 	if localDirectory {
@@ -2515,26 +2495,28 @@ func (server *Server) playlistAdd(requested RequestEntry, userId uint64) error {
 	return nil
 }
 
-func (server *Server) playlistAddOne(entry Entry, toTop bool) {
-	newEntry := server.constructEntry(entry)
-	if newEntry.Id == 0 {
-		return
+func (server *Server) playlistAddOne(entry Entry, toTop bool) error {
+	if strings.TrimSpace(entry.Title) == "" {
+		return nil
+	}
+
+	if err := DatabasePlaylistAdd(server.db, &entry); err != nil {
+		return err
 	}
 
 	var event PlaylistEvent
-
 	if toTop {
 		playlist := make([]Entry, 0)
-		playlist = append(playlist, newEntry)
+		playlist = append(playlist, entry)
 		server.state.playlist = append(playlist, server.state.playlist...)
-		event = createPlaylistEvent("addtop", newEntry)
+		event = createPlaylistEvent("addtop", entry)
 	} else {
-		server.state.playlist = append(server.state.playlist, newEntry)
-		event = createPlaylistEvent("add", newEntry)
+		server.state.playlist = append(server.state.playlist, entry)
+		event = createPlaylistEvent("add", entry)
 	}
 
-	DatabasePlaylistAdd(server.db, newEntry)
-	server.writeEventToAllConnections("playlist", event, newEntry.UserId)
+	server.writeEventToAllConnections("playlist", event, entry.UserId)
+	return nil
 }
 
 func (server *Server) playlistAddMany(entries []Entry, toTop bool) {
@@ -2544,6 +2526,8 @@ func (server *Server) playlistAddMany(entries []Entry, toTop bool) {
 
 	var event PlaylistEvent
 
+	DatabasePlaylistAddMany(server.db, entries)
+
 	if toTop {
 		server.state.playlist = append(entries, server.state.playlist...)
 		event = createPlaylistEvent("addmanytop", entries)
@@ -2552,7 +2536,6 @@ func (server *Server) playlistAddMany(entries []Entry, toTop bool) {
 		event = createPlaylistEvent("addmany", entries)
 	}
 
-	DatabasePlaylistAddMany(server.db, entries)
 	server.writeEventToAllConnections("playlist", event, 0)
 }
 
@@ -2704,14 +2687,13 @@ func compareEntries(entry1 Entry, entry2 Entry) bool {
 	return true
 }
 
-func (server *Server) historyAdd(entry Entry) {
-	newEntry := server.constructEntry(entry)
-	if newEntry.Id == 0 {
-		return
+func (server *Server) historyAdd(entry Entry) error {
+	if strings.TrimSpace(entry.Title) == "" {
+		return nil
 	}
 
-	compareFunc := func(entry Entry) bool {
-		return compareEntries(newEntry, entry)
+	compareFunc := func(existing Entry) bool {
+		return compareEntries(entry, existing)
 	}
 
 	index := slices.IndexFunc(server.state.history, compareFunc)
@@ -2723,13 +2705,16 @@ func (server *Server) historyAdd(entry Entry) {
 		server.writeEventToAllConnections("historydelete", removed.Id, 0)
 
 		// Preserve subtitles if new entry has none
-		if len(newEntry.Subtitles) == 0 && len(removed.Subtitles) > 0 {
-			newEntry.Subtitles = removed.Subtitles
+		if len(entry.Subtitles) == 0 && len(removed.Subtitles) > 0 {
+			entry.Subtitles = removed.Subtitles
 		}
 	}
 
-	server.state.history = append(server.state.history, newEntry)
-	DatabaseHistoryAdd(server.db, newEntry)
+	if err := DatabaseHistoryAdd(server.db, &entry); err != nil {
+		return err
+	}
+
+	server.state.history = append(server.state.history, entry)
 
 	if len(server.state.history) > MAX_HISTORY_SIZE {
 		removed := server.state.history[0]
@@ -2737,7 +2722,8 @@ func (server *Server) historyAdd(entry Entry) {
 		DatabaseHistoryDelete(server.db, removed.Id)
 	}
 
-	server.writeEventToAllConnections("historyadd", newEntry, 0)
+	server.writeEventToAllConnections("historyadd", entry, 0)
+	return nil
 }
 
 func (server *Server) historyDelete(index int) Entry {
@@ -2784,19 +2770,20 @@ func (server *Server) chatCreate(messageContent string, userId uint64) error {
 	createdAt := time.Now().UnixMilli()
 
 	server.state.mutex.Lock()
-	server.state.messageId++
+	defer server.state.mutex.Unlock()
+
 	message := ChatMessage{
-		Id:        server.state.messageId,
 		Content:   messageContent,
 		CreatedAt: createdAt,
 		EditedAt:  createdAt,
 		UserId:    userId,
 	}
+
+	if err := DatabaseMessageAdd(server.db, &message); err != nil {
+		return err
+	}
+
 	server.state.messages = append(server.state.messages, message)
-	server.state.mutex.Unlock()
-
-	DatabaseMessageAdd(server.db, message)
-
 	server.writeEventToAllConnections("messagecreate", message, userId)
 	return nil
 }
@@ -2860,11 +2847,10 @@ func (server *Server) chatDelete(messageId uint64, userId uint64) error {
 }
 
 func (server *Server) fetchLyricsForCurrentEntry(userId uint64) error {
-	if server.state.isLoadingLyrics.Load() {
+	if !server.state.isLoadingLyrics.CompareAndSwap(false, true) {
 		return nil
 	}
 
-	server.state.isLoadingLyrics.Store(true)
 	defer server.state.isLoadingLyrics.Store(false)
 
 	server.state.mutex.Lock()
@@ -2881,6 +2867,7 @@ func (server *Server) fetchLyricsForCurrentEntry(userId uint64) error {
 	defer server.state.mutex.Unlock()
 
 	if server.state.entry.Id == entry.Id {
+		DatabaseSubtitleAdd(server.db, server.state.entry.Id, &subtitle)
 		server.state.entry.Subtitles = append(server.state.entry.Subtitles, subtitle)
 		server.writeEventToAllConnections("subtitleattach", subtitle, userId)
 	} else {
