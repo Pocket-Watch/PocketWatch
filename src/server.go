@@ -2847,11 +2847,9 @@ func (server *Server) chatDelete(messageId uint64, userId uint64) error {
 }
 
 func (server *Server) fetchLyricsForCurrentEntry(userId uint64) error {
-	if !server.state.isLoadingLyrics.CompareAndSwap(false, true) {
+	if !server.state.isLyricsFetched.CompareAndSwap(false, true) {
 		return nil
 	}
-
-	defer server.state.isLoadingLyrics.Store(false)
 
 	server.state.mutex.Lock()
 	entry := server.state.entry
@@ -2859,6 +2857,7 @@ func (server *Server) fetchLyricsForCurrentEntry(userId uint64) error {
 
 	subtitle, err := server.state.fetchLyrics(entry.Title, entry.Metadata)
 	if err != nil {
+		server.state.isLyricsFetched.Store(false)
 		server.writeEventToAllConnections("playererror", err.Error(), SERVER_ID)
 		return err
 	}
@@ -2871,6 +2870,7 @@ func (server *Server) fetchLyricsForCurrentEntry(userId uint64) error {
 		server.state.entry.Subtitles = append(server.state.entry.Subtitles, subtitle)
 		server.writeEventToAllConnections("subtitleattach", subtitle, userId)
 	} else {
+		server.state.isLyricsFetched.Store(false)
 		LogDebug("Found entry with id %v", entry.Id)
 	}
 
