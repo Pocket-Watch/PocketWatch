@@ -255,7 +255,7 @@ type ServerState struct {
 	// Indicates whether the server is waiting for the entry to load. Loading includes both YouTube fetch and proxy setup.
 	isLoadingEntry atomic.Bool
 
-	// Indicates whether the server is currently fetching or has fetchedChunk lyrics for current entry.
+	// Indicates whether the server is currently fetching or has fetched lyrics for current entry.
 	isLyricsFetched atomic.Bool
 
 	// Last update time of player timestamp.

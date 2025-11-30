@@ -749,6 +749,7 @@ func (server *Server) setNewEntry(newEntry Entry, requested RequestEntry) {
 	server.state.player.Timestamp = 0
 	server.state.lastUpdate = now
 	server.state.player.Playing = server.state.player.Autoplay
+	server.state.isLyricsFetched.Store(false)
 
 	LogInfo("New entry URL is now: '%s'.", newEntry.Url)
 	server.writeEventToAllConnections("playerset", newEntry, SERVER_ID)
