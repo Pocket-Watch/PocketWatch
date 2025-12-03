@@ -214,11 +214,12 @@ export function fileInput(formats) {
     return element;
 }
 
-export function showNotification(title, body, timeoutMs) {
+export function showNotification(title, body, icon, timeoutMs) {
     let notification;
     try {
         notification = new Notification(title, {
             body: body,
+            icon: icon,
         });
     } catch (e) {
         console.error(e);

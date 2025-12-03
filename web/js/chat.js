@@ -481,7 +481,7 @@ class Chat {
         let date = new Date(chatMsg.created_at);
 
         if (this.notifications && isNew && this.currentUserId !== chatMsg.user_id) {
-            showNotification(user.username, chatMsg.content, 5000);
+            showNotification(user.username, chatMsg.content, user.avatar, 5000);
         }
 
         let message;

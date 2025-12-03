@@ -2094,7 +2094,7 @@ class Room {
         this.markAllUsersOffline();
         this.player.setToast(CONNECTION_LOST_MESSAGE);
         if (this.settingsMenu.notificationsToggle.classList.contains("active")) {
-            showNotification(CONNECTION_LOST_MESSAGE, "", 2000);
+            showNotification(CONNECTION_LOST_MESSAGE, "", null, 2000);
         }
         show(this.connectionLostPopup);
         setTimeout(_ => this.connectToServer(), RECONNECT_AFTER);
