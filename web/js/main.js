@@ -1482,10 +1482,7 @@ class Room {
         console.info("INFO: Loaded history:", entries);
 
         this.history.clear();
-        for (let i = 0; i < entries.length; i++) {
-            const entry = entries[i];
-            this.history.add(entry, this.allUsers);
-        }
+        this.history.load(entries, this.allUsers);
     }
 
     updateRoomContent(entry) {

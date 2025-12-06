@@ -1,10 +1,12 @@
 import * as api from "./api.js";
-import { getById, div, a, span, img, svg, show, hide } from "./util.js";
+import { getById, div, a, span, img, svg, show, hide, isScrollableVisible } from "./util.js";
 
 export { History }
 
-const MAX_HISTORY_SIZE     = 120;
-const DROPDOWN_EXPAND_TIME = 100;
+const MAX_HISTORY_SIZE      = 120;
+const DROPDOWN_EXPAND_TIME  = 100;
+const BULK_ACTION_DELAY     = 32;
+const ENTRY_TRANSITION_TIME = 300;
 
 function createRequestEntry(entry) {
     const requestEntry = {
@@ -313,13 +315,36 @@ class History {
         }
     }
 
-    add(entry, users) {
-        this.entries.push(entry);
+    load(entries, users) {
+        if (!entries) {
+            console.warn("WARN: Entry list passed to History::load is null.");
+            return;
+        }
 
+        let length = Math.min(entries.length, MAX_HISTORY_SIZE);
+        for (let i = 0; i < entries.length; i++) {
+            const entry = entries[i];
+
+            const user      = this.findUser(users, entry.user_id);
+            const htmlEntry = this.createHtmlEntry(entry, user);
+
+            this.entries.push(entry);
+            this.htmlEntries.push(htmlEntry);
+            this.htmlEntryList.appendChild(htmlEntry);
+
+            setTimeout(_ => {
+                window.getComputedStyle(htmlEntry).marginLeft;
+                show(htmlEntry);
+            }, i * BULK_ACTION_DELAY);
+        }
+    }
+
+    add(entry, users) {
         const user      = this.findUser(users, entry.user_id);
         const htmlEntry = this.createHtmlEntry(entry, user);
+
+        this.entries.push(entry);
         this.htmlEntries.push(htmlEntry);
-        // this.htmlEntryList.appendChild(htmlEntry);
 
         let first = this.htmlEntryList.firstChild;
         this.htmlEntryList.insertBefore(htmlEntry, first);
@@ -349,16 +374,21 @@ class History {
 
         this.entries.splice(index, 1);
         this.htmlEntries.splice(index, 1);
-        this.htmlEntryList.removeChild(htmlEntry);
+
+        hide(htmlEntry)
+        setTimeout(_ => this.htmlEntryList.removeChild(htmlEntry), ENTRY_TRANSITION_TIME);
     }
 
     clear() {
-        this.entries     = [];
-        this.htmlEntries = [];
-
-        let list = this.htmlEntryList;
-        while (list.lastChild) {
-            list.removeChild(list.lastChild);
+        for (let i = 0; i < this.htmlEntries.length; i++) {
+            const htmlEntry = this.htmlEntries[i];
+            setTimeout(_ => {
+                hide(htmlEntry);
+                setTimeout(_ => this.htmlEntryList.removeChild(htmlEntry), ENTRY_TRANSITION_TIME);
+            }, i * BULK_ACTION_DELAY);
         }
+
+        this.htmlEntries   = [];
+        this.entries       = [];
     }
 }
