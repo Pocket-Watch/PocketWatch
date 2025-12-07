@@ -275,8 +275,8 @@ export async function uploadMediaWithProgress(file, onprogress) {
     return await httpPostFileWithProgress("uploadmedia", file, onprogress);
 }
 
-export async function userCreate() {
-    return await httpGet("user/create");
+export async function userCreate(invite) {
+    return await httpPost("user/create", invite);
 }
 
 export async function userGetAll() {

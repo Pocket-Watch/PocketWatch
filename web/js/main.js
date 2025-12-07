@@ -1226,7 +1226,8 @@ class Room {
         }
 
         // Temporary workaround for lack of persistent server-side account storage.
-        token = await api.userCreate();
+        let response = await api.userCreate("dummy"); // NOTE(kihau): Dummy invite code for compatibility, will be remove when welcome page is implemented.
+        token = response.json;
         if (token === null) {
             return false;
         }

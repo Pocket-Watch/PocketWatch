@@ -387,7 +387,7 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	server.handleEndpointAuthorized(mux, "/api/uploadmedia", server.apiUploadMedia, "POST")
 
 	// User related API calls.
-	server.handleEndpoint(mux, "/api/user/create", server.apiUserCreate, "GET")
+	server.handleEndpoint(mux, "/api/user/create", server.apiUserCreate, "POST")
 	server.handleEndpoint(mux, "/api/user/verify", server.apiUserVerify, "POST")
 	server.handleEndpoint(mux, "/api/user/delete", server.apiUserDelete, "POST")
 	server.handleEndpointAuthorized(mux, "/api/user/getall", server.apiUserGetAll, "GET")
