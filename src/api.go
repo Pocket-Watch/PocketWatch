@@ -91,6 +91,13 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request, use
 }
 
 func (server *Server) apiUserCreate(w http.ResponseWriter, r *http.Request) {
+	var inviteCode string
+	if !server.readJsonDataFromRequest(w, r, &inviteCode) {
+		return
+	}
+
+	// TODO(kihau): Invite code logic here.
+
 	user, err := server.createUser()
 	if err != nil {
 		respondInternalError(w, "Failed to create user. Database error occurred: %v", err)
@@ -121,7 +128,12 @@ func (server *Server) apiUserVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jsonData, err := json.Marshal(user.Id)
+	response := UserVerifyResponse{
+		UserId:   user.Id,
+		PagePath: "/watch/",
+	}
+
+	jsonData, err := json.Marshal(response)
 	if err != nil {
 		respondInternalError(w, "Serialization of the user id failed with: %v", err)
 		return

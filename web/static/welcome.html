@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>PocketWatch</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+            body {
+                padding: 18px;
+            }
+
+            * {
+                background-color: #282828;
+                color: white;
+                font-size: 18px;
+            }
+        </style>
+    </head>
+
+    <body>
+        <label for="user_token_input">Input your token:</label>
+        <input id="user_token_input"/>
+        <button id="send_user_token_button" type="button">Send</button>
+
+        <br>
+        <span>or</span>
+        <br>
+
+        <label for="invite_code_input">Join via invite link / code:</label>
+        <input id="invite_code_input"/>
+        <button id="send_invite_code_button" type="button">Join</button>
+    </body>
+
+    <script>
+        async function userVerify(token) {
+            const headers = new Headers();
+            headers.set("Content-Type", "application/json");
+
+            const options = {
+                method:  "POST",
+                body:    JSON.stringify(token),
+                headers: headers,
+            };
+
+            try {
+                let endpoint = document.location.origin + "/api/user/verify";
+                const response = await fetch(endpoint, options);
+                if (!response.ok) {
+                    return null;
+                }
+
+                return await response.json();
+            } catch {}
+
+            return null;
+        }
+
+        async function send(endpoint, data) {
+            const headers = new Headers();
+            headers.set("Content-Type", "application/json");
+
+            const options = {
+                method:  "POST",
+                body:    JSON.stringify(data),
+                headers: headers,
+            };
+
+            try {
+                let endpoint = document.location.origin + "/api/" + endpoint;
+                const response = await fetch(endpoint, options);
+                if (!response.ok) {
+                    return null;
+                }
+
+                return await response.json();
+            } catch {}
+
+            return null;
+        }
+
+        async function main() {
+            window.send_user_token_button.onclick = async _ => {
+                let token = window.user_token_input.value;
+
+                let data = await send("user/verify", token);
+                // TODO(kihau): Check for "user not found", otherwise retry.
+                if (data) {
+                    localStorage.setItem("token", token);
+                    window.location.href = window.location.origin + data.page_path;
+                } else {
+                    console.warn("User with provided token does not exist.");
+                }
+
+            };
+
+            window.send_invite_code_button.onclick = _ => {
+                let invite = window.invite_code_input.value;
+                // TODO(kihau): Parse invite code from path when input string is a url.
+            };
+
+            return;
+
+            let token = localStorage.getItem("token");
+            if (token) {
+                let data = await send("user/verify", token);
+                // TODO(kihau): Check for "user not found", otherwise retry.
+                if (data) {
+                    window.location.href = window.location.origin + data.page_path;
+                    return;
+                }
+            }
+
+            let currentPath = window.location.pathname;
+            console.log("Current path is =", currentPath);
+
+            // TODO(kihau): Get invite code when website url has invite in path and send a user create request.
+
+            // Only call this code when invite code is not empty
+
+            // let token = await send("user/create", invite);
+            // if (!token) {
+            //     console.warn("Print response error or 'invite expired'")
+            //     return;
+            // }
+        }
+
+        main()
+    </script>
+</html>

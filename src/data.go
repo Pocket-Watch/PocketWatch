@@ -502,3 +502,8 @@ type MediaUploadResponse struct {
 	Format   string `json:"format"`
 	Category string `json:"category"`
 }
+
+type UserVerifyResponse struct {
+	UserId   uint64 `json:"user_id"`
+	PagePath string `json:"page_path"`
+}

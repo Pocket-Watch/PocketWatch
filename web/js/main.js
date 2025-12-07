@@ -1215,8 +1215,8 @@ class Room {
 
         let result = await api.userVerify(token);
         if (result.ok) {
-            this.currentUserId      = result.json;
-            this.chat.currentUserId = result.json;
+            this.currentUserId      = result.json.user_id;
+            this.chat.currentUserId = result.json.user_id;
             return true;
         }
 
@@ -1239,8 +1239,8 @@ class Room {
             return false;
         }
 
-        this.currentUserId      = result.json;
-        this.chat.currentUserId = result.json;
+        this.currentUserId      = result.json.user_id;
+        this.chat.currentUserId = result.json.user_id;
         return true;
     }
 
