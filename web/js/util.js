@@ -226,6 +226,7 @@ export function showNotification(title, body, icon, timeoutMs) {
         return
     }
     notification.onclick = () => {
+        window.focus();
         notification.close();
     };
 
