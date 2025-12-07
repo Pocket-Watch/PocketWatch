@@ -2,7 +2,6 @@ import { Options, Player, Timeout } from "./custom_player.js";
 import { Playlist } from "./playlist.js";
 import { History } from "./history.js";
 import { Chat } from "./chat.js";
-import { sha256 } from "./auth.js";
 import * as api from "./api.js";
 import {
     Storage, button, div, formatTime, formatByteCount, getById, dynamicImg, img, svg, show, hide,
@@ -31,8 +30,6 @@ const TAB_PLAYLIST = 2;
 const TAB_CHAT     = 3;
 const TAB_HISTORY  = 4;
 
-const RECONNECT_AFTER = 1500;
-const MAX_CHAT_LOAD = 100;
 const MIN_CHROMIUM_VERSION = 88; // Opera, Edge, Chrome
 const MIN_FIREFOX_VERSION = 85;
 const MIN_SAFARI_VERSION = 14.1;
@@ -224,6 +221,9 @@ class Room {
             this.roomContent.upload.placeholderRoot.classList.remove("hide");
             this.roomContent.upload.progressRoot.classList.add("hide");
         }, 2000);
+
+        // Number of time client tried to reconnect after a disconnect.
+        this.reconnectCounter = 0;
     }
 
     showSettingsMenu(_settingsTab) {
@@ -1582,17 +1582,13 @@ class Room {
         }
     }
 
-    async login(login, password) {
-        let passwordHash = await sha256(password);
-        console.log(passwordHash);
-        // Send
-    }
-
     listenToServerEvents() {
         let wsPrefix = window.location.protocol.startsWith("https:") ? "wss://" : "ws://";
         let ws = new WebSocket(wsPrefix + window.location.host + "/api/events?token=" + api.getToken());
         ws.onopen = _ => {
             console.info("INFO: Connection to events opened.");
+
+            this.reconnectCounter = 0;
 
             hide(this.connectionLostPopup);
             api.setWebSocket(ws);
@@ -1602,7 +1598,7 @@ class Room {
         };
 
         ws.onclose = _ => {
-            console.error("ERROR: Connection to the server was lost. Attempting to reconnect in", RECONNECT_AFTER, "ms");
+            console.error("ERROR: Connection to the server was lost.");
             api.setWebSocket(null);
             this.handleDisconnect();
         };
@@ -2088,13 +2084,24 @@ class Room {
     }
 
     handleDisconnect() {
+        let counter = this.reconnectCounter;
+        this.reconnectCounter += 1;
+
         this.markAllUsersOffline();
         this.player.setToast(CONNECTION_LOST_MESSAGE);
         if (this.settingsMenu.notificationsToggle.classList.contains("active")) {
             showNotification(CONNECTION_LOST_MESSAGE, "", null, 2000);
         }
+
         show(this.connectionLostPopup);
-        setTimeout(_ => this.connectToServer(), RECONNECT_AFTER);
+
+        if (counter == 0) {
+            setTimeout(_ => this.connectToServer(), 100);
+        } else if (this.reconnectCounter < 5) {
+            setTimeout(_ => this.connectToServer(), 1000);
+        } else {
+            setTimeout(_ => this.connectToServer(), 3000);
+        }
     }
 
     async connectToServer() {
