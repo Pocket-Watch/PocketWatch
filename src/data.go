@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"sync"
@@ -41,10 +42,23 @@ const MAX_CHUNK_SIZE = 16 * MB
 
 var SUBTITLE_EXTENSIONS = [...]string{".vtt", ".srt"}
 
-const PAGE_ROOT = "/watch/"
-const PROXY_ROUTE = PAGE_ROOT + "proxy/"
-const STREAM_ROUTE = PAGE_ROOT + "stream/"
-const CONTENT_ROUTE = PAGE_ROOT + "content/"
+// Read-only. Asigned on server startup.
+var PAGE_ROOT string
+var PROXY_ROUTE string
+var STREAM_ROUTE string
+var CONTENT_ROUTE string
+
+func configureRoutes() {
+	PAGE_ROOT += fmt.Sprintf("/room/%s/", randomBase64(6))
+	PROXY_ROUTE = PAGE_ROOT + "proxy/"
+	STREAM_ROUTE = PAGE_ROOT + "stream/"
+	CONTENT_ROUTE = PAGE_ROOT + "content/"
+}
+
+// const PAGE_ROOT = "/watch/"
+// const PROXY_ROUTE = PAGE_ROOT + "proxy/"
+// const STREAM_ROUTE = PAGE_ROOT + "stream/"
+// const CONTENT_ROUTE = PAGE_ROOT + "content/"
 
 const WEB_ROOT = "web/"
 

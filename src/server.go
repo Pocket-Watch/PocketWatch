@@ -227,6 +227,8 @@ func StartServer(config ServerConfig, db *sql.DB) {
 		db:    db,
 	}
 
+	configureRoutes()
+
 	server.state.lastUpdate = time.Now()
 	handler := registerEndpoints(&server)
 

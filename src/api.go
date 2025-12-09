@@ -164,7 +164,7 @@ func (server *Server) apiUserVerify(w http.ResponseWriter, r *http.Request) {
 
 	response := UserVerifyResponse{
 		UserId:   user.Id,
-		PagePath: "/watch/",
+		PagePath: PAGE_ROOT,
 	}
 
 	jsonData, err := json.Marshal(response)
