@@ -90,13 +90,47 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request, use
 	w.Write(jsonData)
 }
 
+func (server *Server) apiInviteCreate(w http.ResponseWriter, r *http.Request, userId uint64) {
+	server.state.mutex.Lock()
+	invite := Invite {
+		InviteCode: randomBase64(6),
+		ExpiresAt: time.Now().Add(time.Hour * time.Duration(12)),
+	}
+
+	server.state.invite = invite
+	server.state.mutex.Unlock()
+
+	server.writeEventToAllConnections("invitecreate", invite, SERVER_ID)
+
+	jsonData, _ := json.Marshal(invite)
+	w.Write(jsonData)
+}
+
 func (server *Server) apiUserCreate(w http.ResponseWriter, r *http.Request) {
 	var inviteCode string
 	if !server.readJsonDataFromRequest(w, r, &inviteCode) {
 		return
 	}
 
-	// TODO(kihau): Invite code logic here.
+	server.users.mutex.Lock()
+	userCount := len(server.users.slice)
+	server.users.mutex.Unlock()
+
+	if userCount != 0 {
+		server.state.mutex.Lock()
+		invite := server.state.invite
+		server.state.mutex.Unlock()
+
+		if invite.InviteCode != inviteCode {
+			respondBadRequest(w, "Provided invite code is not valid.")
+			return
+		}
+
+		if invite.InviteCode == "" || invite.ExpiresAt.Before(time.Now()) {
+			respondBadRequest(w, "Provided invite code has expired.")
+			return
+		}
+	}
 
 	user, err := server.createUser()
 	if err != nil {

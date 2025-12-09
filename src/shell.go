@@ -91,6 +91,7 @@ outer:
 			fmt.Println("  users,    usr   - Show number of active users")
 			fmt.Println("  cleanup,  cln   - Cleanup temporary data (such as inactive dummy users)")
 			fmt.Println("  reload,   rel   - Reloads static web resources from disk, enable/disable hot-reload when on/off argument is provided")
+			fmt.Println("  invite,   inv   - Generate new website invite and print the invite code")
 
 		case "version", "v":
 			fmt.Printf("Server version: %v_%v\n", VERSION, BuildTime)
@@ -151,6 +152,9 @@ outer:
 
 		case "reload", "rel":
 			fmt.Println("Command 'reload' it not implemented yet!")
+
+		case "invite", "inv":
+			fmt.Println("Command 'invite' it not implemented yet!")
 
 		default:
 			if command != "" {

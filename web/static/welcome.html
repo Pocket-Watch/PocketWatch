@@ -70,12 +70,22 @@
 
             };
 
-            window.send_invite_code_button.onclick = _ => {
+            window.send_invite_code_button.onclick = async _ => {
                 let invite = window.invite_code_input.value;
-                // TODO(kihau): Parse invite code from path when input string is a url.
+
+                // TOOD(kihau): Do not create account when one already exists (but is not authorized to join).
+                let token = await send("user/create", invite);
+                if (token) {
+                    localStorage.setItem("token", token);
+                    let data = await send("user/verify", token);
+                    window.location.href = window.location.origin + data.page_path;
+                }
+
             };
 
             return;
+
+            // TODO(kihau): Parse invite code from path when input string is a url.
 
             let token = localStorage.getItem("token");
             if (token) {

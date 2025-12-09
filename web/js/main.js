@@ -1220,29 +1220,35 @@ class Room {
             return true;
         }
 
-        // Server returned code 400 (Bad Request). That means, user token was not found.
         if (result.status !== 400) {
             return false;
         }
 
-        // Temporary workaround for lack of persistent server-side account storage.
-        let response = await api.userCreate("dummy"); // NOTE(kihau): Dummy invite code for compatibility, will be remove when welcome page is implemented.
-        token = response.json;
-        if (token === null) {
-            return false;
-        }
+        window.location.href = "/";
 
-        api.setToken(token);
-        Storage.set("token", token);
-
-        result = await api.userVerify(token);
-        if (!result.ok) {
-            return false;
-        }
-
-        this.currentUserId      = result.json.user_id;
-        this.chat.currentUserId = result.json.user_id;
-        return true;
+        // // Server returned code 400 (Bad Request). That means, user token was not found.
+        // if (result.status !== 400) {
+        //     return false;
+        // }
+        //
+        // // Temporary workaround for lack of persistent server-side account storage.
+        // let response = await api.userCreate("dummy"); // NOTE(kihau): Dummy invite code for compatibility, will be remove when welcome page is implemented.
+        // token = response.json;
+        // if (token === null) {
+        //     return false;
+        // }
+        //
+        // api.setToken(token);
+        // Storage.set("token", token);
+        //
+        // result = await api.userVerify(token);
+        // if (!result.ok) {
+        //     return false;
+        // }
+        //
+        // this.currentUserId      = result.json.user_id;
+        // this.chat.currentUserId = result.json.user_id;
+        // return true;
     }
 
     async loadPlayerData(state) {
@@ -1729,8 +1735,9 @@ class Room {
                 let index = this.allUsers.findIndex(user => user.id === target.id);
 
                 if (this.currentUserId === target.id) {
-                    api.closeWebSocket();
-                    this.markAllUsersOffline();
+                    window.location.href = "/";
+                    // api.closeWebSocket();
+                    // this.markAllUsersOffline();
                 }
 
                 let user = this.allUsers.splice(index, 1)[0];

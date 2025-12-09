@@ -55,10 +55,10 @@ const CONTENT_STREAM = CONTENT_ROOT + "stream/"
 const CONTENT_SUBS = CONTENT_ROOT + "subs/"
 const CONTENT_USERS = CONTENT_ROOT + "users/"
 
-const MEDIA_VIDEO = CONTENT_MEDIA + "video/";
-const MEDIA_AUDIO = CONTENT_MEDIA + "audio/";
-const MEDIA_SUBS  = CONTENT_MEDIA + "subs/";
-const MEDIA_IMAGE = CONTENT_MEDIA + "image/";
+const MEDIA_VIDEO = CONTENT_MEDIA + "video/"
+const MEDIA_AUDIO = CONTENT_MEDIA + "audio/"
+const MEDIA_SUBS = CONTENT_MEDIA + "subs/"
+const MEDIA_IMAGE = CONTENT_MEDIA + "image/"
 
 const ORIGINAL_M3U8 = "original.m3u8"
 const PROXY_M3U8 = "proxy.m3u8"
@@ -182,6 +182,12 @@ type Subtitle struct {
 	Shift float64 `json:"shift"`
 }
 
+type Invite struct {
+	InviteCode string    `json:"invite_code"`
+	ExpiresAt  time.Time `json:"expires_after"`
+	CreatedBy  uint64    `json:"created_by"`
+}
+
 // NOTE(kihau): Placeholder until client side source switching is implemented.
 type Source struct {
 	AudioUrl  string `json:"audio_url"`
@@ -251,6 +257,9 @@ type ServerState struct {
 
 	// Currently set entry.
 	entry Entry
+
+	// A room invite for the website. With time, this will become an invite list, and later, grant per-room access (instead of website-wide access).
+	invite Invite
 
 	// Indicates whether the server is waiting for the entry to load. Loading includes both YouTube fetch and proxy setup.
 	isLoadingEntry atomic.Bool
@@ -373,8 +382,8 @@ type User struct {
 }
 
 type Users struct {
-	mutex     sync.Mutex
-	slice     []User
+	mutex sync.Mutex
+	slice []User
 }
 
 type Action struct {

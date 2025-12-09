@@ -55,6 +55,18 @@ func generateSubName() string {
 	return base64.URLEncoding.EncodeToString(bytes)
 }
 
+func randomBase64(length int) string {
+	bytes := make([]byte, length)
+	_, err := cryptorand.Read(bytes)
+
+	if err != nil {
+		LogError("Random Base64 generation failed, this should not happen! %v", err)
+		return ""
+	}
+
+	return base64.URLEncoding.EncodeToString(bytes)
+}
+
 
 func (server *Server) createUser() (User, error) {
 	now := time.Now()
@@ -302,6 +314,10 @@ func blackholeRequest(r *http.Request) {
 	}
 }
 
+func serveRoot(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, WEB_ROOT+"static/welcome.html")
+}
+
 func serveFavicon(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, WEB_ROOT+"img/favicon.ico")
 }
@@ -377,7 +393,7 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	staticHandler := NewGatewayHandler(webFs, STATIC_LIMITER_HITS, STATIC_LIMITER_PER_SECOND, ipv4Ranges)
 	mux.Handle(PAGE_ROOT, staticHandler)
 
-	mux.HandleFunc("/", handleUnknownEndpoint)
+	mux.HandleFunc("/", serveRoot)
 	mux.HandleFunc("/favicon.ico", serveFavicon)
 
 	// Unrelated API calls.
@@ -385,6 +401,7 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	server.handleEndpoint(mux, "/api/uptime", server.apiUptime, "GET")
 	server.handleEndpoint(mux, "/api/login", server.apiLogin, "GET")
 	server.handleEndpointAuthorized(mux, "/api/uploadmedia", server.apiUploadMedia, "POST")
+	server.handleEndpointAuthorized(mux, "/api/invite/create", server.apiInviteCreate, "GET")
 
 	// User related API calls.
 	server.handleEndpoint(mux, "/api/user/create", server.apiUserCreate, "POST")
