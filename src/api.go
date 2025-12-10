@@ -95,6 +95,7 @@ func (server *Server) apiInviteCreate(w http.ResponseWriter, r *http.Request, us
 	invite := Invite {
 		InviteCode: randomBase64(6),
 		ExpiresAt: time.Now().Add(time.Hour * time.Duration(12)),
+		CreatedBy: userId,
 	}
 
 	server.state.invite = invite
@@ -119,17 +120,21 @@ func (server *Server) apiUserCreate(w http.ResponseWriter, r *http.Request) {
 	if userCount != 0 {
 		server.state.mutex.Lock()
 		invite := server.state.invite
-		server.state.mutex.Unlock()
 
 		if invite.InviteCode != inviteCode {
+			server.state.mutex.Unlock()
 			respondBadRequest(w, "Provided invite code is not valid.")
 			return
 		}
 
-		if invite.InviteCode == "" || invite.ExpiresAt.Before(time.Now()) {
+		if invite.ExpiresAt.Before(time.Now()) {
+			server.state.mutex.Unlock()
 			respondBadRequest(w, "Provided invite code has expired.")
 			return
 		}
+
+		server.state.invite = Invite{}
+		server.state.mutex.Unlock()
 	}
 
 	user, err := server.createUser()

@@ -1,35 +1,139 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <title>PocketWatch</title>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <style>
-            body {
-                padding: 18px;
-            }
+<head>
+    <title>PocketWatch</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
-            * {
-                background-color: #282828;
-                color: white;
-                font-size: 18px;
-            }
-        </style>
-    </head>
+    <style>
+        /* Gruvbox palette */
+        :root {
+            --bg1: #282828;
+            --bg2: #32302f;
+            --bg3: #665c54;
+            --fg: #ebdbb2;
+            --accent: #d79921; /* yellow */
+            --accent-alt: #458588; /* blue */
+            --error: #cc241d; /* red */
+            --input-bg: #3c3836;
+            --border: #504945;
+        }
 
-    <body>
+        body {
+            background-color: var(--bg1);
+            color: var(--fg);
+            font-family: "Roboto", "Segoe UI", sans-serif;
+            font-size: 18px;
+            margin: 0;
+            padding: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background-color: var(--bg2);
+            padding: 32px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            max-width: 600px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        .main_label {
+            width: 100%;
+            display: flex;
+            column-gap: 8px;
+            justify-content: center;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 24px;
+            text-align: center;
+            color: var(--accent);
+        }
+
+        img {
+            height: 56px;
+            width: 56px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background-color: var(--input-bg);
+            color: var(--fg);
+            outline: none;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+        }
+
+        input:focus {
+            border-color: var(--accent);
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 8px;
+            border: none;
+            border-radius: 4px;
+            background-color: var(--accent);
+            color: var(--bg2);
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        button:hover {
+            background-color: var(--accent-alt);
+            color: var(--fg);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .divider {
+            text-align: center;
+            margin: 16px 0;
+            color: var(--bg3);
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="main_label">
+            <img src="favicon.ico">
+            <h1>PocketWatch</h1>
+        </div>
+
         <label for="user_token_input">Input your token:</label>
-        <input id="user_token_input"/>
+        <input id="user_token_input" type="text" placeholder="Enter token"/>
         <button id="send_user_token_button" type="button">Send</button>
 
-        <br>
-        <span>or</span>
-        <br>
+        <div class="divider">or</div>
 
         <label for="invite_code_input">Join via invite link / code:</label>
-        <input id="invite_code_input"/>
+        <input id="invite_code_input" type="text" placeholder="Enter invite code"/>
         <button id="send_invite_code_button" type="button">Join</button>
-    </body>
+    </div>
 
     <script>
         async function send(endpoint, data) {
@@ -37,7 +141,7 @@
             headers.set("Content-Type", "application/json");
 
             const options = {
-                method:  "POST",
+                method: "POST",
                 body:    JSON.stringify(data),
                 headers: headers,
             };
@@ -48,17 +152,15 @@
                 if (!response.ok) {
                     return null;
                 }
-
                 return await response.json();
-            } catch {}
-
-            return null;
+            } catch {
+                return null;
+            }
         }
 
         async function main() {
             window.send_user_token_button.onclick = async _ => {
                 let token = window.user_token_input.value;
-
                 let data = await send("user/verify", token);
                 // TODO(kihau): Check for "user not found", otherwise retry.
                 if (data) {
@@ -67,7 +169,6 @@
                 } else {
                     console.warn("User with provided token does not exist.");
                 }
-
             };
 
             window.send_invite_code_button.onclick = async _ => {
@@ -80,7 +181,6 @@
                     let data = await send("user/verify", token);
                     window.location.href = window.location.origin + data.page_path;
                 }
-
             };
 
             // TODO(kihau): Parse invite code from path when input string is a url.
@@ -94,6 +194,7 @@
                     return;
                 }
             }
+
 
             let currentPath = window.location.pathname;
             console.log("Current path is =", currentPath);
@@ -109,6 +210,7 @@
             // }
         }
 
-        main()
+        main();
     </script>
+</body>
 </html>
