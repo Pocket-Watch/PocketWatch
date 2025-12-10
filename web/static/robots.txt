@@ -1,0 +1,5 @@
+# robots.txt
+# Beep boop, go away, you are not welcome here...
+
+User-agent: *
+Disallow: /

@@ -317,11 +317,30 @@ func blackholeRequest(r *http.Request) {
 }
 
 func serveRoot(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, WEB_ROOT+"static/welcome.html")
+	LogDebug("User %v requested root endpoint: %v", getIp(r), r.RequestURI)
+
+	if len(r.RequestURI) > MAX_UNKNOWN_PATH_LENGTH {
+		blackholeRequest(r)
+		http.Error(w, "¯\\_(ツ)_/¯", http.StatusTeapot)
+		return
+	}
+
+	endpoint := stripParams(r.RequestURI)
+	file := path.Base(endpoint)
+	if endsWithAny(file, ".php", ".cgi", ".jsp", ".aspx", "wordpress", "owa") {
+		blackholeRequest(r)
+		http.Error(w, "¯\\_(ツ)_/¯", http.StatusTeapot)
+	} else {
+		http.ServeFile(w, r, WEB_ROOT+"static/welcome.html")
+	}
 }
 
 func serveFavicon(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, WEB_ROOT+"img/favicon.ico")
+}
+
+func serveRobots(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, WEB_ROOT+"static/robots.txt")
 }
 
 type GatewayHandler struct {
@@ -396,6 +415,7 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	mux.Handle(PAGE_ROOT, staticHandler)
 
 	mux.HandleFunc("/", serveRoot)
+	mux.HandleFunc("/robots.txt", serveRobots)
 	mux.HandleFunc("/favicon.ico", serveFavicon)
 
 	// Unrelated API calls.
