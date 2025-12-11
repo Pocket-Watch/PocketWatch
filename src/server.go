@@ -291,16 +291,7 @@ func StartServer(config ServerConfig, db *sql.DB) {
 
 func handleUnknownEndpoint(w http.ResponseWriter, r *http.Request) {
 	LogWarn("User %v requested unknown endpoint: %v", getIp(r), r.RequestURI)
-	if len(r.RequestURI) > MAX_UNKNOWN_PATH_LENGTH {
-		blackholeRequest(r)
-		http.Error(w, "¯\\_(ツ)_/¯", http.StatusTeapot)
-		return
-	}
-	endpoint := stripParams(r.RequestURI)
-	file := path.Base(endpoint)
-	if endsWithAny(file, ".php", ".cgi", ".jsp", ".aspx", "wordpress", "owa") {
-		blackholeRequest(r)
-	}
+	blackholeRequest(r)
 	http.Error(w, "¯\\_(ツ)_/¯", http.StatusTeapot)
 }
 
@@ -417,6 +408,8 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	mux.HandleFunc("/", serveRoot)
 	mux.HandleFunc("/robots.txt", serveRobots)
 	mux.HandleFunc("/favicon.ico", serveFavicon)
+
+	mux.HandleFunc("/api/", handleUnknownEndpoint)
 
 	// Unrelated API calls.
 	server.handleEndpoint(mux, "/api/version", server.apiVersion, "GET")
