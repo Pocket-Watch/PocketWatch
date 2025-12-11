@@ -91,18 +91,7 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request, use
 }
 
 func (server *Server) apiInviteCreate(w http.ResponseWriter, r *http.Request, userId uint64) {
-	server.state.mutex.Lock()
-	invite := Invite {
-		InviteCode: randomBase64(6),
-		ExpiresAt: time.Now().Add(time.Hour * time.Duration(12)),
-		CreatedBy: userId,
-	}
-
-	server.state.invite = invite
-	server.state.mutex.Unlock()
-
-	server.writeEventToAllConnections("invitecreate", invite, SERVER_ID)
-
+	invite := server.createNewInvite(userId);
 	jsonData, _ := json.Marshal(invite)
 	w.Write(jsonData)
 }

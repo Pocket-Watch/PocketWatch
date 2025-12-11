@@ -2909,3 +2909,18 @@ func (server *Server) fetchLyricsForCurrentEntry(userId uint64) error {
 
 	return nil
 }
+
+func (server *Server) createNewInvite(userId uint64) Invite {
+	server.state.mutex.Lock()
+	defer server.state.mutex.Unlock()
+
+	invite := Invite {
+		InviteCode: randomBase64(6),
+		ExpiresAt: time.Now().Add(time.Hour * time.Duration(12)),
+		CreatedBy: userId,
+	}
+
+	server.state.invite = invite
+	server.writeEventToAllConnections("invitecreate", invite, SERVER_ID)
+	return invite
+}
