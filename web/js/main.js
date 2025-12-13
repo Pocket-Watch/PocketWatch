@@ -2095,13 +2095,15 @@ class Room {
         let counter = this.reconnectCounter;
         this.reconnectCounter += 1;
 
-        this.markAllUsersOffline();
-        this.player.setToast(CONNECTION_LOST_MESSAGE);
-        if (this.settingsMenu.notificationsToggle.classList.contains("active")) {
-            showNotification(CONNECTION_LOST_MESSAGE, "", null, 2000);
-        }
+        if (counter > 0) {
+            this.markAllUsersOffline();
+            this.player.setToast(CONNECTION_LOST_MESSAGE);
+            if (this.settingsMenu.notificationsToggle.classList.contains("active")) {
+                showNotification(CONNECTION_LOST_MESSAGE, "", null, 2000);
+            }
 
-        show(this.connectionLostPopup);
+            show(this.connectionLostPopup);
+        }
 
         if (counter == 0) {
             setTimeout(_ => this.connectToServer(), 100);
