@@ -330,6 +330,10 @@ func serveFavicon(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, WEB_ROOT+"img/favicon.ico")
 }
 
+func serveIcon(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, WEB_ROOT+"img/icon.png")
+}
+
 func serveRobots(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, WEB_ROOT+"static/robots.txt")
 }
@@ -408,6 +412,7 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	mux.HandleFunc("/", serveRoot)
 	mux.HandleFunc("/robots.txt", serveRobots)
 	mux.HandleFunc("/favicon.ico", serveFavicon)
+	mux.HandleFunc("/icon.png", serveIcon)
 
 	mux.HandleFunc("/api/", handleUnknownEndpoint)
 
