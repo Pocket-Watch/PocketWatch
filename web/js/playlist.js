@@ -11,7 +11,6 @@ const ENTRY_ROW_GAP = 4;
 const ENTRY_BORDER  = getCssNumber("--playlist_entry_border", "px");
 const ENTRY_HEIGHT  = getCssNumber("--playlist_entry_height", "px") + ENTRY_BORDER * 2;
 const ENTRY_TRANSITION_TIME = getCssNumber("--playlist_entry_transition_time", "ms");
-console.warn(ENTRY_HEIGHT)
 
 const BULK_ACTION_DELAY     = 32;
 const DRAG_INACTIVITY_DELAY = 32;

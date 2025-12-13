@@ -4,8 +4,8 @@ import { getById, div, a, span, img, svg, show, hide, isScrollableVisible } from
 
 export { History }
 
-const MAX_HISTORY_SIZE      = 120;
-const BULK_ACTION_DELAY     = 32;
+const MAX_HISTORY_SIZE  = 120;
+const BULK_ACTION_DELAY = 32;
 
 const ENTRY_TRANSITION_TIME = getCssNumber("--history_entry_transition_time", "ms");
 

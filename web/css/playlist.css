@@ -2,7 +2,7 @@
     /* NOTE(kihau): Used by the utils.getCssVar function. Keep the unit (px, ms, etc) when chaning those values. */
     --playlist_entry_border:          2px;
     --playlist_entry_height:          64px;
-    --playlist_entry_transition_time: 240ms;
+    --playlist_entry_transition_time: 256ms;
 }
 
 #content_playlist {
