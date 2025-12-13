@@ -1,3 +1,10 @@
+:root {
+    /* NOTE(kihau): Used by the utils.getCssVar function. Keep the unit (px, ms, etc) when chaning those values. */
+    --playlist_entry_border:          2px;
+    --playlist_entry_height:          64px;
+    --playlist_entry_transition_time: 240ms;
+}
+
 #content_playlist {
     row-gap: 4px;
     display: flex;
@@ -240,16 +247,19 @@
 .playlist_entry.show {
     z-index: 1;
     margin-left: 0;
-    transition: z-index 200ms, top 120ms ease, margin-left 240ms ease;
+    transition: 
+        height var(--dropdown_expand_time),
+        top 120ms ease,
+        margin-left var(--playlist_entry_transition_time) ease;
 }
 
 .playlist_entry {
     padding: inherit;
     width: calc(100% - 4px);
-    height: auto;
+    height: var(--playlist_entry_height);
     border-radius: 6px;
     box-shadow: 0 0 3px 0 var(--bg_1);
-    border: 2px solid var(--bg_6);
+    border: var(--playlist_entry_border) solid var(--bg_6);
     z-index: 0;
     position: absolute;
     display: inline-block;
@@ -260,12 +270,15 @@
     overflow: hidden;
     background-color: var(--bg_2);
     margin-left: 100%;
-    transition: z-index 200ms, top 120ms ease, margin-left 240ms ease;
+    transition: 
+        height var(--dropdown_expand_time),
+        top 120ms ease, 
+        margin-left var(--playlist_entry_transition_time) ease;
 }
 
 .playlist_entry_top {
     width: 100%;
-    height: 64px;
+    height: var(--playlist_entry_height);
     border-radius: 4px;
     display: flex;
     box-sizing: border-box;
@@ -499,24 +512,18 @@
 }
 
 .playlist_entry.expand {
-    z-index: 2;
-    transition: z-index 0ms;
+    z-index: 3;
+    height: calc(var(--playlist_entry_height) + 180px);
+    transition: height var(--dropdown_expand_time);
 }
 
-.playlist_entry.expand .entry_dropdown {
-    height: 180px;
-    visibility: inherit;
-    transition: height 100ms ease;
-    display: flex;
-    box-sizing: border-box;
-    flex-direction: column;
-    padding: 6px;
-    row-gap: 4px;
+.playlist_entry.collapse {
+    z-index: 2;
 }
 
 .playlist_entry.expand .entry_dropdown_button svg {
     transform: rotate(180deg);
-    transition: transform 100ms;
+    transition: transform var(--dropdown_expand_time);
 }
 
 .playlist_entry.editing .playlist_entry_delete_button {

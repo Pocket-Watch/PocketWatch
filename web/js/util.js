@@ -1,3 +1,10 @@
+export function getCssNumber(varName, unitStrip = "") {
+    const rootStyle = getComputedStyle(document.documentElement);
+    const property = rootStyle.getPropertyValue(varName)
+    const stripped = property.trim().replace(unitStrip, "");
+    return Number(stripped);
+}
+
 export function getById(id) {
     let element = document.getElementById(id);
     if (!element) {

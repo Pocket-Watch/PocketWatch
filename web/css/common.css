@@ -1,6 +1,11 @@
 /* Common CSS for webpage widgets and some UI elements */
 
-/* Toggle widget -------------------------------------------------------------------------- */
+:root {
+    /* NOTE(kihau): Used by the utils.getCssVar function. Keep the unit (px, ms, etc) when chaning those values. */
+    --dropdown_expand_time: 256ms;
+}
+
+/* Toggle widget -------------------------------------------------------------------------------- */
 
 .widget_readonly_input,
 .widget_input {
@@ -179,7 +184,7 @@
     fill: var(--green_2);
 }
 
-/* Toggle widget -------------------------------------------------------------------------- */
+/* Toggle widget -------------------------------------------------------------------------------- */
 
 .widget_readonly_toggle,
 .widget_toggle {
@@ -267,7 +272,7 @@
     transform: translateX(-100%);
 }
 
-/* Button widget -------------------------------------------------------------------------- */
+/* Button widget -------------------------------------------------------------------------------- */
 
 .widget_button {
     box-shadow: 1px 3px 0 0 var(--bg_0);
@@ -298,7 +303,7 @@
     fill: var(--fg_0);
 }
 
-/* Seprator widget -------------------------------------------------------------------------- */
+/* Seprator widget ------------------------------------------------------------------------------ */
 
 .widget_separator {
     height: 20px;
@@ -336,7 +341,7 @@
     margin-right: 20px;
 }
 
-/* Context menu -------------------------------------------------------------------------- */
+/* Context menu --------------------------------------------------------------------------------- */
 
 .context_menu {
     width: 180px;
@@ -416,7 +421,7 @@
     fill: var(--fg_1);
 }
 
-/* Animated avatar rules -------------------------------------------------------------------------- */
+/* Animated avatar rules ------------------------------------------------------------------------ */
 
 .disable_image_animations .dynamic_image img {
     visibility: hidden;
@@ -456,7 +461,7 @@
     visibility: hidden;
 }
 
-/* Common CSS for history and playlist entry dropdown UI */
+/* Common CSS for history and playlist entry dropdown UI ---------------------------------------- */
 
 .entry_dropdown_button {
     width: 24px;
@@ -481,7 +486,7 @@
 .entry_dropdown_button svg {
     height: 10px;
     width: 10px;
-    transition: transform 100ms;
+    transition: transform var(--dropdown_expand_time);
     fill: var(--fg_4);
 }
 
@@ -495,10 +500,15 @@
 
 .entry_dropdown {
     width: 100%;
-    height: 0;
-    visibility: hidden;
+    height: auto;
+    z-index: 2;
+    padding: 6px;
+    row-gap: 4px;
+    display: flex;
+    visibility: inherit;
     box-sizing: border-box;
-    transition: height 100ms ease;
+    flex-direction: column;
+    transition: height  var(--dropdown_expand_time) ease;
 }
 
 .entry_dropdown_proxy_root {
@@ -576,3 +586,5 @@
     margin-left: auto;
     font-weight: bold;
 }
+
+/* ---------------------------------------------------------------------------------------------- */

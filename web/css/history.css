@@ -1,3 +1,8 @@
+:root {
+    /* NOTE(kihau): Used by the utils.getCssVar function. Keep the unit (px, ms, etc) when chaning those values. */
+    --history_entry_transition_time: 300ms;
+}
+
 #content_history {
     row-gap: 4px;
     display: flex;
@@ -139,7 +144,10 @@
     height: 64px;
     opacity: 1;
     transform: none;
-    transition: all 300ms cubic-bezier(.36,-0.64,.34,1.76);
+    transition: 
+        height    var(--dropdown_expand_time),
+        opacity   var(--history_entry_transition_time) cubic-bezier(.36,-0.64,.34,1.76),
+        transform var(--history_entry_transition_time) cubic-bezier(.36,-0.64,.34,1.76);
 }
 
 .history_entry {
@@ -157,7 +165,10 @@
     height: 0;
     opacity: 0;
     transform: rotateY(-90deg);
-    transition: all 300ms cubic-bezier(.36,-0.64,.34,1.76);
+    transition: 
+        height    var(--dropdown_expand_time),
+        opacity   var(--history_entry_transition_time) cubic-bezier(.36,-0.64,.34,1.76),
+        transform var(--history_entry_transition_time) cubic-bezier(.36,-0.64,.34,1.76);
 
 }
 
@@ -328,22 +339,11 @@
 }
 
 .history_entry.expand {
-    z-index: 2;
-    transition: z-index 0ms;
-}
-
-.history_entry.expand .entry_dropdown {
-    height: 180px;
-    visibility: inherit;
-    transition: height 100ms ease;
-    display: flex;
-    box-sizing: border-box;
-    flex-direction: column;
-    padding: 6px;
-    row-gap: 4px;
+    height: calc(64px + 180px);
+    transition: height var(--dropdown_expand_time);
 }
 
 .history_entry.expand .entry_dropdown_button svg {
     transform: rotate(180deg);
-    transition: transform 100ms;
+    transition: transform var(--dropdown_expand_time);
 }

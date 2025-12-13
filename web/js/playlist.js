@@ -1,5 +1,6 @@
 import * as api from "./api.js";
-import { getById, div, a, span, img, svg, button, hide, show, isScrollableVisible, widget_toggle, widget_input } from "./util.js";
+import * as common from "./common.js";
+import { getById, div, a, span, img, svg, button, hide, show, isScrollableVisible, widget_toggle, widget_input, getCssNumber } from "./util.js";
 
 export { Playlist }
 
@@ -7,12 +8,10 @@ export { Playlist }
 const ENTRY_ROW_GAP = 4;
 
 // NOTE(kihau): Hardcoded size values from the playlist.css. CSS needs to be updated.
-const ENTRY_BORDER  = 2;
-const ENTRY_HEIGHT  = 64 + ENTRY_BORDER * 2;
-
-// NOTE(kihau): Hardcoded transition time values from the playlist.css
-const DROPDOWN_EXPAND_TIME  = 100;
-const ENTRY_TRANSITION_TIME = 240;
+const ENTRY_BORDER  = getCssNumber("--playlist_entry_border", "px");
+const ENTRY_HEIGHT  = getCssNumber("--playlist_entry_height", "px") + ENTRY_BORDER * 2;
+const ENTRY_TRANSITION_TIME = getCssNumber("--playlist_entry_transition_time", "ms");
+console.warn(ENTRY_HEIGHT)
 
 const BULK_ACTION_DELAY     = 32;
 const DRAG_INACTIVITY_DELAY = 32;
@@ -495,43 +494,6 @@ class Playlist {
         return this.htmlEntries.findIndex(item => item === htmlEntry);
     }
 
-    expandEntry(htmlEntry, entry, user) {
-        if (this.expandedEntry) {
-            this.expandedEntry.classList.remove("expand");
-
-            let expanded = this.expandedEntry;
-            let dropdown = expanded.getElementsByClassName("entry_dropdown")[0];
-            setTimeout(_ => expanded.removeChild(dropdown), DROPDOWN_EXPAND_TIME);
-        }
-
-        if (htmlEntry) {
-            let dropdown = this.createEntryDropdown(entry, user);
-
-            this.expandedEntry = htmlEntry;
-            this.expandedEntry.appendChild(dropdown);
-
-            window.getComputedStyle(dropdown).height;
-
-            this.expandedEntry.classList.add("expand");
-        }
-    }
-
-    collapseEntry(htmlEntry) {
-        if (htmlEntry !== this.expandedEntry) {
-            return;
-        }
-
-        if (this.expandedEntry) {
-            this.expandedEntry.classList.remove("expand");
-
-            let expanded = this.expandedEntry;
-            let dropdown = expanded.getElementsByClassName("entry_dropdown")[0];
-            setTimeout(_ => expanded.removeChild(dropdown), DROPDOWN_EXPAND_TIME);
-        }
-
-        this.expandedEntry = null;
-    }
-
     startEntryEdit(entry, root, title, url) {
         this.editEntry.entry = entry;
         this.editEntry.root  = root;
@@ -593,71 +555,6 @@ class Playlist {
         entry.style.top = index * (ENTRY_HEIGHT + ENTRY_ROW_GAP) + "px";
     }
 
-    createEntryDropdown(entry, user) {
-        let entryDropdown  = div("entry_dropdown");
-        let proxyRoot      = div("entry_dropdown_proxy_root");
-        let proxyToggle    = widget_toggle(null, "Enable proxy", entry.use_proxy, true);
-        let proxyReferer   = widget_input(null, "Referer", entry.referer_url, true);
-
-        let infoLabelsTop  = div("entry_dropdown_info_labels");
-        let createdByLabel = span("entry_dropdown_created_by_label", "Created by"); 
-        let createdAtLabel = span("entry_dropdown_created_at_label", "Created at");
-
-        let infoLabelsBot  = div("entry_dropdown_info_labels");
-        let subsCountLabel = span("entry_dropdown_subtitle_count_label", "Attached subtitles");
-        let lastSetAtLabel = span("entry_dropdown_last_set_at_label", "Last set at");
-
-        let createdAt      = new Date(entry.created_at);
-        let lastSetAt      = new Date(entry.last_set_at);
-        let userAvatarImg  = img(user.avatar);
-
-        let infoContentTop = div("entry_dropdown_info_content");
-        let userAvatar     = div("entry_dropdown_user_avatar");
-        let userName       = span("entry_dropdown_user_name", user.username);
-        let createdAtDate  = span("entry_dropdown_created_at_date", createdAt.toLocaleString());
-
-        let infoContentBot = div("entry_dropdown_info_content");
-        let subsCount      = span("entry_dropdown_subtitle_count", "0 subtitles");
-        let lastSetAtDate  = span("entry_dropdown_last_set_at_date", lastSetAt.toLocaleString());
-
-
-        if (!entry.subtitles || entry.subtitles.length === 0) {
-            subsCount.textContent = "No subtitles";
-        } else if (entry.subtitles.length === 1) {
-            subsCount.textContent = entry.subtitles.length + " subtitle";
-        } else {
-            subsCount.textContent = entry.subtitles.length + " subtitles";
-        }
-
-
-        entryDropdown.append(proxyRoot); {
-            proxyRoot.append(proxyToggle);
-            proxyRoot.append(proxyReferer);
-        }
-
-        entryDropdown.append(infoLabelsTop); { 
-            infoLabelsTop.append(createdByLabel);
-            infoLabelsTop.append(createdAtLabel);
-        }
-        entryDropdown.append(infoContentTop); {
-            infoContentTop.append(userAvatar); {
-                userAvatar.append(userAvatarImg);
-            }
-            infoContentTop.append(userName);
-            infoContentTop.append(createdAtDate);
-        }
-
-        entryDropdown.append(infoLabelsBot); { 
-            infoLabelsBot.append(subsCountLabel);
-            infoLabelsBot.append(lastSetAtLabel);
-        }
-        entryDropdown.append(infoContentBot); {
-            infoContentBot.append(subsCount);
-            infoContentBot.append(lastSetAtDate);
-        }
-
-        return entryDropdown;
-    }
 
     hideContextMenu() {
         if (this.contextMenuHtmlEntry) {
@@ -728,14 +625,6 @@ class Playlist {
         }
     }
 
-    toggleEntryDropdown(htmlEntry, entry, user) {
-        if (this.expandedEntry !== htmlEntry) {
-            this.expandEntry(htmlEntry, entry, user);
-        } else {
-            this.collapseEntry(htmlEntry);
-        }
-    }
-
     startScrollingUp() {
         if (!this.scrollIntervalId) {
             this.scrollIntervalId = setInterval(_ => this.htmlEntryListRoot.scrollTop -= SCROLLING_STEP, 16);
@@ -763,7 +652,7 @@ class Playlist {
 
     startEntryDragging(htmlEntry, positionY) {
         this.hideContextMenu();
-        this.collapseEntry(this.expandedEntry);
+        common.collapseEntry(this, this.expandedEntry);
 
         let listRect    = this.htmlEntryListRoot.getBoundingClientRect();
         let entryRect   = htmlEntry.getBoundingClientRect();
@@ -1035,7 +924,7 @@ class Playlist {
         entryThumbnail.onclick = _ => api.wsPlaylistPlay(entry.id);
         editButton.onclick     = _ => this.toggleEntryEdit(entryRoot, entry);
         deleteButton.onclick   = _ => api.wsPlaylistDelete(entry.id);
-        dropdownButton.onclick = _ => this.toggleEntryDropdown(entryRoot, entry, user);
+        dropdownButton.onclick = _ => common.toggleEntryDropdown(this, entryRoot, entry, user);
 
         //
         // Constructing html element structure.
