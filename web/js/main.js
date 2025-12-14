@@ -2095,7 +2095,7 @@ class Room {
         let counter = this.reconnectCounter;
         this.reconnectCounter += 1;
 
-        if (counter > 0) {
+        if (counter > 1) {
             this.markAllUsersOffline();
             this.player.setToast(CONNECTION_LOST_MESSAGE);
             if (this.settingsMenu.notificationsToggle.classList.contains("active")) {

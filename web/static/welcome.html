@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <link rel="shortcut icon" href="img/favicon.ico" type="image/x-icon" />
-    <link rel="icon" href="img/icon.png" type="image/png" />
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
+    <link rel="icon" href="icon.png" type="image/png" />
 
     <!-- Open Graph protocol tags. -->
     <!-- Uncomment lines below and adjust the tags for correct embeds -->
@@ -43,16 +43,20 @@
             min-height: 100vh;
         }
 
-        .container {
+        #main_layout {
             background-color: var(--bg2);
             padding: 32px;
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.4);
             max-width: 600px;
             width: 100%;
-            display: flex;
+            display: none;
             flex-direction: column;
             box-sizing: border-box;
+        }
+
+        #main_layout.show {
+            display: flex;
         }
 
         .main_label {
@@ -129,7 +133,7 @@
 </head>
 
 <body>
-    <div class="container">
+    <div id="main_layout">
         <div class="main_label">
             <img src="/favicon.ico">
             <h1>PocketWatch</h1>
@@ -152,7 +156,7 @@
             headers.set("Content-Type", "application/json");
 
             const options = {
-                method: "POST",
+                method:  "POST",
                 body:    JSON.stringify(data),
                 headers: headers,
             };
@@ -169,11 +173,10 @@
             }
         }
 
-        async function main() {
+        function attach_events() {
             window.send_user_token_button.onclick = async _ => {
                 let token = window.user_token_input.value;
                 let data = await send("user/verify", token);
-                // TODO(kihau): Check for "user not found", otherwise retry.
                 if (data) {
                     localStorage.setItem("token", token);
                     window.location.href = window.location.origin + data.page_path;
@@ -193,32 +196,46 @@
                     window.location.href = window.location.origin + data.page_path;
                 }
             };
+        }
 
-            // TODO(kihau): Parse invite code from path when input string is a url.
-
+        async function connect() {
             let token = localStorage.getItem("token");
             if (token) {
                 let data = await send("user/verify", token);
-                // TODO(kihau): Check for "user not found", otherwise retry.
                 if (data) {
                     window.location.href = window.location.origin + data.page_path;
-                    return;
+                    return true;
                 }
             }
 
+            const currentPath = window.location.pathname;
+            const parts = currentPath.slice(1).split('/');
+            if (parts.length < 2) {
+                return false;
+            }
 
-            let currentPath = window.location.pathname;
-            console.log("Current path is =", currentPath);
+            if (parts[0] != "share") {
+                return false;
+            }
 
-            // TODO(kihau): Get invite code when website url has invite in path and send a user create request.
+            // TOOD(kihau): Do not create account when one already exists (but is not authorized to join).
+            token = await send("user/create", parts[1]);
+            if (token) {
+                localStorage.setItem("token", token);
+                let data = await send("user/verify", token);
+                window.location.href = window.location.origin + data.page_path;
+                return true
+            }
 
-            // Only call this code when invite code is not empty
+            return false
+        }
 
-            // let token = await send("user/create", invite);
-            // if (!token) {
-            //     console.warn("Print response error or 'invite expired'")
-            //     return;
-            // }
+        async function main() {
+            let connecting = await connect();
+            if (!connecting) {
+                attach_events()
+                window.main_layout.classList.add("show");
+            }
         }
 
         main();
