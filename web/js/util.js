@@ -329,7 +329,7 @@ export function isSameDay(date1, date2) {
     return true;
 }
 
-function extension(filename) {
+export function getExtension(filename) {
     return filename.slice(filename.lastIndexOf('.') + 1);
 }
 
