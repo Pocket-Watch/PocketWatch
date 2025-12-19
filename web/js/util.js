@@ -329,6 +329,10 @@ export function isSameDay(date1, date2) {
     return true;
 }
 
+function extension(filename) {
+    return filename.slice(filename.lastIndexOf('.') + 1);
+}
+
 const PB = 1024 ** 5;
 const TB = 1024 ** 4;
 const GB = 1024 ** 3;

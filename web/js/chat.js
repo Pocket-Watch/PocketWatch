@@ -1,6 +1,6 @@
 import * as api from "./api.js";
 import { 
-    getById, div, img, span, a, isSameDay, show, hide, clearContent, showNotification, input
+    getById, div, img, span, a, isSameDay, show, hide, clearContent, showNotification, input, getExtension
 } from "./util.js";
 export { Chat }
 
@@ -126,7 +126,8 @@ class Chat {
         }
 
         let unix = Date.now();
-        let response = await api.uploadMedia(file, unix);
+        let filename = unix + getExtension(file.name);
+        let response = await api.uploadMedia(file, filename);
 
         let fullUrl = "res://" + response.filename;
         this.chatInput.value += fullUrl;
