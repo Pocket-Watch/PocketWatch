@@ -126,8 +126,7 @@ class Chat {
         }
 
         let unix = Date.now();
-        let filename = unix + file.name;
-        let response = await api.uploadMedia(file, filename);
+        let response = await api.uploadMedia(file, unix);
 
         let fullUrl = "res://" + response.filename;
         this.chatInput.value += fullUrl;

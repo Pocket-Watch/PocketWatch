@@ -92,6 +92,13 @@ const (
 	COLOR_GREEN_DARK  = "\x1b[0;92m"
 )
 
+type Log struct {
+	date     time.Time
+	location string
+	level    LogLevel
+	message  string
+}
+
 type Logger struct {
 	enabled      bool
 	logToConsole atomic.Bool
@@ -103,6 +110,9 @@ type Logger struct {
 	outputDir        string
 	outputFile       *os.File
 	lastCompressTime time.Time
+
+	// TODO(kihau): Dispatch on a separate thread.
+	logStream chan Log
 }
 
 func (*Logger) Write(p []byte) (n int, err error) {
@@ -159,10 +169,43 @@ func setupFileLogging(logDirectory string) bool {
 	return true
 }
 
+func startLoggingRoutine(config LoggingConfig) {
+	for {
+		log := <-logger.logStream
+
+		if !logger.enabled {
+			continue
+		}
+
+		if logger.logLevel.Load() < log.level {
+			continue
+		}
+
+		levelString := LogLevelToString(log.level)
+
+		if logger.saveToFile {
+			text := fmt.Sprintf("[%v] [%-16s] [%v] %v\n", log.date, log.location, levelString, log.message)
+			LogToFile(text)
+		}
+
+		if logger.logToConsole.Load() {
+			if logger.printColors {
+				levelColor := LogLevelColor(log.level)
+				fmt.Printf("%v[%v] %v[%-16s] %v[%v]%v %v\n", COLOR_GREEN_LIGHT, log.date, COLOR_CYAN, log.location, levelColor, levelString, COLOR_RESET, log.message)
+			} else {
+				fmt.Printf("[%v] [%-16s] [%v] %v\n", log.date, log.location, levelString, log.message)
+			}
+		}
+
+		_ = log
+	}
+}
+
 func SetupGlobalLogger(config LoggingConfig) bool {
 	logger = Logger{
 		enabled:     config.Enabled,
 		printColors: config.EnableColors,
+		logStream:   make(chan Log, 1024),
 	}
 
 	logger.logToConsole.Store(true)
