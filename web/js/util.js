@@ -330,7 +330,7 @@ export function isSameDay(date1, date2) {
 }
 
 export function getExtension(filename) {
-    return filename.slice(filename.lastIndexOf('.') + 1);
+    return "." + filename.slice(filename.lastIndexOf('.') + 1);
 }
 
 const PB = 1024 ** 5;
