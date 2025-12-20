@@ -238,6 +238,9 @@ type Entry struct {
 	// ID of the user that created the entry.
 	UserId uint64 `json:"user_id"`
 
+	// ID of the user that set the entry.
+	SetById uint64 `json:"set_by_id"`
+
 	// Whether an entry should be loaded via a server proxy.
 	UseProxy bool `json:"use_proxy"`
 
@@ -248,6 +251,8 @@ type Entry struct {
 
 	// NOTE(kihau): Placeholder until client side source switching is implemented.
 	// Sources    []Source   `json:"sources"`
+
+	// Attached subtitles (or lyrics)
 	Subtitles []Subtitle `json:"subtitles"`
 
 	// Entry network URL path of the thumbnal.

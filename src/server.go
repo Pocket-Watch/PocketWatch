@@ -67,7 +67,6 @@ func randomBase64(length int) string {
 	return base64.URLEncoding.EncodeToString(bytes)
 }
 
-
 func (server *Server) createUser() (User, error) {
 	now := time.Now()
 	user := User{
@@ -269,7 +268,7 @@ func StartServer(config ServerConfig, db *sql.DB) {
 
 	go func() {
 		currentEntry, _ := DatabaseCurrentEntryGet(db)
-		server.setNewEntry(currentEntry, RequestEntry{})
+		server.setNewEntry(currentEntry, RequestEntry{}, SERVER_ID)
 
 		timestamp := DatabaseGetTimestamp(server.db)
 		server.playerSeek(timestamp, 0)
@@ -723,7 +722,7 @@ func (server *Server) periodicInactiveUserCleanup() {
 	}
 }
 
-func (server *Server) setNewEntry(newEntry Entry, requested RequestEntry) {
+func (server *Server) setNewEntry(newEntry Entry, requested RequestEntry, setById uint64) {
 	server.state.isLoadingEntry.Store(true)
 	defer server.state.isLoadingEntry.Store(false)
 
@@ -775,6 +774,7 @@ func (server *Server) setNewEntry(newEntry Entry, requested RequestEntry) {
 
 	now := time.Now()
 
+	newEntry.SetById = setById
 	newEntry.LastSetAt = now
 	DatabaseCurrentEntrySet(server.db, &newEntry)
 	server.state.entry = newEntry
@@ -2324,16 +2324,15 @@ func (server *Server) cleanupDummyUsers() []User {
 
 func (server *Server) playerGet() PlayerGetResponse {
 	server.state.mutex.Lock()
+	defer server.state.mutex.Unlock()
+
 	player := server.state.player
 	entry := server.state.entry
-	server.state.mutex.Unlock()
 
 	player.Timestamp = server.getCurrentTimestamp()
 
-	server.conns.mutex.Lock()
 	actions := make([]Action, len(server.state.actions))
 	copy(actions, server.state.actions)
-	server.conns.mutex.Unlock()
 
 	data := PlayerGetResponse{
 		Player:  player,
@@ -2356,7 +2355,7 @@ func (server *Server) playerSet(requested RequestEntry, userId uint64) error {
 	}
 
 	entry.Title = constructTitleWhenMissing(&entry)
-	go server.setNewEntry(entry, requested)
+	go server.setNewEntry(entry, requested, userId)
 
 	return nil
 }
@@ -2406,7 +2405,7 @@ func (server *Server) playerNext(entryId uint64, userId uint64) error {
 	}
 
 	entry := server.playlistDeleteAt(0)
-	go server.setNewEntry(entry, RequestEntry{})
+	go server.setNewEntry(entry, RequestEntry{}, userId)
 	return nil
 }
 
@@ -2587,7 +2586,7 @@ func (server *Server) playlistPlay(entryId uint64, userId uint64) error {
 	}
 
 	entry := server.playlistDeleteAt(index)
-	go server.setNewEntry(entry, RequestEntry{})
+	go server.setNewEntry(entry, RequestEntry{}, userId)
 
 	return nil
 }
@@ -2919,10 +2918,10 @@ func (server *Server) createNewInvite(userId uint64) Invite {
 	server.state.mutex.Lock()
 	defer server.state.mutex.Unlock()
 
-	invite := Invite {
+	invite := Invite{
 		InviteCode: randomBase64(6),
-		ExpiresAt: time.Now().Add(time.Hour * time.Duration(12)),
-		CreatedBy: userId,
+		ExpiresAt:  time.Now().Add(time.Hour * time.Duration(12)),
+		CreatedBy:  userId,
 	}
 
 	server.state.invite = invite

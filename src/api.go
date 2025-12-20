@@ -811,7 +811,7 @@ func (server *Server) apiHistoryPlay(w http.ResponseWriter, r *http.Request, use
 	entry := server.state.history[index]
 	server.state.mutex.Unlock()
 
-	go server.setNewEntry(entry, RequestEntry{})
+	go server.setNewEntry(entry, RequestEntry{}, userId)
 }
 
 func (server *Server) apiHistoryDelete(w http.ResponseWriter, r *http.Request, userId uint64) {
@@ -911,7 +911,7 @@ func (server *Server) apiStreamStart(w http.ResponseWriter, r *http.Request, use
 		LastSetAt: now,
 	}
 
-	go server.setNewEntry(entry, RequestEntry{})
+	go server.setNewEntry(entry, RequestEntry{}, userId)
 }
 
 func (server *Server) apiStreamUpload(w http.ResponseWriter, r *http.Request, userId uint64) {

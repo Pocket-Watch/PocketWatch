@@ -1270,8 +1270,14 @@ html * {
     column-gap: 6px;
 }
 
+#room_metadata_info {
+    display: flex;
+    column-gap: 8px;
+}
+
 #room_current_resolution_label,
-#room_created_by_label {
+#room_created_by_label,
+#room_set_by_label {
     color: var(--fg_5);
 }
 
@@ -1281,6 +1287,7 @@ html * {
     margin-left: auto;
 }
 
+#room_set_by_avatar,
 #room_created_by_avatar {
     width: 36px;
     height: 36px;
@@ -1289,6 +1296,7 @@ html * {
 }
 
 #room_current_resolution,
+#room_set_by_username,
 #room_created_by_username {
     color: var(--fg_4);
     font-weight: bold;

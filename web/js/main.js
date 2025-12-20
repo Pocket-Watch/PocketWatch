@@ -139,33 +139,35 @@ class Room {
         };
 
         this.roomContent = {
-            urlInput:        getById("room_entry_url_input"),
-            titleInput:      getById("room_entry_title_input"),
-            refererInput:    getById("room_entry_referer_input"),
-            uploadSubInput:  getById("room_subtitle_upload_input"),
-            subsEditInput:   getById("room_subtitle_name_input"),
-
-            titleUpdateButton:  getById("room_title_update_button"),
-            urlCopyButton:      getById("room_entry_url_copy_button"),
-            uploadSubButton:    getById("room_subtitle_upload_button"),
             copyEntryButton:    getById("room_copy_entry_button"),
-            setShiftButton:     getById("room_set_shift_button"),
-            subsUpdateButton:   getById("room_subtitle_update_button"),
-            subsDeleteButton:   getById("room_subtitle_delete_button"),
             openSettingsButton: getById("room_open_settings_button"),
             fetchLyricsButton:  getById("room_fetch_lyrics_button"),
 
+            titleInput:         getById("room_entry_title_input"),
+            titleUpdateButton:  getById("room_title_update_button"),
+            urlInput:           getById("room_entry_url_input"),
+            urlCopyButton:      getById("room_entry_url_copy_button"),
             usingProxyCheckbox: getById("room_entry_proxy_enabled"),
+            refererInput:       getById("room_entry_referer_input"),
 
-            createdByAvatar:    getById("room_created_by_avatar"),
-            createdByUsername:  getById("room_created_by_username"),
-            createdAtDate:      getById("room_created_at_date"),
+            uploadSubButton:  getById("room_subtitle_upload_button"),
+            uploadSubInput:   getById("room_subtitle_upload_input"),
+            subtitlesSelect:  getById("room_subtitle_select"),
+            subsDeleteButton: getById("room_subtitle_delete_button"),
+            setShiftButton:   getById("room_set_shift_button"),
+            subsEditInput:    getById("room_subtitle_name_input"),
+            subsUpdateButton: getById("room_subtitle_update_button"),
 
-            recentActions:      getById("room_recent_actions_list"), 
+            createdByAvatar:   getById("room_created_by_avatar"),
+            createdByUsername: getById("room_created_by_username"),
+            createdAtDate:     getById("room_created_at_date"),
 
-            subtitlesSelect:   getById("room_subtitle_select"),
-            setAtDate:         getById("room_set_at_date"),
+            setByAvatar:   getById("room_set_by_avatar"),
+            setByUsername: getById("room_set_by_username"),
+            setAtDate:     getById("room_set_at_date"),
+
             currentResolution: getById("room_current_resolution"),
+            recentActions: getById("room_recent_actions_list"), 
 
             upload: {
                 placeholderRoot: getById("room_upload_media_placeholder"),
@@ -1501,12 +1503,15 @@ class Room {
             this.roomContent.usingProxyCheckbox.classList.remove("active");
         }
 
-        let user = this.findUser(entry.user_id);
-
         this.roomContent.refererInput.value = entry.referer_url;
 
-        this.roomContent.createdByAvatar.src = user.avatar;
-        this.roomContent.createdByUsername.textContent = user.username;
+        let createdBy = this.findUser(entry.user_id);
+        this.roomContent.createdByAvatar.src           = createdBy.avatar;
+        this.roomContent.createdByUsername.textContent = createdBy.username;
+
+        let setBy = this.findUser(entry.set_by_id);
+        this.roomContent.setByAvatar.src           = setBy.avatar;
+        this.roomContent.setByUsername.textContent = setBy.username;
 
         let date = new Date(entry.created_at);
         let [Y, M, D, h, m] = getDateStrings(date);
