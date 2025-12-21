@@ -1544,6 +1544,7 @@ html * {
     }
 
     #settings_menu_right_panel_content {
+        height: 100%;
         width: 100%;
     }
 
