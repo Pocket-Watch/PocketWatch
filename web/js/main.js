@@ -1873,7 +1873,7 @@ class Room {
 
             case "playerupdatetitle": {
                 let title = wsData;
-                document.title = entry.title;
+                document.title = title;
                 this.player.setTitle(title);
                 this.currentEntry.title = title;
                 this.roomContent.titleInput.value = title;
