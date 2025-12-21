@@ -1536,7 +1536,6 @@ class Room {
 
         let url = entry.url;
         if (!url) {
-            document.title = DEFAULT_TITLE;
             this.setNothing();
             return;
         }
@@ -1570,6 +1569,7 @@ class Room {
 
     setNothing() {
         Storage.remove(LAST_SELECTED_SUBTITLE);
+        document.title = DEFAULT_TITLE;
 
         this.roomContent.currentResolution.textContent = "N/A";
 
@@ -1873,6 +1873,7 @@ class Room {
 
             case "playerupdatetitle": {
                 let title = wsData;
+                document.title = entry.title;
                 this.player.setTitle(title);
                 this.currentEntry.title = title;
                 this.roomContent.titleInput.value = title;
