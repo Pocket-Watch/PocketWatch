@@ -45,6 +45,7 @@ html * {
 }
 
 #settings_menu_left_panel_tabs {
+    min-width: 185px;
     width: 25%;
     display: flex;
     flex-direction: column;
@@ -1533,10 +1534,31 @@ html * {
 }
 
 @media (max-width: 700px) {
-    #settings_toggles_group {
-        display: flex;
+    #settings_menu_root {
         flex-direction: column;
-        row-gap: 6px;
+    }
+
+    #settings_menu_left_panel_tabs {
+        width: 100%;
+        flex-direction: row;
+    }
+
+    #settings_menu_right_panel_content {
+        width: 100%;
+    }
+
+    #settings_menu_tab_header_separator {
+        margin-left: auto;
+    }
+
+    .settings_tab svg {
+        height: 22px;
+        width: 22px;
+        fill: var(--fg_3);
+    }
+
+    .settings_tab span {
+        display: none;
     }
 
     #root_panel {
