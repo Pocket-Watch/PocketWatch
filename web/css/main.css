@@ -36,17 +36,96 @@ html * {
 #settings_menu_root {
     width: 900px;
     height: 700px;
-    background-color: var(--bg_2);
+    /* background-color: var(--bg_2); */
     border-radius: 12px;
     border: 1px solid var(--bg_4);
-    padding: 16px;
+    /* padding: 16px; */
+    display: flex;
+    overflow: hidden;
+}
+
+#settings_menu_left_panel_tabs {
+    width: 25%;
     display: flex;
     flex-direction: column;
+    box-sizing: border-box;
+    padding: 10px;
+    padding-top: 16px;
+    background-color: var(--bg_1);
+}
+    
+#settings_menu_tabs_header {
+    display: flex;
+    height: 30px;
+    color: var(--fg_3);
+    align-items: center;
+    font-size: 16px;
+    font-weight: bold;
+    column-gap: 6px;
+}
+
+#settings_menu_tabs_header img {
+    width: 46px;
+    height: 46px;
+}
+
+#settings_menu_tab_header_separator {
+    min-height: 1px;
+    border-radius: 4px;
+    margin-top: 20px;
+    margin-bottom: 8px;
+    background-color: var(--bg_5);
+}
+
+.settings_tab {
+    display: flex;
+    box-sizing: border-box;
+    height: 36px;
+    background-color: inherit;
+    align-items: center;
+    column-gap: 8px;
+    padding: 4px 12px;
+    border-radius: 6px;
+}
+
+.settings_tab:hover {
+    background-color: var(--bg_2);
+}
+
+.settings_tab:active {
+    background-color: var(--bg_3);
+}
+
+.settings_tab svg {
+    height: 16px;
+    width: 16px;
+    fill: var(--fg_3);
+}
+
+.settings_tab span {
+    font-size: 16px;
+    /* font-weight: bold; */
+    color: var(--fg_3);
+}
+
+#settings_menu_panel_separator {
+    min-width: 1px;
+    background-color: var(--bg_4);
+}
+
+#settings_menu_right_panel_content {
+    width: 75%;
+    display: flex;
+    box-sizing: border-box;
+    flex-direction: column;
     row-gap: 12px;
+    padding: 12px;
+    background-color: var(--bg_2);
 }
 
 #settings_menu_header {
     height: 28px;
+    width: 100%;
     padding-left: 8px;
     display: flex;
     color: var(--fg_3);
@@ -60,7 +139,7 @@ html * {
     width: 32px;
     height: 100%;
     margin-left: auto;
-    margin-right: 0;
+    margin-right: 8px;
     background-color: var(--bg_5);
 }
 
@@ -196,7 +275,14 @@ html * {
 
 #settings_toggles_group {
     display: flex;
+    flex-wrap: wrap;
     column-gap: 6px;
+    row-gap: 6px;
+}
+
+#settings_toggles_group .widget_toggle {
+    min-width: 170px;
+    width: 170px;
 }
 
 #animated_avatars_toggle,
