@@ -1216,9 +1216,12 @@ class Room {
         api.setToken(token);
 
         let result = await api.userVerify(token);
+
+        let data = result.json;
         if (result.ok) {
-            this.currentUserId      = result.json.user_id;
-            this.chat.currentUserId = result.json.user_id;
+            window.history.replaceState({}, "", data.page_path);
+            this.currentUserId      = data.user_id;
+            this.chat.currentUserId = data.user_id;
             return true;
         }
 
