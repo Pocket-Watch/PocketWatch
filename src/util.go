@@ -84,7 +84,7 @@ func GeneratePrettyTable(headers []string, data []string) string {
 		data[i] = strings.ReplaceAll(data[i], "\n", "")
 
 		runes := []rune(data[i])
-		if len(runes) > 80 { 
+		if len(runes) > 80 {
 			data[i] = string(runes[:80])
 		}
 	}
@@ -1216,11 +1216,6 @@ func NewSet[T comparable](capacity int) *Set[T] {
 	}
 }
 
-type Pair[T1 any, T2 any] struct {
-	_1 T1
-	_2 T2
-}
-
 // IpV4Range - start & end IPs are inclusive
 type IpV4Range struct {
 	start, end net.IP
@@ -1347,8 +1342,8 @@ func createSubtitle(filename string, extension string) Subtitle {
 	name = cleanupResourceName(name)
 
 	subtitle := Subtitle{
-		Name:  name,
-		Url:   outputPath,
+		Name: name,
+		Url:  outputPath,
 	}
 
 	return subtitle
