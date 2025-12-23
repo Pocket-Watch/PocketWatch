@@ -60,6 +60,10 @@ class Player {
         this.internals.setSpeed(speed);
     }
 
+    getSpeed() {
+        return this.internals.htmlVideo.playbackRate;
+    }
+
     setBuffering(state) {
         if (state) {
             show(this.internals.bufferingSvg);

@@ -2208,10 +2208,11 @@ func (server *Server) playerUpdateState(isPlaying bool, newTimestamp float64, us
 
 func (server *Server) getCurrentTimestamp() float64 {
 	var timestamp = server.state.player.Timestamp
+	var speed = server.state.player.Speed
 	if server.state.player.Playing {
 		now := time.Now()
 		diff := now.Sub(server.state.lastUpdate)
-		timestamp = server.state.player.Timestamp + diff.Seconds()
+		timestamp = server.state.player.Timestamp + diff.Seconds()*speed
 	}
 
 	return timestamp

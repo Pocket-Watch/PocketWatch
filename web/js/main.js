@@ -33,6 +33,7 @@ const TAB_HISTORY  = 4;
 const MIN_CHROMIUM_VERSION = 88; // Opera, Edge, Chrome
 const MIN_FIREFOX_VERSION = 85;
 const MIN_SAFARI_VERSION = 14.1;
+const MAX_DESYNC = 1.5;
 
 class Room {
     constructor() {
@@ -225,6 +226,9 @@ class Room {
         }, 2000);
 
         this.subShiftTimeout = new Timeout(null, 2000);
+        this.playbackSpeedSendEvent = new Timeout(_ => {
+            api.wsPlayerSpeedChange(this.player.getSpeed())
+        }, 200);
 
         // Number of time client tried to reconnect after a disconnect.
         this.reconnectCounter = 0;
@@ -426,7 +430,7 @@ class Room {
                 Storage.set(key, value);
             }
             if (key === Options.PLAYBACK_SPEED) {
-                api.wsPlayerSpeedChange(value)
+                this.playbackSpeedSendEvent.schedule();
             }
         });
 
@@ -1608,7 +1612,6 @@ class Room {
     }
 
     resyncPlayer(timestamp, userId) {
-        const MAX_DESYNC = 1.5;
         let desync = timestamp - this.player.getCurrentTime();
 
         if (userId === 0) {
@@ -2122,7 +2125,8 @@ class Room {
 
             case "playerspeedchange": {
                 let speed = wsData;
-                console.log("Received speed change: ", speed)
+                console.log("Received speed change:", speed)
+                this.player.setSpeed(speed)
             } break;
 
             default: {
