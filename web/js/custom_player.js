@@ -2040,9 +2040,6 @@ class Internals {
         let subsFgColor        = this.subtitleFgColor;
         let subsBgColor        = this.subtitleBgColor;
 
-        let selectedTab  = selectTab;
-        let selectedView = selectView;
-
         hide(menuRoot);
         hide(selectView);
         hide(searchView);
@@ -2072,12 +2069,12 @@ class Internals {
 
         searchButton.textContent   = "[S]";
 
-        selectedTab.classList.add("player_menu_tab_selected");
-        show(selectedView);
-
         menuRoot.onclick = stopPropagation;
 
-        let select = (tab, view) => {
+        let selectedTab  = selectTab;
+        let selectedView = selectView;
+
+        let select = (id, tab, view) => {
             selectedTab.classList.remove("player_menu_tab_selected");
             hide(selectedView);
 
@@ -2086,11 +2083,30 @@ class Internals {
 
             selectedTab.classList.add("player_menu_tab_selected");
             show(selectedView);
+
+            this.fireSettingsChange(Options.PLAYER_SUBTITLES_LAST_TAB, id);
         };
 
-        selectTab.onclick  = _ => select(selectTab,  selectView);
-        searchTab.onclick  = _ => select(searchTab,  searchView);
-        optionsTab.onclick = _ => select(optionsTab, optionsView);
+        // NOTE(kihau): Selecting "subtitle select" as a default tab.
+        select(0, selectTab, selectView);
+
+        switch (this.options.subtitlesTab) {
+            case 0: {
+                select(0, selectTab,  selectView);
+            } break;
+
+            case 1: {
+                select(1, searchTab,  searchView);
+            } break;
+
+            case 2: {
+                select(2, optionsTab, optionsView);
+            } break;
+        }
+
+        selectTab.onclick  = _ => select(0, selectTab,  selectView);
+        searchTab.onclick  = _ => select(1, searchTab,  searchView);
+        optionsTab.onclick = _ => select(2, optionsTab, optionsView);
 
         subtitleSwitch.onAction = enabled => {
             this.fireSettingsChange(Options.SUBTITLES_ENABLED, enabled);
@@ -2212,10 +2228,10 @@ class Internals {
         let stretchToScreen = this.stretchToScreen;
         let disableVideo    = new Switcher("Disable video");
 
-        let selectedTab  = generalTab;
-        let selectedView = generalView;
-
         hide(menuRoot);
+        hide(generalView);
+        hide(appearanceView)
+
         alwaysShow.setState(this.options.alwaysShowControls);
         showOnPause.setState(this.options.showControlsOnPause);
         disableVideo.setState(this.options.disableVideo);
@@ -2232,12 +2248,12 @@ class Internals {
         generalTab.textContent    = "General";
         appearanceTab.textContent = "Appearance";
 
-        selectedTab.classList.add("player_menu_tab_selected");
-        hide(appearanceView);
-
         menuRoot.onclick = stopPropagation;
 
-        let select = (tab, view) => {
+        let selectedTab = generalTab;
+        let selectedView = generalView;
+
+        let select = (id, tab, view) => {
             selectedTab.classList.remove("player_menu_tab_selected");
             hide(selectedView);
 
@@ -2246,10 +2262,25 @@ class Internals {
 
             selectedTab.classList.add("player_menu_tab_selected");
             show(selectedView);
+
+            this.fireSettingsChange(Options.PLAYER_SETTINGS_LAST_TAB, id);
         };
 
-        generalTab.onclick     = _ => select(generalTab,    generalView);
-        appearanceTab.onclick  = _ => select(appearanceTab, appearanceView);
+        // NOTE(kihau): Selecting "general" as a default tab.
+        select(0, generalTab, generalView);
+
+        switch (this.options.settingsTab) {
+            case 0: {
+                select(0, generalTab, generalView);
+            } break;
+
+            case 1: {
+                select(1, appearanceTab, appearanceView);
+            } break;
+        }
+
+        generalTab.onclick     = _ => select(0, generalTab,    generalView);
+        appearanceTab.onclick  = _ => select(1, appearanceTab, appearanceView);
 
         menuRoot.onclick = stopPropagation;
 
@@ -3042,6 +3073,12 @@ class Options {
         };
 
         this.disableVideo = false;
+
+        // Tab index to select in the player settings menu.
+        this.settingsTab = -1;
+
+        // Tab index to select in the player subtitle menu.
+        this.subtitlesTab = -1;
     }
 
     // Ensure values are the intended type and within some reasonable range
@@ -3083,6 +3120,8 @@ class Options {
     static SUBTITLE_FOREGROUND_OPACITY = "subtitle_foreground_opacity";
     static SUBTITLE_BACKGROUND_COLOR   = "subtitle_background_color";
     static SUBTITLE_BACKGROUND_OPACITY = "subtitle_background_opacity";
+    static PLAYER_SUBTITLES_LAST_TAB   = "player_subtitles_last_tab";
+    static PLAYER_SETTINGS_LAST_TAB    = "player_settings_last_tab";
 }
 
 // Throttling scheduler. After the specified delay elapses, the scheduled action will be executed.

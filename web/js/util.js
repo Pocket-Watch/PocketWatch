@@ -383,6 +383,7 @@ export class Storage {
         return value === "1";
     }
 
+    // TODO(kihau): Not really needed, could just use Storage.set instead
     static setBool(key, value) {
         if (value) {
             localStorage.setItem(key, "1");

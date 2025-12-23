@@ -21,7 +21,7 @@ const LAST_SELECTED_TAB      = "last_selected_tab";
 const LAST_SELECTED_SUBTITLE = "last_selected_subtitle";
 const HLS_DEBUG              = "hls_debug";
 
-const CONNECTION_LOST_MESSAGE= "Connection to the server was lost...";
+const CONNECTION_LOST_MESSAGE = "Connection to the server was lost...";
 const DEFAULT_TITLE = "Pocket Watch";
 
 const TAB_DEFAULT  = 0;
@@ -263,8 +263,19 @@ class Room {
         if (disabled) {
             options.disableVideo = disabled;
         }
+
+        let settingsTab = Storage.getNum(Options.PLAYER_SETTINGS_LAST_TAB);
+        if (settingsTab) {
+            options.settingsTab = settingsTab;
+        }
+
+        let subtitlesTab = Storage.getNum(Options.PLAYER_SUBTITLES_LAST_TAB);
+        if (subtitlesTab) {
+            options.subtitlesTab = subtitlesTab;
+        }
     }
 
+    // TODO(kihau): Some of those can be moved to applyPlayerOptions
     applyUserPreferences() {
         // Room settings
         let last_tab = Storage.getNum(LAST_SELECTED_TAB);
@@ -407,23 +418,10 @@ class Room {
         });
 
         this.player.onSettingsChange((key, value) => {
-            switch (key) {
-                case Options.SHOW_CONTROLS_ON_PAUSE:
-                case Options.ALWAYS_SHOW_CONTROLS:
-                case Options.SUBTITLES_ENABLED:
-                case Options.VIDEO_DISABLED:
-                    Storage.setBool(key, value);
-                    break;
-
-                case Options.VIDEO_FIT:
-                case Options.SUBTITLE_FONT_SIZE:
-                case Options.SUBTITLE_VERTICAL_POSITION:
-                case Options.SUBTITLE_FOREGROUND_COLOR:
-                case Options.SUBTITLE_FOREGROUND_OPACITY:
-                case Options.SUBTITLE_BACKGROUND_COLOR:
-                case Options.SUBTITLE_BACKGROUND_OPACITY:
-                    Storage.set(key, value);
-                    break;
+            if (typeof value === "boolean") {
+                Storage.setBool(key, value);
+            } else {
+                Storage.set(key, value);
             }
         });
 
