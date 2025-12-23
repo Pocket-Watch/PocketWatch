@@ -219,10 +219,12 @@ class Room {
         this.stateOnLoad = null;
 
         // Timeouts
-        this.fileUploadReset  = new Timeout(_ => {
+        this.fileUploadReset = new Timeout(_ => {
             this.roomContent.upload.placeholderRoot.classList.remove("hide");
             this.roomContent.upload.progressRoot.classList.add("hide");
         }, 2000);
+
+        this.subShiftTimeout = new Timeout(null, 2000);
 
         // Number of time client tried to reconnect after a disconnect.
         this.reconnectCounter = 0;
@@ -512,6 +514,14 @@ class Room {
                 this.player.play();
             }
         });
+
+        this.player.onSubtitleShift(subtitle => {
+            this.subShiftTimeout.setAction(_ => {
+                let sub = this.findSubtitleByUrl(subtitle.url)
+                api.subtitleShift(sub.id, subtitle.offset)
+            });
+            this.subShiftTimeout.schedule();
+        });
     }
 
     resetEntryAreaElements() {
@@ -739,6 +749,22 @@ class Room {
             area.subtitleUrlInput.value  = sub.url;
             area.subtitleNameInput.value = sub.name;
         }
+    }
+
+    findSubtitleByUrl(id) {
+        let subs = this.currentEntry.subtitles;
+        if (!subs) {
+            return null;
+        }
+
+        for (let i = 0; i < subs.length; i++) {
+            let sub = subs[i];
+            if (sub.url === id) {
+                return sub;
+            }
+        }
+
+        return null
     }
 
     attachRoomTabEvents() {

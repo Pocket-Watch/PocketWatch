@@ -291,6 +291,12 @@ class Player {
         }
     }
 
+    onSubtitleShift(func) {
+        if (isFunction(func)) {
+            this.internals.fireSubtitleShift = func;
+        }
+    }
+
     onSubtitleSearch(func) {
         if (isFunction(func)) {
             this.internals.fireSubtitleSearch = func;
@@ -619,6 +625,7 @@ class Internals {
     firePlaybackEnd() {}
     fireSubtitleTrackLoad(_subtitle) {}
     fireSubtitleSelect(_subtitle) {}
+    fireSubtitleShift(_subtitle) {}
     async fireSubtitleSearch(_search) {}
     fireMetadataLoad() {}
     fireDataLoad() {}
@@ -1196,6 +1203,7 @@ class Internals {
         if (this.selectedSubtitle) {
             this.selectedSubtitle.offset += seconds;
             this.subtitleShift.setValue(this.selectedSubtitle.offset);
+            this.fireSubtitleShift(this.selectedSubtitle);
             this.updateSubtitles(this.getCurrentTime());
         }
     }
@@ -1204,6 +1212,7 @@ class Internals {
         if (this.selectedSubtitle) {
             this.selectedSubtitle.offset = offset;
             this.subtitleShift.setValue(this.selectedSubtitle.offset);
+            this.fireSubtitleShift(this.selectedSubtitle);
             this.updateSubtitles(this.getCurrentTime());
         }
     }
