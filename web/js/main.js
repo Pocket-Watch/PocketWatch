@@ -423,6 +423,9 @@ class Room {
             } else {
                 Storage.set(key, value);
             }
+            if (key === Options.PLAYBACK_SPEED) {
+                api.wsPlayerSpeedChange(value)
+            }
         });
 
         this.player.onSubtitleSearch(async search => {
@@ -1682,6 +1685,11 @@ class Room {
                 this.addRecentAction(userId, "updated current title.", date);
             } break;
 
+            case "speedchange": {
+                let speed = action.data;
+                this.addRecentAction(userId, "changed speed to x" + speed, date);
+            } break;
+
             case "subtitleattach": {
                 this.addRecentAction(userId, "added a subtitle.", date);
             } break;
@@ -2084,6 +2092,11 @@ class Room {
                         break;
                     }
                 }
+            } break;
+
+            case "playerspeedchange": {
+                let speed = wsData;
+                console.log("Received speed change: ", speed)
             } break;
 
             default: {

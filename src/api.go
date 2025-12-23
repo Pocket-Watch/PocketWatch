@@ -91,7 +91,7 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request, use
 }
 
 func (server *Server) apiInviteCreate(w http.ResponseWriter, r *http.Request, userId uint64) {
-	invite := server.createNewInvite(userId);
+	invite := server.createNewInvite(userId)
 	jsonData, _ := json.Marshal(invite)
 	w.Write(jsonData)
 }
@@ -1007,7 +1007,7 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 	server.users.mutex.Lock()
 	messages, _ := server.chatGet(MessageHistoryRequest{100, 0}, user.Id)
 
-	alldata := GetAllMessage{
+	allData := GetAllMessage{
 		Users:    server.users.slice,
 		Player:   player,
 		Playlist: server.state.playlist,
@@ -1015,7 +1015,7 @@ func (server *Server) apiEvents(w http.ResponseWriter, r *http.Request) {
 		History:  server.state.history,
 	}
 
-	server.writeEventToOneConnection("getall", alldata, conn)
+	server.writeEventToOneConnection("getall", allData, conn)
 	server.state.mutex.Unlock()
 	server.users.mutex.Unlock()
 
@@ -1096,6 +1096,8 @@ func getEventName(eventType EventType) string {
 		return "player looping"
 	case EVENT_PLAYER_UPDATE_TITLE:
 		return "player update title"
+	case EVENT_PLAYER_SPEED_CHANGE:
+		return "player speed change"
 
 	case EVENT_CHAT_SEND:
 		return "chat send"
@@ -1176,6 +1178,9 @@ func (server *Server) handleWSMessage(data []byte, userId uint64) {
 
 	case EVENT_PLAYER_UPDATE_TITLE:
 		handleWsEvent(event, userId, server.playerUpdateTitle)
+
+	case EVENT_PLAYER_SPEED_CHANGE:
+		handleWsEvent(event, userId, server.playerSpeedChange)
 
 	case EVENT_CHAT_SEND:
 		handleWsEvent(event, userId, server.chatCreate)

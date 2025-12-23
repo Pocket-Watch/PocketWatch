@@ -11,26 +11,29 @@ export const MEDIA_AUDIO = CONTENT_MEDIA + "audio/";
 export const MEDIA_SUBS  = CONTENT_MEDIA + "subs/";
 export const MEDIA_IMAGE = CONTENT_MEDIA + "image/";
 
-export const EVENT_PLAYER_PLAY         = 0;
-export const EVENT_PLAYER_PAUSE        = 1;
-export const EVENT_PLAYER_SEEK         = 2;
-export const EVENT_PLAYER_SET          = 3;
-export const EVENT_PLAYER_NEXT         = 4;
-export const EVENT_PLAYER_AUTOPLAY     = 5;
-export const EVENT_PLAYER_LOOPING      = 6;
-export const EVENT_PLAYER_UPDATE_TITLE = 7;
+// It's important that the order of these events and their respective IDs is kept in sync with server code
+let id = 0;
+export const EVENT_PLAYER_PLAY         = id++;
+export const EVENT_PLAYER_PAUSE        = id++;
+export const EVENT_PLAYER_SEEK         = id++;
+export const EVENT_PLAYER_SET          = id++;
+export const EVENT_PLAYER_NEXT         = id++;
+export const EVENT_PLAYER_AUTOPLAY     = id++;
+export const EVENT_PLAYER_LOOPING      = id++;
+export const EVENT_PLAYER_UPDATE_TITLE = id++;
+export const EVENT_PLAYER_SPEED_CHANGE = id++;
 
-export const EVENT_CHAT_SEND   = 8;
-export const EVENT_CHAT_EDIT   = 9;
-export const EVENT_CHAT_DELETE = 10;
+export const EVENT_CHAT_SEND   = id++;
+export const EVENT_CHAT_EDIT   = id++;
+export const EVENT_CHAT_DELETE = id++;
 
-export const EVENT_PLAYLIST_ADD     = 11;
-export const EVENT_PLAYLIST_PLAY    = 12;
-export const EVENT_PLAYLIST_MOVE    = 13;
-export const EVENT_PLAYLIST_CLEAR   = 14;
-export const EVENT_PLAYLIST_DELETE  = 15;
-export const EVENT_PLAYLIST_UPDATE  = 16;
-export const EVENT_PLAYLIST_SHUFFLE = 17;
+export const EVENT_PLAYLIST_ADD     = id++;
+export const EVENT_PLAYLIST_PLAY    = id++;
+export const EVENT_PLAYLIST_MOVE    = id++;
+export const EVENT_PLAYLIST_CLEAR   = id++;
+export const EVENT_PLAYLIST_DELETE  = id++;
+export const EVENT_PLAYLIST_UPDATE  = id++;
+export const EVENT_PLAYLIST_SHUFFLE = id++;
 
 function getEventName(type) {
     switch (type) {
@@ -42,6 +45,7 @@ function getEventName(type) {
         case EVENT_PLAYER_AUTOPLAY:     return "player autoplay";
         case EVENT_PLAYER_LOOPING:      return "player looping";
         case EVENT_PLAYER_UPDATE_TITLE: return "player update title";
+        case EVENT_PLAYER_SPEED_CHANGE: return "player speed change";
 
         case EVENT_CHAT_SEND:   return "chat send";
         case EVENT_CHAT_EDIT:   return "chat edit";
@@ -533,6 +537,10 @@ export function wsPlayerLooping(state) {
 
 export function wsPlayerUpdateTitle(title) {
     wsSendEvent(EVENT_PLAYER_UPDATE_TITLE, title);
+}
+
+export function wsPlayerSpeedChange(speed) {
+    wsSendEvent(EVENT_PLAYER_SPEED_CHANGE, speed);
 }
 
 export function wsChatSend(messageContent) {

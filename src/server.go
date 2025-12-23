@@ -216,6 +216,7 @@ func StartServer(config ServerConfig, db *sql.DB) {
 			player: PlayerState{
 				Autoplay: autoplay,
 				Looping:  looping,
+				Speed:    1.0,
 			},
 
 			actions: make([]Action, 0, 4),
@@ -2438,8 +2439,27 @@ func (server *Server) playerUpdateTitle(title string, userId uint64) error {
 	server.state.entry.Title = title
 	DatabaseCurrentEntryUpdateTitle(server.db, title)
 
-	server.addRecentAction("updatetitle", userId, title)
+	server.addRecentAction("speedchange", userId, title)
 	server.writeEventToAllConnections("playerupdatetitle", title, userId)
+
+	return nil
+}
+
+func (server *Server) playerSpeedChange(speed float64, userId uint64) error {
+	server.state.mutex.Lock()
+	defer server.state.mutex.Unlock()
+
+	if speed > MAX_SPEED {
+		LogInfo("Reducing playback speed %v -> %v", speed, MAX_SPEED)
+		speed = MAX_SPEED
+	}
+	if speed < MIN_SPEED {
+		speed = MIN_SPEED
+	}
+	server.state.player.Speed = speed
+
+	server.addRecentAction("updatetitle", userId, speed)
+	server.writeEventToAllConnections("playerspeedchange", speed, userId)
 
 	return nil
 }

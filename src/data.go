@@ -32,6 +32,8 @@ const MAX_NICKNAME_LENGTH = 255
 const MAX_UNKNOWN_PATH_LENGTH = 30
 const MAX_HISTORY_SIZE = 120
 const MAX_CHAT_LOAD = 100
+const MAX_SPEED = 2.5
+const MIN_SPEED = 0.1
 
 const SUBTITLE_SIZE_LIMIT = 512 * KB
 const AVATAR_SIZE_LIMIT = 8 * MB
@@ -42,7 +44,7 @@ const MAX_CHUNK_SIZE = 16 * MB
 
 var SUBTITLE_EXTENSIONS = [...]string{".vtt", ".srt"}
 
-// Read-only. Asigned on server startup.
+// Read-only. Assigned on server startup.
 var PAGE_ROOT string
 var PROXY_ROUTE string
 var STREAM_ROUTE string
@@ -96,26 +98,27 @@ const GENERIC_CHUNK_SIZE = 1_000_000
 type EventType uint64
 
 const (
-	EVENT_PLAYER_PLAY         EventType = 0
-	EVENT_PLAYER_PAUSE        EventType = 1
-	EVENT_PLAYER_SEEK         EventType = 2
-	EVENT_PLAYER_SET          EventType = 3
-	EVENT_PLAYER_NEXT         EventType = 4
-	EVENT_PLAYER_AUTOPLAY     EventType = 5
-	EVENT_PLAYER_LOOPING      EventType = 6
-	EVENT_PLAYER_UPDATE_TITLE EventType = 7
+	EVENT_PLAYER_PLAY EventType = iota
+	EVENT_PLAYER_PAUSE
+	EVENT_PLAYER_SEEK
+	EVENT_PLAYER_SET
+	EVENT_PLAYER_NEXT
+	EVENT_PLAYER_AUTOPLAY
+	EVENT_PLAYER_LOOPING
+	EVENT_PLAYER_UPDATE_TITLE
+	EVENT_PLAYER_SPEED_CHANGE
 
-	EVENT_CHAT_SEND   EventType = 8
-	EVENT_CHAT_EDIT   EventType = 9
-	EVENT_CHAT_DELETE EventType = 10
+	EVENT_CHAT_SEND
+	EVENT_CHAT_EDIT
+	EVENT_CHAT_DELETE
 
-	EVENT_PLAYLIST_ADD     EventType = 11
-	EVENT_PLAYLIST_PLAY    EventType = 12
-	EVENT_PLAYLIST_MOVE    EventType = 13
-	EVENT_PLAYLIST_CLEAR   EventType = 14
-	EVENT_PLAYLIST_DELETE  EventType = 15
-	EVENT_PLAYLIST_UPDATE  EventType = 16
-	EVENT_PLAYLIST_SHUFFLE EventType = 17
+	EVENT_PLAYLIST_ADD
+	EVENT_PLAYLIST_PLAY
+	EVENT_PLAYLIST_MOVE
+	EVENT_PLAYLIST_CLEAR
+	EVENT_PLAYLIST_DELETE
+	EVENT_PLAYLIST_UPDATE
+	EVENT_PLAYLIST_SHUFFLE
 )
 
 // Constants - assignable only once!
@@ -165,6 +168,9 @@ type PlayerState struct {
 	// Note that, the timestamp is only updated on user interaction (such as playerPlay, playerPause and playerSeek).
 	// The actual player playback position can be calculated using the getCurrentTimestamp function.
 	Timestamp float64 `json:"timestamp"`
+
+	// Indicates the playback speed, default: x1
+	Speed float64 `json:"speed"`
 }
 
 // Server welcome event, sent to the client as a first event when a WebSocket connection is opened.
@@ -255,7 +261,7 @@ type Entry struct {
 	// Attached subtitles (or lyrics)
 	Subtitles []Subtitle `json:"subtitles"`
 
-	// Entry network URL path of the thumbnal.
+	// Entry network URL path of the thumbnail.
 	Thumbnail string `json:"thumbnail"`
 
 	// Original creation time of the entry.
