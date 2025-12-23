@@ -522,7 +522,9 @@ class Room {
         this.player.onSubtitleShift(subtitle => {
             this.subShiftTimeout.setAction(_ => {
                 let sub = this.findSubtitleByUrl(subtitle.url)
-                api.subtitleShift(sub.id, subtitle.offset)
+                if (sub) {
+                    api.subtitleShift(sub.id, subtitle.offset)
+                }
             });
             this.subShiftTimeout.schedule();
         });
