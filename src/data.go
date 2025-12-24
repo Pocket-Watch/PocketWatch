@@ -314,6 +314,14 @@ type ServerState struct {
 	liveStream LiveStream
 }
 
+type GatewayHandler struct {
+	fsHandler           http.Handler
+	ipToLimiters        map[string]*RateLimiter
+	mapMutex            *sync.Mutex
+	blacklistedIpRanges []IpV4Range
+	hits, perSecond     int
+}
+
 type HlsProxy struct {
 	// Common
 	referer string

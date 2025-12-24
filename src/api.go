@@ -17,6 +17,62 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+func (server *Server) handleEndpointAuthorized(mux *http.ServeMux, endpoint string, endpointHandler func(w http.ResponseWriter, r *http.Request, userId uint64), method string) {
+	genericHandler := func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				LogFatalUp(2, "Panic in endpoint handler for %v serving %v: %v", endpoint, getIp(r), err)
+			}
+		}()
+
+		if r.Method != method {
+			errMsg := fmt.Sprintf("Method not allowed. %v was expected.", method)
+			http.Error(w, errMsg, http.StatusMethodNotAllowed)
+			return
+		}
+
+		user := server.getAuthorized(w, r)
+		if user == nil {
+			return
+		}
+
+		endpointTrim := strings.TrimPrefix(endpoint, "/api/")
+		requested := strings.ReplaceAll(endpointTrim, "/", " ")
+		LogInfo("Connection %s requested %v.", getIp(r), requested)
+
+		endpointHandler(w, r, user.Id)
+	}
+
+	mux.HandleFunc(endpoint, genericHandler)
+}
+
+func (server *Server) handleEndpoint(mux *http.ServeMux, endpoint string, endpointHandler func(w http.ResponseWriter, r *http.Request), method string) {
+	genericHandler := func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				LogFatalUp(2, "Panic in endpoint handler for %v serving %v: %v", endpoint, getIp(r), err)
+			}
+		}()
+
+		if r.Method != method {
+			errMsg := fmt.Sprintf("Method not allowed. %v was expected.", method)
+			http.Error(w, errMsg, http.StatusMethodNotAllowed)
+			return
+		}
+
+		// NOTE(kihau): Hack to prevent console spam on proxy.
+		if PROXY_ROUTE != endpoint && STREAM_ROUTE != endpoint {
+			endpointTrim := strings.TrimPrefix(endpoint, "/api/")
+			requested := strings.ReplaceAll(endpointTrim, "/", " ")
+			LogInfo("Connection %s requested %v.", getIp(r), requested)
+		}
+
+		endpointHandler(w, r)
+	}
+
+	mux.HandleFunc(endpoint, genericHandler)
+}
+
 func (server *Server) apiVersion(w http.ResponseWriter, r *http.Request) {
 	buildTime := fmt.Sprintf("%v_%v", VERSION, BuildTime)
 	response, _ := json.Marshal(buildTime)
