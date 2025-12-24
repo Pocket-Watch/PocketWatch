@@ -255,6 +255,7 @@ type InputFlags struct {
 	ServerDomain   string
 	ServerPort     int
 	BehindProxy    bool
+	ProfileOutput  string
 
 	EnableSql    bool
 	EnableSsl    bool
@@ -341,6 +342,14 @@ func ParseInputArgs() (InputFlags, bool) {
 			}
 
 			flags.ServerPort = port
+
+		case "-prf", "--profile-file":
+			outputFile := nextArg(&args)
+			if invalidValue(arg, outputFile) {
+				return flags, false
+			}
+			flags.ProfileOutput = outputFile
+
 		case "-bp", "--behind-proxy":
 			flags.BehindProxy = true
 
@@ -451,6 +460,7 @@ func DisplayHelp() {
 	fmt.Println("    -dc,    --disable-color          Disables colored logging. (default: enabled)")
 	fmt.Println("    -d,     --domain [example.com]   Domain, if any, that the server is hosted on. Serves as a hint to associate URLs with local env.")
 	fmt.Println("    -dsh,   --disable-shell          Disable interactive shell during server runtime.")
+	fmt.Println("    -prf,   --profiler-file [file]   Output file for the recorded data from the profiler (disabled by default).")
 	fmt.Println()
 	fmt.Println("Example usage:")
 	fmt.Println("    ", exe, "--port 8888")

@@ -4,9 +4,24 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime/pprof"
 )
 
 var BuildTime string
+
+func StopServer(server *Server) {
+	EnableConsoleLogging()
+
+	server.state.mutex.Lock()
+	timestamp := server.getCurrentTimestamp()
+	server.state.mutex.Unlock()
+
+	DatabaseSetTimestamp(server.db, timestamp)
+	pprof.StopCPUProfile()
+
+	LogInfo("Shutting down the server")
+	os.Exit(0)
+}
 
 func CaptureCtrlC(server *Server) {
 	channel := make(chan os.Signal, 1)
@@ -19,14 +34,7 @@ func CaptureCtrlC(server *Server) {
 			if server.config.EnableShell {
 				RunInteractiveShell(channel, server)
 			} else {
-				server.state.mutex.Lock()
-				timestamp := server.getCurrentTimestamp()
-				server.state.mutex.Unlock()
-
-				DatabaseSetTimestamp(server.db, timestamp)
-
-				LogInfo("Shutting down the server")
-				os.Exit(0)
+				StopServer(server)
 			}
 		}
 	}()
@@ -96,6 +104,22 @@ func main() {
 
 	if !MigrateDatabase(db) {
 		os.Exit(1)
+	}
+
+	if flags.ProfileOutput != "" {
+		file, err := os.Create(flags.ProfileOutput)
+		if err != nil {
+			LogError("Failed to create profiler output file for the recorded data: %v", err)
+			os.Exit(1)
+		}
+
+		err = pprof.StartCPUProfile(file)
+		if err != nil {
+			LogError("Failed to start the profiler: %v", err)
+			os.Exit(1)
+		}
+
+		LogInfo("Profiler started with output data available at: %v", flags.ProfileOutput)
 	}
 
 	StartServer(config.Server, db)

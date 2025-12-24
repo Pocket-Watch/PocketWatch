@@ -2235,7 +2235,7 @@ class Internals {
         let alwaysShow      = new Switcher("Always show controls");
         let showOnPause     = new Switcher("Show controls on pause");
         let audioGain       = new Switcher("Audio gain");
-        let preservePitch   = new Switcher("Presrve pitch", true);
+        let preservePitch   = new Switcher("Preserve pitch", true);
         let playbackSpeed   = this.playbackSpeed;
         let brightness      = new Slider("Brightness", 0.2, 2, 0.05, 1.0);
         let fitToScreen     = this.fitToScreen;
