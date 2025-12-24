@@ -279,6 +279,11 @@ class Room {
         if (subtitlesTab) {
             options.subtitlesTab = subtitlesTab;
         }
+
+        let preservePitch = Storage.getBool(Options.PLAYER_PRESERVE_PITCH);
+        if (preservePitch !== null) {
+            options.preservePitch = preservePitch;
+        }
     }
 
     // TODO(kihau): Some of those can be moved to applyPlayerOptions
@@ -505,9 +510,10 @@ class Room {
             }
         });
 
-        // NOTE(kihau): This hack fixes HLS issues with seeking on website load and autoplaying.
+        // NOTE(kihau): This hack fixes HLS issues with seeking, autoplay and playback speed on website load.
         this.player.onDataLoad(_ => {
             if (this.stateOnLoad) {
+                this.player.setSpeed(this.stateOnLoad.speed)
                 this.player.seek(this.stateOnLoad.timestamp);
                 if (this.stateOnLoad.playing) {
                     this.player.play();

@@ -2235,6 +2235,7 @@ class Internals {
         let alwaysShow      = new Switcher("Always show controls");
         let showOnPause     = new Switcher("Show controls on pause");
         let audioGain       = new Switcher("Audio gain");
+        let preservePitch   = new Switcher("Presrve pitch", true);
         let playbackSpeed   = this.playbackSpeed;
         let brightness      = new Slider("Brightness", 0.2, 2, 0.05, 1.0);
         let fitToScreen     = this.fitToScreen;
@@ -2248,6 +2249,9 @@ class Internals {
         alwaysShow.setState(this.options.alwaysShowControls);
         showOnPause.setState(this.options.showControlsOnPause);
         disableVideo.setState(this.options.disableVideo);
+        preservePitch.setState(this.options.preservePitch);
+
+        this.htmlVideo.preservesPitch = this.options.preservePitch;
 
         if (this.options.disableVideo) {
             this.htmlVideo.classList.add("disable");
@@ -2312,6 +2316,11 @@ class Internals {
             this.fireSettingsChange(Options.PLAYBACK_SPEED, value);
         };
 
+        preservePitch.onAction = state => {
+            this.htmlVideo.preservesPitch = state;
+            this.fireSettingsChange(Options.PLAYER_PRESERVE_PITCH, state);
+        };
+
         brightness.onInput = value => {
             this.htmlVideo.style.filter = "brightness(" + value + ")";
             this.fireSettingsChange(Options.BRIGHTNESS, value);
@@ -2370,6 +2379,7 @@ class Internals {
             menuViews.append(generalView); {
                 generalView.append(playbackSpeed.root);
                 generalView.append(audioGain.root);
+                generalView.append(preservePitch.root);
             }
             menuViews.append(appearanceView); {
                 appearanceView.append(brightness.root);
@@ -3092,6 +3102,10 @@ class Options {
 
         // Tab index to select in the player subtitle menu.
         this.subtitlesTab = -1;
+
+
+        // Preserve audio pitch when playback speed changes.
+        this.preservePitch = true;
     }
 
     // Ensure values are the intended type and within some reasonable range
@@ -3135,6 +3149,7 @@ class Options {
     static SUBTITLE_BACKGROUND_OPACITY = "subtitle_background_opacity";
     static PLAYER_SUBTITLES_LAST_TAB   = "player_subtitles_last_tab";
     static PLAYER_SETTINGS_LAST_TAB    = "player_settings_last_tab";
+    static PLAYER_PRESERVE_PITCH       = "player_preserve_pitch";
 }
 
 // Throttling scheduler. After the specified delay elapses, the scheduled action will be executed.
