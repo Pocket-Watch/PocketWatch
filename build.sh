@@ -7,7 +7,8 @@ cd "$project_root"
 
 mkdir -p build/
 cd src/ 
-go build -race -o ../build/pocketwatch
+CGO_ENABLED=1 go build -race -o ../build/pocketwatch
+# CGO_ENABLED=0 go build -o ../build/pocketwatch
 cd ..
 
 # Generate dummy config when one is missing.

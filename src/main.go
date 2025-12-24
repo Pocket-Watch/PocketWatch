@@ -106,10 +106,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	if flags.ProfileOutput != "" {
-		file, err := os.Create(flags.ProfileOutput)
+	profiler := config.Server.ProfilerOutput
+	if profiler != "" {
+		file, err := os.Create(profiler)
 		if err != nil {
-			LogError("Failed to create profiler output file for the recorded data: %v", err)
+			LogError("Failed to create profiler output file '%v' for the recorded data: %v", profiler, err)
 			os.Exit(1)
 		}
 
@@ -119,7 +120,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		LogInfo("Profiler started with output data available at: %v", flags.ProfileOutput)
+		LogInfo("Profiler started with output data available at: %v", profiler)
 	}
 
 	StartServer(config.Server, db)

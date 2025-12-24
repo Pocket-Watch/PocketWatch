@@ -22,6 +22,7 @@ type ServerConfig struct {
 	BehindProxy         bool             `json:"behind_proxy"`
 	Redirects           []RedirectConfig `json:"redirects"`
 	BlacklistedIpRanges [][]string       `json:"blacklisted_ip_ranges"`
+	ProfilerOutput      string           `json:"profiler_output"`
 }
 
 type RedirectConfig struct {
@@ -65,6 +66,7 @@ func createDefaultConfig() Config {
 		BehindProxy:         false,
 		Redirects:           []RedirectConfig{},
 		BlacklistedIpRanges: [][]string{},
+		ProfilerOutput:      "",
 	}
 
 	logging := LoggingConfig{
@@ -244,6 +246,10 @@ func ApplyInputFlags(config *Config, flags InputFlags) {
 
 	if flags.DisableShell {
 		config.Server.EnableShell = false
+	}
+
+	if flags.ProfileOutput != "" {
+		config.Server.ProfilerOutput = flags.ProfileOutput
 	}
 
 }
