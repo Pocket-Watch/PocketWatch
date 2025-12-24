@@ -492,7 +492,7 @@ class Internals {
         this.subtitlePos     = new Slider("Vertical position",   0, 100, 1.0, 16, "%");
         this.subtitleFgColor = new ColorPicker("Foreground color", DEFAULT_SUBTITLE_FOREGROUND_COLOR, DEFAULT_SUBTITLE_FOREGROUND_OPACITY);
         this.subtitleBgColor = new ColorPicker("Background color", DEFAULT_SUBTITLE_BACKGROUND_COLOR, DEFAULT_SUBTITLE_BACKGROUND_OPACITY);
-        this.playbackSpeed   = new Slider("Playback speed", 0.25, 5.0, 0.25, 1.0, "x");
+        this.playbackSpeed   = new Slider("Playback speed", this.options.minSpeed, this.options.maxSpeed, 0.05, 1.0, "x");
         this.fitToScreen     = new Switcher("Fit video to screen");
         this.stretchToScreen = new Switcher("Stretch video to screen");
 
@@ -3103,9 +3103,14 @@ class Options {
         // Tab index to select in the player subtitle menu.
         this.subtitlesTab = -1;
 
-
         // Preserve audio pitch when playback speed changes.
         this.preservePitch = true;
+
+        // Minimum playback speed on the slider in settings menu.
+        this.minSpeed = 0.25;
+
+        // Maximum playback speed on the slider in settings menu.
+        this.maxSpeed = 5.0;
     }
 
     // Ensure values are the intended type and within some reasonable range

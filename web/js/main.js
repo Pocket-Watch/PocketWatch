@@ -42,6 +42,7 @@ class Room {
         let options                = new Options();
         options.useAudioGain       = true;
         options.maxVolume          = 1.5;
+        options.maxSpeed           = 2.5;
         options.hideSpeedButton    = true;
         options.hideDownloadButton = true;
         options.hlsConfig.xhrSetup = (xhr, url) => this.configureHlsRequests(xhr, url);
