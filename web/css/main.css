@@ -945,7 +945,7 @@ html * {
 }
 
 #right_panel_content {
-    height: 100%;
+    height: 100vh;
     width: calc(100% - 32px);
     border-radius: 8px;
     box-shadow: 2px 4px 4px var(--bg_0);
