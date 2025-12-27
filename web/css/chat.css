@@ -29,11 +29,6 @@
     scrollbar-color: var(--bg_5) var(--bg_2);
 }
 
-#chat_message_list_root::-webkit-scrollbar {
-    background-color: var(--bg_5);
-    color: var(--bg_2);
-}
-
 #chat_message_list {
     width: 100%;
     height: auto;

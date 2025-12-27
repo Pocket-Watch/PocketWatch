@@ -16,6 +16,7 @@
     z-index: 2;
     position: relative;
     align-items: center;
+    row-gap: 6px;
 }
 
 .widget_readonly_input input,
@@ -120,9 +121,10 @@
     fill: var(--blue_2);
 }
 
-
 .widget_input_extra_button input {
-    border-radius: 8px 0 0 8px;
+    /* NOTE(kihau): Previous styling. Changed because safari is a garbage browser */
+    /*border-radius: 8px 0 0 8px;*/
+    border-radius: 8px;
     z-index: 1;
 }
 
@@ -139,7 +141,9 @@
     width: 36px;
     border: 2px solid var(--fg_6);
     background-color: var(--bg_2);
-    border-radius: 0 8px 8px 0;
+    /* NOTE(kihau): Previous styling. Changed because safari is a garbage browser */
+    /* border-radius: 0 8px 8px 0; */
+    border-radius: 8px;
     margin-left: -2px;
     display: flex;
     align-items: center;
