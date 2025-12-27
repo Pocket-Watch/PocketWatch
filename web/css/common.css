@@ -16,7 +16,7 @@
     z-index: 2;
     position: relative;
     align-items: center;
-    row-gap: 6px;
+    column-gap: 6px;
 }
 
 .widget_readonly_input input,
