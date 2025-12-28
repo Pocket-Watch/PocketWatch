@@ -334,17 +334,20 @@
 }
 
 #player_progress_buffered {
+    z-index: 0;
     width: 100%;
     image-rendering: pixelated; 
     background: transparent;
 }
 
 #player_progress_current {
+    z-index: 1;
     width: 0;
     background-color: var(--player_color_progress);
 }
 
 #player_progress_thumb {
+    z-index: 2;
     height: 0;
     width: 6px;
     border-radius: 6px;
