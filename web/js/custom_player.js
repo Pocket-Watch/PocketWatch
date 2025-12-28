@@ -10,9 +10,12 @@ class Player {
             throw new Error("An invalid video element was passed!");
         }
 
-        if (!(options instanceof Options) || !options.valid()) {
+        if (!(options instanceof Options)) {
+            console.error("ERROR: Provided options are not of an instance of the Options class. Using default values instead.")
             options = new Options();
         }
+
+        options.validate()
         this.internals = new Internals(videoElement, options);
     }
 
@@ -3116,28 +3119,36 @@ class Options {
     }
 
     // Ensure values are the intended type and within some reasonable range
-    valid() {
+    validate() {
         if (typeof this.iconsPath !== "string") {
-            return false;
+            let options = new Options();
+            console.error("Options::iconsPath is not string. Defaulting to:", options.iconsPath);
+            this.iconsPath = options.iconsPath;
         }
 
         if (typeof this.seekBy !== "number" || this.seekBy < 0) {
-            return false;
+            let options = new Options();
+            console.error("Options::seekBy must be a number greater than 0. Defaulting to:", options.seekBy);
+            this.seekBy = options.seekBy;
         }
 
-        if (typeof this.maxVolume !== "number" || this.maxVolume < 0.1 || this.maxVolume > 10) {
-            return false;
+        if (typeof this.maxVolume !== "number" || this.maxVolume < 0.1 || this.maxVolume > 100.0) {
+            let options = new Options();
+            console.error("Options::maxVolume must be a number in range [0.1; 100.0]. Defaulting to:", options.maxVolume);
+            this.maxVolume = options.maxVolume;
         }
 
         if (typeof this.inactivityTime !== "number" || this.inactivityTime < 0) {
-            return false;
+            let options = new Options();
+            console.error("Options::inactivityTime is not a number. Defaulting to:", options.inactivityTime);
+            this.inactivityTime = options.inactivityTime;
         }
 
         if (typeof this.bufferingRedrawInterval !== "number") {
-            return false;
+            let options = new Options();
+            console.error("Options::bufferingRedrawInterval is not a number. Defaulting to:", options.bufferingRedrawInterval);
+            this.bufferingRedrawInterval = options.bufferingRedrawInterval;
         }
-
-        return true;
     }
 
     // Constants
