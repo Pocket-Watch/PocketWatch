@@ -2237,7 +2237,7 @@ class Internals {
         let appearanceView  = newDiv("player_settings_menu_appearance_view");
         let alwaysShow      = new Switcher("Always show controls");
         let showOnPause     = new Switcher("Show controls on pause");
-        let audioGain       = new Switcher("Audio gain");
+        let crossOrigin       = new Switcher("Cross origin");
         let preservePitch   = new Switcher("Preserve pitch", true);
         let playbackSpeed   = this.playbackSpeed;
         let brightness      = new Slider("Brightness", 0.2, 2, 0.05, 1.0);
@@ -2252,6 +2252,7 @@ class Internals {
         alwaysShow.setState(this.options.alwaysShowControls);
         showOnPause.setState(this.options.showControlsOnPause);
         disableVideo.setState(this.options.disableVideo);
+        crossOrigin.setState(this.htmlVideo.crossOrigin);
         preservePitch.setState(this.options.preservePitch);
 
         this.htmlVideo.preservesPitch = this.options.preservePitch;
@@ -2319,6 +2320,10 @@ class Internals {
             this.fireSettingsChange(Options.PLAYBACK_SPEED, value);
         };
 
+        crossOrigin.onAction = state => {
+            this.htmlVideo.crossOrigin = state ? "" : null;
+        };
+
         preservePitch.onAction = state => {
             this.htmlVideo.preservesPitch = state;
             this.fireSettingsChange(Options.PLAYER_PRESERVE_PITCH, state);
@@ -2381,7 +2386,7 @@ class Internals {
         menuRoot.append(menuViews); {
             menuViews.append(generalView); {
                 generalView.append(playbackSpeed.root);
-                generalView.append(audioGain.root);
+                generalView.append(crossOrigin.root);
                 generalView.append(preservePitch.root);
             }
             menuViews.append(appearanceView); {
@@ -3132,9 +3137,9 @@ class Options {
             this.seekBy = options.seekBy;
         }
 
-        if (typeof this.maxVolume !== "number" || this.maxVolume < 0.1 || this.maxVolume > 100.0) {
+        if (typeof this.maxVolume !== "number" || this.maxVolume < 0.1 || this.maxVolume > 10.0) {
             let options = new Options();
-            console.error("Options::maxVolume must be a number in range [0.1; 100.0]. Defaulting to:", options.maxVolume);
+            console.error("Options::maxVolume must be a number in range [0.1; 10.0]. Defaulting to:", options.maxVolume);
             this.maxVolume = options.maxVolume;
         }
 
