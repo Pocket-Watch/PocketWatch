@@ -23,6 +23,7 @@ function main() {
     let video0 = document.getElementById("video0");
     let options = new Options();
     options.hideNextButton = true;
+    options.iconsPath = "../svg/player_icons.svg";
     //options.useAudioGain = true;
     player = new Player(video0, options);
 
@@ -32,9 +33,9 @@ function main() {
     //let track = "https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_640x360.m4v";
     player.setVideoTrack(track);
     player.setTitle("Agent327");
-    player.addSubtitle("content/media/subs/Tears.of.Steel.2012.vtt");
-    player.addSubtitle("content/media/subs/Agent327.srt");
-    player.addSubtitle("content/media/subs/oneline.srt");
+    player.addSubtitle("../content/media/subs/Tears.of.Steel.2012.vtt");
+    player.addSubtitle("../content/media/subs/Agent327.srt");
+    player.addSubtitle("../content/media/subs/oneline.srt");
     player.setVolume(0.01);
     player.onControlsPlay(() => {
         player.setToast("User clicked play.");

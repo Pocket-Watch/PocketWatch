@@ -2925,7 +2925,9 @@ class Svg {
     }
 
     setHref(href) {
-        this.use.setAttribute("href", href)
+        if (this.use.getAttribute("href") !== href) {
+            this.use.setAttribute("href", href);
+        }
     }
 
     static new(initialHref, width = 20, height = 20) {
