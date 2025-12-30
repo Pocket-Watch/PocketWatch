@@ -24,6 +24,7 @@ shutdown_server() {
     fi
 
     tmux send-keys -t "$session:main_server" C-c || true
+    tmux send-keys -t "$session:main_server" C-c || true
     tmux send-keys -t "$session:main_server" "shutdown" C-m || true
 
     waited=0
