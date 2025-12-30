@@ -325,7 +325,7 @@ func printStackTrace(skip int) {
 		callerFunc := runtime.FuncForPC(callers[i])
 
 		funcname := callerFunc.Name()
-		filepath, line := callerFunc.FileLine(callerFunc.Entry())
+		filepath, line := callerFunc.FileLine(callers[i])
 
 		filename := path.Base(filepath)
 		codeLocation := fmt.Sprintf("%v:%v", filename, line)
