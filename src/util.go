@@ -393,13 +393,15 @@ func pullBytesFromResponse(response *http.Response, byteCount int) ([]byte, erro
 	return buffer, nil
 }
 
+type ContentType = string
+
 // This function tests the server's intent to serve and return data (at most 512 bytes)
 // Returns true if test status code is successful, false if unsuccessful or body couldn't be read
-func testGetResponse(url string, referer string) (bool, *bytes.Buffer) {
+func testGetResponse(url string, referer string) (bool, *bytes.Buffer, ContentType) {
 	parsedUrl, err := net_url.Parse(url)
 	if err != nil {
 		LogDebug("Tested %v", parsedUrl)
-		return false, nil
+		return false, nil, ""
 	}
 	request, _ := http.NewRequest("GET", url, nil)
 	request.Header.Set("User-Agent", userAgent)
@@ -410,20 +412,21 @@ func testGetResponse(url string, referer string) (bool, *bytes.Buffer) {
 
 	response, err := defaultClient.Do(request)
 	if err != nil {
-		return false, nil
+		return false, nil, ""
 	}
 	defer response.Body.Close()
 
+	contentType := response.Header.Get("Content-Type")
 	length := min(int(response.ContentLength), 512)
 	buffer := new(bytes.Buffer)
 	limitedResponse := io.LimitReader(response.Body, int64(length))
 	_, readErr := io.Copy(buffer, limitedResponse)
 	if readErr != nil && readErr != io.EOF {
-		return false, nil
+		return false, nil, contentType
 	}
 
 	success := response.StatusCode >= 200 && response.StatusCode < 300
-	return success, buffer
+	return success, buffer, contentType
 }
 
 type DownloadOptions struct {

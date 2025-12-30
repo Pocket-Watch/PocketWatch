@@ -736,6 +736,11 @@ func isPathM3U(p string) bool {
 	return strings.HasSuffix(p, ".m3u8") || strings.HasSuffix(p, ".m3u") || strings.HasSuffix(p, ".txt")
 }
 
+func isContentTypeM3U(url, referer string) bool {
+	success, _, contentType := testGetResponse(url, referer)
+	return success && contentType == M3U8_CONTENT_TYPE
+}
+
 // isAuthorized checks if the user is authorized, if not responds with an error code
 func (server *Server) isAuthorized(w http.ResponseWriter, r *http.Request) bool {
 	server.users.mutex.Lock()
@@ -1176,9 +1181,9 @@ func (server *Server) setupProxy(entry *Entry) error {
 		}
 	} else if entry.UseProxy {
 		file := getBaseNoParams(urlStruct.Path)
-		paramUrl := getParamUrl(urlStruct)
-		if isPathM3U(file) || (paramUrl != nil && isPathM3U(getBaseNoParams(paramUrl.Path))) {
-			setup := server.setupHlsProxy(entry.Url, entry.RefererUrl)
+		url, referer := entry.Url, entry.RefererUrl
+		if isPathM3U(file) || isContentTypeM3U(url, referer) {
+			setup := server.setupHlsProxy(url, referer)
 			if setup {
 				entry.ProxyUrl = PROXY_ROUTE + PROXY_M3U8
 				LogInfo("HLS proxy setup was successful.")
@@ -1186,7 +1191,7 @@ func (server *Server) setupProxy(entry *Entry) error {
 				return fmt.Errorf("HLS proxy setup failed!")
 			}
 		} else {
-			setup := server.setupGenericFileProxy(entry.Url, entry.RefererUrl)
+			setup := server.setupGenericFileProxy(url, referer)
 			if setup {
 				entry.ProxyUrl = PROXY_ROUTE + "proxy" + server.state.genericProxy.extensionWithDot
 				LogInfo("Generic file proxy setup was successful.")
@@ -1346,7 +1351,7 @@ func validateOrRepointPlaylist(m3u *M3U, referer string) bool {
 
 	url := m3u.segments[0].url
 	if isAbsolute(url) {
-		success, buffer := testGetResponse(url, referer)
+		success, buffer, _ := testGetResponse(url, referer)
 		if !success {
 			return false
 		}
@@ -1361,7 +1366,7 @@ func validateOrRepointPlaylist(m3u *M3U, referer string) bool {
 	prefix := stripLastSegment(urlStruct)
 	url = prefixUrl(prefix, url)
 
-	success, buffer := testGetResponse(url, referer)
+	success, buffer, _ := testGetResponse(url, referer)
 	if success && !bytes.HasPrefix(buffer.Bytes(), EXTM3U_BYTES) {
 		m3u.prefixRelativeSegments(prefix)
 		return true
@@ -1370,7 +1375,7 @@ func validateOrRepointPlaylist(m3u *M3U, referer string) bool {
 	root := getRootDomain(urlStruct)
 	url = prefixUrl(root, m3u.segments[0].url)
 
-	success, buffer = testGetResponse(url, referer)
+	success, buffer, _ = testGetResponse(url, referer)
 	if success && !bytes.HasPrefix(buffer.Bytes(), EXTM3U_BYTES) {
 		m3u.prefixRelativeSegments(root)
 		LogDebug("Repointing segments to root=%v", root)
@@ -1821,7 +1826,9 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 	writer.Header().Set("Connection", "keep-alive")
 	writer.Header().Set("Content-Length", int64ToString(byteRange.length()))
 	writer.Header().Set("Content-Range", byteRange.toContentRange(proxy.contentLength))
-	writer.Header().Set("Content-Type", "video/"+proxy.extensionWithDot[1:])
+	if len(proxy.extensionWithDot) > 1 {
+		writer.Header().Set("Content-Type", "video/"+proxy.extensionWithDot[1:])
+	}
 
 	if request.Method == "HEAD" {
 		writer.WriteHeader(http.StatusOK)
