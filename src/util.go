@@ -1351,3 +1351,12 @@ func createSubtitle(filename string, extension string) Subtitle {
 
 	return subtitle
 }
+
+func bufferStartsWith(buffer *bytes.Buffer, prefix []byte) bool {
+	b := buffer.Bytes()
+	prefixLen := len(prefix)
+	if len(b) < prefixLen {
+		return false
+	}
+	return bytes.Equal(b[:prefixLen], prefix)
+}

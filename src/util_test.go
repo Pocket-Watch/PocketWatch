@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"net"
 	"runtime"
 	"slices"
@@ -858,5 +859,14 @@ func TestParseSongTitleWithPipes(t *testing.T) {
 
 	if songTitle != expectedTrackName {
 		t.Errorf("The song title should be '%v' but actual is %v", expectedTrackName, songTitle)
+	}
+}
+
+func TestByteBufferStartsWith(t *testing.T) {
+	bufferContent := "123-XYZ-222-333"
+	buffer := bytes.NewBuffer([]byte(bufferContent))
+
+	if !bufferStartsWith(buffer, []byte("123")) {
+		t.Errorf("The buffer doesn't start with '123'")
 	}
 }

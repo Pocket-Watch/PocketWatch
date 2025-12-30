@@ -736,9 +736,9 @@ func isPathM3U(p string) bool {
 	return strings.HasSuffix(p, ".m3u8") || strings.HasSuffix(p, ".m3u") || strings.HasSuffix(p, ".txt")
 }
 
-func isContentTypeM3U(url, referer string) bool {
-	success, _, contentType := testGetResponse(url, referer)
-	return success && contentType == M3U8_CONTENT_TYPE
+func isContentM3U(url, referer string) bool {
+	success, buffer, contentType := testGetResponse(url, referer)
+	return success && (contentType == M3U8_CONTENT_TYPE || bufferStartsWith(buffer, EXTM3U_BYTES))
 }
 
 // isAuthorized checks if the user is authorized, if not responds with an error code
@@ -1182,7 +1182,7 @@ func (server *Server) setupProxy(entry *Entry) error {
 	} else if entry.UseProxy {
 		file := getBaseNoParams(urlStruct.Path)
 		url, referer := entry.Url, entry.RefererUrl
-		if isPathM3U(file) || isContentTypeM3U(url, referer) {
+		if isPathM3U(file) || isContentM3U(url, referer) {
 			setup := server.setupHlsProxy(url, referer)
 			if setup {
 				entry.ProxyUrl = PROXY_ROUTE + PROXY_M3U8
