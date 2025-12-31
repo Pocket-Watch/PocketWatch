@@ -366,7 +366,11 @@ func prefixUrl(prefix, url string) string {
 	if prefix == "" {
 		return url
 	}
-	if strings.HasSuffix(prefix, "/") || strings.HasPrefix(url, "/") {
+	leftSlash, rightSlash := strings.HasSuffix(prefix, "/"), strings.HasPrefix(url, "/")
+	if leftSlash && rightSlash {
+		return prefix + url[1:]
+	}
+	if leftSlash || rightSlash {
 		return prefix + url
 	}
 	return prefix + "/" + url

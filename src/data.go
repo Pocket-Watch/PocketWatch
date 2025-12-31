@@ -86,6 +86,7 @@ const AUDIO_PREFIX = "au-"
 const LIVE_PREFIX = "live-"
 const MIS_PREFIX = "mis-"
 const MEDIA_INIT_SECTION = "mis.key"
+const MEDIA_INIT_SECTION_AUDIO = "mis-audio.key"
 const MAX_PLAYLIST_DEPTH = 2
 const MAX_CHUNK_NAME_LENGTH = 26
 const MAX_PLAYLIST_DURATION_SECONDS = 86400 // 24hours

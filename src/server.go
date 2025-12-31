@@ -1074,8 +1074,11 @@ func setupDualTrackProxy(originalM3U *M3U, referer string) (bool, *HlsProxy, *Hl
 	videoM3U.prefixRelativeSegments(*videoPrefix)
 	audioM3U.prefixRelativeSegments(*audioPrefix)
 
-	// Check video encryption map uri
+	// Check video & audio encryption map uri
 	if err = setupMapUri(&videoM3U.segments[0], referer, MEDIA_INIT_SECTION); err != nil {
+		return false, nil, nil
+	}
+	if err = setupMapUri(&audioM3U.segments[0], referer, MEDIA_INIT_SECTION_AUDIO); err != nil {
 		return false, nil, nil
 	}
 
@@ -1681,7 +1684,7 @@ func (server *Server) serveHlsVod(writer http.ResponseWriter, request *http.Requ
 		writer.Header().Add("content-type", M3U8_CONTENT_TYPE)
 		http.ServeFile(writer, request, CONTENT_PROXY+chunk)
 		return
-	case MEDIA_INIT_SECTION:
+	case MEDIA_INIT_SECTION, MEDIA_INIT_SECTION_AUDIO:
 		LogDebug("Serving %v", chunk)
 		http.ServeFile(writer, request, CONTENT_PROXY+chunk)
 		return
