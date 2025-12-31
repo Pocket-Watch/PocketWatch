@@ -1219,7 +1219,7 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 	var m3u *M3U
 	if server.isTrustedUrl(url, urlStruct) {
 		osPath := Conditional(isAbsolute(url), stripPathPrefix(urlStruct.Path, PAGE_ROOT), url)
-		m3u, err = parseM3U(CONTENT_ROOT + osPath)
+		m3u, err = parseM3U(osPath)
 		if err != nil {
 			LogError("Failed to parse m3u8: %v", err)
 			return false
