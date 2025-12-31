@@ -989,8 +989,7 @@ func (server *Server) isTrustedUrl(url string, parsedUrl *net_url.URL) bool {
 // setupDualTrackProxy for the time being will handle only 0-depth master playlists.
 // returns (success, video proxy, audio proxy)
 func setupDualTrackProxy(originalM3U *M3U, referer string) (bool, *HlsProxy, *HlsProxy) {
-	prefix := stripLastSegmentStr(originalM3U.url)
-	originalM3U.prefixRelativeTracks(*prefix)
+	originalM3U.prefixRelativeTracks()
 	bestTrack := originalM3U.getTrackByVideoHeight(1080)
 	if bestTrack == nil {
 		return false, nil, nil
@@ -1032,19 +1031,14 @@ func setupDualTrackProxy(originalM3U *M3U, referer string) (bool, *HlsProxy, *Hl
 
 	LogInfo("Video URL: %v", bestTrack.url)
 	LogInfo("Audio URL: %v", audioUrl)
-	videoPrefix := stripLastSegmentStr(bestTrack.url)
-	audioPrefix := stripLastSegmentStr(audioUrl)
-	if videoPrefix == nil || audioPrefix == nil {
-		LogError("Invalid segment prefix of either video or audio URL")
-		return false, nil, nil
-	}
 
 	videoM3U, err := downloadM3U(bestTrack.url, CONTENT_PROXY+VIDEO_M3U8, referer)
 	if err != nil {
 		LogError("Failed to download m3u8 video track: %v", err.Error())
 		return false, nil, nil
 	}
-	if !validateOrRepointPlaylist(videoM3U, referer) {
+	videoM3U.prefixRelativeSegments()
+	if !validatePlaylist(videoM3U, referer) {
 		LogError("Chunk 0 was not available in video m3u!")
 		return false, nil, nil
 	}
@@ -1057,6 +1051,7 @@ func setupDualTrackProxy(originalM3U *M3U, referer string) (bool, *HlsProxy, *Hl
 		LogError("Failed to download m3u8 audio track: %v", err.Error())
 		return false, nil, nil
 	}
+	audioM3U.prefixRelativeSegments()
 	if audioM3U.removeTrailingSegment(MIN_SEGMENT_LENGTH) {
 		LogDebug("Removed trailing playlist segment in audio track.")
 	}
@@ -1071,16 +1066,12 @@ func setupDualTrackProxy(originalM3U *M3U, referer string) (bool, *HlsProxy, *Hl
 		return false, nil, nil
 	}
 
-	videoM3U.prefixRelativeSegments(*videoPrefix)
-	audioM3U.prefixRelativeSegments(*audioPrefix)
-
 	// Check video & audio encryption map uri
 	if err = setupMapUri(&videoM3U.segments[0], referer, MEDIA_INIT_SECTION); err != nil {
 		return false, nil, nil
 	}
-	if err = setupMapUri(&audioM3U.segments[0], referer, MEDIA_INIT_SECTION_AUDIO); err != nil {
-		return false, nil, nil
-	}
+	// Don't fail on audio alone
+	err = setupMapUri(&audioM3U.segments[0], referer, MEDIA_INIT_SECTION_AUDIO)
 
 	vidProxy := setupVodProxy(videoM3U, CONTENT_PROXY+VIDEO_M3U8, referer, VIDEO_PREFIX)
 	audioProxy := setupVodProxy(audioM3U, CONTENT_PROXY+AUDIO_M3U8, referer, AUDIO_PREFIX)
@@ -1276,9 +1267,10 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 		return false
 	}
 
+	m3u.prefixRelativeSegments()
 	// Test if the first chunk is available and the source operates as intended (prevents broadcasting broken entries)
-	if !validateOrRepointPlaylist(m3u, referer) {
-		LogError("Chunk 0 was not available!")
+	if !validatePlaylist(m3u, referer) {
+		LogError("Chunk/Track 0 was not available!")
 		return false
 	}
 
@@ -1306,7 +1298,7 @@ func setupMapUri(segment *Segment, referer, fileName string) error {
 	if segment.mapUri != "" {
 		err := downloadFile(segment.mapUri, CONTENT_PROXY+fileName, &DownloadOptions{referer: referer, hasty: true})
 		if err != nil {
-			LogWarn("Failed to obtain map uri key: %v", err.Error())
+			LogWarn("Failed to obtain map uri key from %v\n: %v", segment.mapUri, err.Error())
 			return err
 		}
 		segment.mapUri = fileName
@@ -1345,46 +1337,34 @@ func setupVodProxy(m3u *M3U, osPath, referer, chunkPrefix string) *HlsProxy {
 
 var EXTM3U_BYTES = []byte("#EXTM3U")
 
-// validateOrRepointPlaylist will also prefix segments appropriately or fail
-func validateOrRepointPlaylist(m3u *M3U, referer string) bool {
-	// VODs or LIVEs are expected
+// validatePlaylist will validate the availability of track 0 or segment 0
+func validatePlaylist(m3u *M3U, referer string) bool {
+	var checkedUrl string
 	if m3u.isMasterPlaylist {
+		if len(m3u.tracks) == 0 {
+			return false
+		}
+		checkedUrl = m3u.tracks[0].url
+		// Perhaps check audio renditions instead?
+	} else {
+		if len(m3u.segments) == 0 {
+			return false
+		}
+		checkedUrl = m3u.segments[0].url
+	}
+
+	if !isAbsolute(checkedUrl) {
+		LogError("M3U url %v is not absolute, make sure the URLs are prefixed before validation.", checkedUrl)
 		return false
 	}
-
-	url := m3u.segments[0].url
-	if isAbsolute(url) {
-		success, buffer, _ := testGetResponse(url, referer)
-		if !success {
-			return false
-		}
-		if bytes.HasPrefix(buffer.Bytes(), EXTM3U_BYTES) {
-			LogError("[RARE] Segment 0 is another media playlist")
-			return false
-		}
-		return true
+	success, buffer, _ := testGetResponse(checkedUrl, referer)
+	if !success {
+		return false
 	}
-	// From here segment URL is relative
-	urlStruct, _ := net_url.Parse(m3u.url)
-	prefix := stripLastSegment(urlStruct)
-	url = prefixUrl(prefix, url)
-
-	success, buffer, _ := testGetResponse(url, referer)
-	if success && !bytes.HasPrefix(buffer.Bytes(), EXTM3U_BYTES) {
-		m3u.prefixRelativeSegments(prefix)
-		return true
+	if m3u.isMasterPlaylist {
+		return bytes.HasPrefix(buffer.Bytes(), EXTM3U_BYTES)
 	}
-	// If that has failed, the root domain can be tried
-	root := getRootDomain(urlStruct)
-	url = prefixUrl(root, m3u.segments[0].url)
-
-	success, buffer, _ = testGetResponse(url, referer)
-	if success && !bytes.HasPrefix(buffer.Bytes(), EXTM3U_BYTES) {
-		m3u.prefixRelativeSegments(root)
-		LogDebug("Repointing segments to root=%v", root)
-		return true
-	}
-	return false
+	return true
 }
 
 var voiceClients = make(map[*websocket.Conn]bool)
@@ -1494,7 +1474,6 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 			return
 		}
 
-		parsedUrl, _ := net_url.Parse(proxy.liveUrl)
 		id := 0
 		if mediaSequence := liveM3U.getAttribute(EXT_X_MEDIA_SEQUENCE); mediaSequence != "" {
 			if sequenceId, err := parseInt(mediaSequence); err == nil {
@@ -1502,9 +1481,7 @@ func (server *Server) serveHlsLive(writer http.ResponseWriter, request *http.Req
 			}
 		}
 
-		// LogDebug("mediaSequence: %v", id)
-		prefix := stripLastSegment(parsedUrl)
-		liveM3U.prefixRelativeSegments(prefix)
+		liveM3U.prefixRelativeSegments()
 
 		segmentCount := len(liveM3U.segments)
 		for i := range segmentCount {

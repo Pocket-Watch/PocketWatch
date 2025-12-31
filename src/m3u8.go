@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	net_url "net/url"
 	"os"
 	"slices"
 	"strconv"
@@ -520,18 +521,31 @@ func parseResolution(res string) (bool, Width, Height) {
 }
 
 // This method will only prefix relative URLs
-func (m3u *M3U) prefixRelativeTracks(prefix string) {
+func (m3u *M3U) prefixRelativeTracks() {
+	urlStruct, _ := net_url.Parse(m3u.url)
+	root := getRootDomain(urlStruct)
+	relativePath := stripLastSegment(urlStruct)
+
 	for i := range m3u.audioRenditions {
 		rendition := &m3u.audioRenditions[i]
 		uriParam := getParam("URI", *rendition)
 		if uriParam != nil && !isAbsolute(uriParam.value) {
-			uriParam.value = prefixUrl(prefix, uriParam.value)
+			if strings.HasPrefix(uriParam.value, "/") {
+				uriParam.value = prefixUrl(root, uriParam.value)
+			} else {
+				uriParam.value = prefixUrl(relativePath, uriParam.value)
+			}
 		}
 	}
 	for i := range m3u.tracks {
 		track := &m3u.tracks[i]
-		if !isAbsolute(track.url) {
-			track.url = prefixUrl(prefix, track.url)
+		if isAbsolute(track.url) {
+			continue
+		}
+		if strings.HasPrefix(track.url, "/") {
+			track.url = prefixUrl(root, track.url)
+		} else {
+			track.url = prefixUrl(relativePath, track.url)
 		}
 	}
 }
@@ -559,20 +573,35 @@ func (m3u *M3U) copy() M3U {
 	return *m3uCopy
 }
 
-// This will only prefix URLs which are not fully qualified
-// As well as map mapUri
-func (m3u *M3U) prefixRelativeSegments(prefix string) {
+// This will only prefix URLs which are not fully qualified, including map URI or key URI
+func (m3u *M3U) prefixRelativeSegments() {
+	urlStruct, _ := net_url.Parse(m3u.url)
+	root := getRootDomain(urlStruct)
+	relativePath := stripLastSegment(urlStruct)
+
 	// if a range loop is used the track url is effectively not reassigned
 	for i := range m3u.segments {
 		segment := &m3u.segments[i]
 		if !isAbsolute(segment.url) {
-			segment.url = prefixUrl(prefix, segment.url)
+			if strings.HasPrefix(segment.url, "/") {
+				segment.url = prefixUrl(root, segment.url)
+			} else {
+				segment.url = prefixUrl(relativePath, segment.url)
+			}
 		}
 		if segment.mapUri != "" && !isAbsolute(segment.mapUri) {
-			segment.mapUri = prefixUrl(prefix, segment.mapUri)
+			if strings.HasPrefix(segment.mapUri, "/") {
+				segment.mapUri = prefixUrl(root, segment.mapUri)
+			} else {
+				segment.mapUri = prefixUrl(relativePath, segment.mapUri)
+			}
 		}
 		if segment.hasKey && !isAbsolute(segment.key.uri) {
-			segment.key.uri = prefixUrl(prefix, segment.key.uri)
+			if strings.HasPrefix(segment.url, "/") {
+				segment.key.uri = prefixUrl(root, segment.key.uri)
+			} else {
+				segment.key.uri = prefixUrl(relativePath, segment.key.uri)
+			}
 		}
 	}
 }
