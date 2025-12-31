@@ -738,7 +738,7 @@ func isPathM3U(p string) bool {
 
 func isContentM3U(url, referer string) bool {
 	success, buffer, contentType := testGetResponse(url, referer)
-	return success && (contentType == M3U8_CONTENT_TYPE || bufferStartsWith(buffer, EXTM3U_BYTES))
+	return success && (strings.HasPrefix(contentType, M3U8_CONTENT_TYPE) || bufferStartsWith(buffer, EXTM3U_BYTES))
 }
 
 // isAuthorized checks if the user is authorized, if not responds with an error code
