@@ -1,0 +1,13 @@
+{
+    "name": "PocketWatch",
+    "short_name": "pocketwatch",
+    "description": "Watch Party & Multimedia Service.",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#282828",
+    "theme_color": "#d79921",
+    "icons": [
+        { "src": "/icon-192x192.png", "sizes": "192x192", "type": "image/png" },
+        { "src": "/icon-512x512.png", "sizes": "512x512", "type": "image/png" }
+    ]
+}
