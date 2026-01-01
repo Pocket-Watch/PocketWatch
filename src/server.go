@@ -334,20 +334,12 @@ func serveIcon(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, WEB_ROOT+"img/icon.png")
 }
 
-func serveIcon192(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, WEB_ROOT+"img/icon-192x192.png")
-}
-
-func serveIcon512(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, WEB_ROOT+"img/icon-512x512.png")
-}
-
 func serveRobots(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, WEB_ROOT+"static/robots.txt")
 }
 
 func serveManifest(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, WEB_ROOT+"static/site.webmanifest.json")
+	http.ServeFile(w, r, WEB_ROOT+"static/manifest.json")
 }
 
 func NewGatewayHandler(fsHandler http.Handler, hits, perSecond int, ipv4Ranges []IpV4Range) GatewayHandler {
@@ -417,9 +409,7 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	mux.HandleFunc("/robots.txt", serveRobots)
 	mux.HandleFunc("/favicon.ico", serveFavicon)
 	mux.HandleFunc("/icon.png", serveIcon)
-	mux.HandleFunc("/icon-192x192.png", serveIcon192)
-	mux.HandleFunc("/icon-512x512.png", serveIcon512)
-	mux.HandleFunc("/site.webmanifest.json", serveManifest)
+	mux.HandleFunc("/manifest.json", serveManifest)
 
 	mux.HandleFunc("/api/", handleUnknownEndpoint)
 
