@@ -59,8 +59,8 @@
 | audio gain + `crossOrigin=""` |              *              | ✔️    | ✔️    |
 | audio gain + `crossOrigin=""` |            none             | ❌     | ❌     |
 
-On top of that there's no way to revert or undo the
-[creation of MediaStreamAudioSourceNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/createMediaStreamSource)
+On top of that [there's no way to revert or undo](https://stackoverflow.com/questions/73743022/how-to-predict-or-undo-failure-of-createmediaelementsource)
+the [creation of MediaStreamAudioSourceNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/createMediaElementSource)
 from a `<video>` or `<audio>` element.<br>
 In Firefox, if **AudioContext** is used and the `muted` property is set to `true`, `onplay` will not fire until playback is
 programmatically resumed (for example, by calling [play()](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/play)).
