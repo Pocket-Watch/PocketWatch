@@ -701,7 +701,7 @@ func (server *Server) loadYtdlpSource(newEntry *Entry, requested RequestEntry) {
 					server.state.mutex.Unlock()
 				}
 			}()
-		} 
+		}
 	}
 }
 
@@ -1095,6 +1095,10 @@ func setupDualTrackProxy(originalM3U *M3U, referer string) (bool, *HlsProxy, *Hl
 
 	// Check video decryption key
 	if err = setupKeyUri(&videoM3U.segments[0], referer, MEDIA_DECRYPTION_KEY); err != nil {
+		return false, nil, nil
+	}
+	// Check audio decryption key
+	if err = setupKeyUri(&audioM3U.segments[0], referer, MEDIA_DECRYPTION_KEY_AUDIO); err != nil {
 		return false, nil, nil
 	}
 
@@ -1704,7 +1708,7 @@ func (server *Server) serveHlsVod(writer http.ResponseWriter, request *http.Requ
 		writer.Header().Add("content-type", M3U8_CONTENT_TYPE)
 		http.ServeFile(writer, request, CONTENT_PROXY+chunk)
 		return
-	case MEDIA_INIT_SECTION, MEDIA_INIT_SECTION_AUDIO, MEDIA_DECRYPTION_KEY:
+	case MEDIA_INIT_SECTION, MEDIA_INIT_SECTION_AUDIO, MEDIA_DECRYPTION_KEY, MEDIA_DECRYPTION_KEY_AUDIO:
 		LogDebug("Serving %v", chunk)
 		http.ServeFile(writer, request, CONTENT_PROXY+chunk)
 		return
