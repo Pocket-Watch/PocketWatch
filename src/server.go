@@ -665,7 +665,7 @@ func (server *Server) periodicInactiveUserCleanup() {
 }
 
 func (server *Server) loadYtdlpSource(newEntry *Entry, requested RequestEntry) {
-	parsedUrl, _ := net_url.Parse(requested.Url)
+	parsedUrl, _ := net_url.Parse(newEntry.Url)
 	host := parsedUrl.Host
 
 	var err error
@@ -709,7 +709,7 @@ func (server *Server) setNewEntry(newEntry Entry, requested RequestEntry, setByI
 	server.state.isLoadingEntry.Store(true)
 	defer server.state.isLoadingEntry.Store(false)
 
-	if isYtdlpSource(requested.Url) || requested.SearchVideo {
+	if isYtdlpSource(newEntry.Url) || requested.SearchVideo {
 		server.writeEventToAllConnections("playerwaiting", "Video is loading. Please stand by!", SERVER_ID)
 		server.loadYtdlpSource(&newEntry, requested)
 	}
