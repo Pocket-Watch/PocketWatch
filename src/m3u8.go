@@ -542,10 +542,11 @@ func (m3u *M3U) prefixRelativeTracks() {
 		if isAbsolute(track.url) {
 			continue
 		}
-		if strings.HasPrefix(track.url, "/") {
-			track.url = prefixUrl(root, track.url)
+		trackUrl := track.url
+		if strings.HasPrefix(trackUrl, "/") {
+			track.url = prefixUrl(root, trackUrl)
 		} else {
-			track.url = prefixUrl(relativePath, track.url)
+			track.url = prefixUrl(relativePath, trackUrl)
 		}
 	}
 }
@@ -589,18 +590,21 @@ func (m3u *M3U) prefixRelativeSegments() {
 				segment.url = prefixUrl(relativePath, segment.url)
 			}
 		}
-		if segment.mapUri != "" && !isAbsolute(segment.mapUri) {
-			if strings.HasPrefix(segment.mapUri, "/") {
-				segment.mapUri = prefixUrl(root, segment.mapUri)
+		mapUri := segment.mapUri
+		if mapUri != "" && !isAbsolute(mapUri) {
+			if strings.HasPrefix(mapUri, "/") {
+				segment.mapUri = prefixUrl(root, mapUri)
 			} else {
-				segment.mapUri = prefixUrl(relativePath, segment.mapUri)
+				segment.mapUri = prefixUrl(relativePath, mapUri)
 			}
 		}
-		if segment.hasKey && !isAbsolute(segment.key.uri) {
-			if strings.HasPrefix(segment.url, "/") {
-				segment.key.uri = prefixUrl(root, segment.key.uri)
+
+		keyUri := segment.key.uri
+		if segment.hasKey && !isAbsolute(keyUri) {
+			if strings.HasPrefix(keyUri, "/") {
+				segment.key.uri = prefixUrl(root, keyUri)
 			} else {
-				segment.key.uri = prefixUrl(relativePath, segment.key.uri)
+				segment.key.uri = prefixUrl(relativePath, keyUri)
 			}
 		}
 	}
