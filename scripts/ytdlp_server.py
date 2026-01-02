@@ -54,9 +54,6 @@ def get_youtube_playlist(query: str, start: int, end: int):
     info = ytplaylist.extract_info(query, download=False)
     videos = []
 
-    print("Query is = " + query)
-    print("Output is = " + json.dumps(info))
-
     if info is None:
         raise Exception("Yt-Dlp output data is missing")
 
