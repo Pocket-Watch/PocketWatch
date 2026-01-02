@@ -1078,6 +1078,11 @@ func setupDualTrackProxy(originalM3U *M3U, referer string) (bool, *HlsProxy, *Hl
 	// Don't fail on audio alone
 	err = setupMapUri(&audioM3U.segments[0], referer, MEDIA_INIT_SECTION_AUDIO)
 
+	// Check video decryption key
+	if err = setupKeyUri(&videoM3U.segments[0], referer, MEDIA_DECRYPTION_KEY); err != nil {
+		return false, nil, nil
+	}
+
 	vidProxy := setupVodProxy(videoM3U, CONTENT_PROXY+VIDEO_M3U8, referer, VIDEO_PREFIX)
 	audioProxy := setupVodProxy(audioM3U, CONTENT_PROXY+AUDIO_M3U8, referer, AUDIO_PREFIX)
 	// Craft proxied master playlist for the client
@@ -1283,6 +1288,10 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 	if err = setupMapUri(&m3u.segments[0], referer, MEDIA_INIT_SECTION); err != nil {
 		return false
 	}
+	// Check decryption key
+	if err = setupKeyUri(&m3u.segments[0], referer, MEDIA_DECRYPTION_KEY); err != nil {
+		return false
+	}
 
 	server.state.isHls = true
 	server.state.isLive = m3u.isLive
@@ -1308,6 +1317,20 @@ func setupMapUri(segment *Segment, referer, fileName string) error {
 		}
 		segment.mapUri = fileName
 	}
+	return nil
+}
+
+func setupKeyUri(segment *Segment, referer, fileName string) error {
+	if !segment.hasKey {
+		return nil
+	}
+	keyUri := segment.key.uri
+	err := downloadFile(keyUri, CONTENT_PROXY+fileName, &DownloadOptions{referer: referer, hasty: true})
+	if err != nil {
+		LogWarn("Failed to obtain decryption key from %v\n: %v", keyUri, err.Error())
+		return err
+	}
+	segment.key.uri = fileName
 	return nil
 }
 
@@ -1666,7 +1689,7 @@ func (server *Server) serveHlsVod(writer http.ResponseWriter, request *http.Requ
 		writer.Header().Add("content-type", M3U8_CONTENT_TYPE)
 		http.ServeFile(writer, request, CONTENT_PROXY+chunk)
 		return
-	case MEDIA_INIT_SECTION, MEDIA_INIT_SECTION_AUDIO:
+	case MEDIA_INIT_SECTION, MEDIA_INIT_SECTION_AUDIO, MEDIA_DECRYPTION_KEY:
 		LogDebug("Serving %v", chunk)
 		http.ServeFile(writer, request, CONTENT_PROXY+chunk)
 		return
