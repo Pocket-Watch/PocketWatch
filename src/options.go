@@ -48,10 +48,20 @@ type DatabaseConfig struct {
 	Password string `json:"password"`
 }
 
+type YtdlpConfig struct {
+	Enabled        bool   `json:"enabled"`
+	EnableServer   bool   `json:"enable_server"`
+	ServerAddress  string `json:"server_address"`
+	ServerPort     uint16 `json:"server_port"`
+	EnableFallback bool   `json:"enable_fallback"`
+	FallbackPath   string `json:"fallback_path"`
+}
+
 type Config struct {
 	Server   ServerConfig   `json:"server"`
 	Logging  LoggingConfig  `json:"logging"`
 	Database DatabaseConfig `json:"database"`
+	Ytdlp    YtdlpConfig    `json:"ytdlp"`
 }
 
 func createDefaultConfig() Config {
@@ -86,10 +96,20 @@ func createDefaultConfig() Config {
 		Password: "debugdb123",
 	}
 
+	ytdlp := YtdlpConfig{
+		Enabled:        false,
+		EnableServer:   true,
+		ServerAddress:  "localhost",
+		ServerPort:     2345,
+		EnableFallback: true,
+		FallbackPath:   "yt-dlp",
+	}
+
 	config := Config{
 		Server:   server,
 		Logging:  logging,
 		Database: database,
+		Ytdlp:    ytdlp,
 	}
 
 	return config

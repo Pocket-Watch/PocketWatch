@@ -146,7 +146,7 @@ outer:
 			fmt.Println("Command 'reload' it not implemented yet!")
 
 		case "invite", "inv":
-			invite := server.createNewInvite(0);
+			invite := server.createNewInvite(0)
 			fmt.Printf("New invite code generated: %v\n", invite.InviteCode)
 
 		default:

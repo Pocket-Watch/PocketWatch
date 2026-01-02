@@ -9,8 +9,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 	"sync/atomic"
+	"time"
 
 	_ "github.com/lib/pq"
 )

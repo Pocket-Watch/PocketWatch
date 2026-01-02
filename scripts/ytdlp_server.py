@@ -8,6 +8,7 @@ from yt_dlp.utils import (
 import time
 import json
 import http.server
+import argparse
 
 class YoutubeVideo:
     def __init__(self, 
@@ -43,17 +44,32 @@ class YoutubePlaylist:
 def get_youtube_playlist(query: str, start: int, end: int):
     ytplaylist_opts = {
         'extract_flat': True,
-        'playliststart': start,
+        'playliststart': start + 1,
         'playlistend':   end,
         'color': 'no_color',
+        'dump_single_json': True,
     }
 
     ytplaylist = yt_dlp.YoutubeDL(ytplaylist_opts)
     info = ytplaylist.extract_info(query, download=False)
     videos = []
 
+    print("Query is = " + query)
+    print("Output is = " + json.dumps(info))
+
     if info is None:
         raise Exception("Yt-Dlp output data is missing")
+
+    entries = info.get('entries')
+    if entries is None:
+        # HACK: Try to refetch the playlist
+        playlist_url = info.get("url")
+        if playlist_url is None:
+            return YoutubePlaylist([])
+
+        info = ytplaylist.extract_info(playlist_url, download=False)
+        if info is None:
+            raise Exception("Yt-Dlp output data is missing")
 
     entries = info.get('entries')
     if entries is None:
@@ -237,7 +253,59 @@ def get_twitch_stream(url: str):
     title = f"Twitch {uploader} (live) - {description}"
     return TwitchStream(id, title, thumbnail, original_url, source_url)
 
-class InternalServer(http.server.BaseHTTPRequestHandler):
+class TwitterFormat:
+    def __init__(self, manifest_url: str):
+        self.manifest_url = manifest_url
+
+class TwitterSource:
+    def __init__(self, id: str, title: str, thumbnail: str, original_url: str, formats: list[TwitterFormat], duration: int):
+        self.id = id
+        self.title = title
+        self.thumbnail = thumbnail
+        self.original_url = original_url
+        self.formats = formats
+        self.duration = duration
+
+def get_twitter_source(url: str):
+    twitter_opts = { 
+        'noplaylist': True,
+        'color': 'no_color',
+    }
+    twitch = yt_dlp.YoutubeDL(twitter_opts)
+    info = bench("extract_info", lambda : twitch.extract_info(url, download=False))
+
+    if info is None:
+        raise Exception("Yt-Dlp did not returned any Twitch streams")
+
+    id           = info.get("id")
+    title        = info.get("title")
+    thumbnail    = info.get("thumbnail")
+    original_url = info.get("original_url")
+    formats      = info.get("formats")
+    duration     = info.get("duration")
+
+    if title is None: 
+        title = "Twitter video " + id
+
+    if thumbnail is None: 
+        thumbnail = ""
+
+    if not isinstance(original_url, str): 
+        original_url = ""
+
+    twitter_formats = []
+    if formats is not None:
+        for format in formats:
+            manifest_url = format.get("manifest_url")
+            if isinstance(manifest_url, str) and manifest_url != "": 
+                twitter_formats.append(TwitterFormat(manifest_url))
+
+    if duration is None: 
+        duration = 0
+
+    return TwitterSource(id, title, thumbnail, original_url, twitter_formats, duration)
+
+class YtdlpServer(http.server.BaseHTTPRequestHandler):
     def handle_youtube_request(self, query):
         output, errorMessage = bench('get_youtube_video', lambda : get_youtube_video(query))
 
@@ -257,35 +325,42 @@ class InternalServer(http.server.BaseHTTPRequestHandler):
         self.wfile.write(response)
 
     def handle_request(self):
+        data = json.loads(self.rfile.read1())
+
         if self.path == '/youtube/fetch':
-            data = json.loads(self.rfile.read1())
             self.handle_youtube_request(data["query"])
 
         elif self.path == '/youtube/search':
-            data = json.loads(self.rfile.read1())
             query = 'ytsearch:' + data["query"]
             self.handle_youtube_request(query)
 
         elif self.path == '/youtube/playlist':
-            request = json.loads(self.rfile.read1())
-
-            data = bench('get_youtube_playlist', lambda : get_youtube_playlist(request["query"], request["start"], request["end"]))
+            output = bench('get_youtube_playlist', lambda : get_youtube_playlist(data["query"], data["start"], data["end"]))
             self.send_response(200)
             self.send_header("Content-type", "application/json")
             self.end_headers()
 
-            jsondata = json.dumps(data, default=vars)
+            jsondata = json.dumps(output, default=vars)
             response = bytes(jsondata, "utf-8")
             self.wfile.write(response)
 
         elif self.path == '/twitch/fetch':
-            url  = json.loads(self.rfile.read1())
-            data = bench('get_twitch_stream', lambda : get_twitch_stream(url))
+            output = bench('get_twitch_stream', lambda : get_twitch_stream(data))
             self.send_response(200)
             self.send_header("Content-type", "application/json")
             self.end_headers()
 
-            jsondata = json.dumps(data, default=vars)
+            jsondata = json.dumps(output, default=vars)
+            response = bytes(jsondata, "utf-8")
+            self.wfile.write(response)
+
+        elif self.path == '/twitter/fetch':
+            output = bench('get_twitter_source', lambda : get_twitter_source(data))
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+
+            jsondata = json.dumps(output, default=vars)
             response = bytes(jsondata, "utf-8")
             self.wfile.write(response)
 
@@ -310,10 +385,38 @@ class InternalServer(http.server.BaseHTTPRequestHandler):
             raise exception
 
 
-hostname = "localhost"
-port = 2345
+def main():
+    parser = argparse.ArgumentParser(
+        prog="YtdlpServer",
+        description="Internal Ytdlp Python Server",
+    )
 
-web_server = http.server.ThreadingHTTPServer((hostname, port), InternalServer)
-print("Running an internal helper server at http://%s:%s" % (hostname, port))
+    parser.add_argument('-cp', '--config-path', type=str, help="Path to the config json.")
+    args = parser.parse_args()
 
-web_server.serve_forever()
+    hostname = "localhost"
+    port = 2345
+
+    if args.config_path is not None:
+        with open(args.config_path, 'r') as file:
+            data     = json.load(file)
+            config = data.get("ytdlp")
+            if config is None:
+                print("Ytdlp internal server config not found in specified config json file.")
+                return
+
+            enabled       = config.get("enabled")
+            enable_server = config.get("enable_server")
+            if enabled is False or enable_server is False:
+                print("Ytdlp internal server is disabled as specified in the config file.")
+                return
+
+            hostname = config.get("server_address")
+            port     = config.get("server_port")
+
+    web_server = http.server.ThreadingHTTPServer((hostname, port), YtdlpServer)
+    print("Running an ytdlp helper server at http://%s:%s" % (hostname, port))
+
+    web_server.serve_forever()
+
+main()

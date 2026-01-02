@@ -48,18 +48,18 @@ run_server() {
     echo "Starting PocketWatch server."
     main_server="./build/pocketwatch --config-path secret/config.json"
 
-    # Prefer compiled internal server if one exists.
-    if test -e "build/internal_server"; then
-        internal_server="./build/internal_server"
+    # Prefer compiled internal ytdlp server if one exists.
+    if test -e "build/ytdlp_server"; then
+        ytdlp_server="./build/ytdlp_server --config-path secret/config.json"
     else
-        internal_server="python ./scripts/internal_server.py"
+        ytdlp_server="python ./scripts/ytdlp_server.py --config-path secret/config.json"
     fi
 
     # Create a new session if one doesn't already exist
     if ! tmux has-session -t "$session" 2>/dev/null; then
         tmux new -s $session -d
-        tmux rename-window -t $session internal_server
-        tmux send-keys     -t "$session:internal_server" "$internal_server" C-m
+        tmux rename-window -t  $session ytdlp_server
+        tmux send-keys     -t "$session:ytdlp_server" "$ytdlp_server" C-m
     fi
 
     # Create a new main_server tab if one doesn't already exist

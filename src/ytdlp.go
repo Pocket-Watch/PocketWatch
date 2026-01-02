@@ -14,7 +14,27 @@ import (
 	"time"
 )
 
-var YTDLP_ENABLED bool = true
+type Ytdlp struct {
+	enabled        bool
+	enableServer   bool
+	serverPath     string
+	enableFallback bool
+	fallbackPath   string
+}
+
+var ytdlp Ytdlp
+
+func SetupYtdlp(config YtdlpConfig) {
+	ytdlp.enabled = config.Enabled
+	ytdlp.enableServer = config.EnableServer
+	ytdlp.serverPath = fmt.Sprintf("http://%v:%v", config.ServerAddress, config.ServerPort)
+	ytdlp.enableFallback = config.EnableFallback
+
+	if config.FallbackPath == "" {
+		config.FallbackPath = "yt-dlp"
+	}
+	ytdlp.fallbackPath = config.FallbackPath
+}
 
 type YoutubeVideo struct {
 	Id          string `json:"id"`
@@ -55,14 +75,63 @@ type TwitchStream struct {
 	StreamUrl   string `json:"url"`
 }
 
-type InternalServerVideoFetch struct {
+type YtdlpServerVideoFetch struct {
 	Query string `json:"query"`
 }
 
-type InternalServerPlaylistFetch struct {
+type YtdlpServerPlaylistFetch struct {
 	Query string `json:"query"`
 	Start uint   `json:"start"`
 	End   uint   `json:"end"`
+}
+
+type TwitterFormat struct {
+	ManfestUrl string `json:"manifest_url"`
+}
+
+type TwitterSource struct {
+	Id          string          `json:"id"`
+	Title       string          `json:"title"`
+	Thumbnail   string          `json:"thumbnail"`
+	OriginalUrl string          `json:"original_url"`
+	Formats     []TwitterFormat `json:"formats"`
+	Duration    float64         `json:"duration"`
+}
+
+var ytdlpHosts []string = []string{"youtube.com", "youtu.be", "twitter.com", "x.com", "twitch.tv"}
+
+func isYtdlpSource(url string) bool {
+	if !ytdlp.enabled {
+		return false
+	}
+
+	parsedUrl, err := neturl.Parse(url)
+	if err != nil {
+		return false
+	}
+
+	host := parsedUrl.Host
+	for _, ytdlpHost := range ytdlpHosts {
+		if strings.HasSuffix(host, ytdlpHost) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func isYoutube(url string) bool {
+	if !ytdlp.enabled {
+		return false
+	}
+
+	parsedUrl, err := neturl.Parse(url)
+	if err != nil {
+		return false
+	}
+
+	host := parsedUrl.Host
+	return host == "youtube.com" || host == "youtu.be"
 }
 
 // Makes a request to the internal server that runs YtDlp.
@@ -70,25 +139,29 @@ type InternalServerPlaylistFetch struct {
 // - A flag indicating whether the server request was successful. (Note that a non 200 response is still considered a success)
 // - JSON data received from the server.
 // - An error message when the server responded with a non 200 status code.
-func postToInternalServer[T any](endpoint string, data any) (bool, T, error) {
+func postToYtdlpServer[T any](endpoint string, data any) (bool, T, error) {
 	var output T
+
+	if !ytdlp.enableServer {
+		return false, output, nil
+	}
 
 	request, err := json.Marshal(data)
 	if err != nil {
-		LogError("Failed to marshal JSON request data for the internal server: %v", err)
+		LogError("Failed to marshal JSON request data for the Ytdlp server: %v", err)
 		return false, output, err
 	}
 
-	url := "http://localhost:2345" + endpoint
+	url := ytdlp.serverPath + endpoint
 	response, err := http.Post(url, "application/json", bytes.NewBuffer(request))
 	if err != nil {
-		// LogError("Request POST %v to the internal server failed: %v", endpoint, err)
+		LogError("YtDlp server POST request to %v failed: %v", endpoint, err)
 		return false, output, err
 	}
 
 	responseData, err := io.ReadAll(response.Body)
 	if err != nil {
-		LogError("Failed to unmarshal data from the internal server: %v", err)
+		LogError("Failed to unmarshal data from the Ytdlp server: %v", err)
 		return false, output, nil
 	}
 
@@ -96,7 +169,7 @@ func postToInternalServer[T any](endpoint string, data any) (bool, T, error) {
 		var errorMessage string
 		json.Unmarshal(responseData, &errorMessage)
 
-		LogWarn("Internal server returned status code %v with message: %v", response.StatusCode, errorMessage)
+		LogWarn("Ytdlp server returned status code %v with message: %v", response.StatusCode, errorMessage)
 		return true, output, fmt.Errorf("%v", errorMessage)
 	}
 
@@ -138,73 +211,44 @@ func getToInternalServer[T any](endpoint string, pairs []Param, port int) (bool,
 	return true, output, err
 }
 
-func isTwitchEntry(entry Entry) bool {
-	if !YTDLP_ENABLED {
-		return false
+func fetchWithYtdlp[T any](url string, ytdlpFlags []string) (T, error) {
+	var data T
+	if !ytdlp.enableFallback {
+		return data, nil
 	}
 
-	if !isTwitchUrl(entry.Url) {
-		return false
-	}
+	args := []string{url}
+	args = append(args, ytdlpFlags...)
 
-	return true
-}
-
-func isTwitchUrl(url string) bool {
-	if strings.HasPrefix(url, "twitch.tv") {
-		return true
-	}
-
-	parsedUrl, err := neturl.Parse(url)
-	if err != nil {
-		return false
-	}
-
-	host := parsedUrl.Host
-	return strings.HasSuffix(host, "twitch.tv")
-}
-
-func fetchTwitchWithYtdlp(url string) (bool, TwitchStream) {
-	args := []string{url, "--print", "%(.{id,title,thumbnail,original_url,url})j"}
-
-	command := exec.Command("yt-dlp", args...)
+	command := exec.Command(ytdlp.fallbackPath, args...)
 	output, err := command.Output()
+	LogDebug("Output is = %v", string(output))
 
 	if err != nil {
 		LogError("Failed to get output from the yt-dlp command: %v", err)
-		return false, TwitchStream{}
+		return data, err
 	}
 
-	var stream TwitchStream
-	err = json.Unmarshal(output, &stream)
+	err = json.Unmarshal(output, &data)
 	if err != nil {
 		LogError("Failed to unmarshal yt-dlp output json: %v", err)
-		return false, TwitchStream{}
+		return data, err
 	}
 
-	return true, stream
+	return data, nil
 }
 
 func fetchTwitchStream(url string) (TwitchStream, error) {
-	ok, stream, err := postToInternalServer[TwitchStream]("/twitch/fetch", url)
+	ok, stream, err := postToYtdlpServer[TwitchStream]("/twitch/fetch", url)
 	if ok {
 		return stream, err
 	}
 
-	LogWarn("Internal server twitch stream fetch failed. Falling back to yt-dlp command fetch.")
-	ok, stream = fetchTwitchWithYtdlp(url)
-	if ok {
-		return stream, nil
-	}
-
-	return TwitchStream{}, nil
+	flags := []string{"--print", "%(.{id,title,thumbnail,original_url,url})j"}
+	return fetchWithYtdlp[TwitchStream](url, flags)
 }
 
 func loadTwitchEntry(entry *Entry) error {
-	if !YTDLP_ENABLED {
-		return nil
-	}
-
 	stream, err := fetchTwitchStream(entry.Url)
 	if err != nil {
 		return err
@@ -218,27 +262,33 @@ func loadTwitchEntry(entry *Entry) error {
 	return nil
 }
 
-func isYoutubeEntry(entry Entry, requested RequestEntry) bool {
-	if !YTDLP_ENABLED {
-		return false
+func fetchTwitterSource(url string) (TwitterSource, error) {
+	ok, source, err := postToYtdlpServer[TwitterSource]("/twitter/fetch", url)
+	if ok {
+		return source, err
 	}
 
-	// SearchVideo bool handles only YT searches
-	if !isYoutubeUrl(entry.Url) && !requested.SearchVideo {
-		return false
-	}
-
-	return true
+	flags := []string{"--print", "%(.{id,title,thumbnail,original_url,formats,duration})j"}
+	return fetchWithYtdlp[TwitterSource](url, flags)
 }
 
-func isYoutubeUrl(url string) bool {
-	parsedUrl, err := neturl.Parse(url)
+func loadTwitterEntry(entry *Entry) error {
+	source, err := fetchTwitterSource(entry.Url)
 	if err != nil {
-		return false
+		return err
 	}
 
-	host := parsedUrl.Host
-	return strings.HasSuffix(host, "youtube.com") || strings.HasSuffix(host, "youtu.be")
+	entry.Url = source.OriginalUrl
+	entry.Title = source.Title
+	entry.Thumbnail = source.Thumbnail
+	for _, format := range source.Formats {
+		if format.ManfestUrl != "" {
+			entry.SourceUrl = format.ManfestUrl
+			break
+		}
+	}
+
+	return nil
 }
 
 func isYoutubeSourceExpiredFile(sourceUrl string) bool {
@@ -329,7 +379,7 @@ func (server *Server) preloadYoutubeSourceOnNextEntry() {
 	nextEntry := server.state.playlist[0]
 	server.state.mutex.Unlock()
 
-	if !YTDLP_ENABLED || !isYoutubeUrl(nextEntry.Url) {
+	if !isYoutube(nextEntry.Url) {
 		return
 	}
 
@@ -372,40 +422,33 @@ func pickSmallestThumbnail(thumbnails []YoutubeThumbnail) string {
 	return bestThumbnail
 }
 
-func (server *Server) loadYoutubePlaylist(requested RequestEntry, userId uint64) ([]Entry, error) {
-	if !YTDLP_ENABLED {
-		return []Entry{}, nil
-	}
-
-	if !isYoutubeUrl(requested.Url) {
-		return []Entry{}, nil
-	}
-
-	query := requested.Url
-	url, err := neturl.Parse(query)
+// func loadYoutubePlaylist(requested RequestEntry, userId uint64) ([]Entry, error) {
+func loadYoutubePlaylist(url string, skipCount uint, maxSize uint, userId uint64) ([]Entry, error) {
+	query := url
+	parsedUrl, err := neturl.Parse(query)
 	if err != nil {
 		LogError("Failed to parse youtube source url: %v", err)
 		return []Entry{}, fmt.Errorf("Failed to parse youtube source url: %v", err)
 	}
 
-	if !url.Query().Has("list") {
-		videoId := url.Query().Get("v")
+	if !parsedUrl.Query().Has("list") {
+		videoId := parsedUrl.Query().Get("v")
 
-		query := url.Query()
+		query := parsedUrl.Query()
 		query.Add("list", "RD"+videoId)
-		url.RawQuery = query.Encode()
+		parsedUrl.RawQuery = query.Encode()
 
-		LogDebug("Url was not a playlist. Constructed youtube playlist url is now: %v", url)
+		LogDebug("Url was not a playlist. Constructed youtube playlist url is now: %v", parsedUrl)
 	}
 
-	size := requested.PlaylistMaxSize
+	size := maxSize
 	if size > 1000 {
 		size = 1000
 	} else if size <= 0 {
 		size = 20
 	}
 
-	query = url.String()
+	query = parsedUrl.String()
 	playlist, err := fetchYoutubePlaylist(query, 1, size)
 	if err != nil {
 		return []Entry{}, err
@@ -428,118 +471,61 @@ func (server *Server) loadYoutubePlaylist(requested RequestEntry, userId uint64)
 	return entries, nil
 }
 
-func fetchVideoWithYtdlp(query string) (bool, YoutubeVideo) {
-	args := []string{
-		query, "--playlist-items", "1",
-		"--extractor-args", "youtube:player_client=web_safari",
-		"--print", "%(.{id,title,thumbnail,original_url,manifest_url,available_at,duration,uploader_date,uploader,artist,album,release_date})j",
-	}
-
-	command := exec.Command("yt-dlp", args...)
-	output, err := command.Output()
-
-	if err != nil {
-		LogError("Failed to get output from the yt-dlp command: %v", err)
-		return false, YoutubeVideo{}
-	}
-
-	var video YoutubeVideo
-	err = json.Unmarshal(output, &video)
-	if err != nil {
-		LogError("Failed to unmarshal yt-dlp output json: %v", err)
-		return false, YoutubeVideo{}
-	}
-
-	return true, video
-}
-
 func fetchYoutubeVideo(query string) (YoutubeVideo, error) {
 	ok, video, err := getToInternalServer[YoutubeVideo]("/fetch", []Param{{"url", query}}, 9090)
 	if ok {
 		return video, err
 	}
 
-	data := InternalServerVideoFetch{Query: query}
-	ok, video, err = postToInternalServer[YoutubeVideo]("/youtube/fetch", data)
+	data := YtdlpServerVideoFetch{Query: query}
+	ok, video, err = postToYtdlpServer[YoutubeVideo]("/youtube/fetch", data)
 	if ok {
 		return video, err
 	}
 
-	LogWarn("Internal server video fetch failed. Falling back to yt-dlp command fetch.")
-	ok, video = fetchVideoWithYtdlp(query)
-	if ok {
-		return video, nil
+	flags := []string{
+		"--playlist-items", "1",
+		"--extractor-args", "youtube:player_client=web_safari",
+		"--print", "%(.{id,title,thumbnail,original_url,manifest_url,available_at,duration,uploader_date,uploader,artist,album,release_date})j",
 	}
 
-	return YoutubeVideo{}, nil
+	return fetchWithYtdlp[YoutubeVideo](query, flags)
 }
 
 func searchYoutubeVideo(query string) (YoutubeVideo, error) {
-	data := InternalServerVideoFetch{Query: query}
-	ok, video, err := postToInternalServer[YoutubeVideo]("/youtube/search", data)
+	data := YtdlpServerVideoFetch{Query: query}
+	ok, video, err := postToYtdlpServer[YoutubeVideo]("/youtube/search", data)
 	if ok {
 		return video, err
 	}
 
-	LogWarn("Internal server video fetch failed. Falling back to yt-dlp command fetch.")
-
-	ok, video = fetchVideoWithYtdlp("ytsearch:" + query)
-	if ok {
-		return video, nil
+	flags := []string{
+		"--playlist-items", "1",
+		"--extractor-args", "youtube:player_client=web_safari",
+		"--print", "%(.{id,title,thumbnail,original_url,manifest_url,available_at,duration,uploader_date,uploader,artist,album,release_date})j",
 	}
 
-	return YoutubeVideo{}, nil
-}
-
-func fetchPlaylistWithYtdlp(query string, start uint, end uint) (bool, YoutubePlaylist) {
-	startArg := fmt.Sprint(start)
-	endArg := fmt.Sprint(end)
-	command := exec.Command("yt-dlp", query, "--flat-playlist", "--playlist-start", startArg, "--playlist-end", endArg, "--dump-single-json")
-	output, err := command.Output()
-
-	if err != nil {
-		LogError("Failed to get output from the yt-dlp command: %v", err)
-		return false, YoutubePlaylist{}
-	}
-
-	var playlist YoutubePlaylist
-	err = json.Unmarshal(output, &playlist)
-	if err != nil {
-		LogError("Failed to unmarshal yt-dlp output json: %v", err)
-		return false, YoutubePlaylist{}
-	}
-
-	if len(playlist.Entries) == 0 {
-		LogError("Deserialized yt-dlp array for url '%v' is empty", query)
-		return false, YoutubePlaylist{}
-	}
-
-	return true, playlist
+	return fetchWithYtdlp[YoutubeVideo]("ytsearch:"+query, flags)
 }
 
 func fetchYoutubePlaylist(query string, start uint, end uint) (YoutubePlaylist, error) {
-	data := InternalServerPlaylistFetch{
+	data := YtdlpServerPlaylistFetch{
 		Query: query,
 		Start: start,
 		End:   end,
 	}
 
-	ok, playlist, err := postToInternalServer[YoutubePlaylist]("/youtube/playlist", data)
+	ok, playlist, err := postToYtdlpServer[YoutubePlaylist]("/youtube/playlist", data)
 	if ok {
 		return playlist, err
 	}
 
-	LogWarn("Internal server playlist fetch failed. Falling back to yt-dlp command fetch.")
-	ok, playlist = fetchPlaylistWithYtdlp(query, start, end)
-	if ok {
-		return playlist, nil
-	}
-
-	return YoutubePlaylist{}, nil
+	flags := []string{"--flat-playlist", "--playlist-start", fmt.Sprint(start + 1), "--playlist-end", fmt.Sprint(end), "--dump-single-json"}
+	return fetchWithYtdlp[YoutubePlaylist](query, flags)
 }
 
 // loadYoutubeEntry can only be called after the entry was approved for further processing
-func loadYoutubeEntry(entry *Entry, requested RequestEntry) error {
+func loadYoutubeEntry(entry *Entry, search bool) error {
 	if !isYoutubeSourceExpired(entry.SourceUrl) {
 		return nil
 	}
@@ -550,7 +536,7 @@ func loadYoutubeEntry(entry *Entry, requested RequestEntry) error {
 	var err error
 
 	query := entry.Url
-	if requested.SearchVideo {
+	if search {
 		LogInfo("Searching for youtube video with query: %v.", entry.Url)
 		video, err = searchYoutubeVideo(query)
 	} else {

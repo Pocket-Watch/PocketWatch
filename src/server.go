@@ -664,39 +664,54 @@ func (server *Server) periodicInactiveUserCleanup() {
 	}
 }
 
-func (server *Server) setNewEntry(newEntry Entry, requested RequestEntry, setById uint64) {
-	server.state.isLoadingEntry.Store(true)
-	defer server.state.isLoadingEntry.Store(false)
+func (server *Server) loadYtdlpSource(newEntry *Entry, requested RequestEntry) {
+	parsedUrl, _ := net_url.Parse(requested.Url)
+	host := parsedUrl.Host
 
-	if isYoutubeEntry(newEntry, requested) {
-		server.writeEventToAllConnections("playerwaiting", "Youtube video is loading. Please stand by!", SERVER_ID)
+	var err error
 
-		err := loadYoutubeEntry(&newEntry, requested)
-		if err != nil {
-			server.writeEventToAllConnections("playererror", err.Error(), SERVER_ID)
-			return
-		}
+	if strings.HasSuffix(host, "youtube.com") || strings.HasSuffix(host, "youtu.be") || requested.SearchVideo {
+		err = loadYoutubeEntry(newEntry, requested.SearchVideo)
+	} else if strings.HasSuffix(host, "twitch.tv") {
+		err = loadTwitchEntry(newEntry)
+	} else if strings.HasSuffix(host, "twitter.com") || strings.HasSuffix(host, "x.com") {
+		err = loadTwitterEntry(newEntry)
+	} else if strings.HasSuffix(host, "bandcamp.com") {
+		// TODO(kihau)
+	} else {
+		LogError("Unsuppored ytdlp source host detected: %v", host)
+		return
+	}
 
-		if requested.IsPlaylist {
-			requested.Url = newEntry.Url
+	if err != nil {
+		server.writeEventToAllConnections("playererror", err.Error(), SERVER_ID)
+		return
+	}
 
+	parsedUrl, _ = net_url.Parse(newEntry.Url)
+	host = parsedUrl.Host
+
+	if requested.IsPlaylist {
+		if strings.HasSuffix(host, "youtube.com") || strings.HasSuffix(host, "youtu.be") || requested.SearchVideo {
 			go func() {
-				entries, err := server.loadYoutubePlaylist(requested, newEntry.UserId)
+				entries, err := loadYoutubePlaylist(newEntry.Url, requested.PlaylistSkipCount, requested.PlaylistMaxSize, newEntry.UserId)
 				if err == nil {
 					server.state.mutex.Lock()
 					server.playlistAddMany(entries, requested.AddToTop)
 					server.state.mutex.Unlock()
 				}
 			}()
-		}
-	} else if isTwitchEntry(newEntry) {
-		server.writeEventToAllConnections("playerwaiting", "Twitch stream is loading. Please stand by!", SERVER_ID)
+		} 
+	}
+}
 
-		err := loadTwitchEntry(&newEntry)
-		if err != nil {
-			server.writeEventToAllConnections("playererror", err.Error(), SERVER_ID)
-			return
-		}
+func (server *Server) setNewEntry(newEntry Entry, requested RequestEntry, setById uint64) {
+	server.state.isLoadingEntry.Store(true)
+	defer server.state.isLoadingEntry.Store(false)
+
+	if isYtdlpSource(requested.Url) || requested.SearchVideo {
+		server.writeEventToAllConnections("playerwaiting", "Video is loading. Please stand by!", SERVER_ID)
+		server.loadYtdlpSource(&newEntry, requested)
 	}
 
 	err := server.setupProxy(&newEntry)
@@ -1175,7 +1190,7 @@ func (server *Server) setupProxy(entry *Entry) error {
 		return err
 	}
 
-	if isYoutubeUrl(entry.Url) || isTwitchUrl(entry.Url) {
+	if isYtdlpSource(entry.Url) {
 		success := server.setupHlsProxy(entry.SourceUrl, "")
 		if success {
 			entry.ProxyUrl = PROXY_ROUTE + PROXY_M3U8
@@ -2456,27 +2471,14 @@ func (server *Server) playlistAdd(requested RequestEntry, userId uint64) error {
 		server.playlistAddMany(localEntries, requested.AddToTop)
 		server.state.mutex.Unlock()
 		return nil
+	} else if isYtdlpSource(requested.Url) || requested.SearchVideo {
+		server.loadYtdlpSource(&entry, requested)
 	}
 
-	if isYoutubeEntry(entry, requested) {
-		err := loadYoutubeEntry(&entry, requested)
-
+	if requested.FetchLyrics {
+		subtitle, err := server.state.fetchLyrics(entry.Title, entry.Metadata)
 		if err != nil {
-			LogWarn("Failed to load entry in playlist add: %v", err)
-			return nil
-		}
-
-		if requested.FetchLyrics {
-			subtitle, err := server.state.fetchLyrics(entry.Title, entry.Metadata)
-			if err != nil {
-				entry.Subtitles = append(entry.Subtitles, subtitle)
-			}
-		}
-	} else if isTwitchEntry(entry) {
-		err := loadTwitchEntry(&entry)
-		if err != nil {
-			LogWarn("Failed to load entry in playlist add: %v", err)
-			return nil
+			entry.Subtitles = append(entry.Subtitles, subtitle)
 		}
 	}
 
@@ -2484,23 +2486,6 @@ func (server *Server) playlistAdd(requested RequestEntry, userId uint64) error {
 	server.state.mutex.Lock()
 	server.playlistAddOne(entry, requested.AddToTop)
 	server.state.mutex.Unlock()
-
-	if requested.IsPlaylist {
-		requested.Url = entry.Url
-		entries, err := server.loadYoutubePlaylist(requested, entry.UserId)
-
-		if err != nil {
-			return nil
-		}
-
-		if len(entries) > 0 {
-			entries = entries[1:]
-		}
-
-		server.state.mutex.Lock()
-		server.playlistAddMany(entries, requested.AddToTop)
-		server.state.mutex.Unlock()
-	}
 
 	return nil
 }
