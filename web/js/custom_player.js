@@ -351,6 +351,7 @@ const DEFAULT_SUBTITLE_BACKGROUND_COLOR   = "#1d2021";
 const DEFAULT_SUBTITLE_BACKGROUND_OPACITY = 80;
 const DEFAULT_SUBTITLE_FOREGROUND_COLOR   = "#fbf1c7";
 const DEFAULT_SUBTITLE_FOREGROUND_OPACITY = 100;
+const M3U8_CONTENT_TYPE = "application/vnd.apple.mpegurl";
 
 class Internals {
     constructor(videoElement, options) {
@@ -1047,6 +1048,7 @@ class Internals {
         // This covers both relative and fully qualified URLs because we always specify the base
         // and when the base is not provided, the second argument is used to construct a valid URL
         let pathname = new URL(url, document.baseURI).pathname;
+        let ext = FileInfo.fromUrl(pathname).extension;
 
         this.pause();
         this.seek(0);
@@ -1054,7 +1056,8 @@ class Internals {
         hide(this.htmlControls.buttons.liveIndicator);
         this.isLive = false;
 
-        if (pathname.endsWith(".m3u8") || pathname.endsWith("m3u") || pathname.endsWith(".txt")) {
+        let hasHlsExt = ext === "m3u8" || ext === "m3u" || ext === "txt";
+        if (hasHlsExt || (ext === "" && await this.probeContentType(url) === M3U8_CONTENT_TYPE)) {
             let module = await import(this.options.hlsJsPath);
             if (!module.Hls.isSupported()) {
                 console.error("HLS is not supported!");
@@ -2399,6 +2402,25 @@ class Internals {
             }
         }
     }
+
+    async probeContentType(url) {
+        try {
+            let response = await fetch(url);
+            if (!response.ok) {
+                return null;
+            }
+            let type = response.headers.get("Content-Type")
+            response.body.cancel();
+            if (!type) {
+                return null;
+            }
+            let semi = type.indexOf(';');
+            return semi > 0 ? type.substring(0, semi) : type
+        } catch (err) {
+            console.warn("Failed to probe Content-Type from", url, err);
+            return null;
+        }
+    }
 }
 
 class ColorPicker {
@@ -2478,9 +2500,13 @@ export class FileInfo {
     }
 
     static fromUrl(url) {
-        let slash = Math.max(url.lastIndexOf("/"), url.lastIndexOf("\\"));
+        let slash = url.lastIndexOf("/");
         let filename = url.substring(slash + 1);
-        let extension = filename.substring(filename.lastIndexOf(".") + 1).toLowerCase();
+        let dot = filename.lastIndexOf(".");
+        if (dot <= 0) {
+            return new FileInfo(filename, "");
+        }
+        let extension = filename.substring(dot + 1).toLowerCase();
         let hash = extension.indexOf("#");
         if (hash >= 0) {
             extension = extension.substring(0, hash)
