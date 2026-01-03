@@ -1305,7 +1305,7 @@ class Room {
         this.playlist.setLooping(state.player.looping);
 
         this.setNewEntry(state.entry);
-        if (!state.entry.url) {
+        if (state.entry.url) {
             this.stateOnLoad = state.player;
         }
 
