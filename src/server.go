@@ -1317,7 +1317,7 @@ func (server *Server) setupHlsProxy(url string, referer string) bool {
 
 	var newProxy *HlsProxy
 	if m3u.isLive {
-		newProxy = setupLiveProxy(url, referer)
+		newProxy = setupLiveProxy(m3u.url, referer)
 	} else {
 		newProxy = setupVodProxy(m3u, CONTENT_PROXY+PROXY_M3U8, referer, VIDEO_PREFIX)
 	}
