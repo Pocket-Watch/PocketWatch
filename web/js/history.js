@@ -1,6 +1,6 @@
 import * as api from "./api.js";
 import * as common from "./common.js";
-import { getById, div, a, span, img, svg, show, hide, isScrollableVisible } from "./util.js";
+import { getById, div, a, span, img, svg, show, hide, getCssNumber } from "./util.js";
 
 export { History }
 
@@ -8,22 +8,6 @@ const MAX_HISTORY_SIZE  = 120;
 const BULK_ACTION_DELAY = 32;
 
 const ENTRY_TRANSITION_TIME = getCssNumber("--history_entry_transition_time", "ms");
-
-function createRequestEntry(entry) {
-    const requestEntry = {
-        url:          entry.url,
-        title:        entry.title,
-        use_proxy:    entry.use_proxy,
-        referer_url:  entry.referer_url,
-        subtitles:    entry.subtitles,
-        search_video: false,
-        is_playlist:  false,
-        playlist_skip_count: 0,
-        playlist_max_size:   0,
-    };
-
-    return requestEntry;
-}
 
 class History {
     constructor() {

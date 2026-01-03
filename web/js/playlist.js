@@ -1,6 +1,6 @@
 import * as api from "./api.js";
 import * as common from "./common.js";
-import { getById, div, a, span, img, svg, button, hide, show, isScrollableVisible, widget_toggle, widget_input, getCssNumber } from "./util.js";
+import { getById, div, a, span, img, svg, button, hide, show, isScrollableVisible, getCssNumber } from "./util.js";
 
 export { Playlist }
 

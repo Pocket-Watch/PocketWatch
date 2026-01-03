@@ -1304,8 +1304,8 @@ class Room {
         this.playlist.setAutoplay(state.player.autoplay);
         this.playlist.setLooping(state.player.looping);
 
-        this.setEntryEvent(state.entry);
-        if (state.entry.id !== 0) {
+        this.setNewEntry(state.entry);
+        if (!state.entry.url) {
             this.stateOnLoad = state.player;
         }
 
@@ -1567,7 +1567,7 @@ class Room {
         this.updateRoomSubtitlesHtml(entry);
     }
 
-    setEntryEvent(entry) {
+    setNewEntry(entry) {
         this.updateRoomContent(entry);
 
         this.currentEntry            = entry;
@@ -1902,7 +1902,7 @@ class Room {
             case "playerset": {
                 let entry = wsData;
                 console.info("INFO: Received player set event: ", entry);
-                this.setEntryEvent(entry);
+                this.setNewEntry(entry);
             } break;
 
             case "playerlooping": {
