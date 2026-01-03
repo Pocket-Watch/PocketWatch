@@ -1124,14 +1124,25 @@ class Internals {
         }
 
         let ext = info.extension;
-        if (ext !== "vtt" && ext !== "srt") {
+        let detect = ext === "" || ext === "txt";
+        if (ext !== "vtt" && ext !== "srt" && !detect) {
             console.warn("Unsupported subtitle extension:", ext);
             return
         }
 
         fetch(url).then(async response => {
             let text = await response.text();
-
+            if (detect) {
+                console.debug("DEBUG: Detecting subtitle extension")
+                if (text.startsWith("WEBVTT")) {
+                    ext = "vtt";
+                } else if (text.startsWith("1")) {
+                    ext = "srt";
+                } else {
+                    console.warn("Unsupported subtitle format")
+                    return
+                }
+            }
             let parseStart = performance.now();
             let cues;
             if (ext === "vtt") {
