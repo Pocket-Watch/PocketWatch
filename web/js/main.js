@@ -1700,7 +1700,7 @@ class Room {
             } break;
 
             case "speedchange": {
-                let speed = action.data;
+                let speed = Number(action.data).toFixed(2)
                 this.addRecentAction(userId, "changed speed to x" + speed, date);
             } break;
 
@@ -2112,7 +2112,9 @@ class Room {
                 let speed = wsData;
                 console.log("INFO: Received speed change:", speed)
                 this.player.setSpeed(speed)
-                this.addRecentAction(wsUserId, "changed speed to x" + speed);
+
+                let value = Number(speed).toFixed(2)
+                this.addRecentAction(wsUserId, "changed speed to x" + value);
             } break;
 
             default: {
