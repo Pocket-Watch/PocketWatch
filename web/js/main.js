@@ -2112,7 +2112,7 @@ class Room {
                 let speed = wsData;
                 console.log("INFO: Received speed change:", speed)
                 this.player.setSpeed(speed)
-                this.addRecentAction(wsData.userId, "changed speed to x" + speed);
+                this.addRecentAction(wsUserId, "changed speed to x" + speed);
             } break;
 
             default: {
