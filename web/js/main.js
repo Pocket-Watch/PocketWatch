@@ -413,7 +413,7 @@ class Room {
         });
 
         this.player.onControlsSeeking(timestamp => {
-            console.log("User seeking to", timestamp);
+            console.log("INFO: User seeking to", timestamp);
         });
 
         this.player.onControlsNext(_ => {
@@ -976,7 +976,7 @@ class Room {
                     return;
                 }
 
-                console.log("File selected: ", files[0]);
+                console.log("INFO: File selected: ", files[0]);
                 this.subtitleFile = files[0];
                 area.subtitleNameInput.value = this.subtitleFile.name;
             };
@@ -1088,12 +1088,12 @@ class Room {
 
         menu.notificationsToggle.onclick = _ => {
             if (!Notification) {
-                console.warn("Notifications are not supported. On Safari the page must be a web app saved to the home screen.");
+                console.warn("WARN: Notifications are not supported. On Safari the page must be a web app saved to the home screen.");
                 return;
             }
             if (Notification.permission !== "granted") {
                 if (Notification.permission === "denied") {
-                    console.warn("Notifications permission is denied. Change browser settings for this webpage.");
+                    console.warn("WARN: Notifications permission is denied. Change browser settings for this webpage.");
                 }
                 Notification.requestPermission().then((permission) => {
                     if (permission === "granted") {
@@ -1406,7 +1406,7 @@ class Room {
 
             input.onchange = async event => {
                 let file = event.target.files[0];
-                console.log("Picked file:", file);
+                console.info("INFO: Picked file:", file);
                 await api.userUpdateAvatar(file);
             };
 
@@ -2110,8 +2110,9 @@ class Room {
 
             case "playerspeedchange": {
                 let speed = wsData;
-                console.log("Received speed change:", speed)
+                console.log("INFO: Received speed change:", speed)
                 this.player.setSpeed(speed)
+                this.addRecentAction(wsData.userId, "changed speed to x" + speed);
             } break;
 
             default: {
@@ -2163,11 +2164,11 @@ class Room {
 function checkBrowserCompatibility() {
     let [name, version] = getBrowserInfo();
     if (name === "Unknown") {
-        console.debug("Unknown browser agent:", navigator.userAgent);
+        console.debug("DEBUG: Unknown browser agent:", navigator.userAgent);
         return
     }
     if (Number.isNaN(version)) {
-        console.debug("User agent contains", name, "version that's not a number")
+        console.debug("DEBUG: User agent contains", name, "version that's not a number")
         return
     }
     let minVersion, isFirefox = false;
@@ -2188,7 +2189,7 @@ function checkBrowserCompatibility() {
     }
     let infoMsg = `Your ${name} ${version} browser is too old to display or render the webpage correctly.
     The page is designed for ${name} ${minVersion} or newer.`
-    console.warn(infoMsg)
+    console.warn("WARN:", infoMsg)
     const compatPopup = document.getElementById("compat_popup");
     const compatInfo = document.getElementById("compat_info");
     const compatOkButton = document.getElementById("compat_ok");

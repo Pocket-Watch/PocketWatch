@@ -2411,7 +2411,7 @@ func (server *Server) playerUpdateTitle(title string, userId uint64) error {
 	server.state.entry.Title = title
 	DatabaseCurrentEntryUpdateTitle(server.db, title)
 
-	server.addRecentAction("speedchange", userId, title)
+	server.addRecentAction("updatetitle", userId, title)
 	server.writeEventToAllConnections("playerupdatetitle", title, userId)
 
 	return nil
@@ -2430,7 +2430,7 @@ func (server *Server) playerSpeedChange(speed float64, userId uint64) error {
 	}
 	server.state.player.Speed = speed
 
-	server.addRecentAction("updatetitle", userId, speed)
+	server.addRecentAction("speedchange", userId, speed)
 	server.writeEventToAllConnections("playerspeedchange", speed, userId)
 
 	return nil
