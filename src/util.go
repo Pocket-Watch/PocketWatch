@@ -516,15 +516,14 @@ func formatMegabytes(bytes int64, precision int) string {
 }
 
 func getContentLength(url string, referer string) (int64, error) {
-	// HEAD method returns metadata of a resource
-	request, err := http.NewRequest("HEAD", url, nil)
+	// HEAD method returns metadata of a resource, but it may not be supported, better use GET
+	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return -1, err
 	}
 	if referer != "" {
 		request.Header.Set("Referer", referer)
 	}
-	// Send the request
 	response, err := defaultClient.Do(request)
 	if err != nil {
 		return -1, err
@@ -534,7 +533,6 @@ func getContentLength(url string, referer string) (int64, error) {
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return -1, errors.New("Status code: " + response.Status)
 	}
-	// Get the Content-Length header
 	length := response.Header.Get("Content-Length")
 	if length == "" {
 		return -1, errors.New("Content-Length header is empty")
@@ -1359,4 +1357,87 @@ func bufferStartsWith(buffer *bytes.Buffer, prefix []byte) bool {
 		return false
 	}
 	return bytes.Equal(b[:prefixLen], prefix)
+}
+
+// SpeedTest measures download or upload speed
+type SpeedTest struct {
+	lastSnapshot time.Time
+	frequency    time.Duration
+	snapshots    *RingBuffer
+}
+
+func (test *SpeedTest) TestMBps(byteCount int64) float64 {
+	now := time.Now()
+	// Don't restrict the first write but don't measure it
+	if test.snapshots.Len() == 0 {
+		test.snapshots.Push(byteCount)
+		test.lastSnapshot = now
+		return 0
+	}
+
+	// Remove outdated snapshots to maintain accuracy
+	lastPushDiff := now.Sub(test.lastSnapshot)
+	bufferTime := test.frequency * time.Duration(test.snapshots.capacity)
+	discardRatio := lastPushDiff.Seconds() / bufferTime.Seconds()
+	discardCount := int(discardRatio * float64(test.snapshots.capacity))
+	targetSize := test.snapshots.capacity - discardCount
+	for test.snapshots.Len() > targetSize {
+		test.snapshots.PopEnd()
+	}
+
+	if lastPushDiff >= test.frequency {
+		test.snapshots.ForcePush(byteCount)
+		test.lastSnapshot = now
+	}
+	if test.snapshots.Len() == 1 {
+		return 0
+	}
+	lastCount := test.snapshots.PeekEnd()
+	if lastCount > byteCount {
+		return -1
+	}
+	byteDiff := byteCount - lastCount
+	multiplier := time.Duration(test.snapshots.Len()) - 1
+	timeFrame := multiplier * test.frequency
+	bytesPerSecond := float64(byteDiff) / timeFrame.Seconds()
+	return bytesPerSecond / MB
+}
+
+func (test *SpeedTest) Reset() {
+	test.snapshots.Clear()
+}
+
+func NewDefaultSpeedTest() *SpeedTest {
+	return NewSpeedTest(time.Millisecond*100, 20)
+}
+
+func NewSpeedTest(frequency time.Duration, snapshotCount int) *SpeedTest {
+	if snapshotCount < 2 {
+		snapshotCount = 2
+	}
+	return &SpeedTest{
+		lastSnapshot: time.Now(),
+		frequency:    frequency,
+		snapshots:    NewRingBuffer(snapshotCount),
+	}
+}
+
+type Sleeper struct {
+	condition *sync.Cond
+}
+
+// NewSleeper creates a Sleeper with an internal mutex.
+func NewSleeper() *Sleeper {
+	return &Sleeper{
+		condition: sync.NewCond(&sync.Mutex{}),
+	}
+}
+
+// Sleep blocks until woken.
+func (w *Sleeper) Sleep() {
+	w.condition.Wait()
+}
+
+func (w *Sleeper) WakeAll() {
+	w.condition.Broadcast()
 }

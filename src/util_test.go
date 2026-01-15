@@ -870,3 +870,21 @@ func TestByteBufferStartsWith(t *testing.T) {
 		t.Errorf("The buffer doesn't start with '123'")
 	}
 }
+
+func TestSpeedTest(t *testing.T) {
+	frequency := time.Millisecond * 100
+	speedTest := NewSpeedTest(frequency, 3)
+	firstCount, secondCount := int64(5*MB), int64(10*MB)
+	expected := float64((secondCount-firstCount)/MB) / frequency.Seconds()
+
+	zero := speedTest.TestMBps(firstCount)
+	if zero != 0 {
+		t.Errorf("The speed should be 0 but actual is %v", zero)
+		return
+	}
+	time.Sleep(frequency)
+	speed := speedTest.TestMBps(secondCount)
+	if speed != expected {
+		t.Errorf("The speed should be %v but actual is %v", expected, speed)
+	}
+}

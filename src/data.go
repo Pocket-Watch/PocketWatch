@@ -41,6 +41,8 @@ const PROXY_FILE_SIZE_LIMIT = 4 * GB
 const BODY_LIMIT = 8 * KB
 const MAX_STREAM_CHUNK_SIZE = 10 * MB
 const MAX_CHUNK_SIZE = 16 * MB
+const MAX_PRELOAD_SIZE = 20 * MB
+const HEURISTIC_BITRATE_MB_S = 1.5 * MB
 
 var SUBTITLE_EXTENSIONS = [...]string{".vtt", ".srt"}
 
@@ -341,35 +343,18 @@ type HlsProxy struct {
 type GenericProxy struct {
 	contentLength    int64
 	extensionWithDot string
+	contentType      string
 	fileUrl          string
 	referer          string
-	rangeSeed        atomic.Uint64
-	file             *os.File
-	fileMutex        sync.Mutex
-	diskRanges       []Range // must remain sorted
-	futureRanges     []*FutureRange
-	rangeMutex       sync.Mutex
-}
 
-type FutureRange struct {
-	ready   chan struct{}
-	success bool
-	id      uint64
-	r       Range
-}
-
-type RangeAction int
-
-const (
-	READ RangeAction = iota
-	AWAIT
-	FETCH
-)
-
-type ActionableRange struct {
-	action RangeAction
-	r      Range
-	future *FutureRange // Present if action is AWAIT
+	downloadMutex  sync.Mutex
+	downloadSpeed  *SpeedTest
+	download       *http.Response
+	downloadOffset int
+	file           *os.File
+	fileMutex      sync.Mutex
+	diskRanges     []Range // must remain sorted
+	rangeMutex     sync.Mutex
 }
 
 type LiveStream struct {
