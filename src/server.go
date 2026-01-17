@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/rand"
 	"net"
 	"net/http"
@@ -1102,7 +1103,7 @@ func (server *Server) startDownloadLoop() {
 			LogDebug("[Download loop#%v] Offset=%vMB Preload=%vMB", loopId, offsetMB, preloadMB)
 			downloader.sleeper.WakeAll()
 			downloader.mutex.Unlock()
-			time.Sleep(1 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
 }
@@ -2002,7 +2003,7 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 		currentTimestamp := server.getCurrentTimestamp()
 		consumedPreload := (currentTimestamp - lastTimestamp) * HEURISTIC_BITRATE_MB_S
 		if consumedPreload > 0 {
-			preload -= int64(consumedPreload)
+			preload -= int64(math.Abs(consumedPreload))
 			preload = max(0, preload)
 		}
 		lastTimestamp = currentTimestamp
