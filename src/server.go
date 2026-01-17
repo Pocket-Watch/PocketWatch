@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -951,6 +952,8 @@ func (server *Server) getSubtitles() []string {
 	return subtitles
 }
 
+var loopIdSeed atomic.Int64
+
 func (server *Server) setupGenericFileProxy(url string, referer string) bool {
 	_ = os.RemoveAll(CONTENT_PROXY)
 	_ = os.MkdirAll(CONTENT_PROXY, os.ModePerm)
@@ -998,20 +1001,116 @@ func (server *Server) setupGenericFileProxy(url string, referer string) bool {
 		offset := size - 128*KB
 		response, err := openFileDownload(url, offset, referer)
 		if err != nil {
-			LogWarn("Failed to pull %v", offset)
+			LogWarn("Failed open file download at offset=%v due to %v", offset, err)
 			return false
 		}
-		response.Body.Close()
 		_, err = proxy.pullAndStoreBytes(response, offset, 128*KB)
 		if err != nil {
 			LogWarn("Failed to pull last 128KB: %v", err)
 			return false
 		}
+		response.Body.Close()
 	}
 
-	proxy.downloadSpeed = NewDefaultSpeedTest()
+	proxy.destruct()
+	proxy.downloader = &GenericDownloader{
+		mutex:    sync.Mutex{},
+		download: nil,
+		offset:   0,
+		preload:  0,
+		loopId:   loopIdSeed.Add(1),
+		speed:    NewDefaultSpeedTest(),
+		sleeper:  NewSleeper(),
+		destroy:  make(chan bool),
+	}
+	proxy.replaceDownload(0)
+	go server.startDownloadLoop()
 	LogInfo("Successfully setup proxy for file of size %v MB", formatMegabytes(size, 2))
 	return true
+}
+
+func (server *Server) startDownloadLoop() {
+	lastTimestamp := server.getCurrentTimestamp()
+
+	proxy := &server.state.genericProxy
+	downloader := proxy.downloader
+	loopId := downloader.loopId
+	for {
+		select {
+		case <-downloader.destroy:
+			LogInfo("Terminating download loop#%v", loopId)
+			// cleanup and exit loop
+			return
+		default:
+			// If a download enters disk range:
+			// a. Determine if the range is worth terminating the currently active download
+			// b. Cover state where there's no active download
+
+			downloader.mutex.Lock()
+			offset := downloader.offset
+			count := int64(HEURISTIC_BITRATE_MB_S)
+			if offset+count >= proxy.contentLength {
+				count = proxy.contentLength - offset
+			}
+
+			currentRange := newRange(offset, offset+count-1)
+			if count == 0 || proxy.isRangeAvailableOnDisk(currentRange) {
+				// The downloader should keep looping even on disk because clients are waiting in cycles
+				if downloader.download != nil {
+					downloader.download = nil
+					LogInfo("[Download loop#%v] Setting current download to nil for range=%v", loopId, currentRange.StringMB())
+				}
+				downloader.sleeper.WakeAll()
+			}
+			// If no active download
+			if downloader.download == nil {
+				// Best solution: wait on another download indefinitely
+				downloader.mutex.Unlock()
+				time.Sleep(time.Second)
+				continue
+			}
+
+			// Bitrate/length could be obtained from ffprobe
+			currentTimestamp := server.getCurrentTimestamp()
+			consumedPreload := (currentTimestamp - lastTimestamp) * HEURISTIC_BITRATE_MB_S
+			if consumedPreload > 0 {
+				downloader.preload -= int64(consumedPreload)
+				downloader.preload = max(0, downloader.preload)
+			}
+			lastTimestamp = currentTimestamp
+
+			// It could monitor download speed and detect disk range
+			if downloader.preload > MAX_PRELOAD_SIZE {
+				LogInfo("[Download loop#%v] exceeding max preload", loopId)
+				downloader.mutex.Unlock()
+				time.Sleep(time.Second)
+				continue
+			}
+
+			nextOffset, err := proxy.pullAndStoreBytes(downloader.download, downloader.offset, count)
+			if err != nil {
+				LogWarn("[Download loop#%v] error while pulling from source %v - replacing download", loopId, err)
+				// Why does it timeout?
+				proxy.replaceDownload(downloader.offset)
+				downloader.mutex.Unlock()
+				time.Sleep(time.Second)
+				continue
+			}
+			downloader.preload += count
+			downloader.offset = nextOffset
+			offsetMB, preloadMB := formatMegabytes(downloader.offset, 2), formatMegabytes(downloader.preload, 2)
+			LogDebug("[Download loop#%v] Offset=%vMB Preload=%vMB", loopId, offsetMB, preloadMB)
+			downloader.sleeper.WakeAll()
+			downloader.mutex.Unlock()
+			time.Sleep(1 * time.Millisecond)
+		}
+	}
+}
+
+func (proxy *GenericProxy) destruct() {
+	if proxy.downloader != nil {
+		proxy.downloader.destroy <- true
+	}
 }
 
 func (server *Server) isTrustedUrl(url string, parsedUrl *net_url.URL) bool {
@@ -1866,7 +1965,7 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 		return
 	}
 
-	LogDebug("Connection %v requested proxied file at range %v", getIp(request), &requestedRange)
+	LogDebug("Connection %v requested proxied file at range %v", getIp(request), requestedRange.StringMB())
 
 	writer.Header().Set("Accept-Ranges", "bytes")
 	writer.Header().Set("Cache-Control", "no-cache")
@@ -1883,21 +1982,30 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 
 	proxy.logDiskRanges()
 
-	//var totalWritten int64
+	var totalWritten int64
 	currentRange := requestedRange
-	currentRange.end = requestedRange.start + GENERIC_CHUNK_SIZE - 1
+	currentRange.end = currentRange.start + GENERIC_CHUNK_SIZE - 1
 
+	downloader := proxy.downloader
 	lastTimestamp := server.getCurrentTimestamp()
 	preload := int64(0)
 	for {
+		if currentRange.start >= proxy.contentLength {
+			LogDebug("Closing connection %v, having been served %vMB", getIp(request), formatMegabytes(totalWritten, 2))
+			break
+		}
 		if currentRange.end >= proxy.contentLength {
 			currentRange.end = proxy.contentLength - 1
 		}
 
-		consumedPreload := (server.getCurrentTimestamp() - lastTimestamp) * HEURISTIC_BITRATE_MB_S
+		// Bitrate/length could be obtained from ffprobe
+		currentTimestamp := server.getCurrentTimestamp()
+		consumedPreload := (currentTimestamp - lastTimestamp) * HEURISTIC_BITRATE_MB_S
 		if consumedPreload > 0 {
 			preload -= int64(consumedPreload)
+			preload = max(0, preload)
 		}
+		lastTimestamp = currentTimestamp
 
 		clientDelayed := false
 		if preload > MAX_PRELOAD_SIZE {
@@ -1914,43 +2022,128 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 			continue
 		}
 
-		/*written, err := io.CopyN(writer, bytes.NewReader(chunkBytes), length)
-		totalWritten += written
-		if err != nil {
-			megabytes := formatMegabytes(totalWritten, 2)
-			LogInfo("Connection %v terminated having downloaded %v MB", getIp(request), megabytes)
+		// Handle multiple possible states:
+		// sync.Mutex is not FIFO so clients are not guaranteed to be served (use sync.Cond?)
+		downloader.mutex.Lock()
+		// 1. Next chunk is fully available from disk
+		available := proxy.isRangeAvailableOnDisk(&currentRange)
+		if available {
+			downloader.mutex.Unlock()
+			if proxy.serveRangeFromDisk(writer, request, &currentRange, &totalWritten) {
+				currentRange.shift(GENERIC_CHUNK_SIZE)
+				preload += currentRange.length()
+				continue
+			}
 			return
 		}
 
-		if currentRange.end == proxy.contentLength-1 {
-			megabytes := formatMegabytes(totalWritten, 2)
-			LogInfo("Connection %v fully served having downloaded %v MB", getIp(request), megabytes)
+		// 2. Next chunk intersects a range available from disk
+		overlap, diskRange := proxy.getRangeOverlapWithDisk(&currentRange)
+		if overlap == LEFT {
+			downloader.mutex.Unlock()
+			// Serve whatever is available
+			availableRange := newRange(currentRange.start, diskRange.end)
+			// Help: Do a sanity check if this is actually available
+			LogDebug("Serving LEFT overlapped range=%v", availableRange.StringMB())
+			if proxy.serveRangeFromDisk(writer, request, availableRange, &totalWritten) {
+				length := availableRange.length()
+				currentRange.shift(length)
+				preload += length
+				continue
+			}
 			return
-		}*/
+		}
 
-		preload += currentRange.length()
-		lastTimestamp = server.getCurrentTimestamp()
-		currentRange.shift(GENERIC_CHUNK_SIZE)
+		// 3. Next chunk can be supplied from an existing in-progress download
+
+		// The forward offset causing clients to reopen their active connection is unknown therefore upon changing
+		// the current download it's necessary to terminate connections with other clients
+		isDownloadActive := downloader.download != nil
+		offset := downloader.offset
+		forwardOffset := offset + 2*HEURISTIC_BITRATE_MB_S
+		if isDownloadActive && (offset <= currentRange.start && currentRange.start < forwardOffset) {
+			cycles := 1 + (currentRange.start-offset)/HEURISTIC_BITRATE_MB_S
+			downloader.mutex.Unlock()
+			for cycles > 0 {
+				// Sleep the number of cycles required until next chunk is available
+				if !downloader.sleeper.Sleep(3 * time.Second) {
+					// The next chunk is not available
+					LogWarn("Connection %v closed because the next chunk wasn't available at %v = %v", getIp(request), &currentRange, currentRange.StringMB())
+					return
+				}
+				cycles--
+			}
+			// Serve client from disk (at step 1)
+			continue
+		}
+
+		// 4. Next chunk requires new connection to be opened (serve at step 3)
+		start := max(0, currentRange.start-256*KB)
+		proxy.replaceDownload(start)
+		downloader.mutex.Unlock()
 	}
 }
 
-// Lock the state before checking if the response needs to be reopened to ensure sync
-func (proxy *GenericProxy) replaceResponse(from int64) {
-	proxy.download.Body.Close()
+func (proxy *GenericProxy) isRangeAvailableOnDisk(r *Range) bool {
+	proxy.rangeMutex.Lock()
+	defer proxy.rangeMutex.Unlock()
+	for _, diskRange := range proxy.diskRanges {
+		if diskRange.encompasses(r) {
+			return true
+		}
+		if r.end < diskRange.start {
+			// No point in searching further
+			break
+		}
+	}
+	return false
+}
+
+func (proxy *GenericProxy) getRangeOverlapWithDisk(r *Range) (Overlap, Range) {
+	proxy.rangeMutex.Lock()
+	defer proxy.rangeMutex.Unlock()
+	for _, diskRange := range proxy.diskRanges {
+		overlap := r.getOverlap(&diskRange)
+		if overlap != NONE {
+			return overlap, diskRange
+		}
+		if r.end < diskRange.start {
+			// No point in searching further
+			break
+		}
+	}
+	return NONE, NO_RANGE
+}
+
+// replaceDownload replaces the current download synchronously
+func (proxy *GenericProxy) replaceDownload(from int64) {
+	downloader := proxy.downloader
+	if downloader == nil {
+		LogError("Unable to replace download because downloader is nil")
+		return
+	}
+
+	if downloader.download != nil {
+		downloader.download.Body.Close()
+	}
 	newDownload, err := openFileDownload(proxy.fileUrl, from, proxy.referer)
 	if err != nil {
 		LogWarn("Failed to reopen response %v", err)
-		proxy.downloadMutex.Unlock()
 		return
 	}
-	proxy.download = newDownload
+	if from < downloader.offset {
+		downloader.preload = 0
+	}
+	downloader.offset = from
+	downloader.download = newDownload
+	LogInfo("Download was replaced, new offset = %vMB", formatMegabytes(from, 2))
 }
 
 func (proxy *GenericProxy) logDiskRanges() {
 	view := strings.Builder{}
 	proxy.rangeMutex.Lock()
 	for _, diskRange := range proxy.diskRanges {
-		view.WriteString(diskRange.String() + ", ")
+		view.WriteString(diskRange.StringMB() + ", ")
 	}
 	LogDebug("Disk ranges: %v", view.String())
 	proxy.rangeMutex.Unlock()
@@ -1979,9 +2172,15 @@ func (proxy *GenericProxy) serveRangeFromDisk(writer http.ResponseWriter, reques
 
 // pullAndStoreBytes pulls the specified number of bytes from the response and returns the next readable offset
 func (proxy *GenericProxy) pullAndStoreBytes(response *http.Response, offset, count int64) (int64, error) {
+	if count < 0 {
+		return offset, errors.New("the count of bytes to pull is negative")
+	}
+	if count == 0 {
+		return offset, nil
+	}
 	chunkBytes, err := pullBytesFromResponse(response, int(count))
 	if err != nil {
-		LogWarn("Failed to pull bytes from response due to %v", err)
+		LogWarn("Failed to pull bytes from response at %v count=%v due to %v", offset, count, err)
 		return offset, err
 	}
 	proxy.fileMutex.Lock()

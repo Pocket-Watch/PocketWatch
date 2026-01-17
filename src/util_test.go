@@ -564,10 +564,10 @@ func TestParseMigrationNumber(t *testing.T) {
 }
 
 func TestInvalidRange(t *testing.T) {
-	if newRange(5, 4) != nil {
+	if !newRange(5, 4).equals(&NO_RANGE) {
 		t.Errorf("The range should be nil because start > end")
 	}
-	if newRange(-1, 1234) != nil {
+	if !newRange(-1, 1234).equals(&NO_RANGE) {
 		t.Errorf("The range should be nil because one of the values is negative")
 	}
 }
@@ -601,6 +601,15 @@ func TestRangeOverlapsContained(t *testing.T) {
 	range2 := newRange(20, 80)
 	if !range1.overlaps(range2) || !range2.overlaps(range1) {
 		t.Errorf("%v should overlap %v", range1, range2)
+	}
+}
+
+func TestRangeGetOverlap(t *testing.T) {
+	range1 := newRange(5, 9)
+	range2 := newRange(0, 7)
+	r1Overlap := range1.getOverlap(range2)
+	if r1Overlap != LEFT {
+		t.Errorf("The overlap should be LEFT, actual=%v", r1Overlap)
 	}
 }
 

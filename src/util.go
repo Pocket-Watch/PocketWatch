@@ -307,7 +307,7 @@ func downloadFileChunk(url string, r *Range, referer string) ([]byte, error) {
 		return buffer[:bytesRead], nil
 	}
 	if err != nil {
-		return nil, &DownloadError{Code: response.StatusCode, Message: "Failed to read response body."}
+		return nil, &DownloadError{Code: response.StatusCode, Message: err.Error()}
 	}
 	return buffer, nil
 }
@@ -388,7 +388,7 @@ func pullBytesFromResponse(response *http.Response, byteCount int) ([]byte, erro
 		return buffer[:bytesRead], nil
 	}
 	if err != nil {
-		return nil, &DownloadError{Code: response.StatusCode, Message: "Failed to read response body."}
+		return nil, &DownloadError{Code: response.StatusCode, Message: err.Error()}
 	}
 	return buffer, nil
 }
@@ -643,10 +643,24 @@ type Range struct {
 	end   int64
 }
 
+type Overlap int
+
+const (
+	LEFT Overlap = iota
+	RIGHT
+	NONE
+	MIXED
+)
+
 var NO_RANGE = Range{-1, -1}
 
 func (r *Range) String() string {
 	return fmt.Sprintf("[%d,%d]", r.start, r.end)
+}
+
+func (r *Range) StringMB() string {
+	startMB, endMB := formatMegabytes(r.start, 2)+"MB", formatMegabytes(r.end, 2)+"MB"
+	return fmt.Sprintf("[%s,%s]", startMB, endMB)
 }
 
 func (r *Range) toContentRange(length int64) string {
@@ -665,9 +679,10 @@ func (r *Range) shift(by int64) {
 	r.end += by
 }
 
+// newRange creates a new range and returns it, if start and/or end is invalid NO_RANGE is returned
 func newRange(start, end int64) *Range {
 	if start < 0 || end < 0 || start > end {
-		return nil
+		return &Range{NO_RANGE.start, NO_RANGE.end}
 	}
 	return &Range{start, end}
 }
@@ -681,6 +696,20 @@ func (r *Range) mergeWith(other *Range) Range {
 
 func (r *Range) overlaps(other *Range) bool {
 	return r.start <= other.end && other.start <= r.end
+}
+
+// getOverlap determines the overlap type
+func (r *Range) getOverlap(other *Range) Overlap {
+	if !r.overlaps(other) {
+		return NONE
+	}
+	if other.start <= r.start && other.end <= r.end {
+		return LEFT
+	}
+	if r.start <= other.start && r.end <= other.end {
+		return RIGHT
+	}
+	return MIXED
 }
 
 func (r *Range) connects(other *Range) bool {
@@ -1423,21 +1452,23 @@ func NewSpeedTest(frequency time.Duration, snapshotCount int) *SpeedTest {
 }
 
 type Sleeper struct {
-	condition *sync.Cond
+	ch chan struct{}
 }
 
-// NewSleeper creates a Sleeper with an internal mutex.
-func NewSleeper() *Sleeper {
-	return &Sleeper{
-		condition: sync.NewCond(&sync.Mutex{}),
+func NewSleeper() *Sleeper { return &Sleeper{ch: make(chan struct{})} }
+
+// Sleep sleeps until woken or timeout, returning true and false respectively
+func (s *Sleeper) Sleep(timeout time.Duration) bool {
+	select {
+	case <-s.ch:
+		return true
+	case <-time.After(timeout):
+		return false
 	}
 }
 
-// Sleep blocks until woken.
-func (w *Sleeper) Sleep() {
-	w.condition.Wait()
-}
-
-func (w *Sleeper) WakeAll() {
-	w.condition.Broadcast()
+// WakeAll Wake closes and replaces the channel to wake all current waiters.
+func (s *Sleeper) WakeAll() {
+	close(s.ch)
+	s.ch = make(chan struct{})
 }

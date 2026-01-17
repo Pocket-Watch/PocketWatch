@@ -42,7 +42,7 @@ const BODY_LIMIT = 8 * KB
 const MAX_STREAM_CHUNK_SIZE = 10 * MB
 const MAX_CHUNK_SIZE = 16 * MB
 const MAX_PRELOAD_SIZE = 20 * MB
-const HEURISTIC_BITRATE_MB_S = 1.5 * MB
+const HEURISTIC_BITRATE_MB_S = 1.75 * MB
 
 var SUBTITLE_EXTENSIONS = [...]string{".vtt", ".srt"}
 
@@ -346,15 +346,22 @@ type GenericProxy struct {
 	contentType      string
 	fileUrl          string
 	referer          string
+	downloader       *GenericDownloader
+	file             *os.File
+	fileMutex        sync.Mutex
+	diskRanges       []Range // must remain sorted
+	rangeMutex       sync.Mutex
+}
 
-	downloadMutex  sync.Mutex
-	downloadSpeed  *SpeedTest
-	download       *http.Response
-	downloadOffset int
-	file           *os.File
-	fileMutex      sync.Mutex
-	diskRanges     []Range // must remain sorted
-	rangeMutex     sync.Mutex
+type GenericDownloader struct {
+	mutex    sync.Mutex // locks download, offset
+	download *http.Response
+	offset   int64
+	preload  int64
+	loopId   int64
+	speed    *SpeedTest
+	sleeper  *Sleeper
+	destroy  chan bool
 }
 
 type LiveStream struct {
