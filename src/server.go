@@ -1020,7 +1020,9 @@ func (server *Server) setupGenericFileProxy(url string, referer string) bool {
 		sleeper:  NewSleeper(),
 		destroy:  make(chan bool),
 	}
+	proxy.downloader.mutex.Lock()
 	proxy.replaceDownload(0)
+	proxy.downloader.mutex.Unlock()
 	go server.startDownloadLoop()
 	LogInfo("Successfully setup proxy for file of size %v MB", formatMegabytes(size, 2))
 	return true
@@ -2045,8 +2047,8 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 			// Serve whatever is available
 			availableRange := newRange(currentRange.start, diskRange.end)
 
-			LogDebug("Serving LEFT overlapped range=%v", availableRange.StringMB())
 			if proxy.serveRangeFromDisk(writer, request, availableRange, &totalWritten) {
+				LogDebug("Served LEFT overlapped range=%v", availableRange.StringMB())
 				length := availableRange.length()
 				currentRange.shift(length)
 				preload += length
