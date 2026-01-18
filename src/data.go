@@ -358,7 +358,6 @@ type GenericDownloader struct {
 	download *http.Response
 	offset   int64
 	preload  int64
-	loopId   int64
 	speed    *SpeedTest
 	sleeper  *Sleeper
 	destroy  chan bool

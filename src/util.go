@@ -1452,15 +1452,19 @@ func NewSpeedTest(frequency time.Duration, snapshotCount int) *SpeedTest {
 }
 
 type Sleeper struct {
-	ch chan struct{}
+	ch      chan struct{}
+	rwMutex sync.RWMutex
 }
 
 func NewSleeper() *Sleeper { return &Sleeper{ch: make(chan struct{})} }
 
 // Sleep sleeps until woken or timeout, returning true and false respectively
 func (s *Sleeper) Sleep(timeout time.Duration) bool {
+	s.rwMutex.RLock()
+	channel := s.ch
+	s.rwMutex.RUnlock()
 	select {
-	case <-s.ch:
+	case <-channel:
 		return true
 	case <-time.After(timeout):
 		return false
@@ -1469,6 +1473,8 @@ func (s *Sleeper) Sleep(timeout time.Duration) bool {
 
 // WakeAll Wake closes and replaces the channel to wake all current waiters.
 func (s *Sleeper) WakeAll() {
+	s.rwMutex.Lock()
 	close(s.ch)
 	s.ch = make(chan struct{})
+	s.rwMutex.Unlock()
 }

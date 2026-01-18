@@ -953,8 +953,6 @@ func (server *Server) getSubtitles() []string {
 	return subtitles
 }
 
-var loopIdSeed atomic.Int64
-
 func (server *Server) setupGenericFileProxy(url string, referer string) bool {
 	_ = os.RemoveAll(CONTENT_PROXY)
 	_ = os.MkdirAll(CONTENT_PROXY, os.ModePerm)
@@ -1013,13 +1011,11 @@ func (server *Server) setupGenericFileProxy(url string, referer string) bool {
 		response.Body.Close()
 	}
 
-	proxy.destruct()
 	proxy.downloader = &GenericDownloader{
 		mutex:    sync.Mutex{},
 		download: nil,
 		offset:   0,
 		preload:  0,
-		loopId:   loopIdSeed.Add(1),
 		speed:    NewDefaultSpeedTest(),
 		sleeper:  NewSleeper(),
 		destroy:  make(chan bool),
@@ -1030,12 +1026,14 @@ func (server *Server) setupGenericFileProxy(url string, referer string) bool {
 	return true
 }
 
+var loopIdSeed atomic.Int64
+
 func (server *Server) startDownloadLoop() {
 	lastTimestamp := server.getCurrentTimestamp()
 
 	proxy := &server.state.genericProxy
 	downloader := proxy.downloader
-	loopId := downloader.loopId
+	loopId := loopIdSeed.Add(1)
 	for {
 		select {
 		case <-downloader.destroy:
@@ -1111,6 +1109,11 @@ func (server *Server) startDownloadLoop() {
 func (proxy *GenericProxy) destruct() {
 	if proxy.downloader != nil {
 		proxy.downloader.destroy <- true
+	}
+	if proxy.file != nil {
+		proxy.fileMutex.Lock()
+		_ = proxy.file.Close()
+		proxy.fileMutex.Unlock()
 	}
 }
 
@@ -1302,11 +1305,7 @@ func (server *Server) setupProxy(entry *Entry) error {
 	// This should be moved to some destructEntry() / unloadEntry() method
 	proxy := &server.state.genericProxy
 	server.state.setupLock.Lock()
-	if proxy.file != nil {
-		proxy.fileMutex.Lock()
-		_ = proxy.file.Close()
-		proxy.fileMutex.Unlock()
-	}
+	proxy.destruct()
 	server.state.setupLock.Unlock()
 
 	urlStruct, err := net_url.Parse(entry.Url)
@@ -2020,6 +2019,7 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 		}
 
 		if clientDelayed {
+			//LogDebug("Connection %v hit preload at %v = %v", getIp(request), &currentRange, currentRange.StringMB())
 			continue
 		}
 
@@ -2044,7 +2044,7 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 			downloader.mutex.Unlock()
 			// Serve whatever is available
 			availableRange := newRange(currentRange.start, diskRange.end)
-			// Help: Do a sanity check if this is actually available
+
 			LogDebug("Serving LEFT overlapped range=%v", availableRange.StringMB())
 			if proxy.serveRangeFromDisk(writer, request, availableRange, &totalWritten) {
 				length := availableRange.length()
@@ -2063,16 +2063,11 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 		offset := downloader.offset
 		forwardOffset := offset + 2*HEURISTIC_BITRATE_MB_S
 		if isDownloadActive && (offset <= currentRange.start && currentRange.start < forwardOffset) {
-			cycles := 1 + (currentRange.start-offset)/HEURISTIC_BITRATE_MB_S
 			downloader.mutex.Unlock()
-			for cycles > 0 {
-				// Sleep the number of cycles required until next chunk is available
-				if !downloader.sleeper.Sleep(3 * time.Second) {
-					// The next chunk is not available
-					LogWarn("Connection %v closed because the next chunk wasn't available at %v = %v", getIp(request), &currentRange, currentRange.StringMB())
-					return
-				}
-				cycles--
+			// Always wait one cycle
+			if !downloader.sleeper.Sleep(2 * time.Second) {
+				LogWarn("Connection %v is delayed because the next chunk wasn't available at %v = %v", getIp(request), &currentRange, currentRange.StringMB())
+				// If connection was to be terminated here with no bytes served the browser would decide it's EOF
 			}
 			// Serve client from disk (at step 1)
 			continue
@@ -2137,6 +2132,7 @@ func (proxy *GenericProxy) replaceDownload(from int64) {
 	}
 	downloader.offset = from
 	downloader.download = newDownload
+	downloader.sleeper.WakeAll()
 	LogInfo("Download was replaced, new offset = %vMB", formatMegabytes(from, 2))
 }
 
