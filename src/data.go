@@ -361,6 +361,7 @@ type GenericDownloader struct {
 	speed    *SpeedTest
 	sleeper  *Sleeper
 	destroy  chan bool
+	closed   bool
 }
 
 type LiveStream struct {

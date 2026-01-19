@@ -1039,8 +1039,10 @@ func (server *Server) startDownloadLoop() {
 	for {
 		select {
 		case <-downloader.destroy:
+			downloader.closed = true
 			LogInfo("Terminating download loop#%v", loopId)
 			// cleanup and exit loop
+			downloader.closeDownload()
 			return
 		default:
 			// If a download enters disk range:
@@ -1057,10 +1059,7 @@ func (server *Server) startDownloadLoop() {
 			currentRange := newRange(offset, offset+count-1)
 			if count == 0 || proxy.isRangeAvailableOnDisk(currentRange) {
 				// The downloader should keep looping even on disk because clients are waiting in cycles
-				if downloader.download != nil {
-					downloader.download = nil
-					LogInfo("[Download loop#%v] Setting current download to nil for range=%v", loopId, currentRange.StringMB())
-				}
+				downloader.closeDownload()
 				downloader.sleeper.WakeAll()
 			}
 			// If no active download
@@ -1108,8 +1107,15 @@ func (server *Server) startDownloadLoop() {
 	}
 }
 
+func (downloader *GenericDownloader) closeDownload() {
+	if downloader.download != nil {
+		_ = downloader.download.Body.Close()
+		downloader.download = nil
+	}
+}
+
 func (proxy *GenericProxy) destruct() {
-	if proxy.downloader != nil {
+	if proxy.downloader != nil && !proxy.downloader.closed {
 		proxy.downloader.destroy <- true
 	}
 	if proxy.file != nil {
