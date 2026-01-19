@@ -313,11 +313,8 @@ func downloadFileChunk(url string, r *Range, referer string) ([]byte, error) {
 }
 
 func readAtOffset(f *os.File, offset int64, count int) ([]byte, error) {
-	if _, err := f.Seek(offset, io.SeekStart); err != nil {
-		return nil, err
-	}
 	buffer := make([]byte, count)
-	_, err := io.ReadFull(f, buffer)
+	_, err := f.ReadAt(buffer, offset)
 	if err != nil {
 		if errors.Is(err, io.ErrUnexpectedEOF) || err == io.EOF {
 			return buffer, err
@@ -328,10 +325,7 @@ func readAtOffset(f *os.File, offset int64, count int) ([]byte, error) {
 }
 
 func writeAtOffset(f *os.File, offset int64, data []byte) (int, error) {
-	if _, err := f.Seek(offset, io.SeekStart); err != nil {
-		return 0, err
-	}
-	n, err := f.Write(data)
+	n, err := f.WriteAt(data, offset)
 	if err != nil && !errors.Is(err, io.ErrShortWrite) {
 		return n, err
 	}

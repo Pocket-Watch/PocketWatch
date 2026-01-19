@@ -995,17 +995,17 @@ func (server *Server) setupGenericFileProxy(url string, referer string) bool {
 	proxy.file = proxyFile
 	proxy.diskRanges = make([]Range, 0)
 
-	if size > 128*KB {
+	if size > TRAILING_PULL_SIZE {
 		// Preload the end of the file
-		offset := size - 128*KB
+		offset := size - TRAILING_PULL_SIZE
 		response, err := openFileDownload(url, offset, referer)
 		if err != nil {
 			LogWarn("Failed open file download at offset=%v due to %v", offset, err)
 			return false
 		}
-		_, err = proxy.pullAndStoreBytes(response, offset, 128*KB)
+		_, err = proxy.pullAndStoreBytes(response, offset, TRAILING_PULL_SIZE)
 		if err != nil {
-			LogWarn("Failed to pull last 128KB: %v", err)
+			LogWarn("Failed to pull last %v bytes: %v", TRAILING_PULL_SIZE, err)
 			return false
 		}
 		response.Body.Close()
@@ -2156,14 +2156,14 @@ func (proxy *GenericProxy) logDiskRanges() {
 
 func (proxy *GenericProxy) serveRangeFromDisk(writer http.ResponseWriter, request *http.Request, servedRange *Range, totalWritten *int64) bool {
 	length := servedRange.length()
-	proxy.fileMutex.Lock()
+	proxy.fileMutex.RLock()
 	rangeBytes, err := readAtOffset(proxy.file, servedRange.start, int(length))
 	if err != nil {
-		proxy.fileMutex.Unlock()
+		proxy.fileMutex.RUnlock()
 		LogInfo("Unable to serve bytes at %v: %v", servedRange.start, err)
 		return false
 	}
-	proxy.fileMutex.Unlock()
+	proxy.fileMutex.RUnlock()
 
 	written, err := io.CopyN(writer, bytes.NewReader(rangeBytes), length)
 	*totalWritten += written

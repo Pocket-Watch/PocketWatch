@@ -99,6 +99,7 @@ const MIN_SEGMENT_LENGTH = 0.038            // 38ms
 const M3U8_CONTENT_TYPE = "application/vnd.apple.mpegurl"
 const MAX_MESSAGE_CHARACTERS = 1000
 const GENERIC_CHUNK_SIZE = 1_000_000
+const TRAILING_PULL_SIZE = 256 * KB
 
 type EventType uint64
 
@@ -348,7 +349,7 @@ type GenericProxy struct {
 	referer          string
 	downloader       *GenericDownloader
 	file             *os.File
-	fileMutex        sync.Mutex
+	fileMutex        sync.RWMutex
 	diskRanges       []Range // must remain sorted
 	rangeMutex       sync.Mutex
 }
