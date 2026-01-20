@@ -953,7 +953,7 @@ func (server *Server) getSubtitles() []string {
 	return subtitles
 }
 
-func (server *Server) setupGenericFileProxy(url string, referer string) bool {
+func (server *Server) setupFileProxy(url string, referer string) bool {
 	_ = os.RemoveAll(CONTENT_PROXY)
 	_ = os.MkdirAll(CONTENT_PROXY, os.ModePerm)
 	parsedUrl, err := net_url.Parse(url)
@@ -976,9 +976,9 @@ func (server *Server) setupGenericFileProxy(url string, referer string) bool {
 	server.state.isHls = false
 	server.state.isLive = false
 
-	proxy := &server.state.genericProxy
+	proxy := &server.state.videoProxy
 	proxy.referer = referer
-	proxy.fileUrl = url
+	proxy.url = url
 	proxy.contentLength = size
 	proxy.extensionWithDot = path.Ext(parsedUrl.Path)
 	proxy.contentType = "application/octet-stream"
@@ -1033,7 +1033,7 @@ var loopIdSeed atomic.Int64
 func (server *Server) startDownloadLoop() {
 	lastTimestamp := server.getCurrentTimestamp()
 
-	proxy := &server.state.genericProxy
+	proxy := &server.state.videoProxy
 	downloader := proxy.downloader
 	loopId := loopIdSeed.Add(1)
 	for {
@@ -1114,7 +1114,10 @@ func (downloader *GenericDownloader) closeDownload() {
 	}
 }
 
-func (proxy *GenericProxy) destruct() {
+func (proxy *FileProxy) destruct() {
+	if proxy == nil {
+		return
+	}
 	if proxy.downloader != nil && !proxy.downloader.closed {
 		proxy.downloader.destroy <- true
 	}
@@ -1311,7 +1314,7 @@ func prepareMediaPlaylistFromMasterPlaylist(m3u *M3U, referer string, depth int)
 // TODO(kihau): More explicit error output messages.
 func (server *Server) setupProxy(entry *Entry) error {
 	// This should be moved to some destructEntry() / unloadEntry() method
-	proxy := &server.state.genericProxy
+	proxy := &server.state.videoProxy
 	server.state.setupLock.Lock()
 	proxy.destruct()
 	server.state.setupLock.Unlock()
@@ -1341,9 +1344,9 @@ func (server *Server) setupProxy(entry *Entry) error {
 				return fmt.Errorf("HLS proxy setup failed!")
 			}
 		} else {
-			setup := server.setupGenericFileProxy(url, referer)
+			setup := server.setupFileProxy(url, referer)
 			if setup {
-				entry.ProxyUrl = PROXY_ROUTE + "proxy" + server.state.genericProxy.extensionWithDot
+				entry.ProxyUrl = PROXY_ROUTE + "proxy" + server.state.videoProxy.extensionWithDot
 				LogInfo("Generic file proxy setup was successful.")
 			} else {
 				return fmt.Errorf("Generic file proxy setup failed!")
@@ -1917,7 +1920,7 @@ func serveHlsChunk(writer http.ResponseWriter, request *http.Request, proxy *Hls
 }
 
 func (server *Server) serveGenericFileNaive(writer http.ResponseWriter, request *http.Request, pathFile string) {
-	proxy := &server.state.genericProxy
+	proxy := &server.state.videoProxy
 	if path.Ext(pathFile) != proxy.extensionWithDot {
 		http.Error(writer, "Extension is different from the proxied file", 404)
 		return
@@ -1932,7 +1935,7 @@ func (server *Server) serveGenericFileNaive(writer http.ResponseWriter, request 
 	writer.Header().Set("Content-Length", int64ToString(byteRange.length()))
 	writer.Header().Set("Content-Range", byteRange.toContentRange(proxy.contentLength))
 
-	response, err := openFileDownload(proxy.fileUrl, byteRange.start, proxy.referer)
+	response, err := openFileDownload(proxy.url, byteRange.start, proxy.referer)
 	if err != nil {
 		http.Error(writer, "Unable to open file download", 500)
 		return
@@ -1962,7 +1965,7 @@ func (server *Server) serveGenericFileNaive(writer http.ResponseWriter, request 
 }
 
 func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFile string) {
-	proxy := &server.state.genericProxy
+	proxy := &server.state.videoProxy
 	if path.Ext(pathFile) != proxy.extensionWithDot {
 		http.Error(writer, "Extension is different from the proxied file", 404)
 		return
@@ -2088,7 +2091,7 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 	}
 }
 
-func (proxy *GenericProxy) isRangeAvailableOnDisk(r *Range) bool {
+func (proxy *FileProxy) isRangeAvailableOnDisk(r *Range) bool {
 	proxy.rangeMutex.Lock()
 	defer proxy.rangeMutex.Unlock()
 	for _, diskRange := range proxy.diskRanges {
@@ -2103,7 +2106,7 @@ func (proxy *GenericProxy) isRangeAvailableOnDisk(r *Range) bool {
 	return false
 }
 
-func (proxy *GenericProxy) getRangeOverlapWithDisk(r *Range) (Overlap, Range) {
+func (proxy *FileProxy) getRangeOverlapWithDisk(r *Range) (Overlap, Range) {
 	proxy.rangeMutex.Lock()
 	defer proxy.rangeMutex.Unlock()
 	for _, diskRange := range proxy.diskRanges {
@@ -2120,7 +2123,7 @@ func (proxy *GenericProxy) getRangeOverlapWithDisk(r *Range) (Overlap, Range) {
 }
 
 // replaceDownload replaces the current download synchronously
-func (proxy *GenericProxy) replaceDownload(from int64) {
+func (proxy *FileProxy) replaceDownload(from int64) {
 	downloader := proxy.downloader
 	if downloader == nil {
 		LogError("Unable to replace download because downloader is nil")
@@ -2130,7 +2133,7 @@ func (proxy *GenericProxy) replaceDownload(from int64) {
 	if downloader.download != nil {
 		downloader.download.Body.Close()
 	}
-	newDownload, err := openFileDownload(proxy.fileUrl, from, proxy.referer)
+	newDownload, err := openFileDownload(proxy.url, from, proxy.referer)
 	if err != nil {
 		LogWarn("Failed to reopen response %v", err)
 		return
@@ -2144,7 +2147,7 @@ func (proxy *GenericProxy) replaceDownload(from int64) {
 	LogInfo("Download was replaced, new offset = %vMB", formatMegabytes(from, 2))
 }
 
-func (proxy *GenericProxy) logDiskRanges() {
+func (proxy *FileProxy) logDiskRanges() {
 	view := strings.Builder{}
 	proxy.rangeMutex.Lock()
 	for _, diskRange := range proxy.diskRanges {
@@ -2154,7 +2157,7 @@ func (proxy *GenericProxy) logDiskRanges() {
 	proxy.rangeMutex.Unlock()
 }
 
-func (proxy *GenericProxy) serveRangeFromDisk(writer http.ResponseWriter, request *http.Request, servedRange *Range, totalWritten *int64) bool {
+func (proxy *FileProxy) serveRangeFromDisk(writer http.ResponseWriter, request *http.Request, servedRange *Range, totalWritten *int64) bool {
 	length := servedRange.length()
 	proxy.fileMutex.RLock()
 	rangeBytes, err := readAtOffset(proxy.file, servedRange.start, int(length))
@@ -2176,7 +2179,7 @@ func (proxy *GenericProxy) serveRangeFromDisk(writer http.ResponseWriter, reques
 }
 
 // pullAndStoreBytes pulls the specified number of bytes from the response and returns the next readable offset
-func (proxy *GenericProxy) pullAndStoreBytes(response *http.Response, offset, count int64) (int64, error) {
+func (proxy *FileProxy) pullAndStoreBytes(response *http.Response, offset, count int64) (int64, error) {
 	if count < 0 {
 		return offset, errors.New("the count of bytes to pull is negative")
 	}

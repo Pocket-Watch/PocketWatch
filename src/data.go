@@ -310,12 +310,12 @@ type ServerState struct {
 	actions []Action
 
 	// Setup lock for the proxy.
-	setupLock    sync.Mutex
-	proxy        *HlsProxy
-	audioProxy   *HlsProxy
-	isLive       bool
-	isHls        bool
-	genericProxy GenericProxy
+	setupLock  sync.Mutex
+	proxy      *HlsProxy
+	audioProxy *HlsProxy
+	isLive     bool
+	isHls      bool
+	videoProxy FileProxy
 
 	liveStream LiveStream
 }
@@ -341,12 +341,12 @@ type HlsProxy struct {
 	lastRefresh  time.Time
 }
 
-type GenericProxy struct {
+type FileProxy struct {
+	url              string
+	referer          string
 	contentLength    int64
 	extensionWithDot string
 	contentType      string
-	fileUrl          string
-	referer          string
 	downloader       *GenericDownloader
 	file             *os.File
 	fileMutex        sync.RWMutex
