@@ -680,7 +680,6 @@ func (server *Server) loadYtdlpSource(newEntry *Entry, requested RequestEntry) {
 	} else if strings.HasSuffix(host, "bandcamp.com") {
 		// TODO(kihau)
 	} else if strings.HasSuffix(host, "tiktok.com") {
-		LogInfo(newEntry.SourceUrl)
 		err = loadTikTokEntry(newEntry)
 	} else {
 		LogError("Unsuppored ytdlp source host detected: %v", host)
@@ -1327,7 +1326,7 @@ func (server *Server) setupProxy(entry *Entry) error {
 		return err
 	}
 
-	if isYtdlpSource(entry.Url) {
+	if isYtdlpProxy(entry.Url) {
 		success := server.setupHlsProxy(entry.SourceUrl, "")
 		if success {
 			entry.ProxyUrl = PROXY_ROUTE + PROXY_M3U8
