@@ -471,6 +471,16 @@ type PlayerNextEvent struct {
 	NewEntry  Entry `json:"new_entry"`
 }
 
+type PlayerPauseRequest struct {
+	Timestamp    float64 `json:"timestamp"`
+	Programmatic bool    `json:"programmatic"`
+}
+
+type PlayerNextRequest struct {
+	CurrentEntryId uint64 `json:"current_entry_id"`
+	Programmatic   bool   `json:"programmatic"`
+}
+
 type SubtitleUpdateRequest struct {
 	Id   uint64 `json:"id"`
 	Name string `json:"name"`

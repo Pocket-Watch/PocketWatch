@@ -401,12 +401,12 @@ func (server *Server) apiPlayerSet(w http.ResponseWriter, r *http.Request, userI
 }
 
 func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request, userId uint64) {
-	var entryId uint64
-	if !server.readJsonDataFromRequest(w, r, &entryId) {
+	var data PlayerNextRequest
+	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
-	if err := server.playerNext(entryId, userId); err != nil {
+	if err := server.playerNext(data, userId); err != nil {
 		respondBadRequest(w, "%v", err)
 	}
 }
@@ -421,12 +421,12 @@ func (server *Server) apiPlayerPlay(w http.ResponseWriter, r *http.Request, user
 }
 
 func (server *Server) apiPlayerPause(w http.ResponseWriter, r *http.Request, userId uint64) {
-	var timestamp float64
-	if !server.readJsonDataFromRequest(w, r, &timestamp) {
+	var data PlayerPauseRequest
+	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
-	server.playerPause(timestamp, userId)
+	server.playerPause(data, userId)
 }
 
 func (server *Server) apiPlayerSeek(w http.ResponseWriter, r *http.Request, userId uint64) {

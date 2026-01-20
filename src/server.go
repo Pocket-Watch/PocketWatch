@@ -2247,11 +2247,14 @@ func (server *Server) playerPlay(timestamp float64, userId uint64) error {
 	return server.playerUpdateState(true, timestamp, userId)
 }
 
-func (server *Server) playerPause(timestamp float64, userId uint64) error {
+func (server *Server) playerPause(data PlayerPauseRequest, userId uint64) error {
 	server.state.mutex.Lock()
 	defer server.state.mutex.Unlock()
 
-	return server.playerUpdateState(false, timestamp, userId)
+	if data.Programmatic {
+		userId = SERVER_ID
+	} 
+	return server.playerUpdateState(false, data.Timestamp, userId)
 }
 
 func (server *Server) playerUpdateState(isPlaying bool, newTimestamp float64, userId uint64) error {
@@ -2268,7 +2271,6 @@ func (server *Server) playerUpdateState(isPlaying bool, newTimestamp float64, us
 
 	server.addRecentAction(event.Action, event.UserId, event.Timestamp)
 	server.writeEventToAllConnections("sync", event, userId)
-
 	return nil
 }
 
@@ -2446,7 +2448,7 @@ func (server *Server) playerSeekLockless(timestamp float64, userId uint64) error
 	return nil
 }
 
-func (server *Server) playerNext(entryId uint64, userId uint64) error {
+func (server *Server) playerNext(data PlayerNextRequest, userId uint64) error {
 	// TODO(kihau): Not fully thread safe. Fix it.
 	if server.state.isLoadingEntry.Load() {
 		return nil
@@ -2460,7 +2462,7 @@ func (server *Server) playerNext(entryId uint64, userId uint64) error {
 	server.state.mutex.Lock()
 	defer server.state.mutex.Unlock()
 
-	if server.state.entry.Id != entryId {
+	if server.state.entry.Id != data.CurrentEntryId {
 		return fmt.Errorf("Entry ID provided in the request is not equal to the current entry ID on the server")
 	}
 
@@ -2470,6 +2472,10 @@ func (server *Server) playerNext(entryId uint64, userId uint64) error {
 		}
 
 		return nil
+	}
+
+	if data.Programmatic {
+		userId = SERVER_ID
 	}
 
 	entry := server.playlistDeleteAt(0)

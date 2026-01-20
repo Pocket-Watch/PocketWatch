@@ -449,10 +449,10 @@ class Room {
             console.info("INFO: Playback ended! Informing the server");
 
             let endTime = this.player.getDuration();
-            api.wsPlayerPause(endTime);
+            api.wsPlayerPause(endTime, true);
 
             if (this.playlist.autoplayEnabled) {
-                api.wsPlayerNext(this.currentEntryId);
+                api.wsPlayerNext(this.currentEntryId, true);
             }
         });
 

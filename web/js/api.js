@@ -315,16 +315,24 @@ export async function playerSet(requestEntry) {
     return await httpPost("player/set", requestEntry);
 }
 
-export async function playerNext(currentEntryId) {
-    return await httpPost("player/next", currentEntryId);
+export async function playerNext(currentEntryId, programmatic = false) {
+    const data = {
+        current_entry_id: currentEntryId,
+        programmatic:     programmatic,
+    };
+    return await httpPost("player/next", data);
 }
 
 export async function playerPlay(timestamp) {
     return await httpPost("player/play", timestamp);
 }
 
-export async function playerPause(timestamp) {
-    return await httpPost("player/pause", timestamp);
+export async function playerPause(timestamp, programmatic = false) {
+    const data = {
+        timestamp:    timestamp,
+        programmatic: programmatic,
+    };
+    return await httpPost("player/pause", data);
 }
 
 export async function playerSeek(timestamp) {
@@ -515,16 +523,24 @@ export function wsPlayerPlay(timestamp) {
     wsSendEvent(EVENT_PLAYER_PLAY, timestamp);
 }
 
-export function wsPlayerPause(timestamp) {
-    wsSendEvent(EVENT_PLAYER_PAUSE, timestamp);
+export function wsPlayerPause(timestamp, programmatic = false) {
+    const data = {
+        timestamp:    timestamp,
+        programmatic: programmatic,
+    };
+    wsSendEvent(EVENT_PLAYER_PAUSE, data);
 }
 
 export function wsPlayerSeek(timestamp) {
     wsSendEvent(EVENT_PLAYER_SEEK, timestamp);
 }
 
-export function wsPlayerNext(currentEntryId) {
-    wsSendEvent(EVENT_PLAYER_NEXT, currentEntryId);
+export function wsPlayerNext(currentEntryId, programmatic = false) {
+    const data = {
+        current_entry_id: currentEntryId,
+        programmatic:     programmatic,
+    };
+    wsSendEvent(EVENT_PLAYER_NEXT, data);
 }
 
 export function wsPlayerAutoplay(state) {
