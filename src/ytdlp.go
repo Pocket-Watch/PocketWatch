@@ -75,6 +75,15 @@ type TwitchStream struct {
 	StreamUrl   string `json:"url"`
 }
 
+type TikTok struct {
+	Id          string `json:"id"`
+	Title       string `json:"title"`
+	Thumbnail   string `json:"thumbnail"`
+	OriginalUrl string `json:"original_url"`
+	Url         string `json:"url"`
+	Path        string `json:"path"`
+}
+
 type YtdlpServerVideoFetch struct {
 	Query string `json:"query"`
 }
@@ -98,7 +107,7 @@ type TwitterSource struct {
 	Duration    float64         `json:"duration"`
 }
 
-var ytdlpHosts []string = []string{"youtube.com", "youtu.be", "twitter.com", "x.com", "twitch.tv"}
+var ytdlpHosts []string = []string{"youtube.com", "youtu.be", "twitter.com", "x.com", "twitch.tv", "tiktok.com"}
 
 func isYtdlpSource(url string) bool {
 	if !ytdlp.enabled {
@@ -258,6 +267,31 @@ func loadTwitchEntry(entry *Entry) error {
 	entry.Title = stream.Title
 	entry.SourceUrl = stream.StreamUrl
 	entry.Thumbnail = stream.Thumbnail
+
+	return nil
+}
+
+func fetchTikTokVideo(url string) (TikTok, error) {
+	ok, video, err := postToYtdlpServer[TikTok]("/tiktok/fetch", url)
+	if ok {
+		LogInfo("%v", video)
+		return video, err
+	}
+
+	flags := []string{"--print", "%(.{id,title,thumbnail,original_url,url,path})j"}
+	return fetchWithYtdlp[TikTok](url, flags)
+}
+
+func loadTikTokEntry(entry *Entry) error {
+	video, err := fetchTikTokVideo(entry.Url)
+	if err != nil {
+		return err
+	}
+
+	entry.Url = video.Url
+	entry.Title = video.Title
+	entry.Thumbnail = video.Thumbnail
+	entry.SourceUrl = video.Path + ".mp4"
 
 	return nil
 }

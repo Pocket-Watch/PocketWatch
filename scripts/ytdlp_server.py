@@ -214,6 +214,47 @@ class TwitchStream:
         self.original_url = original_url
         self.url          = url
 
+class TikTok:
+    def __init__(self, id: str, title: str, thumbnail: str, original_url: str, url: str, path: str):
+        self.id = id
+        self.title = title
+        self.thumbnail = thumbnail
+        self.original_url = original_url
+        self.url = url
+        self.path = path
+
+def download_tiktok_video(url: str):
+    tiktok_opts = {
+        'outtmpl': 'content/media/%(title)s.%(ext)s', # Simple filename
+        'format': 'best',               # Best quality available
+    }
+
+    tiktok = yt_dlp.YoutubeDL(tiktok_opts)
+    print("Current URL:", url)
+    tiktok.download([url])
+    info = bench("extract_info", lambda : tiktok.extract_info(url, download=True))
+
+    if info is None:
+        raise Exception("Yt-Dlp did not return any TikTok video")
+    
+    id           = info.get("id")
+    uploader     = info.get("uploader")
+    description  = info.get("description")
+    thumbnail    = info.get("thumbnail")
+    title        = info.get("title")
+
+    if uploader is None: 
+        uploader = "Unknown"
+
+    if not isinstance(description, str): 
+        description = "[Tiktok title is missing]"
+
+    if thumbnail is None: 
+        thumbnail = ""
+
+    print("SourceURL/path to file:", "content/media/" + title)
+    return TikTok(id, title, thumbnail, "", url, "content/media/" + title)
+
 def get_twitch_stream(url: str):
     twitch_opts = { 
         'noplaylist': True,
@@ -361,6 +402,18 @@ class YtdlpServer(http.server.BaseHTTPRequestHandler):
             response = bytes(jsondata, "utf-8")
             self.wfile.write(response)
 
+        elif self.path == '/tiktok/fetch':
+            output = bench('download tiktok video', lambda : download_tiktok_video(data))
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+
+            jsondata = json.dumps(output, default=vars)
+            print("Json data:",jsondata)
+            response = bytes(jsondata, "utf-8")
+            print("Response:", response)
+            self.wfile.write(response)
+            
         else:
             self.send_response(404)
             self.end_headers()
@@ -380,6 +433,11 @@ class YtdlpServer(http.server.BaseHTTPRequestHandler):
             self.wfile.write(response)
 
             raise exception
+    
+    def do_GET(self):
+        print(f"--- Processing Request for: {self.path} ---")
+        self.send_response(200)
+        self.end_headers()
 
 
 def main():

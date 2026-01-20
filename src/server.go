@@ -679,6 +679,9 @@ func (server *Server) loadYtdlpSource(newEntry *Entry, requested RequestEntry) {
 		err = loadTwitterEntry(newEntry)
 	} else if strings.HasSuffix(host, "bandcamp.com") {
 		// TODO(kihau)
+	} else if strings.HasSuffix(host, "tiktok.com") {
+		LogInfo(newEntry.SourceUrl)
+		err = loadTikTokEntry(newEntry)
 	} else {
 		LogError("Unsuppored ytdlp source host detected: %v", host)
 		return
