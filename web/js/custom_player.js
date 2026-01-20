@@ -1102,6 +1102,7 @@ class Internals {
         this.pause();
         if (this.playingHls) {
             this.hls.detachMedia();
+            this.hls.stopLoad();
             this.playingHls = false;
             this.isLive = false;
         }
