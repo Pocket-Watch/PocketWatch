@@ -424,24 +424,28 @@ func testGetResponse(url string, referer string) (bool, *bytes.Buffer, ContentTy
 }
 
 type DownloadOptions struct {
+	method    string
+	bodyLimit int64
 	referer   string
 	hasty     bool
-	bodyLimit int64
-	method    string
-	writer    http.ResponseWriter
 }
 
-var defaultDownloadOptions = DownloadOptions{
-	bodyLimit: 32 * GB,
-	method:    "GET",
+const DEFAULT_BODY_LIMIT = 32 * GB
+
+func NewDefaultDownloadOptions() DownloadOptions {
+	return DownloadOptions{
+		method:    "GET",
+		bodyLimit: DEFAULT_BODY_LIMIT,
+	}
 }
 
 func downloadFile(url string, path string, options *DownloadOptions) error {
 	if options == nil {
-		options = &defaultDownloadOptions
+		defaults := NewDefaultDownloadOptions()
+		options = &defaults
 	}
-	if options.bodyLimit == 0 {
-		options.bodyLimit = defaultDownloadOptions.bodyLimit
+	if options.bodyLimit <= 0 {
+		options.bodyLimit = DEFAULT_BODY_LIMIT
 	}
 
 	request, _ := http.NewRequest(options.method, url, nil)
@@ -483,11 +487,6 @@ func downloadFile(url string, path string, options *DownloadOptions) error {
 		return err
 	}
 	defer out.Close()
-
-	if !fileExists(path) {
-		LogError("File created but doesn't exist at %v", path)
-		return err
-	}
 
 	_, err = io.Copy(out, limitedBody)
 	if err != nil {
