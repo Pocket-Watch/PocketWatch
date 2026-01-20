@@ -108,7 +108,6 @@ type TwitterSource struct {
 }
 
 var ytdlpHosts []string = []string{"youtube.com", "youtu.be", "twitter.com", "x.com", "twitch.tv", "tiktok.com"}
-
 func isYtdlpSource(url string) bool {
 	if !ytdlp.enabled {
 		return false
@@ -121,6 +120,27 @@ func isYtdlpSource(url string) bool {
 
 	host := parsedUrl.Host
 	for _, ytdlpHost := range ytdlpHosts {
+		if strings.HasSuffix(host, ytdlpHost) {
+			return true
+		}
+	}
+
+	return false
+}
+
+var ytdlpProxies []string = []string{"youtube.com", "youtu.be", "twitter.com", "x.com", "twitch.tv"}
+func isYtdlpProxy(url string) bool {
+	if !ytdlp.enabled {
+		return false
+	}
+
+	parsedUrl, err := neturl.Parse(url)
+	if err != nil {
+		return false
+	}
+
+	host := parsedUrl.Host
+	for _, ytdlpHost := range ytdlpProxies {
 		if strings.HasSuffix(host, ytdlpHost) {
 			return true
 		}
