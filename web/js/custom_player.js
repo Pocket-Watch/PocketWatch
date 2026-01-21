@@ -1627,6 +1627,9 @@ class Internals {
 
         this.htmlVideo.addEventListener("ended", _ => {
             console.info("INFO: Ended naturally fired");
+            if (this.hasAudioTrack) {
+                this.htmlAudio.pause();
+            }
             this.endPlayback();
         });
 
