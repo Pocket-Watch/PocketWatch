@@ -224,9 +224,12 @@ class TikTok:
         self.path = path
 
 def download_tiktok_video(url: str):
+    ts = str(int(time.time()))
+    outtmpl = f'../content/media/video/{ts}.%(ext)s'
     tiktok_opts = {
-        'outtmpl': 'content/media/%(title)s.%(ext)s', # Simple filename
-        'format': 'best',               # Best quality available
+        'outtmpl': outtmpl,
+        'quiet' : False,
+        'format': 'best',             
     }
 
     tiktok = yt_dlp.YoutubeDL(tiktok_opts)
@@ -251,9 +254,8 @@ def download_tiktok_video(url: str):
 
     if thumbnail is None: 
         thumbnail = ""
-
-    print("SourceURL/path to file:", "content/media/" + title)
-    return TikTok(id, title, thumbnail, "", url, "content/media/" + title)
+    
+    return TikTok(id, title, thumbnail, "", url, "content/media/video/" + ts)
 
 def get_twitch_stream(url: str):
     twitch_opts = { 

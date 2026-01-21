@@ -108,6 +108,7 @@ type TwitterSource struct {
 }
 
 var ytdlpHosts []string = []string{"youtube.com", "youtu.be", "twitter.com", "x.com", "twitch.tv", "tiktok.com"}
+
 func isYtdlpSource(url string) bool {
 	if !ytdlp.enabled {
 		return false
@@ -129,6 +130,7 @@ func isYtdlpSource(url string) bool {
 }
 
 var ytdlpProxies []string = []string{"youtube.com", "youtu.be", "twitter.com", "x.com", "twitch.tv"}
+
 func isYtdlpProxy(url string) bool {
 	if !ytdlp.enabled {
 		return false
