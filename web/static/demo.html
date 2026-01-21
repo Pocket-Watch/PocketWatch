@@ -16,6 +16,16 @@
             width: 100%;
             height: 100%;
         }
+        .demo_input {
+            font-size: 20px;
+            background-color: #111214;
+            color: #f5f6f7;
+            border: 1px solid #2a2d30;
+            padding: 8px 10px;
+            border-radius: 4px;
+            outline: none;
+            box-sizing: border-box;
+        }
     </style>
 </head>
 
@@ -24,8 +34,10 @@
         <video id="video0"></video>
         <br/>
 
-        <input type="url" id="input_url" size="100" />
-        <button onclick="setOnClick()">Set</button>
+        <input type="url" id="demo_video_url" class="demo_input" size="100" placeholder="Video URL" />
+        <input type="url" id="demo_audio_url" class="demo_input" size="100" placeholder="Audio URL" />
+        <button onclick="setVideoOnClick()">Set video</button>
+        <button onclick="setAudioOnClick()">Set audio</button>
         <button onclick="destroy()">Destroy</button>
         <button onclick="attach()">Attach</button>
     </div>

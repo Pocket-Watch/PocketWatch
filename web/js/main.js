@@ -39,8 +39,8 @@ class Room {
     constructor() {
         let video0 = getById("video0");
 
-        let options                = new Options();
-        options.useAudioGain       = true;
+        let options        = new Options();
+        options.useVolumeGain      = true;
         options.maxVolume          = 1.5;
         options.maxSpeed           = 2.5;
         options.hideSpeedButton    = true;
@@ -393,7 +393,7 @@ class Room {
 
     attachPlayerEvents() {
         this.player.onControlsPlay(_ => {
-            if (!this.player.getCurrentUrl()) {
+            if (!this.player.getUrl()) {
                 return;
             }
 
@@ -492,7 +492,7 @@ class Room {
                 // Distinguish between unsupported codec and 404.
                 let errMsg = error.message;
                 if (errMsg.startsWith("Failed to init decoder") || errMsg.startsWith("DEMUXER_ERROR_COULD_NOT_OPEN")) {
-                    this.player.setToast("Unsupported codec or format: '" + this.player.getCurrentUrl() + "' " + error.message);
+                    this.player.setToast("Unsupported codec or format: '" + this.player.getUrl() + "' " + error.message);
                     return;
                 }
                 if (errMsg.startsWith("NS_ERROR_DOM_INVALID") || errMsg.includes("Empty src")) {
@@ -504,7 +504,7 @@ class Room {
                 if (errMsg.startsWith("404")) {
                     this.player.setToast("Resource not found [404]!");
                 } else {
-                    this.player.setToast("Unsupported src: '" + this.player.getCurrentUrl() + "' " + error.message);
+                    this.player.setToast("Unsupported src: '" + this.player.getUrl() + "' " + error.message);
                 }
 
                 api.wsPlayerPause(this.player.getCurrentTime());

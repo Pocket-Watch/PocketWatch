@@ -2,9 +2,15 @@ import {Options, Player} from "./custom_player.js"
 
 let player = null;
 
-function setOnClick() {
-    let input_url = document.getElementById("input_url");
-    player.setVideoTrack(input_url.value);
+let videoInput = document.getElementById("demo_video_url");
+let audioInput = document.getElementById("demo_audio_url");
+
+function setVideoOnClick() {
+    player.setVideoTrack(videoInput.value);
+}
+
+function setAudioOnClick() {
+    player.addAudioTrack(audioInput.value);
 }
 
 function destroy() {
@@ -16,7 +22,8 @@ function attach() {
 }
 
 function main() {
-    window.setOnClick = setOnClick;
+    window.setVideoOnClick = setVideoOnClick;
+    window.setAudioOnClick = setAudioOnClick;
     window.attach = attach;
     window.destroy = destroy;
 
@@ -24,7 +31,8 @@ function main() {
     let options = new Options();
     options.hideNextButton = true;
     options.iconsPath = "../svg/player_icons.svg";
-    //options.useAudioGain = true;
+    options.useVolumeGain = true;
+    options.maxVolume = 1.5;
     player = new Player(video0, options);
 
     //let track = "https://ftp.halifax.rwth-aachen.de/blender/demo/movies/ToS/ToS-4k-1920.mov";
@@ -33,10 +41,12 @@ function main() {
     //let track = "https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_640x360.m4v";
     player.setVideoTrack(track);
     player.setTitle("Agent327");
-    player.addSubtitle("../content/media/subs/Tears.of.Steel.2012.vtt");
-    player.addSubtitle("../content/media/subs/Agent327.srt");
-    player.addSubtitle("../content/media/subs/oneline.srt");
+    const subsDir = "../content/media/subs/"
+    player.addSubtitle(subsDir + "Tears.of.Steel.2012.vtt", "ToS", 2);
+    player.addSubtitle(subsDir + "Agent327.srt");
+    player.addSubtitle(subsDir + "oneline.srt");
     player.setVolume(0.01);
+
     player.onControlsPlay(() => {
         player.setToast("User clicked play.");
     });
@@ -66,6 +76,7 @@ function main() {
         // https://developer.mozilla.org/en-US/docs/Web/API/MediaError
         console.log(error.code, "-", error.message);
     })
+
     // Expose player for debugging
     window.player = player;
 }

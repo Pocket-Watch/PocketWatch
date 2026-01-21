@@ -1336,7 +1336,6 @@ func (server *Server) setupProxy(entry *Entry) error {
 			return fmt.Errorf("HLS proxy setup for youtube failed!")
 		}
 	} else if entry.UseProxy {
-		LogDebug("%v", entry.UseProxy)
 		file := getBaseNoParams(urlStruct.Path)
 		url, referer := entry.Url, entry.RefererUrl
 		if isPathM3U(file) || isContentM3U(url, referer) {
@@ -2260,7 +2259,7 @@ func (server *Server) playerPause(data PlayerPauseRequest, userId uint64) error 
 
 	if data.Programmatic {
 		userId = SERVER_ID
-	} 
+	}
 	return server.playerUpdateState(false, data.Timestamp, userId)
 }
 

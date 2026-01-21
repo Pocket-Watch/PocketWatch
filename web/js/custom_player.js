@@ -326,8 +326,12 @@ class Player {
         this.internals.setVideoTrack(url);
     }
 
-    getCurrentUrl() {
-        return this.internals.getCurrentUrl();
+    addAudioTrack(url) {
+        this.internals.addAudioTrack(url);
+    }
+
+    getUrl() {
+        return this.internals.getUrl();
     }
 
     discardPlayback() {
@@ -360,6 +364,7 @@ class Internals {
         //
 
         this.options               = options;
+        this.hasAudioTrack         = false;
         this.hls                   = null;
         this.playingHls            = false;
         this.isLive                = false;
@@ -435,6 +440,7 @@ class Internals {
         this.htmlPlayerRoot     = newDiv("player_container");
         this.htmlPoster         = newImg("player_poster", DEFAULT_POSTER_IMAGE);
         this.htmlVideo          = videoElement;
+        this.htmlAudio          = newElement("audio", "player_audio");
         this.htmlTitleContainer = newDiv("player_title_container");
         this.htmlTitleText      = newElement("span", "player_title_text");
         this.htmlToastContainer = newDiv("player_toast_container");
@@ -546,6 +552,7 @@ class Internals {
 
         this.htmlPlayerRoot.appendChild(this.htmlPoster);
         this.htmlPlayerRoot.appendChild(this.htmlVideo);
+        this.htmlPlayerRoot.appendChild(this.htmlAudio);
         this.htmlPlayerRoot.appendChild(this.htmlTitleContainer); {
             this.htmlTitleContainer.appendChild(this.htmlTitleText);
         }
@@ -593,9 +600,10 @@ class Internals {
 
         setInterval(_ => this.redrawBufferedBars(), this.options.bufferingRedrawInterval);
 
-        // Without user interaction audio gain will not take effect anyway (internal browser warning)
-        if (this.options.useAudioGain) {
-            this.gainNode = this.createAudioGain();
+        // Without user interaction volume gain will not take effect anyway (internal browser warning)
+        if (this.options.useVolumeGain) {
+            this.videoVolumeGain = new VolumeGain(this.htmlVideo);
+            this.audioVolumeGain = new VolumeGain(this.htmlAudio);
         }
 
         this.setVolume(1.0);
@@ -643,20 +651,26 @@ class Internals {
     }
 
     play() {
-        if (this.isVideoPlaying() || !this.getCurrentUrl()) {
+        if (this.isVideoPlaying() || !this.getUrl()) {
             return;
         }
 
         this.playerUIHideTimeout.schedule();
         this.svgs.playback.setHref(this.icons.pause);
 
-        let result = this.htmlVideo.play();
+        this.playElement(this.htmlVideo)
+        if (this.hasAudioTrack) {
+            this.playElement(this.htmlAudio)
+        }
+    }
 
+    playElement(mediaElement) {
+        let result = mediaElement.play();
         result.catch(exception => {
             this.bufferingTimeout.cancel();
             hide(this.bufferingSvg);
 
-            this.firePlaybackError(exception, this.htmlVideo.error);
+            this.firePlaybackError(exception, mediaElement.error);
         });
     }
 
@@ -671,10 +685,13 @@ class Internals {
 
         this.svgs.playback.setHref(this.icons.play);
         this.htmlVideo.pause();
+        if (this.hasAudioTrack) {
+            this.htmlAudio.pause();
+        }
     }
 
     seek(timestamp) {
-        if (isNaN(timestamp) || !this.getCurrentUrl()) {
+        if (isNaN(timestamp) || !this.getUrl()) {
             return;
         }
 
@@ -685,22 +702,9 @@ class Internals {
         }
 
         this.htmlVideo.currentTime = timestamp;
-    }
-
-    createAudioGain() {
-        if (!window.AudioContext) {
-            window.AudioContext = window.webkitAudioContext;
+        if (this.hasAudioTrack) {
+            this.htmlAudio.currentTime = timestamp;
         }
-
-        const audioContext = new AudioContext();
-        let gainNode = audioContext.createGain();
-
-        const source = audioContext.createMediaElementSource(this.htmlVideo);
-        source.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        // Keep a reference so it can be resumed in Chromium based browsers
-        this.audioContext = audioContext;
-        return gainNode;
     }
 
     updateProgressBar(progress) {
@@ -894,21 +898,19 @@ class Internals {
             volume = 0.0;
         }
 
-        let maxVolume = this.options.useAudioGain ? this.options.maxVolume : 1;
+        let maxVolume = this.options.useVolumeGain ? this.options.maxVolume : 1;
         if (volume > maxVolume) {
             volume = maxVolume;
         }
 
-        if (this.options.useAudioGain) {
-            if (volume > 1.0) {
-                this.htmlVideo.volume = 1;
-                this.gainNode.gain.value = volume;
-            } else {
-                this.gainNode.gain.value = 1;
-                this.htmlVideo.volume = volume;
+        if (this.options.useVolumeGain) {
+            this.videoVolumeGain.setVolume(volume);
+            if (this.hasAudioTrack) {
+                this.audioVolumeGain.setVolume(volume);
             }
         } else {
             this.htmlVideo.volume = volume;
+            this.htmlAudio.volume = volume;
         }
 
         this.updateHtmlVolume(volume);
@@ -992,12 +994,18 @@ class Internals {
         return this.htmlVideo.currentTime;
     }
 
-    getCurrentUrl() {
+    getUrl() {
         if (this.playingHls) {
             return this.hls.url;
         }
-
         return this.htmlVideo.src;
+    }
+
+    getAudioUrl() {
+        if (this.playingHls) {
+            return this.hls.url;
+        }
+        return this.htmlAudio.src;
     }
 
     isFullscreen() {
@@ -1039,7 +1047,22 @@ class Internals {
         this.firePlaybackEnd();
     }
 
-    async setVideoTrack(url) {
+    setVideoTrack(url) {
+        this.setTrack(url, this.htmlVideo)
+    }
+
+    addAudioTrack(url) {
+        this.setTrack(url, this.htmlAudio)
+        this.hasAudioTrack = true
+    }
+
+    async detectHLS(ext, url) {
+        let hasHlsExt = ext === "m3u8" || ext === "m3u" || ext === "txt";
+        return hasHlsExt || (ext === "" && await this.probeContentType(url) === M3U8_CONTENT_TYPE)
+    }
+
+    // Playing HLS separately is not supported since one HLS instance can play both audio and video
+    async setTrack(url, mediaElement) {
         if (URL.canParse && !URL.canParse(url, document.baseURI)) {
             console.warn("Failed to set a new URL. It's not parsable.");
             // We should probably inform the user about the error either via debug log or return false
@@ -1056,8 +1079,7 @@ class Internals {
         hide(this.htmlControls.buttons.liveIndicator);
         this.isLive = false;
 
-        let hasHlsExt = ext === "m3u8" || ext === "m3u" || ext === "txt";
-        if (hasHlsExt || (ext === "" && await this.probeContentType(url) === M3U8_CONTENT_TYPE)) {
+        if (await this.detectHLS(ext, url)) {
             let module = await import(this.options.hlsJsPath);
             if (!module.Hls.isSupported()) {
                 console.error("HLS is not supported!");
@@ -1084,17 +1106,16 @@ class Internals {
             }
 
             this.hls.loadSource(url);
-            this.hls.attachMedia(this.htmlVideo);
+            this.hls.attachMedia(mediaElement);
             this.playingHls = true;
-
         } else {
             if (this.playingHls) {
                 this.hls.detachMedia();
                 this.playingHls = false;
                 this.isLive = false;
             }
-            this.htmlVideo.src = url;
-            this.htmlVideo.load();
+            mediaElement.src = url;
+            mediaElement.load();
         }
     }
 
@@ -1105,6 +1126,14 @@ class Internals {
             this.hls.stopLoad();
             this.playingHls = false;
             this.isLive = false;
+        }
+
+        if (this.hasAudioTrack) {
+            this.hasAudioTrack = false;
+            this.htmlAudio.currentTime = 0;
+            this.htmlAudio.src = "";
+            this.htmlAudio.removeAttribute("src");
+            this.htmlAudio.load();
         }
 
         this.svgs.playback.setHref(this.icons.play);
@@ -1594,12 +1623,6 @@ class Internals {
             }
 
             this.updateTimestamps(timestamp);
-
-           /* // HACK: Fix for broken HLS "ended" event...
-            let duration = this.htmlVideo.duration;
-            if (this.playingHls && !this.isLive && timestamp >= (duration - 0.2)) {
-                this.endPlayback();
-            }*/
         });
 
         this.htmlVideo.addEventListener("ended", _ => {
@@ -1608,10 +1631,11 @@ class Internals {
         });
 
         this.htmlVideo.addEventListener("play", _ => {
-            if (this.options.useAudioGain && this.audioContext.state === "suspended") {
-                this.audioContext.resume().then(_ =>
-                    console.info("INFO: Resumed AudioContext which was suspended.")
-                );
+            if (this.options.useVolumeGain) {
+                this.videoVolumeGain.resume("INFO: Resumed <video>'s AudioContext which was suspended.");
+                if (this.hasAudioTrack) {
+                    this.audioVolumeGain.resume("INFO: Resumed <audio>'s AudioContext which was suspended.");
+                }
             }
             this.svgs.playbackPopup.setHref(this.icons.play_popup);
             this.showPlaybackPopup();
@@ -1654,7 +1678,7 @@ class Internals {
 
         // This roughly simulates a click on an invisible anchor as there's no practical way to trigger "Save As" dialog
         this.htmlControls.buttons.downloadButton.addEventListener("click", async _ => {
-            let url = this.getCurrentUrl();
+            let url = this.getUrl();
             let fileInfo = FileInfo.fromUrl(url);
             if (!isLocalUrl(url)) {
                 try {
@@ -2337,6 +2361,7 @@ class Internals {
 
         crossOrigin.onAction = state => {
             this.htmlVideo.crossOrigin = state ? "" : null;
+            this.htmlAudio.crossOrigin = state ? "" : null;
         };
 
         preservePitch.onAction = state => {
@@ -2431,6 +2456,40 @@ class Internals {
         } catch (err) {
             console.warn("Failed to probe Content-Type from", url, err);
             return null;
+        }
+    }
+}
+
+class VolumeGain {
+    constructor(mediaElement) {
+        if (!window.AudioContext) {
+            window.AudioContext = window.webkitAudioContext;
+        }
+        const audioContext = new AudioContext();
+        let gainNode = audioContext.createGain();
+
+        const source = audioContext.createMediaElementSource(mediaElement);
+        source.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        // Keep a reference to AudioContext so it can be resumed in Chromium based browsers
+        this.audioContext = audioContext;
+        this.gainNode = gainNode;
+        this.mediaElement = mediaElement;
+    }
+
+    resume(resumeMsg) {
+        if (this.audioContext.state === "suspended") {
+            this.audioContext.resume().then(_ => console.info(resumeMsg));
+        }
+    }
+
+    setVolume(volume) {
+        if (volume > 1.0) {
+            this.mediaElement.volume = 1;
+            this.gainNode.gain.value = volume;
+        } else {
+            this.mediaElement.volume = volume;
+            this.gainNode.gain.value = 1;
         }
     }
 }
@@ -3119,8 +3178,8 @@ class Options {
         this.sanitizeSubtitles = true;
         this.allowCueOverlap = true;
         this.fullscreenKeyLetter = "f";
-        // Max volume will be respected only if audio gain is enabled
-        this.useAudioGain = false;
+        // Max volume will be respected only if volume gain is enabled
+        this.useVolumeGain = false;
         this.maxVolume = 1;
 
         // [Arrow keys/Double tap] seeking offset provided in seconds. (Preferably [1-99])
