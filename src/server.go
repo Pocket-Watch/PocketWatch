@@ -713,6 +713,7 @@ func (server *Server) setNewEntry(newEntry Entry, requested RequestEntry, setByI
 	defer server.state.isLoadingEntry.Store(false)
 
 	if isYtdlpSource(newEntry.Url) || requested.SearchVideo {
+		LogDebug("%v", newEntry)
 		server.writeEventToAllConnections("playerwaiting", "Video is loading. Please stand by!", SERVER_ID)
 		server.loadYtdlpSource(&newEntry, requested)
 	}
@@ -1335,6 +1336,7 @@ func (server *Server) setupProxy(entry *Entry) error {
 			return fmt.Errorf("HLS proxy setup for youtube failed!")
 		}
 	} else if entry.UseProxy {
+		LogDebug("%v", entry.UseProxy)
 		file := getBaseNoParams(urlStruct.Path)
 		url, referer := entry.Url, entry.RefererUrl
 		if isPathM3U(file) || isContentM3U(url, referer) {
