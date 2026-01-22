@@ -965,6 +965,11 @@ func (server *Server) setupFileProxy(url string, referer string) bool {
 		return false
 	}
 
+	if parsedUrl.Host == "" {
+		LogInfo("The provided URL has no host: %v", url)
+		return false
+	}
+
 	size, err := getContentLength(url, referer)
 	if err != nil {
 		LogWarn("Couldn't retrieve resource's Content-Length: %v", err)
