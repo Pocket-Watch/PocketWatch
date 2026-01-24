@@ -246,6 +246,18 @@ html * {
     fill: var(--red_2);
 }
 
+#notifications_select_root {
+    /* TODO */
+}
+
+#notifications_select {
+    /* TODO */
+}
+
+#notifications_volume {
+    /* TODO */
+}
+
 #connection_lost_popup {
     width: 99%;
     height: 16px;

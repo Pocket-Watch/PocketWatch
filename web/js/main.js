@@ -5,7 +5,7 @@ import { Chat } from "./chat.js";
 import * as api from "./api.js";
 import {
     Storage, button, div, formatTime, formatByteCount, getById, dynamicImg, img, svg, show, hide,
-    fileInput, isLocalUrl, input, span, getDateStrings, showNotification, getBrowserInfo
+    fileInput, isLocalUrl, input, span, getDateStrings, showNotification, getBrowserInfo, option
 } from "./util.js";
 
 const SERVER_ID = 0;
@@ -20,6 +20,8 @@ const NOTIFICATIONS_ENABLED  = "notifications_enabled";
 const LAST_SELECTED_TAB      = "last_selected_tab";
 const LAST_SELECTED_SUBTITLE = "last_selected_subtitle";
 const HLS_DEBUG              = "hls_debug";
+const SELECTED_NOTIFICATION  = "selected_notification";
+const NOTIFICATION_VOLUME    = "notification_volume";
 
 const CONNECTION_LOST_MESSAGE = "Connection to the server was lost...";
 const DEFAULT_TITLE = "Pocket Watch";
@@ -34,6 +36,20 @@ const MIN_CHROMIUM_VERSION = 88; // Opera, Edge, Chrome
 const MIN_FIREFOX_VERSION = 85;
 const MIN_SAFARI_VERSION = 14.1;
 const MAX_DESYNC = 1.5;
+
+const NOTIFICATION_SOUNDS = [
+    { name: "Generic Sound 1",  path: "audio/generic1.mp3"   },
+    { name: "Generic Sound 2",  path: "audio/generic2.mp3"   },
+    { name: "Generic Sound 3",  path: "audio/generic3.mp3"   },
+    { name: "Small Bell",       path: "audio/ding.mp3"       },
+    { name: "Metal Gear Solid", path: "audio/metal_gear.mp3" },
+    { name: "Metal Pipe",       path: "audio/metal_pipe.mp3" },
+    { name: "Rizz Sound",       path: "audio/rizz.mp3"       },
+    { name: "Suspense Sound",   path: "audio/suspense.mp3"   },
+    { name: "Taco Bell",        path: "audio/taco_bell.mp3"  },
+    { name: "Vine Boom",        path: "audio/vine_boom.mp3"  },
+];
+const DEFAULT_NOTIFICATION_PATH = NOTIFICATION_SOUNDS[0].path;
 
 class Room {
     constructor() {
@@ -79,12 +95,15 @@ class Room {
             themeSwitcherSelect:     getById("settings_switch_theme"),
             deleteYourAccountButton: getById("delete_your_account"),
             confirmAccountDelete:    getById("confirm_deletion_phrase"),
+
+            notificationsSelect: getById("notifications_select"),
+            notificationsVolume: getById("notifications_volume"),
         };
 
         this.connectionLostPopup = getById("connection_lost_popup");
 
         this.entryArea = {
-            root:              getById("entry_area"),
+            root: getById("entry_area"),
 
             // Top Controls
             dropdownButton:    getById("entry_dropdown_button"),
@@ -192,7 +211,7 @@ class Room {
         };
 
         this.chatNewMessage  = getById("tab_chat_new_message_indicator");
-        this.newMessageAudio = new Audio("audio/new_message.mp3");
+        this.newMessageAudio = new Audio(DEFAULT_NOTIFICATION_PATH);
 
         this.selected_tab = TAB_DEFAULT;
 
@@ -233,6 +252,14 @@ class Room {
 
         // Number of time client tried to reconnect after a disconnect.
         this.reconnectCounter = 0;
+    }
+    
+    loadNotificationSounds() {
+        for (let i = 0; i < NOTIFICATION_SOUNDS.length; i++) {
+            const sound = NOTIFICATION_SOUNDS[i];
+            const opt = option(sound.name, sound.path);
+            this.settingsMenu.notificationsSelect.add(opt)
+        }
     }
 
     showSettingsMenu(_settingsTab) {
@@ -354,6 +381,18 @@ class Room {
         let lastSub = Storage.get(LAST_SELECTED_SUBTITLE);
         if (lastSub !== null) {
             this.player.switchSubtitleTrackByUrl(lastSub);
+        }
+
+        let selectedNotification = Storage.get(SELECTED_NOTIFICATION);
+        if (selectedNotification !== null) {
+            this.newMessageAudio.src = selectedNotification;
+            this.settingsMenu.notificationsSelect.value = selectedNotification;
+        }
+
+        let notificationVolume = Storage.get(NOTIFICATION_VOLUME);
+        if (notificationVolume !== null) {
+            this.newMessageAudio.volume = notificationVolume;
+            this.settingsMenu.notificationsVolume.value = notificationVolume;
         }
 
         let subsEnabled = Storage.getBool(Options.SUBTITLES_ENABLED);
@@ -1119,6 +1158,20 @@ class Room {
             if (menu.confirmAccountDelete.value === "I confirm") {
                 api.userDelete(api.getToken());
             }
+        };
+
+        menu.notificationsSelect.onchange = _ => {
+            let value = menu.notificationsSelect.value;
+            console.info("INFO: Setting notification sound to:", value);
+            this.newMessageAudio.src = value;
+            Storage.set(SELECTED_NOTIFICATION, value);
+        };
+
+        menu.notificationsVolume.oninput = _ => {
+            let volume = menu.notificationsVolume.value;
+            console.info("INFO: Setting notification volume to:", volume);
+            this.newMessageAudio.volume = volume;
+            Storage.set(NOTIFICATION_VOLUME, volume);
         };
     }
 
@@ -2212,6 +2265,7 @@ async function main() {
     room.attachPlayerEvents();
     room.attachHtmlEvents();
     await room.connectToServer();
+    room.loadNotificationSounds();
     room.applyUserPreferences();
 
     // Expose room to browser console for debugging.

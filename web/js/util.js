@@ -130,6 +130,13 @@ export function img(src, lazy) {
     return element;
 }
 
+export function option(text, value) {
+    let element = document.createElement("option");
+    element.text  = text;
+    element.value = value;
+    return element;
+}
+
 export function isScrollableVisible(scrollableList, element) {
     let listTop     = scrollableList.scrollTop;
     let listBottom  = scrollableList.offsetHeight + listTop;
