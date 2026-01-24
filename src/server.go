@@ -175,6 +175,10 @@ func createPlaylistEvent(action string, data any) PlaylistEvent {
 
 // This method rotates the small array of recent actions, keeping the most recent one at the end and the oldest one at the start.
 func (server *Server) addRecentAction(actionType string, userId uint64, data any) {
+	if userId == SERVER_ID {
+		return
+	}
+
 	action := Action{
 		Action: actionType,
 		UserId: userId,
