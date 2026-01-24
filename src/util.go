@@ -495,8 +495,8 @@ func downloadFile(url string, path string, options *DownloadOptions) error {
 	return nil
 }
 
-func fileExists(filePath string) bool {
-	_, err := os.Stat(filePath)
+func pathExists(aPath string) bool {
+	_, err := os.Stat(aPath)
 	return err == nil
 }
 
@@ -1478,4 +1478,11 @@ func getFileSize(path string) (int64, error) {
 		return 0, err
 	}
 	return info.Size(), nil
+}
+
+func replacePrefix(s, oldPrefix, newPrefix string) string {
+	if strings.HasPrefix(s, oldPrefix) {
+		return newPrefix + s[len(oldPrefix):]
+	}
+	return s
 }

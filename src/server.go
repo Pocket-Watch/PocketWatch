@@ -46,27 +46,27 @@ func generateToken() string {
 }
 
 func generateSubName() string {
-	bytes := make([]byte, 16)
-	_, err := cryptorand.Read(bytes)
+	buffer := make([]byte, 16)
+	_, err := cryptorand.Read(buffer)
 
 	if err != nil {
-		LogError("Faile to generate subtitle name, this should not happen! %v", err)
+		LogError("Failed to generate subtitle name, this should not happen! %v", err)
 		return "subtitle"
 	}
 
-	return base64.URLEncoding.EncodeToString(bytes)
+	return base64.URLEncoding.EncodeToString(buffer)
 }
 
 func randomBase64(length int) string {
-	bytes := make([]byte, length)
-	_, err := cryptorand.Read(bytes)
+	buffer := make([]byte, length)
+	_, err := cryptorand.Read(buffer)
 
 	if err != nil {
 		LogError("Random Base64 generation failed, this should not happen! %v", err)
 		return ""
 	}
 
-	return base64.URLEncoding.EncodeToString(bytes)
+	return base64.URLEncoding.EncodeToString(buffer)
 }
 
 func (server *Server) createUser() (User, error) {
@@ -1136,12 +1136,17 @@ func (proxy *FileProxy) destruct() {
 	}
 }
 
-func (server *Server) isTrustedUrl(url string, parsedUrl *net_url.URL) bool {
-	if strings.HasPrefix(url, CONTENT_MEDIA) || strings.HasPrefix(url, serverRootAddress) {
+// isTrustedUrl checks if url points to server address or if url's domain is trusted
+func (server *Server) isTrustedUrl(parsedUrl *net_url.URL) bool {
+	if parsedUrl == nil {
+		return false
+	}
+	schemeHost := parsedUrl.Scheme + "://" + parsedUrl.Host
+	if strings.HasPrefix(schemeHost, serverRootAddress) {
 		return true
 	}
 
-	if parsedUrl != nil && parsedUrl.Host == server.config.Domain {
+	if parsedUrl.Hostname() == server.config.Domain {
 		return true
 	}
 
@@ -1366,21 +1371,15 @@ func (server *Server) setupProxy(entry *Entry) error {
 }
 
 func (server *Server) setupHlsProxy(url string, referer string) bool {
-	urlStruct, err := net_url.Parse(url)
-	if err != nil {
-		LogError("The provided URL is invalid: %v", err)
-		return false
-	}
-
 	server.state.setupLock.Lock()
 	defer server.state.setupLock.Unlock()
 	start := time.Now()
 	_ = os.RemoveAll(CONTENT_PROXY)
 	_ = os.MkdirAll(CONTENT_PROXY, os.ModePerm)
 	var m3u *M3U
-	if server.isTrustedUrl(url, urlStruct) {
-		osPath := Conditional(isAbsolute(url), stripPathPrefix(urlStruct.Path, PAGE_ROOT), url)
-		m3u, err = parseM3U(osPath)
+	var err error
+	if strings.HasPrefix(url, CONTENT_MEDIA) {
+		m3u, err = parseM3U(url)
 		if err != nil {
 			LogError("Failed to parse m3u8: %v", err)
 			return false
@@ -1571,7 +1570,7 @@ func voiceChat(writer http.ResponseWriter, request *http.Request) {
 	LogInfo("Client %v connected!", conn.RemoteAddr())
 
 	for {
-		_, bytes, err := conn.ReadMessage()
+		_, msgBytes, err := conn.ReadMessage()
 		if err != nil {
 			LogError("Error on ReadMessage(): %v", err)
 			delete(voiceClients, conn)
@@ -1584,8 +1583,8 @@ func voiceChat(writer http.ResponseWriter, request *http.Request) {
 				continue
 			}
 			// Exclude the broadcasting client
-			LogDebug("Writing bytes of len: %v to %v clients", len(bytes), len(voiceClients))
-			if err := client.WriteMessage(websocket.BinaryMessage, bytes); err != nil {
+			LogDebug("Writing bytes of len: %v to %v clients", len(msgBytes), len(voiceClients))
+			if err := client.WriteMessage(websocket.BinaryMessage, msgBytes); err != nil {
 				LogError("Error while writing message: %v", err)
 				client.Close()
 				delete(voiceClients, client)
@@ -2309,32 +2308,14 @@ func (server *Server) createSyncEvent(action string, userId uint64) SyncEvent {
 	return event
 }
 
-func (server *Server) isLocalDirectory(url string) (bool, string) {
-	parsedUrl, err := net_url.Parse(url)
-	if err != nil {
-		return false, ""
-	}
-
-	if !server.isTrustedUrl(url, parsedUrl) {
-		return false, ""
-	}
-
-	urlPath := parsedUrl.Path
-
-	if after, ok := strings.CutPrefix(urlPath, PAGE_ROOT); ok {
-		urlPath = after
-	}
-
-	if after, ok := strings.CutPrefix(urlPath, "/"); ok {
-		urlPath = after
-	}
+func (server *Server) isLocalDirectory(urlStruct *net_url.URL) (bool, string) {
+	urlPath := urlStruct.Path
 
 	if !filepath.IsLocal(urlPath) {
 		return false, ""
 	}
 
-	dir := path.Join(CONTENT_ROOT, urlPath)
-	stat, err := os.Stat(dir)
+	stat, err := os.Stat(urlPath)
 	if err != nil {
 		return false, ""
 	}
@@ -2342,9 +2323,6 @@ func (server *Server) isLocalDirectory(url string) (bool, string) {
 	if !stat.IsDir() {
 		return false, ""
 	}
-
-	urlPath = filepath.Clean(urlPath)
-	LogDebug("PATH %v", urlPath)
 
 	return true, urlPath
 }
@@ -2425,8 +2403,18 @@ func (server *Server) playerGet() PlayerGetResponse {
 }
 
 func (server *Server) playerSet(requested RequestEntry, userId uint64) error {
+	var url string
+	if requested.Url != "" {
+		urlStruct, err := server.relativizeUrl(requested.Url)
+		if err != nil {
+			LogWarn("Not setting URL, issue: %v", err)
+			return err
+		}
+		url = urlStruct.String()
+	}
+
 	entry := Entry{
-		Url:        requested.Url,
+		Url:        url,
 		UserId:     userId,
 		Title:      requested.Title,
 		UseProxy:   requested.UseProxy,
@@ -2567,8 +2555,16 @@ func (server *Server) historyPlaylistAdd(entryId uint64) error {
 }
 
 func (server *Server) playlistAdd(requested RequestEntry, userId uint64) error {
+	if requested.Url == "" {
+		return nil
+	}
+	url, err := server.relativizeUrl(requested.Url)
+	if err != nil {
+		LogWarn("Not setting URL, issue: %v", err)
+		return err
+	}
 	entry := Entry{
-		Url:        requested.Url,
+		Url:        url.String(),
 		UserId:     userId,
 		Title:      requested.Title,
 		UseProxy:   requested.UseProxy,
@@ -2579,8 +2575,8 @@ func (server *Server) playlistAdd(requested RequestEntry, userId uint64) error {
 
 	entry.Title = constructTitleWhenMissing(&entry)
 
-	localDirectory, path := server.isLocalDirectory(requested.Url)
-	if localDirectory {
+	isLocalDir, path := server.isLocalDirectory(url)
+	if isLocalDir {
 		LogInfo("Adding directory '%s' to the playlist.", path)
 		localEntries := server.getEntriesFromDirectory(path, userId)
 		server.state.mutex.Lock()
@@ -3001,4 +2997,33 @@ func (server *Server) createNewInvite(userId uint64) Invite {
 	server.state.invite = invite
 	server.writeEventToAllConnections("invitecreate", invite, SERVER_ID)
 	return invite
+}
+
+func (server *Server) relativizeUrl(url string) (*net_url.URL, error) {
+	_, safe := safeJoin(url)
+	if !safe {
+		// The path could be simplified and then processed
+		return nil, errors.New("the path is traversed")
+	}
+	urlStruct, err := net_url.Parse(url)
+	if err != nil {
+		return nil, err
+	}
+
+	urlStruct.Fragment = ""
+
+	if urlStruct.Hostname() == "localhost" {
+		urlStruct.Host = replacePrefix(urlStruct.Host, "localhost", "0.0.0.0")
+	}
+	if urlStruct.Scheme == "" || server.isTrustedUrl(urlStruct) {
+		// Maintain query params, cover #
+		relativeUrl := strings.TrimPrefix(urlStruct.Path, PAGE_ROOT)
+		if !strings.HasPrefix(relativeUrl, CONTENT_MEDIA) {
+			return nil, errors.New("relative URL does not point to " + CONTENT_MEDIA)
+		}
+		urlStruct.Scheme = ""
+		urlStruct.Host = ""
+		urlStruct.Path = relativeUrl
+	}
+	return urlStruct, nil
 }
