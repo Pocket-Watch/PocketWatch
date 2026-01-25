@@ -2338,26 +2338,25 @@ func (server *Server) getEntriesFromDirectory(dir string, userId uint64) []Entry
 
 	now := time.Now()
 	for _, item := range items {
-		if !item.IsDir() {
-			webpath := dir + "/" + item.Name()
-			url := net_url.URL{
-				Path: webpath,
-			}
-
-			LogDebug("File URL: %v", url.String())
-
-			entry := Entry{
-				Url:       url.String(),
-				UserId:    userId,
-				UseProxy:  false,
-				Subtitles: []Subtitle{},
-				CreatedAt: now,
-				LastSetAt: now,
-			}
-
-			entry.Title = constructTitleWhenMissing(&entry)
-			entries = append(entries, entry)
+		if item.IsDir() {
+			continue
 		}
+		// path.Join will always use forward slashes independent of the OS
+		webPath := path.Join(dir, item.Name())
+
+		LogDebug("File URL: %v", webPath)
+
+		entry := Entry{
+			Url:       webPath,
+			UserId:    userId,
+			UseProxy:  false,
+			Subtitles: []Subtitle{},
+			CreatedAt: now,
+			LastSetAt: now,
+		}
+
+		entry.Title = constructTitleWhenMissing(&entry)
+		entries = append(entries, entry)
 	}
 
 	return entries
