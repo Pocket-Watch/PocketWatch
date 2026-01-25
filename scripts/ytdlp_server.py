@@ -1,14 +1,81 @@
-import yt_dlp
-from yt_dlp.utils import (
-    DownloadError,
-    GeoRestrictedError,
-    UnavailableVideoError,
-)
-
+import os
+import sys
+import venv
 import time
 import json
 import http.server
 import argparse
+import pathlib
+import subprocess
+import importlib.util
+import threading
+
+def install_ytdlp(venv_dir="YtDlp"):
+    venv_path = pathlib.Path(venv_dir)
+    if not venv_path.exists():
+        print("Creating yt-dlp virtual environment...")
+        venv.EnvBuilder(with_pip=True).create(venv_dir)
+
+    if os.name == "nt": # Windows
+        python_exe = venv_path / "Scripts" / "python.exe"
+        pip_exe = venv_path / "Scripts" / "pip.exe"
+        site_packages_root = venv_path / "Lib" / "site-packages"
+    else: # UNIX
+        python_exe = venv_path / "bin" / "python"
+        pip_exe = venv_path / "bin" / "pip"
+        site_packages_root = next((venv_path / "lib").glob("python*/site-packages"))
+
+    print("Installing/upgrading yt-dlp inside venv...")
+    subprocess.check_call([str(pip_exe), "install", "-U", "--pre", "yt-dlp[default]"])
+    subprocess.check_call([str(pip_exe), "install", "-U", "deno"])
+
+    yt_dlp_path = site_packages_root / "yt_dlp" / "__init__.py"
+
+    if not yt_dlp_path.exists():
+        raise RuntimeError("yt_dlp did not install correctly inside the venv.")
+
+    spec = importlib.util.spec_from_file_location("yt_dlp", yt_dlp_path)
+    yt_dlp = importlib.util.module_from_spec(spec)
+    sys.modules["yt_dlp"] = yt_dlp
+    spec.loader.exec_module(yt_dlp)
+    return yt_dlp
+
+def autoupdate_ytdlp():
+    def loop():
+        global yt_dlp
+        while True:
+            time.sleep(24 * 60 * 60)
+            print("Auto-upgrading YtDlp library")
+            yt_dlp = install_ytdlp()
+    threading.Thread(target=loop, daemon=True).start()
+
+def setup_env(venv_dir="YtDlp"):
+    venv_path = pathlib.Path(venv_dir)
+    if not venv_path.exists():
+        return
+
+    if os.name == "nt":
+        bindir = venv_path / "Scripts"
+    else:
+        bindir = venv_path / "bin"
+
+    os.environ["VIRTUAL_ENV"] = str(venv_path)
+    os.environ["PATH"] = str(bindir) + os.pathsep + os.environ.get("PATH", "")
+    os.environ.pop("PYTHONHOME", None)
+
+    # Only add site-packages if it exists
+    site_packages_root = venv_path / "lib"
+    matches = list(site_packages_root.glob("python*/site-packages"))
+    if matches:
+        site_packages = matches[0]
+        if str(site_packages) not in sys.path:
+            sys.path.insert(0, str(site_packages))
+
+    sys.prefix = str(venv_path)
+
+# Bootstrapping YtDlp library
+yt_dlp = install_ytdlp()
+setup_env()
 
 class YoutubeVideo:
     def __init__(self, 
@@ -89,18 +156,24 @@ def bench(note, func):
     return data
 
 def get_youtube_video(query: str):
+    from yt_dlp.utils import (
+        DownloadError,
+        GeoRestrictedError,
+        UnavailableVideoError,
+    )
+
     ytfetch_opts = {
         # NOTE(kihau): Only request videos with either H264 or H265 codec.
-        # 'format': '(bv*[vcodec~=\'^((he|a)vc|h26[45])\']+ba)',
+        # "format": "(bv*[vcodec~=\"^((he|a)vc|h26[45])\"]+ba)",
         
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['web_safari'],
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["web_safari"],
             }
         },
-        'playlist_items': '1',
-        'noplaylist': True,
-        'color': 'no_color',
+        "playlist_items": "1",
+        "noplaylist": True,
+        "color": "no_color",
     }
 
     ytfetch = yt_dlp.YoutubeDL(ytfetch_opts)
@@ -111,7 +184,7 @@ def get_youtube_video(query: str):
         if error.msg is None:
             return None, "Failed to find YouTube video." 
         else:
-            items = error.msg.split(':')[2:]
+            items = error.msg.split(":")[2:]
             error_message = ":".join(items)
             return None, error_message
 
@@ -443,6 +516,8 @@ class YtdlpServer(http.server.BaseHTTPRequestHandler):
 
 
 def main():
+    autoupdate_ytdlp()
+
     parser = argparse.ArgumentParser(
         prog="YtdlpServer",
         description="Internal Ytdlp Python Server",
