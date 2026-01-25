@@ -2334,8 +2334,7 @@ func (server *Server) isLocalDirectory(urlStruct *net_url.URL) (bool, string) {
 func (server *Server) getEntriesFromDirectory(dir string, userId uint64) []Entry {
 	entries := make([]Entry, 0)
 
-	contentPath := path.Join(CONTENT_ROOT, dir)
-	items, _ := os.ReadDir(contentPath)
+	items, _ := os.ReadDir(dir)
 
 	now := time.Now()
 	for _, item := range items {
@@ -3014,13 +3013,11 @@ func (server *Server) relativizeUrl(url string) (*net_url.URL, error) {
 		return nil, err
 	}
 
+	// Cover links containing #
 	urlStruct.Fragment = ""
 
-	if urlStruct.Hostname() == "localhost" {
-		urlStruct.Host = replacePrefix(urlStruct.Host, "localhost", "0.0.0.0")
-	}
 	if urlStruct.Scheme == "" || server.isTrustedUrl(urlStruct) {
-		// Maintain query params, cover #
+		// Maintain query params
 		relativeUrl := strings.TrimPrefix(urlStruct.Path, PAGE_ROOT)
 		if !strings.HasPrefix(relativeUrl, CONTENT_MEDIA) {
 			return nil, errors.New("relative URL does not point to " + CONTENT_MEDIA)
