@@ -10,7 +10,7 @@ import subprocess
 import importlib.util
 import threading
 
-def install_ytdlp(venv_dir="YtDlp"):
+def install_ytdlp(venv_dir="build/YtDlp"):
     venv_path = pathlib.Path(venv_dir)
     if not venv_path.exists():
         print("Creating yt-dlp virtual environment...")
