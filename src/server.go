@@ -2313,6 +2313,9 @@ func (server *Server) createSyncEvent(action string, userId uint64) SyncEvent {
 }
 
 func (server *Server) isLocalDirectory(urlStruct *net_url.URL) (bool, string) {
+	if urlStruct == nil {
+		return false, ""
+	}
 	urlPath := urlStruct.Path
 
 	if !filepath.IsLocal(urlPath) {
@@ -2405,14 +2408,14 @@ func (server *Server) playerGet() PlayerGetResponse {
 }
 
 func (server *Server) playerSet(requested RequestEntry, userId uint64) error {
-	var url string
-	if requested.Url != "" {
-		urlStruct, err := server.relativizeUrl(requested.Url)
+	url := requested.Url
+	if url != "" && !requested.SearchVideo {
+		relativeUrl, err := server.relativizeUrl(url)
 		if err != nil {
 			LogWarn("Not setting URL, issue: %v", err)
 			return err
 		}
-		url = urlStruct.String()
+		url = relativeUrl.String()
 	}
 
 	entry := Entry{
@@ -2560,11 +2563,19 @@ func (server *Server) playlistAdd(requested RequestEntry, userId uint64) error {
 	if requested.Url == "" {
 		return nil
 	}
-	url, err := server.relativizeUrl(requested.Url)
-	if err != nil {
-		LogWarn("Not setting URL, issue: %v", err)
-		return err
+	var url net_url.URL
+	// This diversion exists because there's no search_query field
+	if requested.SearchVideo {
+		url = net_url.URL{Path: requested.Url}
+	} else {
+		relativeUrl, err := server.relativizeUrl(requested.Url)
+		if err != nil {
+			LogWarn("Not setting URL, issue: %v", err)
+			return err
+		}
+		url = *relativeUrl
 	}
+
 	entry := Entry{
 		Url:        url.String(),
 		UserId:     userId,
@@ -2577,7 +2588,7 @@ func (server *Server) playlistAdd(requested RequestEntry, userId uint64) error {
 
 	entry.Title = constructTitleWhenMissing(&entry)
 
-	isLocalDir, path := server.isLocalDirectory(url)
+	isLocalDir, path := server.isLocalDirectory(&url)
 	if isLocalDir {
 		LogInfo("Adding directory '%s' to the playlist.", path)
 		localEntries := server.getEntriesFromDirectory(path, userId)
