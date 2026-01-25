@@ -63,7 +63,6 @@ def setup_env(venv_dir="YtDlp"):
     os.environ["PATH"] = str(bindir) + os.pathsep + os.environ.get("PATH", "")
     os.environ.pop("PYTHONHOME", None)
 
-    # Only add site-packages if it exists
     site_packages_root = venv_path / "lib"
     matches = list(site_packages_root.glob("python*/site-packages"))
     if matches:
@@ -110,6 +109,7 @@ class YoutubePlaylist:
 
 def get_youtube_playlist(query: str, start: int, end: int):
     ytplaylist_opts = {
+        "remote_components": ["ejs:github"],
         'extract_flat': True,
         'playliststart': start + 1,
         'playlistend':   end,
@@ -166,6 +166,7 @@ def get_youtube_video(query: str):
         # NOTE(kihau): Only request videos with either H264 or H265 codec.
         # "format": "(bv*[vcodec~=\"^((he|a)vc|h26[45])\"]+ba)",
         
+        "remote_components": ["ejs:github"],
         "extractor_args": {
             "youtube": {
                 "player_client": ["web_safari"],
