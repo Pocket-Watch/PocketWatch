@@ -98,6 +98,7 @@ class Room {
 
             notificationsSelect: getById("notifications_select"),
             notificationsVolume: getById("notifications_volume"),
+            notificationsPlay:   getById("notifications_play_button"),
         };
 
         this.connectionLostPopup = getById("connection_lost_popup");
@@ -1173,6 +1174,11 @@ class Room {
             this.newMessageAudio.volume = volume;
             Storage.set(NOTIFICATION_VOLUME, volume);
         };
+
+        menu.notificationsPlay.onclick = _ => {
+            this.newMessageAudio.currentTime = 0;
+            this.newMessageAudio.play();
+        }
     }
 
     attachHtmlEvents() {
