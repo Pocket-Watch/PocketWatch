@@ -647,7 +647,7 @@ html * {
 
 #users_area {
     width: 100%;
-    height: 200px;
+    min-height: 200px;
     border-radius: 8px;
     box-shadow: 2px 2px 4px 0 var(--bg_0);
     display: flex;
