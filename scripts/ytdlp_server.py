@@ -49,7 +49,7 @@ def autoupdate_ytdlp():
             yt_dlp = install_ytdlp()
     threading.Thread(target=loop, daemon=True).start()
 
-def setup_env(venv_dir="YtDlp"):
+def setup_env(venv_dir="build/YtDlp"):
     venv_path = pathlib.Path(venv_dir)
     if not venv_path.exists():
         return
@@ -109,7 +109,7 @@ class YoutubePlaylist:
 
 def get_youtube_playlist(query: str, start: int, end: int):
     ytplaylist_opts = {
-        "remote_components": ["ejs:github"],
+        # "remote_components": ["ejs:npm"],
         'extract_flat': True,
         'playliststart': start + 1,
         'playlistend':   end,
@@ -166,7 +166,7 @@ def get_youtube_video(query: str):
         # NOTE(kihau): Only request videos with either H264 or H265 codec.
         # "format": "(bv*[vcodec~=\"^((he|a)vc|h26[45])\"]+ba)",
         
-        "remote_components": ["ejs:github"],
+        # "remote_components": ["ejs:npm"],
         "extractor_args": {
             "youtube": {
                 "player_client": ["web_safari"],
