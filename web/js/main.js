@@ -41,6 +41,7 @@ const NOTIFICATION_SOUNDS = [
     { name: "Generic Sound 1",  path: "audio/generic1.mp3"   },
     { name: "Generic Sound 2",  path: "audio/generic2.mp3"   },
     { name: "Generic Sound 3",  path: "audio/generic3.mp3"   },
+    { name: "Pop Sound",        path: "audio/pop.mp3"        },
     { name: "Small Bell",       path: "audio/ding.mp3"       },
     { name: "Metal Gear Solid", path: "audio/metal_gear.mp3" },
     { name: "Metal Pipe",       path: "audio/metal_pipe.mp3" },

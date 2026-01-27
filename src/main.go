@@ -62,7 +62,8 @@ func main() {
 
 	if flags.GenerateConfig {
 		config := createDefaultConfig()
-		success := SaveConfig(config, configPath)
+		success, _ := LoadConfig(&config, configPath)
+		success = SaveConfig(config, configPath)
 		if !success {
 			os.Exit(1)
 		}

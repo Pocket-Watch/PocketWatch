@@ -8,6 +8,8 @@ lib/*
 logs/*
 scratch/*
 secret/*
+scripts/YtDlp/*
+YtDlp/*
 
 # Exclude content created by page users.
 content/*

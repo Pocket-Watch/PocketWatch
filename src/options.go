@@ -492,148 +492,71 @@ func DisplayHelp() {
 	fmt.Println("    ", exe, "--port 8888")
 }
 
-const leftColumnWidth = 9
-
 func PrettyPrintConfig(config Config) {
-	width := 2 + MaxOf(
-		len("VALUE"),
-		len(config.Server.Address),
-		LengthOfInt(int(config.Server.Port)),
-		len(config.Server.Domain),
-	)
-
-	format := &strings.Builder{}
-	format.WriteString("+")
-	WriteNTimes(format, "-", leftColumnWidth+1+width)
-	format.WriteString("+\n|")
-	CenterPad(format, "KEY", leftColumnWidth)
-	format.WriteRune('|')
-	CenterPad(format, "VALUE", width)
-	format.WriteString("|\n+")
-	WriteNTimes(format, "-", leftColumnWidth+1+width)
-	format.WriteString("+\n")
-
-	useColor := config.Logging.EnableColors
-	RowFormatKeyValue(width, format, useColor, "ip", config.Server.Address)
-	RowFormatKeyValue(width, format, useColor, "port", config.Server.Port)
-	RowFormatKeyValue(width, format, useColor, "domain", config.Server.Domain)
-	RowFormatKeyValue(width, format, useColor, "ssl", config.Server.EnableSsl)
-	RowFormatKeyValue(width, format, useColor, "ytdlp", config.Server.EnableYtdlp)
-	RowFormatKeyValue(width, format, useColor, "shell", config.Server.EnableShell)
-	RowFormatKeyValue(width, format, useColor, "subs", config.Server.EnableSubs)
-	RowFormatKeyValue(width, format, useColor, "proxied", config.Server.BehindProxy)
-	RowFormatKeyValue(width, format, useColor, "color", config.Logging.EnableColors)
-
-	format.WriteString("+")
-	WriteNTimes(format, "-", leftColumnWidth+1+width)
-	format.WriteString("+\n")
-	fmt.Println(format.String())
-}
-
-const ESC = "\033["
-const RESET = ESC + "m"
-const FG_RED = "31"
-const FG_GREEN = "32"
-
-func RowFormatKeyValue(width int, builder *strings.Builder, useColor bool, key string, value any) {
-	val := AnyToString(value)
-	isBool := val == "true" || val == "false"
-
-	builder.WriteRune('|')
-	if useColor && isBool {
-		AppendGreenOrRedColor(val, builder)
-	}
-	LeftPad(builder, key, leftColumnWidth)
-	if useColor && isBool {
-		builder.WriteString(RESET)
-	}
-	builder.WriteRune('|')
-
-	if useColor && isBool {
-		AppendGreenOrRedColor(val, builder)
-	}
-	RightPad(builder, val, width)
-	if useColor && isBool {
-		builder.WriteString(RESET)
-	}
-	builder.WriteString("|\n")
-}
-
-func AppendGreenOrRedColor(boolean string, builder *strings.Builder) {
-	if boolean == "true" {
-		builder.WriteString(ESC + FG_GREEN + "m")
-	} else {
-		builder.WriteString(ESC + FG_RED + "m")
-	}
-}
-
-func AnyToString(anything any) string {
-	if anything == "" {
-		return "-"
+	headers := []string{
+		"ip",
+		"port",
+		"domain",
+		"ssl",
+		"shell",
+		"ytdlp",
+		"subs",
+		"proxied",
+		"database",
 	}
 
-	return fmt.Sprintf("%v", anything)
-}
-
-func CenterPad(builder *strings.Builder, text string, length int) {
-	rem := length - len(text)
-	half := rem / 2
-	for range half {
-		builder.WriteString(" ")
+	values := []string{
+		fmt.Sprint(config.Server.Address),
+		fmt.Sprint(config.Server.Port),
+		fmt.Sprint(config.Server.Domain),
+		fmt.Sprint(config.Server.EnableSsl),
+		fmt.Sprint(config.Server.EnableShell),
+		fmt.Sprint(config.Server.EnableYtdlp),
+		fmt.Sprint(config.Server.EnableSubs),
+		fmt.Sprint(config.Server.BehindProxy),
+		fmt.Sprint(config.Database.Enabled),
 	}
 
-	builder.WriteString(text)
-	for i := half; i < rem; i++ {
-		builder.WriteString(" ")
-	}
-}
+	table := GeneratePrettyTable(headers, values)
+	fmt.Printf("\nServer Config:\n%v", table)
 
-func LeftPad(builder *strings.Builder, text string, length int) {
-	rem := length - len(text) - 1
-
-	for range rem {
-		builder.WriteString(" ")
+	headers = []string{
+		"enabled",
+		"colors",
+		"level",
+		"save logs",
+		"output dir",
 	}
 
-	builder.WriteString(text)
-	builder.WriteString(" ")
-}
-
-func RightPad(builder *strings.Builder, text string, length int) {
-	rem := length - len(text) - 1
-
-	builder.WriteString(" ")
-	builder.WriteString(text)
-
-	for range rem {
-		builder.WriteString(" ")
+	values = []string{
+		fmt.Sprint(config.Logging.Enabled),
+		fmt.Sprint(config.Logging.EnableColors),
+		fmt.Sprint(config.Logging.LogLevel),
+		fmt.Sprint(config.Logging.SaveToFile),
+		fmt.Sprint(config.Logging.LogDirectory),
 	}
-}
 
-func WriteNTimes(builder *strings.Builder, character string, times int) {
-	for range times {
-		builder.WriteString(character)
+	table = GeneratePrettyTable(headers, values)
+	fmt.Printf("Logging Config:\n%v", table)
+
+	headers = []string{
+		"enabled",
+		"use server",
+		"address",
+		"port",
+		"use cli",
+		"ytdlp path",
 	}
-}
 
-func LengthOfInt(n int) int {
-	return len(strconv.Itoa(n))
-}
-
-func LengthOfBool(b bool) int {
-	if b {
-		return 4
-	} else {
-		return 5
+	values = []string{
+		fmt.Sprint(config.Ytdlp.Enabled),
+		fmt.Sprint(config.Ytdlp.EnableServer),
+		fmt.Sprint(config.Ytdlp.ServerAddress),
+		fmt.Sprint(config.Ytdlp.ServerPort),
+		fmt.Sprint(config.Ytdlp.EnableFallback),
+		fmt.Sprint(config.Ytdlp.FallbackPath),
 	}
-}
 
-func MaxOf(values ...int) int {
-	maxValue := 0
-	for _, val := range values {
-		if val > maxValue {
-			maxValue = val
-		}
-	}
-	return maxValue
+	table = GeneratePrettyTable(headers, values)
+	fmt.Printf("Ytdlp Config:\n%v", table)
 }
