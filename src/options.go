@@ -496,14 +496,10 @@ const leftColumnWidth = 9
 
 func PrettyPrintConfig(config Config) {
 	width := 2 + MaxOf(
+		len("VALUE"),
 		len(config.Server.Address),
 		LengthOfInt(int(config.Server.Port)),
-		LengthOfBool(config.Server.EnableSsl),
-		LengthOfBool(config.Server.EnableSubs),
-		LengthOfBool(config.Server.BehindProxy),
-		LengthOfBool(config.Logging.EnableColors),
 		len(config.Server.Domain),
-		len("VALUE"),
 	)
 
 	format := &strings.Builder{}
@@ -517,13 +513,16 @@ func PrettyPrintConfig(config Config) {
 	WriteNTimes(format, "-", leftColumnWidth+1+width)
 	format.WriteString("+\n")
 
-	RowFormatKeyValue(width, format, "ip", config.Server.Address)
-	RowFormatKeyValue(width, format, "port", config.Server.Port)
-	RowFormatKeyValue(width, format, "domain", config.Server.Domain)
-	RowFormatKeyValue(width, format, "ssl", config.Server.EnableSsl)
-	RowFormatKeyValue(width, format, "subs", config.Server.EnableSubs)
-	RowFormatKeyValue(width, format, "proxied", config.Server.BehindProxy)
-	RowFormatKeyValue(width, format, "color", config.Logging.EnableColors)
+	useColor := config.Logging.EnableColors
+	RowFormatKeyValue(width, format, useColor, "ip", config.Server.Address)
+	RowFormatKeyValue(width, format, useColor, "port", config.Server.Port)
+	RowFormatKeyValue(width, format, useColor, "domain", config.Server.Domain)
+	RowFormatKeyValue(width, format, useColor, "ssl", config.Server.EnableSsl)
+	RowFormatKeyValue(width, format, useColor, "ytdlp", config.Server.EnableYtdlp)
+	RowFormatKeyValue(width, format, useColor, "shell", config.Server.EnableShell)
+	RowFormatKeyValue(width, format, useColor, "subs", config.Server.EnableSubs)
+	RowFormatKeyValue(width, format, useColor, "proxied", config.Server.BehindProxy)
+	RowFormatKeyValue(width, format, useColor, "color", config.Logging.EnableColors)
 
 	format.WriteString("+")
 	WriteNTimes(format, "-", leftColumnWidth+1+width)
@@ -531,13 +530,41 @@ func PrettyPrintConfig(config Config) {
 	fmt.Println(format.String())
 }
 
-func RowFormatKeyValue(width int, builder *strings.Builder, key string, value any) {
-	builder.WriteRune('|')
-	LeftPad(builder, key, leftColumnWidth)
-	builder.WriteRune('|')
+const ESC = "\033["
+const RESET = ESC + "m"
+const FG_RED = "31"
+const FG_GREEN = "32"
+
+func RowFormatKeyValue(width int, builder *strings.Builder, useColor bool, key string, value any) {
 	val := AnyToString(value)
+	isBool := val == "true" || val == "false"
+
+	builder.WriteRune('|')
+	if useColor && isBool {
+		AppendGreenOrRedColor(val, builder)
+	}
+	LeftPad(builder, key, leftColumnWidth)
+	if useColor && isBool {
+		builder.WriteString(RESET)
+	}
+	builder.WriteRune('|')
+
+	if useColor && isBool {
+		AppendGreenOrRedColor(val, builder)
+	}
 	RightPad(builder, val, width)
+	if useColor && isBool {
+		builder.WriteString(RESET)
+	}
 	builder.WriteString("|\n")
+}
+
+func AppendGreenOrRedColor(boolean string, builder *strings.Builder) {
+	if boolean == "true" {
+		builder.WriteString(ESC + FG_GREEN + "m")
+	} else {
+		builder.WriteString(ESC + FG_RED + "m")
+	}
 }
 
 func AnyToString(anything any) string {
