@@ -173,7 +173,7 @@ func GeneratePrettyTable(headers []string, data []string) string {
 	return table.String()
 }
 
-func GeneratePrettyVerticalTable(tableName string, headers []string, values []string) string {
+func GeneratePrettyVerticalTable(tableName string, headers []string, values []string, useColor bool) string {
 	if len(headers) == 0 {
 		return ""
 	}
@@ -245,16 +245,35 @@ func GeneratePrettyVerticalTable(tableName string, headers []string, values []st
 
 	for i := range headers {
 		header := headers[i]
-		str1 := fmt.Sprintf("│ %*s ", maxHeader, header)
+		value := values[i]
+    isBool := value == "true" || value == "false"
+		color, colorReset := "", ""
+		if isBool && useColor {
+			color = GreenOrRedColor(value)
+			colorReset = RESET
+		}
+		str1 := fmt.Sprintf("│ %s%*s%s ", color, maxHeader, header, colorReset)
 		table.WriteString(str1)
 
-		value := values[i]
-		str2 := fmt.Sprintf("│ %s%*s │\n", value, maxValue - len(value), "")
+		str2 := fmt.Sprintf("│ %s%s%*s%s │\n", color, value, maxValue - len(value), "", colorReset)
 		table.WriteString(str2)
 	}
 
 	table.WriteString(separatorBot)
 	return table.String()
+}
+
+const ESC = "\033["
+const RESET = ESC + "m"
+const FG_RED = "31"
+const FG_GREEN = "32"
+
+func GreenOrRedColor(boolean string) string {
+	if boolean == "true" {
+		return ESC + FG_GREEN + "m"
+	} else {
+		return ESC + FG_RED + "m"
+	}
 }
 
 func constructTitleWhenMissing(entry *Entry) string {

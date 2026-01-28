@@ -509,7 +509,8 @@ func PrettyPrintConfig(config Config) {
 		fmt.Sprint(config.Database.Enabled),
 	}
 
-	table := GeneratePrettyVerticalTable("Server Config", headers, values)
+  useColor := config.Logging.EnableColors
+	table := GeneratePrettyVerticalTable("Server Config", headers, values, useColor)
 	fmt.Print(table)
 
 	headers = []string{
@@ -524,7 +525,7 @@ func PrettyPrintConfig(config Config) {
 		fmt.Sprint(config.Logging.LogDirectory),
 	}
 
-	table = GeneratePrettyVerticalTable("Logging Config", headers, values)
+	table = GeneratePrettyVerticalTable("Logging Config", headers, values, useColor)
 	fmt.Print(table)
 
 	headers = []string{
@@ -540,6 +541,6 @@ func PrettyPrintConfig(config Config) {
 		fmt.Sprint(config.Ytdlp.FallbackPath),
 	}
 
-	table = GeneratePrettyVerticalTable("Ytdlp Config", headers, values)
+	table = GeneratePrettyVerticalTable("Ytdlp Config", headers, values, useColor)
 	fmt.Print(table)
 }
