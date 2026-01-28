@@ -26,7 +26,7 @@ def install_ytdlp(venv_dir="build/YtDlp"):
         site_packages_root = next((venv_path / "lib").glob("python*/site-packages"))
 
     print("Installing/upgrading yt-dlp inside venv...")
-    subprocess.check_call([str(pip_exe), "install", "-U", "--pre", "yt-dlp[default]"])
+    subprocess.check_call([str(pip_exe), "install", "-U", "--pre", "yt-dlp[default,curl-cffi]"])
     subprocess.check_call([str(pip_exe), "install", "-U", "deno"])
 
     yt_dlp_path = site_packages_root / "yt_dlp" / "__init__.py"
@@ -109,7 +109,7 @@ class YoutubePlaylist:
 
 def get_youtube_playlist(query: str, start: int, end: int):
     ytplaylist_opts = {
-        # "remote_components": ["ejs:npm"],
+        "remote_components": ["ejs:github"],
         'extract_flat': True,
         'playliststart': start + 1,
         'playlistend':   end,
@@ -166,7 +166,7 @@ def get_youtube_video(query: str):
         # NOTE(kihau): Only request videos with either H264 or H265 codec.
         # "format": "(bv*[vcodec~=\"^((he|a)vc|h26[45])\"]+ba)",
         
-        # "remote_components": ["ejs:npm"],
+        "remote_components": ["ejs:github"],
         "extractor_args": {
             "youtube": {
                 "player_client": ["web_safari"],
