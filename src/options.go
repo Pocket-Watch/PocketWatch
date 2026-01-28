@@ -494,15 +494,7 @@ func DisplayHelp() {
 
 func PrettyPrintConfig(config Config) {
 	headers := []string{
-		"ip",
-		"port",
-		"domain",
-		"ssl",
-		"shell",
-		"ytdlp",
-		"subs",
-		"proxied",
-		"database",
+		"ip", "port", "domain", "ssl", "shell", "ytdlp", "subs", "proxied", "database",
 	}
 
 	values := []string{
@@ -517,15 +509,11 @@ func PrettyPrintConfig(config Config) {
 		fmt.Sprint(config.Database.Enabled),
 	}
 
-	table := GeneratePrettyTable(headers, values)
-	fmt.Printf("\nServer Config:\n%v", table)
+	table := GeneratePrettyVerticalTable("Server Config", headers, values)
+	fmt.Print(table)
 
 	headers = []string{
-		"enabled",
-		"colors",
-		"level",
-		"save logs",
-		"output dir",
+		"enabled", "colors", "level", "save logs", "output dir",
 	}
 
 	values = []string{
@@ -536,16 +524,11 @@ func PrettyPrintConfig(config Config) {
 		fmt.Sprint(config.Logging.LogDirectory),
 	}
 
-	table = GeneratePrettyTable(headers, values)
-	fmt.Printf("Logging Config:\n%v", table)
+	table = GeneratePrettyVerticalTable("Logging Config", headers, values)
+	fmt.Print(table)
 
 	headers = []string{
-		"enabled",
-		"use server",
-		"address",
-		"port",
-		"use cli",
-		"ytdlp path",
+		"enabled", "use server", "address", "port", "use cli", "ytdlp path",
 	}
 
 	values = []string{
@@ -557,6 +540,6 @@ func PrettyPrintConfig(config Config) {
 		fmt.Sprint(config.Ytdlp.FallbackPath),
 	}
 
-	table = GeneratePrettyTable(headers, values)
-	fmt.Printf("Ytdlp Config:\n%v", table)
+	table = GeneratePrettyVerticalTable("Ytdlp Config", headers, values)
+	fmt.Print(table)
 }

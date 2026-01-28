@@ -173,6 +173,90 @@ func GeneratePrettyTable(headers []string, data []string) string {
 	return table.String()
 }
 
+func GeneratePrettyVerticalTable(tableName string, headers []string, values []string) string {
+	if len(headers) == 0 {
+		return ""
+	}
+
+	if len(headers) != len(values) {
+		return ""
+	}
+
+	maxHeader := 0
+	for _, header := range headers {
+		if maxHeader < len(header) {
+			maxHeader = len(header)
+		}
+	}
+
+	maxValue := 0
+	for _, value := range values {
+		if maxValue < len(value) {
+			maxValue = len(value)
+		}
+	}
+
+	paddingTop := maxHeader + maxValue + 3
+	if len(tableName) > paddingTop {
+		maxValue += len(tableName) - paddingTop
+		paddingTop = len(tableName)
+	}
+
+	buildTop := strings.Builder{}
+	buildMid := strings.Builder{}
+	buildBot := strings.Builder{}
+
+	buildTop.WriteString("┌")
+	buildMid.WriteString("├")
+	buildBot.WriteString("└")
+
+	for range maxHeader + 2 {
+		buildTop.WriteString("─")
+		buildMid.WriteString("─")
+		buildBot.WriteString("─")
+	}
+
+	buildTop.WriteString("─")
+	buildMid.WriteString("┬")
+	buildBot.WriteString("┴")
+
+	for range maxValue + 2 {
+		buildTop.WriteString("─")
+		buildMid.WriteString("─")
+		buildBot.WriteString("─")
+	}
+
+	buildTop.WriteString("┐\n")
+	buildMid.WriteString("┤\n")
+	buildBot.WriteString("┘\n")
+
+	separatorTop := buildTop.String()
+	separatorMid := buildMid.String()
+	separatorBot := buildBot.String()
+
+	table := strings.Builder{}
+
+	table.WriteString(separatorTop)
+
+	str := fmt.Sprintf("│ %s%*s │\n", tableName, len(tableName) - paddingTop, "")
+	table.WriteString(str)
+
+	table.WriteString(separatorMid)
+
+	for i := range headers {
+		header := headers[i]
+		str1 := fmt.Sprintf("│ %*s ", maxHeader, header)
+		table.WriteString(str1)
+
+		value := values[i]
+		str2 := fmt.Sprintf("│ %s%*s │\n", value, maxValue - len(value), "")
+		table.WriteString(str2)
+	}
+
+	table.WriteString(separatorBot)
+	return table.String()
+}
+
 func constructTitleWhenMissing(entry *Entry) string {
 	if entry.Title != "" {
 		return entry.Title
