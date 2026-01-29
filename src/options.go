@@ -492,28 +492,37 @@ func DisplayHelp() {
 	fmt.Println("    ", exe, "--port 8888")
 }
 
-const ESC = "\033["
-const RESET = ESC + "m"
-const FG_RED = ESC + "1;31m"
-const FG_GREEN = ESC + "1;32m"
-const FG_PURPLE = ESC + "1;35m"
+func PrettyPrintConfig(config Config) {
 
-func boolColor(value bool) string {
-	var color string
-	if value {
-		color = FG_GREEN
-	} else {
-		color = FG_RED
+	const ESC = "\033["
+	const RESET = ESC + "m"
+	const FG_RED = ESC + "1;31m"
+	const FG_GREEN = ESC + "1;32m"
+	const FG_PURPLE = ESC + "1;35m"
+
+	boolColor := func(value bool) string {
+		if !config.Logging.EnableColors {
+			return fmt.Sprint(value)
+		}
+
+		var color string
+		if value {
+			color = FG_GREEN
+		} else {
+			color = FG_RED
+		}
+
+		return fmt.Sprintf("%s%v%s", color, value, RESET)
 	}
 
-	return fmt.Sprintf("%s%v%s", color, value, RESET)
-}
+	purpleColor := func(value any) string {
+		if !config.Logging.EnableColors {
+			return fmt.Sprint(value)
+		}
 
-func purpleColor(value any) string {
-	return fmt.Sprintf("%s%v%s", FG_PURPLE, value, RESET)
-}
+		return fmt.Sprintf("%s%v%s", FG_PURPLE, value, RESET)
+	}
 
-func PrettyPrintConfig(config Config) {
 	headers := []string{
 		purpleColor("ip"),
 		purpleColor("port"),
@@ -547,7 +556,6 @@ func PrettyPrintConfig(config Config) {
 		purpleColor("level"),
 		purpleColor("save logs"),
 		purpleColor("output dir"),
-
 	}
 
 	values = []string{
