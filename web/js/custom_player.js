@@ -5,8 +5,8 @@ const DEFAULT_POSTER_IMAGE = "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQAB
 const MAX_TITLE_LENGTH = 200;
 
 class Player {
-    constructor(videoElement, options) {
-        if (!videoElement || videoElement.tagName.toLowerCase() !== "video" && videoElement.tagName.toLowerCase() !== "audio") {
+    constructor(mediaElement, options) {
+        if (!mediaElement || mediaElement.tagName.toLowerCase() !== "video" && mediaElement.tagName.toLowerCase() !== "audio") {
             throw new Error("An invalid video element was passed!");
         }
 
@@ -16,7 +16,7 @@ class Player {
         }
 
         options.validate()
-        this.internals = new Internals(videoElement, options);
+        this.internals = new Internals(mediaElement, options);
     }
 
     isFullscreen() {

@@ -100,6 +100,7 @@ const M3U8_CONTENT_TYPE = "application/vnd.apple.mpegurl"
 const MAX_MESSAGE_CHARACTERS = 1000
 const GENERIC_CHUNK_SIZE = 1_000_000
 const TRAILING_PULL_SIZE = 256 * KB
+const PRE_OFFSET = 256 * KB
 
 type EventType uint64
 

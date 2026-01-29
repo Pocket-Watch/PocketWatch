@@ -2096,10 +2096,22 @@ func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http
 		}
 
 		// 4. Next chunk requires new connection to be opened (serve at step 3)
-		start := max(0, currentRange.start-256*KB)
+		start := proxy.getPrefetchStart(currentRange.start)
 		proxy.replaceDownload(start)
 		downloader.mutex.Unlock()
 	}
+}
+
+func (proxy *FileProxy) getPrefetchStart(start int64) int64 {
+	if start == 0 {
+		return 0
+	}
+	preStart := max(0, start-PRE_OFFSET)
+	preRange := newRange(preStart, start-1)
+	if proxy.isRangeAvailableOnDisk(preRange) {
+		return start
+	}
+	return preStart
 }
 
 func (proxy *FileProxy) isRangeAvailableOnDisk(r *Range) bool {

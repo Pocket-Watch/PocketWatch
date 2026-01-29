@@ -238,7 +238,7 @@ func GeneratePrettyVerticalTable(tableName string, headers []string, values []st
 
 	table.WriteString(separatorTop)
 
-	str := fmt.Sprintf("│ %s%*s │\n", tableName, len(tableName) - paddingTop, "")
+	str := fmt.Sprintf("│ %s%*s │\n", tableName, len(tableName)-paddingTop, "")
 	table.WriteString(str)
 
 	table.WriteString(separatorMid)
@@ -246,7 +246,8 @@ func GeneratePrettyVerticalTable(tableName string, headers []string, values []st
 	for i := range headers {
 		header := headers[i]
 		value := values[i]
-    isBool := value == "true" || value == "false"
+
+		isBool := value == "true" || value == "false"
 		color, colorReset := "", ""
 		if isBool && useColor {
 			color = GreenOrRedColor(value)
@@ -255,7 +256,7 @@ func GeneratePrettyVerticalTable(tableName string, headers []string, values []st
 		str1 := fmt.Sprintf("│ %s%*s%s ", color, maxHeader, header, colorReset)
 		table.WriteString(str1)
 
-		str2 := fmt.Sprintf("│ %s%s%*s%s │\n", color, value, maxValue - len(value), "", colorReset)
+		str2 := fmt.Sprintf("│ %s%s%*s%s │\n", color, value, maxValue-len(value), "", colorReset)
 		table.WriteString(str2)
 	}
 

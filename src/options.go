@@ -509,7 +509,7 @@ func PrettyPrintConfig(config Config) {
 		fmt.Sprint(config.Database.Enabled),
 	}
 
-  useColor := config.Logging.EnableColors
+	useColor := config.Logging.EnableColors
 	table := GeneratePrettyVerticalTable("Server Config", headers, values, useColor)
 	fmt.Print(table)
 
