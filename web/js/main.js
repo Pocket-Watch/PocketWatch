@@ -2268,6 +2268,11 @@ function checkBrowserCompatibility() {
 
 async function main() {
     checkBrowserCompatibility();
+
+    window.addEventListener("offline", _ => {
+        console.error("ERROR: Network is offline.");
+    });
+
     let room = new Room();
     room.attachPlayerEvents();
     room.attachHtmlEvents();
