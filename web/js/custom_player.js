@@ -650,6 +650,10 @@ class Internals {
         return !this.htmlVideo.paused && !this.htmlVideo.ended;
     }
 
+    isAudioPlaying() {
+        return this.hasAudioTrack && !this.htmlAudio.paused && !this.htmlAudio.ended;
+    }
+
     play() {
         if (this.isVideoPlaying() || !this.getUrl()) {
             return;
@@ -702,8 +706,17 @@ class Internals {
         }
 
         this.htmlVideo.currentTime = timestamp;
-        if (this.hasAudioTrack) {
-            this.htmlAudio.currentTime = timestamp;
+        this.syncAudioState(timestamp);
+    }
+
+    syncAudioState(timestamp) {
+        if (!this.hasAudioTrack) {
+            return
+        }
+        let audio = this.htmlAudio;
+        audio.currentTime = timestamp;
+        if (timestamp <= audio.duration && this.isVideoPlaying() && !this.isAudioPlaying()) {
+            this.playElement(audio)
         }
     }
 
