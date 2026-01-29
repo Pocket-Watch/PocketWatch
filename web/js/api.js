@@ -482,6 +482,10 @@ export async function chatDelete(messageId) {
     return await httpPost("/chat/delete", messageId);
 }
 
+export function getWebSocket() {
+    return websocket;
+}
+
 export function setWebSocket(ws) {
     websocket = ws;
 }

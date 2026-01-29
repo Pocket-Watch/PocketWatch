@@ -23,7 +23,8 @@ const HLS_DEBUG              = "hls_debug";
 const SELECTED_NOTIFICATION  = "selected_notification";
 const NOTIFICATION_VOLUME    = "notification_volume";
 
-const CONNECTION_LOST_MESSAGE = "Connection to the server was lost...";
+const CONNECTION_LOST_MESSAGE = "Connection to the server was lost.";
+const OFFLINE_MESSAGE = "You're offline.";
 const DEFAULT_TITLE = "Pocket Watch";
 
 const TAB_DEFAULT  = 0;
@@ -1187,6 +1188,16 @@ class Room {
             api.closeWebSocket();
         });
 
+        window.addEventListener("offline", _ => {
+            this.player.setToast(OFFLINE_MESSAGE);
+            if (this.settingsMenu.notificationsToggle.classList.contains("active")) {
+                showNotification(OFFLINE_MESSAGE, "", null, 2000);
+            }
+            console.error("ERROR:", OFFLINE_MESSAGE);
+            show(this.connectionLostPopup);
+            api.getWebSocket().close()
+        })
+
         document.addEventListener("visibilitychange", _ => {
             if (document.visibilityState === "visible") {
                 this.pageIcon.href = "img/favicon.ico";
@@ -1688,7 +1699,7 @@ class Room {
         };
 
         ws.onclose = _ => {
-            console.error("ERROR: Connection to the server was lost.");
+            console.error("ERROR:", CONNECTION_LOST_MESSAGE);
             api.setWebSocket(null);
             this.handleDisconnect();
         };
@@ -2203,12 +2214,19 @@ class Room {
             show(this.connectionLostPopup);
         }
 
-        if (counter == 0) {
+        if (counter === 0) {
             setTimeout(_ => this.connectToServer(), 100);
         } else if (this.reconnectCounter < 5) {
             setTimeout(_ => this.connectToServer(), 1000);
         } else {
             setTimeout(_ => this.connectToServer(), 3000);
+        }
+    }
+
+    handleOffline() {
+        this.player.setToast(OFFLINE_MESSAGE);
+        if (this.settingsMenu.notificationsToggle.classList.contains("active")) {
+            showNotification(OFFLINE_MESSAGE, "", null, 2000);
         }
     }
 
@@ -2268,10 +2286,6 @@ function checkBrowserCompatibility() {
 
 async function main() {
     checkBrowserCompatibility();
-
-    window.addEventListener("offline", _ => {
-        console.error("ERROR: Network is offline.");
-    });
 
     let room = new Room();
     room.attachPlayerEvents();
