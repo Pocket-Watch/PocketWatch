@@ -173,7 +173,50 @@ func GeneratePrettyTable(headers []string, data []string) string {
 	return table.String()
 }
 
-func GeneratePrettyVerticalTable(tableName string, headers []string, values []string, useColor bool) string {
+func consoleTextWidth(s string) int {
+	width := 0
+	isAnsi := false
+
+	for _, r := range s {
+		if !isAnsi && r == 0x1b {
+			isAnsi = true
+			continue
+		}
+
+		if isAnsi {
+			if r == 'm' {
+				isAnsi = false
+			}
+			continue
+		}
+
+		if isEmoji(r) {
+			width += 2
+		} else {
+			width++
+		}
+	}
+
+	return width
+}
+
+func isEmoji(r rune) bool {
+	switch {
+	case r >= 0x1F600 && r <= 0x1F64F: // Emoticons
+		return true
+	case r >= 0x1F300 && r <= 0x1F5FF: // Misc symbols & pictographs
+		return true
+	case r >= 0x1F680 && r <= 0x1F6FF: // Transport & map
+		return true
+	case r >= 0x1F900 && r <= 0x1F9FF: // Supplemental symbols
+		return true
+	case r >= 0x1FA70 && r <= 0x1FAFF: // Extended-A
+		return true
+	}
+	return false
+}
+
+func GeneratePrettyVerticalTable(tableName string, headers []string, values []string) string {
 	if len(headers) == 0 {
 		return ""
 	}
@@ -184,22 +227,21 @@ func GeneratePrettyVerticalTable(tableName string, headers []string, values []st
 
 	maxHeader := 0
 	for _, header := range headers {
-		if maxHeader < len(header) {
-			maxHeader = len(header)
-		}
+		headerWidth := consoleTextWidth(header)
+		maxHeader = max(maxHeader, headerWidth)
 	}
 
 	maxValue := 0
 	for _, value := range values {
-		if maxValue < len(value) {
-			maxValue = len(value)
-		}
+		valueWidth := consoleTextWidth(value)
+		maxValue = max(maxValue, valueWidth)
 	}
 
+	tableNameWidth := consoleTextWidth(tableName)
 	paddingTop := maxHeader + maxValue + 3
-	if len(tableName) > paddingTop {
-		maxValue += len(tableName) - paddingTop
-		paddingTop = len(tableName)
+	if tableNameWidth > paddingTop {
+		maxValue += tableNameWidth - paddingTop
+		paddingTop = tableNameWidth
 	}
 
 	buildTop := strings.Builder{}
@@ -238,43 +280,26 @@ func GeneratePrettyVerticalTable(tableName string, headers []string, values []st
 
 	table.WriteString(separatorTop)
 
-	str := fmt.Sprintf("│ %s%*s │\n", tableName, len(tableName)-paddingTop, "")
+	pad := max(paddingTop-tableNameWidth, 0)
+	str := fmt.Sprintf("│ %s%s │\n", tableName, strings.Repeat(" ", pad))
 	table.WriteString(str)
 
 	table.WriteString(separatorMid)
 
 	for i := range headers {
 		header := headers[i]
-		value := values[i]
-
-		isBool := value == "true" || value == "false"
-		color, colorReset := "", ""
-		if isBool && useColor {
-			color = GreenOrRedColor(value)
-			colorReset = RESET
-		}
-		str1 := fmt.Sprintf("│ %s%*s%s ", color, maxHeader, header, colorReset)
+		pad1 := max(maxHeader-consoleTextWidth(header), 0)
+		str1 := fmt.Sprintf("│ %s%s ", strings.Repeat(" ", pad1), header)
 		table.WriteString(str1)
 
-		str2 := fmt.Sprintf("│ %s%s%*s%s │\n", color, value, maxValue-len(value), "", colorReset)
+		value := values[i]
+		pad2 := max(maxValue-consoleTextWidth(value), 0)
+		str2 := fmt.Sprintf("│ %s%s │\n", value, strings.Repeat(" ", pad2))
 		table.WriteString(str2)
 	}
 
 	table.WriteString(separatorBot)
 	return table.String()
-}
-
-const ESC = "\033["
-const RESET = ESC + "m"
-const FG_RED = "31"
-const FG_GREEN = "32"
-
-func GreenOrRedColor(boolean string) string {
-	if boolean == "true" {
-		return ESC + FG_GREEN + "m"
-	} else {
-		return ESC + FG_RED + "m"
-	}
 }
 
 func constructTitleWhenMissing(entry *Entry) string {

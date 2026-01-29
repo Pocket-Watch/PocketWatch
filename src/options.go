@@ -492,55 +492,93 @@ func DisplayHelp() {
 	fmt.Println("    ", exe, "--port 8888")
 }
 
+const ESC = "\033["
+const RESET = ESC + "m"
+const FG_RED = ESC + "1;31m"
+const FG_GREEN = ESC + "1;32m"
+const FG_PURPLE = ESC + "1;35m"
+
+func boolColor(value bool) string {
+	var color string
+	if value {
+		color = FG_GREEN
+	} else {
+		color = FG_RED
+	}
+
+	return fmt.Sprintf("%s%v%s", color, value, RESET)
+}
+
+func purpleColor(value any) string {
+	return fmt.Sprintf("%s%v%s", FG_PURPLE, value, RESET)
+}
+
 func PrettyPrintConfig(config Config) {
 	headers := []string{
-		"ip", "port", "domain", "ssl", "shell", "ytdlp", "subs", "proxied", "database",
+		purpleColor("ip"),
+		purpleColor("port"),
+		purpleColor("domain"),
+		purpleColor("ssl"),
+		purpleColor("shell"),
+		purpleColor("ytdlp"),
+		purpleColor("subs"),
+		purpleColor("proxied"),
+		purpleColor("database"),
 	}
 
 	values := []string{
 		fmt.Sprint(config.Server.Address),
 		fmt.Sprint(config.Server.Port),
 		fmt.Sprint(config.Server.Domain),
-		fmt.Sprint(config.Server.EnableSsl),
-		fmt.Sprint(config.Server.EnableShell),
-		fmt.Sprint(config.Server.EnableYtdlp),
-		fmt.Sprint(config.Server.EnableSubs),
-		fmt.Sprint(config.Server.BehindProxy),
-		fmt.Sprint(config.Database.Enabled),
+		boolColor(config.Server.EnableSsl),
+		boolColor(config.Server.EnableShell),
+		boolColor(config.Server.EnableYtdlp),
+		boolColor(config.Server.EnableSubs),
+		boolColor(config.Server.BehindProxy),
+		boolColor(config.Database.Enabled),
 	}
 
-	useColor := config.Logging.EnableColors
-	table := GeneratePrettyVerticalTable("Server Config", headers, values, useColor)
+	table := GeneratePrettyVerticalTable("Server Config", headers, values)
 	fmt.Print(table)
 
 	headers = []string{
-		"enabled", "colors", "level", "save logs", "output dir",
+		purpleColor("enabled"),
+		purpleColor("colors"),
+		purpleColor("level"),
+		purpleColor("save logs"),
+		purpleColor("output dir"),
+
 	}
 
 	values = []string{
-		fmt.Sprint(config.Logging.Enabled),
-		fmt.Sprint(config.Logging.EnableColors),
+		boolColor(config.Logging.Enabled),
+		boolColor(config.Logging.EnableColors),
 		fmt.Sprint(config.Logging.LogLevel),
-		fmt.Sprint(config.Logging.SaveToFile),
+		boolColor(config.Logging.SaveToFile),
 		fmt.Sprint(config.Logging.LogDirectory),
 	}
 
-	table = GeneratePrettyVerticalTable("Logging Config", headers, values, useColor)
+	table = GeneratePrettyVerticalTable("Logging Config", headers, values)
 	fmt.Print(table)
 
 	headers = []string{
-		"enabled", "use server", "address", "port", "use cli", "ytdlp path",
+		purpleColor("enabled"),
+		purpleColor("use server"),
+		purpleColor("address"),
+		purpleColor("port"),
+		purpleColor("use cli"),
+		purpleColor("ytdlp path"),
 	}
 
 	values = []string{
-		fmt.Sprint(config.Ytdlp.Enabled),
-		fmt.Sprint(config.Ytdlp.EnableServer),
+		boolColor(config.Ytdlp.Enabled),
+		boolColor(config.Ytdlp.EnableServer),
 		fmt.Sprint(config.Ytdlp.ServerAddress),
 		fmt.Sprint(config.Ytdlp.ServerPort),
-		fmt.Sprint(config.Ytdlp.EnableFallback),
+		boolColor(config.Ytdlp.EnableFallback),
 		fmt.Sprint(config.Ytdlp.FallbackPath),
 	}
 
-	table = GeneratePrettyVerticalTable("Ytdlp Config", headers, values, useColor)
+	table = GeneratePrettyVerticalTable("Ytdlp Config", headers, values)
 	fmt.Print(table)
 }
