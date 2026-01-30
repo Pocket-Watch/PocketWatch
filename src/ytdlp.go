@@ -380,7 +380,6 @@ func isYoutubeSourceExpiredM3U(sourceUrl string) bool {
 		return true
 	}
 
-	LogDebug("Checking expiration for source url: %v", sourceUrl)
 	segments := strings.Split(parsedUrl.Path, "/")
 
 	index := -1
@@ -585,8 +584,6 @@ func loadYoutubeEntry(entry *Entry, search bool) error {
 	if !isYoutubeSourceExpired(entry.SourceUrl) {
 		return nil
 	}
-
-	LogInfo("Determined entry titled '%v' of source url %v is expired", entry.Title, entry.SourceUrl)
 
 	var video YoutubeVideo
 	var err error

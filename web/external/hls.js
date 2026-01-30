@@ -523,7 +523,7 @@ function enableLogs(debugConfig, context, id) {
     // Some browsers don't allow to use bind on console object anyway
     // fallback to default if needed
     try {
-      newLogger.log(`Debug logs enabled for "${context}" in hls.js version ${"1.6.15"}`);
+      newLogger.log(`Debug logs enabled for "${context}" in hls.js version ${"1.7.0-alpha.0.0.canary.11601"}`);
     } catch (e) {
       /* log fn threw an exception. All logger methods are no-ops. */
       return createLogger();
@@ -4059,7 +4059,7 @@ class AbrController extends Logger {
 
       // Use average bitrate when starvation delay (buffer length) is gt or eq two segment durations and rebuffering is not expected (maxStarvationDelay > 0)
       const bitrate = currentFragDuration && bufferStarvationDelay >= currentFragDuration * 2 && maxStarvationDelay === 0 ? levelInfo.averageBitrate : levelInfo.maxBitrate;
-      const fetchDuration = this.getTimeToLoadFrag(ttfbEstimateSec, adjustedbw, bitrate * avgDuration, levelDetails === undefined);
+      const fetchDuration = this.getTimeToLoadFrag(ttfbEstimateSec, adjustedbw, bitrate * avgDuration, !levelDetails || levelDetails.live);
       const canSwitchWithinTolerance =
       // if adjusted bw is greater than level bitrate AND
       adjustedbw >= bitrate && (
@@ -4207,7 +4207,7 @@ function findFragmentByPTS(fragPrevious, fragments, bufferEnd = 0, maxFragLookUp
   return fragNext;
 }
 function fragmentWithinFastStartSwitch(fragNext, fragPrevious, nextFragLookupTolerance) {
-  if (fragPrevious && fragPrevious.start === 0 && fragPrevious.level < fragNext.level && (fragPrevious.endPTS || 0) > 0) {
+  if ((fragPrevious == null ? void 0 : fragPrevious.start) === 0 && fragPrevious.level < fragNext.level && (fragPrevious.endPTS || 0) > 0) {
     const firstDuration = fragPrevious.tagList.reduce((duration, tag) => {
       if (tag[0] === 'INF') {
         duration += parseFloat(tag[1]);
@@ -4309,6 +4309,9 @@ function isTimeoutError(error) {
     case ErrorDetails.KEY_LOAD_TIMEOUT:
     case ErrorDetails.LEVEL_LOAD_TIMEOUT:
     case ErrorDetails.MANIFEST_LOAD_TIMEOUT:
+    case ErrorDetails.AUDIO_TRACK_LOAD_TIMEOUT:
+    case ErrorDetails.SUBTITLE_TRACK_LOAD_TIMEOUT:
+    case ErrorDetails.ASSET_LIST_LOAD_TIMEOUT:
       return true;
   }
   return false;
@@ -7066,14 +7069,6 @@ class LevelKey {
   static setKeyIdForUri(uri, keyId) {
     keyUriToKeyIdMap[uri] = keyId;
   }
-  static addKeyIdForUri(uri) {
-    const val = Object.keys(keyUriToKeyIdMap).length % Number.MAX_SAFE_INTEGER;
-    const keyId = new Uint8Array(16);
-    const dv = new DataView(keyId.buffer, 12, 4); // Just set the last 4 bytes
-    dv.setUint32(0, val);
-    keyUriToKeyIdMap[uri] = keyId;
-    return keyId;
-  }
   constructor(method, uri, format, formatversions = [1], iv = null, keyId) {
     this.uri = void 0;
     this.method = void 0;
@@ -7121,6 +7116,7 @@ class LevelKey {
     return false;
   }
   getDecryptData(sn, levelKeys) {
+    var _this$keyId;
     if (!this.encrypted || !this.uri) {
       return null;
     }
@@ -7199,7 +7195,7 @@ class LevelKey {
     }
 
     // Default behavior: get keyId from other KEY tag or URI lookup
-    if (!this.keyId || this.keyId.byteLength !== 16) {
+    if (((_this$keyId = this.keyId) == null ? void 0 : _this$keyId.byteLength) !== 16) {
       let keyId;
       keyId = getKeyIdFromWidevineKey(levelKeys);
       if (!keyId) {
@@ -8370,6 +8366,7 @@ function computeReloadInterval(newDetails, distanceToLiveEdgeMs = Infinity) {
   return Math.round(reloadInterval);
 }
 function getFragmentWithSN(details, sn, fragCurrent) {
+  var _fragment;
   if (!details) {
     return null;
   }
@@ -8378,10 +8375,10 @@ function getFragmentWithSN(details, sn, fragCurrent) {
     return fragment;
   }
   fragment = details.fragmentHint;
-  if (fragment && fragment.sn === sn) {
+  if (((_fragment = fragment) == null ? void 0 : _fragment.sn) === sn) {
     return fragment;
   }
-  if (sn < details.startSN && fragCurrent && fragCurrent.sn === sn) {
+  if (fragCurrent && sn < details.startSN && fragCurrent.sn === sn) {
     return fragCurrent;
   }
   return null;
@@ -8642,11 +8639,13 @@ class BaseStreamController extends TaskLoop {
         const fragEndOffset = fragCurrent.start + fragCurrent.duration + tolerance;
         // if seeking out of buffered range or into new one
         if (noFowardBuffer || fragEndOffset < bufferInfo.start || fragStartOffset > bufferInfo.end) {
+          const beforeFragment = currentTime < fragStartOffset;
           const pastFragment = currentTime > fragEndOffset;
           // if the seek position is outside the current fragment range
-          if (currentTime < fragStartOffset || pastFragment) {
-            if (pastFragment && fragCurrent.loader) {
-              this.log(`Cancelling fragment load for seek (sn: ${fragCurrent.sn})`);
+          if (beforeFragment || pastFragment) {
+            // Only abort an active fragment load if the seek is past the fragment or the fragment isn't nearly downloaded
+            if (fragCurrent.loader && (pastFragment || !this.isFragmentNearlyDownloaded(fragCurrent))) {
+              this.log(`Cancelling fragment load for seek (sn: ${fragCurrent.sn}) - ${beforeFragment ? 'backward' : 'forward'} seek`);
               fragCurrent.abortRequests();
               this.resetLoadingState();
             }
@@ -8674,10 +8673,11 @@ class BaseStreamController extends TaskLoop {
       }
 
       // in case seeking occurs although no media buffered, adjust startPosition and nextLoadPosition to seek target
-      if (!this.hls.hasEnoughToStart) {
-        this.log(`Setting ${noFowardBuffer ? 'startPosition' : 'nextLoadPosition'} to ${currentTime} for seek without enough to start`);
+      const bufferEmpty = !BufferHelper.isBuffered(media, currentTime);
+      if (!this.hls.hasEnoughToStart || bufferEmpty) {
+        this.log(`Setting ${bufferEmpty ? 'startPosition' : 'nextLoadPosition'} to ${currentTime} for seek without enough to start`);
         this.nextLoadPosition = currentTime;
-        if (noFowardBuffer) {
+        if (bufferEmpty) {
           this.startPosition = currentTime;
         }
       }
@@ -9885,7 +9885,7 @@ class BaseStreamController extends TaskLoop {
     }
     const frag = data.frag;
     // Handle frag error related to caller's filterType
-    if (!frag || frag.type !== filterType || !this.levels) {
+    if (!frag || !this.levels || frag.type !== filterType) {
       return;
     }
     if (this.fragContextChanged(frag)) {
@@ -10134,6 +10134,19 @@ class BaseStreamController extends TaskLoop {
   resetTransmuxer() {
     var _this$transmuxer2;
     (_this$transmuxer2 = this.transmuxer) == null || _this$transmuxer2.reset();
+  }
+  isFragmentNearlyDownloaded(fragment) {
+    var _fragment$loader;
+    const stats = (_fragment$loader = fragment.loader) == null ? void 0 : _fragment$loader.stats;
+    if (!stats) {
+      return false;
+    }
+    const hasFirstByte = stats.loading.first > 0;
+    const bitsRemaining = stats.total - stats.loaded;
+    const timeToCompleteFragDownload = bitsRemaining / (this.hls.bandwidthEstimate || this.hls.config.abrEwmaDefaultEstimate);
+
+    // Fragment is nearly complete if we have first byte and will complete within 150ms
+    return hasFirstByte && timeToCompleteFragDownload <= 0.15;
   }
   recoverWorkerError(data) {
     if (data.event === 'demuxerWorker') {
@@ -10552,7 +10565,7 @@ function requireEventemitter3 () {
 var eventemitter3Exports = requireEventemitter3();
 var EventEmitter = /*@__PURE__*/getDefaultExportFromCjs(eventemitter3Exports);
 
-const version = "1.6.15";
+const version = "1.7.0-alpha.0.0.canary.11601";
 
 // ensure the worker ends up in the bundle
 // If the worker should not be included this gets aliased to empty.js
@@ -11663,7 +11676,7 @@ class AACDemuxer extends BaseAudioDemuxer {
   appendFrame(track, data, offset) {
     initTrackConfig(track, this.observer, data, offset, track.manifestCodec);
     const frame = appendFrame$2(track, data, offset, this.basePTS, this.frameIndex);
-    if (frame && frame.missing === 0) {
+    if ((frame == null ? void 0 : frame.missing) === 0) {
       return frame;
     }
   }
@@ -16368,7 +16381,7 @@ class Transmuxer {
   }
   transmux(data, keyData, timeOffset, accurateTimeOffset, chunkMeta) {
     let result;
-    if (keyData && keyData.method === 'SAMPLE-AES') {
+    if ((keyData == null ? void 0 : keyData.method) === 'SAMPLE-AES') {
       result = this.transmuxSampleAes(data, keyData, timeOffset, accurateTimeOffset, chunkMeta);
     } else {
       result = this.transmuxUnencrypted(data, timeOffset, accurateTimeOffset, chunkMeta);
@@ -17558,7 +17571,7 @@ class AudioStreamController extends BaseStreamController {
     const variantAudioCodecs = currentLevel.audioCodec;
     this.log(`Init audio buffer, container:${track.container}, codecs[level/parsed]=[${variantAudioCodecs}/${track.codec}]`);
     // SourceBuffer will use track.levelCodec if defined
-    if (variantAudioCodecs && variantAudioCodecs.split(',').length === 1) {
+    if ((variantAudioCodecs == null ? void 0 : variantAudioCodecs.split(',').length) === 1) {
       track.levelCodec = variantAudioCodecs;
     }
     this.hls.trigger(Events.BUFFER_CODECS, tracks);
@@ -17941,9 +17954,6 @@ function mediaAttributesIdentical(attrs1, attrs2, customAttributes) {
   }
   // When rendition ID is not present, compare attributes
   return !(customAttributes || ['LANGUAGE', 'NAME', 'CHARACTERISTICS', 'AUTOSELECT', 'DEFAULT', 'FORCED', 'ASSOC-LANGUAGE']).some(subtitleAttribute => attrs1[subtitleAttribute] !== attrs2[subtitleAttribute]);
-}
-function subtitleTrackMatchesTextTrack(subtitleTrack, textTrack) {
-  return textTrack.label.toLowerCase() === subtitleTrack.name.toLowerCase() && (!textTrack.language || textTrack.language.toLowerCase() === (subtitleTrack.lang || '').toLowerCase());
 }
 
 class AudioTrackController extends BasePlaylistController {
@@ -18584,7 +18594,7 @@ class BufferController extends Logger {
       this.operationQueue.destroy();
     }
     const transferData = this.transferData;
-    if (!this.sourceBufferCount && transferData && transferData.mediaSource === mediaSource) {
+    if (transferData && !this.sourceBufferCount && transferData.mediaSource === mediaSource) {
       _extends(tracks, transferData.tracks);
     } else {
       this.sourceBuffers.forEach(tuple => {
@@ -18844,7 +18854,6 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
       }
       this.media = null;
     }
-    this.hls.trigger(Events.MEDIA_DETACHED, data);
   }
   onBufferReset() {
     this.sourceBuffers.forEach(([type]) => {
@@ -19062,7 +19071,7 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
     if (fragBuffering.start === 0) {
       fragBuffering.start = bufferAppendingStart;
     }
-    if (partBuffering && partBuffering.start === 0) {
+    if ((partBuffering == null ? void 0 : partBuffering.start) === 0) {
       partBuffering.start = bufferAppendingStart;
     }
 
@@ -19133,7 +19142,7 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
         if (fragBuffering.first === 0) {
           fragBuffering.first = end;
         }
-        if (partBuffering && partBuffering.first === 0) {
+        if ((partBuffering == null ? void 0 : partBuffering.first) === 0) {
           partBuffering.first = end;
         }
         const timeRanges = {};
@@ -19320,7 +19329,7 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
           const {
             mediaSource
           } = this;
-          if (!mediaSource || mediaSource.readyState !== 'open') {
+          if ((mediaSource == null ? void 0 : mediaSource.readyState) !== 'open') {
             if (mediaSource) {
               this.log(`Could not call mediaSource.endOfStream(). mediaSource.readyState: ${mediaSource.readyState}`);
             }
@@ -19523,7 +19532,7 @@ transfer tracks: ${stringify(transferredTracks, (key, value) => key === 'initSeg
     end
   }) {
     const mediaSource = this.mediaSource;
-    if (!this.media || !mediaSource || mediaSource.readyState !== 'open') {
+    if (!mediaSource || !this.media || mediaSource.readyState !== 'open') {
       return;
     }
     if (mediaSource.duration !== duration) {
@@ -19931,20 +19940,18 @@ function sourceBufferNameToIndex(type) {
 
 class CapLevelController {
   constructor(hls) {
-    this.hls = void 0;
+    this.hls = null;
     this.autoLevelCapping = void 0;
-    this.firstLevel = void 0;
     this.media = void 0;
     this.restrictedLevels = void 0;
     this.timer = void 0;
+    this.observer = void 0;
     this.clientRect = void 0;
     this.streamController = void 0;
     this.hls = hls;
     this.autoLevelCapping = Number.POSITIVE_INFINITY;
-    this.firstLevel = -1;
     this.media = null;
     this.restrictedLevels = [];
-    this.timer = undefined;
     this.clientRect = null;
     this.registerListeners();
   }
@@ -19955,37 +19962,43 @@ class CapLevelController {
     if (this.hls) {
       this.unregisterListener();
     }
-    if (this.timer) {
+    if (this.timer || this.observer) {
       this.stopCapping();
     }
-    this.media = null;
-    this.clientRect = null;
+    this.media = this.clientRect = this.hls = null;
     // @ts-ignore
-    this.hls = this.streamController = null;
+    this.streamController = undefined;
   }
   registerListeners() {
     const {
       hls
     } = this;
-    hls.on(Events.FPS_DROP_LEVEL_CAPPING, this.onFpsDropLevelCapping, this);
-    hls.on(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
-    hls.on(Events.MANIFEST_PARSED, this.onManifestParsed, this);
-    hls.on(Events.LEVELS_UPDATED, this.onLevelsUpdated, this);
-    hls.on(Events.BUFFER_CODECS, this.onBufferCodecs, this);
-    hls.on(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
+    if (hls) {
+      hls.on(Events.FPS_DROP_LEVEL_CAPPING, this.onFpsDropLevelCapping, this);
+      hls.on(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
+      hls.on(Events.MANIFEST_PARSED, this.onManifestParsed, this);
+      hls.on(Events.LEVELS_UPDATED, this.onLevelsUpdated, this);
+      hls.on(Events.BUFFER_CODECS, this.onBufferCodecs, this);
+      hls.on(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
+    }
   }
   unregisterListener() {
     const {
       hls
     } = this;
-    hls.off(Events.FPS_DROP_LEVEL_CAPPING, this.onFpsDropLevelCapping, this);
-    hls.off(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
-    hls.off(Events.MANIFEST_PARSED, this.onManifestParsed, this);
-    hls.off(Events.LEVELS_UPDATED, this.onLevelsUpdated, this);
-    hls.off(Events.BUFFER_CODECS, this.onBufferCodecs, this);
-    hls.off(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
+    if (hls) {
+      hls.off(Events.FPS_DROP_LEVEL_CAPPING, this.onFpsDropLevelCapping, this);
+      hls.off(Events.MEDIA_ATTACHING, this.onMediaAttaching, this);
+      hls.off(Events.MANIFEST_PARSED, this.onManifestParsed, this);
+      hls.off(Events.LEVELS_UPDATED, this.onLevelsUpdated, this);
+      hls.off(Events.BUFFER_CODECS, this.onBufferCodecs, this);
+      hls.off(Events.MEDIA_DETACHING, this.onMediaDetaching, this);
+    }
   }
   onFpsDropLevelCapping(event, data) {
+    if (!this.hls) {
+      return;
+    }
     // Don't add a restricted level more than once
     const level = this.hls.levels[data.droppedLevel];
     if (this.isLevelAllowed(level)) {
@@ -19997,23 +20010,33 @@ class CapLevelController {
     }
   }
   onMediaAttaching(event, data) {
-    this.media = data.media instanceof HTMLVideoElement ? data.media : null;
+    const media = data.media;
     this.clientRect = null;
-    if (this.timer && this.hls.levels.length) {
+    if (!this.hls) {
+      return;
+    }
+    if (media instanceof HTMLVideoElement) {
+      this.media = media;
+      if (this.hls.config.capLevelToPlayerSize) {
+        this.observe();
+      }
+    } else {
+      this.media = null;
+    }
+    if ((this.timer || this.observer) && this.hls.levels.length) {
       this.detectPlayerSize();
     }
   }
   onManifestParsed(event, data) {
     const hls = this.hls;
     this.restrictedLevels = [];
-    this.firstLevel = data.firstLevel;
-    if (hls.config.capLevelToPlayerSize && data.video) {
+    if (hls != null && hls.config.capLevelToPlayerSize && data.video) {
       // Start capping immediately if the manifest has signaled video codecs
       this.startCapping();
     }
   }
   onLevelsUpdated(event, data) {
-    if (this.timer && isFiniteNumber(this.autoLevelCapping)) {
+    if ((this.timer || this.observer) && isFiniteNumber(this.autoLevelCapping)) {
       this.detectPlayerSize();
     }
   }
@@ -20022,7 +20045,7 @@ class CapLevelController {
   // to the first level
   onBufferCodecs(event, data) {
     const hls = this.hls;
-    if (hls.config.capLevelToPlayerSize && data.video) {
+    if (hls != null && hls.config.capLevelToPlayerSize && data.video) {
       // If the manifest did not signal a video codec capping has been deferred until we're certain video is present
       this.startCapping();
     }
@@ -20033,7 +20056,7 @@ class CapLevelController {
   }
   detectPlayerSize() {
     if (this.media) {
-      if (this.mediaHeight <= 0 || this.mediaWidth <= 0) {
+      if (this.mediaHeight <= 0 || this.mediaWidth <= 0 || !this.hls) {
         this.clientRect = null;
         return;
       }
@@ -20059,31 +20082,59 @@ class CapLevelController {
    * returns level should be the one with the dimensions equal or greater than the media (player) dimensions (so the video will be downscaled)
    */
   getMaxLevel(capLevelIndex) {
+    if (!this.hls) {
+      return -1;
+    }
     const levels = this.hls.levels;
     if (!levels.length) {
       return -1;
     }
     const validLevels = levels.filter((level, index) => this.isLevelAllowed(level) && index <= capLevelIndex);
-    this.clientRect = null;
+    if (!this.observer) {
+      this.clientRect = null;
+    }
     return CapLevelController.getMaxLevelByMediaSize(validLevels, this.mediaWidth, this.mediaHeight);
   }
+  observe() {
+    const ResizeObserver = self.ResizeObserver;
+    if (ResizeObserver) {
+      this.observer = new ResizeObserver(entries => {
+        var _entries$;
+        const bounds = (_entries$ = entries[0]) == null ? void 0 : _entries$.contentRect;
+        if (bounds) {
+          this.clientRect = bounds;
+          this.detectPlayerSize();
+        }
+      });
+    }
+    if (this.observer && this.media) {
+      this.observer.observe(this.media);
+    }
+  }
   startCapping() {
-    if (this.timer) {
+    if (this.timer || this.observer) {
       // Don't reset capping if started twice; this can happen if the manifest signals a video codec
       return;
     }
-    this.autoLevelCapping = Number.POSITIVE_INFINITY;
     self.clearInterval(this.timer);
-    this.timer = self.setInterval(this.detectPlayerSize.bind(this), 1000);
+    this.timer = undefined;
+    this.autoLevelCapping = Number.POSITIVE_INFINITY;
+    this.observe();
+    if (!this.observer) {
+      this.timer = self.setInterval(this.detectPlayerSize.bind(this), 1000);
+    }
     this.detectPlayerSize();
   }
   stopCapping() {
     this.restrictedLevels = [];
-    this.firstLevel = -1;
     this.autoLevelCapping = Number.POSITIVE_INFINITY;
     if (this.timer) {
       self.clearInterval(this.timer);
       this.timer = undefined;
+    }
+    if (this.observer) {
+      this.observer.disconnect();
+      this.observer = undefined;
     }
   }
   getDimensions() {
@@ -20117,14 +20168,21 @@ class CapLevelController {
   }
   get contentScaleFactor() {
     let pixelRatio = 1;
-    if (!this.hls.config.ignoreDevicePixelRatio) {
+    if (!this.hls) {
+      return pixelRatio;
+    }
+    const {
+      ignoreDevicePixelRatio,
+      maxDevicePixelRatio
+    } = this.hls.config;
+    if (!ignoreDevicePixelRatio) {
       try {
         pixelRatio = self.devicePixelRatio;
       } catch (e) {
         /* no-op */
       }
     }
-    return Math.min(pixelRatio, this.hls.config.maxDevicePixelRatio);
+    return Math.min(pixelRatio, maxDevicePixelRatio);
   }
   isLevelAllowed(level) {
     const restrictedLevels = this.restrictedLevels;
@@ -23426,17 +23484,1066 @@ class FPSController {
   }
 }
 
-function sendAddTrackEvent(track, videoEl) {
-  let event;
-  try {
-    event = new Event('addtrack');
-  } catch (err) {
-    // for IE11
-    event = document.createEvent('Event');
-    event.initEvent('addtrack', false, false);
+/**
+ * Copyright 2013 vtt.js Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the 'License');
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an 'AS IS' BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+var VTTCue = (function () {
+  if (optionalSelf != null && optionalSelf.VTTCue) {
+    return self.VTTCue;
   }
-  event.track = track;
-  videoEl.dispatchEvent(event);
+  const AllowedDirections = ['', 'lr', 'rl'];
+  const AllowedAlignments = ['start', 'middle', 'end', 'left', 'right'];
+  function isAllowedValue(allowed, value) {
+    if (typeof value !== 'string') {
+      return false;
+    }
+    // necessary for assuring the generic conforms to the Array interface
+    if (!Array.isArray(allowed)) {
+      return false;
+    }
+    // reset the type so that the next narrowing works well
+    const lcValue = value.toLowerCase();
+    // use the allow list to narrow the type to a specific subset of strings
+    if (~allowed.indexOf(lcValue)) {
+      return lcValue;
+    }
+    return false;
+  }
+  function findDirectionSetting(value) {
+    return isAllowedValue(AllowedDirections, value);
+  }
+  function findAlignSetting(value) {
+    return isAllowedValue(AllowedAlignments, value);
+  }
+  function extend(obj, ...rest) {
+    let i = 1;
+    for (; i < arguments.length; i++) {
+      const cobj = arguments[i];
+      for (const p in cobj) {
+        obj[p] = cobj[p];
+      }
+    }
+    return obj;
+  }
+  function VTTCue(startTime, endTime, text) {
+    const cue = this;
+    const baseObj = {
+      enumerable: true
+    };
+    /**
+     * Shim implementation specific properties. These properties are not in
+     * the spec.
+     */
+
+    // Lets us know when the VTTCue's data has changed in such a way that we need
+    // to recompute its display state. This lets us compute its display state
+    // lazily.
+    cue.hasBeenReset = false;
+
+    /**
+     * VTTCue and TextTrackCue properties
+     * http://dev.w3.org/html5/webvtt/#vttcue-interface
+     */
+
+    let _id = '';
+    let _pauseOnExit = false;
+    let _startTime = startTime;
+    let _endTime = endTime;
+    let _text = text;
+    let _region = null;
+    let _vertical = '';
+    let _snapToLines = true;
+    let _line = 'auto';
+    let _lineAlign = 'start';
+    let _position = 50;
+    let _positionAlign = 'middle';
+    let _size = 50;
+    let _align = 'middle';
+    Object.defineProperty(cue, 'id', extend({}, baseObj, {
+      get: function () {
+        return _id;
+      },
+      set: function (value) {
+        _id = '' + value;
+      }
+    }));
+    Object.defineProperty(cue, 'pauseOnExit', extend({}, baseObj, {
+      get: function () {
+        return _pauseOnExit;
+      },
+      set: function (value) {
+        _pauseOnExit = !!value;
+      }
+    }));
+    Object.defineProperty(cue, 'startTime', extend({}, baseObj, {
+      get: function () {
+        return _startTime;
+      },
+      set: function (value) {
+        if (typeof value !== 'number') {
+          throw new TypeError('Start time must be set to a number.');
+        }
+        _startTime = value;
+        this.hasBeenReset = true;
+      }
+    }));
+    Object.defineProperty(cue, 'endTime', extend({}, baseObj, {
+      get: function () {
+        return _endTime;
+      },
+      set: function (value) {
+        if (typeof value !== 'number') {
+          throw new TypeError('End time must be set to a number.');
+        }
+        _endTime = value;
+        this.hasBeenReset = true;
+      }
+    }));
+    Object.defineProperty(cue, 'text', extend({}, baseObj, {
+      get: function () {
+        return _text;
+      },
+      set: function (value) {
+        _text = '' + value;
+        this.hasBeenReset = true;
+      }
+    }));
+
+    // todo: implement VTTRegion polyfill?
+    Object.defineProperty(cue, 'region', extend({}, baseObj, {
+      get: function () {
+        return _region;
+      },
+      set: function (value) {
+        _region = value;
+        this.hasBeenReset = true;
+      }
+    }));
+    Object.defineProperty(cue, 'vertical', extend({}, baseObj, {
+      get: function () {
+        return _vertical;
+      },
+      set: function (value) {
+        const setting = findDirectionSetting(value);
+        // Have to check for false because the setting an be an empty string.
+        if (setting === false) {
+          throw new SyntaxError('An invalid or illegal string was specified.');
+        }
+        _vertical = setting;
+        this.hasBeenReset = true;
+      }
+    }));
+    Object.defineProperty(cue, 'snapToLines', extend({}, baseObj, {
+      get: function () {
+        return _snapToLines;
+      },
+      set: function (value) {
+        _snapToLines = !!value;
+        this.hasBeenReset = true;
+      }
+    }));
+    Object.defineProperty(cue, 'line', extend({}, baseObj, {
+      get: function () {
+        return _line;
+      },
+      set: function (value) {
+        if (typeof value !== 'number' && value !== 'auto') {
+          throw new SyntaxError('An invalid number or illegal string was specified.');
+        }
+        _line = value;
+        this.hasBeenReset = true;
+      }
+    }));
+    Object.defineProperty(cue, 'lineAlign', extend({}, baseObj, {
+      get: function () {
+        return _lineAlign;
+      },
+      set: function (value) {
+        const setting = findAlignSetting(value);
+        if (!setting) {
+          throw new SyntaxError('An invalid or illegal string was specified.');
+        }
+        _lineAlign = setting;
+        this.hasBeenReset = true;
+      }
+    }));
+    Object.defineProperty(cue, 'position', extend({}, baseObj, {
+      get: function () {
+        return _position;
+      },
+      set: function (value) {
+        if (value < 0 || value > 100) {
+          throw new Error('Position must be between 0 and 100.');
+        }
+        _position = value;
+        this.hasBeenReset = true;
+      }
+    }));
+    Object.defineProperty(cue, 'positionAlign', extend({}, baseObj, {
+      get: function () {
+        return _positionAlign;
+      },
+      set: function (value) {
+        const setting = findAlignSetting(value);
+        if (!setting) {
+          throw new SyntaxError('An invalid or illegal string was specified.');
+        }
+        _positionAlign = setting;
+        this.hasBeenReset = true;
+      }
+    }));
+    Object.defineProperty(cue, 'size', extend({}, baseObj, {
+      get: function () {
+        return _size;
+      },
+      set: function (value) {
+        if (value < 0 || value > 100) {
+          throw new Error('Size must be between 0 and 100.');
+        }
+        _size = value;
+        this.hasBeenReset = true;
+      }
+    }));
+    Object.defineProperty(cue, 'align', extend({}, baseObj, {
+      get: function () {
+        return _align;
+      },
+      set: function (value) {
+        const setting = findAlignSetting(value);
+        if (!setting) {
+          throw new SyntaxError('An invalid or illegal string was specified.');
+        }
+        _align = setting;
+        this.hasBeenReset = true;
+      }
+    }));
+
+    /**
+     * Other <track> spec defined properties
+     */
+
+    // http://www.whatwg.org/specs/web-apps/current-work/multipage/the-video-element.html#text-track-cue-display-state
+    cue.displayState = undefined;
+  }
+
+  /**
+   * VTTCue methods
+   */
+
+  VTTCue.prototype.getCueAsHTML = function () {
+    // Assume WebVTT.convertCueToDOMTree is on the global.
+    const WebVTT = self.WebVTT;
+    return WebVTT.convertCueToDOMTree(self, this.text);
+  };
+  // this is a polyfill hack
+  return VTTCue;
+})();
+
+/*
+ * Source: https://github.com/mozilla/vtt.js/blob/master/dist/vtt.js
+ */
+
+class StringDecoder {
+  decode(data, options) {
+    if (!data) {
+      return '';
+    }
+    if (typeof data !== 'string') {
+      throw new Error('Error - expected string data.');
+    }
+    return decodeURIComponent(encodeURIComponent(data));
+  }
+}
+
+// Try to parse input as a time stamp.
+function parseTimeStamp(input) {
+  function computeSeconds(h, m, s, f) {
+    return (h | 0) * 3600 + (m | 0) * 60 + (s | 0) + parseFloat(f || 0);
+  }
+  const m = input.match(/^(?:(\d+):)?(\d{2}):(\d{2})(\.\d+)?/);
+  if (!m) {
+    return null;
+  }
+  if (parseFloat(m[2]) > 59) {
+    // Timestamp takes the form of [hours]:[minutes].[milliseconds]
+    // First position is hours as it's over 59.
+    return computeSeconds(m[2], m[3], 0, m[4]);
+  }
+  // Timestamp takes the form of [hours (optional)]:[minutes]:[seconds].[milliseconds]
+  return computeSeconds(m[1], m[2], m[3], m[4]);
+}
+
+// A settings object holds key/value pairs and will ignore anything but the first
+// assignment to a specific key.
+class Settings {
+  constructor() {
+    this.values = Object.create(null);
+  }
+  // Only accept the first assignment to any key.
+  set(k, v) {
+    if (!this.get(k) && v !== '') {
+      this.values[k] = v;
+    }
+  }
+  // Return the value for a key, or a default value.
+  // If 'defaultKey' is passed then 'dflt' is assumed to be an object with
+  // a number of possible default values as properties where 'defaultKey' is
+  // the key of the property that will be chosen; otherwise it's assumed to be
+  // a single value.
+  get(k, dflt, defaultKey) {
+    if (defaultKey) {
+      return this.has(k) ? this.values[k] : dflt[defaultKey];
+    }
+    return this.has(k) ? this.values[k] : dflt;
+  }
+  // Check whether we have a value for a key.
+  has(k) {
+    return k in this.values;
+  }
+  // Accept a setting if its one of the given alternatives.
+  alt(k, v, a) {
+    for (let n = 0; n < a.length; ++n) {
+      if (v === a[n]) {
+        this.set(k, v);
+        break;
+      }
+    }
+  }
+  // Accept a setting if its a valid (signed) integer.
+  integer(k, v) {
+    if (/^-?\d+$/.test(v)) {
+      // integer
+      this.set(k, parseInt(v, 10));
+    }
+  }
+  // Accept a setting if its a valid percentage.
+  percent(k, v) {
+    if (/^([\d]{1,3})(\.[\d]*)?%$/.test(v)) {
+      const percent = parseFloat(v);
+      if (percent >= 0 && percent <= 100) {
+        this.set(k, percent);
+        return true;
+      }
+    }
+    return false;
+  }
+}
+
+// Helper function to parse input into groups separated by 'groupDelim', and
+// interpret each group as a key/value pair separated by 'keyValueDelim'.
+function parseOptions(input, callback, keyValueDelim, groupDelim) {
+  const groups = groupDelim ? input.split(groupDelim) : [input];
+  for (const i in groups) {
+    if (typeof groups[i] !== 'string') {
+      continue;
+    }
+    const kv = groups[i].split(keyValueDelim);
+    if (kv.length !== 2) {
+      continue;
+    }
+    const k = kv[0];
+    const v = kv[1];
+    callback(k, v);
+  }
+}
+const defaults = new VTTCue(0, 0, '');
+// 'middle' was changed to 'center' in the spec: https://github.com/w3c/webvtt/pull/244
+//  Safari doesn't yet support this change, but FF and Chrome do.
+const center = defaults.align === 'middle' ? 'middle' : 'center';
+function parseCue(input, cue, regionList) {
+  // Remember the original input if we need to throw an error.
+  const oInput = input;
+  // 4.1 WebVTT timestamp
+  function consumeTimeStamp() {
+    const ts = parseTimeStamp(input);
+    if (ts === null) {
+      throw new Error('Malformed timestamp: ' + oInput);
+    }
+
+    // Remove time stamp from input.
+    input = input.replace(/^[^\sa-zA-Z-]+/, '');
+    return ts;
+  }
+
+  // 4.4.2 WebVTT cue settings
+  function consumeCueSettings(input, cue) {
+    const settings = new Settings();
+    parseOptions(input, function (k, v) {
+      let vals;
+      switch (k) {
+        case 'region':
+          // Find the last region we parsed with the same region id.
+          for (let i = regionList.length - 1; i >= 0; i--) {
+            if (regionList[i].id === v) {
+              settings.set(k, regionList[i].region);
+              break;
+            }
+          }
+          break;
+        case 'vertical':
+          settings.alt(k, v, ['rl', 'lr']);
+          break;
+        case 'line':
+          vals = v.split(',');
+          settings.integer(k, vals[0]);
+          if (settings.percent(k, vals[0])) {
+            settings.set('snapToLines', false);
+          }
+          settings.alt(k, vals[0], ['auto']);
+          if (vals.length === 2) {
+            settings.alt('lineAlign', vals[1], ['start', center, 'end']);
+          }
+          break;
+        case 'position':
+          vals = v.split(',');
+          settings.percent(k, vals[0]);
+          if (vals.length === 2) {
+            settings.alt('positionAlign', vals[1], ['start', center, 'end', 'line-left', 'line-right', 'auto']);
+          }
+          break;
+        case 'size':
+          settings.percent(k, v);
+          break;
+        case 'align':
+          settings.alt(k, v, ['start', center, 'end', 'left', 'right']);
+          break;
+      }
+    }, /:/, /\s/);
+
+    // Apply default values for any missing fields.
+    cue.region = settings.get('region', null);
+    cue.vertical = settings.get('vertical', '');
+    let line = settings.get('line', 'auto');
+    if (line === 'auto' && defaults.line === -1) {
+      // set numeric line number for Safari
+      line = -1;
+    }
+    cue.line = line;
+    cue.lineAlign = settings.get('lineAlign', 'start');
+    cue.snapToLines = settings.get('snapToLines', true);
+    cue.size = settings.get('size', 100);
+    cue.align = settings.get('align', center);
+    let position = settings.get('position', 'auto');
+    if (position === 'auto' && defaults.position === 50) {
+      // set numeric position for Safari
+      position = cue.align === 'start' || cue.align === 'left' ? 0 : cue.align === 'end' || cue.align === 'right' ? 100 : 50;
+    }
+    cue.position = position;
+  }
+  function skipWhitespace() {
+    input = input.replace(/^\s+/, '');
+  }
+
+  // 4.1 WebVTT cue timings.
+  skipWhitespace();
+  cue.startTime = consumeTimeStamp(); // (1) collect cue start time
+  skipWhitespace();
+  if (input.slice(0, 3) !== '-->') {
+    // (3) next characters must match '-->'
+    throw new Error("Malformed time stamp (time stamps must be separated by '-->'): " + oInput);
+  }
+  input = input.slice(3);
+  skipWhitespace();
+  cue.endTime = consumeTimeStamp(); // (5) collect cue end time
+
+  // 4.1 WebVTT cue settings list.
+  skipWhitespace();
+  consumeCueSettings(input, cue);
+}
+function fixLineBreaks(input) {
+  return input.replace(/<br(?: \/)?>/gi, '\n');
+}
+class VTTParser {
+  constructor() {
+    this.state = 'INITIAL';
+    this.buffer = '';
+    this.decoder = new StringDecoder();
+    this.regionList = [];
+    this.cue = null;
+    this.oncue = void 0;
+    this.onparsingerror = void 0;
+    this.onflush = void 0;
+  }
+  parse(data) {
+    const _this = this;
+
+    // If there is no data then we won't decode it, but will just try to parse
+    // whatever is in buffer already. This may occur in circumstances, for
+    // example when flush() is called.
+    if (data) {
+      // Try to decode the data that we received.
+      _this.buffer += _this.decoder.decode(data, {
+        stream: true
+      });
+    }
+    function collectNextLine() {
+      let buffer = _this.buffer;
+      let pos = 0;
+      buffer = fixLineBreaks(buffer);
+      while (pos < buffer.length && buffer[pos] !== '\r' && buffer[pos] !== '\n') {
+        ++pos;
+      }
+      const line = buffer.slice(0, pos);
+      // Advance the buffer early in case we fail below.
+      if (buffer[pos] === '\r') {
+        ++pos;
+      }
+      if (buffer[pos] === '\n') {
+        ++pos;
+      }
+      _this.buffer = buffer.slice(pos);
+      return line;
+    }
+
+    // 3.2 WebVTT metadata header syntax
+    function parseHeader(input) {
+      parseOptions(input, function (k, v) {
+        // switch (k) {
+        // case 'region':
+        // 3.3 WebVTT region metadata header syntax
+        // console.log('parse region', v);
+        // parseRegion(v);
+        // break;
+        // }
+      }, /:/);
+    }
+
+    // 5.1 WebVTT file parsing.
+    try {
+      let line = '';
+      if (_this.state === 'INITIAL') {
+        // We can't start parsing until we have the first line.
+        if (!/\r\n|\n/.test(_this.buffer)) {
+          return this;
+        }
+        line = collectNextLine();
+        // strip of UTF-8 BOM if any
+        // https://en.wikipedia.org/wiki/Byte_order_mark#UTF-8
+        const m = line.match(/^(ï»¿)?WEBVTT([ \t].*)?$/);
+        if (!(m != null && m[0])) {
+          throw new Error('Malformed WebVTT signature.');
+        }
+        _this.state = 'HEADER';
+      }
+      let alreadyCollectedLine = false;
+      while (_this.buffer) {
+        // We can't parse a line until we have the full line.
+        if (!/\r\n|\n/.test(_this.buffer)) {
+          return this;
+        }
+        if (!alreadyCollectedLine) {
+          line = collectNextLine();
+        } else {
+          alreadyCollectedLine = false;
+        }
+        switch (_this.state) {
+          case 'HEADER':
+            // 13-18 - Allow a header (metadata) under the WEBVTT line.
+            if (/:/.test(line)) {
+              parseHeader(line);
+            } else if (!line) {
+              // An empty line terminates the header and starts the body (cues).
+              _this.state = 'ID';
+            }
+            continue;
+          case 'NOTE':
+            // Ignore NOTE blocks.
+            if (!line) {
+              _this.state = 'ID';
+            }
+            continue;
+          case 'ID':
+            // Check for the start of NOTE blocks.
+            if (/^NOTE($|[ \t])/.test(line)) {
+              _this.state = 'NOTE';
+              break;
+            }
+            // 19-29 - Allow any number of line terminators, then initialize new cue values.
+            if (!line) {
+              continue;
+            }
+            _this.cue = new VTTCue(0, 0, '');
+            _this.state = 'CUE';
+            // 30-39 - Check if self line contains an optional identifier or timing data.
+            if (line.indexOf('-->') === -1) {
+              _this.cue.id = line;
+              continue;
+            }
+          // Process line as start of a cue.
+          /* falls through */
+          case 'CUE':
+            // 40 - Collect cue timings and settings.
+            if (!_this.cue) {
+              _this.state = 'BADCUE';
+              continue;
+            }
+            try {
+              parseCue(line, _this.cue, _this.regionList);
+            } catch (e) {
+              // In case of an error ignore rest of the cue.
+              _this.cue = null;
+              _this.state = 'BADCUE';
+              continue;
+            }
+            _this.state = 'CUETEXT';
+            continue;
+          case 'CUETEXT':
+            {
+              const hasSubstring = line.indexOf('-->') !== -1;
+              // 34 - If we have an empty line then report the cue.
+              // 35 - If we have the special substring '-->' then report the cue,
+              // but do not collect the line as we need to process the current
+              // one as a new cue.
+              if (!line || hasSubstring && (alreadyCollectedLine = true)) {
+                // We are done parsing self cue.
+                if (_this.oncue && _this.cue) {
+                  _this.oncue(_this.cue);
+                }
+                _this.cue = null;
+                _this.state = 'ID';
+                continue;
+              }
+              if (_this.cue === null) {
+                continue;
+              }
+              if (_this.cue.text) {
+                _this.cue.text += '\n';
+              }
+              _this.cue.text += line;
+            }
+            continue;
+          case 'BADCUE':
+            // 54-62 - Collect and discard the remaining cue.
+            if (!line) {
+              _this.state = 'ID';
+            }
+        }
+      }
+    } catch (e) {
+      // If we are currently parsing a cue, report what we have.
+      if (_this.state === 'CUETEXT' && _this.cue && _this.oncue) {
+        _this.oncue(_this.cue);
+      }
+      _this.cue = null;
+      // Enter BADWEBVTT state if header was not parsed correctly otherwise
+      // another exception occurred so enter BADCUE state.
+      _this.state = _this.state === 'INITIAL' ? 'BADWEBVTT' : 'BADCUE';
+    }
+    return this;
+  }
+  flush() {
+    const _this = this;
+    try {
+      // Finish decoding the stream.
+      // _this.buffer += _this.decoder.decode();
+      // Synthesize the end of the current cue or region.
+      if (_this.cue || _this.state === 'HEADER') {
+        _this.buffer += '\n\n';
+        _this.parse();
+      }
+      // If we've flushed, parsed, and we're still on the INITIAL state then
+      // that means we don't have enough of the stream to parse the first
+      // line.
+      if (_this.state === 'INITIAL' || _this.state === 'BADWEBVTT') {
+        throw new Error('Malformed WebVTT signature.');
+      }
+    } catch (e) {
+      if (_this.onparsingerror) {
+        _this.onparsingerror(e);
+      }
+    }
+    if (_this.onflush) {
+      _this.onflush();
+    }
+    return this;
+  }
+}
+
+// From https://github.com/darkskyapp/string-hash
+function hash(text) {
+  let hash = 5381;
+  let i = text.length;
+  while (i) {
+    hash = hash * 33 ^ text.charCodeAt(--i);
+  }
+  return (hash >>> 0).toString();
+}
+
+const LINEBREAKS = /\r\n|\n\r|\n|\r/g;
+
+// String.prototype.startsWith is not supported in IE11
+const startsWith = function startsWith(inputString, searchString, position = 0) {
+  return inputString.slice(position, position + searchString.length) === searchString;
+};
+const cueString2millis = function cueString2millis(timeString) {
+  let ts = parseInt(timeString.slice(-3));
+  const secs = parseInt(timeString.slice(-6, -4));
+  const mins = parseInt(timeString.slice(-9, -7));
+  const hours = timeString.length > 9 ? parseInt(timeString.substring(0, timeString.indexOf(':'))) : 0;
+  if (!isFiniteNumber(ts) || !isFiniteNumber(secs) || !isFiniteNumber(mins) || !isFiniteNumber(hours)) {
+    throw Error(`Malformed X-TIMESTAMP-MAP: Local:${timeString}`);
+  }
+  ts += 1000 * secs;
+  ts += 60 * 1000 * mins;
+  ts += 60 * 60 * 1000 * hours;
+  return ts;
+};
+
+// Create a unique hash id for a cue based on start/end times and text.
+// This helps timeline-controller to avoid showing repeated captions.
+function generateCueId(startTime, endTime, text) {
+  return hash(startTime.toString()) + hash(endTime.toString()) + hash(text);
+}
+const calculateOffset = function calculateOffset(vttCCs, cc, presentationTime) {
+  let currCC = vttCCs[cc];
+  let prevCC = vttCCs[currCC.prevCC];
+
+  // This is the first discontinuity or cues have been processed since the last discontinuity
+  // Offset = current discontinuity time
+  if (!prevCC || !prevCC.new && currCC.new) {
+    vttCCs.ccOffset = vttCCs.presentationOffset = currCC.start;
+    currCC.new = false;
+    return;
+  }
+
+  // There have been discontinuities since cues were last parsed.
+  // Offset = time elapsed
+  while ((_prevCC = prevCC) != null && _prevCC.new) {
+    var _prevCC;
+    vttCCs.ccOffset += currCC.start - prevCC.start;
+    currCC.new = false;
+    currCC = prevCC;
+    prevCC = vttCCs[currCC.prevCC];
+  }
+  vttCCs.presentationOffset = presentationTime;
+};
+function parseWebVTT(vttByteArray, initPTS, vttCCs, cc, timeOffset, callBack, errorCallBack) {
+  const parser = new VTTParser();
+  // Convert byteArray into string, replacing any somewhat exotic linefeeds with "\n", then split on that character.
+  // Uint8Array.prototype.reduce is not implemented in IE11
+  const vttLines = utf8ArrayToStr(new Uint8Array(vttByteArray)).trim().replace(LINEBREAKS, '\n').split('\n');
+  const cues = [];
+  const init90kHz = initPTS ? toMpegTsClockFromTimescale(initPTS.baseTime, initPTS.timescale) : 0;
+  let cueTime = '00:00.000';
+  let timestampMapMPEGTS = 0;
+  let timestampMapLOCAL = 0;
+  let parsingError;
+  let inHeader = true;
+  parser.oncue = function (cue) {
+    // Adjust cue timing; clamp cues to start no earlier than - and drop cues that don't end after - 0 on timeline.
+    const currCC = vttCCs[cc];
+    let cueOffset = vttCCs.ccOffset;
+
+    // Calculate subtitle PTS offset
+    const webVttMpegTsMapOffset = (timestampMapMPEGTS - init90kHz) / 90000;
+
+    // Update offsets for new discontinuities
+    if (currCC != null && currCC.new) {
+      if (timestampMapLOCAL !== undefined) {
+        // When local time is provided, offset = discontinuity start time - local time
+        cueOffset = vttCCs.ccOffset = currCC.start;
+      } else {
+        calculateOffset(vttCCs, cc, webVttMpegTsMapOffset);
+      }
+    }
+    if (webVttMpegTsMapOffset) {
+      if (!initPTS) {
+        parsingError = new Error('Missing initPTS for VTT MPEGTS');
+        return;
+      }
+      // If we have MPEGTS, offset = presentation time + discontinuity offset
+      cueOffset = webVttMpegTsMapOffset - vttCCs.presentationOffset;
+    }
+    const duration = cue.endTime - cue.startTime;
+    const startTime = normalizePts((cue.startTime + cueOffset - timestampMapLOCAL) * 90000, timeOffset * 90000) / 90000;
+    cue.startTime = Math.max(startTime, 0);
+    cue.endTime = Math.max(startTime + duration, 0);
+
+    //trim trailing webvtt block whitespaces
+    const text = cue.text.trim();
+
+    // Fix encoding of special characters
+    cue.text = decodeURIComponent(encodeURIComponent(text));
+
+    // If the cue was not assigned an id from the VTT file (line above the content), create one.
+    if (!cue.id) {
+      cue.id = generateCueId(cue.startTime, cue.endTime, text);
+    }
+    if (cue.endTime > 0) {
+      cues.push(cue);
+    }
+  };
+  parser.onparsingerror = function (error) {
+    parsingError = error;
+  };
+  parser.onflush = function () {
+    if (parsingError) {
+      errorCallBack(parsingError);
+      return;
+    }
+    callBack(cues);
+  };
+
+  // Go through contents line by line.
+  vttLines.forEach(line => {
+    if (inHeader) {
+      // Look for X-TIMESTAMP-MAP in header.
+      if (startsWith(line, 'X-TIMESTAMP-MAP=')) {
+        // Once found, no more are allowed anyway, so stop searching.
+        inHeader = false;
+        // Extract LOCAL and MPEGTS.
+        line.slice(16).split(',').forEach(timestamp => {
+          if (startsWith(timestamp, 'LOCAL:')) {
+            cueTime = timestamp.slice(6);
+          } else if (startsWith(timestamp, 'MPEGTS:')) {
+            timestampMapMPEGTS = parseInt(timestamp.slice(7));
+          }
+        });
+        try {
+          // Convert cue time to seconds
+          timestampMapLOCAL = cueString2millis(cueTime) / 1000;
+        } catch (error) {
+          parsingError = error;
+        }
+        // Return without parsing X-TIMESTAMP-MAP line.
+        return;
+      } else if (line === '') {
+        inHeader = false;
+      }
+    }
+    // Parse line by default.
+    parser.parse(line + '\n');
+  });
+  parser.flush();
+}
+
+const IMSC1_CODEC = 'stpp.ttml.im1t';
+
+// Time format: h:m:s:frames(.subframes)
+const HMSF_REGEX = /^(\d{2,}):(\d{2}):(\d{2}):(\d{2})\.?(\d+)?$/;
+
+// Time format: hours, minutes, seconds, milliseconds, frames, ticks
+const TIME_UNIT_REGEX = /^(\d*(?:\.\d*)?)(h|m|s|ms|f|t)$/;
+const textAlignToLineAlign = {
+  left: 'start',
+  center: 'center',
+  right: 'end',
+  start: 'start',
+  end: 'end'
+};
+function parseIMSC1(payload, initPTS, callBack, errorCallBack) {
+  const results = findBox(new Uint8Array(payload), ['mdat']);
+  if (results.length === 0) {
+    errorCallBack(new Error('Could not parse IMSC1 mdat'));
+    return;
+  }
+  const ttmlList = results.map(mdat => utf8ArrayToStr(mdat));
+  const syncTime = toTimescaleFromScale(initPTS.baseTime, 1, initPTS.timescale);
+  try {
+    ttmlList.forEach(ttml => callBack(parseTTML(ttml, syncTime)));
+  } catch (error) {
+    errorCallBack(error);
+  }
+}
+function parseTTML(ttml, syncTime) {
+  const parser = new DOMParser();
+  const xmlDoc = parser.parseFromString(ttml, 'text/xml');
+  const tt = xmlDoc.getElementsByTagName('tt')[0];
+  if (!tt) {
+    throw new Error('Invalid ttml');
+  }
+  const defaultRateInfo = {
+    frameRate: 30,
+    subFrameRate: 1,
+    frameRateMultiplier: 0,
+    tickRate: 0
+  };
+  const rateInfo = Object.keys(defaultRateInfo).reduce((result, key) => {
+    result[key] = tt.getAttribute(`ttp:${key}`) || defaultRateInfo[key];
+    return result;
+  }, {});
+  const trim = tt.getAttribute('xml:space') !== 'preserve';
+  const styleElements = collectionToDictionary(getElementCollection(tt, 'styling', 'style'));
+  const regionElements = collectionToDictionary(getElementCollection(tt, 'layout', 'region'));
+  const cueElements = getElementCollection(tt, 'body', '[begin]');
+  return [].map.call(cueElements, cueElement => {
+    const cueText = getTextContent(cueElement, trim);
+    if (!cueText || !cueElement.hasAttribute('begin')) {
+      return null;
+    }
+    const startTime = parseTtmlTime(cueElement.getAttribute('begin'), rateInfo);
+    const duration = parseTtmlTime(cueElement.getAttribute('dur'), rateInfo);
+    let endTime = parseTtmlTime(cueElement.getAttribute('end'), rateInfo);
+    if (startTime === null) {
+      throw timestampParsingError(cueElement);
+    }
+    if (endTime === null) {
+      if (duration === null) {
+        throw timestampParsingError(cueElement);
+      }
+      endTime = startTime + duration;
+    }
+    const cue = new VTTCue(startTime - syncTime, endTime - syncTime, cueText);
+    cue.id = generateCueId(cue.startTime, cue.endTime, cue.text);
+    const region = regionElements[cueElement.getAttribute('region')];
+    const style = styleElements[cueElement.getAttribute('style')];
+
+    // Apply styles to cue
+    const styles = getTtmlStyles(region, style, styleElements);
+    const {
+      textAlign
+    } = styles;
+    if (textAlign) {
+      // cue.positionAlign not settable in FF~2016
+      const lineAlign = textAlignToLineAlign[textAlign];
+      if (lineAlign) {
+        cue.lineAlign = lineAlign;
+      }
+      cue.align = textAlign;
+    }
+    _extends(cue, styles);
+    return cue;
+  }).filter(cue => cue !== null);
+}
+function getElementCollection(fromElement, parentName, childName) {
+  const parent = fromElement.getElementsByTagName(parentName)[0];
+  if (parent) {
+    return [].slice.call(parent.querySelectorAll(childName));
+  }
+  return [];
+}
+function collectionToDictionary(elementsWithId) {
+  return elementsWithId.reduce((dict, element) => {
+    const id = element.getAttribute('xml:id');
+    if (id) {
+      dict[id] = element;
+    }
+    return dict;
+  }, {});
+}
+function getTextContent(element, trim) {
+  return [].slice.call(element.childNodes).reduce((str, node, i) => {
+    var _node$childNodes;
+    if (node.nodeName === 'br' && i) {
+      return str + '\n';
+    }
+    if ((_node$childNodes = node.childNodes) != null && _node$childNodes.length) {
+      return getTextContent(node, trim);
+    } else if (trim) {
+      return str + node.textContent.trim().replace(/\s+/g, ' ');
+    }
+    return str + node.textContent;
+  }, '');
+}
+function getTtmlStyles(region, style, styleElements) {
+  const ttsNs = 'http://www.w3.org/ns/ttml#styling';
+  let regionStyle = null;
+  const styleAttributes = ['displayAlign', 'textAlign', 'color', 'backgroundColor', 'fontSize', 'fontFamily'
+  // 'fontWeight',
+  // 'lineHeight',
+  // 'wrapOption',
+  // 'fontStyle',
+  // 'direction',
+  // 'writingMode'
+  ];
+  const regionStyleName = region != null && region.hasAttribute('style') ? region.getAttribute('style') : null;
+  if (regionStyleName && styleElements.hasOwnProperty(regionStyleName)) {
+    regionStyle = styleElements[regionStyleName];
+  }
+  return styleAttributes.reduce((styles, name) => {
+    const value = getAttributeNS(style, ttsNs, name) || getAttributeNS(region, ttsNs, name) || getAttributeNS(regionStyle, ttsNs, name);
+    if (value) {
+      styles[name] = value;
+    }
+    return styles;
+  }, {});
+}
+function getAttributeNS(element, ns, name) {
+  if (!element) {
+    return null;
+  }
+  return element.hasAttributeNS(ns, name) ? element.getAttributeNS(ns, name) : null;
+}
+function timestampParsingError(node) {
+  return new Error(`Could not parse ttml timestamp ${node}`);
+}
+function parseTtmlTime(timeAttributeValue, rateInfo) {
+  if (!timeAttributeValue) {
+    return null;
+  }
+  let seconds = parseTimeStamp(timeAttributeValue);
+  if (seconds === null) {
+    if (HMSF_REGEX.test(timeAttributeValue)) {
+      seconds = parseHoursMinutesSecondsFrames(timeAttributeValue, rateInfo);
+    } else if (TIME_UNIT_REGEX.test(timeAttributeValue)) {
+      seconds = parseTimeUnits(timeAttributeValue, rateInfo);
+    }
+  }
+  return seconds;
+}
+function parseHoursMinutesSecondsFrames(timeAttributeValue, rateInfo) {
+  const m = HMSF_REGEX.exec(timeAttributeValue);
+  const frames = (m[4] | 0) + (m[5] | 0) / rateInfo.subFrameRate;
+  return (m[1] | 0) * 3600 + (m[2] | 0) * 60 + (m[3] | 0) + frames / rateInfo.frameRate;
+}
+function parseTimeUnits(timeAttributeValue, rateInfo) {
+  const m = TIME_UNIT_REGEX.exec(timeAttributeValue);
+  const value = Number(m[1]);
+  const unit = m[2];
+  switch (unit) {
+    case 'h':
+      return value * 3600;
+    case 'm':
+      return value * 60;
+    case 'ms':
+      return value * 1000;
+    case 'f':
+      return value / rateInfo.frameRate;
+    case 't':
+      return value / rateInfo.tickRate;
+  }
+  return value;
+}
+
+// This is a replacement of the native addTextTrack method.
+// TextTracks created by the native method are unremovable since their livecycles
+// are neither associated with the current media nor managed by user code.
+function createTrackNode(videoEl, kind, label, lang = '', mode = 'disabled') {
+  const el = videoEl.ownerDocument.createElement('track');
+  el.kind = kind;
+  el.label = label;
+  if (lang) {
+    el.srclang = lang;
+  }
+  // To avoid an issue of the built-in captions menu in Chrome
+  // https://github.com/video-dev/hls.js/issues/2198#issuecomment-761614248
+  // It also prevents Safari from removing cues after setting track.mode to `hidden` or `disabled`
+  // https://github.com/video-dev/hls.js/pull/7515#issuecomment-3251091932
+  el.src = 'data:,WEBVTT';
+  el.track.mode = mode;
+  videoEl.appendChild(el);
+  return el;
+}
+function getTrackKind(track) {
+  if (track.forced && (navigator.vendor.includes('Apple') || /iPhone|iPad|iPod/.test(navigator.userAgent))) {
+    return 'forced';
+  } else if (track.characteristics && /transcribes-spoken-dialog/gi.test(track.characteristics) && /describes-music-and-sound/gi.test(track.characteristics)) {
+    return 'captions';
+  }
+  return 'subtitles';
 }
 function addCueToTrack(track, cue) {
   // Sometimes there are cue overlaps on segmented vtts so the same
@@ -23461,26 +24568,6 @@ function addCueToTrack(track, cue) {
       } catch (err2) {
         logger.debug(`[texttrack-utils]: Legacy TextTrackCue fallback failed: ${err2}`);
       }
-    }
-  }
-  if (mode === 'disabled') {
-    track.mode = mode;
-  }
-}
-function clearCurrentCues(track, enterHandler) {
-  // When track.mode is disabled, track.cues will be null.
-  // To guarantee the removal of cues, we need to temporarily
-  // change the mode to hidden
-  const mode = track.mode;
-  if (mode === 'disabled') {
-    track.mode = 'hidden';
-  }
-  if (track.cues) {
-    for (let i = track.cues.length; i--;) {
-      if (enterHandler) {
-        track.cues[i].removeEventListener('enter', enterHandler);
-      }
-      track.removeCue(track.cues[i]);
     }
   }
   if (mode === 'disabled') {
@@ -23550,17 +24637,6 @@ function getCuesInRange(cues, start, end) {
   }
   return cuesFound;
 }
-function filterSubtitleTracks(textTrackList) {
-  const tracks = [];
-  for (let i = 0; i < textTrackList.length; i++) {
-    const track = textTrackList[i];
-    // Edge adds a track without a label; we don't want to use it
-    if ((track.kind === 'subtitles' || track.kind === 'captions') && track.label) {
-      tracks.push(textTrackList[i]);
-    }
-  }
-  return tracks;
-}
 
 class SubtitleTrackController extends BasePlaylistController {
   constructor(hls) {
@@ -23585,23 +24661,37 @@ class SubtitleTrackController extends BasePlaylistController {
       if (!this.media || !this.hls.config.renderTextTracksNatively) {
         return;
       }
-      let textTrack = null;
-      const tracks = filterSubtitleTracks(this.media.textTracks);
-      for (let i = 0; i < tracks.length; i++) {
-        if (tracks[i].mode === 'hidden') {
-          // Do not break in case there is a following track with showing.
-          textTrack = tracks[i];
-        } else if (tracks[i].mode === 'showing') {
-          textTrack = tracks[i];
-          break;
+      let trackId = -1;
+      let found = false;
+      // Prefer previously selected track
+      if (this.currentTrack) {
+        var _this$currentTrack$tr;
+        const mode = (_this$currentTrack$tr = this.currentTrack.trackNode) == null ? void 0 : _this$currentTrack$tr.track.mode;
+        if (mode === 'showing') {
+          trackId = this.trackId;
+          found = true;
+        } else if (mode === 'hidden') {
+          trackId = this.trackId;
         }
       }
-
-      // Find internal track index for TextTrack
-      const trackId = this.findTrackForTextTrack(textTrack);
-      if (this.subtitleTrack !== trackId) {
-        this.setSubtitleTrack(trackId);
+      if (!found) {
+        for (let i = 0; i < this.tracksInGroup.length; i++) {
+          var _this$tracksInGroup$i;
+          const mode = (_this$tracksInGroup$i = this.tracksInGroup[i].trackNode) == null ? void 0 : _this$tracksInGroup$i.track.mode;
+          if (mode === 'showing') {
+            trackId = i;
+            break;
+          } else if (trackId < 0 && mode === 'hidden') {
+            // If there is no showing track, we can use the hidden track
+            trackId = i;
+          }
+        }
       }
+      if (trackId > -1) {
+        var _this$tracksInGroup$t;
+        this._subtitleDisplay = ((_this$tracksInGroup$t = this.tracksInGroup[trackId].trackNode) == null ? void 0 : _this$tracksInGroup$t.track.mode) === 'showing';
+      }
+      this.setSubtitleTrack(trackId, true);
     };
     this.registerListeners();
   }
@@ -23649,22 +24739,39 @@ class SubtitleTrackController extends BasePlaylistController {
     hls.off(Events.SUBTITLE_TRACK_LOADED, this.onSubtitleTrackLoaded, this);
     hls.off(Events.ERROR, this.onError, this);
   }
+  createTracksInGroup() {
+    var _this$currentTrack;
+    if (!this.media || !this.hls.config.renderTextTracksNatively) {
+      return;
+    }
+    this.tracksInGroup.forEach(track => {
+      if (!track.trackNode) {
+        track.trackNode = createTrackNode(this.media, getTrackKind(track), track.name, track.lang);
+      }
+    });
+    const track = (_this$currentTrack = this.currentTrack) == null || (_this$currentTrack = _this$currentTrack.trackNode) == null ? void 0 : _this$currentTrack.track;
+    // new tracks are disable before appending
+    if ((track == null ? void 0 : track.mode) === 'disabled') {
+      track.mode = this._subtitleDisplay ? 'showing' : 'hidden';
+    }
+  }
 
   // Listen for subtitle track change, then extract the current track ID.
   onMediaAttached(event, data) {
-    this.media = data.media;
-    if (!this.media) {
-      return;
-    }
+    const media = data.media;
+    this.media = media;
+    let trackId = this.trackId;
     if (this.queuedDefaultTrack > -1) {
-      this.subtitleTrack = this.queuedDefaultTrack;
+      trackId = this.queuedDefaultTrack;
       this.queuedDefaultTrack = -1;
     }
-    this.useTextTrackPolling = !(this.media.textTracks && 'onchange' in this.media.textTracks);
+    this.setSubtitleTrack(trackId);
+    this.createTracksInGroup();
+    this.useTextTrackPolling = !(media.textTracks && 'onchange' in media.textTracks);
     if (this.useTextTrackPolling) {
       this.pollTrackChange(500);
     } else {
-      this.media.textTracks.addEventListener('change', this.asyncPollTrackChange);
+      media.textTracks.addEventListener('change', this.asyncPollTrackChange);
     }
   }
   pollTrackChange(timeout) {
@@ -23683,19 +24790,22 @@ class SubtitleTrackController extends BasePlaylistController {
     }
     if (this.trackId > -1) {
       this.queuedDefaultTrack = this.trackId;
-    }
 
-    // Disable all subtitle tracks before detachment so when reattached only tracks in that content are enabled.
-    this.subtitleTrack = -1;
+      // Disable all subtitle tracks before detachment so when reattached only tracks in that content are enabled.
+      this.setSubtitleTrack(-1);
+    }
     this.media = null;
     if (transferringMedia) {
       return;
     }
-    const textTracks = filterSubtitleTracks(media.textTracks);
-    // Clear loaded cues on media detachment from tracks
-    textTracks.forEach(track => {
-      clearCurrentCues(track);
-    });
+    if (this.hls.config.renderTextTracksNatively) {
+      this.tracksInGroup.forEach(track => {
+        if (track.trackNode) {
+          track.trackNode.remove();
+          track.trackNode = undefined;
+        }
+      });
+    }
   }
   onManifestLoading() {
     this.tracks = [];
@@ -23744,23 +24854,41 @@ class SubtitleTrackController extends BasePlaylistController {
     let currentTrack = this.currentTrack;
     if (!subtitleGroups || (currentGroups == null ? void 0 : currentGroups.length) !== (subtitleGroups == null ? void 0 : subtitleGroups.length) || subtitleGroups != null && subtitleGroups.some(groupId => (currentGroups == null ? void 0 : currentGroups.indexOf(groupId)) === -1)) {
       this.groupIds = subtitleGroups;
-      this.trackId = -1;
-      this.currentTrack = null;
-      const subtitleTracks = this.tracks.filter(track => !subtitleGroups || subtitleGroups.indexOf(track.groupId) !== -1);
+      const subtitleTracks = [];
+      this.tracks.forEach(track => {
+        if (track.textCodec === IMSC1_CODEC ? this.hls.config.enableIMSC1 : this.hls.config.enableWebVTT) {
+          if (!subtitleGroups || subtitleGroups.includes(track.groupId)) {
+            // track.id should match hls.subtitleTracks index
+            track.id = subtitleTracks.length;
+            subtitleTracks.push(track);
+          } else if (track.trackNode) {
+            track.trackNode.remove();
+            track.trackNode = undefined;
+          }
+        }
+      });
+      if (subtitleTracks.length === this.tracksInGroup.length) {
+        let diff = false;
+        for (let i = 0; i < subtitleTracks.length; i++) {
+          if (subtitleTracks[i] !== this.tracksInGroup[i]) {
+            diff = true;
+            break;
+          }
+        }
+        if (!diff) {
+          // Do not dispatch SUBTITLE_TRACKS_UPDATED if there are no changes
+          return;
+        }
+      }
       if (subtitleTracks.length) {
         // Disable selectDefaultTrack if there are no default tracks
         if (this.selectDefaultTrack && !subtitleTracks.some(track => track.default)) {
           this.selectDefaultTrack = false;
         }
-        // track.id should match hls.audioTracks index
-        subtitleTracks.forEach((track, i) => {
-          track.id = i;
-        });
-      } else if (!currentTrack && !this.tracksInGroup.length) {
-        // Do not dispatch SUBTITLE_TRACKS_UPDATED when there were and are no tracks
-        return;
       }
       this.tracksInGroup = subtitleTracks;
+      this.trackId = -1;
+      this.currentTrack = null;
 
       // Find preferred track
       const subtitlePreference = this.hls.config.subtitlePreference;
@@ -23787,9 +24915,8 @@ class SubtitleTrackController extends BasePlaylistController {
       };
       this.log(`Updating subtitle tracks, ${subtitleTracks.length} track(s) found in "${subtitleGroups == null ? void 0 : subtitleGroups.join(',')}" group-id`);
       this.hls.trigger(Events.SUBTITLE_TRACKS_UPDATED, subtitleTracksUpdated);
-      if (trackId !== -1 && this.trackId === -1) {
-        this.setSubtitleTrack(trackId);
-      }
+      this.setSubtitleTrack(trackId);
+      this.createTracksInGroup();
     }
   }
   findTrackId(currentTrack) {
@@ -23820,18 +24947,6 @@ class SubtitleTrackController extends BasePlaylistController {
     }
     return -1;
   }
-  findTrackForTextTrack(textTrack) {
-    if (textTrack) {
-      const tracks = this.tracksInGroup;
-      for (let i = 0; i < tracks.length; i++) {
-        const track = tracks[i];
-        if (subtitleTrackMatchesTextTrack(track, textTrack)) {
-          return i;
-        }
-      }
-    }
-    return -1;
-  }
   onError(event, data) {
     if (data.fatal || !data.context) {
       return;
@@ -23855,13 +24970,13 @@ class SubtitleTrackController extends BasePlaylistController {
   }
   set subtitleTrack(newId) {
     this.selectDefaultTrack = false;
-    this.setSubtitleTrack(newId);
+    this.setSubtitleTrack(newId, true);
   }
   setSubtitleOption(subtitleOption) {
     this.hls.config.subtitlePreference = subtitleOption;
     if (subtitleOption) {
       if (subtitleOption.id === -1) {
-        this.setSubtitleTrack(-1);
+        this.setSubtitleTrack(-1, true);
         return null;
       }
       const allSubtitleTracks = this.allSubtitleTracks;
@@ -23876,7 +24991,7 @@ class SubtitleTrackController extends BasePlaylistController {
         const groupIndex = findMatchingOption(subtitleOption, this.tracksInGroup);
         if (groupIndex > -1) {
           const track = this.tracksInGroup[groupIndex];
-          this.setSubtitleTrack(groupIndex);
+          this.setSubtitleTrack(groupIndex, true);
           return track;
         } else if (currentTrack) {
           // If this is not the initial selection return null
@@ -23922,39 +25037,26 @@ class SubtitleTrackController extends BasePlaylistController {
    * A value of -1 will disable all subtitle tracks.
    */
   toggleTrackModes() {
-    const {
-      media
-    } = this;
-    if (!media) {
+    if (!this.media || !this.hls.config.renderTextTracksNatively) {
       return;
     }
-    const textTracks = filterSubtitleTracks(media.textTracks);
-    const currentTrack = this.currentTrack;
-    let nextTrack;
-    if (currentTrack) {
-      nextTrack = textTracks.filter(textTrack => subtitleTrackMatchesTextTrack(currentTrack, textTrack))[0];
-      if (!nextTrack) {
-        this.warn(`Unable to find subtitle TextTrack with name "${currentTrack.name}" and language "${currentTrack.lang}"`);
-      }
-    }
-    [].slice.call(textTracks).forEach(track => {
-      if (track.mode !== 'disabled' && track !== nextTrack) {
-        track.mode = 'disabled';
+    const nextTrack = this.currentTrack;
+    this.tracksInGroup.forEach(track => {
+      if (track.trackNode) {
+        const mode = track === nextTrack ? this._subtitleDisplay ? 'showing' : 'hidden' : 'disabled';
+        const textTrack = track.trackNode.track;
+        if (textTrack.mode !== mode) {
+          textTrack.mode = mode;
+        }
       }
     });
-    if (nextTrack) {
-      const mode = this.subtitleDisplay ? 'showing' : 'hidden';
-      if (nextTrack.mode !== mode) {
-        nextTrack.mode = mode;
-      }
-    }
   }
 
   /**
    * This method is responsible for validating the subtitle index and periodically reloading if live.
    * Dispatches the SUBTITLE_TRACK_SWITCH event, which instructs the subtitle-stream-controller to load the selected track.
    */
-  setSubtitleTrack(newId) {
+  setSubtitleTrack(newId, toggleModes = false) {
     const tracks = this.tracksInGroup;
 
     // setting this.subtitleTrack will trigger internal logic
@@ -23971,21 +25073,24 @@ class SubtitleTrackController extends BasePlaylistController {
       this.warn(`Invalid subtitle track id: ${newId}`);
       return;
     }
-    this.selectDefaultTrack = false;
     const lastTrack = this.currentTrack;
     const track = tracks[newId] || null;
     this.trackId = newId;
     this.currentTrack = track;
-    this.toggleTrackModes();
+    if (toggleModes) {
+      this.toggleTrackModes();
+    }
     if (!track) {
-      // switch to -1
-      this.hls.trigger(Events.SUBTITLE_TRACK_SWITCH, {
-        id: newId
-      });
+      if (lastTrack) {
+        // switch to -1
+        this.hls.trigger(Events.SUBTITLE_TRACK_SWITCH, {
+          id: newId
+        });
+      }
       return;
     }
     const trackLoaded = !!track.details && !track.details.live;
-    if (newId === this.trackId && track === lastTrack && trackLoaded) {
+    if (track === lastTrack && trackLoaded) {
       return;
     }
     this.log(`Switching to subtitle-track ${newId}` + (track ? ` "${track.name}" lang:${track.lang} group:${track.groupId}` : ''));
@@ -24036,16 +25141,6 @@ function uuid() {
       return uuid;
     }
   }
-}
-
-// From https://github.com/darkskyapp/string-hash
-function hash(text) {
-  let hash = 5381;
-  let i = text.length;
-  while (i) {
-    hash = hash * 33 ^ text.charCodeAt(--i);
-  }
-  return (hash >>> 0).toString();
 }
 
 const ALIGNED_END_THRESHOLD_SECONDS = 0.025;
@@ -25949,8 +27044,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
       // Prevent asset players from marking EoS on transferred MediaSource
       dataToAttach.overrides = {
         duration: schedule.duration,
-        endOfStream: !isAssetPlayer || isAssetAtEndOfSchedule,
-        cueRemoval: !isAssetPlayer
+        endOfStream: !isAssetPlayer || isAssetAtEndOfSchedule
       };
     }
     player.attachMedia(dataToAttach);
@@ -26997,7 +28091,7 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     const playingAsset = this.playingAsset;
     this.endedAsset = null;
     this.playingAsset = assetItem;
-    if (!playingAsset || playingAsset.identifier !== assetId) {
+    if ((playingAsset == null ? void 0 : playingAsset.identifier) !== assetId) {
       if (playingAsset) {
         // Exiting another Interstitial asset
         this.clearAssetPlayer(playingAsset.identifier, scheduleItems[scheduleIndex]);
@@ -27140,9 +28234,9 @@ Schedule: ${scheduleItems.map(seg => segmentToString(seg))} pos: ${this.timeline
     this.updateSchedule(true);
     if (interstitial.error) {
       this.primaryFallback(interstitial);
-    } else if (playingAsset && playingAsset.identifier === assetId) {
+    } else if ((playingAsset == null ? void 0 : playingAsset.identifier) === assetId) {
       this.advanceAfterAssetEnded(interstitial, scheduleIndex, assetListIndex);
-    } else if (bufferingAsset && bufferingAsset.identifier === assetId && this.isInterstitial(this.bufferingItem)) {
+    } else if ((bufferingAsset == null ? void 0 : bufferingAsset.identifier) === assetId && this.isInterstitial(this.bufferingItem)) {
       this.advanceAssetBuffering(this.bufferingItem, bufferingAsset);
     }
   }
@@ -28893,1030 +29987,6 @@ function createCmdHistory() {
   };
 }
 
-/**
- * Copyright 2013 vtt.js Contributors
- *
- * Licensed under the Apache License, Version 2.0 (the 'License');
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an 'AS IS' BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-var VTTCue = (function () {
-  if (optionalSelf != null && optionalSelf.VTTCue) {
-    return self.VTTCue;
-  }
-  const AllowedDirections = ['', 'lr', 'rl'];
-  const AllowedAlignments = ['start', 'middle', 'end', 'left', 'right'];
-  function isAllowedValue(allowed, value) {
-    if (typeof value !== 'string') {
-      return false;
-    }
-    // necessary for assuring the generic conforms to the Array interface
-    if (!Array.isArray(allowed)) {
-      return false;
-    }
-    // reset the type so that the next narrowing works well
-    const lcValue = value.toLowerCase();
-    // use the allow list to narrow the type to a specific subset of strings
-    if (~allowed.indexOf(lcValue)) {
-      return lcValue;
-    }
-    return false;
-  }
-  function findDirectionSetting(value) {
-    return isAllowedValue(AllowedDirections, value);
-  }
-  function findAlignSetting(value) {
-    return isAllowedValue(AllowedAlignments, value);
-  }
-  function extend(obj, ...rest) {
-    let i = 1;
-    for (; i < arguments.length; i++) {
-      const cobj = arguments[i];
-      for (const p in cobj) {
-        obj[p] = cobj[p];
-      }
-    }
-    return obj;
-  }
-  function VTTCue(startTime, endTime, text) {
-    const cue = this;
-    const baseObj = {
-      enumerable: true
-    };
-    /**
-     * Shim implementation specific properties. These properties are not in
-     * the spec.
-     */
-
-    // Lets us know when the VTTCue's data has changed in such a way that we need
-    // to recompute its display state. This lets us compute its display state
-    // lazily.
-    cue.hasBeenReset = false;
-
-    /**
-     * VTTCue and TextTrackCue properties
-     * http://dev.w3.org/html5/webvtt/#vttcue-interface
-     */
-
-    let _id = '';
-    let _pauseOnExit = false;
-    let _startTime = startTime;
-    let _endTime = endTime;
-    let _text = text;
-    let _region = null;
-    let _vertical = '';
-    let _snapToLines = true;
-    let _line = 'auto';
-    let _lineAlign = 'start';
-    let _position = 50;
-    let _positionAlign = 'middle';
-    let _size = 50;
-    let _align = 'middle';
-    Object.defineProperty(cue, 'id', extend({}, baseObj, {
-      get: function () {
-        return _id;
-      },
-      set: function (value) {
-        _id = '' + value;
-      }
-    }));
-    Object.defineProperty(cue, 'pauseOnExit', extend({}, baseObj, {
-      get: function () {
-        return _pauseOnExit;
-      },
-      set: function (value) {
-        _pauseOnExit = !!value;
-      }
-    }));
-    Object.defineProperty(cue, 'startTime', extend({}, baseObj, {
-      get: function () {
-        return _startTime;
-      },
-      set: function (value) {
-        if (typeof value !== 'number') {
-          throw new TypeError('Start time must be set to a number.');
-        }
-        _startTime = value;
-        this.hasBeenReset = true;
-      }
-    }));
-    Object.defineProperty(cue, 'endTime', extend({}, baseObj, {
-      get: function () {
-        return _endTime;
-      },
-      set: function (value) {
-        if (typeof value !== 'number') {
-          throw new TypeError('End time must be set to a number.');
-        }
-        _endTime = value;
-        this.hasBeenReset = true;
-      }
-    }));
-    Object.defineProperty(cue, 'text', extend({}, baseObj, {
-      get: function () {
-        return _text;
-      },
-      set: function (value) {
-        _text = '' + value;
-        this.hasBeenReset = true;
-      }
-    }));
-
-    // todo: implement VTTRegion polyfill?
-    Object.defineProperty(cue, 'region', extend({}, baseObj, {
-      get: function () {
-        return _region;
-      },
-      set: function (value) {
-        _region = value;
-        this.hasBeenReset = true;
-      }
-    }));
-    Object.defineProperty(cue, 'vertical', extend({}, baseObj, {
-      get: function () {
-        return _vertical;
-      },
-      set: function (value) {
-        const setting = findDirectionSetting(value);
-        // Have to check for false because the setting an be an empty string.
-        if (setting === false) {
-          throw new SyntaxError('An invalid or illegal string was specified.');
-        }
-        _vertical = setting;
-        this.hasBeenReset = true;
-      }
-    }));
-    Object.defineProperty(cue, 'snapToLines', extend({}, baseObj, {
-      get: function () {
-        return _snapToLines;
-      },
-      set: function (value) {
-        _snapToLines = !!value;
-        this.hasBeenReset = true;
-      }
-    }));
-    Object.defineProperty(cue, 'line', extend({}, baseObj, {
-      get: function () {
-        return _line;
-      },
-      set: function (value) {
-        if (typeof value !== 'number' && value !== 'auto') {
-          throw new SyntaxError('An invalid number or illegal string was specified.');
-        }
-        _line = value;
-        this.hasBeenReset = true;
-      }
-    }));
-    Object.defineProperty(cue, 'lineAlign', extend({}, baseObj, {
-      get: function () {
-        return _lineAlign;
-      },
-      set: function (value) {
-        const setting = findAlignSetting(value);
-        if (!setting) {
-          throw new SyntaxError('An invalid or illegal string was specified.');
-        }
-        _lineAlign = setting;
-        this.hasBeenReset = true;
-      }
-    }));
-    Object.defineProperty(cue, 'position', extend({}, baseObj, {
-      get: function () {
-        return _position;
-      },
-      set: function (value) {
-        if (value < 0 || value > 100) {
-          throw new Error('Position must be between 0 and 100.');
-        }
-        _position = value;
-        this.hasBeenReset = true;
-      }
-    }));
-    Object.defineProperty(cue, 'positionAlign', extend({}, baseObj, {
-      get: function () {
-        return _positionAlign;
-      },
-      set: function (value) {
-        const setting = findAlignSetting(value);
-        if (!setting) {
-          throw new SyntaxError('An invalid or illegal string was specified.');
-        }
-        _positionAlign = setting;
-        this.hasBeenReset = true;
-      }
-    }));
-    Object.defineProperty(cue, 'size', extend({}, baseObj, {
-      get: function () {
-        return _size;
-      },
-      set: function (value) {
-        if (value < 0 || value > 100) {
-          throw new Error('Size must be between 0 and 100.');
-        }
-        _size = value;
-        this.hasBeenReset = true;
-      }
-    }));
-    Object.defineProperty(cue, 'align', extend({}, baseObj, {
-      get: function () {
-        return _align;
-      },
-      set: function (value) {
-        const setting = findAlignSetting(value);
-        if (!setting) {
-          throw new SyntaxError('An invalid or illegal string was specified.');
-        }
-        _align = setting;
-        this.hasBeenReset = true;
-      }
-    }));
-
-    /**
-     * Other <track> spec defined properties
-     */
-
-    // http://www.whatwg.org/specs/web-apps/current-work/multipage/the-video-element.html#text-track-cue-display-state
-    cue.displayState = undefined;
-  }
-
-  /**
-   * VTTCue methods
-   */
-
-  VTTCue.prototype.getCueAsHTML = function () {
-    // Assume WebVTT.convertCueToDOMTree is on the global.
-    const WebVTT = self.WebVTT;
-    return WebVTT.convertCueToDOMTree(self, this.text);
-  };
-  // this is a polyfill hack
-  return VTTCue;
-})();
-
-/*
- * Source: https://github.com/mozilla/vtt.js/blob/master/dist/vtt.js
- */
-
-class StringDecoder {
-  decode(data, options) {
-    if (!data) {
-      return '';
-    }
-    if (typeof data !== 'string') {
-      throw new Error('Error - expected string data.');
-    }
-    return decodeURIComponent(encodeURIComponent(data));
-  }
-}
-
-// Try to parse input as a time stamp.
-function parseTimeStamp(input) {
-  function computeSeconds(h, m, s, f) {
-    return (h | 0) * 3600 + (m | 0) * 60 + (s | 0) + parseFloat(f || 0);
-  }
-  const m = input.match(/^(?:(\d+):)?(\d{2}):(\d{2})(\.\d+)?/);
-  if (!m) {
-    return null;
-  }
-  if (parseFloat(m[2]) > 59) {
-    // Timestamp takes the form of [hours]:[minutes].[milliseconds]
-    // First position is hours as it's over 59.
-    return computeSeconds(m[2], m[3], 0, m[4]);
-  }
-  // Timestamp takes the form of [hours (optional)]:[minutes]:[seconds].[milliseconds]
-  return computeSeconds(m[1], m[2], m[3], m[4]);
-}
-
-// A settings object holds key/value pairs and will ignore anything but the first
-// assignment to a specific key.
-class Settings {
-  constructor() {
-    this.values = Object.create(null);
-  }
-  // Only accept the first assignment to any key.
-  set(k, v) {
-    if (!this.get(k) && v !== '') {
-      this.values[k] = v;
-    }
-  }
-  // Return the value for a key, or a default value.
-  // If 'defaultKey' is passed then 'dflt' is assumed to be an object with
-  // a number of possible default values as properties where 'defaultKey' is
-  // the key of the property that will be chosen; otherwise it's assumed to be
-  // a single value.
-  get(k, dflt, defaultKey) {
-    if (defaultKey) {
-      return this.has(k) ? this.values[k] : dflt[defaultKey];
-    }
-    return this.has(k) ? this.values[k] : dflt;
-  }
-  // Check whether we have a value for a key.
-  has(k) {
-    return k in this.values;
-  }
-  // Accept a setting if its one of the given alternatives.
-  alt(k, v, a) {
-    for (let n = 0; n < a.length; ++n) {
-      if (v === a[n]) {
-        this.set(k, v);
-        break;
-      }
-    }
-  }
-  // Accept a setting if its a valid (signed) integer.
-  integer(k, v) {
-    if (/^-?\d+$/.test(v)) {
-      // integer
-      this.set(k, parseInt(v, 10));
-    }
-  }
-  // Accept a setting if its a valid percentage.
-  percent(k, v) {
-    if (/^([\d]{1,3})(\.[\d]*)?%$/.test(v)) {
-      const percent = parseFloat(v);
-      if (percent >= 0 && percent <= 100) {
-        this.set(k, percent);
-        return true;
-      }
-    }
-    return false;
-  }
-}
-
-// Helper function to parse input into groups separated by 'groupDelim', and
-// interpret each group as a key/value pair separated by 'keyValueDelim'.
-function parseOptions(input, callback, keyValueDelim, groupDelim) {
-  const groups = groupDelim ? input.split(groupDelim) : [input];
-  for (const i in groups) {
-    if (typeof groups[i] !== 'string') {
-      continue;
-    }
-    const kv = groups[i].split(keyValueDelim);
-    if (kv.length !== 2) {
-      continue;
-    }
-    const k = kv[0];
-    const v = kv[1];
-    callback(k, v);
-  }
-}
-const defaults = new VTTCue(0, 0, '');
-// 'middle' was changed to 'center' in the spec: https://github.com/w3c/webvtt/pull/244
-//  Safari doesn't yet support this change, but FF and Chrome do.
-const center = defaults.align === 'middle' ? 'middle' : 'center';
-function parseCue(input, cue, regionList) {
-  // Remember the original input if we need to throw an error.
-  const oInput = input;
-  // 4.1 WebVTT timestamp
-  function consumeTimeStamp() {
-    const ts = parseTimeStamp(input);
-    if (ts === null) {
-      throw new Error('Malformed timestamp: ' + oInput);
-    }
-
-    // Remove time stamp from input.
-    input = input.replace(/^[^\sa-zA-Z-]+/, '');
-    return ts;
-  }
-
-  // 4.4.2 WebVTT cue settings
-  function consumeCueSettings(input, cue) {
-    const settings = new Settings();
-    parseOptions(input, function (k, v) {
-      let vals;
-      switch (k) {
-        case 'region':
-          // Find the last region we parsed with the same region id.
-          for (let i = regionList.length - 1; i >= 0; i--) {
-            if (regionList[i].id === v) {
-              settings.set(k, regionList[i].region);
-              break;
-            }
-          }
-          break;
-        case 'vertical':
-          settings.alt(k, v, ['rl', 'lr']);
-          break;
-        case 'line':
-          vals = v.split(',');
-          settings.integer(k, vals[0]);
-          if (settings.percent(k, vals[0])) {
-            settings.set('snapToLines', false);
-          }
-          settings.alt(k, vals[0], ['auto']);
-          if (vals.length === 2) {
-            settings.alt('lineAlign', vals[1], ['start', center, 'end']);
-          }
-          break;
-        case 'position':
-          vals = v.split(',');
-          settings.percent(k, vals[0]);
-          if (vals.length === 2) {
-            settings.alt('positionAlign', vals[1], ['start', center, 'end', 'line-left', 'line-right', 'auto']);
-          }
-          break;
-        case 'size':
-          settings.percent(k, v);
-          break;
-        case 'align':
-          settings.alt(k, v, ['start', center, 'end', 'left', 'right']);
-          break;
-      }
-    }, /:/, /\s/);
-
-    // Apply default values for any missing fields.
-    cue.region = settings.get('region', null);
-    cue.vertical = settings.get('vertical', '');
-    let line = settings.get('line', 'auto');
-    if (line === 'auto' && defaults.line === -1) {
-      // set numeric line number for Safari
-      line = -1;
-    }
-    cue.line = line;
-    cue.lineAlign = settings.get('lineAlign', 'start');
-    cue.snapToLines = settings.get('snapToLines', true);
-    cue.size = settings.get('size', 100);
-    cue.align = settings.get('align', center);
-    let position = settings.get('position', 'auto');
-    if (position === 'auto' && defaults.position === 50) {
-      // set numeric position for Safari
-      position = cue.align === 'start' || cue.align === 'left' ? 0 : cue.align === 'end' || cue.align === 'right' ? 100 : 50;
-    }
-    cue.position = position;
-  }
-  function skipWhitespace() {
-    input = input.replace(/^\s+/, '');
-  }
-
-  // 4.1 WebVTT cue timings.
-  skipWhitespace();
-  cue.startTime = consumeTimeStamp(); // (1) collect cue start time
-  skipWhitespace();
-  if (input.slice(0, 3) !== '-->') {
-    // (3) next characters must match '-->'
-    throw new Error("Malformed time stamp (time stamps must be separated by '-->'): " + oInput);
-  }
-  input = input.slice(3);
-  skipWhitespace();
-  cue.endTime = consumeTimeStamp(); // (5) collect cue end time
-
-  // 4.1 WebVTT cue settings list.
-  skipWhitespace();
-  consumeCueSettings(input, cue);
-}
-function fixLineBreaks(input) {
-  return input.replace(/<br(?: \/)?>/gi, '\n');
-}
-class VTTParser {
-  constructor() {
-    this.state = 'INITIAL';
-    this.buffer = '';
-    this.decoder = new StringDecoder();
-    this.regionList = [];
-    this.cue = null;
-    this.oncue = void 0;
-    this.onparsingerror = void 0;
-    this.onflush = void 0;
-  }
-  parse(data) {
-    const _this = this;
-
-    // If there is no data then we won't decode it, but will just try to parse
-    // whatever is in buffer already. This may occur in circumstances, for
-    // example when flush() is called.
-    if (data) {
-      // Try to decode the data that we received.
-      _this.buffer += _this.decoder.decode(data, {
-        stream: true
-      });
-    }
-    function collectNextLine() {
-      let buffer = _this.buffer;
-      let pos = 0;
-      buffer = fixLineBreaks(buffer);
-      while (pos < buffer.length && buffer[pos] !== '\r' && buffer[pos] !== '\n') {
-        ++pos;
-      }
-      const line = buffer.slice(0, pos);
-      // Advance the buffer early in case we fail below.
-      if (buffer[pos] === '\r') {
-        ++pos;
-      }
-      if (buffer[pos] === '\n') {
-        ++pos;
-      }
-      _this.buffer = buffer.slice(pos);
-      return line;
-    }
-
-    // 3.2 WebVTT metadata header syntax
-    function parseHeader(input) {
-      parseOptions(input, function (k, v) {
-        // switch (k) {
-        // case 'region':
-        // 3.3 WebVTT region metadata header syntax
-        // console.log('parse region', v);
-        // parseRegion(v);
-        // break;
-        // }
-      }, /:/);
-    }
-
-    // 5.1 WebVTT file parsing.
-    try {
-      let line = '';
-      if (_this.state === 'INITIAL') {
-        // We can't start parsing until we have the first line.
-        if (!/\r\n|\n/.test(_this.buffer)) {
-          return this;
-        }
-        line = collectNextLine();
-        // strip of UTF-8 BOM if any
-        // https://en.wikipedia.org/wiki/Byte_order_mark#UTF-8
-        const m = line.match(/^(ï»¿)?WEBVTT([ \t].*)?$/);
-        if (!(m != null && m[0])) {
-          throw new Error('Malformed WebVTT signature.');
-        }
-        _this.state = 'HEADER';
-      }
-      let alreadyCollectedLine = false;
-      while (_this.buffer) {
-        // We can't parse a line until we have the full line.
-        if (!/\r\n|\n/.test(_this.buffer)) {
-          return this;
-        }
-        if (!alreadyCollectedLine) {
-          line = collectNextLine();
-        } else {
-          alreadyCollectedLine = false;
-        }
-        switch (_this.state) {
-          case 'HEADER':
-            // 13-18 - Allow a header (metadata) under the WEBVTT line.
-            if (/:/.test(line)) {
-              parseHeader(line);
-            } else if (!line) {
-              // An empty line terminates the header and starts the body (cues).
-              _this.state = 'ID';
-            }
-            continue;
-          case 'NOTE':
-            // Ignore NOTE blocks.
-            if (!line) {
-              _this.state = 'ID';
-            }
-            continue;
-          case 'ID':
-            // Check for the start of NOTE blocks.
-            if (/^NOTE($|[ \t])/.test(line)) {
-              _this.state = 'NOTE';
-              break;
-            }
-            // 19-29 - Allow any number of line terminators, then initialize new cue values.
-            if (!line) {
-              continue;
-            }
-            _this.cue = new VTTCue(0, 0, '');
-            _this.state = 'CUE';
-            // 30-39 - Check if self line contains an optional identifier or timing data.
-            if (line.indexOf('-->') === -1) {
-              _this.cue.id = line;
-              continue;
-            }
-          // Process line as start of a cue.
-          /* falls through */
-          case 'CUE':
-            // 40 - Collect cue timings and settings.
-            if (!_this.cue) {
-              _this.state = 'BADCUE';
-              continue;
-            }
-            try {
-              parseCue(line, _this.cue, _this.regionList);
-            } catch (e) {
-              // In case of an error ignore rest of the cue.
-              _this.cue = null;
-              _this.state = 'BADCUE';
-              continue;
-            }
-            _this.state = 'CUETEXT';
-            continue;
-          case 'CUETEXT':
-            {
-              const hasSubstring = line.indexOf('-->') !== -1;
-              // 34 - If we have an empty line then report the cue.
-              // 35 - If we have the special substring '-->' then report the cue,
-              // but do not collect the line as we need to process the current
-              // one as a new cue.
-              if (!line || hasSubstring && (alreadyCollectedLine = true)) {
-                // We are done parsing self cue.
-                if (_this.oncue && _this.cue) {
-                  _this.oncue(_this.cue);
-                }
-                _this.cue = null;
-                _this.state = 'ID';
-                continue;
-              }
-              if (_this.cue === null) {
-                continue;
-              }
-              if (_this.cue.text) {
-                _this.cue.text += '\n';
-              }
-              _this.cue.text += line;
-            }
-            continue;
-          case 'BADCUE':
-            // 54-62 - Collect and discard the remaining cue.
-            if (!line) {
-              _this.state = 'ID';
-            }
-        }
-      }
-    } catch (e) {
-      // If we are currently parsing a cue, report what we have.
-      if (_this.state === 'CUETEXT' && _this.cue && _this.oncue) {
-        _this.oncue(_this.cue);
-      }
-      _this.cue = null;
-      // Enter BADWEBVTT state if header was not parsed correctly otherwise
-      // another exception occurred so enter BADCUE state.
-      _this.state = _this.state === 'INITIAL' ? 'BADWEBVTT' : 'BADCUE';
-    }
-    return this;
-  }
-  flush() {
-    const _this = this;
-    try {
-      // Finish decoding the stream.
-      // _this.buffer += _this.decoder.decode();
-      // Synthesize the end of the current cue or region.
-      if (_this.cue || _this.state === 'HEADER') {
-        _this.buffer += '\n\n';
-        _this.parse();
-      }
-      // If we've flushed, parsed, and we're still on the INITIAL state then
-      // that means we don't have enough of the stream to parse the first
-      // line.
-      if (_this.state === 'INITIAL' || _this.state === 'BADWEBVTT') {
-        throw new Error('Malformed WebVTT signature.');
-      }
-    } catch (e) {
-      if (_this.onparsingerror) {
-        _this.onparsingerror(e);
-      }
-    }
-    if (_this.onflush) {
-      _this.onflush();
-    }
-    return this;
-  }
-}
-
-const LINEBREAKS = /\r\n|\n\r|\n|\r/g;
-
-// String.prototype.startsWith is not supported in IE11
-const startsWith = function startsWith(inputString, searchString, position = 0) {
-  return inputString.slice(position, position + searchString.length) === searchString;
-};
-const cueString2millis = function cueString2millis(timeString) {
-  let ts = parseInt(timeString.slice(-3));
-  const secs = parseInt(timeString.slice(-6, -4));
-  const mins = parseInt(timeString.slice(-9, -7));
-  const hours = timeString.length > 9 ? parseInt(timeString.substring(0, timeString.indexOf(':'))) : 0;
-  if (!isFiniteNumber(ts) || !isFiniteNumber(secs) || !isFiniteNumber(mins) || !isFiniteNumber(hours)) {
-    throw Error(`Malformed X-TIMESTAMP-MAP: Local:${timeString}`);
-  }
-  ts += 1000 * secs;
-  ts += 60 * 1000 * mins;
-  ts += 60 * 60 * 1000 * hours;
-  return ts;
-};
-
-// Create a unique hash id for a cue based on start/end times and text.
-// This helps timeline-controller to avoid showing repeated captions.
-function generateCueId(startTime, endTime, text) {
-  return hash(startTime.toString()) + hash(endTime.toString()) + hash(text);
-}
-const calculateOffset = function calculateOffset(vttCCs, cc, presentationTime) {
-  let currCC = vttCCs[cc];
-  let prevCC = vttCCs[currCC.prevCC];
-
-  // This is the first discontinuity or cues have been processed since the last discontinuity
-  // Offset = current discontinuity time
-  if (!prevCC || !prevCC.new && currCC.new) {
-    vttCCs.ccOffset = vttCCs.presentationOffset = currCC.start;
-    currCC.new = false;
-    return;
-  }
-
-  // There have been discontinuities since cues were last parsed.
-  // Offset = time elapsed
-  while ((_prevCC = prevCC) != null && _prevCC.new) {
-    var _prevCC;
-    vttCCs.ccOffset += currCC.start - prevCC.start;
-    currCC.new = false;
-    currCC = prevCC;
-    prevCC = vttCCs[currCC.prevCC];
-  }
-  vttCCs.presentationOffset = presentationTime;
-};
-function parseWebVTT(vttByteArray, initPTS, vttCCs, cc, timeOffset, callBack, errorCallBack) {
-  const parser = new VTTParser();
-  // Convert byteArray into string, replacing any somewhat exotic linefeeds with "\n", then split on that character.
-  // Uint8Array.prototype.reduce is not implemented in IE11
-  const vttLines = utf8ArrayToStr(new Uint8Array(vttByteArray)).trim().replace(LINEBREAKS, '\n').split('\n');
-  const cues = [];
-  const init90kHz = initPTS ? toMpegTsClockFromTimescale(initPTS.baseTime, initPTS.timescale) : 0;
-  let cueTime = '00:00.000';
-  let timestampMapMPEGTS = 0;
-  let timestampMapLOCAL = 0;
-  let parsingError;
-  let inHeader = true;
-  parser.oncue = function (cue) {
-    // Adjust cue timing; clamp cues to start no earlier than - and drop cues that don't end after - 0 on timeline.
-    const currCC = vttCCs[cc];
-    let cueOffset = vttCCs.ccOffset;
-
-    // Calculate subtitle PTS offset
-    const webVttMpegTsMapOffset = (timestampMapMPEGTS - init90kHz) / 90000;
-
-    // Update offsets for new discontinuities
-    if (currCC != null && currCC.new) {
-      if (timestampMapLOCAL !== undefined) {
-        // When local time is provided, offset = discontinuity start time - local time
-        cueOffset = vttCCs.ccOffset = currCC.start;
-      } else {
-        calculateOffset(vttCCs, cc, webVttMpegTsMapOffset);
-      }
-    }
-    if (webVttMpegTsMapOffset) {
-      if (!initPTS) {
-        parsingError = new Error('Missing initPTS for VTT MPEGTS');
-        return;
-      }
-      // If we have MPEGTS, offset = presentation time + discontinuity offset
-      cueOffset = webVttMpegTsMapOffset - vttCCs.presentationOffset;
-    }
-    const duration = cue.endTime - cue.startTime;
-    const startTime = normalizePts((cue.startTime + cueOffset - timestampMapLOCAL) * 90000, timeOffset * 90000) / 90000;
-    cue.startTime = Math.max(startTime, 0);
-    cue.endTime = Math.max(startTime + duration, 0);
-
-    //trim trailing webvtt block whitespaces
-    const text = cue.text.trim();
-
-    // Fix encoding of special characters
-    cue.text = decodeURIComponent(encodeURIComponent(text));
-
-    // If the cue was not assigned an id from the VTT file (line above the content), create one.
-    if (!cue.id) {
-      cue.id = generateCueId(cue.startTime, cue.endTime, text);
-    }
-    if (cue.endTime > 0) {
-      cues.push(cue);
-    }
-  };
-  parser.onparsingerror = function (error) {
-    parsingError = error;
-  };
-  parser.onflush = function () {
-    if (parsingError) {
-      errorCallBack(parsingError);
-      return;
-    }
-    callBack(cues);
-  };
-
-  // Go through contents line by line.
-  vttLines.forEach(line => {
-    if (inHeader) {
-      // Look for X-TIMESTAMP-MAP in header.
-      if (startsWith(line, 'X-TIMESTAMP-MAP=')) {
-        // Once found, no more are allowed anyway, so stop searching.
-        inHeader = false;
-        // Extract LOCAL and MPEGTS.
-        line.slice(16).split(',').forEach(timestamp => {
-          if (startsWith(timestamp, 'LOCAL:')) {
-            cueTime = timestamp.slice(6);
-          } else if (startsWith(timestamp, 'MPEGTS:')) {
-            timestampMapMPEGTS = parseInt(timestamp.slice(7));
-          }
-        });
-        try {
-          // Convert cue time to seconds
-          timestampMapLOCAL = cueString2millis(cueTime) / 1000;
-        } catch (error) {
-          parsingError = error;
-        }
-        // Return without parsing X-TIMESTAMP-MAP line.
-        return;
-      } else if (line === '') {
-        inHeader = false;
-      }
-    }
-    // Parse line by default.
-    parser.parse(line + '\n');
-  });
-  parser.flush();
-}
-
-const IMSC1_CODEC = 'stpp.ttml.im1t';
-
-// Time format: h:m:s:frames(.subframes)
-const HMSF_REGEX = /^(\d{2,}):(\d{2}):(\d{2}):(\d{2})\.?(\d+)?$/;
-
-// Time format: hours, minutes, seconds, milliseconds, frames, ticks
-const TIME_UNIT_REGEX = /^(\d*(?:\.\d*)?)(h|m|s|ms|f|t)$/;
-const textAlignToLineAlign = {
-  left: 'start',
-  center: 'center',
-  right: 'end',
-  start: 'start',
-  end: 'end'
-};
-function parseIMSC1(payload, initPTS, callBack, errorCallBack) {
-  const results = findBox(new Uint8Array(payload), ['mdat']);
-  if (results.length === 0) {
-    errorCallBack(new Error('Could not parse IMSC1 mdat'));
-    return;
-  }
-  const ttmlList = results.map(mdat => utf8ArrayToStr(mdat));
-  const syncTime = toTimescaleFromScale(initPTS.baseTime, 1, initPTS.timescale);
-  try {
-    ttmlList.forEach(ttml => callBack(parseTTML(ttml, syncTime)));
-  } catch (error) {
-    errorCallBack(error);
-  }
-}
-function parseTTML(ttml, syncTime) {
-  const parser = new DOMParser();
-  const xmlDoc = parser.parseFromString(ttml, 'text/xml');
-  const tt = xmlDoc.getElementsByTagName('tt')[0];
-  if (!tt) {
-    throw new Error('Invalid ttml');
-  }
-  const defaultRateInfo = {
-    frameRate: 30,
-    subFrameRate: 1,
-    frameRateMultiplier: 0,
-    tickRate: 0
-  };
-  const rateInfo = Object.keys(defaultRateInfo).reduce((result, key) => {
-    result[key] = tt.getAttribute(`ttp:${key}`) || defaultRateInfo[key];
-    return result;
-  }, {});
-  const trim = tt.getAttribute('xml:space') !== 'preserve';
-  const styleElements = collectionToDictionary(getElementCollection(tt, 'styling', 'style'));
-  const regionElements = collectionToDictionary(getElementCollection(tt, 'layout', 'region'));
-  const cueElements = getElementCollection(tt, 'body', '[begin]');
-  return [].map.call(cueElements, cueElement => {
-    const cueText = getTextContent(cueElement, trim);
-    if (!cueText || !cueElement.hasAttribute('begin')) {
-      return null;
-    }
-    const startTime = parseTtmlTime(cueElement.getAttribute('begin'), rateInfo);
-    const duration = parseTtmlTime(cueElement.getAttribute('dur'), rateInfo);
-    let endTime = parseTtmlTime(cueElement.getAttribute('end'), rateInfo);
-    if (startTime === null) {
-      throw timestampParsingError(cueElement);
-    }
-    if (endTime === null) {
-      if (duration === null) {
-        throw timestampParsingError(cueElement);
-      }
-      endTime = startTime + duration;
-    }
-    const cue = new VTTCue(startTime - syncTime, endTime - syncTime, cueText);
-    cue.id = generateCueId(cue.startTime, cue.endTime, cue.text);
-    const region = regionElements[cueElement.getAttribute('region')];
-    const style = styleElements[cueElement.getAttribute('style')];
-
-    // Apply styles to cue
-    const styles = getTtmlStyles(region, style, styleElements);
-    const {
-      textAlign
-    } = styles;
-    if (textAlign) {
-      // cue.positionAlign not settable in FF~2016
-      const lineAlign = textAlignToLineAlign[textAlign];
-      if (lineAlign) {
-        cue.lineAlign = lineAlign;
-      }
-      cue.align = textAlign;
-    }
-    _extends(cue, styles);
-    return cue;
-  }).filter(cue => cue !== null);
-}
-function getElementCollection(fromElement, parentName, childName) {
-  const parent = fromElement.getElementsByTagName(parentName)[0];
-  if (parent) {
-    return [].slice.call(parent.querySelectorAll(childName));
-  }
-  return [];
-}
-function collectionToDictionary(elementsWithId) {
-  return elementsWithId.reduce((dict, element) => {
-    const id = element.getAttribute('xml:id');
-    if (id) {
-      dict[id] = element;
-    }
-    return dict;
-  }, {});
-}
-function getTextContent(element, trim) {
-  return [].slice.call(element.childNodes).reduce((str, node, i) => {
-    var _node$childNodes;
-    if (node.nodeName === 'br' && i) {
-      return str + '\n';
-    }
-    if ((_node$childNodes = node.childNodes) != null && _node$childNodes.length) {
-      return getTextContent(node, trim);
-    } else if (trim) {
-      return str + node.textContent.trim().replace(/\s+/g, ' ');
-    }
-    return str + node.textContent;
-  }, '');
-}
-function getTtmlStyles(region, style, styleElements) {
-  const ttsNs = 'http://www.w3.org/ns/ttml#styling';
-  let regionStyle = null;
-  const styleAttributes = ['displayAlign', 'textAlign', 'color', 'backgroundColor', 'fontSize', 'fontFamily'
-  // 'fontWeight',
-  // 'lineHeight',
-  // 'wrapOption',
-  // 'fontStyle',
-  // 'direction',
-  // 'writingMode'
-  ];
-  const regionStyleName = region != null && region.hasAttribute('style') ? region.getAttribute('style') : null;
-  if (regionStyleName && styleElements.hasOwnProperty(regionStyleName)) {
-    regionStyle = styleElements[regionStyleName];
-  }
-  return styleAttributes.reduce((styles, name) => {
-    const value = getAttributeNS(style, ttsNs, name) || getAttributeNS(region, ttsNs, name) || getAttributeNS(regionStyle, ttsNs, name);
-    if (value) {
-      styles[name] = value;
-    }
-    return styles;
-  }, {});
-}
-function getAttributeNS(element, ns, name) {
-  if (!element) {
-    return null;
-  }
-  return element.hasAttributeNS(ns, name) ? element.getAttributeNS(ns, name) : null;
-}
-function timestampParsingError(node) {
-  return new Error(`Could not parse ttml timestamp ${node}`);
-}
-function parseTtmlTime(timeAttributeValue, rateInfo) {
-  if (!timeAttributeValue) {
-    return null;
-  }
-  let seconds = parseTimeStamp(timeAttributeValue);
-  if (seconds === null) {
-    if (HMSF_REGEX.test(timeAttributeValue)) {
-      seconds = parseHoursMinutesSecondsFrames(timeAttributeValue, rateInfo);
-    } else if (TIME_UNIT_REGEX.test(timeAttributeValue)) {
-      seconds = parseTimeUnits(timeAttributeValue, rateInfo);
-    }
-  }
-  return seconds;
-}
-function parseHoursMinutesSecondsFrames(timeAttributeValue, rateInfo) {
-  const m = HMSF_REGEX.exec(timeAttributeValue);
-  const frames = (m[4] | 0) + (m[5] | 0) / rateInfo.subFrameRate;
-  return (m[1] | 0) * 3600 + (m[2] | 0) * 60 + (m[3] | 0) + frames / rateInfo.frameRate;
-}
-function parseTimeUnits(timeAttributeValue, rateInfo) {
-  const m = TIME_UNIT_REGEX.exec(timeAttributeValue);
-  const value = Number(m[1]);
-  const unit = m[2];
-  switch (unit) {
-    case 'h':
-      return value * 3600;
-    case 'm':
-      return value * 60;
-    case 'ms':
-      return value * 1000;
-    case 'f':
-      return value / rateInfo.frameRate;
-    case 't':
-      return value / rateInfo.tickRate;
-  }
-  return value;
-}
-
 class OutputFilter {
   constructor(timelineController, trackName) {
     this.timelineController = void 0;
@@ -29956,7 +30026,6 @@ class TimelineController {
     this.config = void 0;
     this.enabled = true;
     this.Cues = void 0;
-    this.textTracks = [];
     this.tracks = [];
     this.initPTS = [];
     this.unparsedVttFrags = [];
@@ -30055,7 +30124,7 @@ class TimelineController {
       cueRanges.push([startTime, endTime]);
     }
     if (this.config.renderTextTracksNatively) {
-      const track = this.captionsTracks[trackName];
+      const track = this.captionsTracks[trackName].track;
       this.Cues.newCue(track, startTime, endTime, screen);
     } else {
       const cues = this.Cues.newCue(null, startTime, endTime, screen);
@@ -30103,23 +30172,6 @@ class TimelineController {
       });
     }
   }
-  getExistingTrack(label, language) {
-    const {
-      media
-    } = this;
-    if (media) {
-      for (let i = 0; i < media.textTracks.length; i++) {
-        const textTrack = media.textTracks[i];
-        if (canReuseVttTextTrack(textTrack, {
-          name: label,
-          lang: language,
-          characteristics: 'transcribes-spoken-dialog,describes-music-and-sound'})) {
-          return textTrack;
-        }
-      }
-    }
-    return null;
-  }
   createCaptionsTrack(trackName) {
     if (this.config.renderTextTracksNatively) {
       this.createNativeTrack(trackName);
@@ -30140,19 +30192,8 @@ class TimelineController {
       label,
       languageCode
     } = captionsProperties[trackName];
-    // Enable reuse of existing text track.
-    const existingTrack = this.getExistingTrack(label, languageCode);
-    if (!existingTrack) {
-      const textTrack = this.createTextTrack('captions', label, languageCode);
-      if (textTrack) {
-        // Set a special property on the track so we know it's managed by Hls.js
-        textTrack[trackName] = true;
-        captionsTracks[trackName] = textTrack;
-      }
-    } else {
-      captionsTracks[trackName] = existingTrack;
-      clearCurrentCues(captionsTracks[trackName]);
-      sendAddTrackEvent(captionsTracks[trackName], media);
+    if (media) {
+      captionsTracks[trackName] = createTrackNode(media, 'captions', label, languageCode);
     }
   }
   createNonNativeTrack(trackName) {
@@ -30177,18 +30218,8 @@ class TimelineController {
       tracks: [track]
     });
   }
-  createTextTrack(kind, label, lang) {
-    const media = this.media;
-    if (!media) {
-      return;
-    }
-    return media.addTextTrack(kind, label, lang);
-  }
   onMediaAttaching(event, data) {
     this.media = data.media;
-    if (!data.mediaSource) {
-      this._cleanTracks();
-    }
   }
   onMediaDetaching(event, data) {
     const transferringMedia = !!data.transferMedia;
@@ -30196,13 +30227,15 @@ class TimelineController {
     if (transferringMedia) {
       return;
     }
-    const {
-      captionsTracks
-    } = this;
-    Object.keys(captionsTracks).forEach(trackName => {
-      clearCurrentCues(captionsTracks[trackName]);
-      delete captionsTracks[trackName];
-    });
+    if (this.config.renderTextTracksNatively) {
+      const {
+        captionsTracks
+      } = this;
+      for (const trackName in captionsTracks) {
+        captionsTracks[trackName].remove();
+      }
+    }
+    this.captionsTracks = {};
     this.nonNativeCaptionsTracks = {};
   }
   onManifestLoading() {
@@ -30213,12 +30246,9 @@ class TimelineController {
     // Detect discontinuity in subtitle manifests
     this.prevCC = -1;
     this.vttCCs = newVTTCCs();
-    // Reset tracks
-    this._cleanTracks();
     this.tracks = [];
     this.captionsTracks = {};
     this.nonNativeCaptionsTracks = {};
-    this.textTracks = [];
     this.unparsedVttFrags = [];
     this.initPTS = [];
     if (this.cea608Parser1 && this.cea608Parser2) {
@@ -30226,86 +30256,23 @@ class TimelineController {
       this.cea608Parser2.reset();
     }
   }
-  _cleanTracks() {
-    // clear outdated subtitles
-    const {
-      media
-    } = this;
-    if (!media) {
-      return;
-    }
-    const textTracks = media.textTracks;
-    if (textTracks) {
-      for (let i = 0; i < textTracks.length; i++) {
-        clearCurrentCues(textTracks[i]);
-      }
-    }
-  }
   onSubtitleTracksUpdated(event, data) {
     const tracks = data.subtitleTracks || [];
-    const hasIMSC1 = tracks.some(track => track.textCodec === IMSC1_CODEC);
-    if (this.config.enableWebVTT || hasIMSC1 && this.config.enableIMSC1) {
-      const listIsIdentical = subtitleOptionsIdentical(this.tracks, tracks);
-      if (listIsIdentical) {
-        this.tracks = tracks;
-        return;
-      }
-      this.textTracks = [];
-      this.tracks = tracks;
-      if (this.config.renderTextTracksNatively) {
-        const media = this.media;
-        const inUseTracks = media ? filterSubtitleTracks(media.textTracks) : null;
-        this.tracks.forEach((track, index) => {
-          // Reuse tracks with the same label and lang, but do not reuse 608/708 tracks
-          let textTrack;
-          if (inUseTracks) {
-            let inUseTrack = null;
-            for (let i = 0; i < inUseTracks.length; i++) {
-              if (inUseTracks[i] && canReuseVttTextTrack(inUseTracks[i], track)) {
-                inUseTrack = inUseTracks[i];
-                inUseTracks[i] = null;
-                break;
-              }
-            }
-            if (inUseTrack) {
-              textTrack = inUseTrack;
-            }
-          }
-          if (textTrack) {
-            clearCurrentCues(textTrack);
-          } else {
-            const textTrackKind = captionsOrSubtitlesFromCharacteristics(track);
-            textTrack = this.createTextTrack(textTrackKind, track.name, track.lang);
-            if (textTrack) {
-              textTrack.mode = 'disabled';
-            }
-          }
-          if (textTrack) {
-            this.textTracks.push(textTrack);
-          }
-        });
-        // Warn when video element has captions or subtitle TextTracks carried over from another source
-        if (inUseTracks != null && inUseTracks.length) {
-          const unusedTextTracks = inUseTracks.filter(t => t !== null).map(t => t.label);
-          if (unusedTextTracks.length) {
-            this.hls.logger.warn(`Media element contains unused subtitle tracks: ${unusedTextTracks.join(', ')}. Replace media element for each source to clear TextTracks and captions menu.`);
-          }
-        }
-      } else if (this.tracks.length) {
-        // Create a list of tracks for the provider to consume
-        const tracksList = this.tracks.map(track => {
-          return {
-            label: track.name,
-            kind: track.type.toLowerCase(),
-            default: track.default,
-            subtitleTrack: track
-          };
-        });
-        this.hls.trigger(Events.NON_NATIVE_TEXT_TRACKS_FOUND, {
-          tracks: tracksList
-        });
-      }
+    if (tracks.length && !this.config.renderTextTracksNatively && !subtitleOptionsIdentical(this.tracks, tracks)) {
+      // Create a list of tracks for the provider to consume
+      const tracksList = tracks.map(track => {
+        return {
+          label: track.name,
+          kind: track.type.toLowerCase(),
+          default: track.default,
+          subtitleTrack: track
+        };
+      });
+      this.hls.trigger(Events.NON_NATIVE_TEXT_TRACKS_FOUND, {
+        tracks: tracksList
+      });
     }
+    this.tracks = tracks;
   }
   onManifestLoaded(event, data) {
     if (this.config.enableCEA708Captions && data.captions) {
@@ -30362,7 +30329,7 @@ class TimelineController {
       frag,
       payload
     } = data;
-    if (frag.type === PlaylistLevelType.SUBTITLE) {
+    if (frag.level < this.tracks.length && frag.type === PlaylistLevelType.SUBTITLE) {
       // If fragment is subtitle type, parse as WebVTT.
       if (payload.byteLength) {
         const decryptData = frag.decryptdata;
@@ -30380,7 +30347,7 @@ class TimelineController {
             };
             this.prevCC = frag.cc;
           }
-          if (trackPlaylistMedia && trackPlaylistMedia.textCodec === IMSC1_CODEC) {
+          if (trackPlaylistMedia.textCodec === IMSC1_CODEC) {
             this._parseIMSC1(frag, payload);
           } else {
             this._parseVTTs(data);
@@ -30442,7 +30409,7 @@ class TimelineController {
       const missingInitPTS = error.message === 'Missing initPTS for VTT MPEGTS';
       if (missingInitPTS) {
         unparsedVttFrags.push(data);
-      } else {
+      } else if (this.config.enableIMSC1) {
         this._fallbackToIMSC1(frag, payload);
       }
       // Something went wrong while parsing. Trigger event with success false.
@@ -30472,7 +30439,8 @@ class TimelineController {
   _appendCues(cues, fragLevel) {
     const hls = this.hls;
     if (this.config.renderTextTracksNatively) {
-      const textTrack = this.textTracks[fragLevel];
+      var _this$tracks$fragLeve;
+      const textTrack = (_this$tracks$fragLeve = this.tracks[fragLevel].trackNode) == null ? void 0 : _this$tracks$fragLeve.track;
       // WebVTTParser.parse is an async method and if the currently selected text track mode is set to "disabled"
       // before parsing is done then don't try to access currentTrack.cues.getCueById as cues will be null
       // and trying to access getCueById method of cues will throw an exception
@@ -30549,15 +30517,18 @@ class TimelineController {
       const {
         captionsTracks
       } = this;
-      Object.keys(captionsTracks).forEach(trackName => removeCuesInRange(captionsTracks[trackName], startOffset, endOffset));
+      Object.keys(captionsTracks).forEach(trackName => removeCuesInRange(captionsTracks[trackName].track, startOffset, endOffset));
     }
     if (this.config.renderTextTracksNatively) {
       // Clear VTT/IMSC1 subtitle cues from the subtitle TextTracks when the back buffer is flushed
       if (startOffset === 0 && endOffsetSubtitles !== undefined) {
-        const {
-          textTracks
-        } = this;
-        Object.keys(textTracks).forEach(trackName => removeCuesInRange(textTracks[trackName], startOffset, endOffsetSubtitles));
+        this.tracks.forEach(track => {
+          var _track$trackNode;
+          const textTrack = (_track$trackNode = track.trackNode) == null ? void 0 : _track$trackNode.track;
+          if (textTrack) {
+            removeCuesInRange(textTrack, startOffset, endOffsetSubtitles);
+          }
+        });
       }
     }
   }
@@ -30584,17 +30555,6 @@ class TimelineController {
     }
     return actualCCBytes;
   }
-}
-function captionsOrSubtitlesFromCharacteristics(track) {
-  if (track.characteristics) {
-    if (/transcribes-spoken-dialog/gi.test(track.characteristics) && /describes-music-and-sound/gi.test(track.characteristics)) {
-      return 'captions';
-    }
-  }
-  return 'subtitles';
-}
-function canReuseVttTextTrack(inUseTrack, manifestTrack) {
-  return !!inUseTrack && inUseTrack.kind === captionsOrSubtitlesFromCharacteristics(manifestTrack) && subtitleTrackMatchesTextTrack(manifestTrack, inUseTrack);
 }
 function intersection(x1, x2, y1, y2) {
   return Math.min(x2, y2) - Math.max(x1, y1);
@@ -31236,6 +31196,8 @@ const hlsDefaultConfig = _objectSpread2(_objectSpread2({
   // used by gap-controller
   nudgeOnVideoHole: true,
   // used by gap-controller
+  skipBufferHolePadding: 0.1,
+  // used by gap-controller
   liveSyncMode: 'edge',
   // used by stream-controller
   liveSyncDurationCount: 3,
@@ -31595,8 +31557,6 @@ function enableStreamingMode(config, logger) {
 }
 
 const MAX_START_GAP_JUMP = 2.0;
-const SKIP_BUFFER_HOLE_STEP_SECONDS = 0.1;
-const SKIP_BUFFER_RANGE_START = 0.05;
 const TICK_INTERVAL$1 = 100;
 class GapController extends TaskLoop {
   constructor(hls, fragmentTracker) {
@@ -31606,6 +31566,7 @@ class GapController extends TaskLoop {
     this.media = null;
     this.mediaSource = void 0;
     this.nudgeRetry = 0;
+    this.skipRetry = 0;
     this.stallReported = false;
     this.stalled = null;
     this.moved = false;
@@ -31734,7 +31695,7 @@ class GapController extends TaskLoop {
       }
       this.moved = true;
       if (!seeking) {
-        this.nudgeRetry = 0;
+        this.skipRetry = this.nudgeRetry = 0;
         // When crossing between buffered video time ranges, but not audio, flush pipeline with seek (Chrome)
         if (config.nudgeOnVideoHole && !pausedEndedOrHalted && currentTime > lastCurrentTime) {
           this.nudgeOnVideoHole(currentTime, lastCurrentTime);
@@ -31756,7 +31717,7 @@ class GapController extends TaskLoop {
 
     // The playhead should not be moving
     if (pausedEndedOrHalted) {
-      this.nudgeRetry = 0;
+      this.skipRetry = this.nudgeRetry = 0;
       this.stallResolved(currentTime);
       // Fire MEDIA_ENDED to workaround event not being dispatched by browser
       if (!this.ended && media.ended && this.hls) {
@@ -31768,7 +31729,7 @@ class GapController extends TaskLoop {
       return;
     }
     if (!BufferHelper.getBuffered(media).length) {
-      this.nudgeRetry = 0;
+      this.skipRetry = this.nudgeRetry = 0;
       return;
     }
 
@@ -32065,16 +32026,23 @@ class GapController extends TaskLoop {
             }
           }
         }
-        const targetTime = Math.max(startTime + SKIP_BUFFER_RANGE_START, currentTime + SKIP_BUFFER_HOLE_STEP_SECONDS);
-        this.warn(`skipping hole, adjusting currentTime from ${currentTime} to ${targetTime}`);
-        this.moved = true;
-        media.currentTime = targetTime;
-        if (!(appended != null && appended.gap)) {
-          const error = new Error(`fragment loaded with buffer holes, seeking from ${currentTime} to ${targetTime}`);
+        const {
+          nudgeMaxRetry,
+          skipBufferHolePadding
+        } = config;
+        const fatal = ++this.skipRetry > nudgeMaxRetry;
+        const targetTime = Math.max(startTime, currentTime) + skipBufferHolePadding;
+        if (!fatal) {
+          this.warn(`skipping hole, adjusting currentTime from ${currentTime} to ${targetTime}`);
+          this.moved = true;
+          media.currentTime = targetTime;
+        }
+        if (!(appended != null && appended.gap) || fatal) {
+          const error = new Error(fatal ? `Playhead still not moving after seeking over buffer hole from ${currentTime} to ${targetTime} after ${config.nudgeMaxRetry} attempts.` : `fragment loaded with buffer holes, seeking from ${currentTime} to ${targetTime}`);
           const errorData = {
             type: ErrorTypes.MEDIA_ERROR,
             details: ErrorDetails.BUFFER_SEEK_OVER_HOLE,
-            fatal: false,
+            fatal,
             error,
             reason: error.message,
             buffer: bufferInfo.len,
@@ -32255,11 +32223,7 @@ class ID3TrackController {
   }
   // Add ID3 metatadata text track.
   onMediaAttaching(event, data) {
-    var _data$overrides;
     this.media = data.media;
-    if (((_data$overrides = data.overrides) == null ? void 0 : _data$overrides.cueRemoval) === false) {
-      this.removeCues = false;
-    }
   }
   onMediaAttached() {
     var _this$hls;
@@ -32275,9 +32239,7 @@ class ID3TrackController {
       return;
     }
     if (this.id3Track) {
-      if (this.removeCues) {
-        clearCurrentCues(this.id3Track, this.onEventCueEnter);
-      }
+      this.id3Track.remove();
       this.id3Track = null;
     }
     this.dateRangeCuesAppended = {};
@@ -32286,24 +32248,7 @@ class ID3TrackController {
     this.dateRangeCuesAppended = {};
   }
   createTrack(media) {
-    const track = this.getID3Track(media.textTracks);
-    track.mode = 'hidden';
-    return track;
-  }
-  getID3Track(textTracks) {
-    if (!this.media) {
-      return;
-    }
-    for (let i = 0; i < textTracks.length; i++) {
-      const textTrack = textTracks[i];
-      if (textTrack.kind === 'metadata' && textTrack.label === 'id3') {
-        // send 'addtrack' when reusing the textTrack for metadata,
-        // same as what we do for captions
-        sendAddTrackEvent(textTrack, this.media);
-        return textTrack;
-      }
-    }
-    return this.media.addTextTrack('metadata', 'id3');
+    return createTrackNode(media, 'metadata', 'id3', '', 'hidden');
   }
   onFragParsingMetadata(event, data) {
     if (!this.media || !this.hls) {
@@ -32351,7 +32296,7 @@ class ID3TrackController {
           this.updateId3CueEnds(startTime, type);
           const cue = createCueWithDataFields(Cue, startTime, endTime, frame, type);
           if (cue) {
-            this.id3Track.addCue(cue);
+            this.id3Track.track.addCue(cue);
           }
         }
       }
@@ -32359,7 +32304,7 @@ class ID3TrackController {
   }
   updateId3CueEnds(startTime, type) {
     var _this$id3Track;
-    const cues = (_this$id3Track = this.id3Track) == null ? void 0 : _this$id3Track.cues;
+    const cues = (_this$id3Track = this.id3Track) == null ? void 0 : _this$id3Track.track.cues;
     if (cues) {
       for (let i = cues.length; i--;) {
         const cue = cues[i];
@@ -32396,7 +32341,7 @@ class ID3TrackController {
       } else {
         predicate = cue => cue.type === MetadataSchema.audioId3 && enableID3MetadataCues || cue.type === MetadataSchema.emsg && enableEmsgMetadataCues;
       }
-      removeCuesInRange(id3Track, startOffset, endOffset, predicate);
+      removeCuesInRange(id3Track.track, startOffset, endOffset, predicate);
     }
   }
   onLevelUpdated(event, {
@@ -32439,7 +32384,7 @@ class ID3TrackController {
         if (cue) {
           cue.id = assetPlayerId;
           this.id3Track || (this.id3Track = this.createTrack(this.media));
-          this.id3Track.addCue(cue);
+          this.id3Track.track.addCue(cue);
           cue.addEventListener('enter', this.onEventCueEnter);
         }
       }
@@ -32457,8 +32402,8 @@ class ID3TrackController {
     let dateRangeCuesAppended = this.dateRangeCuesAppended;
     // Remove cues from track not found in details.dateRanges
     if (id3Track && removeOldCues) {
-      var _id3Track$cues;
-      if ((_id3Track$cues = id3Track.cues) != null && _id3Track$cues.length) {
+      var _id3Track$track$cues;
+      if ((_id3Track$track$cues = id3Track.track.cues) != null && _id3Track$track$cues.length) {
         const idsToRemove = Object.keys(dateRangeCuesAppended).filter(id => !ids.includes(id));
         for (let i = idsToRemove.length; i--;) {
           var _dateRangeCuesAppende;
@@ -32471,7 +32416,7 @@ class ID3TrackController {
               if (cue) {
                 cue.removeEventListener('enter', this.onEventCueEnter);
                 try {
-                  id3Track.removeCue(cue);
+                  id3Track.track.removeCue(cue);
                 } catch (e) {
                   /* no-op */
                 }
@@ -32550,7 +32495,7 @@ class ID3TrackController {
           const _cue = createCueWithDataFields(Cue, startTime, endTime, payload, MetadataSchema.dateRange);
           if (_cue) {
             _cue.id = id;
-            this.id3Track.addCue(_cue);
+            this.id3Track.track.addCue(_cue);
             cues[key] = _cue;
             if (interstitialsController) {
               if (key === 'X-ASSET-LIST' || key === 'X-ASSET-URL') {
@@ -33430,7 +33375,6 @@ class StreamController extends BaseStreamController {
     this.altAudio = 0;
     this.audioOnly = false;
     this.fragPlaying = null;
-    this.fragLastKbps = 0;
     this.couldBacktrack = false;
     this.backtrackFragment = null;
     this.audioCodecSwitch = false;
@@ -33738,41 +33682,38 @@ class StreamController extends BaseStreamController {
   nextLevelSwitch() {
     const {
       levels,
-      media
+      media,
+      hls,
+      config
     } = this;
     // ensure that media is defined and that metadata are available (to retrieve currentTime)
-    if (media != null && media.readyState) {
-      let fetchdelay;
-      const fragPlayingCurrent = this.getAppendedFrag(media.currentTime);
-      if (fragPlayingCurrent && fragPlayingCurrent.start > 1) {
-        // flush buffer preceding current fragment (flush until current fragment start offset)
-        // minus 1s to avoid video freezing, that could happen if we flush keyframe of current video ...
-        this.flushMainBuffer(0, fragPlayingCurrent.start - 1);
+    if (media != null && media.readyState && levels && hls && config) {
+      const bufferInfo = this.getMainFwdBufferInfo();
+      if (!bufferInfo) {
+        return;
       }
       const levelDetails = this.getLevelDetails();
-      if (levelDetails != null && levelDetails.live) {
-        const bufferInfo = this.getMainFwdBufferInfo();
-        // Do not flush in live stream with low buffer
-        if (!bufferInfo || bufferInfo.len < levelDetails.targetduration * 2) {
-          return;
-        }
-      }
-      if (!media.paused && levels) {
+      let fetchdelay = 0;
+      if (!media.paused) {
+        var _this$fragCurrent;
         // add a safety delay of 1s
-        const nextLevelId = this.hls.nextLoadLevel;
+        const ttfbSec = 1 + hls.ttfbEstimate / 1000;
+        const bandwidth = hls.bandwidthEstimate * config.abrBandWidthUpFactor;
+        const nextLevelId = hls.nextLoadLevel;
         const nextLevel = levels[nextLevelId];
-        const fragLastKbps = this.fragLastKbps;
-        if (fragLastKbps && this.fragCurrent) {
-          fetchdelay = this.fragCurrent.duration * nextLevel.maxBitrate / (1000 * fragLastKbps) + 1;
-        } else {
-          fetchdelay = 0;
+        const fragDuration = levelDetails && (this.loadingParts ? levelDetails.partTarget : levelDetails.averagetargetduration) || ((_this$fragCurrent = this.fragCurrent) == null ? void 0 : _this$fragCurrent.duration) || 6;
+        fetchdelay = ttfbSec + nextLevel.maxBitrate * fragDuration / bandwidth;
+        if (!nextLevel.details) {
+          fetchdelay += ttfbSec;
         }
-      } else {
-        fetchdelay = 0;
       }
-      // this.log('fetchdelay:'+fetchdelay);
+
+      // Do not flush in live stream with low buffer
+
+      const okToFlushForwardBuffer = !(levelDetails != null && levelDetails.live) || (bufferInfo.len || 0) > levelDetails.targetduration * 2;
+
       // find buffer range that will be reached once new fragment will be fetched
-      const bufferedFrag = this.getBufferedFrag(media.currentTime + fetchdelay);
+      const bufferedFrag = okToFlushForwardBuffer ? this.getBufferedFrag(media.currentTime + fetchdelay) : null;
       if (bufferedFrag) {
         // we can flush buffer range following this one without stalling playback
         const nextBufferedFrag = this.followingBufferedFrag(bufferedFrag);
@@ -33786,7 +33727,15 @@ class StreamController extends BaseStreamController {
           this.flushMainBuffer(startPts, Number.POSITIVE_INFINITY);
         }
       }
+      // remove back-buffer
+      const fragPlayingCurrent = this.getAppendedFrag(media.currentTime);
+      if (fragPlayingCurrent && fragPlayingCurrent.start > 1) {
+        // flush buffer preceding current fragment (flush until current fragment start offset)
+        // minus 1s to avoid video freezing, that could happen if we flush keyframe of current video ...
+        this.flushMainBuffer(0, fragPlayingCurrent.start - 1);
+      }
     }
+    this.tickImmediate();
   }
   abortCurrentFrag() {
     const fragCurrent = this.fragCurrent;
@@ -33839,7 +33788,6 @@ class StreamController extends BaseStreamController {
     this.log('Trigger BUFFER_RESET');
     this.hls.trigger(Events.BUFFER_RESET, undefined);
     this.couldBacktrack = false;
-    this.fragLastKbps = 0;
     this.fragPlaying = this.backtrackFragment = null;
     this.altAudio = 0;
     this.audioOnly = false;
@@ -34126,8 +34074,6 @@ class StreamController extends BaseStreamController {
         }
         return;
       }
-      const stats = part ? part.stats : frag.stats;
-      this.fragLastKbps = Math.round(8 * stats.total / (stats.buffering.end - stats.loading.first));
       if (isMediaFragment(frag)) {
         this.fragPrevious = frag;
       }
@@ -34765,7 +34711,7 @@ class KeyLoader extends Logger {
       frag,
       response,
       error,
-      networkDetails
+      networkDetails: networkDetails || null
     });
   }
   loadClear(loadingFrag, encryptedFragments, startFragRequested) {
@@ -34887,21 +34833,13 @@ class KeyLoader extends Logger {
       if (!keyInfo.decryptdata.keyId && (_frag$initSegment = frag.initSegment) != null && _frag$initSegment.data) {
         const keyIds = parseKeyIdsFromTenc(frag.initSegment.data);
         if (keyIds.length) {
-          let keyId = keyIds[0];
+          const keyId = keyIds[0];
           if (keyId.some(b => b !== 0)) {
             this.log(`Using keyId found in init segment ${arrayToHex(keyId)}`);
+            keyInfo.decryptdata.keyId = keyId;
             LevelKey.setKeyIdForUri(keyInfo.decryptdata.uri, keyId);
-          } else {
-            keyId = LevelKey.addKeyIdForUri(keyInfo.decryptdata.uri);
-            this.log(`Generating keyId to patch media ${arrayToHex(keyId)}`);
           }
-          keyInfo.decryptdata.keyId = keyId;
         }
-      }
-      if (!keyInfo.decryptdata.keyId && !isMediaFragment(frag)) {
-        // Resolve so that unencrypted init segment is loaded
-        // key id is extracted from tenc box when processing key for next segment above
-        return Promise.resolve(keyLoadedData);
       }
       const keySessionContextPromise = this.emeController.loadKey(keyLoadedData);
       return (keyInfo.keyLoadPromise = keySessionContextPromise.then(keySessionContext => {
@@ -35494,7 +35432,10 @@ class PlaylistLoader {
       stats
     };
     if (response) {
-      const url = (networkDetails == null ? void 0 : networkDetails.url) || context.url;
+      let url = context.url;
+      if (networkDetails && 'url' in networkDetails) {
+        url = networkDetails.url;
+      }
       errorData.response = _objectSpread2({
         url,
         data: undefined
@@ -35907,8 +35848,10 @@ class Hls {
    */
   detachMedia() {
     this.logger.log('detachMedia');
-    this.trigger(Events.MEDIA_DETACHING, {});
+    const data = {};
+    this.trigger(Events.MEDIA_DETACHING, data);
     this._media = null;
+    this.trigger(Events.MEDIA_DETACHED, data);
   }
 
   /**
@@ -35917,9 +35860,11 @@ class Hls {
   transferMedia() {
     this._media = null;
     const transferMedia = this.bufferController.transferMedia();
-    this.trigger(Events.MEDIA_DETACHING, {
+    const data = {
       transferMedia
-    });
+    };
+    this.trigger(Events.MEDIA_DETACHING, data);
+    this.trigger(Events.MEDIA_DETACHED, data);
     return transferMedia;
   }
 
