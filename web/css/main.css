@@ -674,6 +674,20 @@ html * {
     overflow-x: hidden;
     scrollbar-color: var(--bg_5) var(--bg_2);
     padding: 16px 0 16px 0;
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0,
+        black 16px,
+        black calc(100% - 16px),
+        transparent 100%
+    );
+    mask-image: linear-gradient(
+        to bottom,
+        transparent 0,
+        black 16px,
+        black calc(100% - 16px),
+        transparent 100%
+    );
 }
 
 .user_box {
