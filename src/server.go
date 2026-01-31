@@ -347,11 +347,15 @@ func serveManifest(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, WEB_ROOT+"static/manifest.json")
 }
 
-func NewFsHandler(fsHandler http.Handler) FsHandler {
-	return FsHandler{
-		fsHandler: fsHandler,
-		cache:     false,
-	}
+// NewFsHandler creates a new file system handler which includes Cache-Control headers
+func NewFsHandler(strippedPrefix, dir string) FsHandler {
+	dirHandler := http.FileServer(http.Dir(dir))
+	fsHandler := http.StripPrefix(strippedPrefix, dirHandler)
+	return FsHandler{fsHandler: fsHandler}
+}
+
+func NewCachedFsHandler(fsHandler http.Handler) FsHandler {
+	return FsHandler{fsHandler: fsHandler}
 }
 
 func (fs FsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -413,14 +417,12 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	server.registerRedirects(mux)
 
 	ipv4Ranges := compileIpRanges(server.config.BlacklistedIpRanges)
-	contentRootFs := http.FileServer(http.Dir(CONTENT_ROOT))
-	contentFs := http.StripPrefix(CONTENT_ROUTE, contentRootFs)
-
-	contentHandler := NewGatewayHandler(NewFsHandler(contentFs), CONTENT_LIMITER_HITS, CONTENT_LIMITER_PER_SECOND, ipv4Ranges)
+	contentFs := NewFsHandler(CONTENT_ROUTE, CONTENT_ROOT)
+	contentHandler := NewGatewayHandler(contentFs, CONTENT_LIMITER_HITS, CONTENT_LIMITER_PER_SECOND, ipv4Ranges)
 	mux.Handle(CONTENT_ROUTE, contentHandler)
 
-	webFs := http.StripPrefix(PAGE_ROOT, http.FileServer(http.Dir(WEB_ROOT)))
-	staticHandler := NewGatewayHandler(NewFsHandler(webFs), STATIC_LIMITER_HITS, STATIC_LIMITER_PER_SECOND, ipv4Ranges)
+	webFs := NewFsHandler(PAGE_ROOT, WEB_ROOT)
+	staticHandler := NewGatewayHandler(webFs, STATIC_LIMITER_HITS, STATIC_LIMITER_PER_SECOND, ipv4Ranges)
 	mux.Handle(PAGE_ROOT, staticHandler)
 
 	mux.HandleFunc("/", serveRoot)
