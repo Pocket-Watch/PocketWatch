@@ -93,17 +93,14 @@ func GeneratePrettyTable(headers []string, data []string) string {
 
 	paddings := make([]int, columnCount)
 	for i, header := range headers {
-		paddings[i] = len(header)
+		paddings[i] = consoleTextWidth(header)
 	}
 
 	for row := 0; row < rowCount; row += 1 {
 		for column := 0; column < columnCount; column += 1 {
 			value := data[row*columnCount+column]
-			length := utf8.RuneCountInString(value)
-
-			if length > paddings[column] {
-				paddings[column] = length
-			}
+			width := consoleTextWidth(value)
+			paddings[column] = max(paddings[column], width)
 		}
 	}
 
@@ -147,7 +144,8 @@ func GeneratePrettyTable(headers []string, data []string) string {
 
 	table.WriteString(separatorTop)
 	for i, name := range headers {
-		str := fmt.Sprintf("│ %*s ", paddings[i], name)
+		pad := max(paddings[i]-consoleTextWidth(name), 0)
+		str := fmt.Sprintf("│ %s%s ", strings.Repeat(" ", pad), name)
 		table.WriteString(str)
 	}
 	table.WriteString("│\n")
@@ -162,8 +160,9 @@ func GeneratePrettyTable(headers []string, data []string) string {
 	for row := 0; row < rowCount; row += 1 {
 		for column := 0; column < columnCount; column += 1 {
 			value := data[row*columnCount+column]
-			format := fmt.Sprintf("│ %*s ", paddings[column], value)
-			table.WriteString(format)
+			pad := max(paddings[column]-consoleTextWidth(value), 0)
+			str := fmt.Sprintf("│ %s%s ", strings.Repeat(" ", pad), value)
+			table.WriteString(str)
 		}
 
 		table.WriteString("│\n")
