@@ -347,9 +347,26 @@ func serveManifest(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, WEB_ROOT+"static/manifest.json")
 }
 
-func NewGatewayHandler(fsHandler http.Handler, hits, perSecond int, ipv4Ranges []IpV4Range) GatewayHandler {
+func NewFsHandler(fsHandler http.Handler) FsHandler {
+	return FsHandler{
+		fsHandler: fsHandler,
+		cache:     false,
+	}
+}
+
+func (fs FsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	resource := strings.TrimPrefix(r.RequestURI, PAGE_ROOT)
+	LogDebug("Connection %s requested resource %v", getIp(r), resource)
+
+	// The no-cache directive does not prevent the storing of responses
+	// but instead prevents the reuse of responses without revalidation.
+	w.Header().Add("Cache-Control", "no-cache")
+	fs.fsHandler.ServeHTTP(w, r)
+}
+
+func NewGatewayHandler(handler http.Handler, hits, perSecond int, ipv4Ranges []IpV4Range) GatewayHandler {
 	return GatewayHandler{
-		fsHandler:           fsHandler,
+		handler:             handler,
 		ipToLimiters:        make(map[string]*RateLimiter),
 		mapMutex:            &sync.Mutex{},
 		blacklistedIpRanges: ipv4Ranges,
@@ -358,12 +375,12 @@ func NewGatewayHandler(fsHandler http.Handler, hits, perSecond int, ipv4Ranges [
 	}
 }
 
-func (cache GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (gate GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ip := stripPort(getIp(r))
-	resource := strings.TrimPrefix(r.RequestURI, PAGE_ROOT)
 
-	for _, blacklistedRange := range cache.blacklistedIpRanges {
+	for _, blacklistedRange := range gate.blacklistedIpRanges {
 		if blacklistedRange.Contains(ip) {
+			resource := strings.TrimPrefix(r.RequestURI, PAGE_ROOT)
 			LogWarn("Blacklisted address %v attempted to access %v", ip, resource)
 			blackholeRequest(r)
 			http.Error(w, "¯\\_(ツ)_/¯", http.StatusTeapot)
@@ -371,10 +388,10 @@ func (cache GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	cache.mapMutex.Lock()
-	rateLimiter, exists := cache.ipToLimiters[ip]
+	gate.mapMutex.Lock()
+	rateLimiter, exists := gate.ipToLimiters[ip]
 	if exists {
-		cache.mapMutex.Unlock()
+		gate.mapMutex.Unlock()
 		rateLimiter.mutex.Lock()
 		if rateLimiter.block() {
 			retryAfter := rateLimiter.getRetryAfter()
@@ -384,16 +401,11 @@ func (cache GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		rateLimiter.mutex.Unlock()
 	} else {
-		cache.ipToLimiters[ip] = NewLimiter(cache.hits, cache.perSecond)
-		cache.mapMutex.Unlock()
+		gate.ipToLimiters[ip] = NewLimiter(gate.hits, gate.perSecond)
+		gate.mapMutex.Unlock()
 	}
 
-	LogDebug("Connection %s requested resource %v", getIp(r), resource)
-
-	// The no-cache directive does not prevent the storing of responses
-	// but instead prevents the reuse of responses without revalidation.
-	w.Header().Add("Cache-Control", "no-cache")
-	cache.fsHandler.ServeHTTP(w, r)
+	gate.handler.ServeHTTP(w, r)
 }
 
 func registerEndpoints(server *Server) *http.ServeMux {
@@ -403,11 +415,12 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	ipv4Ranges := compileIpRanges(server.config.BlacklistedIpRanges)
 	contentRootFs := http.FileServer(http.Dir(CONTENT_ROOT))
 	contentFs := http.StripPrefix(CONTENT_ROUTE, contentRootFs)
-	contentHandler := NewGatewayHandler(contentFs, CONTENT_LIMITER_HITS, CONTENT_LIMITER_PER_SECOND, ipv4Ranges)
+
+	contentHandler := NewGatewayHandler(NewFsHandler(contentFs), CONTENT_LIMITER_HITS, CONTENT_LIMITER_PER_SECOND, ipv4Ranges)
 	mux.Handle(CONTENT_ROUTE, contentHandler)
 
 	webFs := http.StripPrefix(PAGE_ROOT, http.FileServer(http.Dir(WEB_ROOT)))
-	staticHandler := NewGatewayHandler(webFs, STATIC_LIMITER_HITS, STATIC_LIMITER_PER_SECOND, ipv4Ranges)
+	staticHandler := NewGatewayHandler(NewFsHandler(webFs), STATIC_LIMITER_HITS, STATIC_LIMITER_PER_SECOND, ipv4Ranges)
 	mux.Handle(PAGE_ROOT, staticHandler)
 
 	mux.HandleFunc("/", serveRoot)

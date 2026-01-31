@@ -322,11 +322,16 @@ type ServerState struct {
 }
 
 type GatewayHandler struct {
-	fsHandler           http.Handler
+	handler             http.Handler
 	ipToLimiters        map[string]*RateLimiter
 	mapMutex            *sync.Mutex
 	blacklistedIpRanges []IpV4Range
 	hits, perSecond     int
+}
+
+type FsHandler struct {
+	fsHandler http.Handler
+	cache     bool
 }
 
 type HlsProxy struct {
