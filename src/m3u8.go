@@ -505,15 +505,15 @@ type Height = int64
 
 func parseResolution(res string) (bool, Width, Height) {
 	res = strings.ToLower(res)
-	x := strings.Index(res, "x")
-	if x == -1 {
+	before, after, ok := strings.Cut(res, "x")
+	if !ok {
 		return false, 0, 0
 	}
-	width, err := strconv.ParseInt(res[:x], 10, 32)
+	width, err := strconv.ParseInt(before, 10, 32)
 	if err != nil {
 		return false, 0, 0
 	}
-	height, err := strconv.ParseInt(res[x+1:], 10, 32)
+	height, err := strconv.ParseInt(after, 10, 32)
 	if err != nil {
 		return false, 0, 0
 	}

@@ -188,11 +188,11 @@ func loadAppliedMigrations(db *sql.DB) ([]DbMigration, bool) {
 }
 
 func parseMigrationNumber(name string) (bool, uint) {
-	dash := strings.Index(name, "-")
-	if dash == -1 {
+	before, _, ok := strings.Cut(name, "-")
+	if !ok {
 		return false, 0
 	}
-	number, err := strconv.ParseUint(name[0:dash], 10, 64)
+	number, err := strconv.ParseUint(before, 10, 64)
 	if err != nil {
 		return false, 0
 	}

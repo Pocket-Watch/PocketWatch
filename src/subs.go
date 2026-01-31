@@ -225,8 +225,8 @@ func parseTimestamps(timestamps string) (Timecode, Timecode, error) {
 	if len(timestamps) < 29 {
 		return INVALID_TIMECODE, INVALID_TIMECODE, errors.New("the timestamps are not full")
 	}
-	separator := strings.Index(timestamps, "-->")
-	if separator == -1 {
+	found := strings.Contains(timestamps, "-->")
+	if !found {
 		return INVALID_TIMECODE, INVALID_TIMECODE, errors.New("no timecode separator found")
 	}
 	startStamp := timestamps[0:12]

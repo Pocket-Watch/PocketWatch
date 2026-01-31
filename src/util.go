@@ -344,11 +344,11 @@ func stripLastSegmentStr(url string) *string {
 }
 
 func stripParams(path string) string {
-	end := strings.Index(path, "?")
-	if end == -1 {
+	before, _, ok := strings.Cut(path, "?")
+	if !ok {
 		return path
 	}
-	return path[:end]
+	return before
 }
 
 func getBaseNoParams(urlPath string) string {
@@ -396,11 +396,11 @@ func int64ToString(num int64) string {
 
 func lastUrlSegment(url string) string {
 	url = path.Base(url)
-	questionMark := strings.Index(url, "?")
-	if questionMark == -1 {
+	before, _, ok := strings.Cut(url, "?")
+	if !ok {
 		return url
 	}
-	return url[:questionMark]
+	return before
 }
 
 func getRootDomain(url *net_url.URL) string {
