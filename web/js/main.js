@@ -33,10 +33,17 @@ const TAB_PLAYLIST = 2;
 const TAB_CHAT     = 3;
 const TAB_HISTORY  = 4;
 
+const SETTINGS_TAB_GENERAL  = 0;
+const SETTINGS_TAB_ACCOUNT  = 1;
+const SETTINGS_TAB_ROOM     = 2;
+const SETTINGS_TAB_DEVTOOLS = 3;
+const SETTINGS_TAB_ABOUT    = 4;
+const SETTINGS_TAB_DEFAULT  = SETTINGS_TAB_GENERAL;
+
 const MIN_CHROMIUM_VERSION = 88; // Opera, Edge, Chrome
-const MIN_FIREFOX_VERSION = 85;
-const MIN_SAFARI_VERSION = 14.1;
-const MAX_DESYNC = 1.5;
+const MIN_FIREFOX_VERSION  = 85;
+const MIN_SAFARI_VERSION   = 14.1;
+const MAX_DESYNC           = 1.5;
 
 const NOTIFICATION_SOUNDS = [
     { name: "Generic Sound 1",  path: "audio/generic1.mp3"   },
@@ -81,6 +88,22 @@ class Room {
             modal:       getById("settings_menu_modal"),
             root:        getById("settings_menu_root"),
             closeButton: getById("settings_menu_close_button"),
+
+            tabs: {
+                general:  getById("settings_tab_general"),
+                account:  getById("settings_tab_account"),
+                room:     getById("settings_tab_room"),
+                devtools: getById("settings_tab_devtools"),
+                about:    getById("settings_tab_about"),
+            },
+
+            content: {
+                general:  getById("settings_content_general"),
+                account:  getById("settings_content_account"),
+                room:     getById("settings_content_room"),
+                devtools: getById("settings_content_devtools"),
+                about:    getById("settings_content_about"),
+            },
 
             websiteUptime:   getById("settings_website_uptime"),
             websiteVersion:  getById("settings_website_version"),
@@ -217,6 +240,7 @@ class Room {
         this.newMessageAudio = new Audio(DEFAULT_NOTIFICATION_PATH);
 
         this.selected_tab = TAB_DEFAULT;
+        this.selected_settings_tab = SETTINGS_TAB_DEFAULT;
 
         this.roomSelectedSubId = -1;
 
@@ -656,6 +680,67 @@ class Room {
         return requestEntry;
     }
 
+    getSettingsMenuTabHtml(tab_type) {
+        let tab;
+        let content;
+        switch (tab_type) {
+            case SETTINGS_TAB_GENERAL: {
+                tab     = this.settingsMenu.tabs.general;
+                content = this.settingsMenu.content.general;
+            } break;
+
+            case SETTINGS_TAB_ACCOUNT: {
+                tab     = this.settingsMenu.tabs.account;
+                content = this.settingsMenu.content.account;
+            } break;
+
+            case SETTINGS_TAB_ROOM: {
+                tab     = this.settingsMenu.tabs.room;
+                content = this.settingsMenu.content.room;
+            } break;
+
+            case SETTINGS_TAB_DEVTOOLS: {
+                tab     = this.settingsMenu.tabs.devtools;
+                content = this.settingsMenu.content.devtools;
+            } break;
+
+            case SETTINGS_TAB_ABOUT: {
+                tab     = this.settingsMenu.tabs.about;
+                content = this.settingsMenu.content.about;
+            } break;
+
+            default: {
+                tab     = this.settingsMenu.tabs.general;
+                content = this.settingsMenu.content.general;
+            } break;
+        }
+
+        let htmlContent = {
+            tab:     tab,
+            content: content,
+        };
+
+        return htmlContent;
+    }
+
+    selectSettingsMenuTab(tab_type) {
+        const selected = this.getSettingsMenuTabHtml(this.selected_settings_tab);
+
+        selected.tab.classList.remove("selected");
+        selected.content.classList.remove("selected");
+
+        const { tab, content } = this.getSettingsMenuTabHtml(tab_type);
+
+        tab.classList.add("selected");
+        content.classList.add("selected");
+
+        if (this.selected_settings_tab === tab_type) {
+            content.scrollIntoView({ behavior: "smooth", block: "end" });
+        }
+
+        this.selected_settings_tab = tab_type;
+    }
+
     getRightPanelTabHtml(tab_type) {
         let tab;
         let content;
@@ -1081,6 +1166,15 @@ class Room {
         };
 
         menu.closeButton.onclick = _ => this.hideSettingsMenu();
+
+
+        const tabs = this.settingsMenu.tabs;
+
+        tabs.general.onclick  = _ => this.selectSettingsMenuTab(SETTINGS_TAB_GENERAL);
+        tabs.account.onclick  = _ => this.selectSettingsMenuTab(SETTINGS_TAB_ACCOUNT);
+        tabs.room.onclick     = _ => this.selectSettingsMenuTab(SETTINGS_TAB_ROOM);
+        tabs.devtools.onclick = _ => this.selectSettingsMenuTab(SETTINGS_TAB_DEVTOOLS);
+        tabs.about.onclick    = _ => this.selectSettingsMenuTab(SETTINGS_TAB_ABOUT);
 
         menu.tokenCopyButton.onclick = async _ => {
             if (navigator.clipboard) {
@@ -2293,6 +2387,7 @@ async function main() {
     await room.connectToServer();
     room.loadNotificationSounds();
     room.applyUserPreferences();
+    room.selectSettingsMenuTab(SETTINGS_TAB_DEFAULT);
 
     // Expose room to browser console for debugging.
     window.room = room;

@@ -50,6 +50,7 @@ html * {
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
+    row-gap: 2px;
     padding: 10px;
     padding-top: 16px;
     background-color: var(--bg_1);
@@ -75,7 +76,7 @@ html * {
     border-radius: 4px;
     margin-top: 20px;
     margin-bottom: 8px;
-    background-color: var(--bg_5);
+    background-color: var(--bg_3);
 }
 
 .settings_tab {
@@ -97,16 +98,45 @@ html * {
     background-color: var(--bg_3);
 }
 
+.settings_tab.selected {
+    background-color: var(--bg_4);
+}
+
 .settings_tab svg {
     height: 16px;
     width: 16px;
     fill: var(--fg_3);
 }
 
+.settings_tab:hover svg {
+    fill: var(--fg_1);
+}
+
+.settings_tab.selected svg {
+    fill: var(--fg_1);
+}
+
 .settings_tab span {
     font-size: 16px;
-    /* font-weight: bold; */
     color: var(--fg_3);
+}
+
+.settings_tab:hover span {
+    color: var(--fg_1);
+}
+
+.settings_tab.selected span {
+    color: var(--fg_1);
+}
+
+.settings_content {
+    display: none;
+}
+
+.settings_content.selected {
+    display: flex;
+    flex-direction: column;
+    row-gap: 8px;
 }
 
 #settings_menu_panel_separator {
@@ -169,7 +199,7 @@ html * {
 #settings_menu_header_separator {
     width: 100%;
     height: 1px;
-    background-color: var(--bg_5);
+    background-color: var(--bg_3);
 }
 
 #settings_token_area {
@@ -284,24 +314,6 @@ html * {
 
 #connection_lost_emote {
     font-size: 11px;
-}
-
-#settings_toggles_group {
-    display: flex;
-    flex-wrap: wrap;
-    column-gap: 6px;
-    row-gap: 6px;
-}
-
-#settings_toggles_group .widget_toggle {
-    min-width: 170px;
-    width: 170px;
-}
-
-#animated_avatars_toggle,
-#new_message_sound_toggle,
-#theater_mode_toggle {
-    width: 200px;
 }
 
 .theater_mode #root_panel {
@@ -1519,8 +1531,7 @@ html * {
 .construction_anim {
     width: 300px;
     position: absolute;
-    bottom: 30px;
-    left: 40%;
+    left: 50%;
     animation: sway 2.4s infinite;
     animation-timing-function: ease-in-out;
     transform-origin: top;

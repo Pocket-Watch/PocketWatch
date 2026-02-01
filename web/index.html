@@ -48,7 +48,7 @@
                         <span>Room</span>
                     </button>
 
-                    <button id="settings_tab_dev_tools" class="settings_tab">
+                    <button id="settings_tab_devtools" class="settings_tab">
                         <svg><use href="svg/main_icons.svg#console"/></svg>
                         <span>Developer Tools</span>
                     </button>
@@ -71,30 +71,51 @@
 
                     <div id="settings_menu_header_separator"></div>
 
-                    <div id="settings_token_area">
-                        <button id="settings_token_copy_button" class="widget_button" type="button">
-                            <svg><use href="svg/main_icons.svg#copy"/></svg>
-                            <span>Copy your token</span>
-                        </button>
-
-                        <div id="settings_token_update" class="widget_input widget_input_extra_button">
-                            <input id="settings_token_set_input" placeholder=" " title="Update your token to login to a different account."/>
-                            <label for="settings_token_set_input">Set your token</label>
-                            <button id="settings_token_set_button" type="button">
-                                <svg><use href="svg/main_icons.svg#accept"/></svg>
-                            </button>
+                    <div id="settings_content_general" class="settings_content">
+                        <div>
+                            <label class="placeholder" for="settings_switch_theme">Select theme:</label>
+                            <select id="settings_switch_theme">
+                                <option value="gruvbox">Gruvbox</option>
+                                <option value="catppuccin">Catppuccin</option>
+                            </select>
                         </div>
                     </div>
 
-                    <div id="settings_toggles_group">
+                    <div id="settings_content_account" class="settings_content">
+                        <div id="settings_token_area">
+                            <button id="settings_token_copy_button" class="widget_button" type="button">
+                                <svg><use href="svg/main_icons.svg#copy"/></svg>
+                                <span>Copy your token</span>
+                            </button>
+
+                            <div id="settings_token_update" class="widget_input widget_input_extra_button">
+                                <input id="settings_token_set_input" placeholder=" " title="Update your token to login to a different account."/>
+                                <label for="settings_token_set_input">Set your token</label>
+                                <button id="settings_token_set_button" type="button">
+                                    <svg><use href="svg/main_icons.svg#accept"/></svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="settings_delete_account">
+                            <label>Delete Account</label>
+
+                            <div id="settings_delete_account_inner">
+                                <div class="widget_input widget_input_extra_button">
+                                    <input id="confirm_deletion_phrase" placeholder=" " title="Confirm by typing the phrase: I confirm"/>
+                                    <label for="confirm_deletion_phrase">Type: I confirm</label>
+                                    <button id="delete_your_account" title="Delete your account">
+                                        <svg><use href="svg/main_icons.svg#delete"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="settings_content_room" class="settings_content">
                         <div id="animated_avatars_toggle" class="widget_toggle">
                             <div><div></div></div>
                             <span>User avatar animations</span>
-                        </div>
-
-                        <div id="new_message_sound_toggle" class="widget_toggle">
-                            <div><div></div></div>
-                            <span>New chat message sound</span>
                         </div>
 
                         <div id="theater_mode_toggle" class="widget_toggle">
@@ -102,6 +123,24 @@
                             <span>Enable theater mode</span>
                         </div>
 
+                        <div id="new_message_sound_toggle" class="widget_toggle">
+                            <div><div></div></div>
+                            <span>New chat message sound</span>
+                        </div>
+
+                        <div id="notifications_toggle" class="widget_toggle">
+                            <div><div></div></div>
+                            <span>Enable Notifications</span>
+                        </div>
+
+                        <div id="notifications_select_root">
+                            <select id="notifications_select"></select>
+                            <input id="notifications_volume" type="range" min="0" max="1" step="0.01" value="1"/>
+                            <button id="notifications_play_button">Test Play</button>
+                        </div>
+                    </div>
+
+                    <div id="settings_content_devtools" class="settings_content">
                         <div id="hls_debug_toggle" class="widget_toggle">
                             <div><div></div></div>
                             <span>Enable HLS debug</span>
@@ -109,55 +148,23 @@
 
                         <div id="low_bandwidth_mode_toggle" class="widget_toggle">
                             <div><div></div></div>
-                            <span>Low bandwidth mode</span>
+                            <span>Low bandwidth mode (placebo)</span>
                         </div>
 
-                        <div id="notifications_toggle" class="widget_toggle">
-                            <div><div></div></div>
-                            <span>Enable Notifications</span>
+                        <div> 
+                            <span class="placeholder">Website uptime:</span>
+                            <span id="settings_website_uptime" class="placeholder"></span>
+                        </div>
+
+                        <div> 
+                            <span class="placeholder">Website version:</span>
+                            <span id="settings_website_version" class="placeholder"></span>
                         </div>
                     </div>
 
-                    <div id="notifications_select_root">
-                        <select id="notifications_select"></select>
-                        <input id="notifications_volume" type="range" min="0" max="1" step="0.01" value="1"/>
-                        <button id="notifications_play_button">Test Play</button>
+                    <div id="settings_content_about" class="settings_content">
+                        <img class="construction_anim" src="img/under_construction.png" alt="Placeholder 'page under construction' sign">
                     </div>
-
-                    <div> 
-                        <span class="placeholder">Website uptime:</span>
-                        <span id="settings_website_uptime" class="placeholder"></span>
-                    </div>
-
-                    <div> 
-                        <span class="placeholder">Website version:</span>
-                        <span id="settings_website_version" class="placeholder"></span>
-                    </div>
-
-                    <div>
-                        <label class="placeholder" for="settings_switch_theme">Select theme:</label>
-
-                        <select id="settings_switch_theme">
-                            <option value="gruvbox">Gruvbox</option>
-                            <option value="catppuccin">Catppuccin</option>
-                        </select>
-                    </div>
-
-                    <div id="settings_delete_account">
-                        <label>Delete Account</label>
-
-                        <div id="settings_delete_account_inner">
-                            <div class="widget_input widget_input_extra_button">
-                                <input id="confirm_deletion_phrase" placeholder=" " title="Confirm by typing the phrase: I confirm"/>
-                                <label for="confirm_deletion_phrase">Type: I confirm</label>
-                                <button id="delete_your_account" title="Delete your account">
-                                    <svg><use href="svg/main_icons.svg#delete"/></svg>
-                                </button>
-                            </div>
-
-                        </div>
-                    </div>
-                    <img class="construction_anim" src="img/under_construction.png" alt="Placeholder 'page under construction' sign">
                 </div>
             </div>
         </div>
