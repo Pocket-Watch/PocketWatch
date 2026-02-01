@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"math/rand"
+	"mime"
 	"net"
 	"net/http"
 	net_url "net/url"
@@ -981,7 +982,7 @@ func safeJoin(segments ...string) (string, bool) {
 			return "", false
 		}
 	}
-	return filepath.Join(segments...), true
+	return path.Join(segments...), true
 }
 
 func isSlash(char uint8) bool {
@@ -1092,7 +1093,7 @@ func NewLimiter(hits int, perSeconds int) *RateLimiter {
 	return &RateLimiter{
 		NewRingBuffer(hits),
 		int64(perSeconds) * 1000,
-		&sync.Mutex{},
+		new(sync.Mutex),
 	}
 }
 
@@ -1613,4 +1614,205 @@ func replacePrefix(s, oldPrefix, newPrefix string) string {
 		return newPrefix + s[len(oldPrefix):]
 	}
 	return s
+}
+
+type CachedFile struct {
+	content  []byte
+	mimeType string
+	modTime  time.Time
+	modLock  *sync.RWMutex
+}
+
+func (file *CachedFile) RefreshIfOutdated(filePath string) error {
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return err
+	}
+
+	freshModTime := info.ModTime()
+	file.modLock.RLock()
+	if freshModTime.Equal(file.modTime) {
+		file.modLock.RUnlock()
+		return nil
+	}
+	file.modLock.RUnlock()
+	file.modLock.Lock()
+	LogDebug("Refreshing cached %v", filePath)
+	defer file.modLock.Unlock()
+
+	f, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	buf := make([]byte, info.Size())
+	_, err = io.ReadFull(f, buf)
+	if err != nil {
+		return err
+	}
+
+	extension := filepath.Ext(info.Name())
+	file.content = buf
+	file.mimeType = mime.TypeByExtension(extension)
+	file.modTime = info.ModTime()
+	return nil
+}
+
+type CachedFsHandler struct {
+	fsHandler http.Handler
+	// The map is safe to use for concurrent access because only the lock-protected values are modified at runtime.
+	// Serving function can correct the state of a *CachedFile.
+	paths     map[string]*CachedFile
+	validated bool
+}
+
+func (cache *CachedFsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	cache.fsHandler.ServeHTTP(w, r)
+}
+
+func (cache *CachedFsHandler) populateCache(dir string) error {
+	if cache.paths == nil {
+		cache.paths = make(map[string]*CachedFile)
+	}
+	size := int64(0)
+	err := WalkFiles(dir, func(filePath string, fileEntry os.DirEntry) {
+		info, err := fileEntry.Info()
+		if err != nil {
+			return
+		}
+
+		f, err := os.Open(filePath)
+		if err != nil {
+			return
+		}
+		buf := make([]byte, info.Size())
+		_, err = io.ReadFull(f, buf)
+		if err != nil {
+			return
+		}
+		size += int64(len(buf))
+		extension := filepath.Ext(info.Name())
+
+		cache.paths[filePath] = &CachedFile{
+			content:  buf,
+			mimeType: mime.TypeByExtension(extension),
+			modTime:  info.ModTime(),
+			modLock:  new(sync.RWMutex),
+		}
+	})
+	if err != nil {
+		return err
+	}
+	mbFormat := formatMegabytes(size, 2)
+	LogDebug("Cached %v file paths from directory '%v' (%v MB)", len(cache.paths), dir, mbFormat)
+	return nil
+}
+
+// RefreshCache refreshes only the existing path entries
+func (cache *CachedFsHandler) RefreshCache() {
+	for fPath, cachedFile := range cache.paths {
+		err := cachedFile.RefreshIfOutdated(fPath)
+		if err != nil {
+			LogError("Failed to refresh cache entry for %v: %v", fPath, err)
+		}
+	}
+}
+
+func serveCachedFile(w http.ResponseWriter, r *http.Request, path string, cachedFile *CachedFile, validated bool) {
+	if cachedFile == nil {
+		LogError("Cached file is nil for path: %v", path)
+		return
+	}
+	LogDebug("Connection %s requested resource %v from cache", getIp(r), path)
+	if validated {
+		err := cachedFile.RefreshIfOutdated(path)
+		if err != nil {
+			respondInternalError(w, "Error on refresh: %v", err.Error())
+			return
+		}
+	}
+
+	cachedFile.modLock.RLock()
+	buffer := cachedFile.content
+	contentType := cachedFile.mimeType
+	modTime := cachedFile.modTime
+	cachedFile.modLock.RUnlock()
+	SetLastModified(w, modTime)
+
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Length", toString(len(buffer)))
+
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(buffer)
+}
+
+func NewCachedFsHandler(strippedPrefix, dir string, validated bool) *CachedFsHandler {
+	cache := &CachedFsHandler{validated: validated}
+	err := cache.populateCache(dir)
+	if err != nil {
+		LogError("Failed to populate cache: %v", err)
+	}
+	cachedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upath := r.URL.Path
+		if !strings.HasPrefix(upath, "/") {
+			upath = "/" + upath
+			r.URL.Path = upath
+		}
+		upath = path.Clean(upath)
+		// The path could still be traversed with reverse slash which path.Clean doesn't handle
+		safePath, safe := safeJoin(upath)
+		if safe {
+			diskPath := path.Join(dir, safePath)
+			cachedFile, found := cache.paths[diskPath]
+			if found {
+				serveCachedFile(w, r, diskPath, cachedFile, cache.validated)
+				return
+			}
+			// Serve the default page if there's a mapping for index.html
+			diskPath = path.Join(diskPath, "index.html")
+			if cachedFile, found = cache.paths[diskPath]; found {
+				serveCachedFile(w, r, diskPath, cachedFile, cache.validated)
+				return
+			}
+			http.NotFound(w, r)
+			return
+		}
+		respondBadRequest(w, "Invalid path: %v", upath)
+	})
+	cache.fsHandler = http.StripPrefix(strippedPrefix, cachedHandler)
+	return cache
+}
+
+// WalkFiles walks all files contained in this directory and subdirectories iteratively
+func WalkFiles(root string, fn func(filePath string, entry os.DirEntry)) error {
+	info, err := os.Stat(root)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return errors.New("root is not a directory")
+	}
+
+	var dirStack []string
+	dirStack = append(dirStack, root)
+
+	for len(dirStack) > 0 {
+		n := len(dirStack) - 1
+		dir := dirStack[n]
+		dirStack = dirStack[:n]
+
+		// Must be a directory
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			return err
+		}
+		for _, entry := range entries {
+			aPath := path.Join(dir, entry.Name())
+			if entry.IsDir() {
+				dirStack = append(dirStack, aPath)
+			} else {
+				fn(aPath, entry)
+			}
+		}
+	}
+	return nil
 }

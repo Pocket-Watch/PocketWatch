@@ -329,11 +329,6 @@ type GatewayHandler struct {
 	hits, perSecond     int
 }
 
-type FsHandler struct {
-	fsHandler http.Handler
-	cache     bool
-}
-
 type HlsProxy struct {
 	// Common
 	referer string

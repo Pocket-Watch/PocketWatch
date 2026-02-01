@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"net"
-	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -143,14 +142,13 @@ func TestShortPaths(t *testing.T) {
 }
 
 func TestSuccessfulJoin(t *testing.T) {
-	sep := getPathSeparator()
 	expected := []string{"abc", "123", "45"}
 	path, isSafe := safeJoin("abc/", "/123/", "/45")
 	if !isSafe {
 		t.Errorf("Path should be safe!")
 		return
 	}
-	given := strings.Split(path, sep)
+	given := strings.Split(path, "/")
 
 	if !slices.Equal(given, expected) {
 		t.Errorf("Path is %v, different from expected %v", given, expected)
@@ -159,8 +157,7 @@ func TestSuccessfulJoin(t *testing.T) {
 }
 
 func TestSafeDoubleDot(t *testing.T) {
-	sep := getPathSeparator()
-	expected := "Really..." + sep + "45"
+	expected := "Really.../45"
 	path, isSafe := safeJoin("Really...", "/45")
 
 	if !isSafe {
@@ -210,7 +207,7 @@ func TestUnicodeTraversal(t *testing.T) {
 }
 
 func TestManySafeDots(t *testing.T) {
-	expected := []string{"ABC ..", "DEF", "...", "bin"}
+	expected := []string{".\\ABC ..", "DEF", "...", "bin"}
 	input := "./.\\ABC ../DEF/.../bin"
 
 	joined, isSafe := safeJoin(input)
@@ -218,21 +215,12 @@ func TestManySafeDots(t *testing.T) {
 		t.Errorf("Path %v is safe!", input)
 		return
 	}
-	sep := getPathSeparator()
-	given := strings.Split(joined, sep)
+	given := strings.Split(joined, "/")
 
 	if !slices.Equal(given, expected) {
 		t.Errorf("Path is %v, different from expected %v", given, expected)
 		return
 	}
-}
-
-func getPathSeparator() string {
-	sep := "/"
-	if runtime.GOOS == "windows" {
-		sep = "\\"
-	}
-	return sep
 }
 
 // Rate limiter tests

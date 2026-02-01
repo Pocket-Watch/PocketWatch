@@ -348,31 +348,25 @@ func serveManifest(w http.ResponseWriter, r *http.Request) {
 }
 
 // NewFsHandler creates a new file system handler which includes Cache-Control headers
-func NewFsHandler(strippedPrefix, dir string) FsHandler {
+func NewFsHandler(strippedPrefix, dir string) http.Handler {
 	dirHandler := http.FileServer(http.Dir(dir))
 	fsHandler := http.StripPrefix(strippedPrefix, dirHandler)
-	return FsHandler{fsHandler: fsHandler}
-}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resource := strings.TrimPrefix(r.RequestURI, PAGE_ROOT)
+		LogDebug("Connection %s requested resource %v", getIp(r), resource)
 
-func NewCachedFsHandler(fsHandler http.Handler) FsHandler {
-	return FsHandler{fsHandler: fsHandler}
-}
-
-func (fs FsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	resource := strings.TrimPrefix(r.RequestURI, PAGE_ROOT)
-	LogDebug("Connection %s requested resource %v", getIp(r), resource)
-
-	// The no-cache directive does not prevent the storing of responses
-	// but instead prevents the reuse of responses without revalidation.
-	w.Header().Add("Cache-Control", "no-cache")
-	fs.fsHandler.ServeHTTP(w, r)
+		// The no-cache directive does not prevent the storing of responses
+		// but instead prevents the reuse of responses without revalidation.
+		w.Header().Add("Cache-Control", "no-cache")
+		fsHandler.ServeHTTP(w, r)
+	})
 }
 
 func NewGatewayHandler(handler http.Handler, hits, perSecond int, ipv4Ranges []IpV4Range) GatewayHandler {
 	return GatewayHandler{
 		handler:             handler,
 		ipToLimiters:        make(map[string]*RateLimiter),
-		mapMutex:            &sync.Mutex{},
+		mapMutex:            new(sync.Mutex),
 		blacklistedIpRanges: ipv4Ranges,
 		hits:                hits,
 		perSecond:           perSecond,
@@ -421,7 +415,7 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	contentHandler := NewGatewayHandler(contentFs, CONTENT_LIMITER_HITS, CONTENT_LIMITER_PER_SECOND, ipv4Ranges)
 	mux.Handle(CONTENT_ROUTE, contentHandler)
 
-	webFs := NewFsHandler(PAGE_ROOT, WEB_ROOT)
+	webFs := NewCachedFsHandler(PAGE_ROOT, WEB_ROOT, false)
 	staticHandler := NewGatewayHandler(webFs, STATIC_LIMITER_HITS, STATIC_LIMITER_PER_SECOND, ipv4Ranges)
 	mux.Handle(PAGE_ROOT, staticHandler)
 
