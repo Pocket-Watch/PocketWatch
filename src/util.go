@@ -1666,6 +1666,7 @@ type CachedFsHandler struct {
 }
 
 func (cache *CachedFsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Cache-Control", "no-cache")
 	cache.fsHandler.ServeHTTP(w, r)
 }
 
