@@ -404,6 +404,7 @@ class Internals {
             arrow_right:      iconsPath + "#arrow_right",
             buffering:        iconsPath + "#buffering",
             no_video:         iconsPath + "#no_video",
+            search:           iconsPath + "#search",
         };
 
         // 
@@ -2090,6 +2091,7 @@ class Internals {
         let searchNameInput    = newElement("input");
         let searchNameLabel    = newLabel("Subtitle Name");
         let searchButton       = newElement("button", "player_subtitle_search_button");
+        let searchIcon         = Svg.new(this.icons.search, 20, 20);
         let searchMiddle       = newDiv("player_subtitle_search_middle");
         let searchLangRoot     = newDiv(null, "player_input_box");
         let searchLangInput    = newElement("input");
@@ -2137,8 +2139,6 @@ class Internals {
         searchLangInput.type    = "text";
         searchSeasonInput.type  = "text";
         searchEpisodeInput.type = "text";
-
-        searchButton.textContent   = "[S]";
 
         menuRoot.onclick = stopPropagation;
 
@@ -2247,7 +2247,9 @@ class Internals {
                             searchNameRoot.append(searchNameLabel);
                         }
 
-                        searchTop.append(searchButton);
+                        searchTop.append(searchButton); {
+                            searchButton.append(searchIcon.svg);
+                        }
                     }
                     searchRoot.append(searchMiddle); {
                         searchMiddle.append(searchLangRoot); {

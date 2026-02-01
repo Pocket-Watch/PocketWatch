@@ -945,9 +945,25 @@
 #player_subtitle_search_button {
     width: 36px;
     border-radius: 4px;
-    /* padding: 4px; */
+    background-color: rgba(var(--player_color_bg1), var(--player_opacity_bg1));
 }
 
+#player_subtitle_search_button:active {
+    background-color: rgba(var(--player_color_bg4), var(--player_opacity_bg4));
+    border: 1px solid var(--player_color_fg3);
+}
+
+#player_subtitle_search_button svg {
+    fill: var(--player_color_fg3);
+}
+
+#player_subtitle_search_button:hover svg {
+    fill: var(--player_color_fg2);
+}
+
+#player_subtitle_search_button:active svg {
+    fill: var(--player_color_fg1);
+}
 
 .player_input_box {
     width: 100%;
