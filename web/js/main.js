@@ -536,6 +536,12 @@ class Room {
                 return;
             }
 
+            if (error.code === MediaError.MEDIA_ERR_DECODE) {
+                console.error("Unable to decode media. " + error.message)
+                this.player.setToast("Unable to decode media. " + error.message);
+                return;
+            }
+
             if (exception.name === "AbortError") {
                 this.player.setToast("AbortError: Likely the video is slowly loading. Pausing playback!");
                 api.wsPlayerPause(this.player.getCurrentTime());
@@ -549,31 +555,24 @@ class Room {
                 return;
             }
 
-            if (error.code === MediaError.MEDIA_ERR_DECODE) {
-                this.player.setToast("Unable to decode media. " + error.message);
-                return;
-            }
-
             if (error.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
-                // Distinguish between unsupported codec and 404.
                 let errMsg = error.message;
-                if (errMsg.startsWith("Failed to init decoder") || errMsg.startsWith("DEMUXER_ERROR_COULD_NOT_OPEN")) {
-                    this.player.setToast("Unsupported codec or format: '" + this.player.getUrl() + "' " + error.message);
-                    return;
-                }
                 if (errMsg.startsWith("NS_ERROR_DOM_INVALID") || errMsg.includes("Empty src")) {
                     this.player.setToast("Nothing is set!");
                     api.wsPlayerPause(this.player.getCurrentTime());
                     return;
                 }
 
+                // Distinguish between unsupported codec and 404.
+                let errLogMsg;
                 if (errMsg.startsWith("404")) {
-                    this.player.setToast("Resource not found [404]!");
+                    errLogMsg = "Resource not found [404]!";
+                    api.wsPlayerPause(this.player.getCurrentTime());
                 } else {
-                    this.player.setToast("Unsupported src: '" + this.player.getUrl() + "' " + error.message);
+                    errLogMsg = "Unsupported codec or format: '" + this.player.getUrl() + "' " + error.message;
                 }
-
-                api.wsPlayerPause(this.player.getCurrentTime());
+                this.player.setToast(errLogMsg);
+                console.error(errLogMsg);
             }
         });
 

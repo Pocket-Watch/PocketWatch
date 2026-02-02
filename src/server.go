@@ -415,7 +415,7 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	contentHandler := NewGatewayHandler(contentFs, CONTENT_LIMITER_HITS, CONTENT_LIMITER_PER_SECOND, ipv4Ranges)
 	mux.Handle(CONTENT_ROUTE, contentHandler)
 
-	webFs := NewCachedFsHandler(PAGE_ROOT, WEB_ROOT, false)
+	webFs := NewCachedFsHandler(PAGE_ROOT, WEB_ROOT, true)
 	staticHandler := NewGatewayHandler(webFs, STATIC_LIMITER_HITS, STATIC_LIMITER_PER_SECOND, ipv4Ranges)
 	mux.Handle(PAGE_ROOT, staticHandler)
 

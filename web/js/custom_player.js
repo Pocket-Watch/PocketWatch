@@ -1658,6 +1658,11 @@ class Internals {
             this.showPlaybackPopup();
         });
 
+        this.htmlVideo.addEventListener("error", _ => {
+            // The error will be thrown from here if playback is started programmatically
+            this.firePlaybackError({}, this.htmlVideo.error)
+        });
+
         this.htmlVideo.addEventListener("pause", _ => {
             this.svgs.playbackPopup.setHref(this.icons.pause_popup);
             this.showPlaybackPopup();
