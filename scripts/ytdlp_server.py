@@ -299,7 +299,7 @@ class TikTok:
 
 def download_tiktok_video(url: str):
     ts = str(int(time.time()))
-    outtmpl = f'../content/media/video/{ts}.%(ext)s'
+    outtmpl = f'content/media/video/{ts}.%(ext)s'
     tiktok_opts = {
         'outtmpl': outtmpl,
         'quiet' : False,
