@@ -98,7 +98,7 @@ func (server *Server) apiUploadMedia(w http.ResponseWriter, r *http.Request, use
 		return
 	}
 
-	filename := headers.Filename
+	filename := SanitizeUrlFileName(headers.Filename)
 	// TODO(kihau): Actually check file format by doing http.DetectContentType().
 	extension := path.Ext(filename)
 	directory := getMediaType(extension)

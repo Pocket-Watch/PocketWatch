@@ -1817,3 +1817,8 @@ func WalkFiles(root string, fn func(filePath string, entry os.DirEntry)) error {
 	}
 	return nil
 }
+
+func SanitizeUrlFileName(name string) string {
+	replacer := strings.NewReplacer("#", "", "?", "")
+	return replacer.Replace(name)
+}
