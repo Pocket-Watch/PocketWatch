@@ -482,12 +482,12 @@ func databaseEntryAdd(db *sql.DB, entry *Entry) error {
 
 	query := `
 		INSERT INTO entries (
-			url, title, user_id, use_proxy, referer_url, source_url, thumbnail, created_at, last_set_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+			url, title, user_id, use_proxy, referer_url, source_url, thumbnail, created_at, last_set_at, audio_url, split_tracks
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
 		RETURNING id
 	`
 
-	row := db.QueryRow(query, entry.Url, entry.Title, entry.UserId, entry.UseProxy, entry.RefererUrl, entry.SourceUrl, entry.Thumbnail, entry.CreatedAt, entry.LastSetAt)
+	row := db.QueryRow(query, entry.Url, entry.Title, entry.UserId, entry.UseProxy, entry.RefererUrl, entry.SourceUrl, entry.Thumbnail, entry.CreatedAt, entry.LastSetAt, entry.AudioUrl, entry.SplitTracks)
 	err := row.Err()
 	if err != nil {
 		LogError("Failed to add entry to the database: %v", err)
@@ -609,7 +609,7 @@ func DatabaseCurrentEntryGet(db *sql.DB) (Entry, bool) {
 		var subShift sql.NullFloat64
 
 		err := rows.Scan(
-			&entry.Id, &entry.Url, &entry.Title, &entry.UserId, &entry.UseProxy, &entry.RefererUrl, &entry.SourceUrl, &entry.Thumbnail, &entry.CreatedAt, &entry.LastSetAt,
+			&entry.Id, &entry.Url, &entry.Title, &entry.UserId, &entry.UseProxy, &entry.RefererUrl, &entry.SourceUrl, &entry.Thumbnail, &entry.CreatedAt, &entry.LastSetAt, &entry.AudioUrl, &entry.SplitTracks,
 			&subId, &entryId, &subName, &subUrl, &subShift,
 		)
 
@@ -786,7 +786,7 @@ func DatabasePlaylistGet(db *sql.DB) ([]Entry, bool) {
 
 		temp := Entry{}
 		err := rows.Scan(
-			&temp.Id, &temp.Url, &temp.Title, &temp.UserId, &temp.UseProxy, &temp.RefererUrl, &temp.SourceUrl, &temp.Thumbnail, &temp.CreatedAt, &temp.LastSetAt,
+			&temp.Id, &temp.Url, &temp.Title, &temp.UserId, &temp.UseProxy, &temp.RefererUrl, &temp.SourceUrl, &temp.Thumbnail, &temp.CreatedAt, &temp.LastSetAt, &temp.AudioUrl, &temp.SplitTracks,
 			&subId, &entryId, &subName, &subUrl, &subShift,
 		)
 
@@ -922,7 +922,7 @@ func DatabaseHistoryGet(db *sql.DB) ([]Entry, bool) {
 
 		temp := Entry{}
 		err := rows.Scan(
-			&temp.Id, &temp.Url, &temp.Title, &temp.UserId, &temp.UseProxy, &temp.RefererUrl, &temp.SourceUrl, &temp.Thumbnail, &temp.CreatedAt, &temp.LastSetAt,
+			&temp.Id, &temp.Url, &temp.Title, &temp.UserId, &temp.UseProxy, &temp.RefererUrl, &temp.SourceUrl, &temp.Thumbnail, &temp.CreatedAt, &temp.LastSetAt, &temp.AudioUrl, &temp.SplitTracks,
 			&subId, &entryId, &subName, &subUrl, &subShift,
 		)
 

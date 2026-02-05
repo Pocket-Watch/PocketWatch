@@ -259,8 +259,18 @@ type Entry struct {
 
 	// Proxy referrer URL.
 	RefererUrl string `json:"referer_url"`
-	SourceUrl  string `json:"source_url"`
-	ProxyUrl   string `json:"proxy_url"`
+
+	// Represents the primary URL that the media is seeded from
+	SourceUrl string `json:"source_url"`
+
+	// Used when SplitTracks is true, it can be also used for background playback
+	AudioUrl string `json:"audio_url"`
+
+	// Proxied SourceUrl, it should be used first if available
+	ProxyUrl string `json:"proxy_url"`
+
+	// Indicates whether the audio & video track are separate and must be played in sync
+	SplitTracks bool `json:"split_tracks"`
 
 	// NOTE(kihau): Placeholder until client side source switching is implemented.
 	// Sources    []Source   `json:"sources"`

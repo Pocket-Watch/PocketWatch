@@ -1,0 +1,3 @@
+ALTER TABLE entries
+ADD COLUMN audio_url TEXT NOT NULL DEFAULT '',
+ADD COLUMN split_tracks BOOLEAN NOT NULL DEFAULT false;
