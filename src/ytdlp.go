@@ -557,7 +557,7 @@ func searchYoutubeVideo(query string) (YoutubeVideo, error) {
 	flags := []string{
 		"--playlist-items", "1",
 		"--extractor-args", "youtube:player_client=web_safari",
-		"--print", "%(.{id,title,thumbnail,original_url,manifest_url,available_at,duration,uploader_date,uploader,artist,album,release_date})j",
+		"--print", "%(.{id,title,thumbnail,original_url,manifest_url,available_at,duration,upload_date,uploader,artist,album,release_date})j",
 	}
 
 	return fetchWithYtdlp[YoutubeVideo]("ytsearch:"+query, flags)
@@ -608,11 +608,21 @@ func loadYoutubeEntry(entry *Entry, search bool) error {
 	entry.SourceUrl = video.SourceUrl
 	entry.Thumbnail = video.Thumbnail
 
+	releaseDate := video.ReleaseDate
+	if releaseDate == "" {
+		releaseDate = video.UploadDate
+	}
+
+	artistName := video.ArtistName
+	if artistName == "" {
+		artistName = video.Uploader
+	}
+
 	metadata := Metadata{
 		TrackNumber: 0,
 		AlbumName:   video.AlbumName,
-		ArtistName:  video.ArtistName,
-		ReleaseDate: video.ReleaseDate,
+		ArtistName:  artistName,
+		ReleaseDate: releaseDate,
 		Duration:    video.Duration,
 	}
 
