@@ -326,8 +326,8 @@ class Player {
         this.internals.setVideoTrack(url);
     }
 
-    addAudioTrack(url) {
-        this.internals.addAudioTrack(url);
+    setAudioTrack(url) {
+        this.internals.setAudioTrack(url);
     }
 
     getUrl() {
@@ -1061,11 +1061,19 @@ class Internals {
         this.firePlaybackEnd();
     }
 
+    reloadTracks() {
+        let time = this.getCurrentTime();
+        this.setVideoTrack(this.getUrl());
+        if (this.hasAudioTrack) {
+            this.setAudioTrack(this.getAudioUrl());
+        }
+    }
+
     setVideoTrack(url) {
         this.setTrack(url, this.htmlVideo)
     }
 
-    addAudioTrack(url) {
+    setAudioTrack(url) {
         this.setTrack(url, this.htmlAudio)
         this.hasAudioTrack = true
     }
@@ -2385,6 +2393,8 @@ class Internals {
         crossOrigin.onAction = state => {
             this.htmlVideo.crossOrigin = state ? "" : null;
             this.htmlAudio.crossOrigin = state ? "" : null;
+            // Browsers don't recheck CORS until source is changed
+            this.reloadTracks();
         };
 
         preservePitch.onAction = state => {

@@ -10,7 +10,7 @@ function setVideoOnClick() {
 }
 
 function setAudioOnClick() {
-    player.addAudioTrack(audioInput.value);
+    player.setAudioTrack(audioInput.value);
 }
 
 function destroy() {
