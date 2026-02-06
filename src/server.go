@@ -1292,8 +1292,6 @@ func prepareMediaPlaylistFromMasterPlaylist(m3u *M3U, referer string, depth int)
 	}
 
 	masterUrl, _ := net_url.Parse(m3u.url)
-	prefix := stripLastSegment(masterUrl)
-	LogInfo("A master playlist was provided. The best track will be chosen based on quality.")
 	var bestTrack *Track
 	if masterUrl.Host == "manifest.googlevideo.com" {
 		bestTrack = m3u.getBestTrack(ytAudioFilter)
@@ -1301,24 +1299,18 @@ func prepareMediaPlaylistFromMasterPlaylist(m3u *M3U, referer string, depth int)
 		bestTrack = m3u.getBestTrack(nil)
 	}
 
+	res := getParamValue("RESOLUTION", bestTrack.streamInfo)
+	LogInfo("Best track selected from master playlist has resolution of %v", res)
+
+	m3u.prefixRelativeTracks()
 	bestUrl := bestTrack.url
-	isRelative := !isAbsolute(bestUrl)
-	if isRelative {
-		bestUrl = prefixUrl(prefix, bestUrl)
-	}
 
 	var err error = nil
 	m3u, err = downloadM3U(bestUrl, CONTENT_PROXY+ORIGINAL_M3U8, referer)
 
-	if isRelative && isErrorStatus(err, 404) {
-		// Sometimes non-compliant playlists contain URLs which are relative to the root domain
-		domain := getRootDomain(masterUrl)
-		bestUrl = prefixUrl(domain, bestTrack.url)
-		m3u, err = downloadM3U(bestUrl, CONTENT_PROXY+ORIGINAL_M3U8, referer)
-		if err != nil {
-			LogError("Root domain fallback failed: %v", err.Error())
-			return nil
-		}
+	if isErrorStatus(err, 404) {
+		LogError("Best url returned 404. %v", err.Error())
+		return nil
 	} else if err != nil {
 		LogError("Failed to fetch track from master playlist: %v", err.Error())
 		return nil
