@@ -128,6 +128,14 @@ const (
 	EVENT_PLAYLIST_SHUFFLE
 )
 
+type PlayerSyncType uint64
+
+const (
+	PLAYER_SYNC_PLAY PlayerSyncType = iota
+	PLAYER_SYNC_PAUSE
+	PLAYER_SYNC_SEEK
+)
+
 // Constants - assignable only once!
 var serverRootAddress string
 var startTime = time.Now()
@@ -482,11 +490,6 @@ type PlayerNextEvent struct {
 	NewEntry  Entry `json:"new_entry"`
 }
 
-type PlayerPauseRequest struct {
-	Timestamp    float64 `json:"timestamp"`
-	Programmatic bool    `json:"programmatic"`
-}
-
 type PlayerNextRequest struct {
 	CurrentEntryId uint64 `json:"current_entry_id"`
 	Programmatic   bool   `json:"programmatic"`
@@ -565,4 +568,10 @@ type MediaUploadResponse struct {
 type UserVerifyResponse struct {
 	UserId   uint64 `json:"user_id"`
 	PagePath string `json:"page_path"`
+}
+
+type PlayerSyncRequest struct {
+	Timestamp      float64 `json:"timestamp"`
+	Programmatic   bool    `json:"programmatic"`
+	CurrentEntryId uint64  `json:"current_entry_id"`
 }

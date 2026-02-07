@@ -412,16 +412,16 @@ func (server *Server) apiPlayerNext(w http.ResponseWriter, r *http.Request, user
 }
 
 func (server *Server) apiPlayerPlay(w http.ResponseWriter, r *http.Request, userId uint64) {
-	var timestamp float64
-	if !server.readJsonDataFromRequest(w, r, &timestamp) {
+	var data PlayerSyncRequest
+	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
-	server.playerPlay(timestamp, userId)
+	server.playerPlay(data, userId)
 }
 
 func (server *Server) apiPlayerPause(w http.ResponseWriter, r *http.Request, userId uint64) {
-	var data PlayerPauseRequest
+	var data PlayerSyncRequest
 	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
@@ -430,12 +430,12 @@ func (server *Server) apiPlayerPause(w http.ResponseWriter, r *http.Request, use
 }
 
 func (server *Server) apiPlayerSeek(w http.ResponseWriter, r *http.Request, userId uint64) {
-	var timestamp float64
-	if !server.readJsonDataFromRequest(w, r, &timestamp) {
+	var data PlayerSyncRequest
+	if !server.readJsonDataFromRequest(w, r, &data) {
 		return
 	}
 
-	server.playerSeek(timestamp, userId)
+	server.playerSeek(data, userId)
 }
 
 func (server *Server) apiPlayerAutoplay(w http.ResponseWriter, r *http.Request, userId uint64) {

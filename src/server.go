@@ -277,7 +277,16 @@ func StartServer(config ServerConfig, db *sql.DB) {
 		server.setNewEntry(currentEntry, RequestEntry{}, SERVER_ID)
 
 		timestamp := DatabaseGetTimestamp(server.db)
-		server.playerSeek(timestamp, 0)
+
+		server.state.mutex.Lock()
+		defer server.state.mutex.Unlock()
+
+		sync := PlayerSyncRequest{
+			Timestamp:      timestamp,
+			Programmatic:   true,
+			CurrentEntryId: server.state.entry.Id,
+		}
+		server.playerUpdateState(PLAYER_SYNC_SEEK, sync, SERVER_ID)
 	}()
 
 	var server_start_error error
@@ -2267,33 +2276,45 @@ func (server *Server) smartSleep() {
 	}
 }
 
-func (server *Server) playerPlay(timestamp float64, userId uint64) error {
+func (server *Server) playerPlay(data PlayerSyncRequest, userId uint64) error {
 	server.state.mutex.Lock()
 	defer server.state.mutex.Unlock()
-
-	return server.playerUpdateState(true, timestamp, userId)
+	return server.playerUpdateState(PLAYER_SYNC_PLAY, data, userId)
 }
 
-func (server *Server) playerPause(data PlayerPauseRequest, userId uint64) error {
+func (server *Server) playerPause(data PlayerSyncRequest, userId uint64) error {
 	server.state.mutex.Lock()
 	defer server.state.mutex.Unlock()
+	return server.playerUpdateState(PLAYER_SYNC_PAUSE, data, userId)
+}
+
+func (server *Server) playerUpdateState(syncType PlayerSyncType, data PlayerSyncRequest, userId uint64) error {
+	if server.state.entry.Id != data.CurrentEntryId {
+		return fmt.Errorf("Entry ID provided in the request is not equal to the current entry ID on the server")
+	}
 
 	if data.Programmatic {
 		userId = SERVER_ID
 	}
-	return server.playerUpdateState(false, data.Timestamp, userId)
-}
 
-func (server *Server) playerUpdateState(isPlaying bool, newTimestamp float64, userId uint64) error {
-	server.state.player.Playing = isPlaying
-	server.state.player.Timestamp = newTimestamp
+	server.state.player.Timestamp = data.Timestamp
 	server.state.lastUpdate = time.Now()
 
 	var event SyncEvent
-	if isPlaying {
-		event = server.createSyncEvent("play", userId)
-	} else {
+	switch syncType {
+	case PLAYER_SYNC_PAUSE:
 		event = server.createSyncEvent("pause", userId)
+		server.state.player.Playing = false
+
+	case PLAYER_SYNC_PLAY:
+		event = server.createSyncEvent("play", userId)
+		server.state.player.Playing = true
+
+	case PLAYER_SYNC_SEEK:
+		event = server.createSyncEvent("seek", userId)
+
+	default:
+		return fmt.Errorf("Unexpected main.PlayerSyncType: %#v", syncType)
 	}
 
 	server.addRecentAction(event.Action, event.UserId, event.Timestamp)
@@ -2447,22 +2468,10 @@ func (server *Server) playerSet(requested RequestEntry, userId uint64) error {
 	return nil
 }
 
-func (server *Server) playerSeek(timestamp float64, userId uint64) error {
+func (server *Server) playerSeek(data PlayerSyncRequest, userId uint64) error {
 	server.state.mutex.Lock()
 	defer server.state.mutex.Unlock()
-
-	return server.playerSeekLockless(timestamp, userId)
-}
-
-func (server *Server) playerSeekLockless(timestamp float64, userId uint64) error {
-	server.state.player.Timestamp = timestamp
-	server.state.lastUpdate = time.Now()
-
-	event := server.createSyncEvent("seek", userId)
-	server.addRecentAction(event.Action, event.UserId, event.Timestamp)
-
-	server.writeEventToAllConnections("sync", event, userId)
-	return nil
+	return server.playerUpdateState(PLAYER_SYNC_SEEK, data, userId)
 }
 
 func (server *Server) playerNext(data PlayerNextRequest, userId uint64) error {
@@ -2484,9 +2493,12 @@ func (server *Server) playerNext(data PlayerNextRequest, userId uint64) error {
 	}
 
 	if len(server.state.playlist) == 0 {
-		if server.state.player.Looping {
-			server.playerSeekLockless(0, 0)
+		sync := PlayerSyncRequest{
+			Timestamp:      0.0,
+			Programmatic:   true,
+			CurrentEntryId: server.state.entry.Id,
 		}
+		server.playerUpdateState(PLAYER_SYNC_SEEK, sync, SERVER_ID)
 
 		return nil
 	}

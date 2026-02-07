@@ -464,18 +464,18 @@ class Room {
             }
 
             if (this.player.getCurrentTime() >= this.player.getDuration()) {
-                api.wsPlayerPlay(0);
+                api.wsPlayerPlay(0, this.currentEntryId);
             } else {
-                api.wsPlayerPlay(this.player.getCurrentTime());
+                api.wsPlayerPlay(this.player.getCurrentTime(), this.currentEntryId);
             }
         });
 
         this.player.onControlsPause(_ => {
-            api.wsPlayerPause(this.player.getCurrentTime());
+            api.wsPlayerPause(this.player.getCurrentTime(), this.currentEntryId);
         });
 
         this.player.onControlsSeeked(timestamp => {
-            api.wsPlayerSeek(timestamp);
+            api.wsPlayerSeek(timestamp, this.currentEntryId);
         });
 
         this.player.onControlsSeeking(timestamp => {
@@ -515,7 +515,7 @@ class Room {
             console.info("INFO: Playback ended! Informing the server");
 
             let endTime = this.player.getDuration();
-            api.wsPlayerPause(endTime, true);
+            api.wsPlayerPause(endTime, this.currentEntryId, true);
 
             if (this.playlist.autoplayEnabled) {
                 api.wsPlayerNext(this.currentEntryId, true);
@@ -544,14 +544,14 @@ class Room {
 
             if (exception.name === "AbortError") {
                 this.player.setToast("AbortError: Likely the video is slowly loading. Pausing playback!");
-                api.wsPlayerPause(this.player.getCurrentTime());
+                api.wsPlayerPause(this.player.getCurrentTime(), this.currentEntryId);
                 return;
             }
 
             if (!error) {
                 this.player.setToast("UNKNOWN ERROR, press F12 to see what happened!");
                 console.error(exception.name + ":", exception.message);
-                api.wsPlayerPause(this.player.getCurrentTime());
+                api.wsPlayerPause(this.player.getCurrentTime(), this.currentEntryId);
                 return;
             }
 
@@ -559,7 +559,7 @@ class Room {
                 let errMsg = error.message;
                 if (errMsg.startsWith("NS_ERROR_DOM_INVALID") || errMsg.includes("Empty src")) {
                     this.player.setToast("Nothing is set!");
-                    api.wsPlayerPause(this.player.getCurrentTime());
+                    api.wsPlayerPause(this.player.getCurrentTime(), this.currentEntryId);
                     return;
                 }
 
@@ -567,7 +567,7 @@ class Room {
                 let errLogMsg;
                 if (errMsg.startsWith("404")) {
                     errLogMsg = "Resource not found [404]!";
-                    api.wsPlayerPause(this.player.getCurrentTime());
+                    api.wsPlayerPause(this.player.getCurrentTime(), this.currentEntryId);
                 } else {
                     errLogMsg = "Unsupported codec or format: '" + this.player.getUrl() + "' " + error.message;
                 }
