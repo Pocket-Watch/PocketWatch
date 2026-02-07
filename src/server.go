@@ -978,9 +978,7 @@ func (server *Server) getSubtitles() []string {
 	return subtitles
 }
 
-func (server *Server) setupFileProxy(url string, referer string) bool {
-	_ = os.RemoveAll(CONTENT_PROXY)
-	_ = os.MkdirAll(CONTENT_PROXY, os.ModePerm)
+func (server *Server) setupFileProxy(proxy *FileProxy, url, referer, baseFilename string) bool {
 	parsedUrl, err := net_url.Parse(url)
 	if err != nil {
 		LogWarn("The provided URL is invalid: %v", err)
@@ -1006,17 +1004,27 @@ func (server *Server) setupFileProxy(url string, referer string) bool {
 	server.state.isHls = false
 	server.state.isLive = false
 
-	proxy := &server.state.videoProxy
 	proxy.referer = referer
 	proxy.url = url
 	proxy.contentLength = size
-	proxy.extensionWithDot = path.Ext(parsedUrl.Path)
-	proxy.contentType = "application/octet-stream"
-	if len(proxy.extensionWithDot) > 1 {
-		proxy.contentType = "video/" + proxy.extensionWithDot[1:]
+
+	// Detect content type by pulling at most the first 512 bytes
+	response, err := openFileDownload(proxy.url, 0, proxy.referer)
+	if err != nil {
+		LogWarn("Failed open file download at 0 due to %v", err)
+		return false
 	}
-	proxyFilename := CONTENT_PROXY + "proxy" + proxy.extensionWithDot
-	proxyFile, err := os.OpenFile(proxyFilename, os.O_RDWR|os.O_CREATE, 0666)
+	buffer := make([]byte, 512)
+	_, err = io.ReadFull(response.Body, buffer)
+	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) {
+		LogWarn("Failed to read leading bytes due to %v", err)
+		return false
+	}
+	proxy.contentType = http.DetectContentType(buffer)
+
+	extensionWithDot := path.Ext(parsedUrl.Path)
+	proxy.filename = baseFilename + extensionWithDot
+	proxyFile, err := os.OpenFile(CONTENT_PROXY+proxy.filename, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
 		LogError("Failed to open proxy file for writing: %v", err)
 		return false
@@ -1028,17 +1036,9 @@ func (server *Server) setupFileProxy(url string, referer string) bool {
 	if size > TRAILING_PULL_SIZE {
 		// Preload the end of the file
 		offset := size - TRAILING_PULL_SIZE
-		response, err := openFileDownload(url, offset, referer)
-		if err != nil {
-			LogWarn("Failed open file download at offset=%v due to %v", offset, err)
+		if !proxy.loadBytes(offset, TRAILING_PULL_SIZE) {
 			return false
 		}
-		_, err = proxy.pullAndStoreBytes(response, offset, TRAILING_PULL_SIZE)
-		if err != nil {
-			LogWarn("Failed to pull last %v bytes: %v", TRAILING_PULL_SIZE, err)
-			return false
-		}
-		response.Body.Close()
 	}
 
 	proxy.downloader = &GenericDownloader{
@@ -1053,17 +1053,16 @@ func (server *Server) setupFileProxy(url string, referer string) bool {
 	proxy.downloader.mutex.Lock()
 	proxy.replaceDownload(0)
 	proxy.downloader.mutex.Unlock()
-	go server.startDownloadLoop()
+	go server.startDownloadLoop(proxy)
 	LogInfo("Successfully setup proxy for file of size %v MB", formatMegabytes(size, 2))
 	return true
 }
 
 var loopIdSeed atomic.Int64
 
-func (server *Server) startDownloadLoop() {
+func (server *Server) startDownloadLoop(proxy *FileProxy) {
 	lastTimestamp := server.getCurrentTimestamp()
 
-	proxy := &server.state.videoProxy
 	downloader := proxy.downloader
 	loopId := loopIdSeed.Add(1)
 	for {
@@ -1341,9 +1340,9 @@ func prepareMediaPlaylistFromMasterPlaylist(m3u *M3U, referer string, depth int)
 // TODO(kihau): More explicit error output messages.
 func (server *Server) setupProxy(entry *Entry) error {
 	// This should be moved to some destructEntry() / unloadEntry() method
-	proxy := &server.state.videoProxy
 	server.state.setupLock.Lock()
-	proxy.destruct()
+	server.state.fileProxy.destruct()
+	server.state.audioFileProxy.destruct()
 	server.state.setupLock.Unlock()
 
 	urlStruct, err := net_url.Parse(entry.Url)
@@ -1356,32 +1355,40 @@ func (server *Server) setupProxy(entry *Entry) error {
 		if success {
 			entry.ProxyUrl = PROXY_ROUTE + PROXY_M3U8
 			LogInfo("HLS proxy setup for youtube was successful.")
+			return nil
 		} else {
 			return fmt.Errorf("HLS proxy setup for youtube failed!")
 		}
-	} else if entry.UseProxy {
-		file := getBaseNoParams(urlStruct.Path)
-		url, referer := entry.Url, entry.RefererUrl
-		if isPathM3U(file) || isContentM3U(url, referer) {
-			setup := server.setupHlsProxy(url, referer)
-			if setup {
-				entry.ProxyUrl = PROXY_ROUTE + PROXY_M3U8
-				LogInfo("HLS proxy setup was successful.")
-			} else {
-				return fmt.Errorf("HLS proxy setup failed!")
-			}
-		} else {
-			setup := server.setupFileProxy(url, referer)
-			if setup {
-				entry.ProxyUrl = PROXY_ROUTE + "proxy" + server.state.videoProxy.extensionWithDot
-				LogInfo("Generic file proxy setup was successful.")
-			} else {
-				return fmt.Errorf("Generic file proxy setup failed!")
-			}
-		}
 	}
 
-	return nil
+	if !entry.UseProxy {
+		return nil
+	}
+
+	err = nil
+	file := getBaseNoParams(urlStruct.Path)
+	url, referer := entry.Url, entry.RefererUrl
+	if isPathM3U(file) || isContentM3U(url, referer) {
+		setup := server.setupHlsProxy(url, referer)
+		if setup {
+			entry.ProxyUrl = PROXY_ROUTE + PROXY_M3U8
+			LogInfo("HLS proxy setup was successful.")
+		} else {
+			err = fmt.Errorf("HLS proxy setup failed!")
+		}
+	} else {
+		_ = os.RemoveAll(CONTENT_PROXY)
+		_ = os.MkdirAll(CONTENT_PROXY, os.ModePerm)
+		fileProxy := &server.state.fileProxy
+		setupVideo := server.setupFileProxy(fileProxy, url, referer, "proxy-vid")
+		if setupVideo {
+			entry.ProxyUrl = PROXY_ROUTE + fileProxy.filename
+			LogInfo("Generic file proxy setup was successful.")
+		} else {
+			err = fmt.Errorf("Generic file proxy setup failed!")
+		}
+	}
+	return err
 }
 
 func (server *Server) setupHlsProxy(url string, referer string) bool {
@@ -1623,7 +1630,7 @@ func (server *Server) watchProxy(writer http.ResponseWriter, request *http.Reque
 			server.serveHlsVod(writer, request, chunk)
 		}
 	} else {
-		server.serveGenericFile(writer, request, chunk)
+		server.serveFileProxy(writer, request, chunk)
 	}
 }
 
@@ -1940,10 +1947,10 @@ func serveHlsChunk(writer http.ResponseWriter, request *http.Request, proxy *Hls
 	http.ServeFile(writer, request, CONTENT_PROXY+chunk)
 }
 
-func (server *Server) serveGenericFileNaive(writer http.ResponseWriter, request *http.Request, pathFile string) {
-	proxy := &server.state.videoProxy
-	if path.Ext(pathFile) != proxy.extensionWithDot {
-		http.Error(writer, "Extension is different from the proxied file", 404)
+func (server *Server) serveFileProxyNaive(writer http.ResponseWriter, request *http.Request, filename string) {
+	proxy := &server.state.fileProxy
+	if filename != proxy.filename {
+		http.Error(writer, "Filename for proxy wasn't found", 404)
 		return
 	}
 
@@ -1985,10 +1992,20 @@ func (server *Server) serveGenericFileNaive(writer http.ResponseWriter, request 
 	}
 }
 
-func (server *Server) serveGenericFile(writer http.ResponseWriter, request *http.Request, pathFile string) {
-	proxy := &server.state.videoProxy
-	if path.Ext(pathFile) != proxy.extensionWithDot {
-		http.Error(writer, "Extension is different from the proxied file", 404)
+func (server *Server) serveFileProxy(writer http.ResponseWriter, request *http.Request, filename string) {
+	found := false
+	proxy := &server.state.fileProxy
+	if proxy.filename == filename {
+		found = true
+	}
+	audioProxy := &server.state.audioFileProxy
+	if !found && audioProxy.filename == filename {
+		found = true
+		proxy = audioProxy
+	}
+
+	if !found {
+		http.Error(writer, "File proxy for this filename wasn't found", 404)
 		return
 	}
 

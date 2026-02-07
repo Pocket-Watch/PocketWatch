@@ -329,12 +329,13 @@ type ServerState struct {
 	actions []Action
 
 	// Setup lock for the proxy.
-	setupLock  sync.Mutex
-	proxy      *HlsProxy
-	audioProxy *HlsProxy
-	isLive     bool
-	isHls      bool
-	videoProxy FileProxy
+	setupLock      sync.Mutex
+	proxy          *HlsProxy
+	audioProxy     *HlsProxy
+	isLive         bool
+	isHls          bool
+	fileProxy      FileProxy
+	audioFileProxy FileProxy
 
 	liveStream LiveStream
 }
@@ -361,16 +362,31 @@ type HlsProxy struct {
 }
 
 type FileProxy struct {
-	url              string
-	referer          string
-	contentLength    int64
-	extensionWithDot string
-	contentType      string
-	downloader       *GenericDownloader
-	file             *os.File
-	fileMutex        sync.RWMutex
-	diskRanges       []Range // must remain sorted
-	rangeMutex       sync.Mutex
+	url           string
+	referer       string
+	contentLength int64
+	filename      string
+	contentType   string
+	downloader    *GenericDownloader
+	file          *os.File
+	fileMutex     sync.RWMutex
+	diskRanges    []Range // must remain sorted
+	rangeMutex    sync.Mutex
+}
+
+func (proxy *FileProxy) loadBytes(offset, count int64) bool {
+	response, err := openFileDownload(proxy.url, offset, proxy.referer)
+	if err != nil {
+		LogWarn("Failed open file download at offset=%v due to %v", offset, err)
+		return false
+	}
+	defer response.Body.Close()
+	_, err = proxy.pullAndStoreBytes(response, offset, count)
+	if err != nil {
+		LogWarn("Failed to pull last %v bytes: %v", count, err)
+		return false
+	}
+	return true
 }
 
 type GenericDownloader struct {
