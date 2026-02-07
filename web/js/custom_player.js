@@ -1062,7 +1062,6 @@ class Internals {
     }
 
     reloadTracks() {
-        let time = this.getCurrentTime();
         this.setVideoTrack(this.getUrl());
         if (this.hasAudioTrack) {
             this.setAudioTrack(this.getAudioUrl());
@@ -1102,34 +1101,7 @@ class Internals {
         this.isLive = false;
 
         if (await this.detectHLS(ext, url)) {
-            let module = await import(this.options.hlsJsPath);
-            if (!module.Hls.isSupported()) {
-                console.error("HLS is not supported!");
-                return
-            }
-
-            if (this.hls == null) {
-                this.hls = new module.Hls(this.options.hlsConfig);
-
-                this.hls.on(module.Hls.Events.MANIFEST_PARSED, (_, data) => {
-                    if (!data.levels || data.levels.length === 0) {
-                        return;
-                    }
-
-                    let details = data.levels[0].details;
-                    if (details) {
-                        this.isLive = details.live;
-                    }
-
-                    if (this.isLive) {
-                        show(this.htmlControls.buttons.liveIndicator);
-                    }
-                });
-            }
-
-            this.hls.loadSource(url);
-            this.hls.attachMedia(mediaElement);
-            this.playingHls = true;
+            await this.setHlsTrack(url, mediaElement);
         } else {
             if (this.playingHls) {
                 this.hls.detachMedia();
@@ -1139,6 +1111,37 @@ class Internals {
             mediaElement.src = url;
             mediaElement.load();
         }
+    }
+
+    async setHlsTrack(url, mediaElement) {
+        let module = await import(this.options.hlsJsPath);
+        if (!module.Hls.isSupported()) {
+            console.error("HLS is not supported!");
+            return
+        }
+
+        if (this.hls == null) {
+            this.hls = new module.Hls(this.options.hlsConfig);
+
+            this.hls.on(module.Hls.Events.MANIFEST_PARSED, (_, data) => {
+                if (!data.levels || data.levels.length === 0) {
+                    return;
+                }
+
+                let details = data.levels[0].details;
+                if (details) {
+                    this.isLive = details.live;
+                }
+
+                if (this.isLive) {
+                    show(this.htmlControls.buttons.liveIndicator);
+                }
+            });
+        }
+
+        this.hls.loadSource(url);
+        this.hls.attachMedia(mediaElement);
+        this.playingHls = true;
     }
 
     discardPlayback() {
