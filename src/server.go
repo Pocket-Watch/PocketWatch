@@ -2290,7 +2290,7 @@ func (server *Server) playerPause(data PlayerSyncRequest, userId uint64) error {
 
 func (server *Server) playerUpdateState(syncType PlayerSyncType, data PlayerSyncRequest, userId uint64) error {
 	if server.state.entry.Id != data.CurrentEntryId {
-		return fmt.Errorf("Entry ID provided in the request is not equal to the current entry ID on the server")
+		return nil
 	}
 
 	if data.Programmatic {
@@ -2489,7 +2489,7 @@ func (server *Server) playerNext(data PlayerNextRequest, userId uint64) error {
 	defer server.state.mutex.Unlock()
 
 	if server.state.entry.Id != data.CurrentEntryId {
-		return fmt.Errorf("Entry ID provided in the request is not equal to the current entry ID on the server")
+		return nil
 	}
 
 	if len(server.state.playlist) == 0 {
