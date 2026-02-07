@@ -2510,12 +2510,14 @@ func (server *Server) playerNext(data PlayerNextRequest, userId uint64) error {
 	}
 
 	if len(server.state.playlist) == 0 {
-		sync := PlayerSyncRequest{
-			Timestamp:      0.0,
-			Programmatic:   true,
-			CurrentEntryId: server.state.entry.Id,
+		if server.state.player.Looping {
+			sync := PlayerSyncRequest{
+				Timestamp:      0.0,
+				Programmatic:   true,
+				CurrentEntryId: server.state.entry.Id,
+			}
+			server.playerUpdateState(PLAYER_SYNC_SEEK, sync, SERVER_ID)
 		}
-		server.playerUpdateState(PLAYER_SYNC_SEEK, sync, SERVER_ID)
 
 		return nil
 	}
