@@ -450,3 +450,12 @@ function parseBrowserVersion(str, from) {
     }
     return Number(str.substring(from, end));
 }
+
+export function startsWithAny(str, prefixes) {
+    for (let prefix of prefixes) {
+        if (str.startsWith(prefix)) {
+            return true;
+        }
+    }
+    return false;
+}

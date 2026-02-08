@@ -1,10 +1,13 @@
 import * as api from "./api.js";
 import { 
-    getById, div, img, span, a, isSameDay, show, hide, clearContent, showNotification, input, getFileExtension
+    getById, div, img, span, a, isSameDay, show, hide, clearContent, showNotification, input, getFileExtension, startsWithAny
 } from "./util.js";
 export { Chat }
 
 const CHARACTER_LIMIT = 1000;
+const HTTP_PREFIX = "http://", HTTPS_PREFIX = "https://", RES_PREFIX = "res://";
+const CHAT_PREFIXES = [HTTP_PREFIX, HTTPS_PREFIX, RES_PREFIX]
+
 
 class Chat {
     constructor() {
@@ -421,7 +424,7 @@ class Chat {
         for (let i = 0; i < content.length; i++) {
             let slice = content.slice(i);
 
-            if (!parsingUrl && (slice.startsWith("http://") || slice.startsWith("https://") || slice.startsWith("res://"))) {
+            if (!parsingUrl && startsWithAny(slice, CHAT_PREFIXES)) {
                 if (segmentStart !== i) {
                     let text    = content.slice(segmentStart, i);
                     let segment = span(null, text);
@@ -437,15 +440,7 @@ class Chat {
             if (rune === " " && parsingUrl) {
                 let url = content.slice(segmentStart, i);
 
-                let segment;
-                if (url.startsWith("res://")) {
-                    let res = url.slice("res://".length);
-                    segment = img(api.MEDIA_IMAGE + res);
-                } else {
-                    segment = a(null, url)
-                }
-
-                segment.oncontextmenu = _ => this.contextUrlShow(url);
+                let segment = this.linkifyUrl(url)
                 segments.push(segment);
 
                 parsingUrl   = false;
@@ -455,16 +450,7 @@ class Chat {
 
         if (parsingUrl) {
             let url = content.slice(segmentStart);
-
-            let segment;
-            if (url.startsWith("res://")) {
-                let res = url.slice("res://".length);
-                segment = img(api.MEDIA_IMAGE + res);
-            } else {
-                segment = a(null, url)
-            }
-
-            segment.oncontextmenu = _ => this.contextUrlShow(url);
+            let segment = this.linkifyUrl(url)
             segments.push(segment);
         } else {
             let text    = content.slice(segmentStart);
@@ -474,6 +460,18 @@ class Chat {
         }
 
         return segments
+    }
+
+    linkifyUrl(url) {
+        let segment;
+        if (url.startsWith(RES_PREFIX)) {
+            let res = url.slice(RES_PREFIX.length);
+            segment = img(api.MEDIA_IMAGE + res);
+        } else {
+            segment = a(null, url)
+        }
+        segment.oncontextmenu = _ => this.contextUrlShow(url);
+        return segment;
     }
 
     addMessage(chatMsg, allUsers, isNew = false) {
