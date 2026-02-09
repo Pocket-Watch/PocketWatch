@@ -162,7 +162,7 @@ func isYoutube(url string) bool {
 	}
 
 	host := parsedUrl.Host
-	return host == "youtube.com" || host == "youtu.be"
+	return strings.HasSuffix(host, "youtube.com") || strings.HasSuffix(host, "youtu.be")
 }
 
 // Makes a request to the internal server that runs YtDlp.
