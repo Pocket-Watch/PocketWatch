@@ -395,6 +395,10 @@ func int64ToString(num int64) string {
 	return strconv.FormatInt(num, 10)
 }
 
+func uint64ToString(num uint64) string {
+	return strconv.FormatUint(num, 10)
+}
+
 func lastUrlSegment(url string) string {
 	url = path.Base(url)
 	before, _, ok := strings.Cut(url, "?")

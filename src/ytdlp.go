@@ -107,7 +107,7 @@ type TwitterSource struct {
 	Duration    float64         `json:"duration"`
 }
 
-var ytdlpHosts []string = []string{"youtube.com", "youtu.be", "twitter.com", "x.com", "twitch.tv", "tiktok.com"}
+var ytdlpHosts = []string{"youtube.com", "youtu.be", "twitter.com", "x.com", "twitch.tv", "tiktok.com"}
 
 func isYtdlpSource(url string) bool {
 	if !ytdlp.enabled {
@@ -313,6 +313,7 @@ func loadTikTokEntry(entry *Entry) error {
 	entry.Url = video.Url
 	entry.Title = video.Title
 	entry.Thumbnail = video.Thumbnail
+	entry.cacheThumbnail()
 	entry.SourceUrl = video.Path + ".mp4"
 
 	return nil

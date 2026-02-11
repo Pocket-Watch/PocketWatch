@@ -42,6 +42,7 @@ const BODY_LIMIT = 8 * KB
 const MAX_STREAM_CHUNK_SIZE = 10 * MB
 const MAX_CHUNK_SIZE = 50 * MB
 const MAX_PRELOAD_SIZE = 20 * MB
+const MAX_THUMBNAIL_SIZE = 4 * MB
 const HEURISTIC_BITRATE_MB_S = 1.75 * MB
 
 var SUBTITLE_EXTENSIONS = [...]string{".vtt", ".srt"}
@@ -77,6 +78,7 @@ const MEDIA_VIDEO = CONTENT_MEDIA + "video/"
 const MEDIA_AUDIO = CONTENT_MEDIA + "audio/"
 const MEDIA_SUBS = CONTENT_MEDIA + "subs/"
 const MEDIA_IMAGE = CONTENT_MEDIA + "image/"
+const MEDIA_THUMB = CONTENT_MEDIA + "thumb/"
 
 const ORIGINAL_M3U8 = "original.m3u8"
 const PROXY_M3U8 = "proxy.m3u8"

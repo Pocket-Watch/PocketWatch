@@ -11,6 +11,7 @@ import (
 	"io"
 	"math"
 	"math/rand"
+	rand2 "math/rand/v2"
 	"net"
 	"net/http"
 	net_url "net/url"
@@ -3081,4 +3082,25 @@ func (server *Server) relativizeUrl(url string) (*net_url.URL, error) {
 		urlStruct.Path = relativeUrl
 	}
 	return urlStruct, nil
+}
+
+func (entry *Entry) cacheThumbnail() {
+	if entry.Thumbnail == "" || !isAbsolute(entry.Thumbnail) {
+		return
+	}
+	options := &DownloadOptions{
+		referer:   entry.RefererUrl,
+		hasty:     false,
+		bodyLimit: MAX_THUMBNAIL_SIZE,
+	}
+
+	// This mkdir should be done on server startup?
+	os.MkdirAll(MEDIA_THUMB, os.ModePerm)
+	thumbnailPath := MEDIA_THUMB + uint64ToString(rand2.Uint64())
+	fetchErr := downloadFile(entry.Thumbnail, thumbnailPath, options)
+	if fetchErr != nil {
+		LogError("Thumbnail could not be downloaded: %v", fetchErr)
+		return
+	}
+	entry.Thumbnail = thumbnailPath
 }
