@@ -1826,3 +1826,64 @@ func SanitizeUrlFileName(name string) string {
 	replacer := strings.NewReplacer("#", "", "?", "")
 	return replacer.Replace(name)
 }
+
+type FileEntry struct {
+	path    string
+	modTime time.Time
+}
+
+func KeepLatestFiles(dir string, count int) error {
+	if count < 0 {
+		return errors.New("count must be greater than 0")
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	if len(entries) <= count {
+		return nil
+	}
+	rem := len(entries) - count
+	removables := make([]FileEntry, 0, rem+1)
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+
+		hasSpace := len(removables) < rem
+		modTime := info.ModTime()
+		index := -1
+		for i, fileEntry := range removables {
+			if modTime.Before(fileEntry.modTime) {
+				index = i
+				break
+			}
+		}
+		fileEntry := FileEntry{
+			path:    filepath.Join(dir, entry.Name()),
+			modTime: info.ModTime(),
+		}
+
+		if index == -1 {
+			if hasSpace {
+				removables = append(removables, fileEntry)
+			}
+			continue
+		}
+		removables = slices.Insert(removables, index, fileEntry)
+		removables = removables[:rem]
+	}
+	for _, entry := range removables {
+		err = os.Remove(entry.path)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

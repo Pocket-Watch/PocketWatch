@@ -709,6 +709,7 @@ func (server *Server) loadYtdlpSource(newEntry *Entry, requested RequestEntry) {
 		return
 	}
 
+	newEntry.cacheThumbnail()
 	if err != nil {
 		server.writeEventToAllConnections("playererror", err.Error(), SERVER_ID)
 		return
@@ -3103,4 +3104,8 @@ func (entry *Entry) cacheThumbnail() {
 		return
 	}
 	entry.Thumbnail = thumbnailPath
+	err := KeepLatestFiles(MEDIA_THUMB, MAX_THUMBNAIL_COUNT)
+	if err != nil {
+		LogError("Thumbnail directory could not be culled: %v", err)
+	}
 }

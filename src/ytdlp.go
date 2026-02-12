@@ -313,7 +313,6 @@ func loadTikTokEntry(entry *Entry) error {
 	entry.Url = video.Url
 	entry.Title = video.Title
 	entry.Thumbnail = video.Thumbnail
-	entry.cacheThumbnail()
 	entry.SourceUrl = video.Path + ".mp4"
 
 	return nil
