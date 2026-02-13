@@ -132,7 +132,7 @@ class Chat {
         let filename = unix + getFileExtension(file.name);
         let response = await api.uploadMedia(file, filename);
 
-        let fullUrl = "res://" + response.filename;
+        let fullUrl = RES_PREFIX + response.filename;
         this.chatInput.value += fullUrl;
     }
 
@@ -401,8 +401,8 @@ class Chat {
     }
 
     contextUrlShow(url) {
-        if (url.startsWith("res://")) {
-            let res = url.slice("res://".length);
+        if (url.startsWith(RES_PREFIX)) {
+            let res = url.slice(RES_PREFIX.length);
             url = document.location + api.MEDIA_IMAGE + res;
         }
 
