@@ -354,6 +354,35 @@ func serveManifest(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, WEB_ROOT+"static/manifest.json")
 }
 
+func (server *Server) SharedHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		LogDebug("Connection %s requested shared resource %v", getIp(r), r.RequestURI)
+		sharedPath := strings.TrimPrefix(r.RequestURI, "/share/")
+		resources := server.state.resources
+
+		server.state.resourceLock.RLock()
+		resource, exists := resources[sharedPath]
+		server.state.resourceLock.RUnlock()
+		if !exists {
+			http.NotFound(w, r)
+			return
+		}
+		if resource.isExpired() {
+			server.state.resourceLock.Lock()
+			delete(resources, sharedPath)
+			server.state.resourceLock.Unlock()
+			http.Error(w, "Resource expired", 410)
+			return
+		}
+		w.Header().Add("Cache-Control", "no-cache")
+		http.ServeFile(w, r, resource.path)
+	})
+}
+
+func (res *SharedResource) isExpired() bool {
+	return time.Now().After(res.expires)
+}
+
 // NewFsHandler creates a new file system handler which includes Cache-Control headers
 func NewFsHandler(strippedPrefix, dir string) http.Handler {
 	dirHandler := http.FileServer(http.Dir(dir))
@@ -421,6 +450,9 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	contentFs := NewFsHandler(CONTENT_ROUTE, CONTENT_ROOT)
 	contentHandler := NewGatewayHandler(contentFs, CONTENT_LIMITER_HITS, CONTENT_LIMITER_PER_SECOND, ipv4Ranges)
 	mux.Handle(CONTENT_ROUTE, contentHandler)
+
+	shareHandler := NewGatewayHandler(server.SharedHandler(), 10, 1, nil)
+	mux.Handle("/share/", shareHandler)
 
 	webFs := NewCachedFsHandler(PAGE_ROOT, WEB_ROOT, true)
 	staticHandler := NewGatewayHandler(webFs, STATIC_LIMITER_HITS, STATIC_LIMITER_PER_SECOND, ipv4Ranges)

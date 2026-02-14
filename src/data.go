@@ -314,6 +314,10 @@ type ServerState struct {
 	// A room invite for the website. With time, this will become an invite list, and later, grant per-room access (instead of website-wide access).
 	invite Invite
 
+	// Room resources shared outside of it
+	resources    map[string]SharedResource
+	resourceLock sync.RWMutex
+
 	// Indicates whether the server is waiting for the entry to load. Loading includes both YouTube fetch and proxy setup.
 	isLoadingEntry atomic.Bool
 
@@ -593,4 +597,9 @@ type PlayerSyncRequest struct {
 	Timestamp      float64 `json:"timestamp"`
 	Programmatic   bool    `json:"programmatic"`
 	CurrentEntryId uint64  `json:"current_entry_id"`
+}
+
+type SharedResource struct {
+	path    string
+	expires time.Time
 }
