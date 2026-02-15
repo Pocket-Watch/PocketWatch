@@ -958,7 +958,7 @@ func getMediaType(extension string) string {
 	case ".srt", ".vtt", ".ssa", ".ass":
 		mediaType = "subs"
 
-	case ".png", ".jpg", ".jpeg", ".webp", ".svg", ".dng", ".gif":
+	case ".png", ".jpg", ".jpeg", ".webp", ".svg", ".dng", ".gif", ".avif":
 		mediaType = "image"
 	}
 
