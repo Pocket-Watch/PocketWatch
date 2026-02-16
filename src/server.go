@@ -222,7 +222,8 @@ func StartServer(config ServerConfig, db *sql.DB) {
 				Looping:  looping,
 				Speed:    1.0,
 			},
-			actions: make([]Action, 0, 4),
+			actions:   make([]Action, 0, 4),
+			resources: make(map[string]SharedResource),
 		},
 
 		users: users,
@@ -472,6 +473,7 @@ func registerEndpoints(server *Server) *http.ServeMux {
 	server.handleEndpoint(mux, "/api/login", server.apiLogin, "GET")
 	server.handleEndpointAuthorized(mux, "/api/uploadmedia", server.apiUploadMedia, "POST")
 	server.handleEndpointAuthorized(mux, "/api/invite/create", server.apiInviteCreate, "GET")
+	server.handleEndpointAuthorized(mux, "/api/share", server.apiShare, "POST")
 
 	// User related API calls.
 	server.handleEndpoint(mux, "/api/user/create", server.apiUserCreate, "POST")

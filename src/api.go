@@ -152,6 +152,43 @@ func (server *Server) apiInviteCreate(w http.ResponseWriter, r *http.Request, us
 	w.Write(jsonData)
 }
 
+func (server *Server) apiShare(w http.ResponseWriter, r *http.Request, userId uint64) {
+	var request ShareResourceRequest
+	if !server.readJsonDataFromRequest(w, r, &request) {
+		return
+	}
+
+	if request.LifetimeSeconds > MAX_SHARE_LIFETIME_SECONDS {
+		request.LifetimeSeconds = MAX_SHARE_LIFETIME_SECONDS
+	}
+	parsedUrl, err := url.Parse(request.Url)
+	if err != nil {
+		respondBadRequest(w, "Failed to parse url: %v", err)
+		return
+	}
+	safePath, safe := safeJoin(parsedUrl.Path)
+	if !safe {
+		respondBadRequest(w, "Invalid path.")
+		return
+	}
+	if !fileExists(safePath) {
+		respondBadRequest(w, "File does not exist.")
+		return
+	}
+	expiresAt := time.Now().Add(time.Duration(request.LifetimeSeconds) * time.Second)
+	key := randomBase64(10)
+	relativeSharedPath := "/share/" + key
+	server.state.resourceLock.Lock()
+	server.state.resources[key] = SharedResource{
+		path:    safePath,
+		expires: expiresAt,
+	}
+	server.state.resourceLock.Unlock()
+	response := ShareResourceResponse{SharedPath: relativeSharedPath}
+	jsonResponse, _ := json.Marshal(response)
+	w.Write(jsonResponse)
+}
+
 func (server *Server) apiUserCreate(w http.ResponseWriter, r *http.Request) {
 	var inviteCode string
 	if !server.readJsonDataFromRequest(w, r, &inviteCode) {

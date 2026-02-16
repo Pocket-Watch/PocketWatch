@@ -31,6 +31,7 @@ class History {
         this.contextMenuExpand      = getById("history_context_expand");
         this.contextMenuExpandText  = getById("history_context_expand_text");
         this.contextMenuCopyUrl     = getById("history_context_copy_url");
+        this.contextMenuShareUrl    = getById("history_context_share_url");
         this.contextMenuCopyEntry   = getById("history_context_copy_entry");
         this.contextMenuAddPlaylist = getById("history_context_add_to_playlist");
         this.contextMenuDelete      = getById("history_context_delete");
@@ -63,6 +64,7 @@ class History {
         this.contextMenuPlayNow.onclick     = _ => api.historyPlay(this.contextMenuEntry.id);
         this.contextMenuExpand.onclick      = _ => common.toggleEntryDropdown(this, this.contextMenuHtmlEntry, this.contextMenuEntry, this.contextMenuUser);
         this.contextMenuCopyUrl.onclick     = _ => navigator.clipboard.writeText(this.contextMenuEntry.url);
+        this.contextMenuShareUrl.onclick    = _ => this.shareEntry();
         this.contextMenuCopyEntry.onclick   = _ => this.onContextEntryCopy(this.contextMenuEntry);
         this.contextMenuAddPlaylist.onclick = _ => api.historyPlaylistAdd(this.contextMenuEntry.id);
         this.contextMenuDelete.onclick      = _ => api.historyDelete(this.contextMenuEntry.id);
@@ -270,5 +272,12 @@ class History {
 
         this.htmlEntries   = [];
         this.entries       = [];
+    }
+
+    async shareEntry() {
+        let response = await api.shareResource(this.contextMenuEntry.url, 600);
+        if (response.checkError()) return;
+        let sharedUrl = document.location.host + response.json.shared_path;
+        await navigator.clipboard.writeText(sharedUrl);
     }
 }

@@ -1887,3 +1887,11 @@ func KeepLatestFiles(dir string, count int) error {
 	}
 	return nil
 }
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true
+	}
+	return !errors.Is(err, os.ErrNotExist)
+}

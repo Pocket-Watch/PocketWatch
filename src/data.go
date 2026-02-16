@@ -35,6 +35,7 @@ const MAX_CHAT_LOAD = 100
 const MAX_SPEED = 2.5
 const MIN_SPEED = 0.1
 const MAX_THUMBNAIL_COUNT = 100
+const MAX_SHARE_LIFETIME_SECONDS = 365 * 24 * 60 * 60
 
 const SUBTITLE_SIZE_LIMIT = 512 * KB
 const AVATAR_SIZE_LIMIT = 8 * MB
@@ -602,4 +603,13 @@ type PlayerSyncRequest struct {
 type SharedResource struct {
 	path    string
 	expires time.Time
+}
+
+type ShareResourceRequest struct {
+	Url             string `json:"url"`
+	LifetimeSeconds uint   `json:"lifetime_seconds"`
+}
+
+type ShareResourceResponse struct {
+	SharedPath string `json:"shared_path"`
 }

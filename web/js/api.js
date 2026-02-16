@@ -283,6 +283,14 @@ export async function inviteCreate() {
     return await httpGet("invite/create");
 }
 
+export async function shareResource(url, lifetimeSeconds) {
+    let shareRequest = {
+        url: url,
+        lifetime_seconds: lifetimeSeconds
+    };
+    return await httpPost("share", shareRequest);
+}
+
 export async function userCreate(invite) {
     return await httpPost("user/create", invite);
 }
