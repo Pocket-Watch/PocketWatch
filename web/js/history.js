@@ -6,6 +6,7 @@ export { History }
 
 const MAX_HISTORY_SIZE  = 120;
 const BULK_ACTION_DELAY = 32;
+const DOMAIN_URL = document.location.protocol + "//" + document.location.host;
 
 const ENTRY_TRANSITION_TIME = getCssNumber("--history_entry_transition_time", "ms");
 
@@ -277,7 +278,7 @@ class History {
     async shareEntry() {
         let response = await api.shareResource(this.contextMenuEntry.url, 600);
         if (response.checkError()) return;
-        let sharedUrl = document.location.host + response.json.shared_path;
+        let sharedUrl = DOMAIN_URL + response.json.shared_path;
         await navigator.clipboard.writeText(sharedUrl);
     }
 }
