@@ -1,6 +1,8 @@
 import { getCssNumber } from "./util.js";
+import * as api from "./api.js";
 
 const DROPDOWN_EXPAND_TIME = getCssNumber("--dropdown_expand_time", "ms")
+const DOMAIN_URL = window.location.protocol + "//" + window.location.host;
 
 export function toggleEntryDropdown(self, htmlEntry, entry, user) {
     if (self.expandedEntry !== htmlEntry) {
@@ -38,7 +40,7 @@ export function expandEntry(self, htmlEntry, entry, user) {
         htmlEntry.classList.add("expand");
         htmlEntry.classList.remove("collapse");
 
-        if (dropdowns.length == 0) {
+        if (dropdowns.length === 0) {
             let dropdown = createEntryDropdown(entry, user);
             htmlEntry.appendChild(dropdown);
             window.getComputedStyle(dropdown).height;
@@ -126,4 +128,12 @@ export function createEntryDropdown(entry, user) {
     }
 
     return entryDropdown;
+}
+
+export async function shareResourceUrl(url) {
+    if (!url) return;
+    let response = await api.shareResource(url, 600);
+    if (response.checkError()) return;
+    let sharedUrl = DOMAIN_URL + response.json.shared_path;
+    await navigator.clipboard.writeText(sharedUrl);
 }

@@ -6,7 +6,6 @@ export { History }
 
 const MAX_HISTORY_SIZE  = 120;
 const BULK_ACTION_DELAY = 32;
-const DOMAIN_URL = document.location.protocol + "//" + document.location.host;
 
 const ENTRY_TRANSITION_TIME = getCssNumber("--history_entry_transition_time", "ms");
 
@@ -65,7 +64,7 @@ class History {
         this.contextMenuPlayNow.onclick     = _ => api.historyPlay(this.contextMenuEntry.id);
         this.contextMenuExpand.onclick      = _ => common.toggleEntryDropdown(this, this.contextMenuHtmlEntry, this.contextMenuEntry, this.contextMenuUser);
         this.contextMenuCopyUrl.onclick     = _ => navigator.clipboard.writeText(this.contextMenuEntry.url);
-        this.contextMenuShareUrl.onclick    = _ => this.shareEntry();
+        this.contextMenuShareUrl.onclick    = _ => common.shareResourceUrl(this.contextMenuEntry.url);
         this.contextMenuCopyEntry.onclick   = _ => this.onContextEntryCopy(this.contextMenuEntry);
         this.contextMenuAddPlaylist.onclick = _ => api.historyPlaylistAdd(this.contextMenuEntry.id);
         this.contextMenuDelete.onclick      = _ => api.historyDelete(this.contextMenuEntry.id);
@@ -273,12 +272,5 @@ class History {
 
         this.htmlEntries   = [];
         this.entries       = [];
-    }
-
-    async shareEntry() {
-        let response = await api.shareResource(this.contextMenuEntry.url, 600);
-        if (response.checkError()) return;
-        let sharedUrl = DOMAIN_URL + response.json.shared_path;
-        await navigator.clipboard.writeText(sharedUrl);
     }
 }

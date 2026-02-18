@@ -2,6 +2,7 @@ import * as api from "./api.js";
 import { 
     getById, div, img, span, a, isSameDay, show, hide, clearContent, showNotification, input, getFileExtension, startsWithAny
 } from "./util.js";
+import * as common from "./common.js";
 export { Chat }
 
 const CHARACTER_LIMIT = 1000;
@@ -22,6 +23,7 @@ class Chat {
         this.contextMenuDelete   = getById("chat_context_delete");
         this.contextMenuCopy     = getById("chat_context_copy");
         this.contextMenuCopyUrl  = getById("chat_context_copy_url");
+        this.contextMenuShareUrl = getById("chat_context_share_url");
         this.contextMenuOpen     = getById("chat_context_open");
 
         this.currentUserId = -1;
@@ -37,6 +39,7 @@ class Chat {
         this.contextMenuMessage     = null;
         this.contextMenuHtmlMessage = null;
         this.contextMenuUrl         = "";
+        this.contextMenuResUrl      = "";
         this.contextMenuShowUrl     = false;
 
         this.editingMessage     = null;
@@ -59,6 +62,7 @@ class Chat {
         this.contextMenuMessage     = null;
         this.contextMenuHtmlMessage = null;
         this.contextMenuUrl         = "";
+        this.contextMenuResUrl      = "";
         this.contextMenuShowUrl     = false;
 
         hide(this.contextMenu);
@@ -71,10 +75,12 @@ class Chat {
 
         if (this.contextMenuShowUrl) {
             this.contextMenuCopyUrl.classList.remove("hide");
+            this.contextMenuShareUrl.classList.remove("hide");
             this.contextMenuOpen.classList.remove("hide");
             this.contextMenuShowUrl = false;
         } else {
             this.contextMenuCopyUrl.classList.add("hide");
+            this.contextMenuShareUrl.classList.add("hide");
             this.contextMenuOpen.classList.add("hide");
         }
 
@@ -203,11 +209,12 @@ class Chat {
             this.hideContextMenu();
         };
 
-        this.contextMenuCopy.onclick    = _ => navigator.clipboard.writeText(this.contextMenuMessage.content);
-        this.contextMenuCopyUrl.onclick = _ => navigator.clipboard.writeText(this.contextMenuUrl);
-        this.contextMenuOpen.onclick    = _ => window.open(this.contextMenuUrl).focus();
-        this.contextMenuEdit.onclick    = _ => this.startMessageEdit(this.contextMenuMessage, this.contextMenuHtmlMessage);
-        this.contextMenuDelete.onclick  = _ => api.wsChatDelete(this.contextMenuMessage.id);
+        this.contextMenuCopy.onclick     = _ => navigator.clipboard.writeText(this.contextMenuMessage.content);
+        this.contextMenuCopyUrl.onclick  = _ => navigator.clipboard.writeText(this.contextMenuUrl);
+        this.contextMenuShareUrl.onclick = _ => common.shareResourceUrl(this.contextMenuResUrl);
+        this.contextMenuOpen.onclick     = _ => window.open(this.contextMenuUrl).focus();
+        this.contextMenuEdit.onclick     = _ => this.startMessageEdit(this.contextMenuMessage, this.contextMenuHtmlMessage);
+        this.contextMenuDelete.onclick   = _ => api.wsChatDelete(this.contextMenuMessage.id);
 
         this.chatList.oncontextmenu = _ => { return false };
         document.addEventListener("click", _ => this.hideContextMenu());
@@ -404,6 +411,7 @@ class Chat {
         if (url.startsWith(RES_PREFIX)) {
             let res = url.slice(RES_PREFIX.length);
             url = document.location + api.MEDIA_IMAGE + res;
+            this.contextMenuResUrl = api.MEDIA_IMAGE + res;
         }
 
         this.contextMenuUrl     = url;
@@ -412,6 +420,7 @@ class Chat {
 
     contextUrlHide() {
         this.contextMenuUrl     = "";
+        this.contextMenuResUrl  = "";
         this.contextMenuShowUrl = false;
     }
 
