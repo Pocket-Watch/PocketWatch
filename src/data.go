@@ -557,18 +557,30 @@ type PlaylistEvent struct {
 	Data   any    `json:"data"`
 }
 
+type QuerySource uint64
+
+const (
+	ENTRY_SOURCE_NONE QuerySource = iota
+	ENTRY_SOURCE_YOUTUBE
+	ENTRY_SOURCE_TIKTOK
+	ENTRY_SOURCE_TWITCH
+	ENTRY_SOURCE_TWITTER
+	ENTRY_SOURCE_BANDCAMP
+)
+
 type RequestEntry struct {
-	Url               string     `json:"url"`
-	Title             string     `json:"title"`
-	UseProxy          bool       `json:"use_proxy"`
-	RefererUrl        string     `json:"referer_url"`
-	SearchVideo       bool       `json:"search_video"`
-	IsPlaylist        bool       `json:"is_playlist"`
-	FetchLyrics       bool       `json:"fetch_lyrics"`
-	AddToTop          bool       `json:"add_to_top"`
-	Subtitles         []Subtitle `json:"subtitles"`
-	PlaylistSkipCount uint       `json:"playlist_skip_count"`
-	PlaylistMaxSize   uint       `json:"playlist_max_size"`
+	Url               string      `json:"url"`
+	Query             string      `json:"query"`
+	QuerySource       QuerySource `json:"query_source"`
+	Title             string      `json:"title"`
+	UseProxy          bool        `json:"use_proxy"`
+	Referer           string      `json:"referer"`
+	LyricsFetch       bool        `json:"lyrics_fetch"`
+	Subtitles         []Subtitle  `json:"subtitles"`
+	PlaylistFetch     bool        `json:"playlist_fetch"`
+	PlaylistSkipCount uint        `json:"playlist_skip_count"`
+	PlaylistMaxSize   uint        `json:"playlist_max_size"`
+	PlaylistToTop     bool        `json:"playlist_to_top"`
 }
 
 type PlaylistMoveRequest struct {

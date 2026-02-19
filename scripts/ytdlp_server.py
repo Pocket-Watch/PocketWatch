@@ -17,11 +17,9 @@ def install_ytdlp(venv_dir="build/YtDlp"):
         venv.EnvBuilder(with_pip=True).create(venv_dir)
 
     if os.name == "nt": # Windows
-        python_exe = venv_path / "Scripts" / "python.exe"
         pip_exe = venv_path / "Scripts" / "pip.exe"
         site_packages_root = venv_path / "Lib" / "site-packages"
     else: # UNIX
-        python_exe = venv_path / "bin" / "python"
         pip_exe = venv_path / "bin" / "pip"
         site_packages_root = next((venv_path / "lib").glob("python*/site-packages"))
 
@@ -420,7 +418,7 @@ def get_twitter_source(url: str):
     return TwitterSource(id, title, thumbnail, original_url, twitter_formats, duration)
 
 class YtdlpServer(http.server.BaseHTTPRequestHandler):
-    def handle_youtube_request(self, query):
+    def handle_youtube_fetch(self, query):
         output, errorMessage = bench('get_youtube_video', lambda : get_youtube_video(query))
 
         if output is not None:
@@ -438,25 +436,29 @@ class YtdlpServer(http.server.BaseHTTPRequestHandler):
 
         self.wfile.write(response)
 
+    def handle_youtube_playlist(self, query, start, max):
+        output = bench('get_youtube_playlist', lambda : get_youtube_playlist(query, start, max))
+        self.send_response(200)
+        self.send_header("Content-type", "application/json")
+        self.end_headers()
+
+        jsondata = json.dumps(output, default=vars)
+        response = bytes(jsondata, "utf-8")
+        self.wfile.write(response)
+
     def handle_request(self):
         data = json.loads(self.rfile.read1())
 
         if self.path == '/youtube/fetch':
-            self.handle_youtube_request(data["query"])
+            self.handle_youtube_fetch(data["query"])
 
         elif self.path == '/youtube/search':
-            query = 'ytsearch:' + data["query"]
-            self.handle_youtube_request(query)
+            count = data["count"]
+            query = f'ytsearch{count}:' + data["query"]
+            self.handle_youtube_playlist(query, 0, count)
 
         elif self.path == '/youtube/playlist':
-            output = bench('get_youtube_playlist', lambda : get_youtube_playlist(data["query"], data["start"], data["end"]))
-            self.send_response(200)
-            self.send_header("Content-type", "application/json")
-            self.end_headers()
-
-            jsondata = json.dumps(output, default=vars)
-            response = bytes(jsondata, "utf-8")
-            self.wfile.write(response)
+            self.handle_youtube_playlist(data["query"], data["start"], data["end"])
 
         elif self.path == '/twitch/fetch':
             output = bench('get_twitch_stream', lambda : get_twitch_stream(data))

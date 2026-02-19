@@ -662,18 +662,32 @@ class Room {
             skipCount = 0;
         }
 
+        let url   = "";
+        let query = "";
+
+        const searchYoutube = area.youtubeSearchToggle.classList.contains("active")
+        let querySource;
+        if (searchYoutube) {
+            query = area.urlInput.value.trim();
+            querySource = api.ENTRY_SOURCE_YOUTUBE;
+        } else {
+            url = area.urlInput.value.trim();
+            querySource = api.ENTRY_SOURCE_NONE;
+        }
+
         const requestEntry = {
-            url:          area.urlInput.value.trim(),
-            title:        area.titleInput.value.trim(),
-            referer_url:  area.refererInput.value.trim(),
-            use_proxy:    area.proxyToggle.classList.contains("active"),
-            search_video: area.youtubeSearchToggle.classList.contains("active"),
-            is_playlist:  area.youtubePlaylistToggle.classList.contains("active"),
-            fetch_lyrics: area.fetchLyricsToggle.classList.contains("active"),
-            add_to_top:   area.addToTopToggle.classList.contains("active"),
-            subtitles:    subtitles,
+            url:                 url,
+            query:               query,
+            query_source:        querySource,
+            title:               area.titleInput.value.trim(),
+            use_proxy:           area.proxyToggle.classList.contains("active"),
+            referer:             area.refererInput.value.trim(),
+            lyrics_fetch:        area.fetchLyricsToggle.classList.contains("active"),
+            subtitles:           subtitles,
+            playlist_fetch:      area.youtubePlaylistToggle.classList.contains("active"),
             playlist_skip_count: skipCount,
             playlist_max_size:   count,
+            playlist_to_top:     area.addToTopToggle.classList.contains("active"),
         };
 
         return requestEntry;
@@ -1086,10 +1100,8 @@ class Room {
 
         area.addPlaylistButton.onclick = async _ => {
             let entry = await this.createNewRequestEntry();
-            if (entry.url) {
-                api.wsPlaylistAdd(entry);
-                this.resetEntryAreaElements();
-            }
+            api.wsPlaylistAdd(entry);
+            this.resetEntryAreaElements();
         };
 
         area.selectSubtitleButton.onclick = _ => {

@@ -273,7 +273,7 @@ func StartServer(config ServerConfig, db *sql.DB) {
 
 	go func() {
 		currentEntry, _ := DatabaseCurrentEntryGet(db)
-		server.setNewEntry(currentEntry, RequestEntry{}, SERVER_ID)
+		server.setNewEntry(currentEntry, SERVER_ID)
 
 		timestamp := DatabaseGetTimestamp(server.db)
 
@@ -719,25 +719,49 @@ func (server *Server) periodicInactiveUserCleanup() {
 	}
 }
 
-func (server *Server) loadYtdlpSource(newEntry *Entry, requested RequestEntry) {
-	parsedUrl, _ := net_url.Parse(newEntry.Url)
+func (server *Server) detectYtdlpSource(url string) QuerySource {
+	if url == "" {
+		return ENTRY_SOURCE_NONE
+	}
+
+	parsedUrl, err := net_url.Parse(url)
+	if err != nil {
+		return ENTRY_SOURCE_NONE
+	}
+
 	host := parsedUrl.Host
 
+	if strings.HasSuffix(host, "youtube.com") || strings.HasSuffix(host, "youtu.be") {
+		return ENTRY_SOURCE_YOUTUBE
+	} else if strings.HasSuffix(host, "twitch.tv") {
+		return ENTRY_SOURCE_TWITCH
+	} else if strings.HasSuffix(host, "twitter.com") || strings.HasSuffix(host, "x.com") {
+		return ENTRY_SOURCE_TWITCH
+	} else if strings.HasSuffix(host, "bandcamp.com") {
+		return ENTRY_SOURCE_BANDCAMP
+	} else if strings.HasSuffix(host, "tiktok.com") {
+		return ENTRY_SOURCE_TIKTOK
+	} else {
+		return ENTRY_SOURCE_NONE
+	}
+}
+
+func (server *Server) loadYtdlpSource(newEntry *Entry, source QuerySource) {
 	var err error
 
-	if strings.HasSuffix(host, "youtube.com") || strings.HasSuffix(host, "youtu.be") || requested.SearchVideo {
-		err = loadYoutubeEntry(newEntry, requested.SearchVideo)
-	} else if strings.HasSuffix(host, "twitch.tv") {
-		err = loadTwitchEntry(newEntry)
-	} else if strings.HasSuffix(host, "twitter.com") || strings.HasSuffix(host, "x.com") {
-		err = loadTwitterEntry(newEntry)
-	} else if strings.HasSuffix(host, "bandcamp.com") {
-		// TODO(kihau)
-	} else if strings.HasSuffix(host, "tiktok.com") {
+	switch source {
+	case ENTRY_SOURCE_YOUTUBE:
+		err = loadYoutubeEntry(newEntry)
+	case ENTRY_SOURCE_TIKTOK:
 		err = loadTikTokEntry(newEntry)
-	} else {
-		LogError("Unsuppored ytdlp source host detected: %v", host)
-		return
+	case ENTRY_SOURCE_TWITCH:
+		err = loadTwitchEntry(newEntry)
+	case ENTRY_SOURCE_TWITTER:
+		err = loadTwitterEntry(newEntry)
+	case ENTRY_SOURCE_BANDCAMP:
+		// TODO(kihau)
+	default:
+		LogError("Unsuppored ytdlp source host detected: %v", source)
 	}
 
 	newEntry.cacheThumbnail()
@@ -745,32 +769,16 @@ func (server *Server) loadYtdlpSource(newEntry *Entry, requested RequestEntry) {
 		server.writeEventToAllConnections("playererror", err.Error(), SERVER_ID)
 		return
 	}
-
-	parsedUrl, _ = net_url.Parse(newEntry.Url)
-	host = parsedUrl.Host
-
-	if requested.IsPlaylist {
-		if strings.HasSuffix(host, "youtube.com") || strings.HasSuffix(host, "youtu.be") || requested.SearchVideo {
-			go func() {
-				entries, err := loadYoutubePlaylist(newEntry.Url, requested.PlaylistSkipCount, requested.PlaylistMaxSize, newEntry.UserId)
-				if err == nil {
-					server.state.mutex.Lock()
-					server.playlistAddMany(entries, requested.AddToTop)
-					server.state.mutex.Unlock()
-				}
-			}()
-		}
-	}
 }
 
-func (server *Server) setNewEntry(newEntry Entry, requested RequestEntry, setById uint64) {
+func (server *Server) setNewEntry(newEntry Entry, setById uint64) {
 	server.state.isLoadingEntry.Store(true)
 	defer server.state.isLoadingEntry.Store(false)
 
-	if isYtdlpSource(newEntry.Url) || requested.SearchVideo {
-		LogDebug("%v", newEntry)
+	source := server.detectYtdlpSource(newEntry.Url)
+	if source != ENTRY_SOURCE_NONE {
 		server.writeEventToAllConnections("playerwaiting", "Video is loading. Please stand by!", SERVER_ID)
-		server.loadYtdlpSource(&newEntry, requested)
+		server.loadYtdlpSource(&newEntry, source)
 	}
 
 	err := server.setupProxy(&newEntry)
@@ -794,10 +802,6 @@ func (server *Server) setNewEntry(newEntry Entry, requested RequestEntry, setByI
 	newEntry.LastSetAt = now
 	DatabaseCurrentEntrySet(server.db, &newEntry)
 	server.state.entry = newEntry
-
-	if requested.FetchLyrics {
-		go server.fetchLyricsForCurrentEntry(newEntry.UserId)
-	}
 
 	server.state.player.Timestamp = 0
 	server.state.player.Speed = 1
@@ -1278,7 +1282,12 @@ func (server *Server) createSyncEvent(action string, userId uint64) SyncEvent {
 	return event
 }
 
-func (server *Server) isLocalDirectory(urlStruct *net_url.URL) (bool, string) {
+func (server *Server) isLocalDirectory(url string) (bool, string) {
+	urlStruct, err := net_url.Parse(url)
+	if err != nil {
+		return false, ""
+	}
+
 	if urlStruct == nil {
 		return false, ""
 	}
@@ -1375,13 +1384,18 @@ func (server *Server) playerGet() PlayerGetResponse {
 
 func (server *Server) playerSet(requested RequestEntry, userId uint64) error {
 	url := requested.Url
-	if url != "" && !requested.SearchVideo {
+	if url != "" {
 		relativeUrl, err := server.relativizeUrl(url)
 		if err != nil {
 			LogWarn("Not setting URL, issue: %v", err)
 			return err
 		}
+
 		url = relativeUrl.String()
+	}
+
+	if requested.QuerySource == ENTRY_SOURCE_YOUTUBE {
+		url = searchYoutubeForUrl(requested.Query)
 	}
 
 	entry := Entry{
@@ -1389,13 +1403,30 @@ func (server *Server) playerSet(requested RequestEntry, userId uint64) error {
 		UserId:     userId,
 		Title:      requested.Title,
 		UseProxy:   requested.UseProxy,
-		RefererUrl: requested.RefererUrl,
+		RefererUrl: requested.Referer,
 		Subtitles:  requested.Subtitles,
 		CreatedAt:  time.Now(),
 	}
 
 	entry.Title = constructTitleWhenMissing(&entry)
-	go server.setNewEntry(entry, requested, userId)
+	server.setNewEntry(entry, userId)
+
+	if requested.LyricsFetch {
+		server.fetchLyricsForCurrentEntry(userId)
+	}
+
+	source := server.detectYtdlpSource(entry.Url)
+	if requested.PlaylistFetch && source == ENTRY_SOURCE_YOUTUBE {
+		entries, err := loadYoutubePlaylist(entry.Url, requested.PlaylistSkipCount, requested.PlaylistMaxSize, userId)
+		if err != nil {
+			return err
+		}
+
+		server.state.mutex.Lock()
+		server.playlistAddMany(entries, requested.PlaylistToTop)
+		server.state.mutex.Unlock()
+		return nil;
+	}
 
 	return nil
 }
@@ -1442,7 +1473,7 @@ func (server *Server) playerNext(data PlayerNextRequest, userId uint64) error {
 	}
 
 	entry := server.playlistDeleteAt(0)
-	go server.setNewEntry(entry, RequestEntry{}, userId)
+	go server.setNewEntry(entry, userId)
 	return nil
 }
 
@@ -1519,47 +1550,61 @@ func (server *Server) historyPlaylistAdd(entryId uint64) error {
 }
 
 func (server *Server) playlistAdd(requested RequestEntry, userId uint64) error {
-	if requested.Url == "" {
-		return nil
-	}
-	var url net_url.URL
-	// This diversion exists because there's no search_query field
-	if requested.SearchVideo {
-		url = net_url.URL{Path: requested.Url}
-	} else {
-		relativeUrl, err := server.relativizeUrl(requested.Url)
+	url := requested.Url
+	if url != "" {
+		parsedUrl, err := server.relativizeUrl(requested.Url)
 		if err != nil {
 			LogWarn("Not setting URL, issue: %v", err)
 			return err
 		}
-		url = *relativeUrl
+
+		url = parsedUrl.String()
+	}
+
+	if requested.QuerySource == ENTRY_SOURCE_YOUTUBE {
+		url = searchYoutubeForUrl(requested.Query)
 	}
 
 	entry := Entry{
-		Url:        url.String(),
+		Url:        url,
 		UserId:     userId,
 		Title:      requested.Title,
 		UseProxy:   requested.UseProxy,
-		RefererUrl: requested.RefererUrl,
+		RefererUrl: requested.Referer,
 		Subtitles:  requested.Subtitles,
 		CreatedAt:  time.Now(),
 	}
 
 	entry.Title = constructTitleWhenMissing(&entry)
 
-	isLocalDir, path := server.isLocalDirectory(&url)
+	isLocalDir, path := server.isLocalDirectory(url)
 	if isLocalDir {
 		LogInfo("Adding directory '%s' to the playlist.", path)
 		localEntries := server.getEntriesFromDirectory(path, userId)
 		server.state.mutex.Lock()
-		server.playlistAddMany(localEntries, requested.AddToTop)
+		server.playlistAddMany(localEntries, requested.PlaylistToTop)
 		server.state.mutex.Unlock()
 		return nil
-	} else if isYtdlpSource(requested.Url) || requested.SearchVideo {
-		server.loadYtdlpSource(&entry, requested)
+	} 
+
+	if requested.PlaylistFetch && requested.QuerySource == ENTRY_SOURCE_YOUTUBE {
+		entries, err := loadYoutubePlaylist(entry.Url, requested.PlaylistSkipCount, requested.PlaylistMaxSize, userId)
+		if err != nil {
+			return err
+		}
+
+		server.state.mutex.Lock()
+		server.playlistAddMany(entries, requested.PlaylistToTop)
+		server.state.mutex.Unlock()
+		return nil;
 	}
 
-	if requested.FetchLyrics {
+	source := server.detectYtdlpSource(requested.Url)
+	if source != ENTRY_SOURCE_NONE {
+		server.loadYtdlpSource(&entry, source)
+	}
+
+	if requested.LyricsFetch {
 		subtitle, err := server.state.fetchLyrics(entry.Title, entry.Metadata)
 		if err != nil {
 			entry.Subtitles = append(entry.Subtitles, subtitle)
@@ -1568,7 +1613,7 @@ func (server *Server) playlistAdd(requested RequestEntry, userId uint64) error {
 
 	LogInfo("Adding '%s' url to the playlist.", requested.Url)
 	server.state.mutex.Lock()
-	server.playlistAddOne(entry, requested.AddToTop)
+	server.playlistAddOne(entry, requested.PlaylistToTop)
 	server.state.mutex.Unlock()
 
 	return nil
@@ -1628,7 +1673,7 @@ func (server *Server) playlistPlay(entryId uint64, userId uint64) error {
 	}
 
 	entry := server.playlistDeleteAt(index)
-	go server.setNewEntry(entry, RequestEntry{}, userId)
+	go server.setNewEntry(entry, userId)
 
 	return nil
 }

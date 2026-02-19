@@ -86,6 +86,7 @@ type TikTok struct {
 
 type YtdlpServerVideoFetch struct {
 	Query string `json:"query"`
+	Count uint   `json:"count"`
 }
 
 type YtdlpServerPlaylistFetch struct {
@@ -547,20 +548,47 @@ func fetchYoutubeVideo(query string) (YoutubeVideo, error) {
 	return fetchWithYtdlp[YoutubeVideo](query, flags)
 }
 
-func searchYoutubeVideo(query string) (YoutubeVideo, error) {
-	data := YtdlpServerVideoFetch{Query: query}
-	ok, video, err := postToYtdlpServer[YoutubeVideo]("/youtube/search", data)
+// NOTE(kihau): For now search results not needed for anything, but, in the future, they will be used for an interactive search UI.
+func searchYoutube(query string) (YoutubePlaylist, error) {
+	// NOTE(kihau): Hardcoded for now. Potentially configurable in the future.
+	const SEARCH_COUNT = 10
+
+	LogInfo("Searching for youtube video with query: %v.", query)
+	data := YtdlpServerVideoFetch{
+		Query: query,
+		Count: SEARCH_COUNT,
+	}
+
+	ok, results, err := postToYtdlpServer[YoutubePlaylist]("/youtube/search", data)
 	if ok {
-		return video, err
+		return results, err
 	}
 
-	flags := []string{
-		"--playlist-items", "1",
-		"--extractor-args", "youtube:player_client=web_safari",
-		"--print", "%(.{id,title,thumbnail,original_url,manifest_url,available_at,duration,upload_date,uploader,artist,album,release_date})j",
+	flags := []string{"--flat-playlist", "--dump-single-json"}
+	query = fmt.Sprintf("ytsearch%v:%v", SEARCH_COUNT, query)
+	return fetchWithYtdlp[YoutubePlaylist](query, flags)
+}
+
+func searchYoutubeForUrl(query string) string {
+	// NOTE(kihau): If YouTube URL found, assuming that the YouTube search toggle was clicked by mistake.
+	parsedUrl, err := neturl.Parse(query)
+	if err == nil {
+		host := parsedUrl.Host
+		if strings.HasSuffix(host, "youtube.com") || strings.HasSuffix(host, "youtu.be") {
+			return query
+		}
 	}
 
-	return fetchWithYtdlp[YoutubeVideo]("ytsearch:"+query, flags)
+	results, err := searchYoutube(query)
+	if err != nil {
+		return ""
+	}
+
+	if len(results.Entries) == 0 {
+		return ""
+	}
+
+	return results.Entries[0].Url
 }
 
 func fetchYoutubePlaylist(query string, start uint, end uint) (YoutubePlaylist, error) {
@@ -580,7 +608,7 @@ func fetchYoutubePlaylist(query string, start uint, end uint) (YoutubePlaylist, 
 }
 
 // loadYoutubeEntry can only be called after the entry was approved for further processing
-func loadYoutubeEntry(entry *Entry, search bool) error {
+func loadYoutubeEntry(entry *Entry) error {
 	if !isYoutubeSourceExpired(entry.SourceUrl) {
 		return nil
 	}
@@ -588,15 +616,8 @@ func loadYoutubeEntry(entry *Entry, search bool) error {
 	var video YoutubeVideo
 	var err error
 
-	query := entry.Url
-	if search {
-		LogInfo("Searching for youtube video with query: %v.", entry.Url)
-		video, err = searchYoutubeVideo(query)
-	} else {
-		LogInfo("Loading youtube entry with url: %v.", entry.Url)
-		video, err = fetchYoutubeVideo(query)
-	}
-
+	LogInfo("Loading youtube entry with url: %v.", entry.Url)
+	video, err = fetchYoutubeVideo(entry.Url)
 	if err != nil {
 		return err
 	}

@@ -35,6 +35,13 @@ export const EVENT_PLAYLIST_DELETE  = id++;
 export const EVENT_PLAYLIST_UPDATE  = id++;
 export const EVENT_PLAYLIST_SHUFFLE = id++;
 
+export const ENTRY_SOURCE_NONE     = 0
+export const ENTRY_SOURCE_YOUTUBE  = 1
+export const ENTRY_SOURCE_TIKTOK   = 2
+export const ENTRY_SOURCE_TWITCH   = 3
+export const ENTRY_SOURCE_TWITTER  = 4
+export const ENTRY_SOURCE_BANDCAMP = 5
+
 function getEventName(type) {
     switch (type) {
         case EVENT_PLAYER_PLAY:         return "player play";
