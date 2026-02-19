@@ -1599,7 +1599,7 @@ func (server *Server) playlistAdd(requested RequestEntry, userId uint64) error {
 		return nil;
 	}
 
-	source := server.detectYtdlpSource(requested.Url)
+	source := server.detectYtdlpSource(entry.Url)
 	if source != ENTRY_SOURCE_NONE {
 		server.loadYtdlpSource(&entry, source)
 	}
@@ -1611,7 +1611,7 @@ func (server *Server) playlistAdd(requested RequestEntry, userId uint64) error {
 		}
 	}
 
-	LogInfo("Adding '%s' url to the playlist.", requested.Url)
+	LogInfo("Adding '%s' url to the playlist.", entry.Url)
 	server.state.mutex.Lock()
 	server.playlistAddOne(entry, requested.PlaylistToTop)
 	server.state.mutex.Unlock()
