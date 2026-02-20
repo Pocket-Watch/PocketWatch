@@ -366,7 +366,6 @@ func (server *Server) setupFileProxy(proxy *FileProxy, url, referer, baseFilenam
 		LogWarn("The provided URL is invalid: %v", err)
 		return false
 	}
-
 	if parsedUrl.Host == "" {
 		LogInfo("The provided URL has no host: %v", url)
 		return false

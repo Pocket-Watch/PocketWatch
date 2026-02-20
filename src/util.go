@@ -641,12 +641,15 @@ func formatMegabytes(bytes int64, precision int) string {
 	return formatFloat(float64(bytes)/float64(1024*1024), precision)
 }
 
+const MAX_ERROR_BODY_SIZE = 2048
+
 func getContentLength(url string, referer string) (int64, error) {
 	// HEAD method returns metadata of a resource, but it may not be supported, better use GET
 	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return -1, err
 	}
+	request.Header.Set("User-Agent", userAgent)
 	if referer != "" {
 		request.Header.Set("Referer", referer)
 	}
@@ -657,7 +660,9 @@ func getContentLength(url string, referer string) (int64, error) {
 	defer response.Body.Close()
 
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return -1, errors.New("Status code: " + response.Status)
+		limitedBody := io.LimitReader(response.Body, MAX_ERROR_BODY_SIZE)
+		errorDetails, _ := io.ReadAll(limitedBody)
+		return -1, errors.New(response.Status + " " + string(errorDetails))
 	}
 	length := response.Header.Get("Content-Length")
 	if length == "" {

@@ -1390,8 +1390,7 @@ func (server *Server) playerSet(requested RequestEntry, userId uint64) error {
 			LogWarn("Not setting URL, issue: %v", err)
 			return err
 		}
-
-		url = relativeUrl.String()
+		url = relativeUrl
 	}
 
 	if requested.QuerySource == ENTRY_SOURCE_YOUTUBE {
@@ -1425,7 +1424,7 @@ func (server *Server) playerSet(requested RequestEntry, userId uint64) error {
 		server.state.mutex.Lock()
 		server.playlistAddMany(entries, requested.PlaylistToTop)
 		server.state.mutex.Unlock()
-		return nil;
+		return nil
 	}
 
 	return nil
@@ -1552,13 +1551,12 @@ func (server *Server) historyPlaylistAdd(entryId uint64) error {
 func (server *Server) playlistAdd(requested RequestEntry, userId uint64) error {
 	url := requested.Url
 	if url != "" {
-		parsedUrl, err := server.relativizeUrl(requested.Url)
+		relativeUrl, err := server.relativizeUrl(requested.Url)
 		if err != nil {
 			LogWarn("Not setting URL, issue: %v", err)
 			return err
 		}
-
-		url = parsedUrl.String()
+		url = relativeUrl
 	}
 
 	if requested.QuerySource == ENTRY_SOURCE_YOUTUBE {
@@ -1585,7 +1583,7 @@ func (server *Server) playlistAdd(requested RequestEntry, userId uint64) error {
 		server.playlistAddMany(localEntries, requested.PlaylistToTop)
 		server.state.mutex.Unlock()
 		return nil
-	} 
+	}
 
 	if requested.PlaylistFetch && requested.QuerySource == ENTRY_SOURCE_YOUTUBE {
 		entries, err := loadYoutubePlaylist(entry.Url, requested.PlaylistSkipCount, requested.PlaylistMaxSize, userId)
@@ -1596,7 +1594,7 @@ func (server *Server) playlistAdd(requested RequestEntry, userId uint64) error {
 		server.state.mutex.Lock()
 		server.playlistAddMany(entries, requested.PlaylistToTop)
 		server.state.mutex.Unlock()
-		return nil;
+		return nil
 	}
 
 	source := server.detectYtdlpSource(entry.Url)
@@ -2016,15 +2014,16 @@ func (server *Server) createNewInvite(userId uint64) Invite {
 	return invite
 }
 
-func (server *Server) relativizeUrl(url string) (*net_url.URL, error) {
+// relativizeUrl makes the url relative or returns the url unchanged; in case of invalid urls an error is returned
+func (server *Server) relativizeUrl(url string) (string, error) {
 	_, safe := safeJoin(url)
 	if !safe {
 		// The path could be simplified and then processed
-		return nil, errors.New("the path is traversed")
+		return "", errors.New("the path is traversed")
 	}
 	urlStruct, err := net_url.Parse(url)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	// Cover links containing #
@@ -2034,13 +2033,13 @@ func (server *Server) relativizeUrl(url string) (*net_url.URL, error) {
 		// Maintain query params
 		relativeUrl := strings.TrimPrefix(urlStruct.Path, PAGE_ROOT)
 		if !strings.HasPrefix(relativeUrl, CONTENT_MEDIA) {
-			return nil, errors.New("relative URL does not point to " + CONTENT_MEDIA)
+			return "", errors.New("relative URL does not point to " + CONTENT_MEDIA)
 		}
 		urlStruct.Scheme = ""
 		urlStruct.Host = ""
 		urlStruct.Path = relativeUrl
 	}
-	return urlStruct, nil
+	return urlStruct.String(), nil
 }
 
 func (entry *Entry) cacheThumbnail() {
