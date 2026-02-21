@@ -1597,6 +1597,7 @@ func (server *Server) playlistAdd(requested RequestEntry, userId uint64) error {
 		return nil
 	}
 
+	// NOTE(kihau): Add to playlist immediately and preload instead of waiting for the source to load.
 	source := server.detectYtdlpSource(entry.Url)
 	if source != ENTRY_SOURCE_NONE {
 		server.loadYtdlpSource(&entry, source)

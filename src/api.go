@@ -1004,7 +1004,7 @@ func (server *Server) apiStreamStart(w http.ResponseWriter, r *http.Request, use
 		LastSetAt: now,
 	}
 
-	server.setNewEntry(entry, userId)
+	go server.setNewEntry(entry, userId)
 }
 
 func (server *Server) apiStreamUpload(w http.ResponseWriter, r *http.Request, userId uint64) {
