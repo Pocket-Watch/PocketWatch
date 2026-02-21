@@ -254,6 +254,7 @@ func StartServer(config ServerConfig, db *sql.DB) {
 
 	go server.periodicResync()
 	go server.periodicInactiveUserCleanup()
+	go server.periodicCacheCleanup()
 
 	internalLogger := CreateInternalLoggerForHttpServer()
 
@@ -716,6 +717,24 @@ func (server *Server) periodicInactiveUserCleanup() {
 
 		server.users.mutex.Unlock()
 		time.Sleep(time.Hour * 24)
+	}
+}
+
+func (server *Server) periodicCacheCleanup() {
+	for {
+		time.Sleep(time.Second * 10)
+		server.state.resourceLock.Lock()
+		resources := server.state.resources
+		var toRemove []string
+		for k, v := range resources {
+			if v.isExpired() {
+				toRemove = append(toRemove, k)
+			}
+		}
+		for _, k := range toRemove {
+			delete(resources, k)
+		}
+		server.state.resourceLock.Unlock()
 	}
 }
 
