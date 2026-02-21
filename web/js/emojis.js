@@ -1914,3 +1914,21 @@ const EMOJIS = [
 ["🏁", "Chequered Flag"],
 ["🚩", "Triangular Flag"],
 ]
+
+export function getEmojiSuggestions(alias) {
+    let suggestions = [];
+    let start = performance.now();
+    for (let emoji of EMOJIS) {
+        for (let i = 1; i < emoji.length; i++) {
+            if (emoji[i].toLowerCase().includes(alias)) {
+                suggestions.push(emoji[0])
+                break;
+            }
+        }
+    }
+    let elapsed = performance.now() - start;
+    console.log("Received suggestions in", elapsed, "ms")
+    return suggestions;
+}
+
+window.getEmojiSuggestions = getEmojiSuggestions

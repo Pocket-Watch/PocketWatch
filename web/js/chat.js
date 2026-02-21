@@ -3,6 +3,7 @@ import {
     getById, div, img, span, a, isSameDay, show, hide, clearContent, showNotification, input, getFileExtension, startsWithAny
 } from "./util.js";
 import * as common from "./common.js";
+import * as emojis from "./emojis.js";
 export { Chat }
 
 const CHARACTER_LIMIT = 1000;
@@ -693,3 +694,5 @@ class Chat {
         }
     }
 } 
+
+window.getEmojiSuggestions = emojis.getEmojiSuggestions;
