@@ -177,11 +177,9 @@
         function attach_events() {
             window.send_user_token_button.onclick = async _ => {
                 let token = window.user_token_input.value;
-                let data = await send("user/verify", token);
-                if (data) {
-                    localStorage.setItem("token", token);
-                    window.location.href = window.location.origin + data.page_path;
-                } else {
+
+                let verified = await verifyNavigate(token, true);
+                if (!verified) {
                     console.warn("User with provided token does not exist.");
                 }
             };
@@ -191,21 +189,16 @@
 
                 // TOOD(kihau): Do not create account when one already exists (but is not authorized to join).
                 let token = await send("user/create", invite);
-                if (token) {
-                    localStorage.setItem("token", token);
-                    let data = await send("user/verify", token);
-                    window.location.href = window.location.origin + data.page_path;
-                }
+                await verifyNavigate(token, true);
             };
         }
 
         async function connect() {
+            // Token takes priority here so it's not overwritten by invite
             let token = localStorage.getItem("token");
             if (token) {
-                let data = await send("user/verify", token);
-                if (data) {
-                    window.location.href = window.location.origin + data.page_path;
-                    return true;
+                if (await verifyNavigate(token, false)) {
+                    return true
                 }
             }
 
@@ -215,20 +208,28 @@
                 return false;
             }
 
-            if (parts[0] != "invite") {
+            if (parts[0] !== "invite") {
                 return false;
             }
 
             // TOOD(kihau): Do not create account when one already exists (but is not authorized to join).
             token = await send("user/create", parts[1]);
-            if (token) {
-                localStorage.setItem("token", token);
-                let data = await send("user/verify", token);
-                window.location.href = window.location.origin + data.page_path;
-                return true
-            }
+            return await verifyNavigate(token, true)
+        }
 
-            return false
+        async function verifyNavigate(token, setToken) {
+            if (!token) {
+                return false;
+            }
+            let data = await send("user/verify", token);
+            if (!data) {
+                return false;
+            }
+            if (setToken) {
+                localStorage.setItem("token", token)
+            }
+            window.location.href = window.location.origin + data.page_path;
+            return true;
         }
 
         async function main() {
