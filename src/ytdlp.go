@@ -478,55 +478,6 @@ func pickSmallestThumbnail(thumbnails []YoutubeThumbnail) string {
 	return bestThumbnail
 }
 
-// func loadYoutubePlaylist(requested RequestEntry, userId uint64) ([]Entry, error) {
-func loadYoutubePlaylist(url string, skipCount uint, maxSize uint, userId uint64) ([]Entry, error) {
-	query := url
-	parsedUrl, err := neturl.Parse(query)
-	if err != nil {
-		LogError("Failed to parse youtube source url: %v", err)
-		return []Entry{}, fmt.Errorf("Failed to parse youtube source url: %v", err)
-	}
-
-	if !parsedUrl.Query().Has("list") {
-		videoId := parsedUrl.Query().Get("v")
-
-		query := parsedUrl.Query()
-		query.Add("list", "RD"+videoId)
-		parsedUrl.RawQuery = query.Encode()
-
-		LogDebug("Url was not a playlist. Constructed youtube playlist url is now: %v", parsedUrl)
-	}
-
-	size := maxSize
-	if size > 1000 {
-		size = 1000
-	} else if size <= 0 {
-		size = 20
-	}
-
-	query = parsedUrl.String()
-	playlist, err := fetchYoutubePlaylist(query, 1, size)
-	if err != nil {
-		return []Entry{}, err
-	}
-
-	entries := make([]Entry, 0)
-
-	for _, ytEntry := range playlist.Entries {
-		entry := Entry{
-			Url:       ytEntry.Url,
-			Title:     ytEntry.Title,
-			UserId:    userId,
-			Thumbnail: pickSmallestThumbnail(ytEntry.Thumbnails),
-			CreatedAt: time.Now(),
-		}
-
-		entries = append(entries, entry)
-	}
-
-	return entries, nil
-}
-
 func fetchYoutubeVideo(query string) (YoutubeVideo, error) {
 	ok, video, err := getToInternalServer[YoutubeVideo]("/fetch", []Param{{"url", query}}, 9090)
 	if ok {

@@ -1,3 +1,5 @@
+#!/bin/python
+
 import os
 import sys
 import venv
@@ -109,7 +111,7 @@ def get_youtube_playlist(query: str, start: int, end: int):
     ytplaylist_opts = {
         "remote_components": ["ejs:github"],
         'extract_flat': True,
-        'playliststart': start + 1,
+        'playliststart': start,
         'playlistend':   end,
         'color': 'no_color',
         'dump_single_json': True,

@@ -765,7 +765,7 @@ func (server *Server) detectYtdlpSource(url string) QuerySource {
 	}
 }
 
-func (server *Server) loadYtdlpSource(newEntry *Entry, source QuerySource) {
+func (server *Server) loadYtdlpSource(newEntry *Entry, source QuerySource) error {
 	var err error
 
 	switch source {
@@ -786,8 +786,10 @@ func (server *Server) loadYtdlpSource(newEntry *Entry, source QuerySource) {
 	newEntry.cacheThumbnail()
 	if err != nil {
 		server.writeEventToAllConnections("playererror", err.Error(), SERVER_ID)
-		return
+		return err
 	}
+
+	return nil
 }
 
 func (server *Server) setNewEntry(newEntry Entry, setById uint64) {
@@ -1328,10 +1330,14 @@ func (server *Server) isLocalDirectory(url string) (bool, string) {
 	return true, urlPath
 }
 
-func (server *Server) getEntriesFromDirectory(dir string, userId uint64) []Entry {
+func (server *Server) loadLocalPlaylist(directoryPath string, addToTop bool, userId uint64) error {
+	LogInfo("Adding directory '%s' to the playlist.", directoryPath)
 	entries := make([]Entry, 0)
 
-	items, _ := os.ReadDir(dir)
+	items, err := os.ReadDir(directoryPath)
+	if err != nil {
+		return err
+	}
 
 	now := time.Now()
 	for _, item := range items {
@@ -1339,7 +1345,7 @@ func (server *Server) getEntriesFromDirectory(dir string, userId uint64) []Entry
 			continue
 		}
 		// path.Join will always use forward slashes independent of the OS
-		webPath := path.Join(dir, item.Name())
+		webPath := path.Join(directoryPath, item.Name())
 
 		LogDebug("File URL: %v", webPath)
 
@@ -1356,7 +1362,10 @@ func (server *Server) getEntriesFromDirectory(dir string, userId uint64) []Entry
 		entries = append(entries, entry)
 	}
 
-	return entries
+	server.state.mutex.Lock()
+	server.playlistAddMany(entries, addToTop)
+	server.state.mutex.Unlock()
+	return nil
 }
 
 func (server *Server) cleanupDummyUsers() []User {
@@ -1435,15 +1444,7 @@ func (server *Server) playerSet(requested RequestEntry, userId uint64) error {
 
 	source := server.detectYtdlpSource(entry.Url)
 	if requested.PlaylistFetch && source == ENTRY_SOURCE_YOUTUBE {
-		entries, err := loadYoutubePlaylist(entry.Url, requested.PlaylistSkipCount, requested.PlaylistMaxSize, userId)
-		if err != nil {
-			return err
-		}
-
-		server.state.mutex.Lock()
-		server.playlistAddMany(entries, requested.PlaylistToTop)
-		server.state.mutex.Unlock()
-		return nil
+		return server.loadYoutubePlaylist(entry.Url, requested.PlaylistSkipCount, requested.PlaylistMaxSize, requested.PlaylistToTop, userId)
 	}
 
 	return nil
@@ -1582,59 +1583,49 @@ func (server *Server) playlistAdd(requested RequestEntry, userId uint64) error {
 		url = searchYoutubeForUrl(requested.Query)
 	}
 
-	entry := Entry{
-		Url:        url,
-		UserId:     userId,
-		Title:      requested.Title,
-		UseProxy:   requested.UseProxy,
-		RefererUrl: requested.Referer,
-		Subtitles:  requested.Subtitles,
-		CreatedAt:  time.Now(),
-	}
-
-	entry.Title = constructTitleWhenMissing(&entry)
-
 	isLocalDir, path := server.isLocalDirectory(url)
 	if isLocalDir {
-		LogInfo("Adding directory '%s' to the playlist.", path)
-		localEntries := server.getEntriesFromDirectory(path, userId)
+		return server.loadLocalPlaylist(path, requested.PlaylistToTop, userId)
+	} 
+
+	source := server.detectYtdlpSource(url)
+	if requested.PlaylistFetch && source == ENTRY_SOURCE_YOUTUBE {
+		return server.loadYoutubePlaylist(url, requested.PlaylistSkipCount, requested.PlaylistMaxSize, requested.PlaylistToTop, userId)
+	} else {
+		now := time.Now()
+		entry := Entry{
+			Url:        url,
+			UserId:     userId,
+			Title:      requested.Title,
+			UseProxy:   requested.UseProxy,
+			RefererUrl: requested.Referer,
+			Subtitles:  requested.Subtitles,
+			CreatedAt:  now,
+			LastSetAt:  now,
+		}
+
+		entry.Title = constructTitleWhenMissing(&entry)
+
+		source := server.detectYtdlpSource(entry.Url)
+		if source != ENTRY_SOURCE_NONE {
+			if err := server.loadYtdlpSource(&entry, source); err != nil {
+				return err
+			}
+		}
+
+		if requested.LyricsFetch {
+			subtitle, err := server.state.fetchLyrics(entry.Title, entry.Metadata)
+			if err != nil {
+				entry.Subtitles = append(entry.Subtitles, subtitle)
+			}
+		}
+
+		LogInfo("Adding '%s' url to the playlist.", entry.Url)
 		server.state.mutex.Lock()
-		server.playlistAddMany(localEntries, requested.PlaylistToTop)
+		server.playlistAddOne(entry, requested.PlaylistToTop)
 		server.state.mutex.Unlock()
 		return nil
 	}
-
-	if requested.PlaylistFetch && requested.QuerySource == ENTRY_SOURCE_YOUTUBE {
-		entries, err := loadYoutubePlaylist(entry.Url, requested.PlaylistSkipCount, requested.PlaylistMaxSize, userId)
-		if err != nil {
-			return err
-		}
-
-		server.state.mutex.Lock()
-		server.playlistAddMany(entries, requested.PlaylistToTop)
-		server.state.mutex.Unlock()
-		return nil
-	}
-
-	// NOTE(kihau): Add to playlist immediately and preload instead of waiting for the source to load.
-	source := server.detectYtdlpSource(entry.Url)
-	if source != ENTRY_SOURCE_NONE {
-		server.loadYtdlpSource(&entry, source)
-	}
-
-	if requested.LyricsFetch {
-		subtitle, err := server.state.fetchLyrics(entry.Title, entry.Metadata)
-		if err != nil {
-			entry.Subtitles = append(entry.Subtitles, subtitle)
-		}
-	}
-
-	LogInfo("Adding '%s' url to the playlist.", entry.Url)
-	server.state.mutex.Lock()
-	server.playlistAddOne(entry, requested.PlaylistToTop)
-	server.state.mutex.Unlock()
-
-	return nil
 }
 
 func (server *Server) playlistAddOne(entry Entry, toTop bool) error {
@@ -1730,9 +1721,7 @@ func (server *Server) playlistMove(data PlaylistMoveRequest, userId uint64) erro
 
 	event := createPlaylistEvent("move", eventData)
 	server.writeEventToAllConnections("playlist", event, userId)
-
 	go server.preloadYoutubeSourceOnNextEntry()
-
 	return nil
 }
 
@@ -1746,9 +1735,7 @@ func (server *Server) playlistDelete(entryId uint64, userId uint64) error {
 	}
 
 	server.playlistDeleteAt(index)
-
 	go server.preloadYoutubeSourceOnNextEntry()
-
 	return nil
 }
 
@@ -1760,7 +1747,6 @@ func (server *Server) playlistDeleteAt(index int) Entry {
 
 	event := createPlaylistEvent("delete", entry.Id)
 	server.writeEventToAllConnections("playlist", event, 0)
-
 	return entry
 }
 
@@ -1784,7 +1770,6 @@ func (server *Server) playlistShuffle() {
 
 	event := createPlaylistEvent("shuffle", server.state.playlist)
 	server.writeEventToAllConnections("playlist", event, 0)
-
 	go server.preloadYoutubeSourceOnNextEntry()
 }
 
@@ -1805,7 +1790,6 @@ func (server *Server) playlistUpdate(entry Entry, userId uint64) error {
 
 	event := createPlaylistEvent("update", updated)
 	server.writeEventToAllConnections("playlist", event, userId)
-
 	return nil
 }
 
@@ -2085,4 +2069,57 @@ func (entry *Entry) cacheThumbnail() {
 	if err != nil {
 		LogError("Thumbnail directory could not be culled: %v", err)
 	}
+}
+
+func (server *Server) loadYoutubePlaylist(url string, skipCount uint, maxSize uint, addToTop bool, userId uint64) error {
+	query := url
+	parsedUrl, err := net_url.Parse(query)
+	if err != nil {
+		LogError("Failed to parse youtube source url: %v", err)
+		return fmt.Errorf("Failed to parse youtube source url: %v", err)
+	}
+
+	if !parsedUrl.Query().Has("list") {
+		videoId := parsedUrl.Query().Get("v")
+
+		query := parsedUrl.Query()
+		query.Add("list", "RD"+videoId)
+		parsedUrl.RawQuery = query.Encode()
+
+		LogDebug("Url was not a playlist. Constructed youtube playlist url is now: %v", parsedUrl)
+	}
+
+	size := maxSize + skipCount
+	if size > 1000 {
+		size = 1000
+	} else if size <= 0 {
+		size = 20
+	}
+
+	query = parsedUrl.String()
+	playlist, err := fetchYoutubePlaylist(query, skipCount + 1, size)
+	if err != nil {
+		return err
+	}
+
+	entries := make([]Entry, 0)
+
+	for _, ytEntry := range playlist.Entries {
+		entry := Entry{
+			Url:       ytEntry.Url,
+			Title:     ytEntry.Title,
+			UserId:    userId,
+			Thumbnail: pickSmallestThumbnail(ytEntry.Thumbnails),
+			CreatedAt: time.Now(),
+		}
+
+		entries = append(entries, entry)
+	}
+
+	server.state.mutex.Lock()
+	server.playlistAddMany(entries, addToTop)
+	server.state.mutex.Unlock()
+
+	go server.preloadYoutubeSourceOnNextEntry()
+	return nil
 }
