@@ -212,6 +212,7 @@
 
 .chat_edit_send_button,
 #chat_input_upload_button,
+#chat_input_emote_button,
 #chat_input_send_button {
     height: 28px;
     width: 28px;
@@ -228,12 +229,14 @@
 
 .chat_edit_send_button:hover,
 #chat_input_upload_button:hover,
+#chat_input_emote_button:hover,
 #chat_input_send_button:hover {
     background-color: var(--bg_3);
 }
 
 .chat_edit_send_button:active,
 #chat_input_upload_button:active,
+#chat_input_emote_button:active,
 #chat_input_send_button:active {
     background-color: var(--bg_4);
 }
@@ -253,18 +256,21 @@
 
 .chat_edit_send_button svg,
 #chat_input_upload_button svg,
+#chat_input_emote_button svg,
 #chat_input_send_button svg {
     fill: var(--fg_4);
 }
 
 .chat_edit_send_button:hover svg,
 #chat_input_upload_button:hover svg,
+#chat_input_emote_button:hover svg,
 #chat_input_send_button:hover svg {
     fill: var(--fg_3);
 }
 
 .chat_edit_send_button:active svg,
 #chat_input_upload_button:active svg,
+#chat_input_emote_button:active svg,
 #chat_input_send_button:active svg {
     fill: var(--fg_2);
 }

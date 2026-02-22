@@ -92,7 +92,7 @@ export function createEntryDropdown(entry, user) {
 
     let lastSetAtDate;
     if (lastSetAt.getFullYear() == 1) {
-        lastSetAtDate  = span("entry_dropdown_last_set_at_date", "Not Available");
+        lastSetAtDate  = span("entry_dropdown_last_set_at_date", "Never");
     } else {
         lastSetAtDate  = span("entry_dropdown_last_set_at_date", lastSetAt.toLocaleString());
     }
