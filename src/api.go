@@ -993,15 +993,13 @@ func (server *Server) apiStreamStart(w http.ResponseWriter, r *http.Request, use
 
 	server.state.liveStream = LiveStream{}
 
-	now := time.Now()
 	entry := Entry{
 		Url:       entryUrl,
 		UserId:    user.Id,
 		Title:     user.Username + "'s stream",
 		UseProxy:  false,
 		Subtitles: []Subtitle{},
-		CreatedAt: now,
-		LastSetAt: now,
+		CreatedAt: time.Now(),
 	}
 
 	go server.setNewEntry(entry, userId)

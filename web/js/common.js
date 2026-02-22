@@ -89,8 +89,13 @@ export function createEntryDropdown(entry, user) {
 
     let infoContentBot = div("entry_dropdown_info_content");
     let subsCount      = span("entry_dropdown_subtitle_count", "0 subtitles");
-    let lastSetAtDate  = span("entry_dropdown_last_set_at_date", lastSetAt.toLocaleString());
 
+    let lastSetAtDate;
+    if (lastSetAt.getFullYear() == 1) {
+        lastSetAtDate  = span("entry_dropdown_last_set_at_date", "Not Available");
+    } else {
+        lastSetAtDate  = span("entry_dropdown_last_set_at_date", lastSetAt.toLocaleString());
+    }
 
     if (!entry.subtitles || entry.subtitles.length === 0) {
         subsCount.textContent = "No subtitles";

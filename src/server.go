@@ -1355,7 +1355,6 @@ func (server *Server) loadLocalPlaylist(directoryPath string, addToTop bool, use
 			UseProxy:  false,
 			Subtitles: []Subtitle{},
 			CreatedAt: now,
-			LastSetAt: now,
 		}
 
 		entry.Title = constructTitleWhenMissing(&entry)
@@ -1601,7 +1600,6 @@ func (server *Server) playlistAdd(requested RequestEntry, userId uint64) error {
 			RefererUrl: requested.Referer,
 			Subtitles:  requested.Subtitles,
 			CreatedAt:  now,
-			LastSetAt:  now,
 		}
 
 		entry.Title = constructTitleWhenMissing(&entry)
@@ -2123,3 +2121,5 @@ func (server *Server) loadYoutubePlaylist(url string, skipCount uint, maxSize ui
 	go server.preloadYoutubeSourceOnNextEntry()
 	return nil
 }
+
+
