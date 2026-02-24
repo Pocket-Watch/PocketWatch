@@ -13,6 +13,9 @@ class History {
     constructor() {
         this.controlsClearButton    = getById("history_controls_clear");
         this.controlsSettingsButton = getById("history_controls_settings");
+        this.controlsSearchInput    = getById("history_controls_search_input");
+
+        this.isSearching = false;
 
         // Corresponds to the actual history entries on the server.
         this.entries = [];
@@ -52,6 +55,7 @@ class History {
     attachHistoryEvents() {
         this.controlsClearButton.onclick    = _ => api.historyClear();
         this.controlsSettingsButton.onclick = _ => this.onSettingsClick();
+        this.controlsSearchInput.oninput    = _ => this.onSearchInput();
 
         this.contextMenu.oncontextmenu = event => {
             event.preventDefault();
@@ -68,6 +72,56 @@ class History {
         this.contextMenuCopyEntry.onclick   = _ => this.onContextEntryCopy(this.contextMenuEntry);
         this.contextMenuAddPlaylist.onclick = _ => api.historyPlaylistAdd(this.contextMenuEntry.id);
         this.contextMenuDelete.onclick      = _ => api.historyDelete(this.contextMenuEntry.id);
+    }
+
+    shouldShowEntry(entry) {
+        if (!this.isSearching) {
+            return true;
+        }
+
+        let search = this.controlsSearchInput.value.trim().toLowerCase();
+        let title  = entry.title.toLowerCase();
+        let url    = entry.url.toLowerCase();
+        if (title.includes(search) || url.includes(search)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    clearSearch() {
+        this.isSearching = false;
+        this.controlsSearchInput.value = "";
+        for (let i = 0; i < this.htmlEntries.length; i++) {
+            show(this.htmlEntries[i]);
+        }
+    }
+
+    updateSearch(search) {
+        this.isSearching = true;
+        search = search.toLowerCase();
+
+        for (let i = 0; i < this.entries.length; i++) {
+            let entry     = this.entries[i];
+            let htmlEntry = this.htmlEntries[i];
+
+            let title = entry.title.toLowerCase();
+            let url   = entry.url.toLowerCase();
+            if (title.includes(search) || url.includes(search)) {
+                show(htmlEntry);
+            } else {
+                hide(htmlEntry);
+            }
+        }
+    }
+
+    onSearchInput() {
+        let search = this.controlsSearchInput.value.trim();
+        if (search === "") {
+            this.clearSearch();
+        } else {
+            this.updateSearch(search);
+        }
     }
 
     hideContextMenu() {
@@ -213,10 +267,16 @@ class History {
         }
 
         for (let i = 0; i < entries.length; i++) {
+            let entry     = this.entries[i];
             let htmlEntry = this.htmlEntries[i];
             setTimeout(_ => {
                 window.getComputedStyle(htmlEntry).marginLeft;
-                show(htmlEntry);
+                if (this.shouldShowEntry(entry)) {
+                    show(htmlEntry);
+                } else {
+                    hide(htmlEntry);
+                }
+
             }, i * BULK_ACTION_DELAY);
         }
     }
@@ -232,7 +292,11 @@ class History {
         this.htmlEntryList.insertBefore(htmlEntry, first);
 
         window.getComputedStyle(htmlEntry).marginLeft;
-        show(htmlEntry);
+        if (this.shouldShowEntry(entry)) {
+            show(htmlEntry);
+        } else {
+            hide(htmlEntry);
+        }
 
         if (this.entries.length > MAX_HISTORY_SIZE) {
             this.entries.shift();
@@ -272,5 +336,6 @@ class History {
 
         this.htmlEntries   = [];
         this.entries       = [];
+        this.clearSearch();
     }
 }

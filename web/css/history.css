@@ -118,7 +118,7 @@
     position: relative;
     box-sizing: border-box;
     flex-direction: column;
-    padding: 4px 0;
+    padding: 0 0 4px 0;
     overflow-y: scroll;
     overflow-x: hidden;
     scroll-behavior: smooth;
@@ -128,7 +128,6 @@
 #history_entry_list {
     width: 100%;
     height: auto;
-    row-gap: 4px;
     display: flex;
     position: relative;
     box-sizing: border-box;
@@ -142,6 +141,8 @@
 
 .history_entry.show {
     height: 64px;
+    border: 2px solid var(--bg_6);
+    margin-top: 4px;
     opacity: 1;
     transform: none;
     transition: 
@@ -154,7 +155,8 @@
     width: calc(100% - 4px);
     border-radius: 6px;
     box-shadow: 0 0 3px 0 var(--bg_1);
-    border: 2px solid var(--bg_6);
+    margin-top: 0;
+    border: 0;
     z-index: 0;
     display: inline-block;
     user-select: none;
