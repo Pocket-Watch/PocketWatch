@@ -1245,6 +1245,12 @@ func (server *Server) handleWSMessage(data []byte, userId uint64) {
 		return
 	}
 
+	defer func() {
+		if err := recover(); err != nil {
+			LogFatalUp(2, "Panic in WebSocket event '%v' serving user id = %v: %v", getEventName(event.Type), userId, err)
+		}
+	}()
+
 	switch event.Type {
 	case EVENT_PLAYER_PLAY:
 		handleWsEvent(event, userId, server.playerPlay)

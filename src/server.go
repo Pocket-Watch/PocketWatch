@@ -780,7 +780,7 @@ func (server *Server) loadYtdlpSource(newEntry *Entry, source QuerySource) error
 	case ENTRY_SOURCE_BANDCAMP:
 		// TODO(kihau)
 	default:
-		LogError("Unsuppored ytdlp source host detected: %v", source)
+		LogError("Unsupported ytdlp source host detected: %v", source)
 	}
 
 	newEntry.cacheThumbnail()
