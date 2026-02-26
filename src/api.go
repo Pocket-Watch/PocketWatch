@@ -650,7 +650,7 @@ func (server *Server) apiSubtitleDownload(w http.ResponseWriter, r *http.Request
 	if hash >= 0 {
 		data.Url = data.Url[:hash]
 	}
-	filename := filepath.Base(data.Url)
+	filename := filepath.Base(url.Path)
 	extension := path.Ext(filename)
 	serverUrl := data.Url
 
