@@ -20,9 +20,24 @@
         <link rel="stylesheet" href="css/themes/gruvbox.css">
         <link rel="stylesheet" href="css/themes/catppuccin.css">
         <link id="selected_theme" rel="stylesheet" href="css/themes/gruvbox.css">
+
+        <style>
+            #load-info-box {
+                border-radius: 6px;
+                font-size: 50px;
+                min-height: 100px;
+                display: flex;
+                box-sizing: border-box;
+                justify-content: center;
+                align-items: center;
+                color: white;
+                background-color: #11111b;
+            }
+        </style>
     </head>
 
     <body id="page_root">
+        <div id="load-info-box" style="display: none">Load info</div>
         <div id="settings_menu_modal">
             <div id="settings_menu_root" tabindex="0">
                 <div id="settings_menu_left_panel_tabs" tabindex="0">
@@ -170,9 +185,7 @@
         </div>
 
         <div id="compat_popup" style="display: none">
-            <div id="compat_info">
-                Your browser may not be supported
-            </div>
+            <div id="compat_info">Your browser may not be supported</div>
             <div id="compat_buttons">
                 <button id="compat_download" class="widget_button" style="display: none">Download</button>
                 <button id="compat_ok" class="widget_button">OK</button>
@@ -808,11 +821,17 @@
                     .filter(e => e.responseStatus && e.responseStatus >= 400 &&
                         extensions.some(ext => e.name.endsWith(ext)))
             }
+
             document.addEventListener("readystatechange", _ => {
                 if (document.readyState !== "complete") return;
+                let loadInfoBox = document.getElementById("load-info-box");
                 let failed = findFailedResources([".js", ".css"]);
                 if (failed.length > 0) {
                     console.error("ERROR: Website failed to fully load. Failed resources:", failed)
+                    loadInfoBox.style.display = "";
+                    loadInfoBox.textContent = "FAILED to load " + failed.length + " resources";
+                } else {
+                    loadInfoBox.remove()
                 }
             })
         </script>
