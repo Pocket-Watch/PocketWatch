@@ -290,3 +290,61 @@
 #chat_context_delete:active {
     background-color: var(--red_custom_1);
 }
+
+#chat_scroll_to_bottom_button {
+    width: 140px;
+    height: 24px;
+    position: absolute;
+    bottom: 52px;
+    left: 0;
+    right: 0;
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: 6px;
+    background-color: var(--bg_4);
+    border: 1px solid var(--gray_2);
+    box-shadow: 1px 1px 3px 0 var(--bg_0);
+    display: none;
+}
+
+#chat_scroll_to_bottom_button.show {
+    display: block;
+}
+
+#chat_scroll_to_bottom_button:hover {
+    background-color: var(--bg_5);
+    border: 1px solid var(--fg_6);
+}
+
+#chat_scroll_to_bottom_button:active {
+    background-color: var(--bg_6);
+    border: 1px solid var(--fg_5);
+    box-shadow: none;
+}
+
+#chat_scroll_to_bottom_button svg {
+    height: 10px;
+    width: 10px;
+    fill: var(--fg_2);
+}
+
+#chat_scroll_to_bottom_button:hover svg {
+    fill: var(--fg_1);
+}
+
+#chat_scroll_to_bottom_button:active svg {
+    fill: var(--fg_0);
+}
+
+#chat_scroll_to_bottom_button span {
+    margin-left: 4px;
+    color: var(--fg_2);
+}
+
+#chat_scroll_to_bottom_button:hover span {
+    color: var(--fg_1);
+}
+
+#chat_scroll_to_bottom_button:active span {
+    color: var(--fg_0);
+}

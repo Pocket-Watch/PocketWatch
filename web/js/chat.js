@@ -13,19 +13,20 @@ const CHAT_PREFIXES = [HTTP_PREFIX, HTTPS_PREFIX, RES_PREFIX]
 
 class Chat {
     constructor() {
-        this.contentRoot         = getById("content_chat");
-        this.chatInput           = getById("chat_input_box");
-        this.chatListRoot        = getById("chat_message_list_root");
-        this.chatList            = getById("chat_message_list");
-        this.sendMessageButton   = getById("chat_input_send_button");
-        this.uploadButton        = getById("chat_input_upload_button");
-        this.contextMenu         = getById("chat_context_menu");
-        this.contextMenuEdit     = getById("chat_context_edit");
-        this.contextMenuDelete   = getById("chat_context_delete");
-        this.contextMenuCopy     = getById("chat_context_copy");
-        this.contextMenuCopyUrl  = getById("chat_context_copy_url");
-        this.contextMenuShareUrl = getById("chat_context_share_url");
-        this.contextMenuOpen     = getById("chat_context_open");
+        this.contentRoot          = getById("content_chat");
+        this.chatInput            = getById("chat_input_box");
+        this.chatListRoot         = getById("chat_message_list_root");
+        this.chatList             = getById("chat_message_list");
+        this.sendMessageButton    = getById("chat_input_send_button");
+        this.uploadButton         = getById("chat_input_upload_button");
+        this.contextMenu          = getById("chat_context_menu");
+        this.contextMenuEdit      = getById("chat_context_edit");
+        this.contextMenuDelete    = getById("chat_context_delete");
+        this.contextMenuCopy      = getById("chat_context_copy");
+        this.contextMenuCopyUrl   = getById("chat_context_copy_url");
+        this.contextMenuShareUrl  = getById("chat_context_share_url");
+        this.contextMenuOpen      = getById("chat_context_open");
+        this.scrollToBottomButton = getById("chat_scroll_to_bottom_button");
 
         this.currentUserId = -1;
 
@@ -203,6 +204,12 @@ class Chat {
             if (progress < 10.0 && !this.reachedChatTop) {
                 await this.loadMoreMessages();
             }
+
+            if (Math.abs(list.scrollTop) > 500) {
+                show(this.scrollToBottomButton);
+            } else {
+                hide(this.scrollToBottomButton);
+            }
         };
 
         this.contextMenu.oncontextmenu = event => {
@@ -276,6 +283,10 @@ class Chat {
             let data = event.clipboardData;
             this.uploadAndPasteImage(data.files);
         };
+
+        this.scrollToBottomButton.onclick = _ => {
+            this.chatListRoot.scrollTo(0, 0);
+        }
     }
 
     clear() {
