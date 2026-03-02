@@ -238,6 +238,8 @@ class Chat {
             picker.type   = "file";
             picker.accept = "image/*";
 
+            document.body.appendChild(picker);
+
             picker.onchange = async event => {
                 let files = event.target.files;
                 console.debug("Opened file picker with", files)
@@ -245,6 +247,7 @@ class Chat {
             };
 
             picker.click();
+            picker.remove();
         };
 
         // Handle shiftKey + Enter as 'new line' for formatting
