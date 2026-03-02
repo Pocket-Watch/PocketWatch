@@ -1028,12 +1028,12 @@ class Internals {
 
     toggleFullscreen() {
         if (this.isFullscreen()) {
-            document.exitFullscreen();
+            document.exitFullscreen().catch(console.error);
             this.svgs.fullscreen.setHref(this.icons.fullscreen_enter);
             this.fireFullscreenChange(false)
         } else {
             this.htmlPlayerRoot.focus();
-            this.htmlPlayerRoot.requestFullscreen();
+            this.htmlPlayerRoot.requestFullscreen().catch(console.error);
             this.svgs.fullscreen.setHref(this.icons.fullscreen_exit);
             this.fireFullscreenChange(true)
         }
