@@ -4,6 +4,7 @@ let player = null;
 
 let videoInput = document.getElementById("demo_video_url");
 let audioInput = document.getElementById("demo_audio_url");
+let consoleArea = document.getElementById("demo_console_area");
 
 function setVideoOnClick() {
     player.setVideoTrack(videoInput.value);
@@ -21,7 +22,24 @@ function attach() {
     main();
 }
 
+function proxyLogs(textElement) {
+    console.log = proxyLogFunction(console.log, textElement);
+    console.debug = proxyLogFunction(console.debug, textElement);
+    console.info = proxyLogFunction(console.info, textElement);
+    console.warn = proxyLogFunction(console.warn, textElement);
+    console.error = proxyLogFunction(console.error, textElement);
+}
+
+function proxyLogFunction(logFunc, textElement) {
+    return (...data) => {
+        logFunc(...data);
+        textElement.value += (data.join(" ") + "\n");
+    }
+}
+
 function main() {
+    proxyLogs(consoleArea);
+    window.addEventListener("beforeunload", _ => consoleArea.value = "");
     window.setVideoOnClick = setVideoOnClick;
     window.setAudioOnClick = setAudioOnClick;
     window.attach = attach;

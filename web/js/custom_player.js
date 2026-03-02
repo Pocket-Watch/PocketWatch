@@ -1921,12 +1921,12 @@ class Internals {
         }
 
         if (Object.getOwnPropertyDescriptor(Document.prototype, "fullscreenElement")) {
-            this.setToast("determined fullscreenElement already exists");
+            console.debug("Determined fullscreenElement property already exists");
             return;
         }
         Object.defineProperty(Document.prototype, "fullscreenElement", {
             get: () => {
-                this.setToast("fullscreenElement rebound getter was called " + document.webkitFullscreenElement);
+                console.debug("Rebound getter was called on fullscreenElement", document.webkitFullscreenElement);
                 return document.webkitFullscreenElement;
             }
         });
