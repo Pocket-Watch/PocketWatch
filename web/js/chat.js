@@ -240,6 +240,7 @@ class Chat {
 
             picker.onchange = async event => {
                 let files = event.target.files;
+                console.debug("Opened file picker with", files)
                 await this.uploadAndPasteImage(files);
             };
 
