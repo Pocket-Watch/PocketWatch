@@ -536,7 +536,7 @@ class Room {
                 return;
             }
 
-            if (error.code === MediaError.MEDIA_ERR_DECODE) {
+            if (error && error.code === MediaError.MEDIA_ERR_DECODE) {
                 console.error("Unable to decode media. " + error.message)
                 this.player.setToast("Unable to decode media. " + error.message);
                 return;
