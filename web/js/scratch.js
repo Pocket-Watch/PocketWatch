@@ -32,8 +32,14 @@ function proxyLogs(textElement) {
 
 function proxyLogFunction(logFunc, textElement) {
     return (...data) => {
+        let isAtBottom = textElement.scrollTop + textElement.clientHeight >= textElement.scrollHeight - 50;
+
         logFunc(...data);
         textElement.value += (data.join(" ") + "\n");
+
+        if (isAtBottom) {
+            textElement.scrollTop = textElement.scrollHeight;
+        }
     }
 }
 
