@@ -2707,6 +2707,9 @@ class Slider {
 
     shift(step) {
         let value = Number(this.slider.value) + step;
+        if (!this.canShiftTo(value)) {
+            return;
+        }
         this.setValue(value);
         this.onInput(value);
     }
@@ -2718,6 +2721,10 @@ class Slider {
 
     getValue() {
         return Number(this.slider.value);
+    }
+
+    canShiftTo(value) {
+        return this.slider.min <= value && value <= this.slider.max;
     }
 }
 

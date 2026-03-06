@@ -275,9 +275,9 @@ class Room {
         this.subShiftTimeout = new Timeout(null, 2000);
         this.playbackSpeedSendEvent = new Timeout(_ => {
             api.wsPlayerSpeedChange(this.player.getSpeed())
-        }, 100);
+        }, 125);
 
-        // Number of time client tried to reconnect after a disconnect.
+        // Number of times client tried to reconnect after a disconnect.
         this.reconnectCounter = 0;
     }
     
