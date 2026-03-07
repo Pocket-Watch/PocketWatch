@@ -2340,6 +2340,7 @@ class Internals {
         preservePitch.setState(this.options.preservePitch);
 
         this.htmlVideo.preservesPitch = this.options.preservePitch;
+        this.htmlAudio.preservesPitch = this.options.preservePitch;
 
         if (this.options.disableVideo) {
             this.htmlVideo.classList.add("disable");
@@ -2413,6 +2414,7 @@ class Internals {
 
         preservePitch.onAction = state => {
             this.htmlVideo.preservesPitch = state;
+            this.htmlAudio.preservesPitch = state;
             this.fireSettingsChange(Options.PLAYER_PRESERVE_PITCH, state);
         };
 
