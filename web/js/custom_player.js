@@ -967,11 +967,18 @@ class Internals {
         }
     }
 
+    getVideoSpeed() {
+        return this.htmlVideo.playbackRate;
+    }
+
     setSpeed(speed) {
         if (isNaN(speed)) {
             speed = 1;
         }
         this.htmlVideo.playbackRate = speed;
+        if (this.hasAudioTrack) {
+            this.htmlAudio.playbackRate = speed;
+        }
     }
 
     setPoster(url) {
@@ -1062,19 +1069,23 @@ class Internals {
     }
 
     reloadTracks() {
-        this.setVideoTrack(this.getUrl());
-        if (this.hasAudioTrack) {
-            this.setAudioTrack(this.getAudioUrl());
-        }
+        let speed = this.getVideoSpeed();
+        this.setVideoTrack(this.getUrl()).then(_ => {
+            if (this.hasAudioTrack) {
+                this.setAudioTrack(this.getAudioUrl()).then(_ => {
+                    this.setSpeed(speed)
+                })
+            } else this.setSpeed(speed)
+        });
     }
 
-    setVideoTrack(url) {
-        this.setTrack(url, this.htmlVideo)
+    async setVideoTrack(url) {
+        await this.setTrack(url, this.htmlVideo)
     }
 
-    setAudioTrack(url) {
-        this.setTrack(url, this.htmlAudio)
+    async setAudioTrack(url) {
         this.hasAudioTrack = true
+        await this.setTrack(url, this.htmlAudio)
     }
 
     async detectHLS(ext, url) {
@@ -1109,7 +1120,7 @@ class Internals {
                 this.isLive = false;
             }
             mediaElement.src = url;
-            mediaElement.load();
+            await mediaElement.load();
         }
     }
 
